@@ -1,19 +1,30 @@
 // FILE: /components/ProductCard.tsx
-import type { DemoProduct } from "@/data/demoProducts";
+export type ProductLike = {
+  id?: string;
+  title: string;
+  brand?: string;
+  price?: string;
+  image: string;
+  badge?: string;
+  condition?: string;
+  location?: string;
+  href?: string;
+  className?: string;
+};
 
-export default function ProductCard({ p }: { p: DemoProduct }) {
+function ProductCardImpl({ p }: { p: ProductLike }) {
+  const Wrapper: any = p.href ? "a" : "div";
   return (
-    <div className="card">
+    <div className={`card ${p.className ?? ""}`}>
       <div className="thumb">
-        {/* Using <img> avoids Next/Image domain config for quick demo */}
         <img src={p.image} alt={p.title} />
         {p.badge && <span className="badge">{p.badge}</span>}
       </div>
       <div className="meta">
-        <div className="brand">{p.brand}</div>
+        {p.brand && <div className="brand">{p.brand}</div>}
         <div className="title">{p.title}</div>
         <div className="row">
-          <span className="price">{p.price}</span>
+          {p.price && <span className="price">{p.price}</span>}
           {p.condition && <span className="cond">{p.condition}</span>}
         </div>
         {p.location && <div className="loc">{p.location}</div>}
@@ -22,4 +33,8 @@ export default function ProductCard({ p }: { p: DemoProduct }) {
   );
 }
 
+// Named export (so `import { ProductCard } from "../components/ProductCard"` works)
+export const ProductCard = ProductCardImpl;
 
+// Default export (so `import ProductCard from "../components/ProductCard"` also works)
+export default ProductCardImpl;
