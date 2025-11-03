@@ -1,85 +1,58 @@
 // FILE: /components/ProductCard.tsx
-
-import React from "react";
-
 export type ProductLike = {
   id?: string;
-  title: string;          // e.g., “Boyfriend Jeans”
-  brand?: string;         // e.g., “DIESEL”
-  price?: string;         // e.g., “A$295”
-  image: string;          // absolute URL or /public path
-  badge?: string;         // e.g., “New”, “Trending”
-  condition?: string;     // e.g., “Very Good”
-  location?: string;      // e.g., “Sydney, AU”
-  href?: string;          // product details link
+  title: string;
+  brand?: string;
+  price?: string;
+  image: string;
+  badge?: string;
+  condition?: string;
+  location?: string;
+  href?: string;
   className?: string;
 };
 
-function Wrapper({
-  href,
-  className,
-  children,
-}: {
-  href?: string;
-  className?: string;
-  children: React.ReactNode;
-}) {
-  if (href) {
-    return (
-      <a href={href} className={className}>
-        {children}
-      </a>
-    );
-  }
-  return <div className={className}>{children}</div>;
-}
-
-function ProductCardImpl(props: ProductLike) {
-  const p = props;
+function ProductCardImpl({ p }: { p: ProductLike }) {
+  const Wrapper: any = p.href ? "a" : "div";
   return (
-    <Wrapper
-      href={p.href}
-      className={`block rounded-xl overflow-hidden bg-zinc-900 border border-zinc-800 hover:border-zinc-700 transition ${p.className ?? ""}`}
-    >
-      <div className="aspect-[4/5] w-full bg-zinc-800">
-        <img
-          src={p.image}
-          alt={p.title}
-          className="h-full w-full object-cover"
-          loading="lazy"
-        />
-        {p.badge && (
-          <span className="absolute m-2 px-2 py-1 text-xs rounded bg-white/90 text-black">
-            {p.badge}
-          </span>
-        )}
+    <Wrapper className={`p-card ${p.className ?? ""}`} href={p.href}>
+      <div className="p-thumb">
+        <img src={p.image} alt={p.title} loading="lazy" />
+        {p.badge && <span className="p-badge">{p.badge}</span>}
       </div>
-
-      <div className="p-3">
-        {p.brand && (
-          <div className="text-xs uppercase tracking-wider text-zinc-400">
-            {p.brand}
-          </div>
-        )}
-        <div className="mt-0.5 text-sm text-zinc-100 line-clamp-2">
-          {p.title}
+      <div className="p-meta">
+        {p.brand && <div className="p-brand">{p.brand}</div>}
+        <div className="p-title" title={p.title}>{p.title}</div>
+        <div className="p-row">
+          {p.price && <span className="p-price">{p.price}</span>}
+          {p.condition && <span className="p-cond">{p.condition}</span>}
         </div>
-
-        <div className="mt-2 flex items-center gap-2 text-sm">
-          {p.price && <span className="text-zinc-100 font-medium">{p.price}</span>}
-          {p.condition && (
-            <span className="text-xs text-zinc-400">{p.condition}</span>
-          )}
-        </div>
-
-        {p.location && (
-          <div className="mt-1 text-xs text-zinc-500">{p.location}</div>
-        )}
+        {p.location && <div className="p-loc">{p.location}</div>}
       </div>
+      <style jsx>{`
+        .p-card {
+          display:block; border:1px solid #1f1f1f; border-radius:12px;
+          background:#0f0f0f; overflow:hidden;
+          transition:transform .12s ease, border-color .12s ease;
+        }
+        .p-card:hover { transform: translateY(-1px); border-color:#2a2a2a; }
+        .p-thumb { position:relative; width:100%; aspect-ratio:1/1; background:#111; }
+        .p-thumb img { width:100%; height:100%; object-fit:cover; display:block; }
+        .p-badge {
+          position:absolute; left:8px; top:8px; font-size:11px; font-weight:700;
+          background:#ffffff; color:#000; border-radius:999px; padding:4px 8px;
+        }
+        .p-meta { padding:8px 10px 10px; color:#eaeaea; }
+        .p-brand { font-size:12px; opacity:.75; }
+        .p-title { font-size:13px; line-height:1.2; margin-top:2px; min-height:32px; }
+        .p-row { display:flex; gap:8px; align-items:center; margin-top:6px; }
+        .p-price { font-weight:800; font-size:14px; }
+        .p-cond { font-size:11px; opacity:.7; border:1px solid #242424; padding:2px 6px; border-radius:6px; }
+        .p-loc { margin-top:6px; font-size:11px; opacity:.7; }
+      `}</style>
     </Wrapper>
   );
 }
 
-// Support BOTH import styles
 export const ProductCard = ProductCardImpl;
 export default ProductCardImpl;
