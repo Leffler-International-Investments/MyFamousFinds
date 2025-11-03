@@ -1,21 +1,25 @@
 // FILE: /components/ProductCard.tsx
-import Link from "next/link";
-import styles from "../styles/home.module.css";
+import type { DemoProduct } from "@/data/demoProducts";
 
-type Props = {
-  id: string; brand: string; name: string; price: string; img: string; compact?: boolean;
-};
-
-export function ProductCard({ id, brand, name, price, img, compact }: Props) {
+export default function ProductCard({ p }: { p: DemoProduct }) {
   return (
-    <Link href={`/product/${id}`} className={compact ? styles.cardCompact : styles.card}>
-      <img src={img} alt={`${brand} ${name}`} />
-      <div className={styles.cardInfo}>
-        <div className={styles.brand}>{brand}</div>
-        <div className={styles.name}>{name}</div>
-        <div className={styles.price}>{price}</div>
+    <div className="card">
+      <div className="thumb">
+        {/* Using <img> avoids Next/Image domain config for quick demo */}
+        <img src={p.image} alt={p.title} />
+        {p.badge && <span className="badge">{p.badge}</span>}
       </div>
-    </Link>
+      <div className="meta">
+        <div className="brand">{p.brand}</div>
+        <div className="title">{p.title}</div>
+        <div className="row">
+          <span className="price">{p.price}</span>
+          {p.condition && <span className="cond">{p.condition}</span>}
+        </div>
+        {p.location && <div className="loc">{p.location}</div>}
+      </div>
+    </div>
   );
 }
+
 
