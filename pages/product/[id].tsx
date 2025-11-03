@@ -5,18 +5,17 @@ import Header from "../../components/Header";
 import Footer from "../../components/Footer";
 
 export default function ProductDetail() {
-  const router = useRouter();
-  const { id } = router.query;
+  const { query } = useRouter();
+  const id = String(query.id || "");
 
-  // Temporary demo data (replace later with dynamic fetch)
   const demo = {
     title: "Gucci Marmont Mini Bag",
-    price: "AU$2,450",
+    price: "$2,450",
     image: "/demo/gucci-bag-1.jpg",
     description:
-      "Classic Gucci Marmont Mini Bag crafted in matelassé leather with the signature GG motif. Includes dust bag and authenticity card.",
-    delivery: "Ships within 3–5 business days across Australia.",
-    payment: "We accept Visa, Mastercard, PayPal, and Afterpay.",
+      "Classic Gucci Marmont Mini Bag crafted in matelassé leather with signature GG motif. Includes dust bag and authenticity card.",
+    delivery: "Ships within 3–5 business days across the US.",
+    payment: "Visa, Mastercard, PayPal, Afterpay.",
   };
 
   return (
@@ -25,70 +24,28 @@ export default function ProductDetail() {
       <Header />
       <main className="wrap">
         <div className="prod">
-          <div className="left">
-            <img src={demo.image} alt={demo.title} />
-          </div>
+          <img src={demo.image} alt={demo.title} />
           <div className="info">
             <h1>{demo.title}</h1>
+            <p className="sku">ID: {id || "demo"}</p>
             <p className="price">{demo.price}</p>
             <p>{demo.description}</p>
-
-            <h4>Delivery</h4>
-            <p>{demo.delivery}</p>
-
-            <h4>Payment</h4>
-            <p>{demo.payment}</p>
-
+            <h4>Delivery</h4><p>{demo.delivery}</p>
+            <h4>Payment</h4><p>{demo.payment}</p>
             <button>Buy Now</button>
           </div>
         </div>
       </main>
       <Footer />
       <style jsx>{`
-        .wrap {
-          max-width: 1080px;
-          margin: 40px auto;
-          padding: 0 16px;
-          color: #eaeaea;
-        }
-        .prod {
-          display: grid;
-          grid-template-columns: 1fr 1fr;
-          gap: 40px;
-        }
-        .left img {
-          width: 100%;
-          border-radius: 12px;
-          object-fit: cover;
-        }
-        h1 {
-          font-size: 24px;
-          font-weight: 700;
-          margin-bottom: 10px;
-        }
-        .price {
-          font-size: 22px;
-          font-weight: bold;
-          margin: 12px 0;
-        }
-        button {
-          background: #fff;
-          color: #000;
-          border: none;
-          border-radius: 8px;
-          padding: 10px 20px;
-          font-weight: 700;
-          cursor: pointer;
-          margin-top: 20px;
-        }
-        button:hover {
-          background: #ccc;
-        }
-        @media (max-width: 768px) {
-          .prod {
-            grid-template-columns: 1fr;
-          }
-        }
+        .wrap{ max-width:1080px; margin:40px auto; padding:0 16px; color:#eaeaea; }
+        .prod{ display:grid; grid-template-columns:1fr 1fr; gap:40px; }
+        img{ width:100%; border-radius:12px; object-fit:cover; }
+        .sku{ opacity:.7; margin:4px 0 0; }
+        .price{ font-size:22px; font-weight:700; margin:12px 0; }
+        button{ background:#fff; color:#000; border:none; border-radius:8px; padding:10px 20px; font-weight:700; cursor:pointer; margin-top:20px; }
+        button:hover{ background:#ccc; }
+        @media (max-width:768px){ .prod{ grid-template-columns:1fr; } }
       `}</style>
     </>
   );
