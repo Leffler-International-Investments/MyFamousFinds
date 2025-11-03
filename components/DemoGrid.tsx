@@ -1,34 +1,28 @@
 // FILE: /components/DemoGrid.tsx
+import ProductCard, { ProductLike } from "./ProductCard";
 
-import React from "react";
-import { ProductCard, ProductLike } from "./ProductCard";
-
-export type DemoProduct = ProductLike;
-
-export default function DemoGrid({
-  title,
-  subtitle,
-  items,
-}: {
-  title: string;
-  subtitle?: string;
-  items: DemoProduct[];
-}) {
+export default function DemoGrid({ title, items }: { title: string; items: ProductLike[] }) {
   return (
-    <section className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <div className="mb-4">
-        <h2 className="text-xl font-semibold text-zinc-100">{title}</h2>
-        {subtitle && (
-          <p className="mt-1 text-sm text-zinc-400">{subtitle}</p>
-        )}
+    <section>
+      <div className="sec">
+        <h3>{title}</h3>
       </div>
-
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
+      <div className="grid">
         {items.map((p) => (
-          // NOTE: pass props directly; ProductCard expects ProductLike
-          <ProductCard key={p.id || p.title} {...p} />
+          // Works with either signature; we’ll pass p explicitly
+          <ProductCard key={p.id || p.title} p={p} />
         ))}
       </div>
+      <style jsx>{`
+        .sec { margin:18px 0 8px; display:flex; align-items:center; justify-content:space-between; }
+        .sec h3 { color:#eaeaea; font-size:16px; font-weight:800; }
+        .grid {
+          display:grid; gap:10px;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+        @media (min-width: 640px) { .grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+        @media (min-width: 1024px){ .grid { grid-template-columns: repeat(5, minmax(0, 1fr)); } }
+      `}</style>
     </section>
   );
 }
