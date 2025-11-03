@@ -24,7 +24,7 @@ export default function Header() {
       <style jsx>{`
         .hdr{
           display:flex; align-items:center; justify-content:space-between;
-          padding:12px 16px; border-bottom:1px solid #1a1a1a; position:sticky; top:0; backdrop-filter:blur(4px);
+          padding:12px 12px; border-bottom:1px solid #1a1a1a; position:sticky; top:0; backdrop-filter:blur(4px);
         }
         .brand :global(img){ height:auto; }
         .nav{ display:flex; gap:16px; font-size:14px; }
