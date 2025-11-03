@@ -1,44 +1,101 @@
 // FILE: /pages/concierge.tsx
-import Head from "next/head";
-import Header from "../components/Header";
-import Footer from "../components/Footer";
-import { useState } from "react";
+import React, { useState } from "react";
 
-export default function Concierge(){
-  const [sent,setSent]=useState(false);
-  async function submit(e:React.FormEvent<HTMLFormElement>){
+export default function ConciergePage() {
+  const [sent, setSent] = useState(false);
+
+  async function submit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    const fd = Object.fromEntries(new FormData(e.currentTarget).entries());
-    await fetch("/api/concierge",{ method:"POST", headers:{ "Content-Type":"application/json" }, body: JSON.stringify(fd) });
+
+    // Build a plain object from the form without using FormData.entries()
+    const formData = new FormData(e.currentTarget);
+    const payload: Record<string, string> = {};
+    formData.forEach((value, key) => {
+      payload[key] = String(value);
+    });
+
+    await fetch("/api/concierge", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+
     setSent(true);
   }
-  return (
-    <>
-      <Head><title>Concierge — Famous Finds</title></Head>
-      <Header />
-      <main className="wrap">
-        <h1>Concierge Service</h1>
-        <p className="hint">White-glove pick-up, authentication and pricing support for high-value items.</p>
-        {sent ? <div className="ok">Thanks — we’ll contact you shortly.</div> : (
-          <form className="form" onSubmit={submit}>
-            <label>Name<input name="name" required /></label>
-            <label>Email<input name="email" type="email" required /></label>
-            <label>City<input name="city" required /></label>
-            <label>Item details<textarea name="details" rows={4} /></label>
-            <button className="btn">Request Concierge</button>
-          </form>
-        )}
+
+  if (sent) {
+    return (
+      <main className="page">
+        <h1>Concierge request sent</h1>
+        <p>Thanks, we’ll be in touch shortly.</p>
       </main>
-      <Footer />
+    );
+  }
+
+  return (
+    <main className="page">
+      <h1>Concierge</h1>
+      <p>Tell us what you’re looking for and we’ll hunt it down for you.</p>
+
+      <form onSubmit={submit} className="form">
+        <label>
+          Your name
+          <input name="name" type="text" required />
+        </label>
+
+        <label>
+          Email
+          <input name="email" type="email" required />
+        </label>
+
+        <label>
+          What are you looking for?
+          <textarea name="request" rows={4} required />
+        </label>
+
+        <button type="submit">Send request</button>
+      </form>
+
       <style jsx>{`
-        .wrap{ max-width:800px; margin:0 auto; padding:24px 16px; }
-        .hint{ color:#aaa; margin:6px 0 12px; }
-        .form{ display:grid; gap:10px; }
-        label{ display:flex; flex-direction:column; gap:6px; color:#ddd; font-size:14px; }
-        input,textarea{ background:#0b0b0b; border:1px solid #1a1a1a; border-radius:8px; color:#eaeaea; padding:10px; }
-        .btn{ background:#fff; color:#000; border:none; border-radius:8px; padding:10px 14px; font-weight:700; width:max-content; }
-        .ok{ border:1px solid #1a1a1a; background:#0f0f0f; padding:16px; border-radius:10px; }
+        .page {
+          max-width: 640px;
+          margin: 0 auto;
+          padding: 24px 16px;
+        }
+        h1 {
+          font-size: 24px;
+          margin-bottom: 8px;
+        }
+        p {
+          margin-bottom: 16px;
+        }
+        .form {
+          display: flex;
+          flex-direction: column;
+          gap: 12px;
+        }
+        label {
+          display: flex;
+          flex-direction: column;
+          font-size: 14px;
+          gap: 4px;
+        }
+        input,
+        textarea {
+          padding: 8px;
+          border-radius: 4px;
+          border: 1px solid #ccc;
+          font: inherit;
+        }
+        button {
+          margin-top: 8px;
+          padding: 10px 16px;
+          border-radius: 4px;
+          border: none;
+          cursor: pointer;
+          font-weight: 600;
+        }
       `}</style>
-    </>
+    </main>
   );
 }
