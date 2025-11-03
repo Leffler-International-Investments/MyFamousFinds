@@ -1,16 +1,24 @@
 // FILE: /utils/firebaseAdmin.ts
-import * as admin from "firebase-admin";
+import { getApps, initializeApp, cert } from "firebase-admin/app";
+import { getFirestore, FieldValue } from "firebase-admin/firestore";
 
-if (!admin.apps.length) {
-  admin.initializeApp({
-    credential: admin.credential.cert({
-      projectId: process.env.FB_PROJECT_ID,
-      clientEmail: process.env.FB_CLIENT_EMAIL,
-      privateKey: (process.env.FB_PRIVATE_KEY || "").replace(/\\n/g, "\n"),
+const projectId = process.env.FB_PROJECT_ID;
+const clientEmail = process.env.FB_CLIENT_EMAIL;
+let privateKey = process.env.FB_PRIVATE_KEY;
+
+if (privateKey?.includes("\\n")) {
+  privateKey = privateKey.replace(/\\n/g, "\n");
+}
+
+if (!getApps().length) {
+  initializeApp({
+    credential: cert({
+      projectId,
+      clientEmail,
+      privateKey,
     }),
-    databaseURL: process.env.FB_DATABASE_URL,
   });
 }
 
-export const adminDb = admin.firestore();
-export const FieldValue = admin.firestore.FieldValue;
+export const adminDb = getFirestore();
+export { FieldValue };
