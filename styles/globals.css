@@ -1,8 +1,24 @@
-/* FILE: /styles/globals.css */
-/* Keep it simple to avoid PostCSS loader issues. */
+/* Minimal, safe global CSS (no Tailwind directives) */
+:root {
+  --ff-bg: #0a0a0a;
+  --ff-fg: #ffffff;
+}
 
-* { box-sizing: border-box; }
-html, body { margin: 0; padding: 0; }
-body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, "Noto Sans"; background:#0a0a0a; color:#f2f2f2; }
-a { color: inherit; text-decoration: none; }
-img { max-width: 100%; display: block; }
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html, body, #__next {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--ff-bg);
+  color: var(--ff-fg);
+  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
