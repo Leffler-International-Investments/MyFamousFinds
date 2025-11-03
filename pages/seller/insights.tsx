@@ -21,9 +21,19 @@ export default function SellerInsights(){
 
   async function estimate(e:React.FormEvent<HTMLFormElement>){
     e.preventDefault(); setBusy(true);
-    const fd = new FormData(e.currentTarget); 
-    const body = Object.fromEntries(fd.entries());
-    const r = await fetch(`/api/price-estimator`, { method:"POST", headers:{ "Content-Type":"application/json" }, body: JSON.stringify(body) });
+
+    // ⬇️ FIX: no FormData.entries(), build plain object manually
+    const fd = new FormData(e.currentTarget);
+    const body: Record<string, string> = {};
+    fd.forEach((value, key) => {
+      body[key] = String(value);
+    });
+
+    const r = await fetch(`/api/price-estimator`, {
+      method:"POST",
+      headers:{ "Content-Type":"application/json" },
+      body: JSON.stringify(body)
+    });
     const j = await r.json(); setEst(j);
     setBusy(false);
   }
