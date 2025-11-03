@@ -1,5 +1,4 @@
 /* FILE: /styles/home.module.css */
-/* All global rules (:root, *, html, body, a) have been moved to styles/globals.css */
 
 .header { position:sticky; top:0; z-index:20; display:flex; align-items:center; justify-content:space-between; padding:14px 16px; background:rgba(10,10,10,.9); backdrop-filter: blur(6px); border-bottom:1px solid var(--line); }
 .logo { font-weight:800; letter-spacing:.32em; font-size:14px; }
