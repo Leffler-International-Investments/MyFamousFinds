@@ -18,3 +18,4 @@ export function ProductCard({ id, brand, name, price, img, compact }: Props) {
     </Link>
   );
 }
+
