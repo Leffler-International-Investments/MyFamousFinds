@@ -1,42 +1,32 @@
+// FILE: /components/Footer.tsx
 export default function Footer() {
   return (
-    <footer className="ff-footer">
-      <div className="ff-wrap">
-        <div>© {new Date().getFullYear()} Famous Finds — All rights reserved.</div>
-        <div className="links">
-          <a href="/privacy">Privacy</a>
-          <a href="/terms">Terms</a>
-          <a href="/contact">Contact</a>
+    <footer className="f">
+      <div className="wrap">
+        <div className="col">
+          <h4>FAMOUS FINDS</h4>
+          <p>Curated luxury & premium resale — <b>US</b>.</p>
+        </div>
+        <div className="col">
+          <h5>Help</h5>
+          <a>Shipping</a><a>Returns</a><a>Buying</a><a>Selling</a>
+        </div>
+        <div className="col">
+          <h5>Company</h5>
+          <a>About</a><a>Contact</a><a>Privacy</a>
         </div>
       </div>
+      <div className="copy">© {new Date().getFullYear()} Famous Finds</div>
       <style jsx>{`
-        .ff-footer {
-          border-top: 1px solid #1e1e1e;
-          background: #0b0b0b;
-          color: #bdbdbd;
-          padding: 20px 0;
-          margin-top: 60px;
-        }
-        .ff-wrap {
-          max-width: 1120px;
-          margin: 0 auto;
-          padding: 0 16px;
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          flex-wrap: wrap;
-          gap: 10px;
-        }
-        .links a {
-          color: #bdbdbd;
-          margin-left: 12px;
-          font-size: 13px;
-          text-decoration: none;
-        }
-        .links a:hover {
-          text-decoration: underline;
-        }
+        .f{ margin-top:48px; border-top:1px solid #1a1a1a; background:#0b0b0b; color:#bbb; }
+        .wrap{ max-width:1200px; margin:0 auto; padding:28px 16px; display:grid; gap:24px; grid-template-columns:1.2fr .8fr .8fr; }
+        h4{ margin:0 0 8px; color:#eaeaea; }
+        h5{ margin:0 0 8px; color:#eaeaea; }
+        a{ display:block; margin:4px 0; }
+        .copy{ padding:12px 16px; text-align:center; border-top:1px solid #151515; }
+        @media (max-width:900px){ .wrap{ grid-template-columns:1fr; } }
       `}</style>
     </footer>
   );
 }
+
