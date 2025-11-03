@@ -21,6 +21,7 @@ export default function Header() {
         <Link href="/seller/wallet">Wallet</Link>
         <Link href="/admin/dashboard">Admin</Link>
         <Link href="/support">Support</Link>
+        <Link href="/seller/statements">Statements</Link>
       </nav>
 
       <style jsx>{`
