@@ -12,8 +12,11 @@ export default function Support() {
   async function submit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setBusy(true); setErr("");
-    const fd = new FormData(e.currentTarget);
-    const payload = Object.fromEntries(fd.entries());
+const fd = new FormData(e.currentTarget);
+const payload: Record<string, string> = {};
+fd.forEach((value, key) => {
+  payload[key] = String(value);
+});
     try {
       const r = await fetch("/api/support", {
         method: "POST",
