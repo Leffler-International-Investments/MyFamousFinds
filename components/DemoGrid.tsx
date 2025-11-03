@@ -10,7 +10,7 @@ export default function DemoGrid({ title, items }: { title: string; items: Produ
       <div className="grid">
         {items.map((p) => (
           // Works with either signature; we’ll pass p explicitly
-          <ProductCard key={p.id || p.title} p={p} />
+          <ProductCard key={p.id || p.title} {...p} />
         ))}
       </div>
       <style jsx>{`
