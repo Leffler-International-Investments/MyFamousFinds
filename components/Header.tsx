@@ -16,12 +16,25 @@ export default function Header() {
       </Link>
 
       <nav className="nav">
+        {/* Core */}
         <Link href="/sell">Sell</Link>
         <Link href="/seller/orders">My Orders</Link>
         <Link href="/seller/wallet">Wallet</Link>
         <Link href="/admin/dashboard">Admin</Link>
         <Link href="/support">Support</Link>
+
+        {/* Sellers */}
+        <Link href="/seller/catalogue">Catalogue</Link>
+        <Link href="/seller/insights">Insights</Link>
+        <Link href="/seller/bulk-upload">Bulk Upload</Link>
         <Link href="/seller/statements">Statements</Link>
+        <Link href="/seller/orders">Orders</Link>
+        <Link href="/seller/wallet">Wallet</Link>
+
+        {/* Buyers / Support */}
+        <Link href="/store/seller-demo-001">Storefront</Link>
+        <Link href="/concierge">Concierge</Link>
+        <Link href="/support/disputes">Disputes</Link>
       </nav>
 
       <style jsx>{`
@@ -42,18 +55,19 @@ export default function Header() {
           display: flex;
           gap: 16px;
           font-size: 14px;
+          flex-wrap: wrap;
         }
         @media (max-width: 640px) {
           .hdr {
             padding: 10px 12px;
           }
           .nav {
-            gap: 12px;
+            gap: 10px;
             font-size: 13px;
           }
           .brand :global(img) {
             width: 160px;
-          } /* smaller logo on mobile */
+          }
         }
       `}</style>
     </header>
