@@ -1,14 +1,7 @@
-// FILE: postcss.config.js
-module.exports = { plugins: { tailwindcss: {}, autoprefixer: {} } }
-
-
----
-
-
-// FILE: tailwind.config.js
-/** @type {import('tailwindcss').Config} */
+// FILE: /postcss.config.js
+// Minimal, valid PostCSS config for Next.js (no Tailwind required).
 module.exports = {
-content: ["./pages/**/*.{js,ts,jsx,tsx}", "./components/**/*.{js,ts,jsx,tsx}"],
-theme: { extend: {} },
-plugins: []
-}
+  plugins: {
+    autoprefixer: {},
+  },
+};
