@@ -1,41 +1,77 @@
+// FILE: /components/ProductCard.tsx
 import Link from "next/link";
+import { useState } from "react";
 
 export type ProductLike = {
-  id?: string;
-  slug?: string;
+  id: string;
   title: string;
   brand?: string;
-  price?: string;
+  price: string;   // USD text like "$2,450"
   image: string;
+  href: string;    // link to /product/[id]
   badge?: string;
-  condition?: string;
-  location?: string;
-  className?: string;
+  details?: string;
 };
 
-export default function ProductCard({ p }: { p: ProductLike }) {
-  const href = p.slug ? `/product/${p.slug}` : "#";
+export default function ProductCard(p: ProductLike) {
+  const [flipped, setFlipped] = useState(false);
+
   return (
-    <Link href={href} className={`p-card ${p.className ?? ""}`}>
-      <div className="p-thumb">
+    <div
+      className={`card ${flipped ? "flipped" : ""}`}
+      onClick={() => setFlipped((v) => !v)}
+      onMouseEnter={() => setFlipped(true)}
+      onMouseLeave={() => setFlipped(false)}
+      role="button"
+      aria-label={`${p.title} ${p.price}`}
+    >
+      {/* FRONT */}
+      <div className="face front">
+        {p.badge && <span className="badge">{p.badge}</span>}
         <img src={p.image} alt={p.title} />
-        {p.badge && <span className="p-badge">{p.badge}</span>}
+        <div className="meta">
+          <small className="brand">{p.brand}</small>
+          <div className="title">{p.title}</div>
+          <div className="price">{p.price}</div>
+        </div>
       </div>
-      <div className="p-meta">
-        {p.brand && <div className="p-brand">{p.brand}</div>}
-        <div className="p-title">{p.title}</div>
-        {p.price && <div className="p-price">{p.price}</div>}
+
+      {/* BACK */}
+      <div className="face back">
+        <div className="backWrap">
+          <div className="title">{p.title}</div>
+          <p className="det">{p.details || "Tap to view details"}</p>
+          <div className="price">{p.price}</div>
+          <Link href={p.href} className="btn">View details</Link>
+        </div>
       </div>
+
       <style jsx>{`
-        .p-card { display:block; border:1px solid #1e1e1e; border-radius:12px; background:#0f0f0f; overflow:hidden; }
-        .p-thumb { position:relative; width:100%; aspect-ratio:1/1; background:#111; }
-        .p-thumb img { width:100%; height:100%; object-fit:cover; display:block; }
-        .p-badge { position:absolute; top:8px; left:8px; font-size:11px; background:#fff; color:#000; border-radius:999px; padding:3px 7px; }
-        .p-meta { padding:10px; color:#eaeaea; }
-        .p-brand { font-size:12px; opacity:.75; }
-        .p-title { font-size:13px; margin-top:4px; }
-        .p-price { font-weight:800; font-size:14px; margin-top:6px; }
+        .card{
+          width:100%;
+          aspect-ratio: 3/4;
+          perspective:1000px;
+          position:relative;
+        }
+        .face{
+          position:absolute; inset:0;
+          border:1px solid #1a1a1a; border-radius:12px; overflow:hidden;
+          backface-visibility:hidden; transition:transform .5s ease;
+          background:#0f0f0f;
+        }
+        .front{ transform:rotateY(0deg); }
+        .back{ transform:rotateY(180deg); display:flex; align-items:center; justify-content:center; }
+        .flipped .front{ transform:rotateY(180deg); }
+        .flipped .back{ transform:rotateY(360deg); }
+        img{ width:100%; height:70%; object-fit:cover; display:block; }
+        .badge{ position:absolute; top:8px; left:8px; background:#fff; color:#000; font-size:11px; font-weight:700; padding:2px 6px; border-radius:6px; }
+        .meta{ padding:10px; color:#ddd; }
+        .brand{ opacity:.7; }
+        .title{ font-size:14px; margin-top:2px; }
+        .price{ margin-top:6px; font-weight:700; color:#fff; }
+        .backWrap{ padding:16px; text-align:center; }
+        .btn{ display:inline-block; margin-top:12px; background:#fff; color:#000; padding:8px 12px; border-radius:8px; font-weight:700; }
       `}</style>
-    </Link>
+    </div>
   );
 }
