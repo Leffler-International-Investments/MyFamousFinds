@@ -1,78 +1,93 @@
 // FILE: /pages/api/images/clean.ts
-// Cleans uploaded item backgrounds to pure white using Sharp + Cloudinary
-
 import type { NextApiRequest, NextApiResponse } from "next";
 import { Readable } from "node:stream";
-import { request } from "undici";
-import crypto from "node:crypto";
-import { v2 as cloudinary } from "cloudinary";
+import sharp from "sharp";
+import formidable, { File as FormidableFile } from "formidable";
 
-// ✅ Vercel runtime + body limit setup
 export const config = {
-  api: { bodyParser: { sizeLimit: "10mb" } },
+  api: {
+    bodyParser: false,           // we handle multipart
+    responseLimit: false,
+  },
 };
 export const runtime = "nodejs";
 
-// ✅ Ensure Sharp is loaded properly at runtime
-let sharpModule: any;
-async function getSharp() {
-  if (!sharpModule) {
-    sharpModule = (await import("sharp")).default;
-  }
-  return sharpModule;
+function parseForm(req: NextApiRequest): Promise<{ files: formidable.Files; fields: formidable.Fields }> {
+  return new Promise((resolve, reject) => {
+    const form = formidable({ multiples: false, maxFileSize: 25 * 1024 * 1024 });
+    form.parse(req as any, (err, fields, files) => {
+      if (err) return reject(err);
+      resolve({ files, fields });
+    });
+  });
 }
 
-// ✅ Cloudinary credentials (from your .env)
-cloudinary.config({
-  cloud_name: process.env.CLOUDINARY_CLOUD_NAME!,
-  api_key: process.env.CLOUDINARY_API_KEY!,
-  api_secret: process.env.CLOUDINARY_API_SECRET!,
-});
+async function loadInputBuffer(req: NextApiRequest): Promise<Buffer> {
+  const url = (req.query.imageUrl as string) || "";
+
+  if (url) {
+    const resp = await fetch(url);
+    if (!resp.ok) throw new Error(`Fetch failed (${resp.status})`);
+    const arrayBuf = await resp.arrayBuffer();
+    return Buffer.from(arrayBuf);
+  }
+
+  const { files } = await parseForm(req);
+  const f = (files.file || files.image || files.upload) as FormidableFile | FormidableFile[] | undefined;
+  const one = Array.isArray(f) ? f[0] : f;
+  if (!one || !one.filepath) throw new Error("No file provided. Use field name 'file' or provide ?imageUrl=");
+  return await sharp(one.filepath).toBuffer();
+}
+
+async function cleanToWhiteSquare(input: Buffer, size = 2000): Promise<Buffer> {
+  const normalized = await sharp(input)
+    .rotate()
+    .flatten({ background: { r: 255, g: 255, b: 255 } })
+    .trim(10)
+    .toBuffer();
+
+  const canvas = sharp({
+    create: {
+      width: size,
+      height: size,
+      channels: 3,
+      background: { r: 255, g: 255, b: 255 },
+    },
+  });
+
+  const fitted = await sharp(normalized)
+    .resize(size, size, { fit: "inside", withoutEnlargement: true })
+    .toBuffer();
+
+  const meta = await sharp(fitted).metadata();
+  const left = Math.floor((size - (meta.width || size)) / 2);
+  const top = Math.floor((size - (meta.height || size)) / 2);
+
+  return await canvas
+    .composite([{ input: fitted, left, top }])
+    .jpeg({ quality: 90, chromaSubsampling: "4:4:4", force: true })
+    .toBuffer();
+}
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   try {
     if (req.method !== "POST") {
-      return res.status(405).json({ error: "Method not allowed" });
+      res.setHeader("Allow", "POST");
+      return res.status(405).json({ error: "Method not allowed. POST a file (field 'file') or use ?imageUrl=" });
     }
 
-    const { imageUrl } = req.body;
-    if (!imageUrl) {
-      return res.status(400).json({ error: "Missing imageUrl" });
-    }
+    const sizeParam = Number(req.query.size || 2000);
+    const clamp = (n: number, min: number, max: number) => Math.max(min, Math.min(max, n));
+    const size = clamp(Number.isFinite(sizeParam) ? sizeParam : 2000, 512, 4096);
 
-    // Fetch the image
-    const response = await request(imageUrl);
-    const buffer = Buffer.from(await response.body.arrayBuffer());
+    const input = await loadInputBuffer(req);
+    const cleaned = await cleanToWhiteSquare(input, size);
 
-    // Use sharp to clean background
-    const sharp = await getSharp();
-    const cleaned = await sharp(buffer)
-      .flatten({ background: "#ffffff" }) // white background
-      .jpeg({ quality: 90 })
-      .toBuffer();
-
-    // Generate a unique filename
-    const publicId = `famousfinds/${crypto.randomBytes(8).toString("hex")}`;
-
-    // Upload to Cloudinary
-    const uploaded = await cloudinary.uploader.upload_stream(
-      { public_id: publicId, folder: "famousfinds", overwrite: true },
-      (err, result) => {
-        if (err) {
-          console.error("Cloudinary upload failed:", err);
-          return res.status(500).json({ error: "Upload failed" });
-        }
-        res.status(200).json({
-          ok: true,
-          cleanedUrl: result?.secure_url,
-        });
-      }
-    );
-
-    // Pipe the cleaned image into Cloudinary upload stream
-    Readable.from(cleaned).pipe(uploaded);
+    res.setHeader("Content-Type", "image/jpeg");
+    res.setHeader("Cache-Control", "no-store");
+    Readable.from(cleaned).pipe(res);
   } catch (err: any) {
-    console.error("Clean API error:", err);
-    res.status(500).json({ error: err.message || "Internal Server Error" });
+    console.error(err);
+    return res.status(400).json({ error: err?.message || "Unable to process image" });
   }
 }
