@@ -12,8 +12,16 @@ export type ProductLike = {
   className?: string;
 };
 
-function ProductCardImpl({ p }: { p: ProductLike }) {
+type MaybeWrapped = ProductLike | { p: ProductLike };
+
+function unwrap(props: MaybeWrapped): ProductLike {
+  return (props as any)?.p ? (props as any).p : (props as any);
+}
+
+function ProductCard(props: MaybeWrapped) {
+  const p = unwrap(props);
   const Wrapper: any = p.href ? "a" : "div";
+
   return (
     <Wrapper className={`p-card ${p.className ?? ""}`} href={p.href}>
       <div className="p-thumb">
@@ -54,5 +62,5 @@ function ProductCardImpl({ p }: { p: ProductLike }) {
   );
 }
 
-export const ProductCard = ProductCardImpl;
-export default ProductCardImpl;
+export { ProductCard };
+export default ProductCard;
