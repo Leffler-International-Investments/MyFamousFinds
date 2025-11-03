@@ -1,8 +1,30 @@
 // FILE: /pages/api/offers/create.ts
 import type { NextApiRequest, NextApiResponse } from "next";
-// body: { productId, price, message }
+import { adminDb, FieldValue } from "../../../utils/firebaseAdmin";
+import { getUserId } from "../../../utils/authServer";
+
 export default async function handler(req:NextApiRequest,res:NextApiResponse){
   if (req.method!=="POST") return res.status(405).end();
-  // TODO: write offer to Firestore 'offers' with buyerId/sellerId
-  res.status(201).json({ ok:true, offerId: Math.random().toString(36).slice(2,8) });
+  const buyerId = getUserId(req);
+  const { productId, price, message } = req.body || {};
+  if (!productId || !price) return res.status(400).json({ ok:false, error:"missing_fields" });
+
+  // Read listing → get sellerId & title
+  const listing = await adminDb.collection("listings").doc(String(productId)).get();
+  if (!listing.exists) return res.status(404).json({ ok:false, error:"listing_not_found" });
+  const L = listing.data()!;
+  const sellerId = String(L.sellerId || "unknown");
+
+  const ref = await adminDb.collection("offers").add({
+    productId: String(productId),
+    sellerId,
+    buyerId,
+    offerPrice: Number(price),
+    message: String(message||""),
+    status: "OPEN", // OPEN | ACCEPTED | REJECTED | COUNTERED
+    createdAt: FieldValue.serverTimestamp(),
+    updatedAt: FieldValue.serverTimestamp(),
+  });
+
+  return res.status(201).json({ ok:true, offerId: ref.id });
 }
