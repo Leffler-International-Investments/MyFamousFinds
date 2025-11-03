@@ -1,111 +1,89 @@
 // FILE: /pages/index.tsx
 import Head from "next/head";
-import { useRouter } from "next/router";
 import Header from "../components/Header";
-import { CategoryTile, Category } from "../components/CategoryTile";
+import Footer from "../components/Footer";
 import ProductCard, { ProductLike } from "../components/ProductCard";
-import styles from "../styles/home.module.css";
+import Link from "next/link";
 
-// --- Demo categories (click to filter) ---
-const CATS: Category[] = [
-  { slug: "bags", label: "Bags" },
-  { slug: "clothing", label: "Clothing" },
-  { slug: "shoes", label: "Shoes" },
-  { slug: "accessories", label: "Accessories" },
-  { slug: "watches", label: "Watches" },
-  { slug: "jewelry", label: "Jewelry" },
-  { slug: "mens", label: "Men" },
-  { slug: "womens", label: "Women" },
-  { slug: "kids", label: "Kids" },
-  { slug: "home", label: "Home" },
-  { slug: "beauty", label: "Beauty" },
-  { slug: "sale", label: "Sale" },
+const categories = [
+  { name: "Bags", slug: "bags" },
+  { name: "Watches", slug: "watches" },
+  { name: "Kids", slug: "kids" },
+  { name: "Clothing", slug: "clothing" },
+  { name: "Jewelry", slug: "jewelry" },
+  { name: "Home", slug: "home" },
+  { name: "Shoes", slug: "shoes" },
+  { name: "Men", slug: "men" },
+  { name: "Beauty", slug: "beauty" },
+  { name: "Accessories", slug: "accessories" },
+  { name: "Women", slug: "women" },
+  { name: "Sale", slug: "sale" },
 ];
 
-// --- Demo inventory (shown until user uploads products) ---
-const DEMO: (ProductLike & { cat: string })[] = [
-  { cat: "bags", title: "Gucci Marmont Mini", brand: "GUCCI", price: "AU$2,450", image: "/demo/gucci-bag-1.jpg", badge: "New" },
-  { cat: "bags", title: "Prada Re-Edition 2005", brand: "PRADA", price: "AU$2,990", image: "/demo/prada-bag-1.jpg" },
-  { cat: "clothing", title: "Zimmermann Silk Blouse", brand: "ZIMMERMANN", price: "AU$480", image: "/demo/zimmermann.jpg" },
-  { cat: "clothing", title: "Dior Printed Dress", brand: "DIOR", price: "AU$1,950", image: "/demo/dior-dress.jpg" },
-  { cat: "shoes", title: "Chanel Slingbacks", brand: "CHANEL", price: "AU$1,250", image: "/demo/chanel-shoes.jpg" },
-  { cat: "accessories", title: "LV Monogram Scarf", brand: "LOUIS VUITTON", price: "AU$620", image: "/demo/lv-scarf.jpg" },
-  { cat: "watches", title: "Rolex Datejust 36", brand: "ROLEX", price: "AU$12,900", image: "/demo/rolex.jpg" },
-  { cat: "jewelry", title: "Cartier Love Bracelet", brand: "CARTIER", price: "AU$9,800", image: "/demo/cartier-love.jpg" },
-  { cat: "mens", title: "Acne Studios Tee", brand: "ACNE", price: "AU$190", image: "/demo/acne-tee.jpg" },
-  { cat: "womens", title: "Celine Wool Coat", brand: "CELINE", price: "AU$2,650", image: "/demo/celine-coat.jpg" },
-  { cat: "kids", title: "Burberry Kids Jacket", brand: "BURBERRY", price: "AU$430", image: "/demo/bb-kids.jpg" },
-  { cat: "home", title: "Hermès Avalon Throw", brand: "HERMÈS", price: "AU$2,200", image: "/demo/hermes-throw.jpg" },
-  { cat: "beauty", title: "Dior Lip Glow Set", brand: "DIOR", price: "AU$120", image: "/demo/dior-beauty.jpg" },
-  { cat: "sale", title: "Chloé Faye Small (Sale)", brand: "CHLOÉ", price: "AU$990", image: "/demo/chloe-faye.jpg", badge: "-30%" },
+const demo: ProductLike[] = [
+  { id:"g1", title:"Gucci Marmont Mini", brand:"GUCCI", price:"$2,450", image:"/demo/gucci-bag-1.jpg", href:"/product/g1", badge:"New", details:"Ships 3–5 days. Authenticity guaranteed." },
+  { id:"p1", title:"Prada Re-Edition 2005", brand:"PRADA", price:"$2,990", image:"/demo/prada-2005.jpg", href:"/product/p1" },
+  { id:"z1", title:"Zimmermann Silk Blouse", brand:"ZIMMERMANN", price:"$480", image:"/demo/zimmermann.jpg", href:"/product/z1" },
+  { id:"d1", title:"Dior Printed Dress", brand:"DIOR", price:"$1,950", image:"/demo/dior-dress.jpg", href:"/product/d1" },
+  { id:"c1", title:"Chanel Slingbacks", brand:"CHANEL", price:"$1,250", image:"/demo/chanel-shoes.jpg", href:"/product/c1" },
+  { id:"lv1", title:"LV Monogram Scarf", brand:"LOUIS VUITTON", price:"$620", image:"/demo/lv-scarf.jpg", href:"/product/lv1" },
+  { id:"r1", title:"Rolex Datejust 36", brand:"ROLEX", price:"$12,900", image:"/demo/rolex-36.jpg", href:"/product/r1" },
+  { id:"ct1", title:"Cartier Love Bracelet", brand:"CARTIER", price:"$9,800", image:"/demo/cartier-love.jpg", href:"/product/ct1" },
+  { id:"a1", title:"Acne Studios Tee", brand:"ACNE", price:"$190", image:"/demo/acne-tee.jpg", href:"/product/a1" },
+  { id:"ce1", title:"Celine Wool Coat", brand:"CELINE", price:"$2,650", image:"/demo/celine-coat.jpg", href:"/product/ce1" },
 ];
 
 export default function Home() {
-  const router = useRouter();
-  const activeCat = (router.query.cat as string) || "";
-
-  const filtered = activeCat
-    ? DEMO.filter((p) => p.cat === activeCat)
-    : DEMO;
-
   return (
     <>
-      <Head>
-        <title>Famous Finds</title>
-        <meta name="viewport" content="width=device-width, initial-scale=1" />
-      </Head>
+      <Head><title>Famous Finds — US</title></Head>
+      <Header />
 
-      <div style={{ background:"#0a0a0a", minHeight:"100vh" }}>
-        <Header />
+      <main className="wrap">
+        <h1 className="h1">FAMOUS FINDS</h1>
+        <p className="tag">Curated luxury & premium resale — <b>US</b>.</p>
 
-        <main className={styles.wrap}>
-          {/* Hero */}
-          <section className={styles.hero}>
-            <h1 className={styles.heroTitle}>FAMOUS FINDS</h1>
-            <p className={styles.heroSub}>
-              Curated luxury & premium resale — Australia.
-            </p>
-          </section>
+        {/* Categories */}
+        <section className="cats">
+          {categories.map(c => (
+            <Link key={c.slug} href={`/category/${c.slug}`} className="cat">
+              {c.name}
+            </Link>
+          ))}
+        </section>
 
-          {/* Categories (click filters the grid using `?cat=`) */}
-          <section>
-            <div className={styles.section}>
-              <h3>Shop by Category</h3>
-              {activeCat ? (
-                <a href="/" aria-label="Clear filter">Clear filter</a>
-              ) : <span />}
-            </div>
-            <div className={styles.catGrid}>
-              {CATS.map((c) => (<CategoryTile key={c.slug} c={c} />))}
-            </div>
-          </section>
+        {/* Grid */}
+        <div className="rowHeader">
+          <h3>Now Trending</h3>
+          <a className="viewAll">View all</a>
+        </div>
+        <section className="grid">
+          {demo.map(p => <ProductCard key={p.id} {...p} />)}
+        </section>
 
-          {/* Product grids */}
-          <section>
-            <div className={styles.section}>
-              <h3>{activeCat ? `Now Trending · ${activeCat}` : "Now Trending"}</h3>
-              {!activeCat && <a href="/shop">View all</a>}
-            </div>
-            <div className={styles.grid}>
-              {filtered.slice(0, 10).map((p, i) => (
-                <ProductCard key={`${p.cat}-${i}`} p={p} />
-              ))}
-            </div>
-          </section>
+        <div className="rowHeader">
+          <h3>New Arrivals</h3>
+          <a className="viewAll">View all</a>
+        </div>
+        <section className="grid">
+          {demo.slice(0,8).map(p => <ProductCard key={`n-${p.id}`} {...p} />)}
+        </section>
+      </main>
 
-          <section>
-            <div className={styles.section}>
-              <h3>New Arrivals</h3>
-              {!activeCat && <a href="/new">View all</a>}
-            </div>
-            <div className={styles.grid}>
-              {filtered.slice(4, 14).map((p, i) => (
-                <ProductCard key={`na-${p.cat}-${i}`} p={p} />
-              ))}
-            </div>
-          </section>
-        </main>
-      </div>
+      <Footer />
+
+      <style jsx>{`
+        .wrap{ max-width:1200px; margin:0 auto; padding:24px 16px; }
+        .h1{ margin:8px 0 4px; letter-spacing:.18em; }
+        .tag{ margin:0 0 20px; color:#bdbdbd; }
+        .cats{ display:grid; grid-template-columns:repeat(6,1fr); gap:10px; margin:8px 0 20px; }
+        .cat{ padding:10px 12px; border:1px solid #1a1a1a; border-radius:10px; background:#0f0f0f; text-align:center; }
+        .rowHeader{ margin:18px 0 10px; display:flex; justify-content:space-between; align-items:center; }
+        .grid{ display:grid; gap:12px; grid-template-columns:repeat(5,1fr); }
+        @media (max-width:1100px){ .grid{ grid-template-columns:repeat(4,1fr);} .cats{grid-template-columns:repeat(4,1fr);} }
+        @media (max-width:900px){ .grid{ grid-template-columns:repeat(3,1fr);} }
+        @media (max-width:640px){ .grid{ grid-template-columns:repeat(2,1fr);} .cats{grid-template-columns:repeat(3,1fr);} }
+      `}</style>
     </>
   );
 }
