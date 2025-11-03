@@ -1,31 +1,42 @@
-// FILE: /components/Footer.tsx
-import Link from "next/link";
-import styles from "../styles/home.module.css";
-
-export function Footer() {
+export default function Footer() {
   return (
-    <footer className={styles.footer}>
-      <div className={styles.footerCols}>
-        <div>
-          <div className={styles.logoSmall}>FAMOUS FINDS</div>
-          <p>Certified & authenticated luxury resale in Australia.</p>
-        </div>
-        <div>
-          <h4>Help</h4>
-          <Link href="/help/buying">Buying</Link>
-          <Link href="/help/selling">Selling</Link>
-          <Link href="/help/shipping">Shipping</Link>
-          <Link href="/help/returns">Returns</Link>
-        </div>
-        <div>
-          <h4>Company</h4>
-          <Link href="/about">About</Link>
-          <Link href="/contact">Contact</Link>
-          <Link href="/privacy">Privacy</Link>
-          <Link href="/terms">Terms</Link>
+    <footer className="ff-footer">
+      <div className="ff-wrap">
+        <div>© {new Date().getFullYear()} Famous Finds — All rights reserved.</div>
+        <div className="links">
+          <a href="/privacy">Privacy</a>
+          <a href="/terms">Terms</a>
+          <a href="/contact">Contact</a>
         </div>
       </div>
-      <div className={styles.copy}>© {new Date().getFullYear()} Famous Finds</div>
+      <style jsx>{`
+        .ff-footer {
+          border-top: 1px solid #1e1e1e;
+          background: #0b0b0b;
+          color: #bdbdbd;
+          padding: 20px 0;
+          margin-top: 60px;
+        }
+        .ff-wrap {
+          max-width: 1120px;
+          margin: 0 auto;
+          padding: 0 16px;
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          flex-wrap: wrap;
+          gap: 10px;
+        }
+        .links a {
+          color: #bdbdbd;
+          margin-left: 12px;
+          font-size: 13px;
+          text-decoration: none;
+        }
+        .links a:hover {
+          text-decoration: underline;
+        }
+      `}</style>
     </footer>
   );
 }
