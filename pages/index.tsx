@@ -6,18 +6,12 @@ import ProductCard, { ProductLike } from "../components/ProductCard";
 import Link from "next/link";
 
 const categories = [
-  { name: "Bags", slug: "bags" },
-  { name: "Watches", slug: "watches" },
-  { name: "Kids", slug: "kids" },
-  { name: "Clothing", slug: "clothing" },
-  { name: "Jewelry", slug: "jewelry" },
-  { name: "Home", slug: "home" },
-  { name: "Shoes", slug: "shoes" },
-  { name: "Men", slug: "men" },
-  { name: "Beauty", slug: "beauty" },
-  { name: "Accessories", slug: "accessories" },
-  { name: "Women", slug: "women" },
-  { name: "Sale", slug: "sale" },
+  { name: "Bags", slug: "bags" }, { name: "Watches", slug: "watches" },
+  { name: "Kids", slug: "kids" }, { name: "Clothing", slug: "clothing" },
+  { name: "Jewelry", slug: "jewelry" }, { name: "Home", slug: "home" },
+  { name: "Shoes", slug: "shoes" }, { name: "Men", slug: "men" },
+  { name: "Beauty", slug: "beauty" }, { name: "Accessories", slug: "accessories" },
+  { name: "Women", slug: "women" }, { name: "Sale", slug: "sale" },
 ];
 
 const demo: ProductLike[] = [
@@ -43,28 +37,18 @@ export default function Home() {
         <h1 className="h1">FAMOUS FINDS</h1>
         <p className="tag">Curated luxury & premium resale — <b>US</b>.</p>
 
-        {/* Categories */}
         <section className="cats">
           {categories.map(c => (
-            <Link key={c.slug} href={`/category/${c.slug}`} className="cat">
-              {c.name}
-            </Link>
+            <Link key={c.slug} href={`/category/${c.slug}`} className="cat">{c.name}</Link>
           ))}
         </section>
 
-        {/* Grid */}
-        <div className="rowHeader">
-          <h3>Now Trending</h3>
-          <a className="viewAll">View all</a>
-        </div>
+        <div className="rowHeader"><h3>Now Trending</h3><a className="viewAll">View all</a></div>
         <section className="grid">
           {demo.map(p => <ProductCard key={p.id} {...p} />)}
         </section>
 
-        <div className="rowHeader">
-          <h3>New Arrivals</h3>
-          <a className="viewAll">View all</a>
-        </div>
+        <div className="rowHeader"><h3>New Arrivals</h3><a className="viewAll">View all</a></div>
         <section className="grid">
           {demo.slice(0,8).map(p => <ProductCard key={`n-${p.id}`} {...p} />)}
         </section>
