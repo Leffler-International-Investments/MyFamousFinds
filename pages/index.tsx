@@ -154,8 +154,9 @@ export default function Home() {
             <p className="eyebrow">WELCOME TO OUR WORLD OF LUXURY</p>
             <h1>Famous Finds for every shade of style.</h1>
             <p className="lead">
-              Curated, authenticated designer pieces — loved once and ready to be loved again.
-              A marketplace where every customer belongs, in all colours and all stories.
+              Curated, authenticated designer pieces — loved once and ready to be loved
+              again. A marketplace where every customer belongs, in all colours and all
+              stories.
             </p>
             <div className="heroCta">
               <Link href="#now-trending" className="primary">
@@ -165,12 +166,26 @@ export default function Home() {
                 Sell an item
               </Link>
             </div>
+
+            {/* ADMIN BUTTONS ON DASHBOARD */}
+            <div className="adminCta">
+              <p className="adminLabel">Admin access</p>
+              <div className="adminButtons">
+                <Link href="/admin" className="adminPrimary">
+                  Management Admin Login
+                </Link>
+                <Link href="/seller/orders" className="adminSecondary">
+                  Seller Admin Login
+                </Link>
+              </div>
+            </div>
           </div>
 
           {/* Right side: “store window” visual instead of blank black block */}
           <div className="heroVisual">
             <div className="heroBadge">
-              Inside Famous Finds: shelves of bags, shoes, jewelry and watches — a little world of luxury, just for you.
+              Inside Famous Finds: shelves of bags, shoes, jewelry and watches — a little
+              world of luxury, just for you.
             </div>
             <div className="heroChips">
               <span className="chip">Gucci bags</span>
@@ -285,6 +300,42 @@ export default function Home() {
         .ghost {
           border-color: #4b5563;
           color: #f9fafb;
+        }
+
+        /* ADMIN BUTTONS */
+        .adminCta {
+          margin-top: 18px;
+        }
+        .adminLabel {
+          font-size: 11px;
+          letter-spacing: 0.18em;
+          text-transform: uppercase;
+          color: #9ca3af;
+          margin-bottom: 6px;
+        }
+        .adminButtons {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 8px;
+        }
+        .adminPrimary,
+        .adminSecondary {
+          font-size: 11px;
+          padding: 6px 12px;
+          border-radius: 999px;
+          border: 1px solid #4b5563;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+        }
+        .adminPrimary {
+          background: #f9fafb;
+          color: #000;
+          font-weight: 600;
+        }
+        .adminSecondary {
+          color: #e5e7eb;
+          background: transparent;
         }
 
         .heroVisual {
