@@ -16,13 +16,11 @@ type Listing = {
 
 export default function ManagementListings() {
   const { loading: authLoading } = useRequireAdmin();
-
   const [items, setItems] = useState<Listing[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState<string>("");
 
-  // Fetch live data whenever searchTerm changes
   useEffect(() => {
     if (authLoading) return;
 
@@ -31,24 +29,21 @@ export default function ManagementListings() {
     async function load() {
       setLoading(true);
       setError(null);
+
       try {
         const params = new URLSearchParams();
         if (searchTerm.trim()) params.set("search", searchTerm.trim());
 
-        const res = await fetch(
-          `/api/management/listings?${params.toString()}`,
-          {
-            signal: controller.signal,
-            credentials: "include",
-          }
-        );
+        const res = await fetch(`/api/management/listings?${params.toString()}`, {
+          signal: controller.signal,
+          credentials: "include",
+        });
 
         if (!res.ok) {
           throw new Error(`Request failed: ${res.status}`);
         }
 
         const json = await res.json();
-        // Expecting { items: Listing[] }
         setItems(Array.isArray(json.items) ? json.items : []);
       } catch (err: any) {
         if (err.name !== "AbortError") {
@@ -73,12 +68,11 @@ export default function ManagementListings() {
       </Head>
       <div className="min-h-screen bg-gray-50 text-gray-900">
         <Header />
+
         <main className="mx-auto max-w-6xl px-4 pb-16 pt-6">
           <div className="mb-6 flex items-center justify-between">
             <div>
-              <h1 className="text-2xl font-semibold text-gray-900">
-                All Listings
-              </h1>
+              <h1 className="text-2xl font-semibold text-gray-900">All Listings</h1>
               <p className="mt-1 text-sm text-gray-600">
                 Search, review, and moderate every item on Famous-Finds.
               </p>
@@ -91,7 +85,6 @@ export default function ManagementListings() {
             </Link>
           </div>
 
-          {/* Search + Status filter (searchTerm is live) */}
           <div className="mb-4 flex flex-wrap items-center gap-3">
             <input
               type="text"
@@ -100,7 +93,6 @@ export default function ManagementListings() {
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full max-w-xs rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-gray-900 focus:outline-none"
             />
-            {/* Optional: front-end filter, or attach its value to the query string */}
             <select className="rounded-md border border-gray-300 px-2 py-2 text-sm focus:border-gray-900 focus:outline-none">
               <option>All statuses</option>
               <option>Live</option>
@@ -128,24 +120,12 @@ export default function ManagementListings() {
               <table className="min-w-full divide-y divide-gray-200 text-sm">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="px-4 py-2 text-left font-medium text-gray-700">
-                      ID
-                    </th>
-                    <th className="px-4 py-2 text-left font-medium text-gray-700">
-                      Item
-                    </th>
-                    <th className="px-4 py-2 text-left font-medium text-gray-700">
-                      Seller
-                    </th>
-                    <th className="px-4 py-2 text-left font-medium text-gray-700">
-                      Status
-                    </th>
-                    <th className="px-4 py-2 text-right font-medium text-gray-700">
-                      Price (USD)
-                    </th>
-                    <th className="px-4 py-2 text-right font-medium text-gray-700">
-                      Actions
-                    </th>
+                    <th className="px-4 py-2 text-left font-medium text-gray-700">ID</th>
+                    <th className="px-4 py-2 text-left font-medium text-gray-700">Item</th>
+                    <th className="px-4 py-2 text-left font-medium text-gray-700">Seller</th>
+                    <th className="px-4 py-2 text-left font-medium text-gray-700">Status</th>
+                    <th className="px-4 py-2 text-right font-medium text-gray-700">Price (USD)</th>
+                    <th className="px-4 py-2 text-right font-medium text-gray-700">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200 bg-white">
@@ -189,6 +169,7 @@ export default function ManagementListings() {
             <code>{`{ items: Listing[] }`}</code>.
           </p>
         </main>
+
         <Footer />
       </div>
     </>
