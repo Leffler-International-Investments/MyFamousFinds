@@ -13,6 +13,7 @@ export default function ManagementContentLegal() {
   const [section, setSection] = useState("terms");
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   const sections: Record<string, string> = {
     terms: "Terms of Use",
@@ -24,15 +25,31 @@ export default function ManagementContentLegal() {
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setSaving(true);
+    setMessage(null);
+    setError(null);
+
     const fd = new FormData(e.currentTarget);
-    await fetch(`/api/management/content/legal/${section}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      credentials: "include",
-      body: JSON.stringify(Object.fromEntries(fd.entries())),
+    const payload: Record<string, string> = {};
+    fd.forEach((value, key) => {
+      payload[key] = String(value);
     });
-    setSaving(false);
-    setMessage("Section saved successfully.");
+
+    try {
+      const res = await fetch(`/api/management/content/legal/${section}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(payload),
+      });
+
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      setMessage("Section saved successfully.");
+    } catch (err) {
+      console.error(err);
+      setError("Failed to save section.");
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
@@ -44,7 +61,10 @@ export default function ManagementContentLegal() {
       <main className="mx-auto max-w-4xl px-4 py-8 text-gray-900">
         <div className="mb-6 flex justify-between">
           <h1 className="text-2xl font-semibold">Legal & Policies</h1>
-          <Link href="/management/content" className="text-sm text-gray-600 hover:text-gray-900">
+          <Link
+            href="/management/content"
+            className="text-sm text-gray-600 hover:text-gray-900"
+          >
             ← Back
           </Link>
         </div>
@@ -53,9 +73,12 @@ export default function ManagementContentLegal() {
           {Object.keys(sections).map((k) => (
             <button
               key={k}
+              type="button"
               onClick={() => setSection(k)}
               className={`rounded-md border px-3 py-1 text-sm ${
-                section === k ? "bg-gray-900 text-white" : "text-gray-700 hover:bg-gray-100"
+                section === k
+                  ? "bg-gray-900 text-white"
+                  : "text-gray-700 hover:bg-gray-100"
               }`}
             >
               {sections[k]}
@@ -63,27 +86,35 @@ export default function ManagementContentLegal() {
           ))}
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-5 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+        <form
+          onSubmit={handleSubmit}
+          className="space-y-5 rounded-lg border border-gray-200 bg-white p-6 shadow-sm"
+        >
           <div>
-            <label className="block text-xs font-medium text-gray-700">Section Title</label>
+            <label className="block text-xs font-medium text-gray-700">
+              Section Title
+            </label>
             <input
               name="title"
               defaultValue={sections[section]}
-              className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-gray-900"
+              className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-gray-900 focus:outline-none"
             />
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-gray-700">Content (HTML or Markdown)</label>
+            <label className="block text-xs font-medium text-gray-700">
+              Content (HTML or Markdown)
+            </label>
             <textarea
               name="body"
               rows={12}
               placeholder={`Write ${sections[section]} text here...`}
-              className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-gray-900"
+              className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-gray-900 focus:outline-none"
             />
           </div>
 
           {message && <p className="text-xs text-green-700">{message}</p>}
+          {error && <p className="text-xs text-red-600">{error}</p>}
 
           <button
             type="submit"
