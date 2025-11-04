@@ -4,16 +4,23 @@ import { useRouter } from "next/router";
 import Head from "next/head";
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
+import { getStripe } from "../../lib/getStripe"; // Import the Stripe helper
 
 const sampleImage =
   "https://images.unsplash.com/photo-1550009158-9ebf69173e03?auto=format&fit=crop&w=900&q=80";
 
+// Helper function to convert price string (e.g., "$2,450") to a number
+function parsePrice(price: string): number {
+  return parseFloat(price.replace(/[$,]/g, ""));
+}
+
 export default function ProductDetail() {
   const { query } = useRouter();
-  const id = String(query.id || "");
+  const id = String(query.id || "demo-product");
 
   const [rating, setRating] = useState<number | null>(null);
   const [rated, setRated] = useState(false);
+  const [loading, setLoading] = useState(false); // State for Buy Now button
 
   const demo = {
     title: "Gucci Marmont Mini Bag",
@@ -30,8 +37,44 @@ export default function ProductDetail() {
     setRated(true);
   }
 
+  // --- Stripe Checkout Handler ---
+  const handleBuyNow = async () => {
+    setLoading(true);
+    try {
+      // Call your API with the product data
+      const res = await fetch("/api/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: id,
+          title: demo.title,
+          price: parsePrice(demo.price), // Send price as a number
+          image: demo.image,
+        }),
+      });
+
+      const { ok, sessionId, error } = await res.json();
+
+      if (!ok) {
+        throw new Error(error || "Failed to create checkout session");
+      }
+
+      // Redirect to Stripe's hosted checkout page
+      const stripe = await getStripe();
+      if (stripe) {
+        await stripe.redirectToCheckout({ sessionId });
+      }
+    } catch (err: any) {
+      console.error(err);
+      alert(`Error: ${err.message}`);
+      setLoading(false);
+    }
+    // No need to set loading(false) on success, as user is redirected
+  };
+
   return (
-    <>
+    // FIX: Wrap page in dark-theme-page class
+    <div className="dark-theme-page">
       <Head>
         <title>{demo.title} | Famous Finds</title>
       </Head>
@@ -41,7 +84,7 @@ export default function ProductDetail() {
           <img src={demo.image} alt={demo.title} />
           <div className="info">
             <h1>{demo.title}</h1>
-            <p className="sku">ID: {id || "demo"}</p>
+            <p className="sku">ID: {id}</p>
             <p className="price">{demo.price}</p>
             <p>{demo.description}</p>
             <h4>Delivery</h4>
@@ -49,7 +92,14 @@ export default function ProductDetail() {
             <h4>Payment</h4>
             <p>{demo.payment}</p>
 
-            <button className="buy">Buy Now</button>
+            {/* FIX: Connect button to Stripe and add loading state */}
+            <button
+              className="buy"
+              onClick={handleBuyNow}
+              disabled={loading}
+            >
+              {loading ? "Processing..." : "Buy Now"}
+            </button>
 
             {/* Review stars */}
             <div className="reviewBlock">
@@ -86,7 +136,7 @@ export default function ProductDetail() {
           max-width: 1080px;
           margin: 40px auto;
           padding: 0 16px;
-          color: #eaeaea;
+          /* color: #eaeaea; */ /* No longer needed, inherited from .dark-theme-page */
         }
         .prod {
           display: grid;
@@ -119,11 +169,18 @@ export default function ProductDetail() {
           background: #ffffff;
           color: #000;
           font-weight: 700;
+          cursor: pointer;
+        }
+        /* Added disabled state */
+        .buy:disabled {
+          background: #cccccc;
+          color: #666666;
+          cursor: not-allowed;
         }
         .reviewBlock {
           margin-top: 18px;
           padding-top: 14px;
-          border-top: 1px solid #1f2933;
+          border-top: 1px solid #374151; /* Updated border color */
           font-size: 13px;
         }
         .reviewLabel {
@@ -137,8 +194,9 @@ export default function ProductDetail() {
         .starBtn {
           padding: 4px 8px;
           border-radius: 999px;
-          background: #111827;
-          border: 1px solid #374151;
+          background: #1f2937; /* Updated bg */
+          border: 1px solid #4b5563; /* Updated border */
+          color: #d1d5db; /* Added light text color */
           cursor: pointer;
         }
         .starBtnActive {
@@ -156,6 +214,6 @@ export default function ProductDetail() {
           }
         }
       `}</style>
-    </>
+    </div>
   );
 }
