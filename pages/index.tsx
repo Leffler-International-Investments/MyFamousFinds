@@ -3,7 +3,6 @@ import Head from "next/head";
 import Link from "next/link";
 import Header from "../components/Header";
 import Footer from "../components/Footer";
-// Import the new DemoGrid component
 import DemoGrid from "../components/DemoGrid";
 import { ProductLike } from "../components/ProductCard";
 
@@ -22,7 +21,7 @@ const categories = [
   { name: "Sale", slug: "sale" },
 ];
 
-// Using realistic placeholder images
+// ### FIX: Updated list to include 10 items to fill the grid ###
 const trending: ProductLike[] = [
   {
     id: "g1",
@@ -97,7 +96,6 @@ const trending: ProductLike[] = [
       "https://images.unsplash.com/photo-1601854638706-e1376e73c0f0?w=500&q=80",
     href: "/product/ct1",
   },
-  // ### FIX: Added 2 more items to fill the grid ###
   {
     id: "a1",
     title: "Acne Studios Tee",
@@ -118,7 +116,7 @@ const trending: ProductLike[] = [
   },
 ];
 
-// ### FIX: Added 1 more item to fill the grid (total 5) ###
+// ### FIX: Updated list to include 5 items to fill the grid ###
 const newArrivals: ProductLike[] = [
   { ...trending[4], id: "n-c1" }, // Chanel
   { ...trending[5], id: "n-lv1" }, // LV
