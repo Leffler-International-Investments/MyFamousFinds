@@ -148,8 +148,6 @@ export default function Home() {
       <Header />
 
       <main className="wrap">
-        {/* TOP ADMIN STRIP – REMOVED */}
-
         {/* HERO  */}
         <section className="hero">
           <div className="heroCopy">
@@ -160,14 +158,7 @@ export default function Home() {
               again. A marketplace where every customer belongs, in all colours and all
               stories.
             </p>
-            <div className="heroCta">
-              <Link href="#now-trending" className="primary">
-                Start shopping
-              </Link>
-              <Link href="/sell" className="ghost">
-                Sell an item
-              </Link>
-            </div>
+            {/* .heroCta div removed */}
           </div>
 
           {/* Right: AI Butler “store window” */}
@@ -244,8 +235,6 @@ export default function Home() {
           padding: 24px 16px 40px;
         }
 
-        /* ADMIN STRIP AT TOP - CSS REMOVED */
-
         .hero {
           display: grid;
           grid-template-columns: minmax(0, 1.4fr) minmax(0, 1.1fr);
@@ -259,7 +248,7 @@ export default function Home() {
           font-size: 32px;
         }
         .eyebrow {
-          font-size: 12px; /* Changed from 11px */
+          font-size: 12px;
           letter-spacing: 0.22em;
           text-transform: uppercase;
           color: #9ca3af;
@@ -269,12 +258,9 @@ export default function Home() {
           color: #d1d5db;
           max-width: 34rem;
         }
-        .heroCta {
-          display: flex;
-          flex-wrap: wrap;
-          gap: 10px;
-          align-items: center;
-        }
+        
+        /* .heroCta styles removed */
+
         .primary,
         .ghost {
           font-size: 13px;
@@ -450,7 +436,6 @@ export default function Home() {
           .grid {
             grid-template-columns: repeat(3, minmax(0, 1fr));
           }
-          /* .adminStrip rule removed */
         }
         @media (max-width: 640px) {
           .grid {
