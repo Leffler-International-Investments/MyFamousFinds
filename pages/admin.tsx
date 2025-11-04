@@ -115,7 +115,7 @@ export default function AdminHome() {
             </div>
           </section>
 
-          {/* Management tools */}
+          {/* Management tools (placeholders for now) */}
           <section className="mt-10">
             <h2 className="text-xl font-semibold text-gray-900">
               Management area
@@ -146,7 +146,7 @@ export default function AdminHome() {
                 </div>
                 <p className="mt-1">
                   Manage white-glove sourcing requests and VIP clients.
-                </p>
+                </D>
                 <p className="mt-2 text-[11px] text-gray-500">
                   (Design-only demo – no live route yet.)
                 </p>
@@ -158,7 +158,7 @@ export default function AdminHome() {
                 </div>
                 <p className="mt-1">
                   Oversee disputes, escalations and platform-level support.
-                </mitp>
+                </p> {/* <-- This line was fixed from </mitp> to </p> */}
                 <p className="mt-2 text-[11px] text-gray-500">
                   (Design-only demo – no live route yet.)
                 </p>
