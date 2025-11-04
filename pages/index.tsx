@@ -148,6 +148,24 @@ export default function Home() {
       <Header />
 
       <main className="wrap">
+        {/* TOP ADMIN STRIP – ALWAYS VISIBLE ON DASHBOARD */}
+        <section className="adminStrip">
+          <div className="adminStripText">
+            <span className="adminStripLabel">Admin access</span>
+            <span className="adminStripHint">
+              Store Owners use Management Admin. Sellers use Seller Admin.
+            </span>
+          </div>
+          <div className="adminStripButtons">
+            <Link href="/admin" className="adminPrimary">
+              Management Admin Login
+            </Link>
+            <Link href="/seller/orders" className="adminSecondary">
+              Seller Admin Login
+            </Link>
+          </div>
+        </section>
+
         {/* HERO  */}
         <section className="hero">
           <div className="heroCopy">
@@ -166,32 +184,9 @@ export default function Home() {
                 Sell an item
               </Link>
             </div>
-
-            {/* ADMIN BUTTONS ON DASHBOARD */}
-            <div className="adminCta">
-              <p className="adminLabel">Admin access</p>
-              <div className="adminButtons">
-                <Link href="/admin" className="adminPrimary">
-                  Management Admin Login
-                </Link>
-                <Link href="/seller/orders" className="adminSecondary">
-                  Seller Admin Login
-                </Link>
-              </div>
-            </div>
           </div>
-
-          {/* Right side: store window with ONLY the three big pills */}
-          <div className="heroVisual">
-            <p className="heroIntro">
-              Inside Famous Finds: shelves of bags, shoes, jewelry and watches — a little
-              world of luxury, just for you.
-            </p>
+           </p>
             <div className="heroPills">
-              <Link href="/catalogue" className="pill">
-                <span className="pillTitle">Curated resale</span>
-                <span className="pillSub">Authenticated designer pieces</span>
-              </Link>
               <Link href="/concierge" className="pill">
                 <span className="pillTitle">AI</span>
                 <span className="pillSub">Butler to guide you</span>
@@ -245,6 +240,61 @@ export default function Home() {
           padding: 24px 16px 40px;
         }
 
+        /* ADMIN STRIP AT TOP */
+        .adminStrip {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 16px;
+          padding: 10px 14px;
+          border-radius: 999px;
+          background: #020617;
+          border: 1px solid #1f2937;
+          margin-bottom: 18px;
+        }
+        .adminStripText {
+          display: flex;
+          flex-direction: column;
+          gap: 2px;
+          min-width: 0;
+        }
+        .adminStripLabel {
+          font-size: 12px;
+          font-weight: 600;
+          text-transform: uppercase;
+          letter-spacing: 0.16em;
+          color: #e5e7eb;
+        }
+        .adminStripHint {
+          font-size: 11px;
+          color: #9ca3af;
+        }
+        .adminStripButtons {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 8px;
+        }
+        .adminPrimary,
+        .adminSecondary {
+          font-size: 11px;
+          padding: 6px 12px;
+          border-radius: 999px;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          border: 1px solid #4b5563;
+          white-space: nowrap;
+        }
+        .adminPrimary {
+          background: #f9fafb;
+          color: #000;
+          font-weight: 600;
+        }
+        .adminSecondary {
+          color: #e5e7eb;
+          background: transparent;
+        }
+
         .hero {
           display: grid;
           grid-template-columns: minmax(0, 1.4fr) minmax(0, 1.1fr);
@@ -294,43 +344,7 @@ export default function Home() {
           color: #f9fafb;
         }
 
-        /* ADMIN BUTTONS */
-        .adminCta {
-          margin-top: 18px;
-        }
-        .adminLabel {
-          font-size: 11px;
-          letter-spacing: 0.18em;
-          text-transform: uppercase;
-          color: #9ca3af;
-          margin-bottom: 6px;
-        }
-        .adminButtons {
-          display: flex;
-          flex-wrap: wrap;
-          gap: 8px;
-        }
-        .adminPrimary,
-        .adminSecondary {
-          font-size: 11px;
-          padding: 6px 12px;
-          border-radius: 999px;
-          border: 1px solid #4b5563;
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-        }
-        .adminPrimary {
-          background: #f9fafb;
-          color: #000;
-          font-weight: 600;
-        }
-        .adminSecondary {
-          color: #e5e7eb;
-          background: transparent;
-        }
-
-        /* HERO VISUAL — brighter, more inviting, bigger text */
+        /* HERO VISUAL – BRIGHTER BOX + BIGGER TEXT PILL */
         .heroVisual {
           border-radius: 28px;
           padding: 22px 22px 24px;
@@ -447,6 +461,10 @@ export default function Home() {
           }
           .grid {
             grid-template-columns: repeat(3, minmax(0, 1fr));
+          }
+          .adminStrip {
+            flex-direction: column;
+            align-items: flex-start;
           }
         }
         @media (max-width: 640px) {
