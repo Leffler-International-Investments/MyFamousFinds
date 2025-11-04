@@ -148,23 +148,7 @@ export default function Home() {
       <Header />
 
       <main className="wrap">
-        {/* TOP ADMIN STRIP – ALWAYS VISIBLE ON DASHBOARD */}
-        <section className="adminStrip">
-          <div className="adminStripText">
-            <span className="adminStripLabel">Admin access</span>
-            <span className="adminStripHint">
-              Store Owners use Management Admin. Sellers use Seller Admin.
-            </span>
-          </div>
-          <div className="adminStripButtons">
-            <Link href="/admin" className="adminPrimary">
-              Management Admin Login
-            </Link>
-            <Link href="/seller/orders" className="adminSecondary">
-              Seller Admin Login
-            </Link>
-          </div>
-        </section>
+        {/* TOP ADMIN STRIP – REMOVED */}
 
         {/* HERO  */}
         <section className="hero">
@@ -260,60 +244,7 @@ export default function Home() {
           padding: 24px 16px 40px;
         }
 
-        /* ADMIN STRIP AT TOP */
-        .adminStrip {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          gap: 16px;
-          padding: 10px 14px;
-          border-radius: 999px;
-          background: #020617;
-          border: 1px solid #1f2937;
-          margin-bottom: 18px;
-        }
-        .adminStripText {
-          display: flex;
-          flex-direction: column;
-          gap: 2px;
-          min-width: 0;
-        }
-        .adminStripLabel {
-          font-size: 12px;
-          font-weight: 600;
-          text-transform: uppercase;
-          letter-spacing: 0.16em;
-          color: #e5e7eb;
-        }
-        .adminStripHint {
-          font-size: 11px;
-          color: #9ca3af;
-        }
-        .adminStripButtons {
-          display: flex;
-          flex-wrap: wrap;
-          gap: 8px;
-        }
-        .adminPrimary,
-        .adminSecondary {
-          font-size: 11px;
-          padding: 6px 12px;
-          border-radius: 999px;
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-          border: 1px solid #4b5563;
-          white-space: nowrap;
-        }
-        .adminPrimary {
-          background: #f9fafb;
-          color: #000;
-          font-weight: 600;
-        }
-        .adminSecondary {
-          color: #e5e7eb;
-          background: transparent;
-        }
+        /* ADMIN STRIP AT TOP - CSS REMOVED */
 
         .hero {
           display: grid;
@@ -519,10 +450,7 @@ export default function Home() {
           .grid {
             grid-template-columns: repeat(3, minmax(0, 1fr));
           }
-          .adminStrip {
-            flex-direction: column;
-            align-items: flex-start;
-          }
+          /* .adminStrip rule removed */
         }
         @media (max-width: 640px) {
           .grid {
