@@ -3,6 +3,7 @@ import Head from "next/head";
 import Link from "next/link";
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
+import { useRequireAdmin } from "../../hooks/useRequireAdmin";
 
 const mockOrders = [
   { id: "O-1001", buyer: "Emma", total: 9500, status: "Paid", createdAt: "2025-11-01" },
@@ -11,6 +12,9 @@ const mockOrders = [
 ];
 
 export default function ManagementOrders() {
+  const { loading } = useRequireAdmin();
+  if (loading) return null;
+
   return (
     <>
       <Head>
