@@ -52,9 +52,11 @@ export default function SellerDashboard() {
       <Head>
         <title>Seller Console — Famous Finds</title>
       </Head>
+      {/* This div provides the light gray background for the whole page */}
       <div className="min-h-screen bg-gray-50 text-gray-900">
         <Header />
 
+        {/* This main element centers the content */}
         <main className="mx-auto max-w-6xl px-4 pb-16 pt-6">
           {/* Heading */}
           <div className="mb-8 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
