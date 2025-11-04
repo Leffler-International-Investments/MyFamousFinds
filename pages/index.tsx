@@ -20,7 +20,7 @@ const categories = [
   { name: "Sale", slug: "sale" },
 ];
 
-// simple Unsplash base image (already allowed in next.config.js)
+// Unsplash demo image (allowed in next.config.js)
 const baseImg =
   "https://images.unsplash.com/photo-1550009158-9ebf69173e03?auto=format&fit=crop&w=900&q=";
 
@@ -196,4 +196,100 @@ export default function Home() {
           align-items: center;
         }
         .heroCopy h1 {
-          font-siz
+          font-size: 32px;
+          line-height: 1.2;
+          margin: 8px 0 6px;
+          letter-spacing: 0.08em;
+        }
+        .heroText {
+          margin-top: 4px;
+          color: #d4d4d4;
+          font-size: 14px;
+        }
+        .eyebrow {
+          font-size: 11px;
+          letter-spacing: 0.25em;
+          text-transform: uppercase;
+          color: #a3a3a3;
+        }
+        .heroButtons {
+          margin-top: 14px;
+          display: flex;
+          gap: 10px;
+          flex-wrap: wrap;
+        }
+        .btnPrimary {
+          padding: 10px 18px;
+          border-radius: 999px;
+          background: #ffffff;
+          color: #000000;
+          font-size: 13px;
+          font-weight: 700;
+        }
+        .btnGhost {
+          padding: 10px 18px;
+          border-radius: 999px;
+          border: 1px solid #404040;
+          font-size: 13px;
+        }
+        .heroImg {
+          border-radius: 20px;
+          min-height: 220px;
+          background-image: url("https://images.unsplash.com/photo-1528701800489-20be3c30c1d5?auto=format&fit=crop&w=900&q=80");
+          background-size: cover;
+          background-position: center;
+          box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+        }
+        .cats {
+          display: grid;
+          grid-template-columns: repeat(6, 1fr);
+          gap: 10px;
+          margin: 24px 0 20px;
+        }
+        .cat {
+          padding: 10px 12px;
+          border: 1px solid #1a1a1a;
+          border-radius: 10px;
+          background: #0f0f0f;
+          text-align: center;
+          font-size: 13px;
+        }
+        .rowHeader {
+          margin: 18px 0 10px;
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+        }
+        .grid {
+          display: grid;
+          gap: 12px;
+          grid-template-columns: repeat(5, 1fr);
+        }
+        @media (max-width: 1100px) {
+          .grid {
+            grid-template-columns: repeat(4, 1fr);
+          }
+          .cats {
+            grid-template-columns: repeat(4, 1fr);
+          }
+        }
+        @media (max-width: 900px) {
+          .hero {
+            grid-template-columns: 1fr;
+          }
+          .grid {
+            grid-template-columns: repeat(3, 1fr);
+          }
+        }
+        @media (max-width: 640px) {
+          .grid {
+            grid-template-columns: repeat(2, 1fr);
+          }
+          .cats {
+            grid-template-columns: repeat(3, 1fr);
+          }
+        }
+      `}</style>
+    </>
+  );
+}
