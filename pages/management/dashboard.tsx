@@ -1,36 +1,68 @@
 // /pages/management/dashboard.tsx
 import Link from "next/link";
 import ButlerChat from "../../components/ButlerChat";
+import Header from "../../components/Header"; // Added
+import Footer from "../../components/Footer"; // Added
 
 export default function ManagementDashboard() {
   const modules = [
-    "Dashboard","Sellers Directory","Seller Profiles / Controls","All Listings",
-    "Listing Review Queue","Orders Overview","Returns & Disputes Centre",
-    "Support Tickets / Helpdesk","Payouts & Finance","Stripe & Payment Settings",
-    "Tax & Compliance","Categories & Attributes","Campaigns & Promotions",
-    "Content Management","Reviews & Moderation","Analytics & Reports",
-    "User & Role Management","System Settings","Logs & Audit Trail",
-    "Developer / Integrations","Logout",
+    "Dashboard",
+    "Sellers Directory",
+    "Seller Profiles / Controls",
+    "All Listings",
+    "Listing Review Queue",
+    "Orders Overview",
+    "Returns & Disputes Centre",
+    "Support Tickets / Helpdesk",
+    "Payouts & Finance",
+    "Stripe & Payment Settings",
+    "Tax & Compliance",
+    "Categories & Attributes",
+    "Campaigns & Promotions",
+    "Content Management",
+    "Reviews & Moderation",
+    "Analytics & Reports",
+    "User & Role Management",
+    "System Settings",
+    "Logs & Audit Trail",
+    "Developer / Integrations",
+    "Logout",
   ];
 
   return (
-    <div className="min-h-screen bg-white text-black p-10">
-      <div className="flex justify-between mb-6">
-        <h1 className="text-2xl font-bold">Management Admin Dashboard</h1>
-        <Link href="/" className="text-blue-600">← Return to Dashboard</Link>
-      </div>
-      <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-4">
-        {modules.map((m) => (
+    // Updated to white background
+    <div className="min-h-screen bg-white text-gray-900">
+      <Header />
+
+      <main className="mx-auto max-w-6xl px-4 pb-16 pt-6">
+        <div className="mb-6 flex items-center justify-between">
+          <h1 className="text-2xl font-bold text-gray-900">
+            Management Admin Dashboard
+          </h1>
           <Link
-            key={m}
-            href={`/management/${m.toLowerCase().replace(/[^a-z]+/g, "-")}`}
-            className="border border-gray-300 rounded-lg p-4 hover:bg-gray-100"
+            href="/"
+            className="text-sm text-gray-600 hover:text-gray-900"
           >
-            {m}
+            ← Return to Dashboard
           </Link>
-        ))}
-      </div>
+        </div>
+        
+        {/* Updated button styles */}
+        <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3">
+          {modules.map((m) => (
+            <Link
+              key={m}
+              href={`/management/${m.toLowerCase().replace(/[^a-z]+/g, "-")}`}
+              className="block rounded-lg border border-gray-200 bg-white p-4 text-sm font-medium text-gray-700 shadow-sm transition-all hover:border-blue-500 hover:text-black hover:shadow-md"
+            >
+              {m}
+            </Link>
+          ))}
+        </div>
+      </main>
+      
       <ButlerChat />
+      <Footer />
     </div>
   );
 }
