@@ -1,4 +1,6 @@
+// FILE: /components/Header.tsx
 import Link from "next/link";
+import Image from "next/image"; // 1. Import next/image
 
 export default function Header() {
   return (
@@ -6,13 +8,19 @@ export default function Header() {
       <div className="inner">
         {/* Brand */}
         <Link href="/" className="brand">
-          <span className="logo">F</span>
-          <span className="wordmark">FAMOUS FINDS</span>
+          {/* 2. Replace the old <span> tags with the Image component */}
+          <Image
+            src="/Famous-Finds-Logo.png"
+            alt="Famous Finds Logo"
+            width={160} // You can adjust this width
+            height={40} // You can adjust this height
+            priority={true} // Makes your logo load fast
+          />
         </Link>
 
         {/* Main navigation */}
         <nav className="nav">
-          <Link href="/" className="navLink">Dashboard</Link>
+          <Link href="/dashboard" className="navLink">Dashboard</Link>
           <Link href="/sell" className="navLink">Sell</Link>
           <Link href="/help" className="navLink">Help</Link>
           <Link href="/about" className="navLink">About</Link>
@@ -49,27 +57,13 @@ export default function Header() {
         .brand {
           display: inline-flex;
           align-items: center;
-          gap: 8px;
-          font-weight: 700;
-          font-size: 14px;
           text-decoration: none;
+          /* 3. Removed old brand styles, 
+             Image component handles its own sizing */
         }
-        .logo {
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-          width: 26px;
-          height: 26px;
-          border-radius: 6px;
-          background: #f9fafb;
-          color: #000;
-          font-size: 14px;
-        }
-        .wordmark {
-          letter-spacing: 0.12em;
-          text-transform: uppercase;
-          font-size: 11px;
-        }
+        
+        /* 4. Removed the unused .logo and .wordmark styles */
+        
         .nav {
           display: flex;
           align-items: center;
