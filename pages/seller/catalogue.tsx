@@ -1,46 +1,91 @@
 // FILE: /pages/seller/catalogue.tsx
 import Head from "next/head";
+import Link from "next/link";
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
-import Link from "next/link";
 
-export default function Catalogue(){
-  // TODO: fetch seller listings from Firestore
+export default function Catalogue() {
+  // Demo data – in production this would be fetched for the logged-in seller
   const items = [
-    { id:"g1", title:"Gucci Marmont Mini", price:2450, status:"Active" },
-    { id:"d1", title:"Dior Printed Dress", price:1950, status:"Active" },
+    { id: "g1", title: "Gucci Marmont Mini", price: 2450, status: "Active" },
+    { id: "d1", title: "Dior Printed Dress", price: 1950, status: "Active" },
   ];
+
   return (
     <>
-      <Head><title>My Catalogue — Famous Finds</title></Head>
-      <Header />
-      <main className="wrap">
-        <h1>My Catalogue</h1>
-        <div className="actions">
-          <Link className="btn" href="/seller/bulk-upload">Bulk Upload CSV</Link>
-          <Link className="btn ghost" href="/sell">Add Single Item</Link>
-        </div>
-        <table className="tbl">
-          <thead><tr><th>Title</th><th>Price</th><th>Status</th><th></th></tr></thead>
-          <tbody>
-            {items.map(x=>(
-              <tr key={x.id}><td>{x.title}</td><td>${x.price}</td><td>{x.status}</td>
-                <td><Link className="link" href={`/product/${x.id}`}>View</Link></td></tr>
-            ))}
-          </tbody>
-        </table>
-      </main>
-      <Footer />
-      <style jsx>{`
-        .wrap{ max-width:1000px; margin:0 auto; padding:24px 16px; }
-        .actions{ display:flex; gap:8px; margin:10px 0 12px; }
-        .btn{ background:#fff; color:#000; border:none; border-radius:8px; padding:10px 14px; font-weight:700; }
-        .btn.ghost{ background:#0f0f0f; color:#fff; border:1px solid #1a1a1a; }
-        .tbl{ width:100%; border-collapse:separate; border-spacing:0 8px; }
-        th,td{ padding:8px 10px; text-align:left; }
-        tbody tr{ background:#0b0b0b; }
-        .link{ text-decoration:underline; }
-      `}</style>
+      <Head>
+        <title>Seller — Catalogue | Famous Finds</title>
+      </Head>
+      <div className="min-h-screen bg-black text-gray-100">
+        <Header />
+        <main className="mx-auto max-w-5xl px-4 pb-16 pt-6 text-sm">
+          <Link
+            href="/"
+            className="text-xs text-gray-400 hover:text-gray-200"
+          >
+            ← Back to Dashboard
+          </Link>
+
+          <h1 className="mt-4 text-2xl font-semibold text-white">
+            My catalogue
+          </h1>
+          <p className="mt-1 text-sm text-gray-400">
+            Manage active listings. In a full build you&apos;d be able to edit,
+            pause and duplicate items from here.
+          </p>
+
+          <div className="mt-4 flex flex-wrap gap-2">
+            <Link
+              href="/seller/bulk-upload"
+              className="rounded-full bg-white px-3 py-1.5 text-xs font-medium text-black hover:bg-gray-100"
+            >
+              Bulk upload CSV
+            </Link>
+            <Link
+              href="/sell"
+              className="rounded-full border border-neutral-700 px-3 py-1.5 text-xs hover:border-neutral-500"
+            >
+              Add single item
+            </Link>
+          </div>
+
+          <section className="mt-6 rounded-xl border border-neutral-800 bg-neutral-950 p-4">
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[560px] text-xs">
+                <thead className="border-b border-neutral-800 text-[11px] uppercase tracking-wide text-gray-400">
+                  <tr>
+                    <th className="py-2 pr-3 text-left">Title</th>
+                    <th className="px-3 py-2 text-left">Price</th>
+                    <th className="px-3 py-2 text-left">Status</th>
+                    <th className="px-3 py-2 text-right">View</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {items.map((x) => (
+                    <tr
+                      key={x.id}
+                      className="border-b border-neutral-900 last:border-0"
+                    >
+                      <td className="py-2 pr-3">{x.title}</td>
+                      <td className="px-3 py-2">${x.price}</td>
+                      <td className="px-3 py-2">{x.status}</td>
+                      <td className="px-3 py-2 text-right">
+                        <Link
+                          href={`/product/${x.id}`}
+                          className="text-[11px] text-gray-300 underline-offset-2 hover:underline"
+                        >
+                          View listing
+                        </Link>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        </main>
+        <Footer />
+      </div>
     </>
   );
 }
