@@ -8,7 +8,7 @@ export default function Buying() {
   return (
     <>
       <Head>
-        <title>Buying – Famous Finds</title>
+        <title>Buying on Famous Finds</title>
       </Head>
       <div className="min-h-screen bg-black text-white">
         <Header />
@@ -20,18 +20,50 @@ export default function Buying() {
             ← Back to Dashboard
           </Link>
 
-          <h1 className="mt-4 text-2xl font-semibold">Buying on Famous Finds</h1>
-          <p className="mt-3">
-            Browse by category, favourite brands or curated collections, then
-            check size and condition details before you buy.
+          <h1 className="mt-4 text-2xl font-semibold">Buying guide</h1>
+          <p className="mt-3 text-gray-300">
+            Everything you need to know about shopping safely on Famous Finds.
           </p>
-          <ul className="mt-3 list-disc space-y-1 pl-5">
-            <li>Every item is checked for authenticity before it ships.</li>
-            <li>
-              Use Support if you ever receive something that doesn&apos;t match
-              the description.
-            </li>
-          </ul>
+
+          <section className="mt-6 space-y-4">
+            <div>
+              <h2 className="text-base font-semibold text-gray-100">
+                Authenticity & review
+              </h2>
+              <p className="mt-2">
+                Every listing is reviewed before it goes live. For higher-value
+                items we may request extra images or documents from the seller.
+              </p>
+            </div>
+
+            <div>
+              <h2 className="text-base font-semibold text-gray-100">
+                Payments & security
+              </h2>
+              <ul className="mt-2 list-disc space-y-1 pl-5 text-gray-300">
+                <li>All payments are processed via Stripe.</li>
+                <li>
+                  Your card details are handled by Stripe, not stored by Famous
+                  Finds.
+                </li>
+                <li>
+                  Orders are only paid out to the seller after delivery or after
+                  the inspection window closes.
+                </li>
+              </ul>
+            </div>
+
+            <div>
+              <h2 className="text-base font-semibold text-gray-100">
+                Fees & taxes
+              </h2>
+              <p className="mt-2">
+                Prices shown on the site are for the item only. Shipping and any
+                applicable taxes are calculated at checkout before you confirm
+                payment.
+              </p>
+            </div>
+          </section>
         </main>
         <Footer />
       </div>
