@@ -2,8 +2,29 @@
 
 /* Basic reset */
 * { box-sizing: border-box; }
-html, body { margin: 0; padding: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; background:#0b0b0b; color:#eee; }
+html, body { 
+  margin: 0; 
+  padding: 0; 
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; 
+  /* !! FIX: 
+    REMOVED 'background:#0b0b0b' and 'color:#eee' from here.
+    This stops the global dark theme from overriding your dashboard components.
+    We will add the dark background back *selectively* to other pages.
+  */
+}
 a { color: inherit; text-decoration: none; } /* Added this from your previous file for convenience */
+
+/*
+  !! ADD THIS:
+  Create a new class to apply the dark theme ONLY to pages that need it
+  (like your homepage), but NOT your dashboards.
+*/
+.dark-theme-page {
+  background: #0b0b0b;
+  color: #eee;
+  min-height: 100vh; /* Ensures it covers the full page */
+}
+
 
 /* Hero */
 .hero { background:#0b0b0b url('/hero.jpg') center/cover no-repeat; min-height: 48vh; display:flex; align-items:center; }
