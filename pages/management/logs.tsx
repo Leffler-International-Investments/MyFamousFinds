@@ -3,6 +3,7 @@ import Head from "next/head";
 import Link from "next/link";
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
+import { useRequireAdmin } from "../../hooks/useRequireAdmin";
 
 const mockLogs = [
   { id: 1, time: "2025-11-05 09:15", actor: "system", action: "Nightly payout job completed" },
@@ -10,6 +11,9 @@ const mockLogs = [
 ];
 
 export default function ManagementLogs() {
+  const { loading } = useRequireAdmin();
+  if (loading) return null;
+
   return (
     <>
       <Head>
