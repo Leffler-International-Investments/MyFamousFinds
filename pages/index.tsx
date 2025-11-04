@@ -200,7 +200,7 @@ export default function Home() {
               <div className="butlerCopy">
                 <div className="butlerTitle">Your personal style butler</div>
                 <div className="butlerText">
-                  Tell us what you&apos;re looking for – a Chanel bag, a Rolex, or a
+                  Tell me what you&apos;re looking for – a Chanel bag, a Rolex, or a
                   special dress – and the Butler will search only within Famous Finds.
                 </div>
               </div>
