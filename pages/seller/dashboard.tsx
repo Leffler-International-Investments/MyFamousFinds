@@ -180,7 +180,7 @@ export default function SellerDashboard() {
                   </h3>
                   <p className="mt-1 text-xs text-gray-600">
                     Check available balance, upcoming payouts and connect your bank via Stripe.
-                  </Fp>
+                  </p> {/* <-- This line was fixed from </Fp> to </p> */}
                 </div>
                 <div className="mt-3 text-xs text-emerald-600 group-hover:text-emerald-500">
                   Open wallet →
