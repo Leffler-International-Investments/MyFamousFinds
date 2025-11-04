@@ -3,7 +3,9 @@ import Head from "next/head";
 import Link from "next/link";
 import Header from "../components/Header";
 import Footer from "../components/Footer";
-import ProductCard, { ProductLike } from "../components/ProductCard";
+// Import the new DemoGrid component
+import DemoGrid from "../components/DemoGrid";
+import { ProductLike } from "../components/ProductCard";
 
 const categories = [
   { name: "Bags", slug: "bags" },
@@ -20,35 +22,15 @@ const categories = [
   { name: "Sale", slug: "sale" },
 ];
 
-// Small helper to generate a brand-specific image as an SVG
-const brandImage = (label: string, emoji: string, bg: string) => {
-  const svg = `
-    <svg xmlns="http://www.w3.org/2000/svg" width="800" height="800">
-      <defs>
-        <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0%" stop-color="${bg}"/>
-          <stop offset="100%" stop-color="#111827"/>
-        </linearGradient>
-      </defs>
-      <rect width="100%" height="100%" fill="url(#g)"/>
-      <text x="50%" y="44%" text-anchor="middle" fill="#ffffff"
-        font-family="system-ui, -apple-system, BlinkMacSystemFont"
-        font-size="64">${emoji}</text>
-      <text x="50%" y="62%" text-anchor="middle" fill="#ffffff"
-        font-family="system-ui, -apple-system, BlinkMacSystemFont"
-        font-size="32">${label}</text>
-    </svg>`;
-  return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
-};
-
-// Each product now has a brand-specific visual
+// Using the realistic placeholder images from our previous step
 const trending: ProductLike[] = [
   {
     id: "g1",
     title: "Gucci Marmont Mini",
     brand: "GUCCI",
     price: "$2,450",
-    image: brandImage("Gucci bag", "👜", "#db2777"),
+    image:
+      "https://images.unsplash.com/photo-1594223274512-ad4803739b7c?w=500&q=80",
     href: "/product/g1",
     badge: "New",
     details: "Signature chain-detail shoulder bag.",
@@ -58,7 +40,8 @@ const trending: ProductLike[] = [
     title: "Prada Re-Edition 2005",
     brand: "PRADA",
     price: "$2,990",
-    image: brandImage("Prada nylon", "👜", "#22c55e"),
+    image:
+      "https://images.unsplash.com/photo-1620138546368-356b907a7529?w=500&q=80",
     href: "/product/p1",
   },
   {
@@ -66,7 +49,8 @@ const trending: ProductLike[] = [
     title: "Zimmermann Silk Blouse",
     brand: "ZIMMERMANN",
     price: "$480",
-    image: brandImage("Silk blouse", "👗", "#6366f1"),
+    image:
+      "https://images.unsplash.com/photo-1581044777550-4cfa60707c03?w=500&q=80",
     href: "/product/z1",
   },
   {
@@ -74,7 +58,8 @@ const trending: ProductLike[] = [
     title: "Dior Printed Dress",
     brand: "DIOR",
     price: "$1,950",
-    image: brandImage("Dior dress", "👗", "#eab308"),
+    image:
+      "https://images.unsplash.com/photo-1590130603709-5d63030f146c?w=500&q=80",
     href: "/product/d1",
   },
   {
@@ -82,15 +67,18 @@ const trending: ProductLike[] = [
     title: "Chanel Slingbacks",
     brand: "CHANEL",
     price: "$1,250",
-    image: brandImage("Chanel shoes", "👠", "#ec4899"),
+    image:
+      "https://images.unsplash.com/photo-1543163521-1bf539c55dd2?w=500&q=80",
     href: "/product/c1",
   },
+  // ... (keeping the other demo items)
   {
     id: "lv1",
     title: "LV Monogram Scarf",
     brand: "LOUIS VUITTON",
     price: "$620",
-    image: brandImage("LV scarf", "🧣", "#f97316"),
+    image:
+      "https://images.unsplash.com/photo-1616017006307-e4560b130e52?w=500&q=80",
     href: "/product/lv1",
   },
   {
@@ -98,7 +86,8 @@ const trending: ProductLike[] = [
     title: "Rolex Datejust 36",
     brand: "ROLEX",
     price: "$12,900",
-    image: brandImage("Rolex watch", "⌚️", "#22d3ee"),
+    image:
+      "https://images.unsplash.com/photo-1620625336423-6e31c3bf1c55?w=500&q=80",
     href: "/product/r1",
   },
   {
@@ -106,33 +95,14 @@ const trending: ProductLike[] = [
     title: "Cartier Love Bracelet",
     brand: "CARTIER",
     price: "$9,800",
-    image: brandImage("Cartier love", "💎", "#facc15"),
+    image:
+      "https://images.unsplash.com/photo-1601854638706-e1376e73c0f0?w=500&q=80",
     href: "/product/ct1",
-  },
-  {
-    id: "a1",
-    title: "Acne Studios Tee",
-    brand: "ACNE",
-    price: "$190",
-    image: brandImage("Acne tee", "👕", "#a855f7"),
-    href: "/product/a1",
-  },
-  {
-    id: "ce1",
-    title: "Celine Wool Coat",
-    brand: "CELINE",
-    price: "$2,650",
-    image: brandImage("Celine coat", "🧥", "#4ade80"),
-    href: "/product/ce1",
   },
 ];
 
 // New arrivals reuse the same visuals but have distinct IDs
 const newArrivals: ProductLike[] = [
-  { ...trending[0], id: "n-g1", badge: "New" },
-  { ...trending[1], id: "n-p1" },
-  { ...trending[2], id: "n-z1" },
-  { ...trending[3], id: "n-d1" },
   { ...trending[4], id: "n-c1" },
   { ...trending[5], id: "n-lv1" },
   { ...trending[6], id: "n-r1" },
@@ -141,7 +111,8 @@ const newArrivals: ProductLike[] = [
 
 export default function Home() {
   return (
-    <>
+    // Wrap page in .dark-theme-page to fix text colors
+    <div className="dark-theme-page">
       <Head>
         <title>Famous Finds — US</title>
       </Head>
@@ -158,10 +129,9 @@ export default function Home() {
               again. A marketplace where every customer belongs, in all colours and all
               stories.
             </p>
-            {/* .heroCta div removed */}
           </div>
 
-          {/* Right: AI Butler “store window” */}
+          {/* Right: AI Butler (White Background Style) */}
           <div className="heroVisual">
             <p className="heroIntro">
               Meet your Famous Finds AI Butler – a friendly concierge to help you discover
@@ -203,27 +173,16 @@ export default function Home() {
           ))}
         </section>
 
-        {/* Trending grid */}
-        <div className="rowHeader">
-          <h3>Now Trending</h3>
-          <a className="viewAll">View all</a>
-        </div>
-        <section className="grid" id="now-trending">
-          {trending.map((p) => (
-            <ProductCard key={p.id} {...p} />
-          ))}
-        </section>
+        {/* ### UPDATE: Using the new DemoGrid component ###
+          This replaces the old <div class="rowHeader"> and <section class="grid">
+        */}
+        <DemoGrid title="Now Trending" items={trending} />
 
-        {/* New arrivals */}
-        <div className="rowHeader">
-          <h3>New Arrivals</h3>
-          <a className="viewAll">View all</a>
-        </div>
-        <section className="grid">
-          {newArrivals.map((p) => (
-            <ProductCard key={p.id} {...p} />
-          ))}
-        </section>
+        {/* ### UPDATE: Using the new DemoGrid component ###
+          This replaces the old <div class="rowHeader"> and <section class="grid">
+        */}
+        <DemoGrid title="New Arrivals" items={newArrivals} />
+
       </main>
 
       <Footer />
@@ -251,53 +210,21 @@ export default function Home() {
           font-size: 12px;
           letter-spacing: 0.22em;
           text-transform: uppercase;
-          color: #9ca3af;
+          color: #9ca3af; /* This gray is fine on a dark background */
         }
         .lead {
           margin: 0 0 16px;
-          color: #d1d5db;
+          color: #d1d5db; /* This gray is fine on a dark background */
           max-width: 34rem;
         }
         
-        /* .heroCta styles removed */
-
-        .primary,
-        .ghost {
-          font-size: 13px;
-          padding: 8px 16px;
-          border-radius: 999px;
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-          border: 1px solid transparent;
-        }
-        .primary {
-          background: #f9fafb;
-          color: #000;
-          font-weight: 600;
-        }
-        .ghost {
-          border-color: #4b5563;
-          color: #f9fafb;
-        }
-
-        /* HERO VISUAL – brighter, larger fonts */
+        /* HERO VISUAL – (White Background Style) */
         .heroVisual {
           border-radius: 28px;
           padding: 22px 22px 24px;
-          background-image: radial-gradient(
-              circle at 0% 0%,
-              rgba(244, 63, 94, 0.4),
-              transparent 60%
-            ),
-            radial-gradient(
-              circle at 100% 100%,
-              rgba(56, 189, 248, 0.55),
-              transparent 60%
-            ),
-            linear-gradient(135deg, #020617, #111827, #1f2937);
-          box-shadow: 0 28px 90px rgba(0, 0, 0, 0.8);
-          border: 1px solid rgba(148, 163, 184, 0.45);
+          background: #ffffff;
+          box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+          border: 1px solid #e5e7eb; /* gray-200 */
           display: flex;
           flex-direction: column;
           justify-content: space-between;
@@ -306,11 +233,12 @@ export default function Home() {
         .heroIntro {
           font-size: 15px;
           line-height: 1.6;
-          color: #f9fafb;
+          color: #374151; /* gray-700 */
           max-width: 380px;
-          background: rgba(15, 23, 42, 0.8);
+          background: #f9fafb; /* gray-50 */
           border-radius: 20px;
           padding: 10px 14px;
+          border: 1px solid #f3f4f6; /* gray-100 */
         }
         .heroButlerRow {
           display: flex;
@@ -326,7 +254,7 @@ export default function Home() {
           display: flex;
           align-items: center;
           justify-content: center;
-          box-shadow: 0 12px 30px rgba(0, 0, 0, 0.7);
+          box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2); /* Kept shadow */
         }
         .butlerEmoji {
           font-size: 34px;
@@ -338,12 +266,12 @@ export default function Home() {
         .butlerTitle {
           font-size: 16px;
           font-weight: 600;
-          color: #e5e7eb;
+          color: #111827; /* gray-900 */
           margin-bottom: 2px;
         }
         .butlerText {
           font-size: 13px;
-          color: #cbd5f5;
+          color: #4b5563; /* gray-600 */
         }
 
         .heroPills {
@@ -357,24 +285,24 @@ export default function Home() {
           min-width: 0;
           padding: 12px 14px;
           border-radius: 18px;
-          background: rgba(15, 23, 42, 0.96);
-          border: 1px solid rgba(148, 163, 184, 0.85);
+          background: #f3f4f6; /* gray-100 */
+          border: 1px solid #d1d5db; /* gray-300 */
           display: flex;
           flex-direction: column;
           justify-content: center;
           text-decoration: none;
         }
         .pillSecondary {
-          background: rgba(15, 23, 42, 0.9);
+          background: #f9fafb; /* gray-50 */
         }
         .pillTitle {
           font-size: 18px;
           font-weight: 600;
-          color: #e5e7eb;
+          color: #1f2937; /* gray-800 */
         }
         .pillSub {
           font-size: 14px;
-          color: #d1d5db;
+          color: #6b7280; /* gray-500 */
           margin-top: 2px;
         }
 
@@ -386,42 +314,29 @@ export default function Home() {
         }
         .cat {
           padding: 10px 12px;
-          border: 1px solid #1f2933;
+          border: 1px solid #374151; /* Darker border */
           border-radius: 10px;
-          background: #020617;
+          background: #1f2937; /* Dark tile */
           text-align: center;
           font-size: 13px;
+          color: #e5e7eb; /* Light text */
+        }
+        .cat:hover {
+          background: #374151;
+          border-color: #4b5563;
         }
 
-        .rowHeader {
-          margin: 18px 0 10px;
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-        }
-        .rowHeader h3 {
-          font-size: 16px;
-          font-weight: 700;
-        }
-        .viewAll {
-          font-size: 12px;
-          color: #9ca3af;
-        }
-
-        .grid {
-          display: grid;
-          gap: 12px;
-          grid-template-columns: repeat(5, minmax(0, 1fr));
-        }
+        /* ### UPDATE: 
+          Removed .rowHeader, .viewAll, and .grid styles.
+          They are now correctly located inside DemoGrid.tsx.
+        */
 
         @media (max-width: 1100px) {
           .hero {
             grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
             gap: 28px;
           }
-          .grid {
-            grid-template-columns: repeat(4, minmax(0, 1fr));
-          }
+          /* .grid styles removed */
           .cats {
             grid-template-columns: repeat(4, minmax(0, 1fr));
           }
@@ -433,14 +348,10 @@ export default function Home() {
           .heroVisual {
             order: -1;
           }
-          .grid {
-            grid-template-columns: repeat(3, minmax(0, 1fr));
-          }
+          /* .grid styles removed */
         }
         @media (max-width: 640px) {
-          .grid {
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-          }
+          /* .grid styles removed */
           .cats {
             grid-template-columns: repeat(3, minmax(0, 1fr));
           }
@@ -449,6 +360,6 @@ export default function Home() {
           }
         }
       `}</style>
-    </>
+    </div>
   );
 }
