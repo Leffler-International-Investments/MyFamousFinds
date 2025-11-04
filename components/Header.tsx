@@ -1,55 +1,50 @@
-// FILE: /components/Header.tsx
 import Link from "next/link";
 
 export default function Header() {
   return (
     <header className="site-header">
       <div className="inner">
+        {/* Brand */}
         <Link href="/" className="brand">
           <span className="logo">F</span>
           <span className="wordmark">FAMOUS FINDS</span>
         </Link>
 
+        {/* Main navigation */}
         <nav className="nav">
-          <Link href="/" className="navLink">
-            Dashboard
-          </Link>
-          <Link href="/sell" className="navLink">
-            Sell
-          </Link>
-          <Link href="/help" className="navLink">
-            Help
-          </Link>
-          <Link href="/about" className="navLink">
-            About
-          </Link>
-          <Link href="/contact" className="navLink">
-            Contact
-          </Link>
+          <Link href="/" className="navLink">Dashboard</Link>
+          <Link href="/sell" className="navLink">Sell</Link>
+          <Link href="/help" className="navLink">Help</Link>
+          <Link href="/about" className="navLink">About</Link>
+          <Link href="/contact" className="navLink">Contact</Link>
         </nav>
 
+        {/* Admin portals */}
         <div className="right">
-          {/* Single small entry point into the “under the hood” admin area */}
-          <Link href="/admin" className="navLink adminLink">
-            Admin
+          <Link href="/management/dashboard" className="adminBtn management">
+            Management Admin Login
+          </Link>
+          <Link href="/seller/dashboard" className="adminBtn seller">
+            Seller Admin Login
           </Link>
         </div>
       </div>
 
       <style jsx>{`
         .site-header {
-          border-bottom: 1px solid #111;
           background: #000;
+          border-bottom: 1px solid #111;
           color: #f9fafb;
         }
         .inner {
-          max-width: 1200px;
+          max-width: 1280px;
           margin: 0 auto;
-          padding: 10px 16px;
+          padding: 12px 18px;
           display: flex;
           align-items: center;
           justify-content: space-between;
           gap: 16px;
+          flex-wrap: wrap;
         }
         .brand {
           display: inline-flex;
@@ -78,46 +73,56 @@ export default function Header() {
         .nav {
           display: flex;
           align-items: center;
-          gap: 16px;
+          gap: 18px;
           font-size: 13px;
         }
         .navLink {
           color: #e5e7eb;
           text-decoration: none;
-          white-space: nowrap;
         }
         .navLink:hover {
-          color: #ffffff;
+          color: #fff;
         }
         .right {
           display: flex;
           align-items: center;
           gap: 10px;
+          flex-wrap: wrap;
+        }
+        .adminBtn {
           font-size: 12px;
+          border-radius: 20px;
+          padding: 6px 12px;
+          font-weight: 600;
+          text-decoration: none;
+          transition: all 0.2s ease;
         }
-        .adminLink {
-          opacity: 0.8;
-          border-radius: 999px;
-          padding: 4px 10px;
-          border: 1px solid #1f2937;
+        .management {
+          background: linear-gradient(90deg, #d1d5db, #9ca3af);
+          color: #000;
         }
-        .adminLink:hover {
-          opacity: 1;
-          border-color: #4b5563;
+        .seller {
+          background: linear-gradient(90deg, #facc15, #f59e0b);
+          color: #000;
         }
-        @media (max-width: 768px) {
+        .adminBtn:hover {
+          transform: translateY(-1px);
+          opacity: 0.9;
+        }
+        @media (max-width: 850px) {
           .inner {
-            flex-wrap: wrap;
+            flex-direction: column;
             align-items: flex-start;
           }
           .nav {
+            flex-wrap: wrap;
+            gap: 10px;
+          }
+          .right {
+            margin-top: 6px;
             width: 100%;
             justify-content: flex-start;
             flex-wrap: wrap;
-            row-gap: 6px;
-          }
-          .right {
-            margin-left: auto;
           }
         }
       `}</style>
