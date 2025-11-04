@@ -3,6 +3,7 @@ import Head from "next/head";
 import Link from "next/link";
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
+import { useRequireAdmin } from "../../hooks/useRequireAdmin";
 
 const mockPayouts = [
   { id: "P-001", seller: "VintageLux Boutique", amount: 7200, currency: "USD", status: "Paid", date: "2025-11-01" },
@@ -10,6 +11,9 @@ const mockPayouts = [
 ];
 
 export default function ManagementPayouts() {
+  const { loading } = useRequireAdmin();
+  if (loading) return null;
+
   return (
     <>
       <Head>
