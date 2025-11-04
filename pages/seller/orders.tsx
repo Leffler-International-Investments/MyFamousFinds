@@ -1,44 +1,93 @@
 // FILE: /pages/seller/orders.tsx
 import Head from "next/head";
+import Link from "next/link";
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
 
-export default function SellerOrders(){
+export default function SellerOrders() {
   const rows = [
-    { id:"FF-9201", item:"Gucci Marmont Mini", buyer:"A. Smith", total:"$2,450", status:"Awaiting Shipment" },
-    { id:"FF-9191", item:"Chanel Slingbacks", buyer:"M. Rossi", total:"$1,250", status:"Shipped" },
+    {
+      id: "FF-9201",
+      item: "Gucci Marmont Mini",
+      buyer: "A. Smith",
+      total: "$2,450.00",
+      status: "Awaiting shipment",
+    },
+    {
+      id: "FF-9191",
+      item: "Chanel Slingbacks",
+      buyer: "M. Rossi",
+      total: "$1,250.00",
+      status: "Shipped",
+    },
   ];
+
   return (
     <>
-      <Head><title>Seller Orders — Famous Finds</title></Head>
-      <Header />
-      <main className="wrap">
-        <h1>My Orders</h1>
-        <p className="hint">View new orders and mark items as shipped.</p>
-        <div className="tbl">
-          <table>
-            <thead><tr><th>Order</th><th>Item</th><th>Buyer</th><th>Total</th><th>Status</th><th></th></tr></thead>
-            <tbody>
-              {rows.map(r=>(
-                <tr key={r.id}>
-                  <td>{r.id}</td><td>{r.item}</td><td>{r.buyer}</td><td>{r.total}</td><td>{r.status}</td>
-                  <td><button className="btn">Mark as Shipped</button></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </main>
-      <Footer />
-      <style jsx>{`
-        .wrap{ max-width:1000px; margin:0 auto; padding:24px 16px; }
-        .hint{ color:#aaa; margin:6px 0 18px; }
-        .tbl{ border:1px solid #1a1a1a; border-radius:12px; padding:12px; background:#0f0f0f; }
-        table{ width:100%; border-collapse:separate; border-spacing:0 8px; }
-        th,td{ text-align:left; padding:8px 10px; }
-        tbody tr{ background:#0b0b0b; }
-        .btn{ background:#fff; color:#000; border:none; border-radius:8px; padding:8px 12px; font-weight:700; }
-      `}</style>
+      <Head>
+        <title>Seller — Orders | Famous Finds</title>
+      </Head>
+      <div className="min-h-screen bg-black text-gray-100">
+        <Header />
+        <main className="mx-auto max-w-5xl px-4 pb-16 pt-6 text-sm">
+          <Link
+            href="/"
+            className="text-xs text-gray-400 hover:text-gray-200"
+          >
+            ← Back to Dashboard
+          </Link>
+
+          <h1 className="mt-4 text-2xl font-semibold text-white">My orders</h1>
+          <p className="mt-1 text-sm text-gray-400">
+            Review new orders and mark items as shipped once dispatched.
+          </p>
+
+          <section className="mt-6 rounded-xl border border-neutral-800 bg-neutral-950 p-4">
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[560px] text-xs">
+                <thead className="border-b border-neutral-800 text-[11px] uppercase tracking-wide text-gray-400">
+                  <tr>
+                    <th className="py-2 pr-3 text-left">Order</th>
+                    <th className="px-3 py-2 text-left">Item</th>
+                    <th className="px-3 py-2 text-left">Buyer</th>
+                    <th className="px-3 py-2 text-left">Total</th>
+                    <th className="px-3 py-2 text-left">Status</th>
+                    <th className="px-3 py-2 text-right">Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {rows.map((r) => (
+                    <tr
+                      key={r.id}
+                      className="border-b border-neutral-900 last:border-0"
+                    >
+                      <td className="py-2 pr-3">{r.id}</td>
+                      <td className="px-3 py-2">{r.item}</td>
+                      <td className="px-3 py-2">{r.buyer}</td>
+                      <td className="px-3 py-2">{r.total}</td>
+                      <td className="px-3 py-2">{r.status}</td>
+                      <td className="px-3 py-2 text-right">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            alert(
+                              `In a full version, ${r.id} would be updated to "Shipped".`
+                            )
+                          }
+                          className="rounded-full bg-white px-3 py-1.5 text-[11px] font-medium text-black hover:bg-gray-100"
+                        >
+                          Mark as shipped
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        </main>
+        <Footer />
+      </div>
     </>
   );
 }
