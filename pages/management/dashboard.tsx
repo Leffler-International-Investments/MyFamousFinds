@@ -29,9 +29,11 @@ const DashboardLink = ({ href, title, description }) => (
 
 export default function ManagementDashboard() {
   return (
+    // This div provides the light gray background for the whole page
     <div className="min-h-screen bg-gray-50 text-gray-900">
       <Header />
 
+      {/* This main element centers the content */}
       <main className="mx-auto max-w-6xl px-4 pb-16 pt-6">
         <div className="mb-8 flex items-center justify-between">
           <h1 className="text-2xl font-bold text-gray-900">
