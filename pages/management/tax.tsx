@@ -3,6 +3,7 @@ import Head from "next/head";
 import Link from "next/link";
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
+import { useRequireAdmin } from "../../hooks/useRequireAdmin";
 
 const mockTaxSummary = [
   { sellerId: "s_001", sellerName: "VintageLux Boutique", year: 2025, grossSales: 95000, formsIssued: true },
@@ -10,6 +11,9 @@ const mockTaxSummary = [
 ];
 
 export default function ManagementTax() {
+  const { loading } = useRequireAdmin();
+  if (loading) return null;
+
   return (
     <>
       <Head>
@@ -17,6 +21,7 @@ export default function ManagementTax() {
       </Head>
       <div className="min-h-screen bg-gray-50 text-gray-900">
         <Header />
+
         <main className="mx-auto max-w-6xl px-4 pb-16 pt-6">
           <div className="mb-6 flex items-center justify-between">
             <div>
