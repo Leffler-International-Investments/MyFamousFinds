@@ -1,6 +1,6 @@
 // FILE: /components/Header.tsx
 import Link from "next/link";
-import Image from "next/image"; // 1. Import next/image
+import Image from "next/image"; // Import next/image
 
 export default function Header() {
   return (
@@ -8,19 +8,19 @@ export default function Header() {
       <div className="inner">
         {/* Brand */}
         <Link href="/" className="brand">
-          {/* 2. Replace the old <span> tags with the Image component */}
           <Image
             src="/Famous-Finds-Logo.png"
             alt="Famous Finds Logo"
-            width={160} // You can adjust this width
-            height={40} // You can adjust this height
-            priority={true} // Makes your logo load fast
+            width={160}
+            height={40}
+            priority={true}
           />
         </Link>
 
         {/* Main navigation */}
         <nav className="nav">
-          <Link href="/dashboard" className="navLink">Dashboard</Link>
+          {/* --- FIX: This link now points to "/" --- */}
+          <Link href="/" className="navLink">Dashboard</Link>
           <Link href="/sell" className="navLink">Sell</Link>
           <Link href="/help" className="navLink">Help</Link>
           <Link href="/about" className="navLink">About</Link>
@@ -58,12 +58,7 @@ export default function Header() {
           display: inline-flex;
           align-items: center;
           text-decoration: none;
-          /* 3. Removed old brand styles, 
-             Image component handles its own sizing */
         }
-        
-        /* 4. Removed the unused .logo and .wordmark styles */
-        
         .nav {
           display: flex;
           align-items: center;
