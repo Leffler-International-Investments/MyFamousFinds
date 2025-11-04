@@ -181,33 +181,25 @@ export default function Home() {
             </div>
           </div>
 
-          {/* Right side: “store window” visual instead of blank black block */}
+          {/* Right side: store window with ONLY the three big pills */}
           <div className="heroVisual">
-            <div className="heroBadge">
+            <p className="heroIntro">
               Inside Famous Finds: shelves of bags, shoes, jewelry and watches — a little
               world of luxury, just for you.
-            </div>
-            <div className="heroChips">
-              <span className="chip">Gucci bags</span>
-              <span className="chip">Chanel slingbacks</span>
-              <span className="chip">LV scarves</span>
-              <span className="chip">Rolex watches</span>
-              <span className="chip">Cartier bracelets</span>
-              <span className="chip">Zimmermann dresses</span>
-            </div>
-            <div className="heroStats">
-              <div className="stat">
-                <div className="statNum">US ·</div>
-                <div className="statLabel">Curated resale</div>
-              </div>
-              <div className="stat">
-                <div className="statNum">AI</div>
-                <div className="statLabel">Butler to guide you</div>
-              </div>
-              <div className="stat">
-                <div className="statNum">24/7</div>
-                <div className="statLabel">Shopping from your sofa</div>
-              </div>
+            </p>
+            <div className="heroPills">
+              <Link href="/catalogue" className="pill">
+                <span className="pillTitle">Curated resale</span>
+                <span className="pillSub">Authenticated designer pieces</span>
+              </Link>
+              <Link href="/concierge" className="pill">
+                <span className="pillTitle">AI</span>
+                <span className="pillSub">Butler to guide you</span>
+              </Link>
+              <Link href="/help" className="pill">
+                <span className="pillTitle">24/7</span>
+                <span className="pillSub">Shopping from your sofa</span>
+              </Link>
             </div>
           </div>
         </section>
@@ -338,64 +330,64 @@ export default function Home() {
           background: transparent;
         }
 
+        /* HERO VISUAL — brighter, more inviting, bigger text */
         .heroVisual {
-          border-radius: 24px;
-          padding: 18px 18px 20px;
-          background-image:
-            radial-gradient(circle at 0% 0%, rgba(244, 63, 94, 0.3), transparent 55%),
-            radial-gradient(circle at 100% 100%, rgba(56, 189, 248, 0.35), transparent 55%),
-            linear-gradient(135deg, #020617, #0f172a);
-          box-shadow: 0 24px 80px rgba(0, 0, 0, 0.7);
-          border: 1px solid rgba(148, 163, 184, 0.24);
+          border-radius: 28px;
+          padding: 22px 22px 24px;
+          background-image: radial-gradient(
+              circle at 0% 0%,
+              rgba(244, 63, 94, 0.35),
+              transparent 60%
+            ),
+            radial-gradient(
+              circle at 100% 100%,
+              rgba(56, 189, 248, 0.45),
+              transparent 60%
+            ),
+            linear-gradient(135deg, #020617, #111827, #1e293b);
+          box-shadow: 0 28px 90px rgba(0, 0, 0, 0.8);
+          border: 1px solid rgba(148, 163, 184, 0.4);
           display: flex;
           flex-direction: column;
           justify-content: space-between;
-          min-height: 240px;
+          min-height: 260px;
         }
-        .heroBadge {
-          font-size: 12px;
-          color: #e5e7eb;
-          background: rgba(15, 23, 42, 0.8);
+        .heroIntro {
+          font-size: 14px;
+          line-height: 1.5;
+          color: #f9fafb;
+          max-width: 360px;
+          background: rgba(15, 23, 42, 0.7);
           border-radius: 999px;
-          padding: 6px 10px;
-          display: inline-flex;
-          max-width: 260px;
+          padding: 10px 14px;
         }
-        .heroChips {
-          margin-top: 14px;
+        .heroPills {
+          margin-top: 18px;
           display: flex;
           flex-wrap: wrap;
-          gap: 6px;
+          gap: 12px;
         }
-        .chip {
-          font-size: 11px;
-          padding: 4px 9px;
-          border-radius: 999px;
-          background: rgba(15, 23, 42, 0.9);
-          border: 1px solid rgba(148, 163, 184, 0.5);
-          color: #e5e7eb;
-        }
-        .heroStats {
-          margin-top: 14px;
-          display: flex;
-          flex-wrap: wrap;
-          gap: 8px;
-        }
-        .stat {
-          padding: 8px 10px;
-          border-radius: 16px;
-          background: rgba(15, 23, 42, 0.9);
-          border: 1px solid rgba(148, 163, 184, 0.4);
+        .pill {
+          flex: 1 1 0;
           min-width: 0;
+          padding: 12px 14px;
+          border-radius: 18px;
+          background: rgba(15, 23, 42, 0.95);
+          border: 1px solid rgba(148, 163, 184, 0.7);
+          display: flex;
+          flex-direction: column;
+          justify-content: center;
+          text-decoration: none;
         }
-        .statNum {
-          font-size: 11px;
+        .pillTitle {
+          font-size: 16px;
           font-weight: 600;
-          color: #a5b4fc;
-        }
-        .statLabel {
-          font-size: 11px;
           color: #e5e7eb;
+        }
+        .pillSub {
+          font-size: 13px;
+          color: #c4c9d4;
+          margin-top: 2px;
         }
 
         .cats {
@@ -463,6 +455,9 @@ export default function Home() {
           }
           .cats {
             grid-template-columns: repeat(3, minmax(0, 1fr));
+          }
+          .heroPills {
+            flex-direction: column;
           }
         }
       `}</style>
