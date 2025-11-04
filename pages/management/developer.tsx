@@ -3,8 +3,12 @@ import Head from "next/head";
 import Link from "next/link";
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
+import { useRequireAdmin } from "../../hooks/useRequireAdmin";
 
 export default function ManagementDeveloper() {
+  const { loading } = useRequireAdmin();
+  if (loading) return null;
+
   return (
     <>
       <Head>
