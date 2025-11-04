@@ -22,7 +22,7 @@ const categories = [
   { name: "Sale", slug: "sale" },
 ];
 
-// Using the realistic placeholder images from our previous step
+// Using realistic placeholder images
 const trending: ProductLike[] = [
   {
     id: "g1",
@@ -33,7 +33,6 @@ const trending: ProductLike[] = [
       "https://images.unsplash.com/photo-1594223274512-ad4803739b7c?w=500&q=80",
     href: "/product/g1",
     badge: "New",
-    details: "Signature chain-detail shoulder bag.",
   },
   {
     id: "p1",
@@ -71,7 +70,6 @@ const trending: ProductLike[] = [
       "https://images.unsplash.com/photo-1543163521-1bf539c55dd2?w=500&q=80",
     href: "/product/c1",
   },
-  // ... (keeping the other demo items)
   {
     id: "lv1",
     title: "LV Monogram Scarf",
@@ -99,14 +97,34 @@ const trending: ProductLike[] = [
       "https://images.unsplash.com/photo-1601854638706-e1376e73c0f0?w=500&q=80",
     href: "/product/ct1",
   },
+  // ### FIX: Added 2 more items to fill the grid ###
+  {
+    id: "a1",
+    title: "Acne Studios Tee",
+    brand: "ACNE",
+    price: "$190",
+    image:
+      "https://images.unsplash.com/photo-1622337290659-c3600a26e636?w=500&q=80",
+    href: "/product/a1",
+  },
+  {
+    id: "ce1",
+    title: "Celine Wool Coat",
+    brand: "CELINE",
+    price: "$2,650",
+    image:
+      "https://images.unsplash.com/photo-1600273760838-8e6878e104e9?w=500&q=80",
+    href: "/product/ce1",
+  },
 ];
 
-// New arrivals reuse the same visuals but have distinct IDs
+// ### FIX: Added 1 more item to fill the grid (total 5) ###
 const newArrivals: ProductLike[] = [
-  { ...trending[4], id: "n-c1" },
-  { ...trending[5], id: "n-lv1" },
-  { ...trending[6], id: "n-r1" },
-  { ...trending[7], id: "n-ct1" },
+  { ...trending[4], id: "n-c1" }, // Chanel
+  { ...trending[5], id: "n-lv1" }, // LV
+  { ...trending[6], id: "n-r1" }, // Rolex
+  { ...trending[7], id: "n-ct1" }, // Cartier
+  { ...trending[0], id: "n-g1", badge: "New" }, // Gucci
 ];
 
 export default function Home() {
@@ -173,16 +191,11 @@ export default function Home() {
           ))}
         </section>
 
-        {/* ### UPDATE: Using the new DemoGrid component ###
-          This replaces the old <div class="rowHeader"> and <section class="grid">
-        */}
+        {/* Using the DemoGrid component */}
         <DemoGrid title="Now Trending" items={trending} />
 
-        {/* ### UPDATE: Using the new DemoGrid component ###
-          This replaces the old <div class="rowHeader"> and <section class="grid">
-        */}
+        {/* Using the DemoGrid component */}
         <DemoGrid title="New Arrivals" items={newArrivals} />
-
       </main>
 
       <Footer />
@@ -217,7 +230,7 @@ export default function Home() {
           color: #d1d5db; /* This gray is fine on a dark background */
           max-width: 34rem;
         }
-        
+
         /* HERO VISUAL – (White Background Style) */
         .heroVisual {
           border-radius: 28px;
@@ -326,17 +339,13 @@ export default function Home() {
           border-color: #4b5563;
         }
 
-        /* ### UPDATE: 
-          Removed .rowHeader, .viewAll, and .grid styles.
-          They are now correctly located inside DemoGrid.tsx.
-        */
+        /* Styles for .rowHeader and .grid are in DemoGrid.tsx */
 
         @media (max-width: 1100px) {
           .hero {
             grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
             gap: 28px;
           }
-          /* .grid styles removed */
           .cats {
             grid-template-columns: repeat(4, minmax(0, 1fr));
           }
@@ -348,10 +357,8 @@ export default function Home() {
           .heroVisual {
             order: -1;
           }
-          /* .grid styles removed */
         }
         @media (max-width: 640px) {
-          /* .grid styles removed */
           .cats {
             grid-template-columns: repeat(3, minmax(0, 1fr));
           }
