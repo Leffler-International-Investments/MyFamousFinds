@@ -10,7 +10,7 @@ const isProfileComplete = false;
 
 // Helper component for dashboard sections
 const DashboardSection = ({ title, children }) => (
-  // This <section> is now the styled box
+  // This <section> is the white styled box
   <section className="mb-8 rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
     <h2 className="mb-4 text-lg font-semibold text-gray-900">{title}</h2>
     <div className="grid gap-4 md:grid-cols-3">{children}</div>
