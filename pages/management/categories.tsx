@@ -3,6 +3,7 @@ import Head from "next/head";
 import Link from "next/link";
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
+import { useRequireAdmin } from "../../hooks/useRequireAdmin";
 
 const mockCategories = [
   { id: "bags", name: "Bags", attributes: 12, active: true },
@@ -12,6 +13,9 @@ const mockCategories = [
 ];
 
 export default function ManagementCategories() {
+  const { loading } = useRequireAdmin();
+  if (loading) return null;
+
   return (
     <>
       <Head>
