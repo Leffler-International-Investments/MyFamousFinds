@@ -16,6 +16,9 @@ export default function Header() {
       </Link>
 
       <nav className="nav">
+        {/* Global */}
+        <Link href="/">Dashboard</Link>
+
         {/* Core */}
         <Link href="/sell">Sell</Link>
         <Link href="/seller/orders">My Orders</Link>
@@ -35,6 +38,11 @@ export default function Header() {
         <Link href="/store/seller-demo-001">Storefront</Link>
         <Link href="/concierge">Concierge</Link>
         <Link href="/support/disputes">Disputes</Link>
+
+        {/* Info */}
+        <Link href="/help">Help</Link>
+        <Link href="/about">About</Link>
+        <Link href="/contact">Contact</Link>
       </nav>
 
       <style jsx>{`
@@ -47,6 +55,8 @@ export default function Header() {
           position: sticky;
           top: 0;
           backdrop-filter: blur(4px);
+          background: rgba(0, 0, 0, 0.85);
+          z-index: 20;
         }
         .brand :global(img) {
           height: auto;
