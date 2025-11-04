@@ -1,9 +1,9 @@
 // FILE: /pages/product/[id].tsx
+import React, { useState } from "react";
 import { useRouter } from "next/router";
 import Head from "next/head";
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
-import { useState } from "react";
 
 const sampleImage =
   "https://images.unsplash.com/photo-1550009158-9ebf69173e03?auto=format&fit=crop&w=900&q=80";
