@@ -1,41 +1,38 @@
-// /pages/management/dashboard.tsx
+// FILE: /pages/management/dashboard.tsx
+import Head from "next/head";
 import Link from "next/link";
+import Header from "../../components/Header";
+import Footer from "../../components/Footer";
 import ButlerChat from "../../components/ButlerChat";
-import Header from "../../components/Header"; // Added
-import Footer from "../../components/Footer"; // Added
+
+// Helper component for dashboard sections
+const DashboardSection = ({ title, children }) => (
+  <section className="mb-10">
+    <h2 className="text-lg font-semibold text-gray-900 mb-3">{title}</h2>
+    <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3">{children}</div>
+  </section>
+);
+
+// Helper component for dashboard links
+const DashboardLink = ({ href, title, description }) => (
+  <Link
+    href={href}
+    className="block rounded-lg border border-gray-200 bg-white p-4 text-sm shadow-sm transition-all hover:border-blue-500 hover:text-black hover:shadow-md"
+  >
+    <h3 className="font-medium text-gray-800">{title}</h3>
+    {description && (
+      <p className="mt-1 text-xs text-gray-600">{description}</p>
+    )}
+  </Link>
+);
 
 export default function ManagementDashboard() {
-  const modules = [
-    "Dashboard",
-    "Sellers Directory",
-    "Seller Profiles / Controls",
-    "All Listings",
-    "Listing Review Queue",
-    "Orders Overview",
-    "Returns & Disputes Centre",
-    "Support Tickets / Helpdesk",
-    "Payouts & Finance",
-    "Stripe & Payment Settings",
-    "Tax & Compliance",
-    "Categories & Attributes",
-    "Campaigns & Promotions",
-    "Content Management",
-    "Reviews & Moderation",
-    "Analytics & Reports",
-    "User & Role Management",
-    "System Settings",
-    "Logs & Audit Trail",
-    "Developer / Integrations",
-    "Logout",
-  ];
-
   return (
-    // Updated to white background
     <div className="min-h-screen bg-white text-gray-900">
       <Header />
 
       <main className="mx-auto max-w-6xl px-4 pb-16 pt-6">
-        <div className="mb-6 flex items-center justify-between">
+        <div className="mb-8 flex items-center justify-between">
           <h1 className="text-2xl font-bold text-gray-900">
             Management Admin Dashboard
           </h1>
@@ -43,24 +40,122 @@ export default function ManagementDashboard() {
             href="/"
             className="text-sm text-gray-600 hover:text-gray-900"
           >
-            ← Return to Dashboard
+            ← Return to Storefront
           </Link>
         </div>
-        
-        {/* Updated button styles */}
-        <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3">
-          {modules.map((m) => (
-            <Link
-              key={m}
-              href={`/management/${m.toLowerCase().replace(/[^a-z]+/g, "-")}`}
-              className="block rounded-lg border border-gray-200 bg-white p-4 text-sm font-medium text-gray-700 shadow-sm transition-all hover:border-blue-500 hover:text-black hover:shadow-md"
-            >
-              {m}
-            </Link>
-          ))}
-        </div>
+
+        {/* --- SELLER MANAGEMENT --- */}
+        <DashboardSection title="Seller Management">
+          <DashboardLink
+            href="/management/vetting-queue"
+            title="Seller Vetting Queue"
+            description="Approve or deny new seller applications."
+          />
+          <DashboardLink
+            href="/management/sellers"
+            title="Seller Directory"
+            description="View and manage all active sellers."
+          />
+          <DashboardLink
+            href="/management/seller-profiles"
+            title="Seller Profiles / Controls"
+            description="Edit seller details, status, and permissions."
+          />
+        </DashboardSection>
+
+        {/* --- PRODUCT & CONTENT --- */}
+        <DashboardSection title="Product & Content">
+          <DashboardLink
+            href="/management/listing-queue"
+            title="Listing Review Queue"
+            description="Approve or deny new product listings."
+          />
+          <DashboardLink
+            href="/management/listings"
+            title="All Listings"
+            description="View and manage all products on the platform."
+          />
+          <DashboardLink
+            href="/management/categories"
+            title="Categories & Attributes"
+            description="Manage product categories and metadata."
+          />
+          <DashboardLink
+            href="/management/reviews"
+            title="Reviews & Moderation"
+            description="Moderate product and seller reviews."
+          />
+          <DashboardLink
+            href="/management/content"
+            title="Content Management"
+            description="Edit static pages, banners, and promotions."
+          />
+        </DashboardSection>
+
+        {/* --- OPERATIONS & FINANCE --- */}
+        <DashboardSection title="Operations & Finance">
+          <DashboardLink
+            href="/management/orders"
+            title="Orders Overview"
+            description="Search and view all platform orders."
+          />
+          <DashboardLink
+            href="/management/disputes"
+            title="Returns & Disputes"
+            description="Manage customer returns and seller disputes."
+          />
+          <DashboardLink
+            href="/management/payouts"
+            title="Payouts & Finance"
+            description="Review seller payouts and platform fees."
+          />
+          <DashboardLink
+            href="/management/tax"
+            title="Tax & Compliance"
+            description="Manage tax settings and compliance (e.g., 1099-K forms)."
+          />
+          <DashboardLink
+            href="/management/stripe-settings"
+            title="Stripe & Payment Settings"
+            description="Configure platform payment processing."
+          />
+        </DashboardSection>
+
+        {/* --- PLATFORM & SUPPORT --- */}
+        <DashboardSection title="Platform & Support">
+          <DashboardLink
+            href="/management/analytics"
+            title="Analytics & Reports"
+            description="View platform-wide sales and user reports."
+          />
+          <DashboardLink
+            href="/management/support-tickets"
+            title="Support Tickets"
+            description="View and respond to customer support requests."
+          />
+          <DashboardLink
+            href="/management/users"
+            title="User & Role Management"
+            description="Manage admin user accounts and roles."
+          />
+          <DashboardLink
+            href="/management/settings"
+            title="System Settings"
+            description="Configure global platform settings."
+          />
+          <DashboardLink
+            href="/management/logs"
+            title="Logs & Audit Trail"
+            description="View system and admin action logs."
+          />
+          <DashboardLink
+            href="/management/developer"
+            title="Developer / Integrations"
+            description="Manage API keys and third-party integrations."
+          />
+        </DashboardSection>
       </main>
-      
+
       <ButlerChat />
       <Footer />
     </div>
