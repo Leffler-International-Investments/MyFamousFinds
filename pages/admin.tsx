@@ -146,7 +146,7 @@ export default function AdminHome() {
                 </div>
                 <p className="mt-1">
                   Manage white-glove sourcing requests and VIP clients.
-                </D>
+                </p> {/* <-- This line was fixed from </D> to </p> */}
                 <p className="mt-2 text-[11px] text-gray-500">
                   (Design-only demo – no live route yet.)
                 </p>
@@ -158,7 +158,7 @@ export default function AdminHome() {
                 </div>
                 <p className="mt-1">
                   Oversee disputes, escalations and platform-level support.
-                </p> {/* <-- This line was fixed from </mitp> to </p> */}
+                </p>
                 <p className="mt-2 text-[11px] text-gray-500">
                   (Design-only demo – no live route yet.)
                 </p>
