@@ -3,6 +3,7 @@ import Head from "next/head";
 import Link from "next/link";
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
+import { useRequireAdmin } from "../../hooks/useRequireAdmin";
 
 const mockDisputes = [
   { id: "D-1001", orderId: "O-1003", buyer: "Sarah", reason: "Item not as described", status: "Open" },
@@ -10,6 +11,9 @@ const mockDisputes = [
 ];
 
 export default function ManagementDisputes() {
+  const { loading } = useRequireAdmin();
+  if (loading) return null;
+
   return (
     <>
       <Head>
