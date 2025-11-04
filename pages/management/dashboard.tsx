@@ -7,17 +7,18 @@ import ButlerChat from "../../components/ButlerChat";
 
 // Helper component for dashboard sections
 const DashboardSection = ({ title, children }) => (
-  <section className="mb-10">
-    <h2 className="text-lg font-semibold text-gray-900 mb-3">{title}</h2>
+  // This <section> is now the styled box
+  <section className="mb-8 rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
+    <h2 className="mb-4 text-lg font-semibold text-gray-900">{title}</h2>
     <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3">{children}</div>
   </section>
 );
 
-// Helper component for dashboard links
+// Helper component for dashboard links (styled as buttons/cards)
 const DashboardLink = ({ href, title, description }) => (
   <Link
     href={href}
-    className="block rounded-lg border border-gray-200 bg-white p-4 text-sm shadow-sm transition-all hover:border-blue-500 hover:text-black hover:shadow-md"
+    className="block rounded-lg border border-gray-200 bg-gray-50 p-4 text-sm shadow-sm transition-all hover:border-blue-500 hover:bg-white hover:shadow-md"
   >
     <h3 className="font-medium text-gray-800">{title}</h3>
     {description && (
@@ -28,7 +29,7 @@ const DashboardLink = ({ href, title, description }) => (
 
 export default function ManagementDashboard() {
   return (
-    <div className="min-h-screen bg-white text-gray-900">
+    <div className="min-h-screen bg-gray-50 text-gray-900">
       <Header />
 
       <main className="mx-auto max-w-6xl px-4 pb-16 pt-6">
@@ -161,3 +162,4 @@ export default function ManagementDashboard() {
     </div>
   );
 }
+
