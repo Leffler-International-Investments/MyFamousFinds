@@ -1,167 +1,119 @@
 // FILE: /pages/sell.tsx
-import Layout from "@/components/Layout";
+import Head from "next/head";
+import Link from "next/link";
+import Header from "../components/Header";
+import Footer from "../components/Footer";
 import { FormEvent, useState } from "react";
 
 export default function Sell() {
-  const [sent, setSent] = useState(false);
-  const [imgUrl, setImgUrl] = useState("");
-  const [cleaned, setCleaned] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
-  const [err, setErr] = useState("");
+  const [submitted, setSubmitted] = useState(false);
 
-  async function cleanBg() {
-    if (!imgUrl) return;
-    setBusy(true);
-    setErr("");
-
-    try {
-      const r = await fetch("/api/images/clean", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ imageUrl: imgUrl }),
-      });
-      const j = await r.json();
-      if (!j.ok) throw new Error(j.error || "clean_failed");
-      setCleaned(j.cleanedDataUrl);
-    } catch (e: any) {
-      setErr(e.message || "Something went wrong");
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function onSubmit(e: FormEvent<HTMLFormElement>) {
+  function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    const fd = new FormData(e.currentTarget);
-    // include cleaned image if available
-    if (cleaned) fd.set("cleanedImageDataUrl", cleaned);
-
-    await fetch("/api/sell", { method: "POST", body: fd });
-    setSent(true);
+    setSubmitted(true);
   }
 
   return (
-    <Layout title="Sell — Famous Finds">
-      <div className="flex justify-center">
-        <div className="w-full max-w-xl py-10 px-4">
-          <h1 className="text-2xl font-semibold">Sell an Item</h1>
+    <>
+      <Head>
+        <title>Sell an Item – Famous Finds</title>
+      </Head>
+      <div className="min-h-screen bg-black text-white">
+        <Header />
+        <main className="mx-auto max-w-3xl px-4 pb-16 pt-6 text-sm text-gray-100">
+          <Link
+            href="/"
+            className="text-xs text-gray-400 hover:text-gray-100"
+          >
+            ← Back to Dashboard
+          </Link>
 
-          {sent ? (
-            <p className="mt-6 text-sm">
-              Thanks! Your item was submitted for review (demo). Our US team
-              will vet it shortly.
-            </p>
-          ) : (
-            <form onSubmit={onSubmit} className="mt-6 space-y-4 text-sm">
-              <input
-                required
-                name="title"
-                placeholder="Title"
-                className="w-full rounded border border-neutral-700 bg-neutral-900 p-3 outline-none"
-              />
+          <h1 className="mt-4 text-2xl font-semibold">Sell an item</h1>
+          <p className="mt-3 text-gray-300">
+            Send us details of a piece you&apos;d like to sell. Submissions are
+            reviewed for authenticity, condition and fit with the Famous Finds
+            marketplace.
+          </p>
 
+          {submitted && (
+            <div className="mt-5 rounded-lg border border-emerald-500/50 bg-emerald-900/20 p-4 text-xs text-emerald-200">
+              Thank you – your submission has been received (demo). In a
+              production build, our team would review your item and follow up by
+              email.
+            </div>
+          )}
+
+          <form onSubmit={onSubmit} className="mt-6 space-y-3">
+            <input
+              required
+              name="title"
+              placeholder="Title (e.g. Gucci Marmont Mini Bag)"
+              className="w-full rounded-lg border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm outline-none focus:border-fuchsia-500"
+            />
+
+            <div className="grid gap-3 md:grid-cols-3">
               <select
-                required
                 name="category"
-                className="w-full rounded border border-neutral-700 bg-neutral-900 p-3 outline-none"
+                className="w-full rounded-lg border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm outline-none focus:border-fuchsia-500"
+                defaultValue="Party Dresses"
               >
-                <option value="party-dresses">Party Dresses</option>
-                <option value="shoes">Shoes</option>
-                <option value="bags">Bags</option>
-                <option value="jewelry">Jewelry</option>
-                <option value="women">Women</option>
-                <option value="men">Men</option>
+                <option>Party Dresses</option>
+                <option>Bags</option>
+                <option>Shoes</option>
+                <option>Accessories</option>
+                <option>Watches &amp; Jewelry</option>
               </select>
 
               <select
-                required
                 name="condition"
-                className="w-full rounded border border-neutral-700 bg-neutral-900 p-3 outline-none"
+                className="w-full rounded-lg border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm outline-none focus:border-fuchsia-500"
+                defaultValue="New"
               >
                 <option>New</option>
-                <option>Like New</option>
+                <option>Excellent</option>
                 <option>Good</option>
                 <option>Fair</option>
               </select>
 
               <input
                 required
-                type="number"
-                step="0.01"
                 name="price"
+                type="number"
+                min={0}
+                step={1}
                 placeholder="Price (USD)"
-                className="w-full rounded border border-neutral-700 bg-neutral-900 p-3 outline-none"
+                className="w-full rounded-lg border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm outline-none focus:border-fuchsia-500"
               />
+            </div>
 
-              <div className="space-y-2">
-                <input
-                  required
-                  name="image"
-                  placeholder="Image URL (https://...)"
-                  className="w-full rounded border border-neutral-700 bg-neutral-900 p-3 outline-none"
-                  value={imgUrl}
-                  onChange={(e) => setImgUrl(e.target.value)}
-                />
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={cleanBg}
-                    disabled={!imgUrl || busy}
-                    className="rounded border border-neutral-600 px-4 py-2 text-xs hover:border-neutral-400 disabled:opacity-60"
-                  >
-                    {busy ? "Cleaning…" : "AI Clean Background"}
-                  </button>
-                  {err && (
-                    <span className="text-xs text-red-400">Error: {err}</span>
-                  )}
-                </div>
-              </div>
+            <input
+              required
+              name="imageUrl"
+              placeholder="Image URL (https://...)"
+              className="w-full rounded-lg border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm outline-none focus:border-fuchsia-500"
+            />
 
-              {imgUrl && (
-                <div className="grid grid-cols-2 gap-4 items-start text-xs">
-                  <div>
-                    <div className="mb-1 font-medium">Original</div>
-                    <img
-                      src={imgUrl}
-                      alt="original"
-                      className="rounded border border-neutral-700"
-                    />
-                  </div>
-                  {cleaned && (
-                    <div>
-                      <div className="mb-1 font-medium">
-                        Cleaned (white background)
-                      </div>
-                      <img
-                        src={cleaned}
-                        alt="cleaned"
-                        className="rounded border border-neutral-700 bg-white"
-                      />
-                    </div>
-                  )}
-                </div>
-              )}
+            <textarea
+              required
+              name="description"
+              rows={4}
+              placeholder="Description (brand, size, colour, condition, inclusions...)"
+              className="w-full rounded-lg border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm outline-none focus:border-fuchsia-500"
+            />
 
-              <textarea
-                required
-                name="description"
-                placeholder="Description"
-                rows={4}
-                className="w-full rounded border border-neutral-700 bg-neutral-900 p-3 text-sm outline-none"
-              />
+            <button className="rounded-lg bg-white px-4 py-2 text-sm font-semibold text-black hover:bg-gray-100">
+              Submit for review
+            </button>
+          </form>
 
-              <button className="w-full rounded bg-white p-3 text-sm font-semibold text-black hover:bg-gray-100">
-                Submit for Review
-              </button>
-
-              <p className="text-xs text-gray-400">
-                Submissions are reviewed for US sale only. Payouts via Stripe
-                Connect.
-              </p>
-            </form>
-          )}
-        </div>
+          <p className="mt-6 text-xs text-gray-400">
+            Submissions are reviewed for US sale only. Payouts are made via
+            Stripe Connect to a verified bank account once orders are delivered
+            and any return window has passed.
+          </p>
+        </main>
+        <Footer />
       </div>
-    </Layout>
+    </>
   );
 }
