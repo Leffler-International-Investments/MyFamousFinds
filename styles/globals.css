@@ -1,5 +1,14 @@
 /* FILE: /styles/globals.css */
 
+/* !! THE FIX: 
+  You MUST add these three lines to the very top of this file.
+  This is why your boxes, centering, and styles are not appearing.
+*/
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+
 /* Basic reset */
 * { box-sizing: border-box; }
 html, body { 
