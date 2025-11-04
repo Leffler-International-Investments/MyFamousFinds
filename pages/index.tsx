@@ -185,13 +185,33 @@ export default function Home() {
               </Link>
             </div>
           </div>
-           </p>
+
+          {/* Right: AI Butler “store window” */}
+          <div className="heroVisual">
+            <p className="heroIntro">
+              Meet your Famous Finds AI Butler – a friendly concierge to help you discover
+              the perfect piece, by voice or chat, from our curated catalogue.
+            </p>
+
+            <div className="heroButlerRow">
+              <div className="butlerAvatar">
+                <span className="butlerEmoji">🤵‍♂️</span>
+              </div>
+              <div className="butlerCopy">
+                <div className="butlerTitle">Your personal style butler</div>
+                <div className="butlerText">
+                  Tell us what you&apos;re looking for – a Chanel bag, a Rolex, or a
+                  special dress – and the Butler will search only within Famous Finds.
+                </div>
+              </div>
+            </div>
+
             <div className="heroPills">
               <Link href="/concierge" className="pill">
-                <span className="pillTitle">AI</span>
-                <span className="pillSub">Butler to guide you</span>
+                <span className="pillTitle">AI Butler</span>
+                <span className="pillSub">Ask by voice or chat</span>
               </Link>
-              <Link href="/help" className="pill">
+              <Link href="/catalogue" className="pill pillSecondary">
                 <span className="pillTitle">24/7</span>
                 <span className="pillSub">Shopping from your sofa</span>
               </Link>
@@ -344,37 +364,71 @@ export default function Home() {
           color: #f9fafb;
         }
 
-        /* HERO VISUAL – BRIGHTER BOX + BIGGER TEXT PILL */
+        /* HERO VISUAL – brighter, larger fonts */
         .heroVisual {
           border-radius: 28px;
           padding: 22px 22px 24px;
           background-image: radial-gradient(
               circle at 0% 0%,
-              rgba(244, 63, 94, 0.35),
+              rgba(244, 63, 94, 0.4),
               transparent 60%
             ),
             radial-gradient(
               circle at 100% 100%,
-              rgba(56, 189, 248, 0.45),
+              rgba(56, 189, 248, 0.55),
               transparent 60%
             ),
-            linear-gradient(135deg, #020617, #111827, #1e293b);
+            linear-gradient(135deg, #020617, #111827, #1f2937);
           box-shadow: 0 28px 90px rgba(0, 0, 0, 0.8);
-          border: 1px solid rgba(148, 163, 184, 0.4);
+          border: 1px solid rgba(148, 163, 184, 0.45);
           display: flex;
           flex-direction: column;
           justify-content: space-between;
           min-height: 260px;
         }
         .heroIntro {
-          font-size: 14px;
-          line-height: 1.5;
+          font-size: 15px;
+          line-height: 1.6;
           color: #f9fafb;
-          max-width: 360px;
-          background: rgba(15, 23, 42, 0.7);
-          border-radius: 999px;
+          max-width: 380px;
+          background: rgba(15, 23, 42, 0.8);
+          border-radius: 20px;
           padding: 10px 14px;
         }
+        .heroButlerRow {
+          display: flex;
+          align-items: center;
+          gap: 14px;
+          margin-top: 18px;
+        }
+        .butlerAvatar {
+          width: 64px;
+          height: 64px;
+          border-radius: 999px;
+          background: radial-gradient(circle at 30% 20%, #facc15, #1d4ed8);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          box-shadow: 0 12px 30px rgba(0, 0, 0, 0.7);
+        }
+        .butlerEmoji {
+          font-size: 34px;
+        }
+        .butlerCopy {
+          flex: 1 1 0;
+          min-width: 0;
+        }
+        .butlerTitle {
+          font-size: 16px;
+          font-weight: 600;
+          color: #e5e7eb;
+          margin-bottom: 2px;
+        }
+        .butlerText {
+          font-size: 13px;
+          color: #cbd5f5;
+        }
+
         .heroPills {
           margin-top: 18px;
           display: flex;
@@ -386,21 +440,24 @@ export default function Home() {
           min-width: 0;
           padding: 12px 14px;
           border-radius: 18px;
-          background: rgba(15, 23, 42, 0.95);
-          border: 1px solid rgba(148, 163, 184, 0.7);
+          background: rgba(15, 23, 42, 0.96);
+          border: 1px solid rgba(148, 163, 184, 0.85);
           display: flex;
           flex-direction: column;
           justify-content: center;
           text-decoration: none;
         }
+        .pillSecondary {
+          background: rgba(15, 23, 42, 0.9);
+        }
         .pillTitle {
-          font-size: 16px;
+          font-size: 18px;
           font-weight: 600;
           color: #e5e7eb;
         }
         .pillSub {
-          font-size: 13px;
-          color: #c4c9d4;
+          font-size: 14px;
+          color: #d1d5db;
           margin-top: 2px;
         }
 
