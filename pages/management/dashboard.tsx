@@ -145,7 +145,7 @@ export default function ManagementDashboard() {
             href="/management/settings"
             title="System Settings"
             description="Configure global platform settings."
-          />
+          s/>
           <DashboardLink
             href="/management/logs"
             title="Logs & Audit Trail"
@@ -164,4 +164,3 @@ export default function ManagementDashboard() {
     </div>
   );
 }
-
