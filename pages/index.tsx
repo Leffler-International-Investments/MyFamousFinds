@@ -328,7 +328,7 @@ export default function Home() {
           font-size: 32px;
         }
         .eyebrow {
-          font-size: 11px;
+          font-size: 12px; /* Changed from 11px */
           letter-spacing: 0.22em;
           text-transform: uppercase;
           color: #9ca3af;
