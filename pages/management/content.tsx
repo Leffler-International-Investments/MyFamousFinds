@@ -3,8 +3,12 @@ import Head from "next/head";
 import Link from "next/link";
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
+import { useRequireAdmin } from "../../hooks/useRequireAdmin";
 
 export default function ManagementContent() {
+  const { loading } = useRequireAdmin();
+  if (loading) return null;
+
   return (
     <>
       <Head>
@@ -36,9 +40,12 @@ export default function ManagementContent() {
               <p className="mt-1 text-xs text-gray-600">
                 Hero banners, featured collections, and SEO text.
               </p>
-              <button className="mt-3 rounded-md bg-gray-900 px-3 py-2 text-xs font-medium text-white hover:bg-black">
+              <Link
+                href="/management/content/homepage"
+                className="mt-3 inline-flex rounded-md bg-gray-900 px-3 py-2 text-xs font-medium text-white hover:bg-black"
+              >
                 Edit Homepage
-              </button>
+              </Link>
             </section>
 
             <section className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
@@ -46,29 +53,42 @@ export default function ManagementContent() {
               <p className="mt-1 text-xs text-gray-600">
                 About, Contact, Shipping, Returns, and more.
               </p>
-              <button className="mt-3 rounded-md border border-gray-300 px-3 py-2 text-xs text-gray-700 hover:bg-gray-100">
+              <Link
+                href="/management/content/static-pages"
+                className="mt-3 inline-flex rounded-md border border-gray-300 px-3 py-2 text-xs text-gray-700 hover:bg-gray-100"
+              >
                 Manage Pages
-              </button>
+              </Link>
             </section>
 
             <section className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
-              <h2 className="text-sm font-semibold text-gray-900">FAQ & Help Center</h2>
+              <h2 className="text-sm font-semibold text-gray-900">
+                FAQ &amp; Help Center
+              </h2>
               <p className="mt-1 text-xs text-gray-600">
                 Common buyer and seller questions and answers.
               </p>
-              <button className="mt-3 rounded-md border border-gray-300 px-3 py-2 text-xs text-gray-700 hover:bg-gray-100">
+              <Link
+                href="/management/content/faq"
+                className="mt-3 inline-flex rounded-md border border-gray-300 px-3 py-2 text-xs text-gray-700 hover:bg-gray-100"
+              >
                 Edit FAQ
-              </button>
+              </Link>
             </section>
 
             <section className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
-              <h2 className="text-sm font-semibold text-gray-900">Legal & Policies</h2>
+              <h2 className="text-sm font-semibold text-gray-900">
+                Legal &amp; Policies
+              </h2>
               <p className="mt-1 text-xs text-gray-600">
                 Terms of Use, Privacy Policy, Cookies, and Seller Agreement.
               </p>
-              <button className="mt-3 rounded-md border border-gray-300 px-3 py-2 text-xs text-gray-700 hover:bg-gray-100">
+              <Link
+                href="/management/content/legal"
+                className="mt-3 inline-flex rounded-md border border-gray-300 px-3 py-2 text-xs text-gray-700 hover:bg-gray-100"
+              >
                 Manage Legal Content
-              </button>
+              </Link>
             </section>
           </div>
 
