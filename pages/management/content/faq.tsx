@@ -13,32 +13,46 @@ export default function ManagementContentFaq() {
   if (loading) return null;
 
   const [faqs, setFaqs] = useState<FaqItem[]>([
-    { question: "How do I sell on Famous-Finds?", answer: "Register as a seller and list your item for vetting." },
+    {
+      question: "How do I sell on Famous-Finds?",
+      answer: "Register as a seller and list your item for vetting.",
+    },
   ]);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
-  function handleChange(i: number, field: keyof FaqItem, value: string) {
-    const copy = [...faqs];
-    copy[i][field] = value;
-    setFaqs(copy);
+  function handleChange(index: number, field: keyof FaqItem, value: string) {
+    const next = [...faqs];
+    next[index][field] = value;
+    setFaqs(next);
+  }
+
+  function addFaq() {
+    setFaqs([...faqs, { question: "", answer: "" }]);
   }
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setSaving(true);
-    await fetch("/api/management/content/faq", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      credentials: "include",
-      body: JSON.stringify({ faqs }),
-    });
-    setSaving(false);
-    setMessage("FAQ updated.");
-  }
+    setMessage(null);
+    setError(null);
 
-  function addFaq() {
-    setFaqs([...faqs, { question: "", answer: "" }]);
+    try {
+      const res = await fetch("/api/management/content/faq", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ faqs }),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      setMessage("FAQ updated.");
+    } catch (err) {
+      console.error(err);
+      setError("Failed to save FAQ.");
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
@@ -50,26 +64,36 @@ export default function ManagementContentFaq() {
       <main className="mx-auto max-w-4xl px-4 py-8 text-gray-900">
         <div className="mb-6 flex justify-between">
           <h1 className="text-2xl font-semibold">FAQ & Help Center</h1>
-          <Link href="/management/content" className="text-sm text-gray-600 hover:text-gray-900">
+          <Link
+            href="/management/content"
+            className="text-sm text-gray-600 hover:text-gray-900"
+          >
             ← Back
           </Link>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-5 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+        <form
+          onSubmit={handleSubmit}
+          className="space-y-5 rounded-lg border border-gray-200 bg-white p-6 shadow-sm"
+        >
           {faqs.map((f, i) => (
             <div key={i} className="rounded-md border border-gray-200 p-4">
-              <label className="block text-xs font-medium text-gray-700">Question</label>
+              <label className="block text-xs font-medium text-gray-700">
+                Question
+              </label>
               <input
                 value={f.question}
                 onChange={(e) => handleChange(i, "question", e.target.value)}
-                className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+                className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-gray-900 focus:outline-none"
               />
-              <label className="mt-3 block text-xs font-medium text-gray-700">Answer</label>
+              <label className="mt-3 block text-xs font-medium text-gray-700">
+                Answer
+              </label>
               <textarea
                 value={f.answer}
                 onChange={(e) => handleChange(i, "answer", e.target.value)}
                 rows={3}
-                className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+                className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-gray-900 focus:outline-none"
               />
             </div>
           ))}
@@ -92,6 +116,7 @@ export default function ManagementContentFaq() {
           </div>
 
           {message && <p className="text-xs text-green-700">{message}</p>}
+          {error && <p className="text-xs text-red-600">{error}</p>}
         </form>
       </main>
       <Footer />
