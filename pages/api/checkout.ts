@@ -2,15 +2,12 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { stripe } from "../../lib/stripe";
 
-type Body = {
+// Define the expected body from the frontend
+type RequestBody = {
   id: string;
   title: string;
-  price: string; // e.g. "US$2,450"
-};
-
-const priceToCents = (price: string): number => {
-  const numeric = Number(price.replace(/[^0-9.]/g, "")) || 0;
-  return Math.round(numeric * 100);
+  price: number; // Price in dollars (e.g., 2450)
+  image: string;
 };
 
 export default async function handler(
@@ -23,34 +20,49 @@ export default async function handler(
   }
 
   try {
-    const { id, title, price } = req.body as Body;
-    const unitAmount = priceToCents(price);
-    const origin = req.headers.origin ?? "http://localhost:3000";
+    const { id, title, price, image } = req.body as RequestBody;
 
+    if (!id || !title || !price) {
+      return res.status(400).json({ ok: false, error: "Missing product data" });
+    }
+
+    // Get the base URL for Stripe's success/cancel redirects
+    const baseUrl = req.headers.origin || "http://localhost:3000";
+
+    // Create a new Stripe Checkout session
     const session = await stripe.checkout.sessions.create({
+      payment_method_types: ["card", "afterpay_clearpay"],
       mode: "payment",
-      payment_method_types: ["card"],
+      
+      // We pass the product info to Stripe
       line_items: [
         {
-          quantity: 1,
           price_data: {
             currency: "usd",
-            unit_amount: unitAmount,
+            // Stripe expects price in cents, so multiply by 100
+            unit_amount: Math.round(price * 100),
             product_data: {
               name: title,
+              images: image ? [image] : [],
+              metadata: {
+                productId: id,
+              },
             },
           },
+          quantity: 1,
         },
       ],
-      success_url: `${origin}/product/${id}?status=success`,
-      cancel_url: `${origin}/product/${id}?status=cancelled`,
+      
+      // Set the redirect URLs
+      success_url: `${baseUrl}/order/success?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${baseUrl}/product/${id}`, // Send user back to the product
     });
 
-    return res.status(200).json({ url: session.url });
-  } catch (error: any) {
-    console.error("Stripe checkout error", error);
-    return res
-      .status(500)
-      .json({ error: error.message ?? "Unable to create checkout session" });
+    // Send the session ID back to the frontend
+    res.status(200).json({ ok: true, sessionId: session.id });
+
+  } catch (err: any) {
+    console.error("Stripe Error:", err.message);
+    res.status(500).json({ ok: false, error: "Stripe session creation failed" });
   }
 }
