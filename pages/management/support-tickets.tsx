@@ -3,6 +3,7 @@ import Head from "next/head";
 import Link from "next/link";
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
+import { useRequireAdmin } from "../../hooks/useRequireAdmin";
 
 const mockTickets = [
   { id: "T-1001", subject: "Where is my order?", from: "emma@example.com", status: "Open", priority: "High" },
@@ -10,6 +11,9 @@ const mockTickets = [
 ];
 
 export default function ManagementSupport() {
+  const { loading } = useRequireAdmin();
+  if (loading) return null;
+
   return (
     <>
       <Head>
