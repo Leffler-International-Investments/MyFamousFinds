@@ -1,214 +1,240 @@
 // FILE: /pages/product/[id].tsx
 import React, { useState } from "react";
-import { useRouter } from "next/router";
 import Head from "next/head";
+import type { GetServerSideProps } from "next";
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
-import { getStripe } from "../../lib/getStripe"; // Import the Stripe helper
+import { getStripe } from "../../lib/getStripe";
+import { adminDb } from "../../utils/firebaseAdmin";
 
-const sampleImage =
-  "https://images.unsplash.com/photo-1550009158-9ebf69173e03?auto=format&fit=crop&w=900&q=80";
+type ProductPageProps = {
+  id: string;
+  title: string;
+  price: number;
+  currency: string;
+  priceLabel: string;
+  imageUrl: string;
+  description: string;
+  sellerName?: string;
+  delivery?: string;
+  payment?: string;
+};
 
-// Helper function to convert price string (e.g., "$2,450") to a number
-function parsePrice(price: string): number {
-  return parseFloat(price.replace(/[$,]/g, ""));
-}
-
-export default function ProductDetail() {
-  const { query } = useRouter();
-  const id = String(query.id || "demo-product");
-
+export default function ProductDetail(props: ProductPageProps) {
+  const [loading, setLoading] = useState(false);
   const [rating, setRating] = useState<number | null>(null);
   const [rated, setRated] = useState(false);
-  const [loading, setLoading] = useState(false); // State for Buy Now button
 
-  const demo = {
-    title: "Gucci Marmont Mini Bag",
-    price: "$2,450",
-    image: sampleImage,
-    description:
-      "Classic Gucci Marmont Mini bag crafted in matelassé leather with signature GG motif. Includes dust bag and authenticity card.",
-    delivery: "Ships within 3–5 business days across the US.",
-    payment: "Visa, Mastercard, PayPal, Afterpay.",
-  };
+  const {
+    id,
+    title,
+    price,
+    currency,
+    priceLabel,
+    imageUrl,
+    description,
+    sellerName,
+    delivery,
+    payment,
+  } = props;
 
-  function handleRate(value: number) {
-    setRating(value);
-    setRated(true);
-  }
-
-  // --- Stripe Checkout Handler ---
   const handleBuyNow = async () => {
-    setLoading(true);
+    if (!price) return;
     try {
-      // Call your API with the product data
+      setLoading(true);
       const res = await fetch("/api/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          id: id,
-          title: demo.title,
-          price: parsePrice(demo.price), // Send price as a number
-          image: demo.image,
+          id,
+          title,
+          price,
+          currency,
+          image: imageUrl,
         }),
       });
+      const json = await res.json();
+      if (!json.ok) throw new Error(json.error || "Failed to create checkout");
 
-      const { ok, sessionId, error } = await res.json();
-
-      if (!ok) {
-        throw new Error(error || "Failed to create checkout session");
-      }
-
-      // Redirect to Stripe's hosted checkout page
       const stripe = await getStripe();
       if (stripe) {
-        await stripe.redirectToCheckout({ sessionId });
+        await stripe.redirectToCheckout({ sessionId: json.sessionId });
+      } else {
+        throw new Error("Stripe not available");
       }
     } catch (err: any) {
       console.error(err);
-      alert(`Error: ${err.message}`);
+      alert(err?.message || "Something went wrong, please try again.");
       setLoading(false);
     }
-    // No need to set loading(false) on success, as user is redirected
+  };
+
+  const handleRate = (value: number) => {
+    setRating(value);
+    setRated(true);
   };
 
   return (
-    // FIX: Wrap page in dark-theme-page class
     <div className="dark-theme-page">
       <Head>
-        <title>{demo.title} | Famous Finds</title>
+        <title>{title} | Famous Finds</title>
       </Head>
       <Header />
+
       <main className="wrap">
         <div className="prod">
-          <img src={demo.image} alt={demo.title} />
-          <div className="info">
-            <h1>{demo.title}</h1>
-            <p className="sku">ID: {id}</p>
-            <p className="price">{demo.price}</p>
-            <p>{demo.description}</p>
-            <h4>Delivery</h4>
-            <p>{demo.delivery}</p>
-            <h4>Payment</h4>
-            <p>{demo.payment}</p>
+          <div className="imageWrap">
+            <img src={imageUrl} alt={title} />
+          </div>
 
-            {/* FIX: Connect button to Stripe and add loading state */}
+          <div className="info">
+            <h1>{title}</h1>
+            <p className="sku">ID: {id}</p>
+            {sellerName && <p className="seller">Sold by {sellerName}</p>}
+
+            <p className="price">{priceLabel}</p>
+
+            {description && <p className="desc">{description}</p>}
+
+            <h4>Delivery</h4>
+            <p className="sub">
+              {delivery ||
+                "Tracked and insured shipping. Exact options and rates are shown at checkout based on your address."}
+            </p>
+
+            <h4>Payment</h4>
+            <p className="sub">
+              {payment ||
+                "Secure payments handled by Stripe. Major cards and wallets accepted."}
+            </p>
+
             <button
               className="buy"
               onClick={handleBuyNow}
-              disabled={loading}
+              disabled={loading || !price}
             >
-              {loading ? "Processing..." : "Buy Now"}
+              {loading ? "Processing..." : "Buy now"}
             </button>
 
-            {/* Review stars */}
-            <div className="reviewBlock">
-              <div className="reviewLabel">Rate this item</div>
-              <div className="stars">
-                {[5, 4, 3, 2, 1].map((v) => (
+            <div className="rating">
+              <p className="ratingLabel">
+                Rate this item{" "}
+                {rated && rating && (
+                  <span className="ratingThanks">
+                    · thanks for rating {rating}★
+                  </span>
+                )}
+              </p>
+              <div>
+                {[1, 2, 3, 4, 5].map((v) => (
                   <button
                     key={v}
                     type="button"
+                    className={`star ${rating && rating >= v ? "active" : ""}`}
                     onClick={() => handleRate(v)}
-                    className={
-                      "starBtn" +
-                      (rating && v <= rating ? " starBtnActive" : "")
-                    }
                   >
-                    {v}★
+                    ★
                   </button>
                 ))}
               </div>
-              {rated && (
-                <div className="thanks">
-                  Thank you for your {rating}-star review! In a full version
-                  this would be saved to the seller&apos;s rating history.
-                </div>
-              )}
             </div>
           </div>
         </div>
       </main>
+
       <Footer />
 
       <style jsx>{`
         .wrap {
-          max-width: 1080px;
-          margin: 40px auto;
-          padding: 0 16px;
-          /* color: #eaeaea; */ /* No longer needed, inherited from .dark-theme-page */
+          max-width: 1200px;
+          margin: 0 auto;
+          padding: 24px 16px 80px;
         }
         .prod {
           display: grid;
-          grid-template-columns: 1fr 1fr;
-          gap: 40px;
+          grid-template-columns: minmax(0, 1.4fr) minmax(0, 1.6fr);
+          gap: 32px;
+          align-items: flex-start;
         }
-        img {
+        .imageWrap img {
           width: 100%;
-          border-radius: 12px;
+          border-radius: 18px;
           object-fit: cover;
+          background: #020617;
+        }
+        .info h1 {
+          font-size: 26px;
+          margin: 6px 0 4px;
         }
         .sku {
-          opacity: 0.7;
-          margin: 4px 0 0;
+          font-size: 12px;
+          color: #9ca3af;
+          margin-bottom: 6px;
+        }
+        .seller {
+          font-size: 13px;
+          color: #e5e7eb;
+          margin-bottom: 6px;
         }
         .price {
-          margin: 8px 0 12px;
-          font-size: 20px;
+          font-size: 22px;
           font-weight: 600;
+          margin: 8px 0 14px;
+        }
+        .desc {
+          font-size: 14px;
+          color: #e5e7eb;
+          margin-bottom: 10px;
         }
         h4 {
-          margin-top: 14px;
-          font-size: 14px;
+          margin: 18px 0 4px;
+          font-size: 13px;
+          text-transform: uppercase;
+          letter-spacing: 0.12em;
+          color: #9ca3af;
+        }
+        .sub {
+          font-size: 13px;
+          color: #d1d5db;
         }
         .buy {
-          margin-top: 16px;
-          padding: 10px 24px;
+          margin-top: 18px;
           border-radius: 999px;
+          padding: 10px 24px;
           border: none;
           background: #ffffff;
           color: #000;
-          font-weight: 700;
+          font-size: 14px;
+          font-weight: 600;
           cursor: pointer;
         }
-        /* Added disabled state */
         .buy:disabled {
-          background: #cccccc;
-          color: #666666;
-          cursor: not-allowed;
+          opacity: 0.6;
+          cursor: default;
         }
-        .reviewBlock {
+        .rating {
           margin-top: 18px;
-          padding-top: 14px;
-          border-top: 1px solid #374151; /* Updated border color */
           font-size: 13px;
         }
-        .reviewLabel {
-          margin-bottom: 6px;
-          font-weight: 600;
+        .ratingLabel {
+          color: #d1d5db;
         }
-        .stars {
-          display: flex;
-          gap: 6px;
+        .ratingThanks {
+          color: #a3e635;
+          font-size: 12px;
         }
-        .starBtn {
-          padding: 4px 8px;
-          border-radius: 999px;
-          background: #1f2937; /* Updated bg */
-          border: 1px solid #4b5563; /* Updated border */
-          color: #d1d5db; /* Added light text color */
+        .star {
+          background: transparent;
+          border: none;
           cursor: pointer;
+          font-size: 20px;
+          color: #4b5563;
+          padding: 0 2px;
         }
-        .starBtnActive {
-          background: #f59e0b;
-          border-color: #f59e0b;
-          color: #111827;
+        .star.active {
+          color: #facc15;
         }
-        .thanks {
-          margin-top: 8px;
-          color: #a7f3d0;
-        }
-        @media (max-width: 768px) {
+        @media (max-width: 900px) {
           .prod {
             grid-template-columns: 1fr;
           }
@@ -217,3 +243,65 @@ export default function ProductDetail() {
     </div>
   );
 }
+
+export const getServerSideProps: GetServerSideProps<ProductPageProps> = async (
+  ctx
+) => {
+  const rawId = ctx.params?.id;
+  const id = Array.isArray(rawId) ? rawId[0] : rawId;
+  if (!id) return { notFound: true };
+
+  try {
+    const snap = await adminDb.collection("listings").doc(String(id)).get();
+    if (!snap.exists) {
+      return { notFound: true };
+    }
+
+    const d: any = snap.data() || {};
+    const priceNumber = Number(d.price) || 0;
+    const currency = d.currency || "AUD";
+    const priceLabel = priceNumber
+      ? new Intl.NumberFormat("en-AU", {
+          style: "currency",
+          currency,
+          maximumFractionDigits: 0,
+        }).format(priceNumber)
+      : "";
+
+    let sellerName = d.sellerName || "";
+    if (!sellerName && d.sellerId) {
+      try {
+        const sellerSnap = await adminDb
+          .collection("sellers")
+          .doc(String(d.sellerId))
+          .get();
+        if (sellerSnap.exists) {
+          const sData: any = sellerSnap.data() || {};
+          sellerName = sData.displayName || sData.name || "";
+        }
+      } catch (e) {
+        // if seller lookup fails, just skip
+      }
+    }
+
+    return {
+      props: {
+        id: String(id),
+        title: d.title || "Listing",
+        price: priceNumber,
+        currency,
+        priceLabel,
+        imageUrl:
+          d.imageUrl ||
+          "https://images.unsplash.com/photo-1550009158-9ebf69173e03?auto=format&fit=crop&w=900&q=80",
+        description: d.description || "",
+        sellerName,
+        delivery: d.delivery || "",
+        payment: d.payment || "",
+      },
+    };
+  } catch (err) {
+    console.error("Error loading product", err);
+    return { notFound: true };
+  }
+};
