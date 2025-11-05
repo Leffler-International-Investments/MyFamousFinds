@@ -9,7 +9,7 @@ import PasswordInput from "../../components/PasswordInput";
 
 export default function ManagementLoginPage() {
   const router = useRouter();
-  const [email, setEmail] = useState("leffleryd@gmail.com"); // you can change default
+  const [email, setEmail] = useState("leffleryd@gmail.com"); // change default if you want
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
