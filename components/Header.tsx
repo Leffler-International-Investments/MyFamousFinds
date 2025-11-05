@@ -1,6 +1,6 @@
 // FILE: /components/Header.tsx
 import Link from "next/link";
-import Image from "next/image"; // Import next/image
+import Image from "next/image";
 
 export default function Header() {
   return (
@@ -13,13 +13,12 @@ export default function Header() {
             alt="Famous Finds Logo"
             width={160}
             height={40}
-            priority={true}
+            priority
           />
         </Link>
 
         {/* Main navigation */}
         <nav className="nav">
-          {/* --- FIX: This link now points to "/" --- */}
           <Link href="/" className="navLink">Dashboard</Link>
           <Link href="/sell" className="navLink">Sell</Link>
           <Link href="/help" className="navLink">Help</Link>
@@ -29,10 +28,10 @@ export default function Header() {
 
         {/* Admin portals */}
         <div className="right">
-          <Link href="/management/dashboard" className="adminBtn management">
+          <Link href="/management/login" className="adminBtn management">
             Management Admin Login
           </Link>
-          <Link href="/seller/dashboard" className="adminBtn seller">
+          <Link href="/seller/login" className="adminBtn seller">
             Seller Admin Login
           </Link>
         </div>
