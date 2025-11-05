@@ -1,34 +1,86 @@
 // FILE: /pages/admin.tsx
 import Head from "next/head";
 import Link from "next/link";
-import { FormEvent } from "react";
+import { FormEvent, useState } from "react";
 import { useRouter } from "next/router";
 import Header from "../components/Header";
 import Footer from "../components/Footer";
 
 export default function AdminAccess() {
   const router = useRouter();
+  const [managementError, setManagementError] = useState<string | null>(null);
+  const [sellerError, setSellerError] = useState<string | null>(null);
+  const [managementLoading, setManagementLoading] = useState(false);
+  const [sellerLoading, setSellerLoading] = useState(false);
+
+  const redirectFrom =
+    typeof router.query.from === "string" ? router.query.from : null;
 
   async function handleManagementSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    setManagementError(null);
+    setManagementLoading(true);
 
-    if (typeof window !== "undefined") {
-      window.localStorage.setItem("ff-role", "management");
+    const fd = new FormData(e.currentTarget);
+    const email = String(fd.get("email") || "").toLowerCase().trim();
+    const password = String(fd.get("password") || "");
+
+    try {
+      const res = await fetch("/api/auth/management-login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setManagementError(
+          data?.error || "Login failed. Please check your details."
+        );
+        return;
+      }
+
+      // ✅ Credentials are correct – mark user as management admin.
+      if (typeof window !== "undefined") {
+        window.localStorage.setItem("ff-role", "management");
+        window.localStorage.setItem("ff-email", email);
+      }
+
+      const target = redirectFrom || "/management/dashboard";
+      router.push(target);
+    } catch (err) {
+      console.error(err);
+      setManagementError("Unexpected error while logging in.");
+    } finally {
+      setManagementLoading(false);
     }
-
-    // After "login", go to Management Admin dashboard
-    router.push("/management/dashboard");
   }
 
   async function handleSellerSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    setSellerError(null);
+    setSellerLoading(true);
 
-    if (typeof window !== "undefined") {
-      window.localStorage.setItem("ff-role", "seller");
+    const fd = new FormData(e.currentTarget);
+    const email = String(fd.get("email") || "").toLowerCase().trim();
+    const password = String(fd.get("password") || "");
+
+    if (!email || !password) {
+      setSellerError("Please enter your email and password.");
+      setSellerLoading(false);
+      return;
     }
 
-    // After "login", go to Seller dashboard
-    router.push("/seller/dashboard");
+    // For now we accept any email/password here. Later you will call
+    // a real seller-login API that checks vetting & credentials.
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem("ff-role", "seller");
+      window.localStorage.setItem("ff-email", email);
+    }
+
+    const target = redirectFrom || "/seller/dashboard";
+    router.push(target);
+    setSellerLoading(false);
   }
 
   return (
@@ -68,14 +120,18 @@ export default function AdminAccess() {
                 and disputes.
               </p>
 
-              <form onSubmit={handleManagementSubmit} className="mt-4 space-y-4">
+              <form
+                onSubmit={handleManagementSubmit}
+                className="mt-4 space-y-4"
+              >
                 <div>
                   <label className="block text-xs font-medium text-gray-300">
                     Email
                   </label>
                   <input
+                    name="email"
                     type="email"
-                    defaultValue="lefferyd@gmail.com"
+                    defaultValue="leffleryd@gmail.com"
                     className="mt-1 w-full rounded-md border border-gray-600 bg-gray-900 px-3 py-2 text-sm text-gray-100 focus:border-gray-300 focus:outline-none"
                   />
                 </div>
@@ -84,22 +140,27 @@ export default function AdminAccess() {
                     Password
                   </label>
                   <input
+                    name="password"
                     type="password"
-                    defaultValue="••••••••"
                     className="mt-1 w-full rounded-md border border-gray-600 bg-gray-900 px-3 py-2 text-sm text-gray-100 focus:border-gray-300 focus:outline-none"
                   />
                 </div>
 
+                {managementError && (
+                  <p className="text-xs text-red-400">{managementError}</p>
+                )}
+
                 <button
                   type="submit"
-                  className="w-full rounded-md bg-white px-4 py-2 text-sm font-semibold text-gray-900 hover:bg-gray-100"
+                  disabled={managementLoading}
+                  className="w-full rounded-md bg-white px-4 py-2 text-sm font-semibold text-gray-900 hover:bg-gray-100 disabled:opacity-60"
                 >
-                  Enter Management Admin
+                  {managementLoading ? "Signing in…" : "Enter Management Admin"}
                 </button>
 
                 <p className="mt-2 text-xs text-gray-400">
-                  In production this should be restricted to the store owner and
-                  trusted staff only.
+                  Right now only Ariel and Dan can sign in here. Later you can
+                  move this to a full auth provider (Auth0, Clerk, etc.).
                 </p>
               </form>
             </section>
@@ -120,8 +181,8 @@ export default function AdminAccess() {
                     Email
                   </label>
                   <input
+                    name="email"
                     type="email"
-                    defaultValue="lefferyd@gmail.com"
                     className="mt-1 w-full rounded-md border border-gray-600 bg-gray-900 px-3 py-2 text-sm text-gray-100 focus:border-gray-300 focus:outline-none"
                   />
                 </div>
@@ -130,22 +191,27 @@ export default function AdminAccess() {
                     Password
                   </label>
                   <input
+                    name="password"
                     type="password"
-                    defaultValue="••••••••"
                     className="mt-1 w-full rounded-md border border-gray-600 bg-gray-900 px-3 py-2 text-sm text-gray-100 focus:border-gray-300 focus:outline-none"
                   />
                 </div>
 
+                {sellerError && (
+                  <p className="text-xs text-red-400">{sellerError}</p>
+                )}
+
                 <button
                   type="submit"
-                  className="w-full rounded-md bg-white px-4 py-2 text-sm font-semibold text-gray-900 hover:bg-gray-100"
+                  disabled={sellerLoading}
+                  className="w-full rounded-md bg-white px-4 py-2 text-sm font-semibold text-gray-900 hover:bg-gray-100 disabled:opacity-60"
                 >
-                  Enter Seller Admin
+                  {sellerLoading ? "Signing in…" : "Enter Seller Admin"}
                 </button>
 
                 <p className="mt-2 text-xs text-gray-400">
-                  Hook this up to real authentication (Auth0, Clerk, NextAuth
-                  or a custom API) when you&apos;re ready.
+                  Later this will verify that the seller has been vetted and
+                  approved before allowing login.
                 </p>
               </form>
             </section>
