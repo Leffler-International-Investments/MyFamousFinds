@@ -3,40 +3,89 @@ import type { NextApiRequest, NextApiResponse } from "next";
 import { adminDb, FieldValue } from "../../../utils/firebaseAdmin";
 import { getSellerId } from "../../../utils/authServer";
 
-export default async function handler(req:NextApiRequest,res:NextApiResponse){
-  if (req.method!=="POST") return res.status(405).end();
-  const sellerId = getSellerId(req);
-  const { rows=[] } = req.body || {};
-  if (!Array.isArray(rows)) return res.status(400).json({ ok:false, error:"invalid_rows" });
+type IncomingRow = {
+  id?: string;
+  title?: string;
+  brand?: string;
+  category?: string;
+  price?: string | number;
+};
 
-  // Minimal validation
-  const valid = rows.filter((r:any)=>r?.title && r?.brand && r?.price);
-  if (!valid.length) return res.status(400).json({ ok:false, error:"no_valid_rows" });
+type BulkCommitResponse =
+  | { ok: true; created: number }
+  | { ok: false; error: string };
 
-  // Batch write (chunked by 400)
-  let created = 0;
-  for (let i=0;i<valid.length;i+=400){
-    const chunk = valid.slice(i,i+400);
+export default async function handler(
+  req: NextApiRequest,
+  res: NextApiResponse<BulkCommitResponse>
+) {
+  if (req.method !== "POST") {
+    return res
+      .status(405)
+      .json({ ok: false, error: "method_not_allowed" });
+  }
+
+  try {
+    const sellerId = getSellerId(req);
+    if (!sellerId) {
+      return res
+        .status(401)
+        .json({ ok: false, error: "unauthorized" });
+    }
+
+    const body = req.body || {};
+    const rows = (body.rows || []) as IncomingRow[];
+
+    if (!Array.isArray(rows) || !rows.length) {
+      return res
+        .status(400)
+        .json({ ok: false, error: "no_rows" });
+    }
+
     const batch = adminDb.batch();
-    chunk.forEach((r:any)=>{
-      const ref = adminDb.collection("listings").doc();
-      batch.set(ref, {
+    let created = 0;
+
+    for (const r of rows) {
+      if (!r.title || r.price === undefined || r.price === null) {
+        continue;
+      }
+
+      const numericPrice =
+        typeof r.price === "number"
+          ? r.price
+          : Number(String(r.price).replace(/[^0-9.]/g, "")) || 0;
+
+      const docRef = adminDb.collection("listings").doc();
+      batch.set(docRef, {
         sellerId,
         title: String(r.title),
-        brand: String(r.brand),
-        category: String(r.category||""),
-        sku: String(r.sku||ref.id),
-        price: Number(r.price)||0,
-        condition: String(r.condition||""),
-        imageUrl: String(r.imageUrl||""),
-        status: "Active",
+        brand: r.brand ? String(r.brand) : "",
+        category: r.category ? String(r.category).toLowerCase() : "",
+        price: numericPrice,
+        currency: "AUD",
+        status: "PendingReview",
+        imageUrl: "",
+        description: "",
         createdAt: FieldValue.serverTimestamp(),
         updatedAt: FieldValue.serverTimestamp(),
       });
-    });
-    await batch.commit();
-    created += chunk.length;
-  }
 
-  return res.status(200).json({ ok:true, created });
+      created += 1;
+    }
+
+    if (!created) {
+      return res
+        .status(400)
+        .json({ ok: false, error: "no_valid_rows" });
+    }
+
+    await batch.commit();
+
+    return res.status(200).json({ ok: true, created });
+  } catch (err: any) {
+    console.error("bulk_commit_error", err);
+    return res
+      .status(500)
+      .json({ ok: false, error: err?.message || "server_error" });
+  }
 }
