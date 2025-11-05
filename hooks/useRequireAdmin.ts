@@ -1,37 +1,33 @@
-// FILE: /hooks/useRequireAdmin.ts
+// FILE: /hooks/useRequireSeller.ts
 import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
 
 /**
- * Lightweight admin-only page guard.
- * 
- * How it works:
- * When an admin logs in (for now you can simulate this manually),
- * call in the browser console:
- * 
- *    localStorage.setItem("ff-role", "management");
- * 
- * Any /management/* page will load only if ff-role === "management".
- * Otherwise, it redirects to /admin.
+ * Guard for seller admin pages.
+ * Allows access only when localStorage.ff-role === "seller".
+ * If not, redirects to /admin.
+ *
+ * Replace this later with a real auth/session check.
  */
-export function useRequireAdmin() {
+export function useRequireSeller() {
   const router = useRouter();
   const [checking, setChecking] = useState(true);
-  const [isAdmin, setIsAdmin] = useState(false);
+  const [isSeller, setIsSeller] = useState(false);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
-    const role = localStorage.getItem("ff-role");
 
-    if (role === "management") {
-      setIsAdmin(true);
+    const role = window.localStorage.getItem("ff-role");
+    if (role === "seller") {
+      setIsSeller(true);
       setChecking(false);
     } else {
-      setIsAdmin(false);
+      setIsSeller(false);
       setChecking(false);
-      router.replace("/admin");
+      const from = encodeURIComponent(router.asPath);
+      router.replace(`/admin?from=${from}`);
     }
   }, [router]);
 
-  return { loading: checking, isAdmin };
+  return { loading: checking, isSeller };
 }
