@@ -5,7 +5,8 @@ import { FormEvent, useState } from "react";
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
 import { getAuth, sendPasswordResetEmail } from "firebase/auth";
-import { firebaseApp } from "../../utils/firebaseClient"; // Ensure this path is correct
+// --- FIX: Removed the curly braces {} around firebaseApp ---
+import firebaseApp from "../../utils/firebaseClient"; // Ensure this path is correct
 
 export default function SellerForgotPassword() {
   const [email, setEmail] = useState("");
