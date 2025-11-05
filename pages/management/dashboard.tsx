@@ -4,9 +4,16 @@ import Link from "next/link";
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
 import ButlerChat from "../../components/ButlerChat";
+import type React from "react";
 
 // Helper component for dashboard sections
-const DashboardSection = ({ title, children }: { title: string; children: React.ReactNode }) => (
+const DashboardSection = ({
+  title,
+  children,
+}: {
+  title: string;
+  children: React.ReactNode;
+}) => (
   // This <section> is the white styled box
   <section className="mb-8 rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
     <h2 className="mb-4 text-lg font-semibold text-gray-900">{title}</h2>
@@ -99,7 +106,7 @@ export default function ManagementDashboard() {
             description="Moderate product and seller reviews."
           />
           <DashboardLink
-            href="/management/content"
+            href="/management/content/homepage"
             title="Content Management"
             description="Edit static pages, banners, and promotions."
           />
@@ -142,7 +149,7 @@ export default function ManagementDashboard() {
             description="View platform-wide sales and user reports."
           />
           <DashboardLink
-            href="/management/support"
+            href="/management/support-tickets"
             title="Support Tickets"
             description="View and respond to customer support requests."
           />
