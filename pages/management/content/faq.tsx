@@ -1,7 +1,7 @@
 // FILE: /pages/management/content/faq.tsx
 import Head from "next/head";
 import Link from "next/link";
-import { useState, FormEvent } from "react";
+import { useState, FormEvent, useEffect, ChangeEvent } from "react";
 import Header from "../../../components/Header";
 import Footer from "../../../components/Footer";
 import { useRequireAdmin } from "../../../hooks/useRequireAdmin";
@@ -9,22 +9,41 @@ import { useRequireAdmin } from "../../../hooks/useRequireAdmin";
 type FaqItem = { question: string; answer: string };
 
 export default function ManagementContentFaq() {
-  const { loading } = useRequireAdmin();
-  if (loading) return null;
-
-  const [faqs, setFaqs] = useState<FaqItem[]>([
-    {
-      question: "How do I sell on Famous-Finds?",
-      answer: "Register as a seller and list your item for vetting.",
-    },
-  ]);
+  const { loading: authLoading } = useRequireAdmin();
+  const [faqs, setFaqs] = useState<FaqItem[]>([]);
+  const [loading, setLoading] = useState(true); // Page loading state
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  // --- NEW: Load existing FAQs from the API/database ---
+  useEffect(() => {
+    if (authLoading) return;
+    setLoading(true);
+    fetch("/api/management/content/faq")
+      .then((res) => res.json())
+      .then((data) => {
+        if (Array.isArray(data.faqs) && data.faqs.length > 0) {
+          setFaqs(data.faqs);
+        } else {
+          // Start with one blank item if none exist
+          setFaqs([{ question: "", answer: "" }]);
+        }
+      })
+      .catch((err) => {
+        console.error(err);
+        setError("Failed to load existing FAQs.");
+      })
+      .finally(() => setLoading(false));
+  }, [authLoading]);
+
+  // --- UPDATED: Handle change for controlled inputs ---
   function handleChange(index: number, field: keyof FaqItem, value: string) {
     const next = [...faqs];
-    next[index][field] = value;
+    // Ensure the item exists (it should, but good practice)
+    if (next[index]) {
+      next[index][field] = value;
+    }
     setFaqs(next);
   }
 
@@ -32,6 +51,17 @@ export default function ManagementContentFaq() {
     setFaqs([...faqs, { question: "", answer: "" }]);
   }
 
+  function removeFaq(index: number) {
+    if (faqs.length <= 1) {
+      alert("You cannot remove the last item.");
+      return;
+    }
+    const next = [...faqs];
+    next.splice(index, 1);
+    setFaqs(next);
+  }
+
+  // --- UPDATED: Send state object ---
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setSaving(true);
@@ -54,6 +84,8 @@ export default function ManagementContentFaq() {
       setSaving(false);
     }
   }
+  
+  if (authLoading) return <div className="min-h-screen bg-gray-50"><Header /></div>;
 
   return (
     <>
@@ -72,52 +104,70 @@ export default function ManagementContentFaq() {
           </Link>
         </div>
 
-        <form
-          onSubmit={handleSubmit}
-          className="space-y-5 rounded-lg border border-gray-200 bg-white p-6 shadow-sm"
-        >
-          {faqs.map((f, i) => (
-            <div key={i} className="rounded-md border border-gray-200 p-4">
-              <label className="block text-xs font-medium text-gray-700">
-                Question
-              </label>
-              <input
-                value={f.question}
-                onChange={(e) => handleChange(i, "question", e.target.value)}
-                className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-gray-900 focus:outline-none"
-              />
-              <label className="mt-3 block text-xs font-medium text-gray-700">
-                Answer
-              </label>
-              <textarea
-                value={f.answer}
-                onChange={(e) => handleChange(i, "answer", e.target.value)}
-                rows={3}
-                className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-gray-900 focus:outline-none"
-              />
+        {loading ? (
+          <div className="text-center p-8">Loading FAQs...</div>
+        ) : (
+          <form
+            onSubmit={handleSubmit}
+            className="space-y-5 rounded-lg border border-gray-200 bg-white p-6 shadow-sm"
+          >
+            {faqs.map((f, i) => (
+              <div
+                key={i}
+                className="relative rounded-md border border-gray-200 p-4 pt-6"
+              >
+                {/* --- NEW: Remove Button --- */}
+                {faqs.length > 1 && (
+                   <button
+                    type="button"
+                    onClick={() => removeFaq(i)}
+                    className="absolute top-2 right-2 text-xs text-red-500 hover:text-red-700"
+                  >
+                    Remove
+                  </button>
+                )}
+                
+                <label className="block text-xs font-medium text-gray-700">
+                  Question
+                </label>
+                <input
+                  value={f.question}
+                  onChange={(e) => handleChange(i, "question", e.target.value)}
+                  className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-gray-900 focus:outline-none"
+                />
+                <label className="mt-3 block text-xs font-medium text-gray-700">
+                  Answer
+                </label>
+                <textarea
+                  value={f.answer}
+                  onChange={(e) => handleChange(i, "answer", e.target.value)}
+                  rows={3}
+                  className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-gray-900 focus:outline-none"
+                />
+              </div>
+            ))}
+
+            <div className="flex justify-between">
+              <button
+                type="button"
+                onClick={addFaq}
+                className="rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100"
+              >
+                + Add Question
+              </button>
+              <button
+                type="submit"
+                disabled={saving}
+                className="rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-black disabled:opacity-60"
+              >
+                {saving ? "Saving…" : "Save FAQ"}
+              </button>
             </div>
-          ))}
 
-          <div className="flex justify-between">
-            <button
-              type="button"
-              onClick={addFaq}
-              className="rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100"
-            >
-              + Add Question
-            </button>
-            <button
-              type="submit"
-              disabled={saving}
-              className="rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-black disabled:opacity-60"
-            >
-              {saving ? "Saving…" : "Save FAQ"}
-            </button>
-          </div>
-
-          {message && <p className="text-xs text-green-700">{message}</p>}
-          {error && <p className="text-xs text-red-600">{error}</p>}
-        </form>
+            {message && <p className="text-xs text-green-700">{message}</p>}
+            {error && <p className="text-xs text-red-600">{error}</p>}
+          </form>
+        )}
       </main>
       <Footer />
     </>
