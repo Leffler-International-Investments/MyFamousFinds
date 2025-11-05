@@ -86,6 +86,16 @@ export default function SellerLoginPage() {
                 placeholder="Enter your seller password"
               />
 
+              {/* --- NEW LINK ADDED HERE --- */}
+              <div className="text-right">
+                <Link
+                  href="/seller/forgot-password"
+                  className="text-xs font-medium text-blue-400 hover:text-blue-200"
+                >
+                  Forgot password?
+                </Link>
+              </div>
+
               {error && (
                 <p className="text-xs text-red-400">
                   {error}
@@ -103,7 +113,7 @@ export default function SellerLoginPage() {
 
             <div className="mt-4 space-y-2 text-center">
               <Link
-                href="/apply-to-sell" // set this to your real vetting form path
+                href="/seller/register-vetting" // Updated to match your file tree
                 className="block text-xs font-medium text-blue-400 hover:text-blue-200"
               >
                 New here? Apply to become a seller →
