@@ -7,7 +7,8 @@ import Header from "../../components/Header";
 import Footer from "../../components/Footer";
 import PasswordInput from "../../components/PasswordInput";
 import { getAuth, signInWithEmailAndPassword } from "firebase/auth";
-import { firebaseApp } from "../../utils/firebaseClient";
+// --- FIX: Removed the curly braces {} around firebaseApp ---
+import firebaseApp from "../../utils/firebaseClient";
 
 export default function ManagementLoginPage() {
   const router = useRouter();
@@ -89,7 +90,6 @@ export default function ManagementLoginPage() {
                 placeholder="Enter your admin password"
               />
               
-              {/* --- THIS IS THE MISSING LINK --- */}
               <div className="text-right">
                 <Link
                   href="/management/forgot-password"
