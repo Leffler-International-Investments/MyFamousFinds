@@ -3,26 +3,68 @@ import Head from "next/head";
 import Link from "next/link";
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
-import { useRequireSeller } from "../../hooks/useRequireSeller";
+
+// Example of how you might conditionally show onboarding
+// You can hook this up to your database later
+const isVettingApproved = true;
+const isProfileComplete = false;
+
+// Helper component for dashboard sections
+const DashboardSection = ({ title, children }: { title: string, children: React.ReactNode }) => (
+  <section className="mb-8 rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
+    <h2 className="mb-4 text-lg font-semibold text-gray-900">{title}</h2>
+    <div className="grid gap-4 md:grid-cols-3">{children}</div>
+  </section>
+);
+
+// Helper component for dashboard links
+const DashboardLink = ({ href, title, description, accentColor = "blue" }: { href: string, title: string, description: string, accentColor?: "blue" | "green" | "gray" }) => {
+  const colors = {
+    blue: "border-gray-200 hover:border-blue-500",
+    green: "border-gray-200 hover:border-emerald-500",
+    gray: "border-gray-200 hover:border-gray-500",
+  };
+  const textColors = {
+    blue: "text-blue-600 group-hover:text-blue-500",
+    green: "text-emerald-600 group-hover:text-emerald-500",
+    gray: "text-gray-600 group-hover:text-gray-500",
+  };
+
+  return (
+    <Link
+      href={href}
+      className={`group flex flex-col justify-between rounded-lg border bg-gray-50 p-4 shadow-sm transition-all hover:bg-white hover:shadow-md ${colors[accentColor]}`}
+    >
+      <div>
+        <h3 className="text-sm font-semibold text-gray-900">{title}</h3>
+        <p className="mt-1 text-xs text-gray-600">{description}</p>
+      </div>
+      <div className={`mt-3 text-xs font-semibold ${textColors[accentColor]}`}>
+        Go to page →
+      </div>
+    </Link>
+  );
+};
 
 export default function SellerDashboard() {
-  const { loading } = useRequireSeller();
-  if (loading) return null;
-
   return (
     <>
       <Head>
         <title>Seller Console — Famous Finds</title>
       </Head>
-
       <div className="min-h-screen bg-gray-50 text-gray-900">
         <Header />
 
         <main className="mx-auto max-w-6xl px-4 pb-16 pt-6">
-          <div className="mb-4 flex items-center justify-between">
-            <h1 className="text-2xl font-semibold text-gray-900">
-              Seller Console
-            </h1>
+          <div className="mb-8 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+            <div>
+              <h1 className="text-2xl font-semibold text-gray-900">
+                Seller Console
+              </h1>
+              <p className="mt-1 text-sm text-gray-600">
+                Manage your listings, orders, and payouts in one place.
+              </p>
+            </div>
             <Link
               href="/"
               className="text-sm text-gray-600 hover:text-gray-900"
@@ -31,120 +73,90 @@ export default function SellerDashboard() {
             </Link>
           </div>
 
-          {/* Welcome banner */}
-          <section className="mb-6 rounded-lg border border-blue-100 bg-blue-50 px-5 py-4">
-            <h2 className="text-sm font-semibold text-blue-900">
-              Welcome to Famous Finds!
-            </h2>
-            <p className="mt-1 text-sm text-blue-900/80">
-              Your application is approved. Please complete your profile to
-              start selling.
-            </p>
-            <div className="mt-3">
-              <Link
-                href="/seller/profile"
-                className="inline-flex rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
-              >
-                Complete Your Profile →
-              </Link>
-            </div>
-          </section>
+          {/* -- 1. ONBOARDING (Conditional) -- */}
+          {isVettingApproved && !isProfileComplete && (
+            <section className="mb-8 rounded-lg border-2 border-blue-500 bg-white p-5 shadow-lg">
+              <h2 className="mb-2 text-lg font-semibold text-gray-900">
+                Welcome to Famous Finds!
+              </h2>
+              <p className="mb-4 text-sm text-gray-600">
+                Your application is approved. Please complete your profile to
+                start selling.
+              </p>
+              <div>
+                <Link
+                  href="/seller/profile" // <-- This button now correctly links to the profile page
+                  className="inline-block rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700"
+                >
+                  Complete Your Profile →
+                </Link>
+              </div>
+            </section>
+          )}
 
-          {/* Manage Listings */}
-          <section className="mb-6 rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
-            <h2 className="text-sm font-semibold text-gray-900">
-              Manage Listings
-            </h2>
-            <div className="mt-3 grid gap-4 md:grid-cols-3">
-              <DashboardCard
-                title="Create New Listing"
-                description="Upload a new item to your catalogue."
-                href="/seller/listings/new"
-              />
-              <DashboardCard
-                title="My Catalogue"
-                description="Edit prices, quantity, and details for your active listings."
-                href="/seller/listings"
-              />
-              <DashboardCard
-                title="Bulk Upload"
-                description="Upload many items at once using our CSV template."
-                href="/seller/bulk-upload"
-              />
-            </div>
-          </section>
+          {/* -- 2. LISTINGS -- */}
+          <DashboardSection title="Manage Listings">
+            <DashboardLink
+              href="/sell" // <-- FIX: Changed from /seller/listings/new
+              title="Create New Listing"
+              description="Upload a new item to your catalogue."
+              accentColor="blue"
+            />
+            <DashboardLink
+              href="/seller/catalogue" // <-- FIX: Changed from /seller/listings
+              title="My Catalogue"
+              description="Edit prices, quantity, and details for your active listings."
+              accentColor="blue"
+            />
+            <DashboardLink
+              href="/seller/bulk-upload"
+              title="Bulk Upload"
+              description="Upload many items at once using our CSV template."
+              accentColor="blue"
+            />
+          </DashboardSection>
 
-          {/* Orders & Performance */}
-          <section className="mb-6 rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
-            <h2 className="text-sm font-semibold text-gray-900">
-              Orders & Performance
-            </h2>
-            <div className="mt-3 grid gap-4 md:grid-cols-2">
-              <DashboardCard
-                title="Orders"
-                description="View new, in-transit, and delivered orders."
-                href="/seller/orders"
-              />
-              <DashboardCard
-                title="Insights"
-                description="Track your sales, top products, and performance."
-                href="/seller/insights"
-              />
-            </div>
-          </section>
+          {/* -- 3. ORDERS & PERFORMANCE -- */}
+          <DashboardSection title="Orders & Performance">
+            <DashboardLink
+              href="/seller/orders"
+              title="Orders"
+              description="View new, in-transit, and delivered orders."
+              accentColor="green"
+            />
+            <DashboardLink
+              href="/seller/insights"
+              title="Insights"
+              description="Track your sales, top products, and performance."
+              accentColor="green"
+            />
+          </DashboardSection>
 
-          {/* Finance & Account */}
-          <section className="rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
-            <h2 className="text-sm font-semibold text-gray-900">
-              Finance &amp; Account
-            </h2>
-            <div className="mt-3 grid gap-4 md:grid-cols-3">
-              <DashboardCard
-                title="Wallet & Payouts"
-                description="See your available balance and payout history."
-                href="/seller/wallet"
-              />
-              <DashboardCard
-                title="Statements"
-                description="Download monthly financial statements for your records."
-                href="/seller/statements"
-              />
-              <DashboardCard
-                title="Seller Profile"
-                description="Update your business details and bank information."
-                href="/seller/profile"
-              />
-            </div>
-          </section>
+          {/* -- 4. FINANCE & ACCOUNT -- */}
+          <DashboardSection title="Finance & Account">
+            <DashboardLink
+              href="/seller/wallet"
+              title="Wallet & Payouts"
+              description="See your available balance and payout history."
+              accentColor="gray"
+            />
+            <DashboardLink
+              href="/seller/statements"
+              title="Statements"
+              description="Download monthly financial statements for your records."
+              accentColor="gray"
+            />
+            <DashboardLink
+              href="/seller/profile"
+              title="Seller Profile"
+              description="Update your business details and bank information."
+              accentColor="gray"
+            />
+          </DashboardSection>
         </main>
 
         <Footer />
       </div>
     </>
-  );
-}
-
-function DashboardCard(props: {
-  title: string;
-  description: string;
-  href: string;
-}) {
-  return (
-    <div className="flex flex-col justify-between rounded-md border border-gray-200 bg-gray-50 p-4">
-      <div>
-        <h3 className="text-sm font-semibold text-gray-900">
-          {props.title}
-        </h3>
-        <p className="mt-1 text-xs text-gray-600">{props.description}</p>
-      </div>
-      <div className="mt-3">
-        <Link
-          href={props.href}
-          className="text-xs font-medium text-blue-600 hover:text-blue-800"
-        >
-          Go to page →
-        </Link>
-      </div>
-    </div>
   );
 }
