@@ -1,14 +1,15 @@
-// FILE: /pages/management/forgot-password.tsx
+// FILE: /pages/seller/forgot-password.tsx
 import Head from "next/head";
 import Link from "next/link";
 import { FormEvent, useState } from "react";
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
 import { getAuth, sendPasswordResetEmail } from "firebase/auth";
-import firebaseApp from "../../utils/firebaseClient"; // Use default import
+// --- FIX: Removed the curly braces {} around firebaseApp ---
+import firebaseApp from "../../utils/firebaseClient"; // Ensure this path is correct
 
-export default function ManagementForgotPassword() {
-  const [email, setEmail] = useState("leffleryd@gmail.com"); // Pre-filled
+export default function SellerForgotPassword() {
+  const [email, setEmail] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(false);
@@ -19,13 +20,14 @@ export default function ManagementForgotPassword() {
     setLoading(true);
 
     try {
+      // Use the built-in Firebase function
       const auth = getAuth(firebaseApp);
       await sendPasswordResetEmail(auth, email);
       setSent(true);
     } catch (err: any) {
       console.error(err);
       if (err.code === "auth/user-not-found") {
-        setError("No admin account found with this email address.");
+        setError("No seller account found with this email address.");
       } else {
         setError("An error occurred. Please try again.");
       }
@@ -37,7 +39,7 @@ export default function ManagementForgotPassword() {
   return (
     <>
       <Head>
-        <title>Reset Admin Password — Famous Finds</title>
+        <title>Reset Seller Password — Famous Finds</title>
       </Head>
       <div className="min-h-screen bg-gray-900 text-gray-100">
         <Header />
@@ -46,17 +48,18 @@ export default function ManagementForgotPassword() {
           <div className="w-full max-w-md rounded-2xl border border-gray-700 bg-gray-950/80 p-6 shadow-xl">
             
             {sent ? (
+              // --- "Email Sent" View ---
               <div className="text-center">
                 <h1 className="text-2xl font-semibold text-white">
                   Check Your Email
                 </h1>
                 <p className="mt-2 text-sm text-gray-300">
                   A password reset link has been sent to {email}. Please check
-                  your inbox.
+                  your inbox (and spam folder).
                 </p>
                 <div className="mt-6">
                   <Link
-                    href="/management/login"
+                    href="/seller/login"
                     className="text-xs text-gray-400 hover:text-gray-200"
                   >
                     ← Back to Login
@@ -64,12 +67,13 @@ export default function ManagementForgotPassword() {
                 </div>
               </div>
             ) : (
+              // --- "Forgot Password" Form View ---
               <>
                 <h1 className="text-center text-2xl font-semibold text-white">
-                  Reset Admin Password
+                  Reset Password
                 </h1>
                 <p className="mt-2 text-center text-xs text-gray-400">
-                  Enter your admin email address to receive a password reset
+                  Enter your seller email address to receive a password reset
                   link.
                 </p>
 
@@ -102,7 +106,7 @@ export default function ManagementForgotPassword() {
 
                 <div className="mt-4 text-center">
                   <Link
-                    href="/management/login"
+                    href="/seller/login"
                     className="text-xs text-gray-400 hover:text-gray-200"
                   >
                     ← Back to Login
