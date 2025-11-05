@@ -1,123 +1,200 @@
 // FILE: /lib/statementStore.ts
 import { adminDb } from "../utils/firebaseAdmin";
 
-export type Row = {
-  date: string;        // yyyy-mm-dd
+/**
+ * A single statement line item.
+ * You can adjust fields to match your Firestore schema.
+ */
+export type StatementRow = {
+  date: string; // YYYY-MM-DD
   sku: string;
   title: string;
-  action: "LISTED" | "SOLD" | "REFUNDED";
+  action: "Sale" | "Refund";
   qty: number;
   gross: number;
   fee: number;
   net: number;
 };
 
-function iso(d: any) {
-  const dt = d?.toDate ? d.toDate() : new Date(d);
-  return new Date(dt.getTime() - dt.getTimezoneOffset()*60000).toISOString().slice(0,10);
+/**
+ * Summary totals for the period.
+ */
+export type StatementSummary = {
+  period: { start: string; end: string };
+  totals: { listed: number; sold: number; refunded: number };
+  money: { gross: number; fees: number; net: number; refunds: number };
+};
+
+function toDateString(d: Date | null | undefined): string {
+  if (!d || isNaN(d.getTime())) return "";
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
 }
 
-/** Pulls and normalizes rows for a seller between start..end */
-export async function fetchSellerRows(sellerId: string, start: string, end: string): Promise<Row[]> {
-  const startDT = new Date(start + "T00:00:00");
-  const endDT = new Date(end + "T23:59:59");
+/**
+ * Build a statement for a seller between `start` and `end` (inclusive).
+ *
+ * Assumed collections/fields – change these if your Firestore schema differs:
+ *
+ * - `orders` collection:
+ *    - sellerId: string
+ *    - listingId: string
+ *    - listingTitle?: string
+ *    - sku?: string
+ *    - quantity?: number
+ *    - totalGross?: number   // paid by buyer, before fees
+ *    - fee?: number          // platform/processing fees
+ *    - createdAt?: Timestamp
+ *
+ * - `refunds` collection (optional):
+ *    - sellerId: string
+ *    - orderId: string
+ *    - gross?: number        // refunded amount
+ *    - feeRefund?: number    // fee returned to seller, if any
+ *    - createdAt?: Timestamp
+ *
+ * - `listings` collection:
+ *    - sellerId: string
+ *    - createdAt?: Timestamp
+ */
+export async function buildSellerStatement(
+  sellerId: string,
+  start: Date,
+  end: Date
+): Promise<{ summary: StatementSummary; rows: StatementRow[] }> {
+  // Fetch once per collection; filter by date in JS to avoid extra indexes.
+  const [ordersSnap, refundsSnap, listingsSnap] = await Promise.all([
+    adminDb
+      .collection("orders")
+      .where("sellerId", "==", sellerId)
+      .get(),
+    adminDb
+      .collection("refunds")
+      .where("sellerId", "==", sellerId)
+      .get(),
+    adminDb
+      .collection("listings")
+      .where("sellerId", "==", sellerId)
+      .get(),
+  ]);
 
-  // LISTED rows (from listings)
-  const listingsSnap = await adminDb
-    .collection("listings")
-    .where("sellerId", "==", sellerId)
-    .where("createdAt", ">=", startDT)
-    .where("createdAt", "<=", endDT)
-    .get();
+  const rows: StatementRow[] = [];
 
-  const listed: Row[] = listingsSnap.docs.map(doc => {
-    const d = doc.data();
-    return {
-      date: iso(d.createdAt),
-      sku: d.sku || doc.id,
-      title: d.title || "Listing",
-      action: "LISTED",
-      qty: 1,
-      gross: 0,
-      fee: 0,
-      net: 0,
-    };
+  let grossTotal = 0;
+  let feesTotal = 0;
+  let netTotal = 0;
+  let refundsTotal = 0;
+  let soldCount = 0;
+  let refundCount = 0;
+  let listedCount = 0;
+
+  // Listings created in the period
+  listingsSnap.forEach((doc) => {
+    const data: any = doc.data() || {};
+    const ts = data.createdAt;
+    const createdAt: Date | null =
+      ts && typeof ts.toDate === "function" ? ts.toDate() : null;
+    if (createdAt && createdAt >= start && createdAt <= end) {
+      listedCount += 1;
+    }
   });
 
-  // SOLD rows (from orders)
-  const ordersSnap = await adminDb
-    .collection("orders")
-    .where("sellerId", "==", sellerId)
-    .where("createdAt", ">=", startDT)
-    .where("createdAt", "<=", endDT)
-    .get();
+  // Orders → Sale rows
+  ordersSnap.forEach((doc) => {
+    const data: any = doc.data() || {};
 
-  const sold: Row[] = ordersSnap.docs.map(doc => {
-    const d = doc.data();
-    const qty = Number(d.qty || 1);
-    const price = Number(d.price || 0);
-    const gross = price * qty;
-    const feePct = Number(d.feePct || 0);      // e.g. 0.10 for 10%
-    const feeFixed = Number(d.feeFixed || 0);  // e.g. $1.50
-    const fee = +(gross * feePct + feeFixed).toFixed(2);
-    const net = +(gross - fee).toFixed(2);
-    return {
-      date: iso(d.createdAt),
-      sku: d.sku || doc.id,
-      title: d.title || "Order",
-      action: d.status === "REFUNDED" ? "REFUNDED" : "SOLD",
+    const ts = data.createdAt;
+    const createdAt: Date | null =
+      ts && typeof ts.toDate === "function" ? ts.toDate() : null;
+    if (!createdAt || createdAt < start || createdAt > end) return;
+
+    const qty = Number(data.quantity || 1);
+    const gross = Number(data.totalGross ?? data.total ?? 0);
+    const fee =
+      data.fee !== undefined
+        ? Number(data.fee)
+        : Math.round(gross * 0.15 * 100) / 100; // fallback 15% fee if not stored
+    const net = gross - fee;
+
+    const sku = String(data.sku || data.listingId || doc.id);
+    const title =
+      String(data.listingTitle || data.title || "Sale") || "Sale";
+
+    rows.push({
+      date: toDateString(createdAt),
+      sku,
+      title,
+      action: "Sale",
       qty,
-      gross: d.status === "REFUNDED" ? 0 : gross,
-      fee: d.status === "REFUNDED" ? 0 : fee,
-      net: d.status === "REFUNDED" ? 0 : net,
-    };
+      gross,
+      fee,
+      net,
+    });
+
+    grossTotal += gross;
+    feesTotal += fee;
+    netTotal += net;
+    soldCount += 1;
   });
 
-  // REFUNDED rows (from refunds)
-  const refundsSnap = await adminDb
-    .collection("refunds")
-    .where("sellerId", "==", sellerId)
-    .where("createdAt", ">=", startDT)
-    .where("createdAt", "<=", endDT)
-    .get();
+  // Refunds → Refund rows (negative amounts)
+  refundsSnap.forEach((doc) => {
+    const data: any = doc.data() || {};
 
-  const refunded: Row[] = refundsSnap.docs.map(doc => {
-    const d = doc.data();
-    const amt = Number(d.amount || 0);
-    return {
-      date: iso(d.createdAt),
-      sku: d.sku || d.orderId || doc.id,
-      title: d.title || "Refund",
-      action: "REFUNDED",
-      qty: 1,
-      gross: -Math.abs(amt), // negative gross to show deduction
-      fee: 0,
-      net: -Math.abs(amt),
-    };
+    const ts = data.createdAt;
+    const createdAt: Date | null =
+      ts && typeof ts.toDate === "function" ? ts.toDate() : null;
+    if (!createdAt || createdAt < start || createdAt > end) return;
+
+    const gross = Number(data.gross ?? data.amount ?? 0);
+    const feeRefund = Number(data.feeRefund ?? 0);
+
+    const sku = String(data.sku || data.orderId || doc.id);
+    const title = String(data.title || "Refund") || "Refund";
+
+    // Treat refund as negative gross; feeRefund reduces fee total
+    const net = -gross + feeRefund;
+    const fee = -feeRefund;
+
+    rows.push({
+      date: toDateString(createdAt),
+      sku,
+      title,
+      action: "Refund",
+      qty: -1,
+      gross: -gross,
+      fee,
+      net,
+    });
+
+    refundsTotal += gross;
+    feesTotal += fee;
+    netTotal += net;
+    refundCount += 1;
   });
 
-  // Merge + sort by date
-  const all = [...listed, ...sold, ...refunded].sort((a,b)=> a.date.localeCompare(b.date));
-  return all;
-}
+  // Sort by date ascending
+  rows.sort((a, b) => (a.date > b.date ? 1 : a.date < b.date ? -1 : 0));
 
-export function summarizeRows(rows: Row[], start: string, end: string) {
-  const listed   = rows.filter(r=>r.action==="LISTED").length;
-  const sold     = rows.filter(r=>r.action==="SOLD").length;
-  const refunded = rows.filter(r=>r.action==="REFUNDED").length;
-  const gross    = rows.reduce((a,r)=>a+r.gross,0);
-  const fees     = rows.reduce((a,r)=>a+r.fee,0);
-  const net      = rows.reduce((a,r)=>a+r.net,0);
-  const refunds  = rows.filter(r=>r.action==="REFUNDED").reduce((a,r)=>a+Math.abs(r.gross),0);
-  return { period:{start,end}, totals:{listed,sold,refunded}, money:{gross,fees,net,refunds} };
-}
+  const summary: StatementSummary = {
+    period: {
+      start: toDateString(start),
+      end: toDateString(end),
+    },
+    totals: {
+      listed: listedCount,
+      sold: soldCount,
+      refunded: refundCount,
+    },
+    money: {
+      gross: grossTotal,
+      fees: feesTotal,
+      net: netTotal,
+      refunds: refundsTotal,
+    },
+  };
 
-export function toCSV(rows: Row[], money: {gross:number; fees:number; net:number;}) {
-  const hdr = "Date,SKU,Title,Action,Qty,Gross,Fee,Net";
-  const body = rows.map(r=>[
-    r.date, r.sku, `"${String(r.title).replace(/"/g,'""')}"`, r.action, r.qty,
-    r.gross.toFixed(2), r.fee.toFixed(2), r.net.toFixed(2)
-  ].join(","));
-  const footer = ["","","","TOTALS","", money.gross.toFixed(2), money.fees.toFixed(2), money.net.toFixed(2)].join(",");
-  return [hdr, ...body, footer].join("\n");
+  return { summary, rows };
 }
