@@ -30,7 +30,6 @@ export default function SellerLoginPage() {
     }
 
     try {
-      // TEMP: treat as logged in on the frontend.
       if (typeof window !== "undefined") {
         window.localStorage.setItem("ff-role", "seller");
         window.localStorage.setItem("ff-email", email.toLowerCase().trim());
@@ -60,8 +59,7 @@ export default function SellerLoginPage() {
               Seller Login
             </h1>
             <p className="mt-2 text-center text-xs text-gray-400">
-              If you haven&apos;t been approved as a seller yet, please submit
-              an application first.
+              Only vetted and approved sellers can access this console.
             </p>
 
             <form onSubmit={handleSubmit} className="mt-6 space-y-4">
@@ -105,7 +103,7 @@ export default function SellerLoginPage() {
 
             <div className="mt-4 space-y-2 text-center">
               <Link
-                href="/apply-to-sell" // adjust to your actual vetting form path
+                href="/apply-to-sell" // set this to your real vetting form path
                 className="block text-xs font-medium text-blue-400 hover:text-blue-200"
               >
                 New here? Apply to become a seller →
