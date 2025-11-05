@@ -3,13 +3,15 @@ import Head from "next/head";
 import Link from "next/link";
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
+import type { ReactNode } from "react";
 
+// Helper component for dashboard sections
 const DashboardSection = ({
   title,
   children,
 }: {
   title: string;
-  children: React.ReactNode;
+  children: ReactNode;
 }) => (
   <section className="mb-8 rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
     <h2 className="mb-4 text-lg font-semibold text-gray-900">{title}</h2>
@@ -17,6 +19,7 @@ const DashboardSection = ({
   </section>
 );
 
+// Helper component for dashboard links
 const DashboardLink = ({
   href,
   title,
@@ -42,7 +45,7 @@ const DashboardLink = ({
   return (
     <Link
       href={href}
-      className={`group flex flex-col justify-between rounded-lg border bg-gray-50 p-4 shadow-sm transition-all hover:bg-white hover:shadow-md ${colors[accentColor]}`}
+      className={`group flex flex-col justify-between rounded-lg border bg-gray-50 p-4 text-sm shadow-sm transition-all hover:bg-white hover:shadow-md ${colors[accentColor]}`}
     >
       <div>
         <h3 className="text-sm font-semibold text-gray-900">{title}</h3>
@@ -82,7 +85,7 @@ export default function SellerDashboard() {
             </Link>
           </div>
 
-          {/* Onboarding panel – now always shown, no fake flags */}
+          {/* Onboarding banner – same layout, no demo flags */}
           <section className="mb-8 rounded-lg border-2 border-blue-500 bg-white p-5 shadow-lg">
             <h2 className="mb-2 text-lg font-semibold text-gray-900">
               Welcome to Famous Finds!
