@@ -1,18 +1,42 @@
 // FILE: /pages/management/orders.tsx
+import { useMemo, useState } from "react";
+import type { GetServerSideProps } from "next";
 import Head from "next/head";
 import Link from "next/link";
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
 import { useRequireAdmin } from "../../hooks/useRequireAdmin";
+import { adminDb } from "../../utils/firebaseAdmin";
 
-const mockOrders = [
-  { id: "O-1001", buyer: "Emma", total: 9500, status: "Paid", createdAt: "2025-11-01" },
-  { id: "O-1002", buyer: "Leon", total: 4300, status: "Dispatched", createdAt: "2025-11-02" },
-  { id: "O-1003", buyer: "Sarah", total: 2100, status: "Refunded", createdAt: "2025-11-03" },
-];
+type Order = {
+  id: string;
+  buyer: string;
+  total: number;
+  status: string;
+  createdAt: string;
+};
 
-export default function ManagementOrders() {
+type Props = {
+  orders: Order[];
+};
+
+export default function ManagementOrders({ orders }: Props) {
   const { loading } = useRequireAdmin();
+  const [query, setQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string>("All");
+
+  const visible = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return orders.filter((o) => {
+      if (statusFilter !== "All" && o.status !== statusFilter) return false;
+      if (!q) return true;
+      return (
+        o.id.toLowerCase().includes(q) ||
+        o.buyer.toLowerCase().includes(q)
+      );
+    });
+  }, [orders, query, statusFilter]);
+
   if (loading) return null;
 
   return (
@@ -22,14 +46,16 @@ export default function ManagementOrders() {
       </Head>
       <div className="min-h-screen bg-gray-50 text-gray-900">
         <Header />
+
         <main className="mx-auto max-w-6xl px-4 pb-16 pt-6">
-          <div className="mb-6 flex items-center justify-between">
+          <div className="mb-6 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
             <div>
               <h1 className="text-2xl font-semibold text-gray-900">
                 Orders Overview
               </h1>
               <p className="mt-1 text-sm text-gray-600">
-                Track orders, shipping status, and refunds across the marketplace.
+                Track orders, shipping status, and refunds across the
+                marketplace.
               </p>
             </div>
             <Link
@@ -44,13 +70,23 @@ export default function ManagementOrders() {
             <input
               type="text"
               placeholder="Search by order ID or buyer…"
-              className="w-full max-w-xs rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-gray-900 focus:outline-none"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              className="w-full max-w-xs rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-gray-900 focus:outline-none"
             />
-            <select className="rounded-md border border-gray-300 px-2 py-2 text-sm focus:border-gray-900 focus:outline-none">
-              <option>All statuses</option>
-              <option>Paid</option>
-              <option>Dispatched</option>
-              <option>Refunded</option>
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm focus:border-gray-900 focus:outline-none"
+            >
+              <option value="All">All statuses</option>
+              <option value="Pending">Pending</option>
+              <option value="Paid">Paid</option>
+              <option value="Processing">Processing</option>
+              <option value="Dispatched">Dispatched</option>
+              <option value="Delivered">Delivered</option>
+              <option value="Refunded">Refunded</option>
+              <option value="Cancelled">Cancelled</option>
             </select>
           </div>
 
@@ -58,54 +94,103 @@ export default function ManagementOrders() {
             <table className="min-w-full divide-y divide-gray-200 text-sm">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-4 py-2 text-left font-medium text-gray-700">Order ID</th>
-                  <th className="px-4 py-2 text-left font-medium text-gray-700">Buyer</th>
-                  <th className="px-4 py-2 text-left font-medium text-gray-700">Date</th>
-                  <th className="px-4 py-2 text-left font-medium text-gray-700">Status</th>
-                  <th className="px-4 py-2 text-right font-medium text-gray-700">Total (USD)</th>
-                  <th className="px-4 py-2 text-right font-medium text-gray-700">Actions</th>
+                  <th className="px-4 py-2 text-left font-medium text-gray-700">
+                    Order ID
+                  </th>
+                  <th className="px-4 py-2 text-left font-medium text-gray-700">
+                    Buyer
+                  </th>
+                  <th className="px-4 py-2 text-left font-medium text-gray-700">
+                    Created
+                  </th>
+                  <th className="px-4 py-2 text-right font-medium text-gray-700">
+                    Total (AU$)
+                  </th>
+                  <th className="px-4 py-2 text-left font-medium text-gray-700">
+                    Status
+                  </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-200 bg-white">
-                {mockOrders.map((order) => (
-                  <tr key={order.id}>
-                    <td className="px-4 py-2 text-gray-900">{order.id}</td>
-                    <td className="px-4 py-2 text-gray-900">{order.buyer}</td>
-                    <td className="px-4 py-2 text-gray-700">{order.createdAt}</td>
-                    <td className="px-4 py-2">
-                      <span
-                        className={
-                          "rounded-full px-3 py-1 text-xs font-medium " +
-                          (order.status === "Paid"
-                            ? "bg-green-100 text-green-800"
-                            : order.status === "Dispatched"
-                            ? "bg-blue-100 text-blue-800"
-                            : "bg-red-100 text-red-800")
-                        }
-                      >
-                        {order.status}
+              <tbody className="divide-y divide-gray-100">
+                {visible.map((o) => (
+                  <tr key={o.id}>
+                    <td className="px-4 py-2 text-xs font-mono text-gray-700">
+                      {o.id}
+                    </td>
+                    <td className="px-4 py-2 text-sm text-gray-900">
+                      {o.buyer}
+                    </td>
+                    <td className="px-4 py-2 text-xs text-gray-500">
+                      {o.createdAt}
+                    </td>
+                    <td className="px-4 py-2 text-right text-sm text-gray-900">
+                      {o.total.toLocaleString("en-AU", {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2,
+                      })}
+                    </td>
+                    <td className="px-4 py-2 text-xs">
+                      <span className="inline-flex rounded-full bg-gray-100 px-2 py-1 text-xs font-semibold text-gray-800">
+                        {o.status}
                       </span>
-                    </td>
-                    <td className="px-4 py-2 text-right text-gray-900">
-                      ${order.total.toLocaleString()}
-                    </td>
-                    <td className="px-4 py-2 text-right">
-                      <button className="text-xs font-medium text-gray-700 hover:text-gray-900">
-                        View Details
-                      </button>
                     </td>
                   </tr>
                 ))}
+                {!visible.length && (
+                  <tr>
+                    <td
+                      colSpan={5}
+                      className="px-4 py-6 text-center text-xs text-gray-500"
+                    >
+                      No orders found for the current filters.
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>
-
-          <p className="mt-4 text-xs text-gray-500">
-            Later connect this to your orders collection (or Stripe / payment provider data).
-          </p>
         </main>
+
         <Footer />
       </div>
     </>
   );
 }
+
+export const getServerSideProps: GetServerSideProps<Props> = async () => {
+  try {
+    const snap = await adminDb.collection("orders").orderBy("createdAt", "desc").limit(200).get();
+
+    const orders: Order[] = snap.docs.map((doc) => {
+      const d: any = doc.data() || {};
+      const createdAt =
+        d.createdAt && typeof d.createdAt.toDate === "function"
+          ? d.createdAt.toDate()
+          : null;
+      const iso =
+        createdAt && !isNaN(createdAt.getTime())
+          ? createdAt.toISOString().slice(0, 10)
+          : "";
+
+      const total =
+        typeof d.totalGross === "number"
+          ? d.totalGross
+          : typeof d.total === "number"
+          ? d.total
+          : 0;
+
+      return {
+        id: doc.id,
+        buyer: d.buyerName || d.buyerEmail || "Buyer",
+        total,
+        status: d.status || "Paid",
+        createdAt: iso,
+      };
+    });
+
+    return { props: { orders } };
+  } catch (err) {
+    console.error("Error loading orders", err);
+    return { props: { orders: [] } };
+  }
+};
