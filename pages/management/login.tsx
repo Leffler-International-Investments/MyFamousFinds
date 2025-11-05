@@ -11,7 +11,7 @@ import firebaseApp from "../../utils/firebaseClient";
 
 export default function ManagementLoginPage() {
   const router = useRouter();
-  const [email, setEmail] = useState(""); // no hard-coded demo email
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -90,12 +90,10 @@ export default function ManagementLoginPage() {
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-gray-300">
-                  Password
-                </label>
+                {/* PasswordInput handles its own label prop */}
                 <PasswordInput
+                  label="Password"
                   value={password}
-                  // PasswordInput gives you the string directly
                   onChange={setPassword}
                 />
               </div>
