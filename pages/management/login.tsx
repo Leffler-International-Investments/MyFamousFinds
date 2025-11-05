@@ -95,7 +95,8 @@ export default function ManagementLoginPage() {
                 </label>
                 <PasswordInput
                   value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  // 👇 FIXED: PasswordInput passes the string value directly
+                  onChange={setPassword}
                   inputClassName="mt-1 w-full rounded-md border border-gray-700 bg-gray-950 px-3 py-2 text-sm text-gray-100 focus:border-gray-100 focus:outline-none"
                 />
               </div>
