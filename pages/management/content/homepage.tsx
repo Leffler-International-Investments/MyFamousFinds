@@ -1,37 +1,77 @@
 // FILE: /pages/management/content/homepage.tsx
 import Head from "next/head";
 import Link from "next/link";
-import { useState, FormEvent } from "react";
+import { useState, FormEvent, useEffect, ChangeEvent } from "react";
 import Header from "../../../components/Header";
 import Footer from "../../../components/Footer";
 import { useRequireAdmin } from "../../../hooks/useRequireAdmin";
 
-export default function ManagementContentHomepage() {
-  const { loading } = useRequireAdmin();
-  if (loading) return null;
+type HomepageContent = {
+  heroTitle: string;
+  heroSubtitle: string;
+  heroImage: string;
+  collections: string;
+  seoDescription: string;
+};
 
+const defaultContent: HomepageContent = {
+  heroTitle: "Discover Curated Luxury Finds",
+  heroSubtitle: "Shop pre-loved designer treasures verified by experts.",
+  heroImage: "",
+  collections: "Bags,Watches,Jewelry,Clothing",
+  seoDescription: "Famous-Finds: your destination for authenticated luxury resale.",
+};
+
+export default function ManagementContentHomepage() {
+  const { loading: authLoading } = useRequireAdmin();
+  const [content, setContent] = useState<HomepageContent>(defaultContent);
+  const [loading, setLoading] = useState(true); // Page loading state
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  // --- NEW: Load existing data ---
+  useEffect(() => {
+    if (authLoading) return;
+    setLoading(true);
+    fetch("/api/management/content/homepage")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.content) {
+          setContent(data.content);
+        }
+      })
+      .catch((err) => {
+        console.error(err);
+        setError("Failed to load homepage data.");
+      })
+      .finally(() => setLoading(false));
+  }, [authLoading]);
+
+  // --- NEW: Handle changes to controlled inputs ---
+  function handleChange(
+    e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+  ) {
+    const { name, value } = e.target;
+    setContent((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+  }
+
+  // --- UPDATED: Send state object instead of FormData ---
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setSaving(true);
     setMessage(null);
     setError(null);
 
-    const fd = new FormData(e.currentTarget);
-    const payload: Record<string, string> = {};
-    fd.forEach((value, key) => {
-      payload[key] = String(value);
-    });
-
     try {
       const res = await fetch("/api/management/content/homepage", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify(payload),
+        body: JSON.stringify(content), // Send the state object
       });
 
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -42,6 +82,17 @@ export default function ManagementContentHomepage() {
     } finally {
       setSaving(false);
     }
+  }
+
+  if (authLoading || loading) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <Header />
+        <main className="mx-auto max-w-4xl px-4 py-8 text-center text-gray-900">
+          Loading Content...
+        </main>
+      </div>
+    );
   }
 
   return (
@@ -71,7 +122,8 @@ export default function ManagementContentHomepage() {
             </label>
             <input
               name="heroTitle"
-              defaultValue="Discover Curated Luxury Finds"
+              value={content.heroTitle}
+              onChange={handleChange}
               className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-gray-900 focus:outline-none"
             />
           </div>
@@ -83,7 +135,8 @@ export default function ManagementContentHomepage() {
             <textarea
               name="heroSubtitle"
               rows={2}
-              defaultValue="Shop pre-loved designer treasures verified by experts."
+              value={content.heroSubtitle}
+              onChange={handleChange}
               className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-gray-900 focus:outline-none"
             />
           </div>
@@ -95,6 +148,8 @@ export default function ManagementContentHomepage() {
             <input
               name="heroImage"
               type="url"
+              value={content.heroImage}
+              onChange={handleChange}
               placeholder="https://cdn.famous-finds.com/banner.jpg"
               className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-gray-900 focus:outline-none"
             />
@@ -106,7 +161,8 @@ export default function ManagementContentHomepage() {
             </label>
             <input
               name="collections"
-              defaultValue="Bags,Watches,Jewelry,Clothing"
+              value={content.collections}
+              onChange={handleChange}
               className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-gray-900 focus:outline-none"
             />
           </div>
@@ -118,7 +174,8 @@ export default function ManagementContentHomepage() {
             <textarea
               name="seoDescription"
               rows={3}
-              defaultValue="Famous-Finds: your destination for authenticated luxury resale."
+              value={content.seoDescription}
+              onChange={handleChange}
               className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-gray-900 focus:outline-none"
             />
           </div>
