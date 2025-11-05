@@ -1,33 +1,28 @@
-// FILE: /hooks/useRequireSeller.ts
+// FILE: /hooks/useRequireAdmin.ts
 import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
 
-/**
- * Guard for seller admin pages.
- * Allows access only when localStorage.ff-role === "seller".
- * If not, redirects to /admin.
- *
- * Replace this later with a real auth/session check.
- */
-export function useRequireSeller() {
+type AdminGuardState = "checking" | "allowed" | "denied";
+
+export function useRequireAdmin() {
   const router = useRouter();
-  const [checking, setChecking] = useState(true);
-  const [isSeller, setIsSeller] = useState(false);
+  const [state, setState] = useState<AdminGuardState>("checking");
 
   useEffect(() => {
     if (typeof window === "undefined") return;
 
     const role = window.localStorage.getItem("ff-role");
-    if (role === "seller") {
-      setIsSeller(true);
-      setChecking(false);
+    if (role === "management") {
+      setState("allowed");
     } else {
-      setIsSeller(false);
-      setChecking(false);
+      setState("denied");
       const from = encodeURIComponent(router.asPath);
-      router.replace(`/admin?from=${from}`);
+      router.replace(`/management/login?from=${from}`);
     }
   }, [router]);
 
-  return { loading: checking, isSeller };
+  return {
+    loading: state === "checking",
+    isAdmin: state === "allowed",
+  };
 }
