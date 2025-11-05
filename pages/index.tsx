@@ -5,6 +5,9 @@ import Header from "../components/Header";
 import Footer from "../components/Footer";
 import DemoGrid from "../components/DemoGrid";
 import { ProductLike } from "../components/ProductCard";
+// --- ADDED ---
+import { adminDb } from "../utils/firebaseAdmin";
+import type { GetServerSideProps } from "next";
 
 const categories = [
   { name: "Bags", slug: "bags" },
@@ -21,111 +24,20 @@ const categories = [
   { name: "Sale", slug: "sale" },
 ];
 
-const trending: ProductLike[] = [
-  {
-    id: "g1",
-    title: "Gucci Marmont Mini",
-    brand: "GUCCI",
-    price: "$2,450",
-    image:
-      "https://images.unsplash.com/photo-1594223274512-ad4803739b7c?w=500&q=80",
-    href: "/product/g1",
-    badge: "New",
-  },
-  {
-    id: "p1",
-    title: "Prada Re-Edition 2005",
-    brand: "PRADA",
-    price: "$2,990",
-    image:
-      "https://images.unsplash.com/photo-1620138546368-356b907a7529?w=500&q=80",
-    href: "/product/p1",
-  },
-  {
-    id: "z1",
-    title: "Zimmermann Silk Blouse",
-    brand: "ZIMMERMANN",
-    price: "$480",
-    image:
-      "https://images.unsplash.com/photo-1581044777550-4cfa60707c03?w=500&q=80",
-    href: "/product/z1",
-  },
-  {
-    id: "d1",
-    title: "Dior Printed Dress",
-    brand: "DIOR",
-    price: "$1,950",
-    image:
-      "https://images.unsplash.com/photo-1590130603709-5d63030f146c?w=500&q=80",
-    href: "/product/d1",
-  },
-  {
-    id: "c1",
-    title: "Chanel Slingbacks",
-    brand: "CHANEL",
-    price: "$1,250",
-    image:
-      "https://images.unsplash.com/photo-1543163521-1bf539c55dd2?w=500&q=80",
-    href: "/product/c1",
-  },
-  {
-    id: "lv1",
-    title: "LV Monogram Scarf",
-    brand: "LOUIS VUITTON",
-    price: "$620",
-    image:
-      "https://images.unsplash.com/photo-1616017006307-e4560b130e52?w=500&q=80",
-    href: "/product/lv1",
-  },
-  {
-    id: "r1",
-    title: "Rolex Datejust 36",
-    brand: "ROLEX",
-    price: "$12,900",
-    image:
-      "https://images.unsplash.com/photo-1620625336423-6e31c3bf1c55?w=500&q=80",
-    href: "/product/r1",
-  },
-  {
-    id: "ct1",
-    title: "Cartier Love Bracelet",
-    brand: "CARTIER",
-    price: "$9,800",
-    image:
-      "https://images.unsplash.com/photo-1601854638706-e1376e73c0f0?w=500&q=80",
-    href: "/product/ct1",
-  },
-  {
-    id: "a1",
-    title: "Acne Studios Tee",
-    brand: "ACNE",
-    price: "$190",
-    image:
-      "https://images.unsplash.com/photo-1622337290659-c3600a26e636?w=500&q=80",
-    href: "/product/a1",
-  },
-  {
-    id: "ce1",
-    title: "Celine Wool Coat",
-    brand: "CELINE",
-    price: "$2,650",
-    image:
-      "https://images.unsplash.com/photo-1600273760838-8e6878e104e9?w=500&q=80",
-    href: "/product/ce1",
-  },
-];
+// --- DELETED ---
+// The hard-coded 'trending' and 'newArrivals' arrays are gone.
+// --- DELETED ---
 
-const newArrivals: ProductLike[] = [
-  { ...trending[4], id: "n-c1" }, // Chanel
-  { ...trending[5], id: "n-lv1" }, // LV
-  { ...trending[6], id: "n-r1" }, // Rolex
-  { ...trending[7], id: "n-ct1" }, // Cartier
-  { ...trending[0], id: "n-g1", badge: "New" }, // Gucci
-];
+// --- ADDED: Type definition for our new props ---
+type HomeProps = {
+  trending: ProductLike[];
+  newArrivals: ProductLike[];
+};
 
-export default function Home() {
+// --- UPDATED: The component now receives 'trending' and 'newArrivals' as props ---
+export default function Home({ trending, newArrivals }: HomeProps) {
   return (
-    // Wrap page in .dark-theme-page to fix text colors
+    // Your layout from index (10).tsx is 100% preserved
     <div className="dark-theme-page">
       <Head>
         <title>Famous Finds — US</title>
@@ -133,7 +45,7 @@ export default function Home() {
       <Header />
 
       <main className="wrap">
-        {/* HERO  */}
+        {/* HERO (This is your layout) */}
         <section className="hero">
           <div className="heroCopy">
             <p className="eyebrow">WELCOME TO OUR WORLD OF LUXURY</p>
@@ -145,7 +57,7 @@ export default function Home() {
             </p>
           </div>
 
-          {/* Right: AI Butler (White Background Style) */}
+          {/* Right: AI Butler (This is your layout) */}
           <div className="heroVisual">
             <p className="heroIntro">
               Meet your Famous Finds AI Butler – a friendly concierge to help you discover
@@ -187,15 +99,14 @@ export default function Home() {
           ))}
         </section>
 
-        {/* Using the DemoGrid component */}
+        {/* These components now use the 'live' data from props */}
         <DemoGrid title="Now Trending" items={trending} />
-
-        {/* Using the DemoGrid component */}
         <DemoGrid title="New Arrivals" items={newArrivals} />
       </main>
 
       <Footer />
 
+      {/* Your styles from index (10).tsx are 100% preserved */}
       <style jsx>{`
         .wrap {
           max-width: 1200px;
@@ -366,3 +277,51 @@ export default function Home() {
     </div>
   );
 }
+
+// --- ADDED: This is the live data-loading function from the new file ---
+export const getServerSideProps: GetServerSideProps<HomeProps> = async () => {
+  try {
+    const snap = await adminDb
+      .collection("listings")
+      .where("status", "==", "Active")
+      .orderBy("createdAt", "desc")
+      .limit(24) // Fetch 24 items (12 for trending, 12 for new)
+      .get();
+
+    const items: ProductLike[] = snap.docs.map((doc) => {
+      const d: any = doc.data() || {};
+      const priceNumber = Number(d.price) || 0;
+      // Updated to use $ and en-US
+      const price = priceNumber
+        ? `$${priceNumber.toLocaleString("en-US")}`
+        : "";
+      const image: string =
+        d.imageUrl ||
+        "https://images.unsplash.com/photo-1550009158-9ebf69173e03?auto=format&fit=crop&w=800&q=80";
+      return {
+        id: doc.id,
+        title: d.title || "Untitled listing",
+        brand: d.brand || "",
+        price,
+        image,
+        href: `/product/${doc.id}`,
+        badge: d.badge || undefined,
+      };
+    });
+
+    return {
+      props: {
+        trending: items.slice(0, 12),
+        newArrivals: items.slice(12, 24),
+      },
+    };
+  } catch (err) {
+    console.error("Error loading home listings", err);
+    return {
+      props: {
+        trending: [],
+        newArrivals: [],
+      },
+    };
+  }
+};
