@@ -7,18 +7,17 @@ import Header from "../../components/Header";
 import Footer from "../../components/Footer";
 import PasswordInput from "../../components/PasswordInput";
 import { getAuth, signInWithEmailAndPassword } from "firebase/auth";
-// --- FIX: Removed the curly braces {} around firebaseApp ---
 import firebaseApp from "../../utils/firebaseClient";
 
 export default function ManagementLoginPage() {
   const router = useRouter();
-  const [email, setEmail] = useState("leffleryd@gmail.com");
+  const [email, setEmail] = useState(""); // no hard-coded demo email
   const [password, setPassword] = useState("");
-  const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const from =
-    typeof router.query.from === "string" ? router.query.from : null;
+    typeof router.query.from === "string" ? router.query.from : "";
 
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -26,11 +25,13 @@ export default function ManagementLoginPage() {
     setLoading(true);
 
     try {
-      // --- This now uses Firebase to log in ---
       const auth = getAuth(firebaseApp);
-      await signInWithEmailAndPassword(auth, email, password);
+      await signInWithEmailAndPassword(
+        auth,
+        email.toLowerCase().trim(),
+        password
+      );
 
-      // Success! Set the role in localStorage for the admin guard
       if (typeof window !== "undefined") {
         window.localStorage.setItem("ff-role", "management");
         window.localStorage.setItem("ff-email", email.toLowerCase().trim());
@@ -40,10 +41,10 @@ export default function ManagementLoginPage() {
       router.push(target);
     } catch (err: any) {
       console.error(err);
-      if (err.code === "auth/invalid-credential") {
-         setError("Login failed. Please check your details and try again.");
+      if (err?.code === "auth/invalid-credential") {
+        setError("Invalid email or password.");
       } else {
-         setError("An unexpected error occurred. Please try again.");
+        setError("Unable to sign in. Please try again.");
       }
     } finally {
       setLoading(false);
@@ -58,52 +59,46 @@ export default function ManagementLoginPage() {
       <div className="min-h-screen bg-gray-900 text-gray-100">
         <Header />
 
-        <main className="mx-auto flex max-w-3xl flex-col items-center px-4 pb-16 pt-10">
-          <div className="w-full max-w-md rounded-2xl border border-gray-700 bg-gray-950/80 p-6 shadow-xl">
-            <h1 className="text-center text-2xl font-semibold text-white">
+        <main className="mx-auto flex max-w-md flex-1 items-center justify-center px-4 pb-16 pt-6">
+          <div className="w-full rounded-xl border border-gray-800 bg-gray-950/70 p-6 shadow-lg">
+            <h1 className="mb-1 text-xl font-semibold">
               Management Admin Login
             </h1>
-            <p className="mt-2 text-center text-xs text-gray-400">
-              Only authorized admins can access this console.
+            <p className="mb-4 text-xs text-gray-400">
+              Sign in with your admin email and password.
             </p>
 
-            <form onSubmit={handleSubmit} className="mt-6 space-y-4">
+            {error && (
+              <div className="mb-3 rounded-md bg-red-900/40 px-3 py-2 text-xs text-red-200">
+                {error}
+              </div>
+            )}
+
+            <form onSubmit={handleSubmit} className="space-y-4">
               <div>
                 <label className="block text-xs font-medium text-gray-300">
-                  Email
+                  Admin Email
                 </label>
                 <input
                   type="email"
+                  autoComplete="email"
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="mt-1 w-full rounded-md border border-gray-600 bg-gray-900 px-3 py-2 text-sm text-gray-100 focus:border-gray-300 focus:outline-none"
+                  className="mt-1 w-full rounded-md border border-gray-700 bg-gray-950 px-3 py-2 text-sm text-gray-100 focus:border-gray-100 focus:outline-none"
                 />
               </div>
 
-              <PasswordInput
-                label="Password"
-                value={password}
-                onChange={setPassword}
-                name="password"
-                required
-                placeholder="Enter your admin password"
-              />
-              
-              <div className="text-right">
-                <Link
-                  href="/management/forgot-password"
-                  className="text-xs font-medium text-blue-400 hover:text-blue-200"
-                >
-                  Forgot password?
-                </Link>
+              <div>
+                <label className="block text-xs font-medium text-gray-300">
+                  Password
+                </label>
+                <PasswordInput
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  inputClassName="mt-1 w-full rounded-md border border-gray-700 bg-gray-950 px-3 py-2 text-sm text-gray-100 focus:border-gray-100 focus:outline-none"
+                />
               </div>
-
-              {error && (
-                <p className="text-xs text-red-400">
-                  {error}
-                </p>
-              )}
 
               <button
                 type="submit"
