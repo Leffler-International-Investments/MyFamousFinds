@@ -1,39 +1,45 @@
 // FILE: /pages/management/sellers.tsx
+import { useMemo, useState } from "react";
+import type { GetServerSideProps } from "next";
 import Head from "next/head";
 import Link from "next/link";
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
 import { useRequireAdmin } from "../../hooks/useRequireAdmin";
+import { adminDb } from "../../utils/firebaseAdmin";
 
-const mockSellers = [
-  {
-    id: "SELL-001",
-    name: "VintageLux Boutique",
-    email: "owner@vintagelux.com",
-    country: "USA",
-    listings: 123,
-    status: "Active",
-  },
-  {
-    id: "SELL-002",
-    name: "Classic Timepieces",
-    email: "hello@classictimepieces.co.uk",
-    country: "UK",
-    listings: 34,
-    status: "Active",
-  },
-  {
-    id: "SELL-003",
-    name: "Paris Finds",
-    email: "bonjour@parisfinds.fr",
-    country: "France",
-    listings: 58,
-    status: "Suspended",
-  },
-];
+type Seller = {
+  id: string;
+  name: string;
+  email: string;
+  country: string;
+  listings: number;
+  status: string;
+};
 
-export default function ManagementSellers() {
+type Props = {
+  sellers: Seller[];
+};
+
+export default function ManagementSellers({ sellers }: Props) {
   const { loading } = useRequireAdmin();
+  const [query, setQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<"All" | "Active" | "Pending" | "Suspended">("All");
+
+  const visible = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return sellers.filter((s) => {
+      if (statusFilter !== "All" && s.status !== statusFilter) return false;
+      if (!q) return true;
+      return (
+        s.name.toLowerCase().includes(q) ||
+        s.email.toLowerCase().includes(q) ||
+        s.country.toLowerCase().includes(q) ||
+        s.id.toLowerCase().includes(q)
+      );
+    });
+  }, [sellers, query, statusFilter]);
+
   if (loading) return null;
 
   return (
@@ -65,13 +71,22 @@ export default function ManagementSellers() {
           <div className="mb-4 flex flex-wrap items-center gap-3">
             <input
               type="text"
-              placeholder="Search by seller name or email…"
-              className="w-full max-w-xs rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-gray-900 focus:outline-none"
+              placeholder="Search by name, email, or ID…"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              className="w-full max-w-xs rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-gray-900 focus:outline-none"
             />
-            <select className="rounded-md border border-gray-300 px-2 py-2 text-sm focus:border-gray-900 focus:outline-none">
-              <option>All statuses</option>
-              <option>Active</option>
-              <option>Suspended</option>
+            <select
+              value={statusFilter}
+              onChange={(e) =>
+                setStatusFilter(e.target.value as typeof statusFilter)
+              }
+              className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm focus:border-gray-900 focus:outline-none"
+            >
+              <option value="All">All statuses</option>
+              <option value="Active">Active</option>
+              <option value="Pending">Pending</option>
+              <option value="Suspended">Suspended</option>
             </select>
           </div>
 
@@ -80,10 +95,7 @@ export default function ManagementSellers() {
               <thead className="bg-gray-50">
                 <tr>
                   <th className="px-4 py-2 text-left font-medium text-gray-700">
-                    Seller ID
-                  </th>
-                  <th className="px-4 py-2 text-left font-medium text-gray-700">
-                    Name
+                    Seller
                   </th>
                   <th className="px-4 py-2 text-left font-medium text-gray-700">
                     Email
@@ -91,8 +103,8 @@ export default function ManagementSellers() {
                   <th className="px-4 py-2 text-left font-medium text-gray-700">
                     Country
                   </th>
-                  <th className="px-4 py-2 text-left font-medium text-gray-700">
-                    Active Listings
+                  <th className="px-4 py-2 text-right font-medium text-gray-700">
+                    Listings
                   </th>
                   <th className="px-4 py-2 text-left font-medium text-gray-700">
                     Status
@@ -102,46 +114,60 @@ export default function ManagementSellers() {
                   </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-200 bg-white">
-                {mockSellers.map((seller) => (
-                  <tr key={seller.id}>
-                    <td className="px-4 py-2 text-gray-900">{seller.id}</td>
-                    <td className="px-4 py-2 text-gray-900">{seller.name}</td>
-                    <td className="px-4 py-2 text-gray-700">{seller.email}</td>
-                    <td className="px-4 py-2 text-gray-700">{seller.country}</td>
-                    <td className="px-4 py-2 text-gray-900">
-                      {seller.listings}
+              <tbody className="divide-y divide-gray-100">
+                {visible.map((s) => (
+                  <tr key={s.id}>
+                    <td className="px-4 py-2 text-sm text-gray-900">
+                      <div className="font-medium">{s.name}</div>
+                      <div className="text-xs text-gray-500">{s.id}</div>
                     </td>
-                    <td className="px-4 py-2">
+                    <td className="px-4 py-2 text-sm text-gray-700">
+                      {s.email}
+                    </td>
+                    <td className="px-4 py-2 text-sm text-gray-700">
+                      {s.country}
+                    </td>
+                    <td className="px-4 py-2 text-right text-sm text-gray-900">
+                      {s.listings}
+                    </td>
+                    <td className="px-4 py-2 text-xs">
                       <span
-                        className={
-                          "rounded-full px-3 py-1 text-xs font-medium " +
-                          (seller.status === "Active"
-                            ? "bg-green-100 text-green-800"
-                            : "bg-red-100 text-red-800")
-                        }
+                        className={`inline-flex rounded-full px-2 py-1 text-xs font-semibold ${
+                          s.status === "Active"
+                            ? "bg-emerald-100 text-emerald-700"
+                            : s.status === "Pending"
+                            ? "bg-yellow-100 text-yellow-800"
+                            : "bg-red-100 text-red-700"
+                        }`}
                       >
-                        {seller.status}
+                        {s.status}
                       </span>
                     </td>
-                    <td className="px-4 py-2 text-right">
+                    <td className="px-4 py-2 text-right text-xs">
                       <Link
-                        href={`/management/seller-profiles?id=${seller.id}`}
-                        className="text-xs font-medium text-gray-700 hover:text-gray-900"
+                        href={`/management/seller-profiles?id=${encodeURIComponent(
+                          s.id
+                        )}`}
+                        className="font-medium text-blue-600 hover:text-blue-800"
                       >
-                        View Profile
+                        View
                       </Link>
                     </td>
                   </tr>
                 ))}
+                {!visible.length && (
+                  <tr>
+                    <td
+                      colSpan={6}
+                      className="px-4 py-6 text-center text-xs text-gray-500"
+                    >
+                      No sellers found for the current filters.
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>
-
-          <p className="mt-4 text-xs text-gray-500">
-            Later you can connect this table to your sellers collection and add
-            real search / filters via an API route.
-          </p>
         </main>
 
         <Footer />
@@ -149,3 +175,27 @@ export default function ManagementSellers() {
     </>
   );
 }
+
+export const getServerSideProps: GetServerSideProps<Props> = async () => {
+  try {
+    const snap = await adminDb.collection("sellers").get();
+
+    const sellers: Seller[] = snap.docs.map((doc) => {
+      const d: any = doc.data() || {};
+      return {
+        id: doc.id,
+        name: d.businessName || d.displayName || "Unnamed seller",
+        email: d.email || "",
+        country: d.country || "",
+        listings:
+          typeof d.listingsCount === "number" ? d.listingsCount : 0,
+        status: d.status || "Active",
+      };
+    });
+
+    return { props: { sellers } };
+  } catch (err) {
+    console.error("Error loading sellers", err);
+    return { props: { sellers: [] } };
+  }
+};
