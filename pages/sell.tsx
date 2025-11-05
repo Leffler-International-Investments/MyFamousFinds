@@ -7,113 +7,136 @@ import { FormEvent, useState } from "react";
 
 export default function Sell() {
   const [submitted, setSubmitted] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
-  function onSubmit(e: FormEvent<HTMLFormElement>) {
+  async function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    setSubmitted(true);
+    if (submitting) return;
+    setSubmitting(true);
+    setSubmitted(false);
+
+    try {
+      const fd = new FormData(e.currentTarget);
+      const payload: any = {};
+      fd.forEach((v, k) => (payload[k] = v));
+
+      const res = await fetch("/api/sell", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const json = await res.json();
+      if (!json.ok) throw new Error(json.error || "Submission failed");
+      setSubmitted(true);
+      e.currentTarget.reset();
+    } catch (err: any) {
+      console.error(err);
+      alert(err?.message || "Error submitting listing");
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   return (
-    <>
+    <div className="dark-theme-page">
       <Head>
         <title>Sell an Item – Famous Finds</title>
       </Head>
-      <div className="min-h-screen bg-black text-white">
-        <Header />
-        <main className="mx-auto max-w-3xl px-4 pb-16 pt-6 text-sm text-gray-100">
-          <Link
-            href="/"
-            className="text-xs text-gray-400 hover:text-gray-100"
-          >
-            ← Back to Dashboard
-          </Link>
+      <Header />
 
-          <h1 className="mt-4 text-2xl font-semibold">Sell an item</h1>
-          <p className="mt-3 text-gray-300">
-            Send us details of a piece you&apos;d like to sell. Submissions are
-            reviewed for authenticity, condition and fit with the Famous Finds
-            marketplace.
-          </p>
+      <main className="wrap">
+        <h1>Sell an Item</h1>
+        <p className="intro">
+          Submit a pre-loved piece for sale. Each submission is reviewed by our
+          team before going live.
+        </p>
 
-          {submitted && (
-            <div className="mt-5 rounded-lg border border-emerald-500/50 bg-emerald-900/20 p-4 text-xs text-emerald-200">
-              Thank you – your submission has been received (demo). In a
-              production build, our team would review your item and follow up by
-              email.
-            </div>
-          )}
+        {submitted && (
+          <div className="msg success">
+            ✅ Your listing has been received for review.
+          </div>
+        )}
 
-          <form onSubmit={onSubmit} className="mt-6 space-y-3">
-            <input
-              required
-              name="title"
-              placeholder="Title (e.g. Gucci Marmont Mini Bag)"
-              className="w-full rounded-lg border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm outline-none focus:border-fuchsia-500"
-            />
+        <form onSubmit={onSubmit} className="form">
+          <input name="title" placeholder="Title" required />
+          <input name="brand" placeholder="Brand" />
+          <input name="category" placeholder="Category (bags, shoes, etc.)" />
+          <input name="price" type="number" placeholder="Price (AUD)" required />
+          <input name="image" placeholder="Image URL" />
+          <textarea
+            name="description"
+            rows={4}
+            placeholder="Description"
+            required
+          />
+          <button type="submit" disabled={submitting}>
+            {submitting ? "Submitting..." : "Submit Listing"}
+          </button>
+        </form>
 
-            <div className="grid gap-3 md:grid-cols-3">
-              <select
-                name="category"
-                className="w-full rounded-lg border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm outline-none focus:border-fuchsia-500"
-                defaultValue="Party Dresses"
-              >
-                <option>Party Dresses</option>
-                <option>Bags</option>
-                <option>Shoes</option>
-                <option>Accessories</option>
-                <option>Watches &amp; Jewelry</option>
-              </select>
+        <p className="note">
+          Listings will appear as <strong>Pending Review</strong> until
+          authenticated and approved.
+        </p>
+      </main>
 
-              <select
-                name="condition"
-                className="w-full rounded-lg border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm outline-none focus:border-fuchsia-500"
-                defaultValue="New"
-              >
-                <option>New</option>
-                <option>Excellent</option>
-                <option>Good</option>
-                <option>Fair</option>
-              </select>
+      <Footer />
 
-              <input
-                required
-                name="price"
-                type="number"
-                min={0}
-                step={1}
-                placeholder="Price (USD)"
-                className="w-full rounded-lg border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm outline-none focus:border-fuchsia-500"
-              />
-            </div>
-
-            <input
-              required
-              name="imageUrl"
-              placeholder="Image URL (https://...)"
-              className="w-full rounded-lg border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm outline-none focus:border-fuchsia-500"
-            />
-
-            <textarea
-              required
-              name="description"
-              rows={4}
-              placeholder="Description (brand, size, colour, condition, inclusions...)"
-              className="w-full rounded-lg border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm outline-none focus:border-fuchsia-500"
-            />
-
-            <button className="rounded-lg bg-white px-4 py-2 text-sm font-semibold text-black hover:bg-gray-100">
-              Submit for review
-            </button>
-          </form>
-
-          <p className="mt-6 text-xs text-gray-400">
-            Submissions are reviewed for US sale only. Payouts are made via
-            Stripe Connect to a verified bank account once orders are delivered
-            and any return window has passed.
-          </p>
-        </main>
-        <Footer />
-      </div>
-    </>
+      <style jsx>{`
+        .wrap {
+          max-width: 600px;
+          margin: 0 auto;
+          padding: 24px 16px 80px;
+        }
+        h1 {
+          font-size: 26px;
+          margin-bottom: 8px;
+        }
+        .intro {
+          font-size: 14px;
+          color: #d1d5db;
+          margin-bottom: 20px;
+        }
+        .form {
+          display: flex;
+          flex-direction: column;
+          gap: 10px;
+        }
+        input,
+        textarea {
+          border-radius: 8px;
+          border: 1px solid #374151;
+          background: #111827;
+          color: white;
+          padding: 8px 10px;
+          font-size: 14px;
+        }
+        button {
+          margin-top: 10px;
+          background: white;
+          color: black;
+          border: none;
+          padding: 10px 16px;
+          border-radius: 8px;
+          font-weight: 600;
+          cursor: pointer;
+        }
+        .msg {
+          padding: 10px;
+          border-radius: 8px;
+          margin-bottom: 14px;
+          font-size: 13px;
+        }
+        .success {
+          background: #065f46;
+          color: #d1fae5;
+        }
+        .note {
+          margin-top: 16px;
+          font-size: 12px;
+          color: #9ca3af;
+        }
+      `}</style>
+    </div>
   );
 }
