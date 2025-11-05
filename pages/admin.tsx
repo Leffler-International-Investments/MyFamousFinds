@@ -8,7 +8,7 @@ export default function AdminAccess() {
   return (
     <>
       <Head>
-        <title>Admin access — Famous Finds</title>
+        <title>Admin Access — Famous Finds</title>
       </Head>
 
       <div className="min-h-screen bg-gray-900 text-gray-100">
@@ -23,10 +23,11 @@ export default function AdminAccess() {
           </Link>
 
           <h1 className="mt-4 text-3xl font-semibold text-white">
-            Admin access
+            Choose Your Console
           </h1>
           <p className="mt-2 max-w-xl text-sm text-gray-300">
-            Choose the correct console for your role.
+            Select the correct console below. Each console has its own secure
+            login page.
           </p>
 
           <div className="mt-8 grid gap-6 md:grid-cols-2">
@@ -35,7 +36,7 @@ export default function AdminAccess() {
                 Management Admin
               </h2>
               <p className="mt-1 text-sm text-gray-300">
-                For store owners and trusted staff who manage the marketplace.
+                For the owner and trusted developer to manage the entire marketplace.
               </p>
               <div className="mt-4">
                 <Link
@@ -52,7 +53,7 @@ export default function AdminAccess() {
                 Seller Console
               </h2>
               <p className="mt-1 text-sm text-gray-300">
-                For approved sellers to manage their own listings, orders and payouts.
+                For vetted sellers to manage listings, orders, and payouts.
               </p>
               <div className="mt-4">
                 <Link
