@@ -5,11 +5,10 @@ import { FormEvent, useState } from "react";
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
 import { getAuth, sendPasswordResetEmail } from "firebase/auth";
-// --- FIX: Removed the curly braces {} around firebaseApp ---
-import firebaseApp from "../../utils/firebaseClient"; // Ensure this path is correct
+import firebaseApp from "../../utils/firebaseClient"; // Use default import
 
 export default function ManagementForgotPassword() {
-  const [email, setEmail] = useState("");
+  const [email, setEmail] = useState("leffleryd@gmail.com"); // Pre-filled
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(false);
@@ -20,7 +19,6 @@ export default function ManagementForgotPassword() {
     setLoading(true);
 
     try {
-      // Use the built-in Firebase function
       const auth = getAuth(firebaseApp);
       await sendPasswordResetEmail(auth, email);
       setSent(true);
@@ -48,14 +46,13 @@ export default function ManagementForgotPassword() {
           <div className="w-full max-w-md rounded-2xl border border-gray-700 bg-gray-950/80 p-6 shadow-xl">
             
             {sent ? (
-              // --- "Email Sent" View ---
               <div className="text-center">
                 <h1 className="text-2xl font-semibold text-white">
                   Check Your Email
                 </h1>
                 <p className="mt-2 text-sm text-gray-300">
                   A password reset link has been sent to {email}. Please check
-                  your inbox (and spam folder).
+                  your inbox.
                 </p>
                 <div className="mt-6">
                   <Link
@@ -67,7 +64,6 @@ export default function ManagementForgotPassword() {
                 </div>
               </div>
             ) : (
-              // --- "Forgot Password" Form View ---
               <>
                 <h1 className="text-center text-2xl font-semibold text-white">
                   Reset Admin Password
