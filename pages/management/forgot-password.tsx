@@ -5,7 +5,8 @@ import { FormEvent, useState } from "react";
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
 import { getAuth, sendPasswordResetEmail } from "firebase/auth";
-import { firebaseApp } from "../../utils/firebaseClient"; // Ensure this path is correct
+// --- FIX: Removed the curly braces {} around firebaseApp ---
+import firebaseApp from "../../utils/firebaseClient"; // Ensure this path is correct
 
 export default function ManagementForgotPassword() {
   const [email, setEmail] = useState("");
@@ -23,7 +24,7 @@ export default function ManagementForgotPassword() {
       const auth = getAuth(firebaseApp);
       await sendPasswordResetEmail(auth, email);
       setSent(true);
-    } catch (err: any)
+    } catch (err: any) {
       console.error(err);
       if (err.code === "auth/user-not-found") {
         setError("No admin account found with this email address.");
