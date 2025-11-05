@@ -1,10 +1,12 @@
 // FILE: /pages/management/listings.tsx
-import { useEffect, useState } from "react";
+import { useMemo, useState } from "react";
+import type { GetServerSideProps } from "next";
 import Head from "next/head";
 import Link from "next/link";
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
 import { useRequireAdmin } from "../../hooks/useRequireAdmin";
+import { adminDb } from "../../utils/firebaseAdmin";
 
 type Listing = {
   id: string;
@@ -14,52 +16,30 @@ type Listing = {
   price: number;
 };
 
-export default function ManagementListings() {
-  const { loading: authLoading } = useRequireAdmin();
-  const [items, setItems] = useState<Listing[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
-  const [searchTerm, setSearchTerm] = useState<string>("");
+type Props = {
+  items: Listing[];
+};
 
-  useEffect(() => {
-    if (authLoading) return;
+export default function ManagementListings({ items }: Props) {
+  const { loading } = useRequireAdmin();
+  const [query, setQuery] = useState("");
+  const [statusFilter, setStatusFilter] =
+    useState<"All" | "Live" | "Pending" | "Rejected">("All");
 
-    const controller = new AbortController();
+  const visible = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return items.filter((l) => {
+      if (statusFilter !== "All" && l.status !== statusFilter) return false;
+      if (!q) return true;
+      return (
+        l.title.toLowerCase().includes(q) ||
+        l.seller.toLowerCase().includes(q) ||
+        l.id.toLowerCase().includes(q)
+      );
+    });
+  }, [items, query, statusFilter]);
 
-    async function load() {
-      setLoading(true);
-      setError(null);
-
-      try {
-        const params = new URLSearchParams();
-        if (searchTerm.trim()) params.set("search", searchTerm.trim());
-
-        const res = await fetch(`/api/management/listings?${params.toString()}`, {
-          signal: controller.signal,
-          credentials: "include",
-        });
-
-        if (!res.ok) {
-          throw new Error(`Request failed: ${res.status}`);
-        }
-
-        const json = await res.json();
-        setItems(Array.isArray(json.items) ? json.items : []);
-      } catch (err: any) {
-        if (err.name !== "AbortError") {
-          console.error(err);
-          setError("Failed to load listings.");
-        }
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    load();
-    return () => controller.abort();
-  }, [searchTerm, authLoading]);
-
-  if (authLoading) return null;
+  if (loading) return null;
 
   return (
     <>
@@ -70,9 +50,11 @@ export default function ManagementListings() {
         <Header />
 
         <main className="mx-auto max-w-6xl px-4 pb-16 pt-6">
-          <div className="mb-6 flex items-center justify-between">
+          <div className="mb-6 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
             <div>
-              <h1 className="text-2xl font-semibold text-gray-900">All Listings</h1>
+              <h1 className="text-2xl font-semibold text-gray-900">
+                All Listings
+              </h1>
               <p className="mt-1 text-sm text-gray-600">
                 Search, review, and moderate every item on Famous-Finds.
               </p>
@@ -88,86 +70,98 @@ export default function ManagementListings() {
           <div className="mb-4 flex flex-wrap items-center gap-3">
             <input
               type="text"
-              placeholder="Search by title, ID, or seller…"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full max-w-xs rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-gray-900 focus:outline-none"
+              placeholder="Search by title, seller, or ID…"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              className="w-full max-w-xs rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-gray-900 focus:outline-none"
             />
-            <select className="rounded-md border border-gray-300 px-2 py-2 text-sm focus:border-gray-900 focus:outline-none">
-              <option>All statuses</option>
-              <option>Live</option>
-              <option>Pending</option>
-              <option>Rejected</option>
+            <select
+              value={statusFilter}
+              onChange={(e) =>
+                setStatusFilter(e.target.value as typeof statusFilter)
+              }
+              className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm focus:border-gray-900 focus:outline-none"
+            >
+              <option value="All">All statuses</option>
+              <option value="Live">Live</option>
+              <option value="Pending">Pending</option>
+              <option value="Rejected">Rejected</option>
             </select>
           </div>
 
-          {error && (
-            <p className="mb-3 text-sm text-red-600">
-              {error}
-            </p>
-          )}
-
           <div className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
-            {loading ? (
-              <div className="px-4 py-8 text-center text-sm text-gray-500">
-                Loading listings…
-              </div>
-            ) : items.length === 0 ? (
-              <div className="px-4 py-8 text-center text-sm text-gray-500">
-                No listings found.
-              </div>
-            ) : (
-              <table className="min-w-full divide-y divide-gray-200 text-sm">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-4 py-2 text-left font-medium text-gray-700">ID</th>
-                    <th className="px-4 py-2 text-left font-medium text-gray-700">Item</th>
-                    <th className="px-4 py-2 text-left font-medium text-gray-700">Seller</th>
-                    <th className="px-4 py-2 text-left font-medium text-gray-700">Status</th>
-                    <th className="px-4 py-2 text-right font-medium text-gray-700">Price (USD)</th>
-                    <th className="px-4 py-2 text-right font-medium text-gray-700">Actions</th>
+            <table className="min-w-full divide-y divide-gray-200 text-sm">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-4 py-2 text-left font-medium text-gray-700">
+                    Listing
+                  </th>
+                  <th className="px-4 py-2 text-left font-medium text-gray-700">
+                    Seller
+                  </th>
+                  <th className="px-4 py-2 text-right font-medium text-gray-700">
+                    Price (AU$)
+                  </th>
+                  <th className="px-4 py-2 text-left font-medium text-gray-700">
+                    Status
+                  </th>
+                  <th className="px-4 py-2 text-right font-medium text-gray-700">
+                    Actions
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {visible.map((l) => (
+                  <tr key={l.id}>
+                    <td className="px-4 py-2 text-sm text-gray-900">
+                      <div className="font-medium">{l.title}</div>
+                      <div className="text-xs text-gray-500">{l.id}</div>
+                    </td>
+                    <td className="px-4 py-2 text-sm text-gray-700">
+                      {l.seller}
+                    </td>
+                    <td className="px-4 py-2 text-right text-sm text-gray-900">
+                      {l.price.toLocaleString("en-AU", {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2,
+                      })}
+                    </td>
+                    <td className="px-4 py-2 text-xs">
+                      <span
+                        className={`inline-flex rounded-full px-2 py-1 text-xs font-semibold ${
+                          l.status === "Live"
+                            ? "bg-emerald-100 text-emerald-700"
+                            : l.status === "Pending"
+                            ? "bg-yellow-100 text-yellow-800"
+                            : "bg-red-100 text-red-700"
+                        }`}
+                      >
+                        {l.status}
+                      </span>
+                    </td>
+                    <td className="px-4 py-2 text-right text-xs">
+                      <Link
+                        href={`/product/${encodeURIComponent(l.id)}`}
+                        className="font-medium text-blue-600 hover:text-blue-800"
+                      >
+                        View
+                      </Link>
+                    </td>
                   </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200 bg-white">
-                  {items.map((item) => (
-                    <tr key={item.id}>
-                      <td className="px-4 py-2 text-gray-900">{item.id}</td>
-                      <td className="px-4 py-2 text-gray-900">{item.title}</td>
-                      <td className="px-4 py-2 text-gray-700">{item.seller}</td>
-                      <td className="px-4 py-2">
-                        <span
-                          className={
-                            "rounded-full px-3 py-1 text-xs font-medium " +
-                            (item.status === "Live"
-                              ? "bg-green-100 text-green-800"
-                              : item.status === "Pending"
-                              ? "bg-yellow-100 text-yellow-800"
-                              : "bg-red-100 text-red-800")
-                          }
-                        >
-                          {item.status}
-                        </span>
-                      </td>
-                      <td className="px-4 py-2 text-right text-gray-900">
-                        ${item.price.toLocaleString()}
-                      </td>
-                      <td className="px-4 py-2 text-right">
-                        <button className="text-xs font-medium text-gray-700 hover:text-gray-900">
-                          Review
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
+                ))}
+                {!visible.length && (
+                  <tr>
+                    <td
+                      colSpan={5}
+                      className="px-4 py-6 text-center text-xs text-gray-500"
+                    >
+                      No listings found for the current filters.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
           </div>
-
-          <p className="mt-4 text-xs text-gray-500">
-            Backend TODO: implement <code>/api/management/listings</code> to
-            accept a <code>?search=</code> param and return{" "}
-            <code>{`{ items: Listing[] }`}</code>.
-          </p>
         </main>
 
         <Footer />
@@ -175,3 +169,41 @@ export default function ManagementListings() {
     </>
   );
 }
+
+export const getServerSideProps: GetServerSideProps<Props> = async () => {
+  try {
+    const snap = await adminDb
+      .collection("listings")
+      .orderBy("createdAt", "desc")
+      .limit(200)
+      .get();
+
+    const items: Listing[] = snap.docs.map((doc) => {
+      const d: any = doc.data() || {};
+      const price =
+        typeof d.price === "number"
+          ? d.price
+          : typeof d.price === "string"
+          ? Number(d.price) || 0
+          : 0;
+
+      const rawStatus = (d.status || "").toString();
+      let status: Listing["status"] = "Live";
+      if (/pending/i.test(rawStatus)) status = "Pending";
+      if (/reject/i.test(rawStatus)) status = "Rejected";
+
+      return {
+        id: doc.id,
+        title: d.title || "Untitled listing",
+        seller: d.sellerName || d.sellerDisplayName || d.sellerId || "Seller",
+        status,
+        price,
+      };
+    });
+
+    return { props: { items } };
+  } catch (err) {
+    console.error("Error loading listings", err);
+    return { props: { items: [] } };
+  }
+};
