@@ -4,21 +4,30 @@ import Link from "next/link";
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
 
-// Example of how you might conditionally show onboarding
-// You can hook this up to your database later
-const isVettingApproved = true;
-const isProfileComplete = false;
-
-// Helper component for dashboard sections
-const DashboardSection = ({ title, children }: { title: string, children: React.ReactNode }) => (
+const DashboardSection = ({
+  title,
+  children,
+}: {
+  title: string;
+  children: React.ReactNode;
+}) => (
   <section className="mb-8 rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
     <h2 className="mb-4 text-lg font-semibold text-gray-900">{title}</h2>
     <div className="grid gap-4 md:grid-cols-3">{children}</div>
   </section>
 );
 
-// Helper component for dashboard links
-const DashboardLink = ({ href, title, description, accentColor = "blue" }: { href: string, title: string, description: string, accentColor?: "blue" | "green" | "gray" }) => {
+const DashboardLink = ({
+  href,
+  title,
+  description,
+  accentColor = "blue",
+}: {
+  href: string;
+  title: string;
+  description: string;
+  accentColor?: "blue" | "green" | "gray";
+}) => {
   const colors = {
     blue: "border-gray-200 hover:border-blue-500",
     green: "border-gray-200 hover:border-emerald-500",
@@ -73,37 +82,35 @@ export default function SellerDashboard() {
             </Link>
           </div>
 
-          {/* -- 1. ONBOARDING (Conditional) -- */}
-          {isVettingApproved && !isProfileComplete && (
-            <section className="mb-8 rounded-lg border-2 border-blue-500 bg-white p-5 shadow-lg">
-              <h2 className="mb-2 text-lg font-semibold text-gray-900">
-                Welcome to Famous Finds!
-              </h2>
-              <p className="mb-4 text-sm text-gray-600">
-                Your application is approved. Please complete your profile to
-                start selling.
-              </p>
-              <div>
-                <Link
-                  href="/seller/profile" // <-- This button now correctly links to the profile page
-                  className="inline-block rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700"
-                >
-                  Complete Your Profile →
-                </Link>
-              </div>
-            </section>
-          )}
+          {/* Onboarding panel – now always shown, no fake flags */}
+          <section className="mb-8 rounded-lg border-2 border-blue-500 bg-white p-5 shadow-lg">
+            <h2 className="mb-2 text-lg font-semibold text-gray-900">
+              Welcome to Famous Finds!
+            </h2>
+            <p className="mb-4 text-sm text-gray-600">
+              Your application is approved. Please complete your profile to
+              start selling.
+            </p>
+            <div>
+              <Link
+                href="/seller/profile"
+                className="inline-block rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700"
+              >
+                Complete Your Profile →
+              </Link>
+            </div>
+          </section>
 
-          {/* -- 2. LISTINGS -- */}
+          {/* Manage Listings */}
           <DashboardSection title="Manage Listings">
             <DashboardLink
-              href="/sell" // <-- FIX: Changed from /seller/listings/new
+              href="/sell"
               title="Create New Listing"
               description="Upload a new item to your catalogue."
               accentColor="blue"
             />
             <DashboardLink
-              href="/seller/catalogue" // <-- FIX: Changed from /seller/listings
+              href="/seller/catalogue"
               title="My Catalogue"
               description="Edit prices, quantity, and details for your active listings."
               accentColor="blue"
@@ -116,7 +123,7 @@ export default function SellerDashboard() {
             />
           </DashboardSection>
 
-          {/* -- 3. ORDERS & PERFORMANCE -- */}
+          {/* Orders & Performance */}
           <DashboardSection title="Orders & Performance">
             <DashboardLink
               href="/seller/orders"
@@ -132,7 +139,7 @@ export default function SellerDashboard() {
             />
           </DashboardSection>
 
-          {/* -- 4. FINANCE & ACCOUNT -- */}
+          {/* Finance & Account */}
           <DashboardSection title="Finance & Account">
             <DashboardLink
               href="/seller/wallet"
