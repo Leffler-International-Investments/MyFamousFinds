@@ -1,40 +1,80 @@
 // FILE: /pages/management/vetting-queue.tsx
+import { useMemo, useState } from "react";
+import type { GetServerSideProps } from "next";
 import Head from "next/head";
 import Link from "next/link";
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
 import { useRequireAdmin } from "../../hooks/useRequireAdmin";
+import { adminDb } from "../../utils/firebaseAdmin";
 
-const mockApplications = [
-  {
-    id: "APP-001",
-    businessName: "VintageLux Boutique",
-    contactEmail: "owner@vintagelux.com",
-    submittedAt: "2025-10-28",
-    country: "USA",
-    status: "Pending",
-  },
-  {
-    id: "APP-002",
-    businessName: "Classic Timepieces",
-    contactEmail: "hello@classictimepieces.co.uk",
-    submittedAt: "2025-10-29",
-    country: "UK",
-    status: "Pending",
-  },
-  {
-    id: "APP-003",
-    businessName: "Paris Finds",
-    contactEmail: "bonjour@parisfinds.fr",
-    submittedAt: "2025-10-30",
-    country: "France",
-    status: "In Review",
-  },
-];
+type SellerApplication = {
+  id: string;
+  businessName: string;
+  contactEmail: string;
+  submittedAt: string;
+  country: string;
+  status: string;
+};
 
-export default function ManagementVettingQueue() {
+type Props = {
+  applications: SellerApplication[];
+};
+
+export default function ManagementVettingQueue({ applications }: Props) {
   const { loading } = useRequireAdmin();
+  const [pendingOnly, setPendingOnly] = useState(false);
+
+  const visible = useMemo(
+    () =>
+      pendingOnly
+        ? applications.filter((a) => a.status === "Pending")
+        : applications,
+    [applications, pendingOnly]
+  );
+
   if (loading) return null;
+
+  function handleExportCsv() {
+    if (!visible.length) return;
+    const header = [
+      "Application ID",
+      "Business Name",
+      "Contact Email",
+      "Country",
+      "Submitted",
+      "Status",
+    ];
+    const rows = visible.map((a) => [
+      a.id,
+      a.businessName,
+      a.contactEmail,
+      a.country,
+      a.submittedAt,
+      a.status,
+    ]);
+
+    const csv =
+      [header, ...rows]
+        .map((row) =>
+          row
+            .map((cell) =>
+              `"${String(cell ?? "")
+                .replace(/"/g, '""')
+                .replace(/\r?\n/g, " ")}"`
+            )
+            .join(",")
+        )
+        .join("\n") + "\n";
+
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "seller-applications.csv";
+    link.click();
+    window.URL.revokeObjectURL(url);
+  }
 
   return (
     <>
@@ -64,10 +104,18 @@ export default function ManagementVettingQueue() {
           </div>
 
           <div className="mb-4 flex flex-wrap gap-3">
-            <button className="rounded-md border border-gray-300 px-3 py-2 text-xs text-gray-700 hover:bg-gray-100">
-              Show Pending Only
+            <button
+              type="button"
+              onClick={() => setPendingOnly((v) => !v)}
+              className="rounded-md border border-gray-300 px-3 py-2 text-xs text-gray-700 hover:bg-gray-100"
+            >
+              {pendingOnly ? "Show All Applications" : "Show Pending Only"}
             </button>
-            <button className="rounded-md border border-gray-300 px-3 py-2 text-xs text-gray-700 hover:bg-gray-100">
+            <button
+              type="button"
+              onClick={handleExportCsv}
+              className="rounded-md border border-gray-300 px-3 py-2 text-xs text-gray-700 hover:bg-gray-100"
+            >
               Export Applications (CSV)
             </button>
           </div>
@@ -99,51 +147,61 @@ export default function ManagementVettingQueue() {
                   </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-200 bg-white">
-                {mockApplications.map((app) => (
+              <tbody className="divide-y divide-gray-100">
+                {visible.map((app) => (
                   <tr key={app.id}>
-                    <td className="px-4 py-2 text-gray-900">{app.id}</td>
-                    <td className="px-4 py-2 text-gray-900">
+                    <td className="px-4 py-2 text-xs font-mono text-gray-700">
+                      {app.id}
+                    </td>
+                    <td className="px-4 py-2 text-sm text-gray-900">
                       {app.businessName}
                     </td>
-                    <td className="px-4 py-2 text-gray-700">
+                    <td className="px-4 py-2 text-sm text-gray-700">
                       {app.contactEmail}
                     </td>
-                    <td className="px-4 py-2 text-gray-700">{app.country}</td>
-                    <td className="px-4 py-2 text-gray-700">
+                    <td className="px-4 py-2 text-sm text-gray-700">
+                      {app.country}
+                    </td>
+                    <td className="px-4 py-2 text-xs text-gray-500">
                       {app.submittedAt}
                     </td>
-                    <td className="px-4 py-2">
+                    <td className="px-4 py-2 text-xs">
                       <span
-                        className={
-                          "rounded-full px-3 py-1 text-xs font-medium " +
-                          (app.status === "Pending"
+                        className={`inline-flex rounded-full px-2 py-1 text-xs font-semibold ${
+                          app.status === "Pending"
                             ? "bg-yellow-100 text-yellow-800"
-                            : "bg-blue-100 text-blue-800")
-                        }
+                            : app.status === "Approved"
+                            ? "bg-emerald-100 text-emerald-700"
+                            : "bg-red-100 text-red-700"
+                        }`}
                       >
                         {app.status}
                       </span>
                     </td>
-                    <td className="px-4 py-2 text-right">
-                      <button className="mr-2 text-xs font-medium text-green-700 hover:text-green-900">
+                    <td className="px-4 py-2 text-right text-xs">
+                      {/* Approve / Deny wiring to API can be added later */}
+                      <button className="mr-2 font-medium text-green-700 hover:text-green-900">
                         Approve
                       </button>
-                      <button className="text-xs font-medium text-red-600 hover:text-red-800">
+                      <button className="font-medium text-red-600 hover:text-red-800">
                         Deny
                       </button>
                     </td>
                   </tr>
                 ))}
+                {!visible.length && (
+                  <tr>
+                    <td
+                      colSpan={7}
+                      className="px-4 py-6 text-center text-xs text-gray-500"
+                    >
+                      No applications found for the current filter.
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>
-
-          <p className="mt-4 text-xs text-gray-500">
-            Later you can replace the mockApplications array with data from your
-            database (e.g., <code>pendingSellers</code> collection) and wire the
-            Approve / Deny buttons to an API route.
-          </p>
         </main>
 
         <Footer />
@@ -151,3 +209,35 @@ export default function ManagementVettingQueue() {
     </>
   );
 }
+
+export const getServerSideProps: GetServerSideProps<Props> = async () => {
+  try {
+    const snap = await adminDb.collection("sellers").get();
+
+    const applications: SellerApplication[] = snap.docs.map((doc) => {
+      const d: any = doc.data() || {};
+      const createdAt =
+        d.createdAt && typeof d.createdAt.toDate === "function"
+          ? d.createdAt.toDate()
+          : null;
+      const iso =
+        createdAt && !isNaN(createdAt.getTime())
+          ? createdAt.toISOString().slice(0, 10)
+          : "";
+
+      return {
+        id: doc.id,
+        businessName: d.businessName || d.displayName || "Unknown seller",
+        contactEmail: d.email || "",
+        country: d.country || "",
+        submittedAt: iso,
+        status: d.status || "Pending",
+      };
+    });
+
+    return { props: { applications } };
+  } catch (err) {
+    console.error("Error loading vetting queue", err);
+    return { props: { applications: [] } };
+  }
+};
