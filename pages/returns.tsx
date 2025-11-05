@@ -1,88 +1,107 @@
 // FILE: /pages/returns.tsx
 import Head from "next/head";
-import Link from "next/link";
 import Header from "../components/Header";
 import Footer from "../components/Footer";
 
-export default function Returns() {
+export default function ReturnsPage() {
   return (
-    <>
+    <div className="dark-theme-page">
       <Head>
-        <title>Returns – Famous Finds</title>
+        <title>Returns &amp; refunds – Famous Finds</title>
       </Head>
-      <div className="min-h-screen bg-black text-white">
-        <Header />
-        <main className="mx-auto max-w-3xl px-4 py-10 text-sm text-gray-100">
-          <Link
-            href="/"
-            className="text-xs text-gray-400 hover:text-gray-100"
-          >
-            ← Back to Dashboard
-          </Link>
+      <Header />
 
-          <h1 className="mt-4 text-2xl font-semibold">Returns & refunds</h1>
-          <p className="mt-3 text-gray-300">
-            Because items are consigned or sold by independent sellers, returns
-            work a little differently to a traditional retailer.
+      <main className="wrap">
+        <h1>Returns &amp; refunds</h1>
+        <p className="intro">
+          Because Famous Finds is a curated marketplace, each item is sold by an
+          individual seller. This policy describes how returns and refunds are
+          handled.
+        </p>
+
+        <section className="card">
+          <h2>Change-of-mind returns</h2>
+          <p>
+            Unless explicitly stated on a listing, change-of-mind returns are
+            not guaranteed. Many items are one-off or consigned pieces. Always
+            review photos, description and sizing carefully before purchasing.
           </p>
+        </section>
 
-          <section className="mt-6 space-y-4">
-            <div>
-              <h2 className="text-base font-semibold text-gray-100">
-                Inspection window
-              </h2>
-              <p className="mt-2">
-                For most items, there is a short{" "}
-                <span className="font-semibold">inspection window</span> after
-                delivery (typically 48 hours). Use this time to check:
-              </p>
-              <ul className="mt-2 list-disc space-y-1 pl-5 text-gray-300">
-                <li>That the item matches the photos and description.</li>
-                <li>Size, fit and condition.</li>
-                <li>Any included accessories or original packaging.</li>
-              </ul>
-            </div>
+        <section className="card">
+          <h2>Items not as described</h2>
+          <p>
+            If an item is significantly not as described (for example incorrect
+            model, undisclosed damage, or counterfeit), contact support within
+            48 hours of delivery. We may request photos or other documentation.
+          </p>
+          <p>
+            Where a claim is approved, we&apos;ll coordinate a return with the
+            seller or process a refund according to our buyer protection
+            process.
+          </p>
+        </section>
 
-            <div>
-              <h2 className="text-base font-semibold text-gray-100">
-                If something isn&apos;t right
-              </h2>
-              <p className="mt-2">
-                If the item is significantly not as described (for example,
-                undisclosed damage or incorrect authenticity), contact us as
-                soon as possible via the{" "}
-                <Link
-                  href="/contact"
-                  className="underline underline-offset-2 hover:text-gray-100"
-                >
-                  Contact
-                </Link>{" "}
-                page. Our team will review the case and may request photos or
-                additional information.
-              </p>
-            </div>
+        <section className="card">
+          <h2>Damaged in transit</h2>
+          <p>
+            If a parcel arrives damaged, photograph the packaging and the item
+            immediately and contact{" "}
+            <a href="mailto:support@famous-finds.com">
+              support@famous-finds.com
+            </a>{" "}
+            so we can help lodge a shipping claim.
+          </p>
+        </section>
 
-            <div>
-              <h2 className="text-base font-semibold text-gray-100">
-                When refunds are issued
-              </h2>
-              <p className="mt-2">
-                If a return is approved, the item will be shipped back to the
-                seller and your original payment method will be refunded once
-                the item is received. In some rare cases we may issue a partial
-                refund or credit instead.
-              </p>
-            </div>
+        <section className="card">
+          <h2>How refunds are paid</h2>
+          <p>
+            Approved refunds are processed back to the original payment method.
+            Once we issue the refund, banks and card issuers can take 3–10
+            business days to display it on your statement.
+          </p>
+        </section>
+      </main>
 
-            <p className="text-xs text-gray-500">
-              This is a demo policy for layout purposes only. Final legal terms
-              may differ.
-            </p>
-          </section>
-        </main>
-        <Footer />
-      </div>
-    </>
+      <Footer />
+
+      <style jsx>{`
+        .wrap {
+          max-width: 800px;
+          margin: 0 auto;
+          padding: 24px 16px 80px;
+        }
+        h1 {
+          font-size: 26px;
+          margin-bottom: 10px;
+        }
+        .intro {
+          font-size: 14px;
+          color: #d4d4d4;
+          margin-bottom: 18px;
+        }
+        .card {
+          border-radius: 16px;
+          border: 1px solid #27272a;
+          background: #020617;
+          padding: 16px 18px;
+          margin-bottom: 16px;
+          font-size: 14px;
+          color: #e5e5e5;
+        }
+        .card h2 {
+          font-size: 16px;
+          margin-bottom: 6px;
+        }
+        a {
+          color: #a5b4fc;
+          text-decoration: none;
+        }
+        a:hover {
+          text-decoration: underline;
+        }
+      `}</style>
+    </div>
   );
 }
-
