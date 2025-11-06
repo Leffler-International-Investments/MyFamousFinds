@@ -40,7 +40,7 @@ function buildPeriods(): PeriodOption[] {
     const pad = (n: number) => String(n).padStart(2, "0");
     const startStr = `${year}-${pad(month + 1)}-${pad(1)}`;
     const endStr = `${year}-${pad(month + 1)}-${pad(end.getDate())}`;
-    const label = start.toLocaleDateString("en-US", { // Use en-US
+    const label = start.toLocaleDateString("en-US", { // Switched to en-US
       month: "long",
       year: "numeric",
     });
@@ -81,7 +81,6 @@ export default function SellerStatements() {
           start: currentPeriod.start,
           end: currentPeriod.end,
         });
-        // You must be logged in for this fetch to work
         const res = await fetch(`/api/seller/statement?${params.toString()}`);
         const json: ApiResponse = await res.json();
         if (!cancelled) setData(json);
@@ -113,6 +112,7 @@ export default function SellerStatements() {
   };
 
   // --- 5. RENDER NOTHING WHILE CHECKING AUTH ---
+  // This is what fixes the build error
   if (authLoading) {
     return <div className="min-h-screen bg-black"></div>;
   }
@@ -172,7 +172,9 @@ export default function SellerStatements() {
           {!loading && data && !data.ok && (
             <p className="text-xs text-red-400">
               {data.error || "We couldn&apos;t load this statement."}
-            </Note: This will show the "DECODER routines" error if your Vercel key is wrong.
+              <br />
+              <br />
+              (If you see a DECODER error, your Vercel private key is formatted incorrectly. You must re-paste it and **wrap it in double quotes**.)
             </p>
           )}
 
