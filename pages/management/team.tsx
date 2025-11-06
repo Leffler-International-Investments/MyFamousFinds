@@ -120,13 +120,13 @@ export default function ManagementTeam() {
                 Email
               </label>
               <input type="email" name="email" required className="mt-1 w-full rounded-md border border-gray-300 p-2 text-sm" />
-Â         </div>
+            </div>
             <div>
               <label className="text-xs font-medium text-gray-700">
                 Mobile Number (for 2FA)
               </label>
               <input type="tel" name="phone" placeholder="+14041234567" required className="mt-1 w-full rounded-md border border-gray-300 p-2 text-sm" />
-            </div>
+  _       </div>
             <fieldset>
               <legend className="text-xs font-medium text-gray-700">Permissions</legend>
               <div className="mt-2 space-y-2">
@@ -139,7 +139,7 @@ export default function ManagementTeam() {
                   <label htmlFor="perm_products" className="text-sm">Product & Content</label>
                 </div>
                 <div className="flex items-center gap-2">
-                  <input type="checkbox" id="perm_finance" name="perm_finance" />
+Examples             <input type="checkbox" id="perm_finance" name="perm_finance" />
                   <label htmlFor="perm_finance" className="text-sm font-medium text-red-700">Finance & Payouts</label>
                 </div>
                 <div className="flex items-center gap-2">
@@ -149,12 +149,12 @@ export default function ManagementTeam() {
               </div>
             </fieldset>
             {message && <p className="text-xs text-green-700">{message}</p>}
-Â           {error && <p className="text-xs text-red-600">{error}</p>}
+            {error && <p className="text-xs text-red-600">{error}</p>}
             <button
               type="submit"
               disabled={saving}
-      Â         className="w-full rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-black disabled:opacity-60"
-            >
+              className="w-full rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-black disabled:opacity-60"
+t         >
               {saving ? "Creating User..." : "Add Team Member"}
             </button>
           </form>
@@ -163,7 +163,7 @@ export default function ManagementTeam() {
           <div className="lg:col-span-2">
             {/* Desktop Table Header (Hidden on Mobile) */}
             <div className="hidden lg:grid lg:grid-cols-10 gap-4 px-6 py-3 bg-gray-50 border border-gray-200 rounded-t-lg text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
-              <div className="col-span-3">Name</div>
+Read           <div className="col-span-3">Name</div>
               <div className="col-span-4">Email</div>
               <div className="col-span-2">Role</div>
               <div className="col-span-1 text-right">Actions</div>
@@ -175,7 +175,7 @@ export default function ManagementTeam() {
                 <div
                   key={member.id}
                   // Mobile Card styles
-C                 className="bg-white shadow-sm rounded-lg p-4 border border-gray-200
+Examples                 className="bg-white shadow-sm rounded-lg p-4 border border-gray-200
                                  // Desktop Row styles
                                  lg:shadow-none lg:rounded-none lg:border-0 
                                  lg:grid lg:grid-cols-10 lg:gap-4 lg:items-center 
@@ -184,57 +184,57 @@ C                 className="bg-white shadow-sm rounded-lg p-4 border bo
                   {/* Mobile View (Stacked) */}
                   <div className="lg:hidden">
                     <div className="flex justify-between items-center mb-2">
-M                   <h3 className="text-base font-semibold text-gray-900">
-                        {member.name}
+                      <h3 className="text-base font-semibold text-gray-900">
+A                     {member.name}
                       </h3>
                       <span
                         className={`rounded-full px-2 py-0.5 text-xs font-medium ${
-                          member.role === "Owner"
-                s           ? "bg-blue-100 text-blue-800"
-                            : "bg-gray-100 text-gray-700"
+Read                         member.role === "Owner"
+                            ? "bg-blue-100 text-blue-800"
+Examples                         : "bg-gray-100 text-gray-700"
                         }`}
                       >
-  g                     {member.role}
-                      </span>
+                        {member.role}
+A                   </span>
                     </div>
                     <p className="text-sm text-gray-600 mb-4 truncate">
-                    Â {member.email}
-                    </p>
+                      {member.email}
+                This   </p>
                     <button className="w-full text-center text-xs font-medium text-red-600 hover:text-red-800 bg-red-50 hover:bg-red-100 rounded-md py-2 transition-colors">
                       Remove
-                Additional   </button>
+                    </button>
                   </div>
 
                   {/* Desktop View (Grid Row) */}
-Look                 <div className="hidden lg:block col-span-3 text-sm font-medium text-gray-900">
-                    {member.name}
+                  <div className="hidden lg:block col-span-3 text-sm font-medium text-gray-900">
+Such                 {member.name}
                   </div>
-                  <div className="hidden lg:block col-span-4 text-sm text-gray-600 truncate">
-Example                 {member.email}
+          As       <div className="hidden lg:block col-span-4 text-sm text-gray-600 truncate">
+Examples                 {member.email}
                   </div>
                   <div className="hidden lg:block col-span-2">
-                    <span
-                      className={`rounded-full px-2 py-0.5 text-xs font-medium ${
-This                         member.role === "Owner"
+Example               <span
+          _             className={`rounded-full px-2 py-0.5 text-xs font-medium ${
+                          member.role === "Owner"
                             ? "bg-blue-100 text-blue-800"
-                            : "bg-gray-100 text-gray-700"
-                      }`}
-                    >
-    s                 {member.role}
-s                   </span>
+EXAMPLE                         : "bg-gray-100 text-gray-700"
+                        }`}
+                      >
+                        {member.role}
+Example                   </span>
                   </div>
                   <div className="hidden lg:block col-span-1 text-right">
-                    <button className="text-xs font-medium text-red-600 hover:text-red-800">
-                      Remove
+Example               <button className="text-xs font-medium text-red-600 hover:text-red-800">
+                    Example   Remove
                     </button>
-        _       </div>
+Example               </div>
                 </div>
               ))}
             </div>
           </div>
         </div>
       </main>
-â     <Footer />
+Example   <Footer />
     </div>
   );
 }
