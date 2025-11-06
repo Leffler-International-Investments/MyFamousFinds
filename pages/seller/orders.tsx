@@ -3,24 +3,62 @@ import Head from "next/head";
 import Link from "next/link";
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
+import { useEffect, useState } from "react";
+import { useRequireSeller } from "../../hooks/useRequireSeller"; // Security
+
+type OrderRow = {
+  id: string;
+  item: string;
+  buyer: string;
+  total: string;
+  status: string;
+};
 
 export default function SellerOrders() {
-  const rows = [
-    {
-      id: "FF-9201",
-      item: "Gucci Marmont Mini",
-      buyer: "A. Smith",
-      total: "$2,450.00",
-      status: "Awaiting shipment",
-    },
-    {
-      id: "FF-9191",
-      item: "Chanel Slingbacks",
-      buyer: "M. Rossi",
-      total: "$1,250.00",
-      status: "Shipped",
-    },
-  ];
+  const { loading: authLoading } = useRequireSeller();
+  const [rows, setRows] = useState<OrderRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (authLoading) return; // Wait for security check
+    
+    // Function to load orders
+    async function loadOrders() {
+      setLoading(true);
+      setError(null);
+      try {
+        // This API route will securely get the orders for the logged-in seller
+        const res = await fetch("/api/seller/orders"); 
+        const json = await res.json();
+        
+        if (!json.ok) {
+          throw new Error(json.error || "Failed to fetch orders.");
+        }
+        
+        // Format data for the table
+        const formattedRows = json.orders.map((order: any) => ({
+          id: order.id,
+          item: order.title || "Unknown Item",
+          buyer: order.buyerName || "Private Buyer",
+          total: `$${(order.price || 0).toLocaleString("en-US")}`,
+          status: order.status || "Unknown",
+        }));
+        setRows(formattedRows);
+
+      } catch (err: any) {
+        setError(err.message);
+      } finally {
+        setLoading(false);
+      }
+    }
+    
+    loadOrders();
+  }, [authLoading]);
+
+  if (authLoading) {
+    return <div className="min-h-screen bg-black"></div>; // Show blank while checking auth
+  }
 
   return (
     <>
@@ -31,7 +69,7 @@ export default function SellerOrders() {
         <Header />
         <main className="mx-auto max-w-5xl px-4 pb-16 pt-6 text-sm">
           <Link
-            href="/"
+            href="/seller/dashboard"
             className="text-xs text-gray-400 hover:text-gray-200"
           >
             ← Back to Dashboard
@@ -56,7 +94,28 @@ export default function SellerOrders() {
                   </tr>
                 </thead>
                 <tbody>
-                  {rows.map((r) => (
+                  {loading && (
+                    <tr>
+                      <td colSpan={6} className="py-4 text-center text-gray-400">
+                        Loading orders...
+                      </td>
+                    </tr>
+                  )}
+                  {error && (
+                    <tr>
+                      <td colSpan={6} className="py-4 text-center text-red-400">
+                        {error}
+                      </td>
+                    </tr>
+                  )}
+                  {!loading && !error && rows.length === 0 && (
+                     <tr>
+                      <td colSpan={6} className="py-4 text-center text-gray-400">
+                        You have no orders yet.
+                      </td>
+                    </tr>
+                  )}
+                  {!loading && !error && rows.map((r) => (
                     <tr
                       key={r.id}
                       className="border-b border-neutral-900 last:border-0"
