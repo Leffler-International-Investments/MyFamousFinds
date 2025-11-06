@@ -24,11 +24,7 @@ const categories = [
   { name: "Sale", slug: "sale" },
 ];
 
-// --- DELETED ---
-// The hard-coded 'trending' and 'newArrivals' arrays are removed.
-// They will now be passed in as props from getServerSideProps.
-
-// --- ADDED: Type definition for our new props ---
+// --- Type definition for our props ---
 type HomeProps = {
   trending: ProductLike[];
   newArrivals: ProductLike[];
@@ -82,10 +78,9 @@ export default function Home({ trending, newArrivals }: HomeProps) {
                 <span className="pillTitle">AI Butler</span>
                 <span className="pillSub">Ask by voice or chat</span>
               </Link>
-              {/* --- FIX: This link now points to a real category page --- */}
-              <Link href="/category/bags" className="pill pillSecondary">
-                <span className="pillTitle">Browse All</span>
-                <span className="pillSub">Shop the catalogue</span>
+              {/* --- THIS IS THE CORRECTED LINK --- */}
+              <Link href="/catalogue" className="pill pillSecondary">
+                <span className="pillTitle">Browse the catalogue</span>
               </Link>
             </div>
           </div>
@@ -272,7 +267,7 @@ export default function Home({ trending, newArrivals }: HomeProps) {
   );
 }
 
-// --- ADDED: This is the "live" data-loading function ---
+// --- This is the "live" data-loading function ---
 export const getServerSideProps: GetServerSideProps<HomeProps> = async () => {
   try {
     const snap = await adminDb
@@ -291,7 +286,7 @@ export const getServerSideProps: GetServerSideProps<HomeProps> = async () => {
         : "";
       const image: string =
         d.imageUrl ||
-        "https://images.unsplash.com/photo-1550009158-9ebf69173e03?auto=format&fit=crop&w=800&q=80";
+        "https://images.unsplash.com/photo-1550009158-9ebf69173e03?auto-format&fit=crop&w=800&q=80";
       return {
         id: doc.id,
         title: d.title || "Untitled listing",
