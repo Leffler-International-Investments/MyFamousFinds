@@ -20,5 +20,3 @@ if (!getApps().length) {
   });
 }
 
-export const adminDb = getFirestore();
-export { FieldValue };
