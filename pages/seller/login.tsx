@@ -7,6 +7,14 @@ import Header from "../../components/Header";
 import Footer from "../../components/Footer";
 import PasswordInput from "../../components/PasswordInput";
 
+type LoginResponse =
+  | { ok: true; sellerId: string }
+  | {
+      ok: false;
+      code: "apply_first" | "pending" | "bad_credentials" | string;
+      message: string;
+    };
+
 export default function SellerLoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState("");
@@ -20,26 +28,57 @@ export default function SellerLoginPage() {
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError(null);
-    setLoading(true);
 
-    // TODO: connect to real seller login API that checks vetting + password.
-    if (!email || !password) {
+    const trimmedEmail = email.trim().toLowerCase();
+
+    if (!trimmedEmail || !password) {
       setError("Please enter your email and password.");
-      setLoading(false);
       return;
     }
 
+    setLoading(true);
+
     try {
+      const res = await fetch("/api/seller/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: trimmedEmail,
+          password,
+        }),
+      });
+
+      const json = (await res.json()) as LoginResponse;
+
+      if (!json.ok) {
+        if (json.code === "apply_first") {
+          setError(
+            json.message ||
+              "We couldn’t find a seller account for that email. Please apply to become a seller first using the link below."
+          );
+        } else if (json.code === "pending") {
+          setError(
+            json.message ||
+              "Your seller application is still under review. You’ll be notified once approved."
+          );
+        } else {
+          setError(json.message || "Incorrect email or password.");
+        }
+        return;
+      }
+
+      // Success → remember role locally and redirect
       if (typeof window !== "undefined") {
         window.localStorage.setItem("ff-role", "seller");
-        window.localStorage.setItem("ff-email", email.toLowerCase().trim());
+        window.localStorage.setItem("ff-email", trimmedEmail);
+        window.localStorage.setItem("ff-seller-id", json.sellerId);
       }
 
       const target = from || "/seller/dashboard";
       router.push(target);
     } catch (err) {
-      console.error(err);
-      setError("Unexpected error while logging in.");
+      console.error("seller_login_error", err);
+      setError("Unexpected error while logging in. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -86,7 +125,6 @@ export default function SellerLoginPage() {
                 placeholder="Enter your seller password"
               />
 
-              {/* --- NEW LINK ADDED HERE --- */}
               <div className="text-right">
                 <Link
                   href="/seller/forgot-password"
@@ -97,7 +135,7 @@ export default function SellerLoginPage() {
               </div>
 
               {error && (
-                <p className="text-xs text-red-400">
+                <p className="text-xs text-red-400" role="alert">
                   {error}
                 </p>
               )}
@@ -113,7 +151,7 @@ export default function SellerLoginPage() {
 
             <div className="mt-4 space-y-2 text-center">
               <Link
-                href="/seller/register-vetting" // Updated to match your file tree
+                href="/seller/register-vetting"
                 className="block text-xs font-medium text-blue-400 hover:text-blue-200"
               >
                 New here? Apply to become a seller →
