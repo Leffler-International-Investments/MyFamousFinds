@@ -82,9 +82,10 @@ export default function Home({ trending, newArrivals }: HomeProps) {
                 <span className="pillTitle">AI Butler</span>
                 <span className="pillSub">Ask by voice or chat</span>
               </Link>
-              <Link href="/catalogue" className="pill pillSecondary">
-                <span className="pillTitle">24/7</span>
-                <span className="pillSub">Shopping from your sofa</span>
+              {/* --- FIX: This link now points to a real category page --- */}
+              <Link href="/category/bags" className="pill pillSecondary">
+                <span className="pillTitle">Browse All</span>
+                <span className="pillSub">Shop the catalogue</span>
               </Link>
             </div>
           </div>
