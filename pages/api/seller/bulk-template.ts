@@ -13,7 +13,7 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
     "title",
     "brand",
     "category",
-    "price",
+    "price"
   ].join(",");
 
   const exampleRow = [
@@ -21,7 +21,7 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
     "Example bag",
     "Gucci",
     "bags",
-    "2500",
+    "2500"
   ].join(",");
 
   const csv = [header, exampleRow].join("\n");
