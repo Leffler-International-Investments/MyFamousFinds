@@ -4,23 +4,22 @@ import type { NextApiRequest } from "next";
 
 /**
  * Temporary user identification helper.
- * In production you will replace this with real auth (Firebase, cookies, etc).
+ * Replace with real auth (Firebase, cookies, etc.) when ready.
  */
 export function getUserId(req: NextApiRequest): string | null {
-  // Allow a custom header, in case you add it later
   const header = req.headers["x-user-id"] ?? req.headers["x-userid"];
 
   if (typeof header === "string" && header.trim()) {
     return header.trim();
   }
 
-  // Fallback so APIs can run during development
+  // Fallback so APIs keep working in dev
   return "user-demo-001";
 }
 
 /**
  * Temporary seller identification helper.
- * Also replace this with real auth later (e.g. seller sessions).
+ * Replace with real seller auth later.
  */
 export function getSellerId(req: NextApiRequest): string | null {
   const header =
@@ -31,6 +30,6 @@ export function getSellerId(req: NextApiRequest): string | null {
     return header.trim();
   }
 
-  // Fallback seller id so seller APIs work during development
+  // Fallback seller id so seller APIs keep working in dev
   return "seller-demo-001";
 }
