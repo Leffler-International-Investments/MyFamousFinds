@@ -102,68 +102,66 @@ export default function ManagementTeam() {
           </Link>
         </div>
 
-        {/* --- IMPROVED RESPONSIVE LAYOUT --- */}
         <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
-          {/* Add New Member Form (No changes, already responsive) */}
+          {/* Add New Member Form */}
           <form
             onSubmit={handleAddMember}
             className="space-y-4 rounded-lg border border-gray-200 bg-white p-6 shadow-sm lg:col-span-1"
           >
             <h2 className="text-lg font-semibold">Add New Member</h2>
-            {/* ... (All form inputs are identical) ... */}
             <div>
               <label className="text-xs font-medium text-gray-700">
                 Full Name
               </label>
               <input type="text" name="name" required className="mt-1 w-full rounded-md border border-gray-300 p-2 text-sm" />
             </div>
-            <div>
+            <div>
               <label className="text-xs font-medium text-gray-700">
                 Email
               </label>
               <input type="email" name="email" required className="mt-1 w-full rounded-md border border-gray-300 p-2 text-sm" />
-            </div>
-            <div>
+Â         </div>
+            <div>
               <label className="text-xs font-medium text-gray-700">
                 Mobile Number (for 2FA)
               </label>
               <input type="tel" name="phone" placeholder="+14041234567" required className="mt-1 w-full rounded-md border border-gray-300 p-2 text-sm" />
             </div>
-            <fieldset>
-              <legend className="text-xs font-medium text-gray-700">Permissions</legend>
-              <div className="mt-2 space-y-2">
-                <div className="flex items-center gap-2">
-                  <input type="checkbox" id="perm_sellers" name="perm_sellers" defaultChecked />
-                  <label htmlFor="perm_sellers" className="text-sm">Seller Management</label>
-                </div>
-                <div className="flex items-center gap-2">
-                  <input type="checkbox" id="perm_products" name="perm_products" defaultChecked />
-                  <label htmlFor="perm_products" className="text-sm">Product & Content</label>
-                </div>
-                <div className="flex items-center gap-2">
-                  <input type="checkbox" id="perm_finance" name="perm_finance" />
-                  <label htmlFor="perm_finance" className="text-sm font-medium text-red-700">Finance & Payouts</label>
-                </div>
-                <div className="flex items-center gap-2">
-                  <input type="checkbox" id="perm_support" name="perm_support" defaultChecked />
-                  <label htmlFor="perm_support" className="text-sm">Support Tickets</label>
-                </div>
-              </div>
-            </fieldset>
+            <fieldset>
+              <legend className="text-xs font-medium text-gray-700">Permissions</legend>
+              <div className="mt-2 space-y-2">
+                <div className="flex items-center gap-2">
+                  <input type="checkbox" id="perm_sellers" name="perm_sellers" defaultChecked />
+                  <label htmlFor="perm_sellers" className="text-sm">Seller Management</label>
+                </div>
+                <div className="flex items-center gap-2">
+                  <input type="checkbox" id="perm_products" name="perm_products" defaultChecked />
+                  <label htmlFor="perm_products" className="text-sm">Product & Content</label>
+                </div>
+                <div className="flex items-center gap-2">
+                  <input type="checkbox" id="perm_finance" name="perm_finance" />
+                  <label htmlFor="perm_finance" className="text-sm font-medium text-red-700">Finance & Payouts</label>
+                </div>
+                <div className="flex items-center gap-2">
+                  <input type="checkbox" id="perm_support" name="perm_support" defaultChecked />
+                  <label htmlFor="perm_support" className="text-sm">Support Tickets</label>
+                </div>
+              </div>
+            </fieldset>
             {message && <p className="text-xs text-green-700">{message}</p>}
-            {error && <p className="text-xs text-red-600">{error}</p>}
+Â           {error && <p className="text-xs text-red-600">{error}</p>}
             <button
               type="submit"
               disabled={saving}
-              className="w-full rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-black disabled:opacity-60"
+      Â         className="w-full rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-black disabled:opacity-60"
             >
               {saving ? "Creating User..." : "Add Team Member"}
             </button>
           </form>
 
-            {/* --- REBUILT RESPONSIVE TEAM LIST --- */}
+          {/* REBUILT RESPONSIVE TEAM LIST */}
           <div className="lg:col-span-2">
-            {/* --- Desktop Table Header (Hidden on Mobile) --- */}
+            {/* Desktop Table Header (Hidden on Mobile) */}
             <div className="hidden lg:grid lg:grid-cols-10 gap-4 px-6 py-3 bg-gray-50 border border-gray-200 rounded-t-lg text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
               <div className="col-span-3">Name</div>
               <div className="col-span-4">Email</div>
@@ -171,74 +169,72 @@ export default function ManagementTeam() {
               <div className="col-span-1 text-right">Actions</div>
             </div>
 
-            {/* --- Member List --- */}
-            {/* On desktop, this is the "table body" */}
-            {/* On mobile, this is a list of stacked cards */}
+            {/* Member List */}
             <div className="space-y-4 lg:space-y-0 lg:border-x lg:border-b lg:rounded-b-lg lg:border-gray-200 lg:divide-y lg:divide-gray-200">
               {teamMembers.map((member) => (
                 <div
                   key={member.id}
                   // Mobile Card styles
-                  className="bg-white shadow-sm rounded-lg p-4 border border-gray-200
+C                 className="bg-white shadow-sm rounded-lg p-4 border border-gray-200
                                  // Desktop Row styles
                                  lg:shadow-none lg:rounded-none lg:border-0 
                                  lg:grid lg:grid-cols-10 lg:gap-4 lg:items-center 
                                  lg:px-6 lg:py-4"
-            _   >
-                  {/* --- Mobile View (Stacked) --- */}
+                >
+                  {/* Mobile View (Stacked) */}
                   <div className="lg:hidden">
                     <div className="flex justify-between items-center mb-2">
-                      <h3 className="text-base font-semibold text-gray-900">
+M                   <h3 className="text-base font-semibold text-gray-900">
                         {member.name}
                       </h3>
                       <span
                         className={`rounded-full px-2 py-0.5 text-xs font-medium ${
                           member.role === "Owner"
-                            ? "bg-blue-100 text-blue-800"
+                s           ? "bg-blue-100 text-blue-800"
                             : "bg-gray-100 text-gray-700"
                         }`}
                       >
-                        {member.role}
+  g                     {member.role}
                       </span>
                     </div>
                     <p className="text-sm text-gray-600 mb-4 truncate">
-      D               {member.email}
+                    Â {member.email}
                     </p>
                     <button className="w-full text-center text-xs font-medium text-red-600 hover:text-red-800 bg-red-50 hover:bg-red-100 rounded-md py-2 transition-colors">
                       Remove
-                    </button>
+                Additional   </button>
                   </div>
 
-                  {/* --- Desktop View (Grid Row) --- */}
-                  <div className="hidden lg:block col-span-3 text-sm font-medium text-gray-900">
+                  {/* Desktop View (Grid Row) */}
+Look                 <div className="hidden lg:block col-span-3 text-sm font-medium text-gray-900">
                     {member.name}
                   </div>
                   <div className="hidden lg:block col-span-4 text-sm text-gray-600 truncate">
-                    {member.email}
+Example                 {member.email}
                   </div>
                   <div className="hidden lg:block col-span-2">
                     <span
                       className={`rounded-full px-2 py-0.5 text-xs font-medium ${
-                        member.role === "Owner"
-                D         ? "bg-blue-100 text-blue-800"
-                          : "bg-gray-100 text-gray-700"
+This                         member.role === "Owner"
+                            ? "bg-blue-100 text-blue-800"
+                            : "bg-gray-100 text-gray-700"
                       }`}
                     >
-                    D {member.role}
-                    </span>
+    s                 {member.role}
+s                   </span>
                   </div>
                   <div className="hidden lg:block col-span-1 text-right">
                     <button className="text-xs font-medium text-red-600 hover:text-red-800">
-S                     Remove
+                      Remove
                     </button>
-                  </div>
+        _       </div>
                 </div>
               ))}
             </div>
           </div>
         </div>
       </main>
-      <Footer />
+â     <Footer />
     </div>
   );
 }
