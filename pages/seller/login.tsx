@@ -7,13 +7,14 @@ import Header from "../../components/Header";
 import Footer from "../../components/Footer";
 import PasswordInput from "../../components/PasswordInput";
 
-type LoginResponse =
-  | { ok: true; sellerId: string }
-  | {
-      ok: false;
-      code: "apply_first" | "pending" | "bad_credentials" | string;
-      message: string;
-    };
+// --- Types for the login API response ---
+type LoginSuccess = { ok: true; sellerId: string };
+type LoginError = {
+  ok: false;
+  code: "apply_first" | "pending" | "bad_credentials" | string;
+  message: string;
+};
+type LoginResponse = LoginSuccess | LoginError;
 
 export default function SellerLoginPage() {
   const router = useRouter();
@@ -51,18 +52,21 @@ export default function SellerLoginPage() {
       const json = (await res.json()) as LoginResponse;
 
       if (!json.ok) {
-        if (json.code === "apply_first") {
+        // Narrow to the error shape so TypeScript knows `code` exists
+        const errJson = json as LoginError;
+
+        if (errJson.code === "apply_first") {
           setError(
-            json.message ||
+            errJson.message ||
               "We couldn’t find a seller account for that email. Please apply to become a seller first using the link below."
           );
-        } else if (json.code === "pending") {
+        } else if (errJson.code === "pending") {
           setError(
-            json.message ||
+            errJson.message ||
               "Your seller application is still under review. You’ll be notified once approved."
           );
         } else {
-          setError(json.message || "Incorrect email or password.");
+          setError(errJson.message || "Incorrect email or password.");
         }
         return;
       }
