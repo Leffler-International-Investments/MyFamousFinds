@@ -4,6 +4,9 @@ import Link from "next/link";
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
 import type { ReactNode } from "react";
+// --- 1. ADDED IMPORTS ---
+import SellerDashboardTutorial from "../../components/SellerDashboardTutorial";
+import { useRequireSeller } from "../../hooks/useRequireSeller";
 
 // Helper component for dashboard sections
 const DashboardSection = ({
@@ -59,6 +62,13 @@ const DashboardLink = ({
 };
 
 export default function SellerDashboard() {
+  // --- 2. ADDED SECURITY HOOK ---
+  const { loading: authLoading } = useRequireSeller();
+  
+  if (authLoading) {
+    return <div className="min-h-screen bg-gray-50"></div>;
+  }
+
   return (
     <>
       <Head>
@@ -84,6 +94,9 @@ export default function SellerDashboard() {
               ← Back to Storefront
             </Link>
           </div>
+
+          {/* --- 3. ADDED TUTORIAL COMPONENT --- */}
+          <SellerDashboardTutorial />
 
           {/* Onboarding banner – same layout, no demo flags */}
           <section className="mb-8 rounded-lg border-2 border-blue-500 bg-white p-5 shadow-lg">
