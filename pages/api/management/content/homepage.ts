@@ -1,5 +1,4 @@
 // FILE: /pages/api/management/content/homepage.ts
-
 import type { NextApiRequest, NextApiResponse } from "next";
 import { adminDb } from "../../../../utils/firebaseAdmin";
 
@@ -24,31 +23,35 @@ const DEFAULT_CONTENT: HomepageContent = {
     "Famous-Finds: your destination for authenticated luxury resale.",
 };
 
+// Helper function to get data from Firestore
+async function getHomepageContent(): Promise<HomepageContent> {
+  const snap = await adminDb.collection("cms").doc("homepage").get();
+  if (!snap.exists) {
+    return DEFAULT_CONTENT;
+  }
+
+  const data = snap.data() || {};
+  return {
+    heroTitle: String(data.heroTitle || DEFAULT_CONTENT.heroTitle),
+    heroSubtitle: String(data.heroSubtitle || DEFAULT_CONTENT.heroSubtitle),
+    heroImage: String(data.heroImage || DEFAULT_CONTENT.heroImage || ""),
+    collections: String(data.collections || DEFAULT_CONTENT.collections),
+    seoDescription: String(
+      data.seoDescription || DEFAULT_CONTENT.seoDescription
+    ),
+  };
+}
+
 export default async function handler(
   req: NextApiRequest,
-  res: NextApiResponse<HomepageResponse>
+  res: NextApiResponse<HomepageResponse | { ok: boolean; error?: string }>
 ) {
+  // NOTE: Proper server-side admin auth should be added here later.
+  // This API is currently protected only by the client-side admin UI.
+
   if (req.method === "GET") {
     try {
-      const snap = await adminDb.collection("cms").doc("homepage").get();
-
-      if (!snap.exists) {
-        return res.status(200).json({ ok: true, content: DEFAULT_CONTENT });
-      }
-
-      const data = snap.data() || {};
-      const content: HomepageContent = {
-        heroTitle: String(data.heroTitle || DEFAULT_CONTENT.heroTitle),
-        heroSubtitle: String(
-          data.heroSubtitle || DEFAULT_CONTENT.heroSubtitle
-        ),
-        heroImage: String(data.heroImage || DEFAULT_CONTENT.heroImage || ""),
-        collections: String(data.collections || DEFAULT_CONTENT.collections),
-        seoDescription: String(
-          data.seoDescription || DEFAULT_CONTENT.seoDescription
-        ),
-      };
-
+      const content = await getHomepageContent();
       return res.status(200).json({ ok: true, content });
     } catch (err) {
       console.error("cms_homepage_get_error", err);
@@ -67,10 +70,8 @@ export default async function handler(
         seoDescription: String(body.seoDescription || "").trim(),
       };
 
-      if (!content.heroTitle || !content.heroSubtitle) {
-        return res
-          .status(400)
-          .json({ ok: false, error: "missing_fields" });
+      if (!content.heroTitle) {
+        return res.status(400).json({ ok: false, error: "missing_fields" });
       }
 
       await adminDb
