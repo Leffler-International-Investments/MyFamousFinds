@@ -13,10 +13,10 @@ const initialTeam = [
 
 // Define a type for our team member for state
 type TeamMember = {
-  id: string;
-  name: string;
-  email: string;
-  role: string;
+  id: string;
+  name: string;
+  email: string;
+  role: string;
 };
 
 export default function ManagementTeam() {
@@ -24,9 +24,7 @@ export default function ManagementTeam() {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  
-  // --- UPDATED: Convert mock list to state ---
-  const [teamMembers, setTeamMembers] = useState<TeamMember[]>(initialTeam);
+  const [teamMembers, setTeamMembers] = useState<TeamMember[]>(initialTeam);
 
   async function handleAddMember(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -35,9 +33,8 @@ export default function ManagementTeam() {
     setError(null);
 
     const formData = new FormData(e.currentTarget);
-    
     const payload = {
-      name: formData.get("name") as string, // Cast as string for type safety
+      name: formData.get("name") as string,
       email: formData.get("email") as string,
       phone: formData.get("phone") as string,
       permissions: {
@@ -45,7 +42,7 @@ export default function ManagementTeam() {
         perm_products: formData.get("perm_products") === "on",
         perm_finance: formData.get("perm_finance") === "on",
         perm_support: formData.get("perm_support") === "on",
-      }
+      },
     };
 
     try {
@@ -61,18 +58,14 @@ export default function ManagementTeam() {
       }
 
       setMessage(`Success! User ${payload.email} has been created.`);
-
-      // --- ADDED: Implement the TODO to update the UI ---
-      const newUser: TeamMember = {
-        id: json.uid, // Get new ID from API response
-        name: payload.name,
-        email: payload.email,
-        role: "Admin", // Matches the role set in the API
-      };
-      setTeamMembers(currentTeam => [...currentTeam, newUser]);
-      
-      e.currentTarget.reset(); // Clear the form
-
+      const newUser: TeamMember = {
+        id: json.uid,
+        name: payload.name,
+        email: payload.email,
+        role: "Admin",
+      };
+      setTeamMembers((currentTeam) => [...currentTeam, newUser]);
+      e.currentTarget.reset();
     } catch (err: any) {
       console.error(err);
       setError(err.message);
@@ -92,8 +85,7 @@ export default function ManagementTeam() {
       </Head>
       <Header />
       <main className="mx-auto max-w-6xl px-4 pb-16 pt-6">
-        {/* ... (Header/Title section unchanged) ... */}
-        <div className="mb-6 flex items-center justify-between">
+        <div className="mb-6 flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
           <div>
             <h1 className="text-2xl font-semibold text-gray-900">
               Management Team
@@ -104,21 +96,22 @@ export default function ManagementTeam() {
           </div>
           <Link
             href="/management/dashboard"
-            className="text-sm text-gray-600 hover:text-gray-900"
+            className="flex-shrink-0 text-sm text-gray-600 hover:text-gray-900"
           >
             ← Back to Management Dashboard
           </Link>
         </div>
 
+        {/* --- IMPROVED RESPONSIVE LAYOUT --- */}
         <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
-          {/* Add New Member Form (Unchanged) */}
+          {/* Add New Member Form (No changes, already responsive) */}
           <form
             onSubmit={handleAddMember}
             className="space-y-4 rounded-lg border border-gray-200 bg-white p-6 shadow-sm lg:col-span-1"
           >
+            <h2 className="text-lg font-semibold">Add New Member</h2>
             {/* ... (All form inputs are identical) ... */}
-            <h2 className="text-lg font-semibold">Add New Member</h2>
-            <div>
+            <div>
               <label className="text-xs font-medium text-gray-700">
                 Full Name
               </label>
@@ -157,12 +150,8 @@ export default function ManagementTeam() {
                 </div>
               </div>
             </fieldset>
-
-            {/* Error/Success Messages (Unchanged) */}
             {message && <p className="text-xs text-green-700">{message}</p>}
             {error && <p className="text-xs text-red-600">{error}</p>}
-
-            {/* Submit Button (Unchanged) */}
             <button
               type="submit"
               disabled={saving}
@@ -172,27 +161,36 @@ export default function ManagementTeam() {
             </button>
           </form>
 
-          {/* Current Team List */}
-          <div className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm lg:col-span-2">
-            <table className="min-w-full divide-y divide-gray-200 text-sm">
-              {/* ... (Table Head unchanged) ... */}
-                <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-4 py-2 text-left font-medium text-gray-700">Name</th>
-                  <th className="px-4 py-2 text-left font-medium text-gray-700">Email</th>
-                  <th className="px-4 py-2 text-left font-medium text-gray-700">Role</th>
-                  <th className="px-4 py-2 text-right font-medium text-gray-700">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200">
-                {/* --- UPDATED: Map over 'teamMembers' state --- */}
-                {teamMembers.map((member) => (
-                  <tr key={member.id}>
-                    <td className="px-4 py-3">{member.name}</td>
-                    <td className="px-4 py-3 text-gray-600">
-  s                   {member.email}
-                    </td>
-                    <td className="px-4 py-3">
+            {/* --- REBUILT RESPONSIVE TEAM LIST --- */}
+          <div className="lg:col-span-2">
+            {/* --- Desktop Table Header (Hidden on Mobile) --- */}
+            <div className="hidden lg:grid lg:grid-cols-10 gap-4 px-6 py-3 bg-gray-50 border border-gray-200 rounded-t-lg text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
+              <div className="col-span-3">Name</div>
+              <div className="col-span-4">Email</div>
+              <div className="col-span-2">Role</div>
+              <div className="col-span-1 text-right">Actions</div>
+            </div>
+
+            {/* --- Member List --- */}
+            {/* On desktop, this is the "table body" */}
+            {/* On mobile, this is a list of stacked cards */}
+            <div className="space-y-4 lg:space-y-0 lg:border-x lg:border-b lg:rounded-b-lg lg:border-gray-200 lg:divide-y lg:divide-gray-200">
+              {teamMembers.map((member) => (
+                <div
+                  key={member.id}
+                  // Mobile Card styles
+                  className="bg-white shadow-sm rounded-lg p-4 border border-gray-200
+                                 // Desktop Row styles
+                                 lg:shadow-none lg:rounded-none lg:border-0 
+                                 lg:grid lg:grid-cols-10 lg:gap-4 lg:items-center 
+                                 lg:px-6 lg:py-4"
+            _   >
+                  {/* --- Mobile View (Stacked) --- */}
+                  <div className="lg:hidden">
+                    <div className="flex justify-between items-center mb-2">
+                      <h3 className="text-base font-semibold text-gray-900">
+                        {member.name}
+                      </h3>
                       <span
                         className={`rounded-full px-2 py-0.5 text-xs font-medium ${
                           member.role === "Owner"
@@ -201,17 +199,42 @@ export default function ManagementTeam() {
                         }`}
                       >
                         {member.role}
-        _             </span>
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      <button className="text-xs font-medium text-red-600 hover:text-red-800">
-                        Remove
-                      </button>
-                    </td>
-          _       </tr>
-                ))}
-              </tbody>
-            </table>
+                      </span>
+                    </div>
+                    <p className="text-sm text-gray-600 mb-4 truncate">
+      D               {member.email}
+                    </p>
+                    <button className="w-full text-center text-xs font-medium text-red-600 hover:text-red-800 bg-red-50 hover:bg-red-100 rounded-md py-2 transition-colors">
+                      Remove
+                    </button>
+                  </div>
+
+                  {/* --- Desktop View (Grid Row) --- */}
+                  <div className="hidden lg:block col-span-3 text-sm font-medium text-gray-900">
+                    {member.name}
+                  </div>
+                  <div className="hidden lg:block col-span-4 text-sm text-gray-600 truncate">
+                    {member.email}
+                  </div>
+                  <div className="hidden lg:block col-span-2">
+                    <span
+                      className={`rounded-full px-2 py-0.5 text-xs font-medium ${
+                        member.role === "Owner"
+                D         ? "bg-blue-100 text-blue-800"
+                          : "bg-gray-100 text-gray-700"
+                      }`}
+                    >
+                    D {member.role}
+                    </span>
+                  </div>
+                  <div className="hidden lg:block col-span-1 text-right">
+                    <button className="text-xs font-medium text-red-600 hover:text-red-800">
+S                     Remove
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       </main>
