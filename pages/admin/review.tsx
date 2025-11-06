@@ -10,7 +10,7 @@ export default function AdminReviewPage() {
           Review &amp; vetting
         </h1>
         <p className="text-sm text-gray-700 mb-4">
-          The dedicated vetting workflow now lives in the management area.
+          The dedicated vetting workflow lives in the management area.
           Use the vetting queue to review new sellers and listings before they
           are published to the marketplace.
         </p>
