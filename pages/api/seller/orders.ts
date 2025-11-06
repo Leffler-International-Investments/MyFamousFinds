@@ -34,6 +34,7 @@ export default async function handler(
         .json({ ok: false, error: "unauthorized" });
     }
 
+    // Load latest orders for this seller from Firestore
     const snap = await adminDb
       .collection("orders")
       .where("sellerId", "==", sellerId)
@@ -70,4 +71,3 @@ export default async function handler(
     });
   }
 }
-
