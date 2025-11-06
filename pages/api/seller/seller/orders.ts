@@ -6,9 +6,9 @@ import { adminDb } from "../../../utils/firebaseAdmin";
 
 type OrderPayload = {
   id: string;
-  title: string;
-  buyerName: string;
-  price: number;
+  item: string;
+  buyer: string;
+  total: string;
   status: string;
 };
 
@@ -34,7 +34,6 @@ export default async function handler(
         .json({ ok: false, error: "unauthorized" });
     }
 
-    // Read latest 100 orders for this seller
     const snap = await adminDb
       .collection("orders")
       .where("sellerId", "==", sellerId)
@@ -44,14 +43,20 @@ export default async function handler(
 
     const orders: OrderPayload[] = snap.docs.map((doc) => {
       const data: any = doc.data() || {};
+      const gross =
+        data.totalGross ??
+        data.total ??
+        data.price ??
+        0;
+
       return {
         id: doc.id,
-        title:
+        item:
           data.listingTitle ||
           data.title ||
           "Unknown item",
-        buyerName: data.buyerName || "Private buyer",
-        price: Number(data.totalGross ?? data.price ?? 0),
+        buyer: data.buyerName || "Private buyer",
+        total: `$${Number(gross).toFixed(2)}`,
         status: data.status || "Pending",
       };
     });
