@@ -7,7 +7,7 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
     return res.status(405).end();
   }
 
-  // Basic template that matches your bulk upload expectations
+  // Template headers for your bulk upload CSV
   const header = [
     "id",
     "title",
