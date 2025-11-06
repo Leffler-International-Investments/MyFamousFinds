@@ -1,7 +1,7 @@
 // FILE: /pages/api/management/content/faq.ts
 
 import type { NextApiRequest, NextApiResponse } from "next";
-import { adminDb } from "../../../../utils/FirebaseAdmin.js";
+import { adminDb } from "../../../../utils/firebaseAdmin";
 
 type FaqItem = { question: string; answer: string };
 
@@ -37,6 +37,7 @@ export default async function handler(
           answer: String(item.answer || "").trim(),
         }))
         .filter((item, index) =>
+          // Keep first row even if empty so the UI always has at least one row
           index === 0 ? true : item.question || item.answer
         );
 
