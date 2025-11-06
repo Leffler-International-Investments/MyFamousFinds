@@ -1,4 +1,5 @@
 // FILE: /pages/api/management/stripe-settings.ts
+
 import type { NextApiRequest, NextApiResponse } from "next";
 import { adminDb } from "../../../utils/firebaseAdmin";
 
@@ -26,8 +27,8 @@ export default async function handler(
       if (!snap.exists) {
         return res.status(200).json({ ok: true, settings: null });
       }
-      const data = snap.data() || {};
 
+      const data = snap.data() || {};
       const settings: StripeSettings = {
         publishableKey: String(data.publishableKey || ""),
         secretKey: String(data.secretKey || ""),
@@ -39,9 +40,7 @@ export default async function handler(
       return res.status(200).json({ ok: true, settings });
     } catch (err) {
       console.error("stripe_settings_get_error", err);
-      return res
-        .status(500)
-        .json({ ok: false, error: "server_error" });
+      return res.status(500).json({ ok: false, error: "server_error" });
     }
   }
 
@@ -65,17 +64,12 @@ export default async function handler(
         { merge: true }
       );
 
-      // Your admin form only checks res.ok / status, it doesn't need the body
       return res.status(200).json({ ok: true });
     } catch (err) {
       console.error("stripe_settings_post_error", err);
-      return res
-        .status(500)
-        .json({ ok: false, error: "server_error" });
+      return res.status(500).json({ ok: false, error: "server_error" });
     }
   }
 
-  return res
-    .status(405)
-    .json({ ok: false, error: "method_not_allowed" });
+  return res.status(405).json({ ok: false, error: "method_not_allowed" });
 }
