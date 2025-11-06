@@ -1,13 +1,19 @@
 // FILE: /utils/authServer.ts
+
 import type { NextApiRequest } from "next";
 
-// Replace with your real session/cookie decode.
-// For now, allow header override for testing: `x-seller-id`.
-export function getSellerId(req: NextApiRequest): string {
-  return (req.headers["x-seller-id"] as string) || "seller-demo-001";
-}
+/**
+ * Temporary seller identification helper.
+ * In a real deployment you will replace this with proper auth
+ * (Firebase auth, session cookies, etc).
+ */
+export function getSellerId(req: NextApiRequest): string | null {
+  // Example of reading a header if you add one later:
+  const header = req.headers["x-seller-id"];
+  if (typeof header === "string" && header.trim()) {
+    return header.trim();
+  }
 
-export function getUserId(req: NextApiRequest): string {
-  // Buyer or current user; fallback to same value for demo
-  return (req.headers["x-user-id"] as string) || "user-demo-001";
+  // For now, fall back to a demo seller id so APIs work.
+  return "seller-demo-001";
 }
