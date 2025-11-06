@@ -1,7 +1,7 @@
 // FILE: /pages/api/management/content/homepage.ts
 
 import type { NextApiRequest, NextApiResponse } from "next";
-import { adminDb } from "../../../../utils/FirebaseAdmin.js";
+import { adminDb } from "../../../../utils/firebaseAdmin";
 
 type HomepageContent = {
   heroTitle: string;
