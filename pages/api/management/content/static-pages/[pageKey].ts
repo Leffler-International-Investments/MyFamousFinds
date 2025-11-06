@@ -1,4 +1,5 @@
 // FILE: /pages/api/management/content/static-pages/[pageKey].ts
+
 import type { NextApiRequest, NextApiResponse } from "next";
 import { adminDb } from "../../../../../utils/firebaseAdmin";
 
@@ -39,13 +40,9 @@ export default async function handler(
 
   if (req.method === "GET") {
     try {
-      const snap = await adminDb
-        .collection("cms")
-        .doc(docId)
-        .get();
+      const snap = await adminDb.collection("cms").doc(docId).get();
 
       if (!snap.exists) {
-        // UI falls back to default title + empty body
         return res.status(200).json({ ok: true, content: null });
       }
 
@@ -58,9 +55,7 @@ export default async function handler(
       return res.status(200).json({ ok: true, content });
     } catch (err) {
       console.error("cms_static_get_error", err);
-      return res
-        .status(500)
-        .json({ ok: false, error: "server_error" });
+      return res.status(500).json({ ok: false, error: "server_error" });
     }
   }
 
@@ -92,13 +87,9 @@ export default async function handler(
       return res.status(200).json({ ok: true, content });
     } catch (err) {
       console.error("cms_static_post_error", err);
-      return res
-        .status(500)
-        .json({ ok: false, error: "server_error" });
+      return res.status(500).json({ ok: false, error: "server_error" });
     }
   }
 
-  return res
-    .status(405)
-    .json({ ok: false, error: "method_not_allowed" });
+  return res.status(405).json({ ok: false, error: "method_not_allowed" });
 }
