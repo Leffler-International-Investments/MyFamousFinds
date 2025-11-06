@@ -8,11 +8,9 @@ import type { GetServerSideProps } from "next";
 import { adminDb } from "../../utils/firebaseAdmin";
 import { useRequireAdmin } from "../../hooks/useRequireAdmin";
 import type React from "react";
-
-// --- ADDED IMPORT ---
 import ManagementDashboardTutorial from "../../components/ManagementDashboardTutorial";
 
-// Types from the live file
+// Types for live stats
 type MgmtStats = {
   sellers: number;
   pendingSellers: number;
@@ -60,7 +58,6 @@ const DashboardLink = ({
 );
 
 export default function ManagementDashboard({ stats }: Props) {
-  // Add security to the dashboard
   const { loading } = useRequireAdmin();
   if (loading) return <div className="min-h-screen bg-gray-50"></div>;
   
@@ -85,10 +82,8 @@ export default function ManagementDashboard({ stats }: Props) {
           </Link>
         </div>
 
-        {/* --- ADDED TUTORIAL COMPONENT --- */}
         <ManagementDashboardTutorial />
 
-        {/* --- Live Summary Section --- */}
         <section className="mb-8 rounded-xl border border-neutral-200 bg-white p-5 shadow-sm">
           <h2 className="text-lg font-semibold text-gray-900">
             Live Summary
@@ -233,6 +228,16 @@ export default function ManagementDashboard({ stats }: Props) {
             title="Developer / Integrations"
             description="Manage API keys and third-party integrations."
           />
+          {/* --- NEW BUTTON ADDED HERE --- */}
+          <Link
+            href="/management/team"
+            className="block rounded-lg border-2 border-blue-500 bg-blue-50 p-4 text-sm shadow-lg transition-all hover:border-blue-600 hover:bg-white"
+          >
+            <h3 className="font-medium text-gray-800">Management Team</h3>
+            <p className="mt-1 text-xs text-gray-600">
+              Add/remove admins and manage permissions. (Owner Only)
+            </p>
+          </Link>
         </DashboardSection>
       </main>
 
