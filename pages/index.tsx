@@ -272,7 +272,7 @@ export const getServerSideProps: GetServerSideProps<HomeProps> = async () => {
   try {
     const snap = await adminDb
       .collection("listings")
-      // removed .where("status", "==", "Active")
+      .where("status", "==", "Active") // <-- ADDED THIS FILTER BACK
       .orderBy("createdAt", "desc")
       .limit(24)
       .get();
@@ -284,12 +284,10 @@ export const getServerSideProps: GetServerSideProps<HomeProps> = async () => {
         ? `$${priceNumber.toLocaleString("en-US")}`
         : "";
       
-      // --- THIS IS YOUR FIX ---
       const image: string =
         d.imageUrl ||
         d.image || // <— pick up images saved as "image" (Sell form)
         "https://images.unsplash.com/photo-1550009158-9ebf69173e03?auto-format&fit=crop&w=800&q=80";
-      // ------------------------
 
       return {
         id: doc.id,
@@ -297,7 +295,7 @@ export const getServerSideProps: GetServerSideProps<HomeProps> = async () => {
         brand: d.brand || "",
         price,
         image,
-        href: `/product/${doc.id}`,
+        href: `/product/${doc.id}`, // <-- Note: This should be /listing/[id] based on your other files
         badge: d.badge || undefined,
       };
     });
