@@ -1,17 +1,21 @@
 // FILE: /pages/management/listing-queue.tsx
-import type { GetServerSideProps } from "next";
 import Head from "next/head";
 import Link from "next/link";
+import { GetServerSideProps } from "next";
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
-import { useRequireAdmin } from "../../hooks/useRequireAdmin";
 import { adminDb } from "../../utils/firebaseAdmin";
+import { useRequireAdmin } from "../../hooks/useRequireAdmin";
 
 type Listing = {
   id: string;
   title: string;
   seller: string;
   category: string;
+  purchase_source?: string;
+  purchase_proof?: string;
+  serial_number?: string;
+  auth_photos?: string;
   submittedAt: string;
   status: string;
 };
@@ -34,20 +38,21 @@ export default function ManagementListingQueue({ items }: Props) {
       <div className="min-h-screen bg-gray-50 text-gray-900">
         <Header />
         <main className="mx-auto max-w-6xl px-4 pb-16 pt-6">
-          <div className="mb-6 flex items-center justify-between">
+          <div className="mb-4 flex items-center justify-between gap-2">
             <div>
-              <h1 className="text-2xl font-semibold text-gray-900">
-                Listing Review Queue
+              <h1 className="text-xl font-semibold tracking-tight">
+                Listing review queue
               </h1>
-              <p className="mt-1 text-sm text-gray-600">
-                Review new or updated listings before they go live.
+              <p className="text-sm text-gray-600">
+                Pending submissions from open-market / casual sellers. Check
+                authenticity notes before approval.
               </p>
             </div>
             <Link
-              href="/management/dashboard"
-              className="text-sm text-gray-600 hover:text-gray-900"
+              href="/management"
+              className="rounded-full bg-gray-900 px-4 py-2 text-xs font-medium text-white"
             >
-              ← Back to Management Dash
+              ← Back to admin home
             </Link>
           </div>
 
@@ -65,6 +70,18 @@ export default function ManagementListingQueue({ items }: Props) {
                     Category
                   </th>
                   <th className="px-4 py-2 text-left font-medium text-gray-700">
+                    Purchased From
+                  </th>
+                  <th className="px-4 py-2 text-left font-medium text-gray-700">
+                    Proof
+                  </th>
+                  <th className="px-4 py-2 text-left font-medium text-gray-700">
+                    Serial
+                  </th>
+                  <th className="px-4 py-2 text-left font-medium text-gray-700">
+                    Proof Docs
+                  </th>
+                  <th className="px-4 py-2 text-left font-medium text-gray-700">
                     Submitted
                   </th>
                   <th className="px-4 py-2 text-left font-medium text-gray-700">
@@ -72,7 +89,7 @@ export default function ManagementListingQueue({ items }: Props) {
                   </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-200 bg-white">
+              <tbody className="divide-y divide-gray-100">
                 {hasAny ? (
                   items.map((item) => (
                     <tr key={item.id}>
@@ -82,6 +99,29 @@ export default function ManagementListingQueue({ items }: Props) {
                       </td>
                       <td className="px-4 py-2 text-gray-700">
                         {item.category || "—"}
+                      </td>
+                      <td className="px-4 py-2 text-gray-700">
+                        {item.purchase_source || "—"}
+                      </td>
+                      <td className="px-4 py-2 text-gray-700">
+                        {item.purchase_proof || "—"}
+                      </td>
+                      <td className="px-4 py-2 text-gray-700">
+                        {item.serial_number || "—"}
+                      </td>
+                      <td className="px-4 py-2 text-gray-700">
+                        {item.auth_photos ? (
+                          <a
+                            href={item.auth_photos}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="text-blue-600 hover:underline"
+                          >
+                            View
+                          </a>
+                        ) : (
+                          "—"
+                        )}
                       </td>
                       <td className="px-4 py-2 text-gray-700">
                         {item.submittedAt || "—"}
@@ -105,7 +145,7 @@ export default function ManagementListingQueue({ items }: Props) {
                 ) : (
                   <tr>
                     <td
-                      colSpan={5}
+                      colSpan={9}
                       className="px-4 py-6 text-center text-sm text-gray-500"
                     >
                       No listings awaiting review.
@@ -162,6 +202,10 @@ export const getServerSideProps: GetServerSideProps<Props> = async () => {
         title: d.title || "Untitled listing",
         seller: d.sellerName || d.sellerDisplayName || d.sellerId || "Seller",
         category: d.categoryName || d.category || "",
+        purchase_source: d.purchase_source || "",
+        purchase_proof: d.purchase_proof || "",
+        serial_number: d.serial_number || "",
+        auth_photos: d.auth_photos || "",
         submittedAt: formatDate(d.createdAt),
         status,
       };
@@ -175,4 +219,3 @@ export const getServerSideProps: GetServerSideProps<Props> = async () => {
     return { props: { items: [] } };
   }
 };
-
