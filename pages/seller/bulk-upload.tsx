@@ -159,9 +159,10 @@ export default function SellerBulkUpload() {
     e.preventDefault();
   };
 
-  // Upload helper: throws only for unexpected errors. Timeout/permission
-  // are handled as "soft" failures in handleSingleSubmit.
-  async function uploadSingleImageIfNeeded(): Promise<string | null> {
+  // Upload helper with a hard timeout so the UI never hangs forever.
+  async function uploadSingleImageIfNeeded(
+    timeoutMs = 30000
+  ): Promise<string | null> {
     if (!singleImageFile) return null;
 
     setSingleUploadingImage(true);
@@ -169,10 +170,25 @@ export default function SellerBulkUpload() {
       const safeName = singleImageFile.name.replace(/[^a-zA-Z0-9._-]/g, "_");
       const path = `listing-images/${Date.now()}-${safeName}`;
       const storageRef = ref(storage, path);
-      const snap = await uploadBytes(storageRef, singleImageFile);
-      const url = await getDownloadURL(snap.ref);
-      return url;
+
+      const uploadPromise = (async () => {
+        const snap = await uploadBytes(storageRef, singleImageFile);
+        const url = await getDownloadURL(snap.ref);
+        return url;
+      })();
+
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        const err: any = new Error(
+          "Image upload timed out before Firebase responded."
+        );
+        err.code = "local/timeout";
+        setTimeout(() => reject(err), timeoutMs);
+      });
+
+      const url = await Promise.race([uploadPromise, timeoutPromise]);
+      return url as string;
     } finally {
+      // Even if it throws or times out, clear the "Uploading image…" flag
       setSingleUploadingImage(false);
     }
   }
@@ -191,7 +207,7 @@ export default function SellerBulkUpload() {
     setSingleBusy(true);
 
     try {
-      // 1) Try to upload the image, but don't block listing creation
+      // 1) Try to upload the image, but don't block listing creation forever
       let imageUrl: string | null = null;
 
       if (singleImageFile) {
@@ -200,18 +216,19 @@ export default function SellerBulkUpload() {
         } catch (err: any) {
           console.error("single_image_upload_error", err);
           const code = err?.code;
-          const msg = String(err?.message || "");
+          const msg = String(err?.message || "").toLowerCase();
 
           if (
             code === "storage/retry-limit-exceeded" ||
-            msg.toLowerCase().includes("retry time for operation exceeded")
+            code === "local/timeout" ||
+            msg.includes("retry time for operation exceeded")
           ) {
             setSingleError(
-              "The photo upload timed out. We'll create the listing without a photo—you can add it later from your catalogue."
+              "The photo upload took too long. The listing will be created without a photo—you can add it later from your catalogue."
             );
           } else if (code === "storage/unauthorized") {
             setSingleError(
-              "Image upload failed: permission denied. Check your Firebase Storage rules. The listing will be created without a photo."
+              "Image upload failed: permission denied. The listing will be created without a photo. Check your Firebase Storage rules."
             );
           } else {
             setSingleError(
@@ -252,8 +269,6 @@ export default function SellerBulkUpload() {
       setSinglePrice("");
       handleSingleImageSelect(null);
 
-      // If we already showed a warning about the photo, keep it and also
-      // show success; otherwise just success.
       setSingleMessage(
         imageUrl
           ? "Listing created. You can review and add more photos in your catalogue."
@@ -265,6 +280,7 @@ export default function SellerBulkUpload() {
         err?.message || "Unable to create listing. Please try again."
       );
     } finally {
+      // Always clear both flags so the UI never stays stuck
       setSingleBusy(false);
       setSingleUploadingImage(false);
     }
