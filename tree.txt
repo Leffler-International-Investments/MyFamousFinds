@@ -1,0 +1,122 @@
+.
+├── components
+│   ├── AiButler.tsx
+│   ├── AuthBadge.tsx
+│   ├── BrandFilter.tsx
+│   ├── ButlerChat.tsx
+│   ├── CategoryTile.tsx
+│   ├── CookieBar.tsx
+│   ├── DemoGrid.tsx
+│   ├── FollowButton.tsx
+│   ├── Footer.tsx
+│   ├── Header.tsx
+│   ├── Layout.tsx
+│   ├── MakeOffer.tsx
+│   ├── ProductCard.tsx
+│   └── WishlistButton.tsx
+├── data
+│   └── demoProducts.ts
+├── env.local
+├── firestore.rules
+├── lib
+│   ├── getStripe.ts
+│   ├── sampleProducts.ts
+│   ├── statementStore.ts
+│   └── stripe.ts
+├── next.config.js
+├── next-env.d.ts
+├── package.json
+├── pages
+│   ├── 404.tsx
+│   ├── about.tsx
+│   ├── admin
+│   │   ├── dashboard.tsx
+│   │   ├── index.tsx
+│   │   ├── login.tsx
+│   │   └── review.tsx
+│   ├── admin.tsx
+│   ├── api
+│   │   ├── butler.ts
+│   │   ├── checkout.ts
+│   │   ├── concierge.ts
+│   │   ├── disputes
+│   │   │   └── create.ts
+│   │   ├── images
+│   │   │   └── clean.ts
+│   │   ├── offers
+│   │   │   └── create.ts
+│   │   ├── price-estimator.ts
+│   │   ├── seller
+│   │   │   ├── bulk-commit.ts
+│   │   │   ├── bulk-parse.ts
+│   │   │   ├── insights.ts
+│   │   │   └── statement.ts
+│   │   ├── sell.ts
+│   │   ├── shipping
+│   │   │   └── update-tracking.ts
+│   │   ├── social
+│   │   │   └── follow.ts
+│   │   ├── support.ts
+│   │   └── wishlist
+│   │       └── toggle.ts
+│   ├── _app.tsx
+│   ├── buying.tsx
+│   ├── cart.tsx
+│   ├── categories
+│   │   └── [slug].tsx
+│   ├── category
+│   │   └── [slug].tsx
+│   ├── concierge.tsx
+│   ├── contact.tsx
+│   ├── help.tsx
+│   ├── index.tsx
+│   ├── management
+│   │   ├── dashboard.tsx
+│   │   ├── listing-queue.tsx
+│   │   ├── sellers.tsx
+│   │   └── vetting-queue.tsx
+│   ├── privacy.tsx
+│   ├── product
+│   │   └── [id].tsx
+│   ├── returns.tsx
+│   ├── seller
+│   │   ├── bulk-upload.tsx
+│   │   ├── catalogue.tsx
+│   │   ├── dashboard.tsx
+│   │   ├── insights.tsx
+│   │   ├── login.tsx
+│   │   ├── orders.tsx
+│   │   ├── profile.tsx
+│   │   ├── register-vetting.tsx
+│   │   ├── statement-print.tsx
+│   │   ├── statements.tsx
+│   │   └── wallet.tsx
+│   ├── selling.tsx
+│   ├── sell.tsx
+│   ├── shipping.tsx
+│   ├── store
+│   │   └── [seller].tsx
+│   ├── support
+│   │   └── disputes.tsx
+│   └── support.tsx
+├── postcss.config.js
+├── public
+│   ├── Famous-Finds-Logo.png
+│   └── manifest.json
+├── README.md
+├── scripts
+│   └── seed-demo.ts
+├── styles
+│   ├── globals.css
+│   └── home.module.css
+├── tailwind.config.js
+├── tree.txt
+├── tsconfig.json
+├── utils
+│   ├── authServer.ts
+│   ├── firebaseAdmin.ts
+│   ├── firebaseClient.ts
+│   └── statement.ts
+└── vercel.json
+
+25 directories, 95 files
