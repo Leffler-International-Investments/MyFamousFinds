@@ -29,14 +29,14 @@ type Verify2faError = { ok: false; message: string };
 type Verify2faResponse = Verify2faSuccess | Verify2faError;
 
 type TwoFactorStep = "credentials" | "verify";
-type TwoFactorMethod = "email" | "sms";
+// const [method, setMethod] = useState<TwoFactorMethod>("email"); // Removed
 
 export default function SellerLoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [method, setMethod] = useState<TwoFactorMethod>("email");
-  const [phone, setPhone] = useState("");
+  // const [method, setMethod] = useState<TwoFactorMethod>("email"); // Removed
+  // const [phone, setPhone] = useState(""); // Removed
   const [code, setCode] = useState("");
   const [step, setStep] = useState<TwoFactorStep>("credentials");
   const [challengeId, setChallengeId] = useState<string | null>(null);
@@ -60,12 +60,8 @@ export default function SellerLoginPage() {
       return;
     }
 
-    if (method === "sms" && !phone.trim()) {
-      setError(
-        "Please enter your mobile number for SMS verification or switch to email verification."
-      );
-      return;
-    }
+    // Removed SMS check
+    // if (method === "sms" && !phone.trim()) { ... }
 
     setLoading(true);
 
@@ -109,8 +105,8 @@ export default function SellerLoginPage() {
         body: JSON.stringify({
           email: trimmedEmail,
           role: "seller",
-          method,
-          phone: phone || undefined,
+          method: "email", // Hardcoded to "email"
+          // phone: phone || undefined, // Removed
         }),
       });
 
@@ -125,10 +121,8 @@ export default function SellerLoginPage() {
       setChallengeId(twofaJson.challengeId);
       setStep("verify");
 
-      let message =
-        twofaJson.via === "sms"
-          ? "We’ve sent a 6-digit code to your mobile number."
-          : "We’ve sent a 6-digit code to your email address.";
+      // Simplified message
+      let message = "We’ve sent a 6-digit code to your email address.";
 
       if (twofaJson.devCode) {
         message += ` (Dev code: ${twofaJson.devCode})`;
@@ -256,42 +250,7 @@ export default function SellerLoginPage() {
                   placeholder="Enter your seller password"
                 />
 
-                <div>
-                  <p className="mb-1 text-xs font-medium text-gray-300">
-                    Two-step verification
-                  </p>
-                  <div className="flex items-center gap-4 text-xs text-gray-300">
-                    <label className="inline-flex items-center gap-1">
-                      <input
-                        type="radio"
-                        className="h-3 w-3"
-                        checked={method === "email"}
-                        onChange={() => setMethod("email")}
-                      />
-                      <span>Email code</span>
-                    </label>
-                    <label className="inline-flex items-center gap-1">
-                      <input
-                        type="radio"
-                        className="h-3 w-3"
-                        checked={method === "sms"}
-                        onChange={() => setMethod("sms")}
-                      />
-                      <span>SMS to mobile</span>
-                    </label>
-                  </div>
-                  <p className="mt-1 text-[11px] text-gray-500">
-                    If you prefer SMS, enter your mobile number below;
-                    otherwise we&apos;ll send the code to your email.
-                  </p>
-                  <input
-                    type="tel"
-                    placeholder="Mobile number (optional)"
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    className="mt-2 w-full rounded-md border border-neutral-700 bg-black/40 px-3 py-2 text-sm text-gray-100 focus:border-gray-300 focus:outline-none"
-                  />
-                </div>
+                {/* --- Removed 2FA SMS options --- */}
 
                 <button
                   type="submit"
@@ -313,8 +272,7 @@ export default function SellerLoginPage() {
             ) : (
               <form onSubmit={handleVerifySubmit} className="mt-6 space-y-4">
                 <p className="text-xs text-gray-300">
-                  Enter the 6-digit code we sent to your{" "}
-                  {method === "sms" ? "mobile number" : "email address"} to
+                  Enter the 6-digit code we sent to your email address to
                   complete your login.
                 </p>
                 <div>
@@ -348,7 +306,8 @@ export default function SellerLoginPage() {
                     setCode("");
                     setChallengeId(null);
                   }}
-                  className="w-full text-center text-xs text-gray-400 hover:text-gray-200"
+                  className="w-full text-center text-xs text-gray-40Message
+                  00 hover:text-gray-200"
                 >
                   ← Start over
                 </button>
