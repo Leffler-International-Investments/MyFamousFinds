@@ -9,6 +9,7 @@ type IncomingRow = {
   brand?: string;
   category?: string;
   price?: string | number;
+  imageUrl?: string; // <— NEW: allow image url from bulk upload / single form
 };
 
 type BulkCommitResponse =
@@ -33,10 +34,10 @@ export default async function handler(
         .json({ ok: false, error: "unauthorized" });
     }
 
-    const body = req.body || {};
-    const rows = (body.rows || []) as IncomingRow[];
+    const body = req.body as { rows?: IncomingRow[] } | undefined;
+    const rows = Array.isArray(body?.rows) ? body!.rows : [];
 
-    if (!Array.isArray(rows) || !rows.length) {
+    if (!rows.length) {
       return res
         .status(400)
         .json({ ok: false, error: "no_rows" });
@@ -46,16 +47,21 @@ export default async function handler(
     let created = 0;
 
     for (const r of rows) {
-      if (!r.title || r.price === undefined || r.price === null) {
+      if (!r || !r.title) {
         continue;
       }
 
-      const numericPrice =
-        typeof r.price === "number"
-          ? r.price
-          : Number(String(r.price).replace(/[^0-9.]/g, "")) || 0;
+      const priceRaw =
+        typeof r.price === "number" ? r.price : Number(r.price);
+      const numericPrice = isFinite(priceRaw) ? Number(priceRaw) : 0;
+      if (!numericPrice) {
+        // skip rows without a valid price
+        continue;
+      }
 
-      const docRef = adminDb.collection("listings").doc();
+      const col = adminDb.collection("listings");
+      const docRef = r.id ? col.doc(String(r.id)) : col.doc();
+
       batch.set(docRef, {
         sellerId,
         title: String(r.title),
@@ -64,7 +70,7 @@ export default async function handler(
         price: numericPrice,
         currency: "AUD",
         status: "PendingReview",
-        imageUrl: "",
+        imageUrl: r.imageUrl ? String(r.imageUrl) : "", // <— NEW
         description: "",
         createdAt: FieldValue.serverTimestamp(),
         updatedAt: FieldValue.serverTimestamp(),
