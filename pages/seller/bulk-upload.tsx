@@ -22,6 +22,37 @@ type UploadRow = {
   status: "ready" | "missing" | "error";
 };
 
+// --- ADDED: Lists for dropdowns ---
+const TOP_BRANDS = [
+  "Prada",
+  "Gucci",
+  "Chanel",
+  "Rolex",
+  "Hermès",
+  "Louis Vuitton",
+  "Dior",
+  "Cartier",
+  "Fendi",
+  "Saint Laurent",
+  "Other"
+];
+
+const CATEGORIES = [
+  "Bags",
+  "Watches",
+  "Kids",
+  "Clothing",
+  "Jewelry",
+  "Home",
+  "Shoes",
+  "Men",
+  "Beauty",
+  "Accessories",
+  "Women",
+  "Sale",
+];
+// ---------------------------------
+
 export default function SellerBulkUpload() {
   const [fileName, setFileName] = useState<string | null>(null);
   const [step, setStep] = useState<1 | 2 | 3>(1);
@@ -187,6 +218,14 @@ export default function SellerBulkUpload() {
 
       const url = await Promise.race([uploadPromise, timeoutPromise]);
       return url as string;
+    } catch (err: any) {
+      // --- ADDED CATCH BLOCK ---
+      console.error("Image upload failed:", err);
+      // Check for common Firebase Storage errors
+      if (err.code === "storage/unauthorized") {
+        throw new Error("Image upload failed: Permission denied. Check your Firebase Storage rules.");
+      }
+      throw new Error("Image upload failed. Please try again.");
     } finally {
       // Even if it throws or times out, clear the "Uploading image…" flag
       setSingleUploadingImage(false);
@@ -203,6 +242,17 @@ export default function SellerBulkUpload() {
       setSingleError("Title and price are required.");
       return;
     }
+    
+    // --- ADDED: Check if brand/category are selected ---
+    if (!singleBrand) {
+      setSingleError("Please select a brand.");
+      return;
+    }
+    if (!singleCategory) {
+      setSingleError("Please select a category.");
+      return;
+    }
+    // --------------------------------------------------
 
     setSingleBusy(true);
 
@@ -287,6 +337,10 @@ export default function SellerBulkUpload() {
   };
 
   const singleDisabled = singleBusy || singleUploadingImage;
+  
+  // Style for the dropdowns
+  const selectInputStyle = "mt-1 w-full rounded-md border border-neutral-700 bg-black/40 px-3 py-2 text-xs text-gray-100 focus:border-gray-200 focus:outline-none";
+
 
   // ---------------- RENDER ----------------
 
@@ -390,28 +444,41 @@ export default function SellerBulkUpload() {
                       className="mt-1 w-full rounded-md border border-neutral-700 bg-black/40 px-3 py-2 text-xs text-gray-100 focus:border-gray-200 focus:outline-none"
                     />
                   </div>
+                  
+                  {/* --- UPDATED: Brand Dropdown --- */}
                   <div>
                     <label className="block text-[11px] font-medium text-gray-300">
-                      Brand
+                      Brand *
                     </label>
-                    <input
-                      type="text"
+                    <select
                       value={singleBrand}
                       onChange={(e) => setSingleBrand(e.target.value)}
-                      className="mt-1 w-full rounded-md border border-neutral-700 bg-black/40 px-3 py-2 text-xs text-gray-100 focus:border-gray-200 focus:outline-none"
-                    />
+                      className={selectInputStyle}
+                    >
+                      <option value="">Select a brand</option>
+                      {TOP_BRANDS.map((brand) => (
+                        <option key={brand} value={brand}>{brand}</option>
+                      ))}
+                    </select>
                   </div>
+                  
+                  {/* --- UPDATED: Category Dropdown --- */}
                   <div>
                     <label className="block text-[11px] font-medium text-gray-300">
-                      Category
+                      Category *
                     </label>
-                    <input
-                      type="text"
+                    <select
                       value={singleCategory}
                       onChange={(e) => setSingleCategory(e.target.value)}
-                      className="mt-1 w-full rounded-md border border-neutral-700 bg-black/40 px-3 py-2 text-xs text-gray-100 focus:border-gray-200 focus:outline-none"
-                    />
+                      className={selectInputStyle}
+                    >
+                      <option value="">Select a category</option>
+                      {CATEGORIES.map((cat) => (
+                        <option key={cat} value={cat}>{cat}</option>
+                      ))}
+                    </select>
                   </div>
+
                   <div>
                     <label className="block text-[11px] font-medium text-gray-300">
                       Price (AUD) *
