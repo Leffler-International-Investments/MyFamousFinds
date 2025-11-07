@@ -9,7 +9,7 @@ type IncomingRow = {
   brand?: string;
   category?: string;
   price?: string | number;
-  imageUrls?: string[]; // <-- UPDATED: From singular to plural array
+  imageUrls?: string[]; // <-- UPDATED: To accept multiple images
 };
 
 type BulkCommitResponse =
@@ -55,6 +55,7 @@ export default async function handler(
         typeof r.price === "number" ? r.price : Number(r.price);
       const numericPrice = isFinite(priceRaw) ? Number(priceRaw) : 0;
       if (!numericPrice) {
+        // skip rows without a valid price
         continue;
       }
 
@@ -67,7 +68,7 @@ export default async function handler(
         brand: r.brand ? String(r.brand) : "",
         category: r.category ? String(r.category).toLowerCase() : "",
         price: numericPrice,
-        currency: "AUD",
+        currency: "USD", // <-- UPDATED: Set to USD
         status: "PendingReview",
         imageUrls: Array.isArray(r.imageUrls) ? r.imageUrls : [], // <-- UPDATED
         description: "",
