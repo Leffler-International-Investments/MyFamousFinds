@@ -1,7 +1,7 @@
 // FILE: /pages/api/seller/listings/[id].ts
 import type { NextApiRequest, NextApiResponse } from "next";
 import { adminDb } from "../../../../utils/firebaseAdmin";
-import { getSellerId } from "../../../../utils/authServer";
+import { getSellerId } from "../../../../utils/authServer"; // Adjust path if needed
 
 export default async function handler(
   req: NextApiRequest,
@@ -25,7 +25,10 @@ export default async function handler(
     try {
       // 3. Security Check: Verify this seller owns this item
       const docSnap = await docRef.get();
-      if (!docSnap.exists()) {
+      
+      // --- THIS IS THE FIX ---
+      // Changed from docSnap.exists() to docSnap.exists
+      if (!docSnap.exists) {
         return res.status(404).json({ ok: false, error: "Listing not found" });
       }
 
