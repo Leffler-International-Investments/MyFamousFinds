@@ -15,12 +15,10 @@ type LoginResponse =
       message: string;
     };
 
-// Bootstrap list of super sellers who should always have full access
-// Ariel and Dan can log in as sellers even if they haven't gone through
-// the standard seller application flow.
+// Ariel & Dan are always allowed full seller access.
 const SUPER_SELLER_EMAILS = new Set<string>([
-  "leffleryd@gmail.com",      // Dan
-  "arich1114@aol.com",        // Ariel
+  "leffleryd@gmail.com", // Dan
+  "arich1114@aol.com",   // Ariel
 ]);
 
 export default async function handler(
@@ -49,7 +47,6 @@ export default async function handler(
   const isSuperSeller = SUPER_SELLER_EMAILS.has(trimmedEmail);
 
   try {
-    // 1) Look up seller by email
     const snap = await adminDb
       .collection("sellers")
       .where("email", "==", trimmedEmail)
@@ -57,41 +54,38 @@ export default async function handler(
       .get();
 
     if (snap.empty) {
-      // If this is Ariel or Dan, auto-create an approved seller record
-      if (isSuperSeller) {
-        const docRef = adminDb.collection("sellers").doc();
-
-        await docRef.set({
-          email: trimmedEmail,
-          password,
-          status: "approved",
-          isSuperSeller: true,
-          createdAt: FieldValue.serverTimestamp(),
-          vettingNotes:
-            "Bootstrap super seller created automatically from /api/seller/login.",
-        });
-
-        return res.status(200).json({
-          ok: true,
-          sellerId: docRef.id,
+      if (!isSuperSeller) {
+        return res.status(400).json({
+          ok: false,
+          code: "apply_first",
+          message:
+            "We couldn’t find a seller account for that email. Please apply to become a seller first.",
         });
       }
 
-      // No seller in DB → must apply first
-      return res.status(400).json({
-        ok: false,
-        code: "apply_first",
-        message:
-          "We couldn’t find a seller account for that email. Please apply to become a seller first.",
+      // Auto-create approved seller record for super sellers.
+      const docRef = adminDb.collection("sellers").doc();
+      await docRef.set({
+        email: trimmedEmail,
+        status: "approved",
+        isSuperSeller: true,
+        password,
+        createdAt: FieldValue.serverTimestamp(),
+        vettingNotes:
+          "Bootstrap super seller created automatically from /api/seller/login.",
+      });
+
+      return res.status(200).json({
+        ok: true,
+        sellerId: docRef.id,
       });
     }
 
     const doc = snap.docs[0];
     const data = doc.data() as any;
 
-    // 2) Enforce vetting/approval
+    // Ensure super sellers are always approved
     if (isSuperSeller && data.status !== "approved") {
-      // Make sure Ariel and Dan are always fully approved sellers
       await doc.ref.update({
         status: "approved",
         isSuperSeller: true,
@@ -109,8 +103,7 @@ export default async function handler(
       });
     }
 
-    // 3) Check password (for production, change to hashed passwords).
-    // Super sellers (Ariel & Dan) can always log in once their email is recognised.
+    // For normal sellers, enforce password; super sellers bypass this check.
     if (!isSuperSeller && (!data.password || data.password !== password)) {
       return res.status(401).json({
         ok: false,
@@ -119,7 +112,7 @@ export default async function handler(
       });
     }
 
-    // 4) Success
+    // Success
     return res.status(200).json({
       ok: true,
       sellerId: doc.id,
