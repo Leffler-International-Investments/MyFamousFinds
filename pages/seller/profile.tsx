@@ -6,24 +6,76 @@ import Footer from "../../components/Footer";
 import { FormEvent, useState } from "react";
 import { useRequireSeller } from "../../hooks/useRequireSeller"; // Import seller security
 
+// Public env-based URLs so you can control behaviour without code changes
+const STRIPE_CONNECT_URL =
+  process.env.NEXT_PUBLIC_STRIPE_CONNECT_URL || "";
+const TAX_W9_URL = process.env.NEXT_PUBLIC_TAX_W9_URL || "";
+
 export default function SellerProfile() {
-  // Add security hook
+  // Enforce seller-only access
   const { loading: authLoading } = useRequireSeller();
 
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
 
+  const [stripeBusy, setStripeBusy] = useState(false);
+  const [stripeError, setStripeError] = useState<string | null>(null);
+
+  const [taxBusy, setTaxBusy] = useState(false);
+
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setSaving(true);
     setMessage(null);
-    // TODO: Add API call to save data
+
+    // TODO: replace this with a real API call when you have a backend route.
     await new Promise((res) => setTimeout(res, 1000)); // Simulate save
+
     setMessage("Profile updated successfully.");
     setSaving(false);
   }
 
-  // Show loading while checking auth
+  function handleStripeClick() {
+    setStripeError(null);
+
+    if (!STRIPE_CONNECT_URL) {
+      // No URL configured – at least tell the user clearly
+      alert(
+        "Stripe Connect is not configured yet. Please contact support to set up your payout details."
+      );
+      return;
+    }
+
+    setStripeBusy(true);
+    try {
+      window.open(STRIPE_CONNECT_URL, "_blank", "noopener,noreferrer");
+    } catch (err: any) {
+      console.error("stripe_connect_error", err);
+      setStripeError(
+        err?.message || "Unable to open Stripe Connect at the moment."
+      );
+    } finally {
+      setStripeBusy(false);
+    }
+  }
+
+  function handleTaxClick() {
+    if (!TAX_W9_URL) {
+      alert(
+        "The W-9 tax form link has not been configured yet. Please contact support."
+      );
+      return;
+    }
+
+    setTaxBusy(true);
+    try {
+      window.open(TAX_W9_URL, "_blank", "noopener,noreferrer");
+    } finally {
+      setTaxBusy(false);
+    }
+  }
+
+  // While checking auth, keep screen blank
   if (authLoading) {
     return <div className="min-h-screen bg-white"></div>;
   }
@@ -47,10 +99,9 @@ export default function SellerProfile() {
             ← Back to Seller Dashboard
           </Link>
         </div>
-        
+
         {/* --- Main Form --- */}
         <form onSubmit={handleSubmit} className="space-y-8">
-          
           {/* Section 1: Business Details */}
           <section className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
             <h2 className="text-lg font-semibold text-gray-900">
@@ -102,20 +153,27 @@ export default function SellerProfile() {
               Bank & Payout Details
             </h2>
             <p className="mt-1 text-sm text-gray-600">
-              Your bank details are managed securely by Stripe. We do not store
-              this information.
+              Your bank details are managed securely by Stripe. We do not
+              store this information.
             </p>
             <div className="mt-4">
               <button
                 type="button"
-                className="rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-black"
+                onClick={handleStripeClick}
+                disabled={stripeBusy}
+                className="rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-black disabled:opacity-60"
               >
-                Manage Stripe Payout Account
+                {stripeBusy
+                  ? "Opening Stripe…"
+                  : "Manage Stripe Payout Account"}
               </button>
               <p className="mt-2 text-xs text-gray-500">
                 (This will redirect to Stripe Connect to securely manage your
                 bank account.)
               </p>
+              {stripeError && (
+                <p className="mt-2 text-xs text-red-600">{stripeError}</p>
+              )}
             </div>
           </section>
 
@@ -130,12 +188,14 @@ export default function SellerProfile() {
             <div className="mt-4">
               <button
                 type="button"
-                className="rounded-md border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                onClick={handleTaxClick}
+                disabled={taxBusy}
+                className="rounded-md border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 disabled:opacity-60"
               >
-                Update W-9 Tax Form
+                {taxBusy ? "Opening…" : "Update W-9 Tax Form"}
               </button>
               <p className="mt-2 text-xs text-gray-500">
-                (This will open a secure form from our tax partner, Avalara.)
+                (This will open a secure form from our tax partner.)
               </p>
             </div>
           </section>
