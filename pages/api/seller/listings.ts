@@ -32,14 +32,33 @@ export default async function handler(
         .json({ ok: false, error: "unauthorized" });
     }
 
+    // Old version used .orderBy("createdAt", "desc") together with
+    // .where("sellerId", "==", sellerId), which requires a composite index
+    // and caused FAILED_PRECONDITION errors.
+    //
+    // New version queries by sellerId only and sorts in memory.
     const snap = await adminDb
       .collection("listings")
       .where("sellerId", "==", sellerId)
-      .orderBy("createdAt", "desc")
       .limit(200)
       .get();
 
-    const items: Item[] = snap.docs.map((doc) => {
+    // Sort newest first using createdAt if present
+    const docs = [...snap.docs].sort((a, b) => {
+      const ad: any = a.data() || {};
+      const bd: any = b.data() || {};
+      const aTs =
+        ad.createdAt && typeof ad.createdAt.toMillis === "function"
+          ? ad.createdAt.toMillis()
+          : 0;
+      const bTs =
+        bd.createdAt && typeof bd.createdAt.toMillis === "function"
+          ? bd.createdAt.toMillis()
+          : 0;
+      return bTs - aTs;
+    });
+
+    const items: Item[] = docs.map((doc) => {
       const data: any = doc.data() || {};
       return {
         id: doc.id,
