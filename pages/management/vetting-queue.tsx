@@ -14,6 +14,7 @@ type SellerApplication = {
   contactEmail: string;
   submittedAt: string;
   country: string;
+  // This is the human-readable label ("Pending", "Approved", "Rejected")
   status: string;
 };
 
@@ -23,17 +24,56 @@ type Props = {
 
 export default function ManagementVettingQueue({ applications }: Props) {
   const { loading } = useRequireAdmin();
+
+  // Local mutable copy so Approve / Deny can update UI
+  const [items, setItems] = useState<SellerApplication[]>(applications);
   const [pendingOnly, setPendingOnly] = useState(false);
+  const [updatingId, setUpdatingId] = useState<string | null>(null);
 
   const visible = useMemo(
     () =>
       pendingOnly
-        ? applications.filter((a) => a.status === "Pending")
-        : applications,
-    [applications, pendingOnly]
+        ? items.filter((a) => a.status === "Pending")
+        : items,
+    [items, pendingOnly]
   );
 
   if (loading) return null;
+
+  async function handleDecision(
+    appId: string,
+    decision: "approved" | "rejected"
+  ) {
+    try {
+      setUpdatingId(appId);
+      const res = await fetch("/api/management/seller-status", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: appId, decision }),
+      });
+      const json = await res.json();
+      if (!res.ok || !json.ok) {
+        throw new Error(json.error || "Request failed");
+      }
+
+      const label =
+        decision === "approved" ? "Approved" : "Rejected";
+
+      setItems((prev) =>
+        prev.map((app) =>
+          app.id === appId ? { ...app, status: label } : app
+        )
+      );
+    } catch (err: any) {
+      console.error("vetting_decision_error", err);
+      alert(
+        err?.message ||
+          "Unable to update seller status. Please try again."
+      );
+    } finally {
+      setUpdatingId(null);
+    }
+  }
 
   function handleExportCsv() {
     if (!visible.length) return;
@@ -67,7 +107,9 @@ export default function ManagementVettingQueue({ applications }: Props) {
         )
         .join("\n") + "\n";
 
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const blob = new Blob([csv], {
+      type: "text/csv;charset=utf-8;",
+    });
     const url = window.URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
@@ -91,8 +133,8 @@ export default function ManagementVettingQueue({ applications }: Props) {
                 Seller Vetting Queue
               </h1>
               <p className="mt-1 text-sm text-gray-600">
-                Approve or deny new seller applications before they can list
-                inventory.
+                Approve or deny new seller applications before they can
+                list inventory.
               </p>
             </div>
             <Link
@@ -179,11 +221,24 @@ export default function ManagementVettingQueue({ applications }: Props) {
                       </span>
                     </td>
                     <td className="px-4 py-2 text-right text-xs">
-                      {/* Approve / Deny wiring to API can be added later */}
-                      <button className="mr-2 font-medium text-green-700 hover:text-green-900">
-                        Approve
+                      <button
+                        disabled={!!updatingId}
+                        onClick={() =>
+                          handleDecision(app.id, "approved")
+                        }
+                        className="mr-2 font-medium text-green-700 hover:text-green-900 disabled:opacity-60"
+                      >
+                        {updatingId === app.id
+                          ? "Saving…"
+                          : "Approve"}
                       </button>
-                      <button className="font-medium text-red-600 hover:text-red-800">
+                      <button
+                        disabled={!!updatingId}
+                        onClick={() =>
+                          handleDecision(app.id, "rejected")
+                        }
+                        className="font-medium text-red-600 hover:text-red-800 disabled:opacity-60"
+                      >
                         Deny
                       </button>
                     </td>
@@ -225,13 +280,19 @@ export const getServerSideProps: GetServerSideProps<Props> = async () => {
           ? createdAt.toISOString().slice(0, 10)
           : "";
 
+      const rawStatus = String(d.status || "pending").toLowerCase();
+      let label = "Pending";
+      if (rawStatus === "approved") label = "Approved";
+      else if (rawStatus === "rejected") label = "Rejected";
+
       return {
         id: doc.id,
-        businessName: d.businessName || d.displayName || "Unknown seller",
+        businessName:
+          d.businessName || d.displayName || "Unknown seller",
         contactEmail: d.email || "",
         country: d.country || "",
         submittedAt: iso,
-        status: d.status || "Pending",
+        status: label,
       };
     });
 
