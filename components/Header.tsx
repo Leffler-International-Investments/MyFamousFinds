@@ -20,7 +20,6 @@ export default function Header() {
         {/* Main navigation */}
         <nav className="nav">
           <Link href="/" className="navLink">Dashboard</Link>
-          <Link href="/sell" className="navLink">Sell</Link>
           <Link href="/help" className="navLink">Help</Link>
           <Link href="/about" className="navLink">About</Link>
           <Link href="/contact" className="navLink">Contact</Link>
