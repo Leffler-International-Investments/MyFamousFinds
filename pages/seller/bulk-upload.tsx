@@ -160,6 +160,7 @@ export default function SellerBulkUpload() {
     e.preventDefault();
   };
 
+  // --- UPDATED FUNCTION ---
   async function uploadSingleImageIfNeeded(): Promise<string | null> {
     if (!singleImageFile) return null;
 
@@ -174,10 +175,20 @@ export default function SellerBulkUpload() {
       const snap = await uploadBytes(storageRef, singleImageFile);
       const url = await getDownloadURL(snap.ref);
       return url;
+    } catch (err: any) {
+      // --- ADDED CATCH BLOCK ---
+      console.error("Image upload failed:", err);
+      // Check for common Firebase Storage errors
+      if (err.code === "storage/unauthorized") {
+        throw new Error("Image upload failed: Permission denied. Check your Firebase Storage rules.");
+      }
+      throw new Error("Image upload failed. Please try again.");
     } finally {
+      // This will now run even if the upload fails
       setSingleUploadingImage(false);
     }
   }
+  // --- END OF UPDATED FUNCTION ---
 
   // NEW: quick single listing without CSV
   const handleSingleSubmit = async (e: FormEvent) => {
@@ -192,6 +203,7 @@ export default function SellerBulkUpload() {
 
     setSingleBusy(true);
     try {
+      // This will now correctly throw an error if the upload fails
       const imageUrl = await uploadSingleImageIfNeeded();
 
       const row: UploadRow = {
@@ -228,6 +240,8 @@ export default function SellerBulkUpload() {
         err?.message || "Unable to create listing. Please try again."
       );
     } finally {
+      // This finally block will now run even if the image upload fails,
+      // which un-sticks the "Creating..." button.
       setSingleBusy(false);
     }
   };
