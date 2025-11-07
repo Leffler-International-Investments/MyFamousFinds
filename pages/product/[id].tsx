@@ -15,98 +15,106 @@ type ProductPageProps = {
   priceLabel: string;
   imageUrl: string;
   description: string;
-  sellerName?: string;
-  delivery?: string;
-  payment?: string;
+  sellerName: string;
+  delivery: string;
+  payment: string;
 };
 
-export default function ProductDetail(props: ProductPageProps) {
+export default function ProductPage({
+  id,
+  title,
+  price,
+  currency,
+  priceLabel,
+  imageUrl,
+  description,
+  sellerName,
+  delivery,
+  payment,
+}: ProductPageProps) {
   const [loading, setLoading] = useState(false);
   const [rating, setRating] = useState<number | null>(null);
-  const [rated, setRated] = useState(false);
+  const [showThanks, setShowThanks] = useState(false);
 
-  const {
-    id,
-    title,
-    price,
-    currency,
-    priceLabel,
-    imageUrl,
-    description,
-    sellerName,
-    delivery,
-    payment,
-  } = props;
-
-  const handleBuyNow = async () => {
+  async function handleBuyNow() {
     if (!price) return;
+    setLoading(true);
     try {
-      setLoading(true);
-      const res = await fetch("/api/checkout", {
+      const res = await fetch(`/api/checkout?id=${encodeURIComponent(id)}`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          id,
-          title,
-          price,
-          currency,
-          image: imageUrl,
-        }),
       });
       const json = await res.json();
-      if (!json.ok) throw new Error(json.error || "Failed to create checkout");
-
-      const stripe = await getStripe();
-      if (stripe) {
-        await stripe.redirectToCheckout({ sessionId: json.sessionId });
-      } else {
-        throw new Error("Stripe not available");
+      if (!res.ok || !json?.sessionId) {
+        throw new Error(json?.error || "Checkout failed");
       }
-    } catch (err: any) {
+      const stripe = await getStripe();
+      if (!stripe) {
+        throw new Error("Stripe not loaded");
+      }
+      await stripe.redirectToCheckout({ sessionId: json.sessionId });
+    } catch (err) {
       console.error(err);
-      alert(err?.message || "Something went wrong, please try again.");
+      alert("Could not start checkout. Please try again.");
       setLoading(false);
     }
-  };
+  }
 
-  const handleRate = (value: number) => {
+  function handleRating(value: number) {
     setRating(value);
-    setRated(true);
-  };
+    setShowThanks(true);
+    setTimeout(() => setShowThanks(false), 2000);
+  }
 
   return (
     <div className="dark-theme-page">
       <Head>
-        <title>{title} | Famous Finds</title>
+        <title>{title} – Famous Finds</title>
       </Head>
       <Header />
 
       <main className="wrap">
-        <div className="prod">
-          <div className="imageWrap">
+        <div className="layout">
+          <div className="imageBox">
             <img src={imageUrl} alt={title} />
           </div>
 
-          <div className="info">
+          <div className="infoBox">
+            <p className="eyebrow">FAMOUS FINDS / CURATED MARKETPLACE</p>
             <h1>{title}</h1>
-            <p className="sku">ID: {id}</p>
-            {sellerName && <p className="seller">Sold by {sellerName}</p>}
+            {sellerName && (
+              <p className="sub">
+                Listed by <strong>{sellerName}</strong>
+              </p>
+            )}
 
-            <p className="price">{priceLabel}</p>
+            {priceLabel && (
+              <div className="priceRow">
+                <span className="price">{priceLabel}</span>
+                <span className="priceSub">All prices in {currency}</span>
+              </div>
+            )}
 
-            {description && <p className="desc">{description}</p>}
+            {description && (
+              <p className="desc">
+                {description}
+              </p>
+            )}
 
-            <h4>Delivery</h4>
-            <p className="sub">
-              {delivery ||
-                "Tracked and insured shipping. Exact options and rates are shown at checkout based on your address."}
-            </p>
-
-            <h4>Payment</h4>
-            <p className="sub">
-              {payment ||
-                "Secure payments handled by Stripe. Major cards and wallets accepted."}
-            </p>
+            <div className="meta">
+              <div>
+                <p className="metaLabel">Delivery</p>
+                <p className="metaValue">
+                  {delivery || "Tracked, insured shipping arranged with seller."}
+                </p>
+              </div>
+              <div>
+                <p className="metaLabel">Payment</p>
+                <p className="metaValue">
+                  {payment ||
+                    "Secure payments handled by Stripe. Major cards and wallets accepted."}
+                </p>
+              </div>
+            </div>
 
             <button
               className="buy"
@@ -116,27 +124,34 @@ export default function ProductDetail(props: ProductPageProps) {
               {loading ? "Processing..." : "Buy now"}
             </button>
 
+            <p className="authDisclaimer">
+              <strong>Disclaimer:</strong> Famous Finds operates as a peer-to-peer
+              marketplace. Each listing is uploaded by an independent seller. While we
+              apply authenticity review measures, Famous Finds does not guarantee the
+              authenticity of any individual item. In case of a dispute, legal
+              responsibility rests solely with the seller.
+            </p>
+
             <div className="rating">
               <p className="ratingLabel">
                 Rate this item{" "}
-                {rated && rating && (
-                  <span className="ratingThanks">
-                    · thanks for rating {rating}★
-                  </span>
-                )}
+                <span className="text-gray-500">(private signal to our team)</span>
               </p>
               <div>
-                {[1, 2, 3, 4, 5].map((v) => (
+                {[1, 2, 3, 4, 5].map((star) => (
                   <button
-                    key={v}
+                    key={star}
+                    className="star"
                     type="button"
-                    className={`star ${rating && rating >= v ? "active" : ""}`}
-                    onClick={() => handleRate(v)}
+                    onClick={() => handleRating(star)}
                   >
-                    ★
+                    {rating && star <= rating ? "★" : "☆"}
                   </button>
                 ))}
               </div>
+              {showThanks && (
+                <p className="ratingThanks">Thanks, your signal has been noted.</p>
+              )}
             </div>
           </div>
         </div>
@@ -146,56 +161,80 @@ export default function ProductDetail(props: ProductPageProps) {
 
       <style jsx>{`
         .wrap {
-          max-width: 1200px;
+          max-width: 1100px;
           margin: 0 auto;
           padding: 24px 16px 80px;
         }
-        .prod {
+        .layout {
           display: grid;
-          grid-template-columns: minmax(0, 1.4fr) minmax(0, 1.6fr);
-          gap: 32px;
-          align-items: flex-start;
+          grid-template-columns: minmax(0, 1.1fr) minmax(0, 1.1fr);
+          gap: 36px;
         }
-        .imageWrap img {
-          width: 100%;
-          border-radius: 18px;
-          object-fit: cover;
+        .imageBox {
+          border-radius: 24px;
+          overflow: hidden;
           background: #020617;
+          border: 1px solid #111827;
         }
-        .info h1 {
-          font-size: 26px;
-          margin: 6px 0 4px;
+        .imageBox img {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+          display: block;
         }
-        .sku {
-          font-size: 12px;
-          color: #9ca3af;
-          margin-bottom: 6px;
+        .infoBox {
+          padding: 8px 4px;
         }
-        .seller {
-          font-size: 13px;
-          color: #e5e7eb;
-          margin-bottom: 6px;
-        }
-        .price {
-          font-size: 22px;
-          font-weight: 600;
-          margin: 8px 0 14px;
-        }
-        .desc {
-          font-size: 14px;
-          color: #e5e7eb;
-          margin-bottom: 10px;
-        }
-        h4 {
-          margin: 18px 0 4px;
-          font-size: 13px;
+        .eyebrow {
+          font-size: 11px;
           text-transform: uppercase;
           letter-spacing: 0.12em;
           color: #9ca3af;
         }
+        h1 {
+          margin-top: 4px;
+          font-size: 26px;
+          letter-spacing: 0.02em;
+        }
         .sub {
           font-size: 13px;
           color: #d1d5db;
+        }
+        .priceRow {
+          margin-top: 16px;
+          display: flex;
+          align-items: baseline;
+          gap: 10px;
+        }
+        .price {
+          font-size: 24px;
+          font-weight: 600;
+        }
+        .priceSub {
+          font-size: 12px;
+          color: #9ca3af;
+        }
+        .desc {
+          margin-top: 16px;
+          font-size: 14px;
+          color: #e5e7eb;
+          line-height: 1.6;
+        }
+        .meta {
+          display: grid;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 16px;
+          margin-top: 18px;
+        }
+        .metaLabel {
+          font-size: 12px;
+          text-transform: uppercase;
+          letter-spacing: 0.12em;
+          color: #9ca3af;
+        }
+        .metaValue {
+          font-size: 13px;
+          color: #e5e7eb;
         }
         .buy {
           margin-top: 18px;
@@ -216,6 +255,12 @@ export default function ProductDetail(props: ProductPageProps) {
           margin-top: 18px;
           font-size: 13px;
         }
+        .authDisclaimer {
+          margin-top: 10px;
+          font-size: 12px;
+          color: #9ca3af;
+          line-height: 1.4;
+        }
         .ratingLabel {
           color: #d1d5db;
         }
@@ -229,14 +274,13 @@ export default function ProductDetail(props: ProductPageProps) {
           cursor: pointer;
           font-size: 20px;
           color: #4b5563;
-          padding: 0 2px;
         }
-        .star.active {
-          color: #facc15;
+        .star:hover {
+          color: #e5e7eb;
         }
         @media (max-width: 900px) {
-          .prod {
-            grid-template-columns: 1fr;
+          .layout {
+            grid-template-columns: minmax(0, 1fr);
           }
         }
       `}</style>
@@ -244,15 +288,12 @@ export default function ProductDetail(props: ProductPageProps) {
   );
 }
 
-export const getServerSideProps: GetServerSideProps<ProductPageProps> = async (
-  ctx
-) => {
-  const rawId = ctx.params?.id;
-  const id = Array.isArray(rawId) ? rawId[0] : rawId;
-  if (!id) return { notFound: true };
-
+export const getServerSideProps: GetServerSideProps = async (ctx) => {
   try {
-    const snap = await adminDb.collection("listings").doc(String(id)).get();
+    const id = ctx.params?.id as string;
+    if (!id) return { notFound: true };
+
+    const snap = await adminDb.collection("listings").doc(id).get();
     if (!snap.exists) {
       return { notFound: true };
     }
@@ -268,26 +309,13 @@ export const getServerSideProps: GetServerSideProps<ProductPageProps> = async (
         }).format(priceNumber)
       : "";
 
-    let sellerName = d.sellerName || "";
-    if (!sellerName && d.sellerId) {
-      try {
-        const sellerSnap = await adminDb
-          .collection("sellers")
-          .doc(String(d.sellerId))
-          .get();
-        if (sellerSnap.exists) {
-          const sData: any = sellerSnap.data() || {};
-          sellerName = sData.displayName || sData.name || "";
-        }
-      } catch (e) {
-        // if seller lookup fails, just skip
-      }
-    }
+    const sellerName =
+      d.sellerName || d.sellerDisplayName || "Independent seller";
 
     return {
       props: {
-        id: String(id),
-        title: d.title || "Listing",
+        id,
+        title: d.title || "Untitled listing",
         price: priceNumber,
         currency,
         priceLabel,
