@@ -4,10 +4,33 @@ import Link from "next/link";
 import Header from "../components/Header";
 import Footer from "../components/Footer";
 import { FormEvent, useState } from "react";
+import { storage } from "../utils/firebaseClient";
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 
 export default function Sell() {
   const [submitted, setSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+
+  async function uploadImageIfNeeded(formData: FormData): Promise<string | null> {
+    const file = formData.get("image_file");
+    if (!file || !(file instanceof File) || !file.size) {
+      return null;
+    }
+
+    setUploadingImage(true);
+    try {
+      const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+      const path = `listing-images/${Date.now()}-${safeName}`;
+      const storageRef = ref(storage, path);
+      const snapshot = await uploadBytes(storageRef, file);
+      const url = await getDownloadURL(snapshot.ref);
+      return url;
+    } finally {
+      setUploadingImage(false);
+    }
+  }
 
   async function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -15,13 +38,25 @@ export default function Sell() {
     setSubmitting(true);
     setSubmitted(false);
 
-    const formData = new FormData(e.currentTarget);
-    const body: any = {};
-    formData.forEach((value, key) => {
-      body[key] = value;
-    });
+    const form = e.currentTarget;
+    const formData = new FormData(form);
 
     try {
+      // 1) Upload image file (if present) to Firebase Storage
+      const uploadedImageUrl = await uploadImageIfNeeded(formData);
+
+      // 2) Build JSON body
+      const body: any = {};
+      formData.forEach((value, key) => {
+        if (key === "image_file") return; // don't send raw file
+        body[key] = value;
+      });
+
+      // API expects the image URL in `image`
+      if (uploadedImageUrl) {
+        body.image = uploadedImageUrl;
+      }
+
       const res = await fetch("/api/sell", {
         method: "POST",
         headers: {
@@ -31,13 +66,13 @@ export default function Sell() {
       });
 
       const json = await res.json();
-
-      if (!res.ok) {
+      if (!res.ok || !json.ok) {
         throw new Error(json?.error || "Something went wrong");
       }
 
       setSubmitted(true);
-      (e.currentTarget as HTMLFormElement).reset();
+      form.reset();
+      setImagePreview(null);
     } catch (err) {
       console.error(err);
       alert("Something went wrong submitting your listing. Please try again.");
@@ -45,6 +80,18 @@ export default function Sell() {
       setSubmitting(false);
     }
   }
+
+  function handleImageFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) {
+      setImagePreview(null);
+      return;
+    }
+    const url = URL.createObjectURL(file);
+    setImagePreview(url);
+  }
+
+  const disabled = submitting || uploadingImage;
 
   return (
     <div className="dark-theme-page">
@@ -81,7 +128,29 @@ export default function Sell() {
             placeholder="Price (AUD)"
             required
           />
-          <input name="image" placeholder="Image URL" />
+
+          {/* Image upload */}
+          <label className="file-label">
+            <span>Item photo</span>
+            <input
+              type="file"
+              name="image_file"
+              accept="image/*"
+              onChange={handleImageFileChange}
+            />
+          </label>
+          {imagePreview && (
+            <div className="image-preview">
+              <img src={imagePreview} alt="Preview" />
+            </div>
+          )}
+
+          {/* Optional direct image URL as backup */}
+          <input
+            name="image"
+            placeholder="Image URL (optional, used if no file is uploaded)"
+          />
+
           <textarea
             name="description"
             rows={4}
@@ -113,8 +182,8 @@ export default function Sell() {
             placeholder="Proof photo URL (receipt / certificate / serial label)"
           />
 
-          <button type="submit" disabled={submitting}>
-            {submitting ? "Submitting..." : "Submit Listing"}
+          <button type="submit" disabled={disabled}>
+            {disabled ? "Submitting..." : "Submit Listing"}
           </button>
         </form>
 
@@ -158,6 +227,27 @@ export default function Sell() {
           color: white;
           padding: 8px 10px;
           font-size: 14px;
+        }
+        .file-label {
+          display: flex;
+          flex-direction: column;
+          gap: 6px;
+          font-size: 13px;
+          color: #d1d5db;
+        }
+        .file-label input[type="file"] {
+          border-radius: 8px;
+          border: 1px dashed #4b5563;
+          padding: 6px;
+          background: #020617;
+        }
+        .image-preview {
+          margin-bottom: 4px;
+        }
+        .image-preview img {
+          max-width: 200px;
+          border-radius: 8px;
+          border: 1px solid #374151;
         }
         button {
           margin-top: 10px;
