@@ -267,26 +267,26 @@ export default function Home({ trending, newArrivals }: HomeProps) {
   );
 }
 
-// --- This is the "live" data-loading function ---
+// --- UPDATED data-loading function ---
 export const getServerSideProps: GetServerSideProps<HomeProps> = async () => {
   try {
     const snap = await adminDb
       .collection("listings")
-      .where("status", "==", "Active")
+      // removed .where("status", "==", "Active")
       .orderBy("createdAt", "desc")
-      .limit(24) // Fetch 24 items
+      .limit(24)
       .get();
 
     const items: ProductLike[] = snap.docs.map((doc) => {
       const d: any = doc.data() || {};
       const priceNumber = Number(d.price) || 0;
-      // Using $ and en-US
       const price = priceNumber
         ? `$${priceNumber.toLocaleString("en-US")}`
         : "";
       const image: string =
         d.imageUrl ||
         "https://images.unsplash.com/photo-1550009158-9ebf69173e03?auto-format&fit=crop&w=800&q=80";
+
       return {
         id: doc.id,
         title: d.title || "Untitled listing",
