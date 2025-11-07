@@ -43,8 +43,7 @@ export default function SellerBulkUpload() {
   const [singleImageFile, setSingleImageFile] = useState<File | null>(null);
   const [singleImagePreview, setSingleImagePreview] =
     useState<string | null>(null);
-  const [singleUploadingImage, setSingleUploadingImage] =
-    useState(false);
+  const [singleUploadingImage, setSingleUploadingImage] = useState(false);
 
   // ---------------- CSV BULK UPLOAD ----------------
 
@@ -160,37 +159,25 @@ export default function SellerBulkUpload() {
     e.preventDefault();
   };
 
-  // --- UPDATED FUNCTION ---
+  // Upload helper: throws only for unexpected errors. Timeout/permission
+  // are handled as "soft" failures in handleSingleSubmit.
   async function uploadSingleImageIfNeeded(): Promise<string | null> {
     if (!singleImageFile) return null;
 
     setSingleUploadingImage(true);
     try {
-      const safeName = singleImageFile.name.replace(
-        /[^a-zA-Z0-9._-]/g,
-        "_"
-      );
+      const safeName = singleImageFile.name.replace(/[^a-zA-Z0-9._-]/g, "_");
       const path = `listing-images/${Date.now()}-${safeName}`;
       const storageRef = ref(storage, path);
       const snap = await uploadBytes(storageRef, singleImageFile);
       const url = await getDownloadURL(snap.ref);
       return url;
-    } catch (err: any) {
-      // --- ADDED CATCH BLOCK ---
-      console.error("Image upload failed:", err);
-      // Check for common Firebase Storage errors
-      if (err.code === "storage/unauthorized") {
-        throw new Error("Image upload failed: Permission denied. Check your Firebase Storage rules.");
-      }
-      throw new Error("Image upload failed. Please try again.");
     } finally {
-      // This will now run even if the upload fails
       setSingleUploadingImage(false);
     }
   }
-  // --- END OF UPDATED FUNCTION ---
 
-  // NEW: quick single listing without CSV
+  // Quick single listing without CSV
   const handleSingleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setSingleError(null);
@@ -202,10 +189,42 @@ export default function SellerBulkUpload() {
     }
 
     setSingleBusy(true);
-    try {
-      // This will now correctly throw an error if the upload fails
-      const imageUrl = await uploadSingleImageIfNeeded();
 
+    try {
+      // 1) Try to upload the image, but don't block listing creation
+      let imageUrl: string | null = null;
+
+      if (singleImageFile) {
+        try {
+          imageUrl = await uploadSingleImageIfNeeded();
+        } catch (err: any) {
+          console.error("single_image_upload_error", err);
+          const code = err?.code;
+          const msg = String(err?.message || "");
+
+          if (
+            code === "storage/retry-limit-exceeded" ||
+            msg.toLowerCase().includes("retry time for operation exceeded")
+          ) {
+            setSingleError(
+              "The photo upload timed out. We'll create the listing without a photo—you can add it later from your catalogue."
+            );
+          } else if (code === "storage/unauthorized") {
+            setSingleError(
+              "Image upload failed: permission denied. Check your Firebase Storage rules. The listing will be created without a photo."
+            );
+          } else {
+            setSingleError(
+              "We couldn't upload the photo. The listing will be created without a photo."
+            );
+          }
+
+          // Soft-fail: continue with no image
+          imageUrl = null;
+        }
+      }
+
+      // 2) Create the listing via bulk-commit
       const row: UploadRow = {
         id: "manual-" + Date.now(),
         title: singleTitle.trim(),
@@ -226,23 +245,28 @@ export default function SellerBulkUpload() {
         throw new Error(json.error || "Failed to create listing");
       }
 
-      setSingleMessage(
-        "Listing created. You can review and add more photos in your catalogue."
-      );
+      // Success
       setSingleTitle("");
       setSingleBrand("");
       setSingleCategory("");
       setSinglePrice("");
       handleSingleImageSelect(null);
+
+      // If we already showed a warning about the photo, keep it and also
+      // show success; otherwise just success.
+      setSingleMessage(
+        imageUrl
+          ? "Listing created. You can review and add more photos in your catalogue."
+          : "Listing created (without photo). You can add a photo later from your catalogue."
+      );
     } catch (err: any) {
       console.error("single_listing_error", err);
       setSingleError(
         err?.message || "Unable to create listing. Please try again."
       );
     } finally {
-      // This finally block will now run even if the image upload fails,
-      // which un-sticks the "Creating..." button.
       setSingleBusy(false);
+      setSingleUploadingImage(false);
     }
   };
 
