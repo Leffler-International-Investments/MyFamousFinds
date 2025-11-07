@@ -12,13 +12,22 @@ import {
 import { storage } from "../../utils/firebaseClient";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 
+// --- ADDED: Manually added uuidv4 function ---
+function uuidv4() {
+  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, function(c) {
+    var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
+}
+// -------------------------------------------
+
 type UploadRow = {
   id: string;
   title: string;
   brand: string;
   price: string;
   category: string;
-  imageUrl?: string;
+  imageUrls?: string[]; // <-- UPDATED
   status: "ready" | "missing" | "error";
 };
 
@@ -70,14 +79,14 @@ export default function SellerBulkUpload() {
   const [singleMessage, setSingleMessage] = useState<string | null>(null);
   const [singleError, setSingleError] = useState<string | null>(null);
 
-  // Image state for quick single listing
-  const [singleImageFile, setSingleImageFile] = useState<File | null>(null);
-  const [singleImagePreview, setSingleImagePreview] =
-    useState<string | null>(null);
+  // --- UPDATED: Image state for MULTIPLE images ---
+  const [singleImageFiles, setSingleImageFiles] = useState<File[]>([]);
+  const [singleImagePreviews, setSingleImagePreviews] = useState<string[]>([]);
   const [singleUploadingImage, setSingleUploadingImage] = useState(false);
 
-  // ---------------- CSV BULK UPLOAD ----------------
 
+  // ---------------- CSV BULK UPLOAD ----------------
+  // (Your existing CSV logic is unchanged)
   const handleFileChange = async (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -150,64 +159,86 @@ export default function SellerBulkUpload() {
       setCommitting(false);
     }
   };
+  // ----------------------------------------------------
 
   // ---------------- SINGLE LISTING + IMAGE ----------------
 
-  function handleSingleImageSelect(file: File | null) {
-    setSingleImageFile(file);
-    if (!file) {
-      setSingleImagePreview(null);
+  // --- UPDATED: Handle multiple files ---
+  function handleSingleImageSelect(files: FileList | null) {
+    if (!files || files.length === 0) {
+      setSingleImageFiles([]);
+      setSingleImagePreviews([]);
       return;
     }
-    const url = URL.createObjectURL(file);
-    setSingleImagePreview(url);
+    
+    const newFiles = Array.from(files);
+    setSingleImageFiles(newFiles);
+    
+    const newPreviews = newFiles.map(file => URL.createObjectURL(file));
+    setSingleImagePreviews(newPreviews);
   }
 
   const handleSingleImageInputChange = (
     e: ChangeEvent<HTMLInputElement>
   ) => {
-    const file = e.target.files?.[0] || null;
-    if (file && !file.type.startsWith("image/")) {
-      setSingleError("Please choose an image file (jpg, png, etc.)");
-      return;
-    }
+    const files = e.target.files;
     setSingleError(null);
-    handleSingleImageSelect(file);
+    if (files) {
+      for (const file of Array.from(files)) {
+        if (!file.type.startsWith("image/")) {
+          setSingleError("Please choose image files (jpg, png, etc.)");
+          return;
+        }
+      }
+    }
+    handleSingleImageSelect(files);
   };
 
   const handleSingleImageDrop = (e: DragEvent<HTMLDivElement>) => {
     e.preventDefault();
-    const file = e.dataTransfer.files?.[0] || null;
-    if (file && !file.type.startsWith("image/")) {
-      setSingleError("Please drop an image file (jpg, png, etc.)");
-      return;
-    }
+    const files = e.dataTransfer.files;
     setSingleError(null);
-    handleSingleImageSelect(file);
+    if (files) {
+       for (const file of Array.from(files)) {
+        if (!file.type.startsWith("image/")) {
+          setSingleError("Please drop image files (jpg, png, etc.)");
+          return;
+        }
+      }
+    }
+    handleSingleImageSelect(files);
   };
 
   const handleSingleImageDragOver = (e: DragEvent<HTMLDivElement>) => {
     e.preventDefault();
   };
 
-  // Upload helper with a hard timeout so the UI never hangs forever.
-  async function uploadSingleImageIfNeeded(
-    timeoutMs = 30000
-  ): Promise<string | null> {
-    if (!singleImageFile) return null;
+  // --- UPDATED: Upload MULTIPLE images ---
+  async function uploadSingleImagesIfNeeded(
+    timeoutMs = 60000 // Increased timeout
+  ): Promise<string[] | null> {
+    if (singleImageFiles.length === 0) return null;
 
     setSingleUploadingImage(true);
     try {
-      const safeName = singleImageFile.name.replace(/[^a-zA-Z0-9._-]/g, "_");
-      const path = `listing-images/${Date.now()}-${safeName}`;
-      const storageRef = ref(storage, path);
+      // Create an array of upload promises
+      const uploadPromises = singleImageFiles.map(file => {
+        return new Promise<string>(async (resolve, reject) => {
+          const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+          const path = `listing-images/${uuidv4()}-${safeName}`;
+          const storageRef = ref(storage, path);
+          
+          try {
+            const snap = await uploadBytes(storageRef, file);
+            const url = await getDownloadURL(snap.ref);
+            resolve(url);
+          } catch (err) {
+            reject(err);
+          }
+        });
+      });
 
-      const uploadPromise = (async () => {
-        const snap = await uploadBytes(storageRef, singleImageFile);
-        const url = await getDownloadURL(snap.ref);
-        return url;
-      })();
-
+      // Add a timeout for the entire batch
       const timeoutPromise = new Promise<never>((_, reject) => {
         const err: any = new Error(
           "Image upload timed out before Firebase responded."
@@ -216,21 +247,21 @@ export default function SellerBulkUpload() {
         setTimeout(() => reject(err), timeoutMs);
       });
 
-      const url = await Promise.race([uploadPromise, timeoutPromise]);
-      return url as string;
+      // Wait for all uploads to finish or for the timeout
+      const urls = await Promise.race([Promise.all(uploadPromises), timeoutPromise]);
+      return urls as string[];
+
     } catch (err: any) {
-      // --- ADDED CATCH BLOCK ---
       console.error("Image upload failed:", err);
-      // Check for common Firebase Storage errors
       if (err.code === "storage/unauthorized") {
         throw new Error("Image upload failed: Permission denied. Check your Firebase Storage rules.");
       }
-      throw new Error("Image upload failed. Please try again.");
+      throw new Error("One or more image uploads failed. Please try again.");
     } finally {
-      // Even if it throws or times out, clear the "Uploading image…" flag
       setSingleUploadingImage(false);
     }
   }
+
 
   // Quick single listing without CSV
   const handleSingleSubmit = async (e: FormEvent) => {
@@ -257,12 +288,12 @@ export default function SellerBulkUpload() {
     setSingleBusy(true);
 
     try {
-      // 1) Try to upload the image, but don't block listing creation forever
-      let imageUrl: string | null = null;
+      // 1) Try to upload the image(s)
+      let imageUrls: string[] | null = null; // <-- UPDATED
 
-      if (singleImageFile) {
+      if (singleImageFiles.length > 0) { // <-- UPDATED
         try {
-          imageUrl = await uploadSingleImageIfNeeded();
+          imageUrls = await uploadSingleImagesIfNeeded(); // <-- UPDATED
         } catch (err: any) {
           console.error("single_image_upload_error", err);
           const code = err?.code;
@@ -287,7 +318,7 @@ export default function SellerBulkUpload() {
           }
 
           // Soft-fail: continue with no image
-          imageUrl = null;
+          imageUrls = null;
         }
       }
 
@@ -298,7 +329,7 @@ export default function SellerBulkUpload() {
         brand: singleBrand.trim(),
         category: singleCategory.trim(),
         price: singlePrice.trim(),
-        imageUrl: imageUrl || undefined,
+        imageUrls: imageUrls || undefined, // <-- UPDATED
         status: "ready",
       };
 
@@ -317,11 +348,11 @@ export default function SellerBulkUpload() {
       setSingleBrand("");
       setSingleCategory("");
       setSinglePrice("");
-      handleSingleImageSelect(null);
+      handleSingleImageSelect(null); // <-- UPDATED
 
       setSingleMessage(
-        imageUrl
-          ? "Listing created. You can review and add more photos in your catalogue."
+        imageUrls
+          ? `Listing created with ${imageUrls.length} image(s).` // <-- UPDATED
           : "Listing created (without photo). You can add a photo later from your catalogue."
       );
     } catch (err: any) {
@@ -369,7 +400,7 @@ export default function SellerBulkUpload() {
           as a draft or pending review before going live.
         </p>
 
-        {/* Steps indicator */}
+        {/* Steps indicator (Unchanged) */}
         <ol className="mt-6 flex flex-wrap gap-3 text-xs">
           {["Upload file", "Review rows", "Create listings"].map(
             (label, i) => {
@@ -425,8 +456,7 @@ export default function SellerBulkUpload() {
                   Or add a single listing (no CSV)
                 </h3>
                 <p className="mt-1 text-xs text-gray-400">
-                  Use this form when you only want to add one item. You can
-                  upload photos later from your catalogue.
+                  Use this form to add one item with multiple photos. {/* <-- UPDATED TEXT */}
                 </p>
 
                 <form
@@ -445,7 +475,7 @@ export default function SellerBulkUpload() {
                     />
                   </div>
                   
-                  {/* --- UPDATED: Brand Dropdown --- */}
+                  {/* --- Brand Dropdown (Unchanged) --- */}
                   <div>
                     <label className="block text-[11px] font-medium text-gray-300">
                       Brand *
@@ -462,7 +492,7 @@ export default function SellerBulkUpload() {
                     </select>
                   </div>
                   
-                  {/* --- UPDATED: Category Dropdown --- */}
+                  {/* --- Category Dropdown (Unchanged) --- */}
                   <div>
                     <label className="block text-[11px] font-medium text-gray-300">
                       Category *
@@ -481,7 +511,7 @@ export default function SellerBulkUpload() {
 
                   <div>
                     <label className="block text-[11px] font-medium text-gray-300">
-                      Price (AUD) *
+                      Price (USD) * {/* <-- UPDATED CURRENCY */}
                     </label>
                     <input
                       type="number"
@@ -492,10 +522,10 @@ export default function SellerBulkUpload() {
                     />
                   </div>
 
-                  {/* Image drop / upload */}
+                  {/* --- UPDATED: Image drop / upload for MULTIPLE --- */}
                   <div className="md:col-span-2">
                     <label className="block text-[11px] font-medium text-gray-300">
-                      Photo (optional)
+                      Photos (optional)
                     </label>
                     <div
                       onDragOver={handleSingleImageDragOver}
@@ -503,29 +533,34 @@ export default function SellerBulkUpload() {
                       className="mt-1 flex flex-col items-center justify-center rounded-md border border-dashed border-neutral-700 bg-black/40 px-3 py-4 text-center text-[11px] text-gray-400"
                     >
                       <p className="mb-1">
-                        Drag &amp; drop image here, or click to browse.
+                        Drag &amp; drop images here, or click to browse.
                       </p>
                       <label className="cursor-pointer rounded-full border border-neutral-600 px-3 py-1 text-[11px] hover:border-neutral-400">
-                        Choose file
+                        Choose files
                         <input
                           type="file"
                           accept="image/*"
+                          multiple // <-- UPDATED
                           className="hidden"
                           onChange={handleSingleImageInputChange}
                         />
                       </label>
                       {singleUploadingImage && (
                         <p className="mt-2 text-[11px] text-gray-300">
-                          Uploading image…
+                          Uploading {singleImageFiles.length} image(s)…
                         </p>
                       )}
-                      {singleImagePreview && (
-                        <div className="mt-3">
-                          <img
-                            src={singleImagePreview}
-                            alt="Preview"
-                            className="h-24 w-auto rounded-md border border-neutral-700 object-cover"
-                          />
+                      {/* --- UPDATED: Show multiple previews --- */}
+                      {singleImagePreviews.length > 0 && (
+                        <div className="mt-3 flex flex-wrap justify-center gap-2">
+                          {singleImagePreviews.map((previewUrl, i) => (
+                            <img
+                              key={i}
+                              src={previewUrl}
+                              alt="Preview"
+                              className="h-16 w-16 rounded-md border border-neutral-700 object-cover"
+                            />
+                          ))}
                         </div>
                       )}
                     </div>
@@ -552,6 +587,7 @@ export default function SellerBulkUpload() {
               </div>
             </div>
 
+            {/* CSV Dropzone (Unchanged) */}
             <div className="rounded-xl border border-dashed border-neutral-700 bg-neutral-950/60 p-6">
               <h2 className="text-sm font-semibold">2. Upload your file</h2>
               <p className="mt-2 text-xs text-gray-400">
@@ -591,7 +627,7 @@ export default function SellerBulkUpload() {
           </section>
         )}
 
-        {/* STEP 2 */}
+        {/* STEP 2 (Unchanged) */}
         {step === 2 && (
           <section className="mt-8 rounded-xl border border-neutral-800 bg-neutral-950 p-6">
             <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
@@ -730,7 +766,7 @@ export default function SellerBulkUpload() {
           </section>
         )}
 
-        {/* STEP 3 */}
+        {/* STEP 3 (Unchanged) */}
         {step === 3 && (
           <section className="mt-8 rounded-xl border border-neutral-800 bg-neutral-950 p-6 text-sm">
             <h2 className="text-base font-semibold">Listings created</h2>
