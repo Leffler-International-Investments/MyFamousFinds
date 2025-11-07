@@ -38,10 +38,12 @@ export default function ManagementLoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // This variable is no longer used for the final redirect,
+  // but can remain for other potential logic.
   const from =
     typeof router.query.from === "string"
       ? router.query.from
-      : "/admin/dashboard";
+      : "/management/dashboard"; // Updated default
 
   async function handleCredentialsSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -152,7 +154,11 @@ export default function ManagementLoginPage() {
         window.localStorage.setItem("ff-email", trimmedEmail);
       }
 
-      router.push(from || "/admin/dashboard");
+      // --- THIS IS YOUR FIX ---
+      // It now correctly points to the management dashboard
+      router.push("/management/dashboard");
+      // ------------------------
+
     } catch (err) {
       console.error("management_verify_2fa_error", err);
       setError("Unable to verify the code. Please try again.");
