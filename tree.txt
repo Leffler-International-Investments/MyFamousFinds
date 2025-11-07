@@ -1,5 +1,6 @@
 .
 ├── components
+│   ├── AdminPlaceholder.tsx
 │   ├── AiButler.tsx
 │   ├── AuthBadge.tsx
 │   ├── BrandFilter.tsx
@@ -12,12 +13,18 @@
 │   ├── Header.tsx
 │   ├── Layout.tsx
 │   ├── MakeOffer.tsx
+│   ├── ManagementDashboardTutorial.tsx
+│   ├── PasswordInput.tsx
 │   ├── ProductCard.tsx
+│   ├── SellerDashboardTutorial.tsx
 │   └── WishlistButton.tsx
 ├── data
 │   └── demoProducts.ts
-├── env.local
 ├── firestore.rules
+├── hooks
+│   ├── useRequireAdmin.ts
+│   ├── useRequireOwner.ts
+│   └── useRequireSeller.ts
 ├── lib
 │   ├── getStripe.ts
 │   ├── sampleProducts.ts
@@ -36,6 +43,8 @@
 │   │   └── review.tsx
 │   ├── admin.tsx
 │   ├── api
+│   │   ├── auth
+│   │   │   └── management-login.ts
 │   │   ├── butler.ts
 │   │   ├── checkout.ts
 │   │   ├── concierge.ts
@@ -43,13 +52,27 @@
 │   │   │   └── create.ts
 │   │   ├── images
 │   │   │   └── clean.ts
+│   │   ├── management
+│   │   │   ├── content
+│   │   │   │   ├── faq.ts
+│   │   │   │   ├── homepage.ts
+│   │   │   │   └── static-pages
+│   │   │   │       └── [pageKey].ts
+│   │   │   ├── listings.ts
+│   │   │   ├── stripe-settings.ts
+│   │   │   └── team
+│   │   │       └── add.ts
 │   │   ├── offers
 │   │   │   └── create.ts
 │   │   ├── price-estimator.ts
 │   │   ├── seller
 │   │   │   ├── bulk-commit.ts
 │   │   │   ├── bulk-parse.ts
+│   │   │   ├── bulk-template.ts
 │   │   │   ├── insights.ts
+│   │   │   ├── listings.ts
+│   │   │   ├── login.ts
+│   │   │   ├── orders.ts
 │   │   │   └── statement.ts
 │   │   ├── sell.ts
 │   │   ├── shipping
@@ -62,6 +85,7 @@
 │   ├── _app.tsx
 │   ├── buying.tsx
 │   ├── cart.tsx
+│   ├── catalogue.tsx
 │   ├── categories
 │   │   └── [slug].tsx
 │   ├── category
@@ -71,18 +95,47 @@
 │   ├── help.tsx
 │   ├── index.tsx
 │   ├── management
+│   │   ├── analytics.tsx
+│   │   ├── categories.tsx
+│   │   ├── content
+│   │   │   ├── faq.tsx
+│   │   │   ├── homepage.tsx
+│   │   │   ├── legal.tsx
+│   │   │   └── static-pages.tsx
+│   │   ├── content.tsx
 │   │   ├── dashboard.tsx
+│   │   ├── developer.tsx
+│   │   ├── disputes.tsx
+│   │   ├── forgot-password.tsx
 │   │   ├── listing-queue.tsx
+│   │   ├── listing-review.tsx
+│   │   ├── listings.tsx
+│   │   ├── login.tsx
+│   │   ├── logs.tsx
+│   │   ├── orders.tsx
+│   │   ├── payouts.tsx
+│   │   ├── reviews.tsx
+│   │   ├── seller-profiles.tsx
 │   │   ├── sellers.tsx
+│   │   ├── settings.tsx
+│   │   ├── stripe-settings.tsx
+│   │   ├── support-tickets.tsx
+│   │   ├── support.tsx
+│   │   ├── system-settings.tsx
+│   │   ├── tax.tsx
+│   │   ├── team.tsx
+│   │   ├── users.tsx
 │   │   └── vetting-queue.tsx
 │   ├── privacy.tsx
 │   ├── product
 │   │   └── [id].tsx
 │   ├── returns.tsx
 │   ├── seller
+│   │   ├── bulk-template.tsx
 │   │   ├── bulk-upload.tsx
 │   │   ├── catalogue.tsx
 │   │   ├── dashboard.tsx
+│   │   ├── forgot-password.tsx
 │   │   ├── insights.tsx
 │   │   ├── login.tsx
 │   │   ├── orders.tsx
@@ -119,4 +172,4 @@
 │   └── statement.ts
 └── vercel.json
 
-25 directories, 95 files
+32 directories, 141 files
