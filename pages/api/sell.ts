@@ -37,12 +37,22 @@ export default async function handler(
       currency,
       image,
       description,
+      purchase_source,
+      purchase_proof,
+      serial_number,
+      auth_photos,
     } = body;
 
     if (!title || !price) {
       return res
         .status(400)
         .json({ ok: false, error: "missing_title_or_price" });
+    }
+
+    if (!purchase_source || !purchase_proof) {
+      return res
+        .status(400)
+        .json({ ok: false, error: "missing_authenticity_fields" });
     }
 
     const numericPrice =
@@ -62,6 +72,10 @@ export default async function handler(
       currency: currency || "AUD",
       imageUrl: image ? String(image) : "",
       description: description ? String(description) : "",
+      purchase_source: purchase_source ? String(purchase_source) : "",
+      purchase_proof: purchase_proof ? String(purchase_proof) : "",
+      serial_number: serial_number ? String(serial_number) : "",
+      auth_photos: auth_photos ? String(auth_photos) : "",
       status: "PendingReview" as const,
       createdAt: FieldValue.serverTimestamp(),
       updatedAt: FieldValue.serverTimestamp(),
