@@ -283,9 +283,13 @@ export const getServerSideProps: GetServerSideProps<HomeProps> = async () => {
       const price = priceNumber
         ? `$${priceNumber.toLocaleString("en-US")}`
         : "";
+      
+      // --- THIS IS YOUR FIX ---
       const image: string =
         d.imageUrl ||
+        d.image || // <— pick up images saved as "image" (Sell form)
         "https://images.unsplash.com/photo-1550009158-9ebf69173e03?auto-format&fit=crop&w=800&q=80";
+      // ------------------------
 
       return {
         id: doc.id,
