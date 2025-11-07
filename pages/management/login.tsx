@@ -81,7 +81,8 @@ export default function ManagementLoginPage() {
       const json = (await res.json()) as Start2faResponse;
 
       if (!json.ok) {
-        setError(json.message || "Could not start verification step.");
+        const errJson = json as Start2faError;
+        setError(errJson.message || "Could not start verification step.");
         setLoading(false);
         return;
       }
@@ -138,7 +139,8 @@ export default function ManagementLoginPage() {
       const json = (await res.json()) as Verify2faResponse;
 
       if (!json.ok) {
-        setError(json.message || "Incorrect or expired code.");
+        const errJson = json as Verify2faError;
+        setError(errJson.message || "Incorrect or expired code.");
         setLoading(false);
         return;
       }
