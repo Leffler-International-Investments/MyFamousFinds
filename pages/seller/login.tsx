@@ -1,6 +1,4 @@
 // FILE: /pages/seller/login.tsx
-// (same as last version I gave you, only the 2FA error paths changed)
-
 import Head from "next/head";
 import Link from "next/link";
 import { useRouter } from "next/router";
@@ -72,6 +70,7 @@ export default function SellerLoginPage() {
     setLoading(true);
 
     try {
+      // 1) Email + password check
       const res = await fetch("/api/seller/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -81,24 +80,29 @@ export default function SellerLoginPage() {
       const json = (await res.json()) as LoginResponse;
 
       if (!json.ok) {
-        if (json.code === "apply_first") {
+        const errJson = json as LoginError;
+
+        if (errJson.code === "apply_first") {
           setError(
             "We couldn’t find a seller account for that email. Please apply to become a seller first."
           );
-        } else if (json.code === "pending") {
+        } else if (errJson.code === "pending") {
           setError(
             "Your seller application is still under review. You’ll be notified once approved."
           );
-        } else if (json.code === "bad_credentials") {
+        } else if (errJson.code === "bad_credentials") {
           setError("Incorrect email or password.");
         } else {
-          setError(json.message || "Unable to sign you in. Please try again.");
+          setError(
+            errJson.message || "Unable to sign you in. Please try again."
+          );
         }
         return;
       }
 
       setPendingSellerId(json.sellerId);
 
+      // 2) Start 2FA challenge
       const twofaRes = await fetch("/api/auth/start-2fa", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -266,7 +270,7 @@ export default function SellerLoginPage() {
                       />
                       <span>Email code</span>
                     </label>
-                    <label className="inline-flex itemsCenter gap-1">
+                    <label className="inline-flex items-center gap-1">
                       <input
                         type="radio"
                         className="h-3 w-3"
