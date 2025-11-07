@@ -15,23 +15,32 @@ export default function Sell() {
     setSubmitting(true);
     setSubmitted(false);
 
-    try {
-      const fd = new FormData(e.currentTarget);
-      const payload: any = {};
-      fd.forEach((v, k) => (payload[k] = v));
+    const formData = new FormData(e.currentTarget);
+    const body: any = {};
+    formData.forEach((value, key) => {
+      body[key] = value;
+    });
 
+    try {
       const res = await fetch("/api/sell", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(body),
       });
+
       const json = await res.json();
-      if (!json.ok) throw new Error(json.error || "Submission failed");
+
+      if (!res.ok) {
+        throw new Error(json?.error || "Something went wrong");
+      }
+
       setSubmitted(true);
-      e.currentTarget.reset();
-    } catch (err: any) {
+      (e.currentTarget as HTMLFormElement).reset();
+    } catch (err) {
       console.error(err);
-      alert(err?.message || "Error submitting listing");
+      alert("Something went wrong submitting your listing. Please try again.");
     } finally {
       setSubmitting(false);
     }
@@ -40,15 +49,17 @@ export default function Sell() {
   return (
     <div className="dark-theme-page">
       <Head>
-        <title>Sell an Item – Famous Finds</title>
+        <title>Sell an item – Famous Finds</title>
       </Head>
+
       <Header />
 
       <main className="wrap">
-        <h1>Sell an Item</h1>
+        <h1>Sell an item</h1>
         <p className="intro">
-          Submit a pre-loved piece for sale. Each submission is reviewed by our
-          team before going live.
+          This form is for casual, passing-by sellers who want to list a single item
+          or a small number of pieces. All items are manually vetted and must be
+          authentic. Your listing will not go live until it is reviewed.
         </p>
 
         {submitted && (
@@ -69,6 +80,29 @@ export default function Sell() {
             placeholder="Description"
             required
           />
+          <input
+            name="purchase_source"
+            placeholder="Purchased from (store / website / original owner)"
+            required
+          />
+          <select
+            name="purchase_proof"
+            required
+          >
+            <option value="">Proof of authenticity</option>
+            <option value="original_receipt">Original receipt available</option>
+            <option value="certificate">Certificate of authenticity</option>
+            <option value="trusted_seller">Purchased from trusted verified seller</option>
+            <option value="none">No proof available</option>
+          </select>
+          <input
+            name="serial_number"
+            placeholder="Serial number / code (if applicable)"
+          />
+          <input
+            name="auth_photos"
+            placeholder="Proof photo URL (receipt / certificate / serial label)"
+          />
           <button type="submit" disabled={submitting}>
             {submitting ? "Submitting..." : "Submit Listing"}
           </button>
@@ -76,7 +110,10 @@ export default function Sell() {
 
         <p className="note">
           Listings will appear as <strong>Pending Review</strong> until
-          authenticated and approved.
+          authenticated and approved. By submitting, you confirm the item is
+          authentic and you agree to our{" "}
+          <Link href="/terms-of-sale">Terms of Sale</Link> and{" "}
+          <Link href="/authenticity-policy">Authenticity Policy</Link>.
         </p>
       </main>
 
@@ -103,7 +140,8 @@ export default function Sell() {
           gap: 10px;
         }
         input,
-        textarea {
+        textarea,
+        select {
           border-radius: 8px;
           border: 1px solid #374151;
           background: #111827;
@@ -121,10 +159,14 @@ export default function Sell() {
           font-weight: 600;
           cursor: pointer;
         }
+        button:disabled {
+          opacity: 0.6;
+          cursor: default;
+        }
         .msg {
-          padding: 10px;
-          border-radius: 8px;
-          margin-bottom: 14px;
+          margin-bottom: 16px;
+          padding: 8px 10px;
+          border-radius: 6px;
           font-size: 13px;
         }
         .success {
