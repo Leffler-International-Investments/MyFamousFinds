@@ -9,19 +9,44 @@ import PasswordInput from "../../components/PasswordInput";
 import { getAuth, signInWithEmailAndPassword } from "firebase/auth";
 import firebaseApp from "../../utils/firebaseClient";
 
+type Start2faSuccess = {
+  ok: true;
+  challengeId: string;
+  via: "sms" | "email";
+  devCode?: string;
+};
+type Start2faError = { ok: false; message: string };
+type Start2faResponse = Start2faSuccess | Start2faError;
+
+type Verify2faSuccess = { ok: true; email: string; role: string };
+type Verify2faError = { ok: false; message: string };
+type Verify2faResponse = Verify2faSuccess | Verify2faError;
+
+type TwoFactorStep = "credentials" | "verify";
+type TwoFactorMethod = "email" | "sms";
+
 export default function ManagementLoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [method, setMethod] = useState<TwoFactorMethod>("email");
+  const [phone, setPhone] = useState("");
+  const [code, setCode] = useState("");
+  const [step, setStep] = useState<TwoFactorStep>("credentials");
+  const [challengeId, setChallengeId] = useState<string | null>(null);
+  const [info, setInfo] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const from =
-    typeof router.query.from === "string" ? router.query.from : "";
+    typeof router.query.from === "string"
+      ? router.query.from
+      : "/admin/dashboard";
 
-  async function handleSubmit(e: FormEvent<HTMLFormElement>) {
+  async function handleCredentialsSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError(null);
+    setInfo(null);
     setLoading(true);
 
     try {
@@ -32,80 +57,257 @@ export default function ManagementLoginPage() {
         password
       );
 
-      if (typeof window !== "undefined") {
-        window.localStorage.setItem("ff-role", "management");
-        window.localStorage.setItem("ff-email", email.toLowerCase().trim());
+      if (method === "sms" && !phone.trim()) {
+        setError(
+          "Please enter a mobile number for SMS verification or switch to email verification."
+        );
+        setLoading(false);
+        return;
       }
 
-      const target = from || "/management/dashboard";
-      router.push(target);
-    } catch (err: any) {
-      console.error(err);
-      if (err?.code === "auth/invalid-credential") {
-        setError("Invalid email or password.");
-      } else {
-        setError("Unable to sign in. Please try again.");
+      const trimmedEmail = email.toLowerCase().trim();
+
+      const res = await fetch("/api/auth/start-2fa", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: trimmedEmail,
+          role: "management",
+          method,
+          phone: phone || undefined,
+        }),
+      });
+
+      const json = (await res.json()) as Start2faResponse;
+
+      if (!json.ok) {
+        setError(json.message || "Could not start verification step.");
+        setLoading(false);
+        return;
       }
+
+      setChallengeId(json.challengeId);
+      setStep("verify");
+
+      let message =
+        json.via === "sms"
+          ? "We’ve sent a 6-digit code to your mobile number."
+          : "We’ve sent a 6-digit code to your email address.";
+
+      if (json.devCode) {
+        message += ` (Dev code: ${json.devCode})`;
+      }
+
+      setInfo(message);
+    } catch (err: any) {
+      console.error("management_login_error", err);
+      const message =
+        err?.message || "Unable to sign you in. Please check your details.";
+      setError(message);
     } finally {
       setLoading(false);
     }
   }
 
+  async function handleVerifySubmit(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setError(null);
+
+    if (!challengeId) {
+      setError("Your verification session has expired. Please log in again.");
+      return;
+    }
+
+    if (!code.trim()) {
+      setError("Please enter the verification code.");
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      const res = await fetch("/api/auth/verify-2fa", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          challengeId,
+          code: code.trim(),
+        }),
+      });
+
+      const json = (await res.json()) as Verify2faResponse;
+
+      if (!json.ok) {
+        setError(json.message || "Incorrect or expired code.");
+        setLoading(false);
+        return;
+      }
+
+      const trimmedEmail = email.toLowerCase().trim();
+
+      if (typeof window !== "undefined") {
+        window.localStorage.setItem("ff-role", "management");
+        window.localStorage.setItem("ff-email", trimmedEmail);
+      }
+
+      router.push(from || "/admin/dashboard");
+    } catch (err) {
+      console.error("management_verify_2fa_error", err);
+      setError("Unable to verify the code. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  const disabled = loading;
+
   return (
     <>
       <Head>
-        <title>Management Admin Login — Famous Finds</title>
+        <title>Management Login — Famous Finds</title>
       </Head>
-      <div className="min-h-screen bg-gray-900 text-gray-100">
+      <div className="flex min-h-screen flex-col bg-black text-gray-100">
         <Header />
 
-        <main className="mx-auto flex max-w-md flex-1 items-center justify-center px-4 pb-16 pt-6">
-          <div className="w-full rounded-xl border border-gray-800 bg-gray-950/70 p-6 shadow-lg">
-            <h1 className="mb-1 text-xl font-semibold">
+        <main className="flex flex-1 justify-center px-4 py-8">
+          <div className="w-full max-w-md rounded-2xl bg-neutral-900/80 p-6 shadow-lg ring-1 ring-white/10">
+            <h1 className="text-center text-2xl font-semibold tracking-tight text-white">
               Management Admin Login
             </h1>
-            <p className="mb-4 text-xs text-gray-400">
-              Sign in with your admin email and password.
+            <p className="mt-1 text-center text-xs text-gray-400">
+              Sign in with your admin email and password, then confirm with a
+              one-time code.
             </p>
 
             {error && (
-              <div className="mb-3 rounded-md bg-red-900/40 px-3 py-2 text-xs text-red-200">
+              <div className="mt-4 rounded-md bg-red-900/40 px-3 py-2 text-xs text-red-200">
                 {error}
               </div>
             )}
 
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <label className="block text-xs font-medium text-gray-300">
-                  Admin Email
-                </label>
-                <input
-                  type="email"
-                  autoComplete="email"
-                  required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="mt-1 w-full rounded-md border border-gray-700 bg-gray-950 px-3 py-2 text-sm text-gray-100 focus:border-gray-100 focus:outline-none"
-                />
+            {info && (
+              <div className="mt-4 rounded-md bg-emerald-900/30 px-3 py-2 text-xs text-emerald-200">
+                {info}
               </div>
+            )}
 
-              <div>
-                {/* PasswordInput handles its own label prop */}
+            {step === "credentials" ? (
+              <form
+                onSubmit={handleCredentialsSubmit}
+                className="mt-6 space-y-4"
+              >
+                <div>
+                  <label className="block text-xs font-medium text-gray-300">
+                    Admin Email
+                  </label>
+                  <input
+                    type="email"
+                    autoComplete="email"
+                    required
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="mt-1 w-full rounded-md border border-neutral-700 bg-black/40 px-3 py-2 text-sm text-gray-100 focus:border-gray-100 focus:outline-none"
+                  />
+                </div>
+
                 <PasswordInput
                   label="Password"
                   value={password}
                   onChange={setPassword}
+                  name="password"
+                  required
+                  placeholder="Enter your admin password"
                 />
-              </div>
 
-              <button
-                type="submit"
-                disabled={loading}
-                className="mt-2 w-full rounded-md bg-white px-4 py-2 text-sm font-semibold text-gray-900 hover:bg-gray-100 disabled:opacity-60"
-              >
-                {loading ? "Signing in…" : "Enter Management Admin"}
-              </button>
-            </form>
+                <div>
+                  <p className="mb-1 text-xs font-medium text-gray-300">
+                    Two-step verification
+                  </p>
+                  <div className="flex items-center gap-4 text-xs text-gray-300">
+                    <label className="inline-flex items-center gap-1">
+                      <input
+                        type="radio"
+                        className="h-3 w-3"
+                        checked={method === "email"}
+                        onChange={() => setMethod("email")}
+                      />
+                      <span>Email code</span>
+                    </label>
+                    <label className="inline-flex items-center gap-1">
+                      <input
+                        type="radio"
+                        className="h-3 w-3"
+                        checked={method === "sms"}
+                        onChange={() => setMethod("sms")}
+                      />
+                      <span>SMS to mobile</span>
+                    </label>
+                  </div>
+                  <p className="mt-1 text-[11px] text-gray-500">
+                    If you prefer SMS, enter your mobile number below;
+                    otherwise we&apos;ll send the code to your email.
+                  </p>
+                  <input
+                    type="tel"
+                    placeholder="Mobile number (optional)"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    className="mt-2 w-full rounded-md border border-neutral-700 bg-black/40 px-3 py-2 text-sm text-gray-100 focus:border-gray-100 focus:outline-none"
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={disabled}
+                  className="mt-2 flex w-full items-center justify-center rounded-md bg-white py-2 text-sm font-semibold text-black shadow-sm hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-70"
+                >
+                  {loading ? "Checking…" : "Send code & continue"}
+                </button>
+              </form>
+            ) : (
+              <form onSubmit={handleVerifySubmit} className="mt-6 space-y-4">
+                <p className="text-xs text-gray-300">
+                  Enter the 6-digit code we sent to your{" "}
+                  {method === "sms" ? "mobile number" : "email address"} to
+                  finish signing in.
+                </p>
+                <div>
+                  <label className="block text-xs font-medium text-gray-300">
+                    Verification code
+                  </label>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    autoComplete="one-time-code"
+                    maxLength={6}
+                    required
+                    value={code}
+                    onChange={(e) => setCode(e.target.value)}
+                    className="mt-1 w-full rounded-md border border-neutral-700 bg-black/40 px-3 py-2 text-sm tracking-[0.35em] text-gray-100 focus:border-gray-100 focus:outline-none"
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={disabled}
+                  className="mt-2 flex w-full items-center justify-center rounded-md bg-white py-2 text-sm font-semibold text-black shadow-sm hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-70"
+                >
+                  {loading ? "Verifying…" : "Enter Admin Console"}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setStep("credentials");
+                    setCode("");
+                    setChallengeId(null);
+                  }}
+                  className="w-full text-center text-xs text-gray-400 hover:text-gray-200"
+                >
+                  ← Start over
+                </button>
+              </form>
+            )}
 
             <div className="mt-4 text-center">
               <Link
