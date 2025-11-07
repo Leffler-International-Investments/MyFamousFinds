@@ -1,27 +1,16 @@
 // FILE: /pages/api/auth/start-2fa.ts
 import type { NextApiRequest, NextApiResponse } from "next";
-import { adminDb } from "../../../utils/firebaseAdmin";
+import { adminDb, FieldValue } from "../../../utils/firebaseAdmin";
+import { sendLoginCode } from "../../../utils/email";
 
 type Start2faBody = {
   email?: string;
   role?: "seller" | "management";
-  method?: "sms" | "email";
-  phone?: string;
 };
 
-type Start2faSuccess = {
-  ok: true;
-  challengeId: string;
-  via: "sms" | "email";
-  devCode?: string;
-};
-
-type Start2faFailure = {
-  ok: false;
-  message: string;
-};
-
-type Start2faResponse = Start2faSuccess | Start2faFailure;
+type Start2faResponse =
+  | { ok: true; challengeId: string }
+  | { ok: false; error: string; message?: string };
 
 export default async function handler(
   req: NextApiRequest,
@@ -30,59 +19,49 @@ export default async function handler(
   if (req.method !== "POST") {
     return res
       .status(405)
-      .json({ ok: false, message: "Method not allowed for this endpoint." });
+      .json({ ok: false, error: "method_not_allowed", message: "Use POST." });
   }
-
-  const { email, role, method, phone } = req.body as Start2faBody;
-
-  const normalizedEmail = (email || "").toLowerCase().trim();
-  if (!normalizedEmail || !role) {
-    return res
-      .status(400)
-      .json({ ok: false, message: "Missing email or role for 2FA." });
-  }
-
-  let via: "sms" | "email" = "email";
-  if (method === "sms" && phone && phone.trim()) {
-    via = "sms";
-  }
-
-  const code = String(Math.floor(100000 + Math.random() * 900000)); // 6-digit
-  const now = new Date();
-  const expiresAt = new Date(now.getTime() + 10 * 60 * 1000); // 10 minutes
 
   try {
-    const docRef = await adminDb.collection("login_challenges").add({
-      email: normalizedEmail,
-      role,
-      via,
-      phone: via === "sms" ? phone || null : null,
-      code,
-      createdAt: now,
-      expiresAt,
-      used: false,
-    });
+    const body = (req.body || {}) as Start2faBody;
+    const email = (body.email || "").trim().toLowerCase();
+    const role = body.role || "management";
 
-    // TODO: Plug in real SMS / email providers here (Twilio, SendGrid, etc.)
-    console.log(
-      `[2FA] Login code for ${role} user ${normalizedEmail} via ${via}: ${code}`
-    );
-
-    const response: Start2faSuccess = {
-      ok: true,
-      challengeId: docRef.id,
-      via,
-    };
-
-    if (process.env.NEXT_PUBLIC_SHOW_2FA_CODE === "true") {
-      response.devCode = code;
+    if (!email) {
+      return res.status(400).json({
+        ok: false,
+        error: "missing_email",
+        message: "Email address is required.",
+      });
     }
 
-    return res.status(200).json(response);
-  } catch (err) {
-    console.error("start_2fa_error", err);
-    return res
-      .status(500)
-      .json({ ok: false, message: "Unable to start verification step." });
+    // Generate 6-digit code
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+
+    // Save challenge in Firestore
+    const docRef = await adminDb.collection("authChallenges").add({
+      email,
+      role,
+      code,
+      expiresAt,
+      used: false,
+      createdAt: FieldValue.serverTimestamp(),
+    });
+
+    // Send the email (does nothing if SMTP env vars missing)
+    await sendLoginCode(email, code);
+
+    return res.status(200).json({
+      ok: true,
+      challengeId: docRef.id,
+    });
+  } catch (err: any) {
+    console.error("start-2fa error", err);
+    return res.status(500).json({
+      ok: false,
+      error: "server_error",
+      message: err?.message || "Server error",
+    });
   }
 }
