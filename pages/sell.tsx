@@ -1,221 +1,194 @@
 // FILE: /pages/sell.tsx
-import { useState, useEffect } from "react";
-import { useRouter } from "next/router";
+import Head from "next/head";
 import Link from "next/link";
-import ImageUploader from "../components/ImageUploader";
-import { auth, db } from "../utils/firebaseClient";
-import { onAuthStateChanged, User } from "firebase/auth";
-import { doc, getDoc } from "firebase/firestore";
+import Header from "../components/Header";
+import Footer from "../components/Footer";
+import { FormEvent, useState } from "react";
 
-export default function SellPage() {
-  const router = useRouter();
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [imageUrl, setImageUrl] = useState<string | null>(null);
-  const [isUploading, setIsUploading] = useState(false);
-  const [user, setUser] = useState<User | null>(null);
-  const [isStripeReady, setIsStripeReady] = useState(false);
+export default function Sell() {
+  const [submitted, setSubmitted] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
-  useEffect(() => {
-    const unsub = onAuthStateChanged(auth, async (user) => {
-      if (user) {
-        setUser(user);
-        const userRef = doc(db, "users", user.uid);
-        const docSnap = await getDoc(userRef);
-        if (docSnap.exists() && docSnap.data().stripe_charges_enabled) {
-          setIsStripeReady(true);
-        } else {
-          setIsStripeReady(false);
-        }
-      } else {
-        setUser(null);
-        router.push("/login");
-      }
-    });
-    return () => unsub();
-  }, [router]);
-
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+  async function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    setLoading(true);
-    setError(null);
-
-    if (!imageUrl) {
-      setError("Please upload an image.");
-      setLoading(false);
-      return;
-    }
-    if (!isStripeReady) {
-      setError("Your seller account is not ready. Please complete onboarding.");
-      setLoading(false);
-      return;
-    }
+    if (submitting) return;
+    setSubmitting(true);
+    setSubmitted(false);
 
     const formData = new FormData(e.currentTarget);
-    const data = Object.fromEntries(formData.entries());
-    const idToken = await user?.getIdToken();
-
-    const body = {
-      ...data,
-      image: imageUrl,
-      listingType: "open-market",
-    };
+    const body: any = {};
+    formData.forEach((value, key) => {
+      body[key] = value;
+    });
 
     try {
       const res = await fetch("/api/sell", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${idToken}`,
         },
         body: JSON.stringify(body),
       });
 
       const json = await res.json();
-      if (!res.ok) throw new Error(json.message || json.error || "Something went wrong");
-      alert("Item submitted for review!");
-      router.push("/");
-    } catch (err: any) {
-      setError(err.message);
-      setLoading(false);
+
+      if (!res.ok) {
+        throw new Error(json?.error || "Something went wrong");
+      }
+
+      setSubmitted(true);
+      (e.currentTarget as HTMLFormElement).reset();
+    } catch (err) {
+      console.error(err);
+      alert("Something went wrong submitting your listing. Please try again.");
+    } finally {
+      setSubmitting(false);
     }
-  };
-
-  const field = { marginBottom: "15px" };
-  const label = { display: "block", marginBottom: "5px", fontWeight: 600 };
-  const input = { width: "100%", padding: "8px", background: "#222", color: "#fff", border: "1px solid #444", borderRadius: "4px" };
-
-  if (!user)
-    return <div style={{ textAlign: "center", padding: "40px" }}>Loading...</div>;
-  if (!isStripeReady)
-    return (
-      <div style={{ maxWidth: "600px", margin: "40px auto", padding: "20px", background: "#1a1a1a", borderRadius: "8px", textAlign: "center" }}>
-        <h1>Seller Account Not Ready</h1>
-        <p>You must have an active and approved seller account to list items.</p>
-        <Link href="/seller/onboarding" className="linkBtn">
-          Go to Seller Onboarding
-        </Link>
-      </div>
-    );
+  }
 
   return (
-    <div style={{ maxWidth: "700px", margin: "40px auto", padding: "20px", background: "#1a1a1a", borderRadius: "8px" }}>
-      <h1 style={{ textAlign: "center", marginBottom: "25px" }}>Sell Your Item</h1>
-      <form onSubmit={handleSubmit}>
-        {/* Image */}
-        <div style={field}>
-          <label style={label}>Item Image (1 required)</label>
-          <ImageUploader
-            maxImages={1}
-            onUploadStart={() => setIsUploading(true)}
-            onUploadError={(err) => {
-              setError(err);
-              setIsUploading(false);
-            }}
-            onUploadComplete={(url) => {
-              setImageUrl(url);
-              setIsUploading(false);
-            }}
+    <div className="dark-theme-page">
+      <Head>
+        <title>Sell an item – Famous Finds</title>
+      </Head>
+
+      <Header />
+
+      <main className="wrap">
+        <h1>Sell an item</h1>
+        <p className="intro">
+          This form is for casual, passing-by sellers who want to list a single
+          item or a small number of pieces. All items are manually vetted and
+          must be authentic. Your listing will not go live until it is reviewed.
+        </p>
+
+        {submitted && (
+          <div className="msg success">
+            ✅ Your listing has been received for review.
+          </div>
+        )}
+
+        <form onSubmit={onSubmit} className="form">
+          <input name="title" placeholder="Title" required />
+          <input name="brand" placeholder="Brand" />
+          <input
+            name="category"
+            placeholder="Category (bags, shoes, etc.)"
           />
-        </div>
+          <input
+            name="price"
+            type="number"
+            placeholder="Price (AUD)"
+            required
+          />
+          <input name="image" placeholder="Image URL" />
+          <textarea
+            name="description"
+            rows={4}
+            placeholder="Description"
+            required
+          />
 
-        {/* Core item fields */}
-        <div style={field}>
-          <label htmlFor="title" style={label}>Title *</label>
-          <input id="title" name="title" required style={input} />
-        </div>
-
-        <div style={{ display: "flex", gap: "20px", ...field }}>
-          <div style={{ flex: 1 }}>
-            <label htmlFor="brand" style={label}>Brand *</label>
-            <input id="brand" name="brand" required style={input} />
-          </div>
-          <div style={{ flex: 1 }}>
-            <label htmlFor="category" style={label}>Category *</label>
-            <input id="category" name="category" required style={input} />
-          </div>
-        </div>
-
-        {/* Authenticity section */}
-        <h3 style={{ marginTop: "25px" }}>Authenticity & Purchase Details</h3>
-        <div style={field}>
-          <label htmlFor="purchase_source" style={label}>
-            Purchased From (store / website / original owner) *
-          </label>
-          <input id="purchase_source" name="purchase_source" required style={input} />
-        </div>
-
-        <div style={field}>
-          <label htmlFor="purchase_proof" style={label}>Proof of Authenticity *</label>
-          <select id="purchase_proof" name="purchase_proof" required style={input}>
-            <option value="">Select one</option>
-            <option value="original_receipt">Original receipt</option>
+          {/* AUTHENTICITY FIELDS */}
+          <input
+            name="purchase_source"
+            placeholder="Purchased from (store / website / original owner)"
+            required
+          />
+          <select name="purchase_proof" required>
+            <option value="">Proof of authenticity</option>
+            <option value="original_receipt">Original receipt available</option>
             <option value="certificate">Certificate of authenticity</option>
-            <option value="trusted_seller">Purchased from verified seller</option>
+            <option value="trusted_seller">
+              Purchased from trusted verified seller
+            </option>
             <option value="none">No proof available</option>
           </select>
-        </div>
-
-        <div style={field}>
-          <label htmlFor="serial_number" style={label}>Serial / Model Number (if applicable)</label>
-          <input id="serial_number" name="serial_number" style={input} />
-        </div>
-
-        <div style={field}>
-          <label htmlFor="auth_photos" style={label}>Upload Proof Photos (receipt / certificate / serial label)</label>
-          <ImageUploader
-            maxImages={1}
-            onUploadStart={() => setIsUploading(true)}
-            onUploadError={(msg) => {
-              setIsUploading(false);
-              setError(msg);
-            }}
-            onUploadComplete={(url) => {
-              setIsUploading(false);
-              setImageUrl(url);
-            }}
+          <input
+            name="serial_number"
+            placeholder="Serial number / code (if applicable)"
           />
-        </div>
+          <input
+            name="auth_photos"
+            placeholder="Proof photo URL (receipt / certificate / serial label)"
+          />
 
-        <div style={field}>
-          <label htmlFor="price" style={label}>Price (USD) *</label>
-          <input id="price" name="price" required type="number" step="0.01" style={input} />
-        </div>
+          <button type="submit" disabled={submitting}>
+            {submitting ? "Submitting..." : "Submit Listing"}
+          </button>
+        </form>
 
-        <div style={field}>
-          <label htmlFor="description" style={label}>Description</label>
-          <textarea id="description" name="description" rows={4} style={input} />
-        </div>
+        <p className="note">
+          Listings will appear as <strong>Pending Review</strong> until
+          authenticated and approved. By submitting, you confirm the item is
+          authentic and you agree to our{" "}
+          <Link href="/terms-of-sale">Terms of Sale</Link> and{" "}
+          <Link href="/authenticity-policy">Authenticity Policy</Link>.
+        </p>
+      </main>
 
-        <div style={{ display: "flex", alignItems: "center", marginBottom: "15px" }}>
-          <input type="checkbox" id="terms" name="terms" required style={{ marginRight: "8px" }} />
-          <label htmlFor="terms" style={{ fontSize: "13px" }}>
-            I agree to the{" "}
-            <Link href="/terms-of-sale" target="_blank" style={{ color: "#3b82f6" }}>
-              Terms of Sale
-            </Link>
-          </label>
-        </div>
+      <Footer />
 
-        <button
-          type="submit"
-          disabled={loading || isUploading}
-          style={{
-            width: "100%",
-            padding: "12px",
-            fontSize: "16px",
-            background: "#22c55e",
-            color: "white",
-            border: "none",
-            borderRadius: "5px",
-            cursor: "pointer",
-          }}
-        >
-          {loading ? "Submitting..." : "Submit for Review"}
-        </button>
-
-        {error && <p style={{ color: "red", marginTop: "15px", textAlign: "center" }}>{error}</p>}
-      </form>
+      <style jsx>{`
+        .wrap {
+          max-width: 600px;
+          margin: 0 auto;
+          padding: 24px 16px 80px;
+        }
+        h1 {
+          font-size: 26px;
+          margin-bottom: 8px;
+        }
+        .intro {
+          font-size: 14px;
+          color: #d1d5db;
+          margin-bottom: 20px;
+        }
+        .form {
+          display: flex;
+          flex-direction: column;
+          gap: 10px;
+        }
+        input,
+        textarea,
+        select {
+          border-radius: 8px;
+          border: 1px solid #374151;
+          background: #111827;
+          color: white;
+          padding: 8px 10px;
+          font-size: 14px;
+        }
+        button {
+          margin-top: 10px;
+          background: white;
+          color: black;
+          border: none;
+          padding: 10px 16px;
+          border-radius: 8px;
+          font-weight: 600;
+          cursor: pointer;
+        }
+        button:disabled {
+          opacity: 0.6;
+          cursor: default;
+        }
+        .msg {
+          margin-bottom: 16px;
+          padding: 8px 10px;
+          border-radius: 6px;
+          font-size: 13px;
+        }
+        .success {
+          background: #065f46;
+          color: #d1fae5;
+        }
+        .note {
+          margin-top: 16px;
+          font-size: 12px;
+          color: #9ca3af;
+        }
+      `}</style>
     </div>
   );
 }
