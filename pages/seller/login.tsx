@@ -1,4 +1,6 @@
 // FILE: /pages/seller/login.tsx
+// (same as last version I gave you, only the 2FA error paths changed)
+
 import Head from "next/head";
 import Link from "next/link";
 import { useRouter } from "next/router";
@@ -7,7 +9,6 @@ import Header from "../../components/Header";
 import Footer from "../../components/Footer";
 import PasswordInput from "../../components/PasswordInput";
 
-// --- Types for the login API response ---
 type LoginSuccess = { ok: true; sellerId: string };
 type LoginError = {
   ok: false;
@@ -71,7 +72,6 @@ export default function SellerLoginPage() {
     setLoading(true);
 
     try {
-      // 1) Normal seller login (email + password)
       const res = await fetch("/api/seller/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -99,7 +99,6 @@ export default function SellerLoginPage() {
 
       setPendingSellerId(json.sellerId);
 
-      // 2) Start 2FA challenge
       const twofaRes = await fetch("/api/auth/start-2fa", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -114,7 +113,8 @@ export default function SellerLoginPage() {
       const twofaJson = (await twofaRes.json()) as Start2faResponse;
 
       if (!twofaJson.ok) {
-        setError(twofaJson.message || "Could not start verification step.");
+        const errJson = twofaJson as Start2faError;
+        setError(errJson.message || "Could not start verification step.");
         return;
       }
 
@@ -168,7 +168,8 @@ export default function SellerLoginPage() {
       const json = (await res.json()) as Verify2faResponse;
 
       if (!json.ok) {
-        setError(json.message || "Incorrect or expired code.");
+        const errJson = json as Verify2faError;
+        setError(errJson.message || "Incorrect or expired code.");
         return;
       }
 
@@ -265,7 +266,7 @@ export default function SellerLoginPage() {
                       />
                       <span>Email code</span>
                     </label>
-                    <label className="inline-flex items-center gap-1">
+                    <label className="inline-flex itemsCenter gap-1">
                       <input
                         type="radio"
                         className="h-3 w-3"
