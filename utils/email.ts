@@ -5,7 +5,8 @@ const host = process.env.SMTP_HOST;
 const port = Number(process.env.SMTP_PORT || "587");
 const user = process.env.SMTP_USER;
 const pass = process.env.SMTP_PASS;
-const from = process.env.SMTP_FROM || process.env.SMTP_USER;
+const from =
+  process.env.SMTP_FROM || (process.env.SMTP_USER ?? "no-reply@famousfinds.com");
 
 if (!host || !user || !pass) {
   console.warn(
@@ -27,13 +28,11 @@ export async function sendLoginCode(to: string, code: string) {
   });
 
   const subject = "Your Famous Finds admin login code";
-
-  const text = `Your Famous Finds admin login code is: ${code}\n\nThis code will expire shortly. If you did not request this, you can ignore this email.`;
-
+  const text = `Your Famous Finds login code is: ${code}\n\nIf you did not request this, you can ignore this email.`;
   const html = `
-    <p>Your Famous Finds admin login code is:</p>
-    <p style="font-size: 24px; font-weight: bold; letter-spacing: 4px;">${code}</p>
-    <p>This code will expire shortly. If you did not request this, you can ignore this email.</p>
+    <p>Your Famous Finds login code is:</p>
+    <p style="font-size:24px;font-weight:bold;letter-spacing:4px;">${code}</p>
+    <p>If you did not request this, you can ignore this email.</p>
   `;
 
   await transporter.sendMail({
@@ -44,3 +43,4 @@ export async function sendLoginCode(to: string, code: string) {
     html,
   });
 }
+
