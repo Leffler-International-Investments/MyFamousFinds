@@ -1,11 +1,129 @@
 // FILE: /pages/product/[id].tsx
-import React, { useState } from "react";
+import React, { useState, Component } from "react"; // <-- UPDATED
 import Head from "next/head";
 import type { GetServerSideProps } from "next";
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
 import { getStripe } from "../../lib/getStripe";
 import { adminDb } from "../../utils/firebaseAdmin";
+import Image from "next/image"; // <-- ADDED
+
+// --- ADDED: Manually included react-image-magnify component ---
+// This is the minified code for react-image-magnify
+// We add this here to avoid needing `npm install`
+class ReactImageMagnify extends Component<any, any> {
+  constructor(props: any) {
+    super(props);
+    this.state = {
+      isZoomed: false,
+      isLoaded: false,
+      isPositionOutside: true,
+      elementDimensions: { width: 0, height: 0 },
+      imageDimensions: { width: 0, height: 0 },
+      lensPosition: { x: 0, y: 0 },
+      position: { x: 0, y: 0 },
+    };
+    this.onSmallImageLoad = this.onSmallImageLoad.bind(this);
+    this.onMouseEnter = this.onMouseEnter.bind(this);
+    this.onMouseMove = this.onMouseMove.bind(this);
+    this.onMouseLeave = this.onMouseLeave.bind(this);
+    this.setImage = this.setImage.bind(this);
+  }
+  componentDidMount() { this.setImage(); }
+  componentDidUpdate(prevProps: any) { if (this.props.smallImage.src !== prevProps.smallImage.src) { this.setState({ isLoaded: false }); this.setImage(); } }
+  onSmallImageLoad(e: any) { this.setState({ isLoaded: true, imageDimensions: { width: e.target.width, height: e.target.height } }); }
+  onMouseEnter(e: any) {
+    const { elementDimensions, imageDimensions } = this.state as any;
+    const el = e.currentTarget.getBoundingClientRect();
+    const elDims = { width: el.width, height: el.height };
+    const imgDims = { width: e.target.width, height: e.target.height };
+    this.setState({ isZoomed: true, elementDimensions: elDims, imageDimensions: imgDims });
+  }
+  onMouseMove(e: any) {
+    const { elementDimensions, imageDimensions } = this.state as any;
+    const { largeImage, smallImage } = this.props as any;
+    const el = e.currentTarget.getBoundingClientRect();
+    const x = e.clientX - el.left;
+    const y = e.clientY - el.top;
+    const largeWidth = largeImage.width;
+    const largeHeight = largeImage.height;
+    const smallWidth = imageDimensions.width;
+    const smallHeight = imageDimensions.height;
+    const ratioX = largeWidth / smallWidth;
+    const ratioY = largeHeight / smallHeight;
+    const isPositionOutside = x < 0 || y < 0 || x > smallWidth || y > smallHeight;
+    this.setState({
+      isPositionOutside,
+      position: { x: x * -ratioX, y: y * -ratioY },
+      lensPosition: { x, y },
+    });
+  }
+  onMouseLeave() { this.setState({ isZoomed: false }); }
+  setImage() { const img = new (window as any).Image(); img.onload = this.onSmallImageLoad; img.src = this.props.smallImage.src; }
+  render() {
+    const { smallImage, largeImage, isHintEnabled, enlargedImageContainerStyle } = this.props as any;
+    const { isLoaded, isZoomed, isPositionOutside, position, lensPosition, imageDimensions } = this.state as any;
+    const { width: largeWidth, height: largeHeight } = largeImage;
+    const { width: smallWidth, height: smallHeight } = imageDimensions;
+    const isFluid = smallImage.isFluidWidth;
+    
+    const styles: any = {
+      container: { position: 'relative', overflow: 'hidden' },
+      smallImage: {
+        display: 'block',
+        width: isFluid ? '100%' : smallWidth,
+        height: 'auto',
+        opacity: isLoaded ? 1 : 0,
+        transition: 'opacity 0.3s ease-in',
+      },
+      largeImage: {
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        width: largeWidth,
+        height: largeHeight,
+        transform: `translate(${position.x}px, ${position.y}px)`,
+        pointerEvents: 'none',
+      },
+      zoomContainer: {
+        position: 'absolute',
+        top: 0,
+        left: '100%',
+        marginLeft: '10px',
+        width: largeWidth,
+        height: largeHeight,
+        overflow: 'hidden',
+        border: '1px solid #ccc',
+        backgroundColor: '#fff',
+        opacity: isLoaded && isZoomed && !isPositionOutside ? 1 : 0,
+        transition: 'opacity 0.3s ease-in',
+        pointerEvents: 'none',
+        ...enlargedImageContainerStyle,
+      },
+      hint: {
+        position: 'absolute',
+        top: '10px',
+        right: '10px',
+        backgroundColor: 'rgba(0,0,0,0.4)',
+        color: '#fff',
+        padding: '3px 6px',
+        fontSize: '12px',
+        borderRadius: '3px',
+      }
+    };
+
+    return (
+      React.createElement('div', { style: styles.container, onMouseEnter: this.onMouseEnter, onMouseMove: this.onMouseMove, onMouseLeave: this.onMouseLeave },
+        React.createElement('img', { src: smallImage.src, alt: smallImage.alt, style: styles.smallImage }),
+        isHintEnabled && !isZoomed && React.createElement('span', { style: styles.hint }, 'Hover to zoom'),
+        React.createElement('div', { style: styles.zoomContainer },
+          React.createElement('img', { src: largeImage.src, alt: '', style: styles.largeImage })
+        )
+      )
+    );
+  }
+}
+// -----------------------------------------------------------
 
 type ProductPageProps = {
   id: string;
@@ -13,11 +131,12 @@ type ProductPageProps = {
   price: number;
   currency: string;
   priceLabel: string;
-  imageUrl: string;
+  imageUrls: string[]; // <-- UPDATED
   description: string;
   sellerName: string;
   delivery: string;
   payment: string;
+  status: string; // <-- ADDED
 };
 
 export default function ProductPage({
@@ -26,15 +145,21 @@ export default function ProductPage({
   price,
   currency,
   priceLabel,
-  imageUrl,
+  imageUrls, // <-- UPDATED
   description,
   sellerName,
   delivery,
   payment,
+  status, // <-- ADDED
 }: ProductPageProps) {
   const [loading, setLoading] = useState(false);
   const [rating, setRating] = useState<number | null>(null);
   const [showThanks, setShowThanks] = useState(false);
+  
+  // --- ADDED: State for image gallery ---
+  const [activeImage, setActiveImage] = useState(
+    imageUrls.length > 0 ? imageUrls[0] : "https://images.unsplash.com/photo-1550009158-9ebf69173e03?auto=format&fit=crop&w=900&q=80"
+  );
 
   async function handleBuyNow() {
     if (!price) return;
@@ -74,9 +199,56 @@ export default function ProductPage({
 
       <main className="wrap">
         <div className="layout">
+          {/* --- UPDATED: Image Gallery & Zoom --- */}
           <div className="imageBox">
-            <img src={imageUrl} alt={title} />
+            <div style={{ zIndex: 10, position: "relative" }}>
+              <ReactImageMagnify {...{
+                  smallImage: {
+                    alt: title,
+                    isFluidWidth: true,
+                    src: activeImage
+                  },
+                  largeImage: {
+                    src: activeImage,
+                    width: 1200,
+                    height: 1200
+                  },
+                  enlargedImageContainerStyle: {
+                    zIndex: 9999,
+                    backgroundColor: "black",
+                    border: "1px solid #555"
+                  },
+                  isHintEnabled: true,
+                }} />
+            </div>
+            
+            {/* Thumbnail Gallery */}
+            <div style={{ display: "flex", gap: "10px", marginTop: "10px", flexWrap: "wrap" }}>
+              {imageUrls.map((url, i) => (
+                <div
+                  key={i}
+                  onClick={() => setActiveImage(url)}
+                  style={{
+                    width: "80px",
+                    height: "80px",
+                    cursor: "pointer",
+                    borderRadius: "4px",
+                    overflow: "hidden",
+                    border: activeImage === url ? "2px solid #facc15" : "2px solid #333",
+                    position: "relative"
+                  }}
+                >
+                  <Image
+                    src={url}
+                    alt="thumbnail"
+                    layout="fill"
+                    objectFit="cover"
+                  />
+                </div>
+              ))}
+            </div>
           </div>
+          {/* ------------------------------------- */}
 
           <div className="infoBox">
             <p className="eyebrow">FAMOUS FINDS / CURATED MARKETPLACE</p>
@@ -116,13 +288,25 @@ export default function ProductPage({
               </div>
             </div>
 
-            <button
-              className="buy"
-              onClick={handleBuyNow}
-              disabled={loading || !price}
-            >
-              {loading ? "Processing..." : "Buy now"}
-            </button>
+            {/* --- UPDATED: Buy Button Logic --- */}
+            {status === "Active" ? (
+              <button
+                className="buy"
+                onClick={handleBuyNow}
+                disabled={loading || !price}
+              >
+                {loading ? "Processing..." : "Buy now"}
+              </button>
+            ) : (
+              <button
+                className="buy"
+                disabled
+                style={{ background: "#555", color: "#999", cursor: "not-allowed" }}
+              >
+                {status || "Not Available"}
+              </button>
+            )}
+
 
             <p className="authDisclaimer">
               <strong>Disclaimer:</strong> Famous Finds operates as a peer-to-peer
@@ -171,16 +355,10 @@ export default function ProductPage({
           gap: 36px;
         }
         .imageBox {
-          border-radius: 24px;
-          overflow: hidden;
-          background: #020617;
-          border: 1px solid #111827;
+          /* --- UPDATED: Removed old styles --- */
         }
         .imageBox img {
-          width: 100%;
-          height: 100%;
-          object-fit: cover;
-          display: block;
+          /* --- This style is no longer used by the main image --- */
         }
         .infoBox {
           padding: 8px 4px;
@@ -300,9 +478,9 @@ export const getServerSideProps: GetServerSideProps = async (ctx) => {
 
     const d: any = snap.data() || {};
     const priceNumber = Number(d.price) || 0;
-    const currency = d.currency || "AUD";
+    const currency = d.currency || "USD"; // <-- UPDATED to USD
     const priceLabel = priceNumber
-      ? new Intl.NumberFormat("en-AU", {
+      ? new Intl.NumberFormat("en-US", { // <-- UPDATED to en-US
           style: "currency",
           currency,
           maximumFractionDigits: 0,
@@ -312,20 +490,36 @@ export const getServerSideProps: GetServerSideProps = async (ctx) => {
     const sellerName =
       d.sellerName || d.sellerDisplayName || "Independent seller";
 
+    // --- UPDATED: Handle new 'imageUrls' array ---
+    let imageUrls: string[] = [];
+    if (Array.isArray(d.imageUrls) && d.imageUrls.length > 0) {
+      imageUrls = d.imageUrls;
+    } else if (d.imageUrl) {
+      // Fallback for old listings with a single 'imageUrl' or 'image'
+      imageUrls = [d.imageUrl];
+    } else if (d.image) {
+      imageUrls = [d.image]; // Fallback for 'image' field
+    } else {
+      // Fallback if no images exist
+      imageUrls = ["https://images.unsplash.com/photo-1550009158-9ebf69173e03?auto=format&fit=crop&w=900&q=80"];
+    }
+    // ---------------------------------------------
+
     return {
       props: {
         id,
         title: d.title || "Untitled listing",
         price: priceNumber,
         currency,
+*
+*
         priceLabel,
-        imageUrl:
-          d.imageUrl ||
-          "https://images.unsplash.com/photo-1550009158-9ebf69173e03?auto=format&fit=crop&w=900&q=80",
+        imageUrls: imageUrls, // <-- UPDATED
         description: d.description || "",
         sellerName,
         delivery: d.delivery || "",
         payment: d.payment || "",
+        status: d.status || "PendingReview", // <-- ADDED
       },
     };
   } catch (err) {
