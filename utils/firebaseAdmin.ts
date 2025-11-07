@@ -1,6 +1,7 @@
 // FILE: /utils/firebaseAdmin.ts
 import { getApps, initializeApp, cert, ServiceAccount } from "firebase-admin/app";
 import { getFirestore, FieldValue } from "firebase-admin/firestore";
+import { getAuth } from "firebase-admin/auth";
 
 let initialized = false;
 
@@ -44,5 +45,11 @@ function initFirebaseAdmin() {
 
 initFirebaseAdmin();
 
+// ✅ Firestore
 export const adminDb = getFirestore();
+
+// ✅ Auth (for verifying ID tokens)
+export const adminAuth = getAuth();
+
+// ✅ Firestore FieldValue utility
 export { FieldValue };
