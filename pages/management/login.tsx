@@ -23,14 +23,15 @@ type Verify2faError = { ok: false; message: string };
 type Verify2faResponse = Verify2faSuccess | Verify2faError;
 
 type TwoFactorStep = "credentials" | "verify";
-type TwoFactorMethod = "email" | "sms";
+// The TwoFactorMethod type is no longer needed as we hardcode "email"
+// type TwoFactorMethod = "email" | "sms";
 
 export default function ManagementLoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [method, setMethod] = useState<TwoFactorMethod>("email");
-  const [phone, setPhone] = useState("");
+  // const [method, setMethod] = useState<TwoFactorMethod>("email"); // Removed
+  // const [phone, setPhone] = useState(""); // Removed
   const [code, setCode] = useState("");
   const [step, setStep] = useState<TwoFactorStep>("credentials");
   const [challengeId, setChallengeId] = useState<string | null>(null);
@@ -38,12 +39,10 @@ export default function ManagementLoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // This variable is no longer used for the final redirect,
-  // but can remain for other potential logic.
   const from =
     typeof router.query.from === "string"
       ? router.query.from
-      : "/management/dashboard"; // Updated default
+      : "/management/dashboard";
 
   async function handleCredentialsSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -59,13 +58,8 @@ export default function ManagementLoginPage() {
         password
       );
 
-      if (method === "sms" && !phone.trim()) {
-        setError(
-          "Please enter a mobile number for SMS verification or switch to email verification."
-        );
-        setLoading(false);
-        return;
-      }
+      // Removed SMS check
+      // if (method === "sms" && !phone.trim()) { ... }
 
       const trimmedEmail = email.toLowerCase().trim();
 
@@ -75,8 +69,8 @@ export default function ManagementLoginPage() {
         body: JSON.stringify({
           email: trimmedEmail,
           role: "management",
-          method,
-          phone: phone || undefined,
+          method: "email", // Hardcoded to "email"
+          // phone: phone || undefined, // Removed
         }),
       });
 
@@ -92,10 +86,8 @@ export default function ManagementLoginPage() {
       setChallengeId(json.challengeId);
       setStep("verify");
 
-      let message =
-        json.via === "sms"
-          ? "We’ve sent a 6-digit code to your mobile number."
-          : "We’ve sent a 6-digit code to your email address.";
+      // Simplified message
+      let message = "We’ve sent a 6-digit code to your email address.";
 
       if (json.devCode) {
         message += ` (Dev code: ${json.devCode})`;
@@ -154,11 +146,7 @@ export default function ManagementLoginPage() {
         window.localStorage.setItem("ff-email", trimmedEmail);
       }
 
-      // --- THIS IS YOUR FIX ---
-      // It now correctly points to the management dashboard
       router.push("/management/dashboard");
-      // ------------------------
-
     } catch (err) {
       console.error("management_verify_2fa_error", err);
       setError("Unable to verify the code. Please try again.");
@@ -227,42 +215,7 @@ export default function ManagementLoginPage() {
                   placeholder="Enter your admin password"
                 />
 
-                <div>
-                  <p className="mb-1 text-xs font-medium text-gray-300">
-                    Two-step verification
-                  </p>
-                  <div className="flex items-center gap-4 text-xs text-gray-300">
-                    <label className="inline-flex items-center gap-1">
-                      <input
-                        type="radio"
-                        className="h-3 w-3"
-                        checked={method === "email"}
-                        onChange={() => setMethod("email")}
-                      />
-                      <span>Email code</span>
-                    </label>
-                    <label className="inline-flex items-center gap-1">
-                      <input
-                        type="radio"
-                        className="h-3 w-3"
-                        checked={method === "sms"}
-                        onChange={() => setMethod("sms")}
-                      />
-                      <span>SMS to mobile</span>
-                    </label>
-                  </div>
-                  <p className="mt-1 text-[11px] text-gray-500">
-                    If you prefer SMS, enter your mobile number below;
-                    otherwise we&apos;ll send the code to your email.
-                  </p>
-                  <input
-                    type="tel"
-                    placeholder="Mobile number (optional)"
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    className="mt-2 w-full rounded-md border border-neutral-700 bg-black/40 px-3 py-2 text-sm text-gray-100 focus:border-gray-100 focus:outline-none"
-                  />
-                </div>
+                {/* --- Removed 2FA SMS options --- */}
 
                 <button
                   type="submit"
@@ -275,8 +228,7 @@ export default function ManagementLoginPage() {
             ) : (
               <form onSubmit={handleVerifySubmit} className="mt-6 space-y-4">
                 <p className="text-xs text-gray-300">
-                  Enter the 6-digit code we sent to your{" "}
-                  {method === "sms" ? "mobile number" : "email address"} to
+                  Enter the 6-digit code we sent to your email address to
                   finish signing in.
                 </p>
                 <div>
