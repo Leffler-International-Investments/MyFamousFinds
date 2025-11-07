@@ -25,8 +25,8 @@ OPENAI_MODEL=gpt-4o
 
 
 SMTP_HOST=sandbox.smtp.mailtrap.io
-SMTP_PORT=587
+SMTP_PORT=2525
 SMTP_USER=11609c583f09b8
 SMTP_PASS=b40cb64bca68e9
-SMTP_FROM=Famous Finds <no-reply@famousfinds.com>
+SMTP_FROM=Famous Finds <no-reply@famous-finds.com>
 
