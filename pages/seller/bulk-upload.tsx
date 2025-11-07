@@ -3,7 +3,14 @@ import Head from "next/head";
 import Link from "next/link";
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
-import { useState, FormEvent } from "react";
+import {
+  useState,
+  FormEvent,
+  ChangeEvent,
+  DragEvent,
+} from "react";
+import { storage } from "../../utils/firebaseClient";
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 
 type UploadRow = {
   id: string;
@@ -11,6 +18,7 @@ type UploadRow = {
   brand: string;
   price: string;
   category: string;
+  imageUrl?: string;
   status: "ready" | "missing" | "error";
 };
 
@@ -31,7 +39,16 @@ export default function SellerBulkUpload() {
   const [singleMessage, setSingleMessage] = useState<string | null>(null);
   const [singleError, setSingleError] = useState<string | null>(null);
 
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Image state for quick single listing
+  const [singleImageFile, setSingleImageFile] = useState<File | null>(null);
+  const [singleImagePreview, setSingleImagePreview] =
+    useState<string | null>(null);
+  const [singleUploadingImage, setSingleUploadingImage] =
+    useState(false);
+
+  // ---------------- CSV BULK UPLOAD ----------------
+
+  const handleFileChange = async (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     setFileName(file.name);
@@ -104,6 +121,64 @@ export default function SellerBulkUpload() {
     }
   };
 
+  // ---------------- SINGLE LISTING + IMAGE ----------------
+
+  function handleSingleImageSelect(file: File | null) {
+    setSingleImageFile(file);
+    if (!file) {
+      setSingleImagePreview(null);
+      return;
+    }
+    const url = URL.createObjectURL(file);
+    setSingleImagePreview(url);
+  }
+
+  const handleSingleImageInputChange = (
+    e: ChangeEvent<HTMLInputElement>
+  ) => {
+    const file = e.target.files?.[0] || null;
+    if (file && !file.type.startsWith("image/")) {
+      setSingleError("Please choose an image file (jpg, png, etc.)");
+      return;
+    }
+    setSingleError(null);
+    handleSingleImageSelect(file);
+  };
+
+  const handleSingleImageDrop = (e: DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    const file = e.dataTransfer.files?.[0] || null;
+    if (file && !file.type.startsWith("image/")) {
+      setSingleError("Please drop an image file (jpg, png, etc.)");
+      return;
+    }
+    setSingleError(null);
+    handleSingleImageSelect(file);
+  };
+
+  const handleSingleImageDragOver = (e: DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+  };
+
+  async function uploadSingleImageIfNeeded(): Promise<string | null> {
+    if (!singleImageFile) return null;
+
+    setSingleUploadingImage(true);
+    try {
+      const safeName = singleImageFile.name.replace(
+        /[^a-zA-Z0-9._-]/g,
+        "_"
+      );
+      const path = `listing-images/${Date.now()}-${safeName}`;
+      const storageRef = ref(storage, path);
+      const snap = await uploadBytes(storageRef, singleImageFile);
+      const url = await getDownloadURL(snap.ref);
+      return url;
+    } finally {
+      setSingleUploadingImage(false);
+    }
+  }
+
   // NEW: quick single listing without CSV
   const handleSingleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -115,17 +190,20 @@ export default function SellerBulkUpload() {
       return;
     }
 
-    const row: UploadRow = {
-      id: "manual-" + Date.now(),
-      title: singleTitle.trim(),
-      brand: singleBrand.trim(),
-      category: singleCategory.trim(),
-      price: singlePrice.trim(),
-      status: "ready",
-    };
-
     setSingleBusy(true);
     try {
+      const imageUrl = await uploadSingleImageIfNeeded();
+
+      const row: UploadRow = {
+        id: "manual-" + Date.now(),
+        title: singleTitle.trim(),
+        brand: singleBrand.trim(),
+        category: singleCategory.trim(),
+        price: singlePrice.trim(),
+        imageUrl: imageUrl || undefined,
+        status: "ready",
+      };
+
       const res = await fetch("/api/seller/bulk-commit", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -137,12 +215,13 @@ export default function SellerBulkUpload() {
       }
 
       setSingleMessage(
-        "Listing created. You can review and add photos in your catalogue."
+        "Listing created. You can review and add more photos in your catalogue."
       );
       setSingleTitle("");
       setSingleBrand("");
       setSingleCategory("");
       setSinglePrice("");
+      handleSingleImageSelect(null);
     } catch (err: any) {
       console.error("single_listing_error", err);
       setSingleError(
@@ -152,6 +231,10 @@ export default function SellerBulkUpload() {
       setSingleBusy(false);
     }
   };
+
+  const singleDisabled = singleBusy || singleUploadingImage;
+
+  // ---------------- RENDER ----------------
 
   return (
     <div className="min-h-screen bg-black text-gray-100">
@@ -228,7 +311,7 @@ export default function SellerBulkUpload() {
                 </a>
               </div>
 
-              {/* NEW: Quick single listing form */}
+              {/* Quick single listing form */}
               <div className="mt-8 border-t border-neutral-800 pt-5">
                 <h3 className="text-sm font-semibold">
                   Or add a single listing (no CSV)
@@ -287,13 +370,53 @@ export default function SellerBulkUpload() {
                       className="mt-1 w-full rounded-md border border-neutral-700 bg-black/40 px-3 py-2 text-xs text-gray-100 focus:border-gray-200 focus:outline-none"
                     />
                   </div>
+
+                  {/* Image drop / upload */}
+                  <div className="md:col-span-2">
+                    <label className="block text-[11px] font-medium text-gray-300">
+                      Photo (optional)
+                    </label>
+                    <div
+                      onDragOver={handleSingleImageDragOver}
+                      onDrop={handleSingleImageDrop}
+                      className="mt-1 flex flex-col items-center justify-center rounded-md border border-dashed border-neutral-700 bg-black/40 px-3 py-4 text-center text-[11px] text-gray-400"
+                    >
+                      <p className="mb-1">
+                        Drag &amp; drop image here, or click to browse.
+                      </p>
+                      <label className="cursor-pointer rounded-full border border-neutral-600 px-3 py-1 text-[11px] hover:border-neutral-400">
+                        Choose file
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={handleSingleImageInputChange}
+                        />
+                      </label>
+                      {singleUploadingImage && (
+                        <p className="mt-2 text-[11px] text-gray-300">
+                          Uploading image…
+                        </p>
+                      )}
+                      {singleImagePreview && (
+                        <div className="mt-3">
+                          <img
+                            src={singleImagePreview}
+                            alt="Preview"
+                            className="h-24 w-auto rounded-md border border-neutral-700 object-cover"
+                          />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
                   <div className="flex items-end">
                     <button
                       type="submit"
-                      disabled={singleBusy}
+                      disabled={singleDisabled}
                       className="rounded-full bg-white px-4 py-2 text-xs font-medium text-black hover:bg-gray-100 disabled:opacity-60"
                     >
-                      {singleBusy ? "Creating…" : "Create listing"}
+                      {singleDisabled ? "Creating…" : "Create listing"}
                     </button>
                   </div>
                 </form>
