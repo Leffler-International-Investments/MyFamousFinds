@@ -1,16 +1,14 @@
 // FILE: /pages/product/[id].tsx
-import React, { useState, Component } from "react"; // <-- UPDATED
+import React, { useState, Component } from "react";
 import Head from "next/head";
 import type { GetServerSideProps } from "next";
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
 import { getStripe } from "../../lib/getStripe";
 import { adminDb } from "../../utils/firebaseAdmin";
-import Image from "next/image"; // <-- ADDED
+import Image from "next/image";
 
-// --- ADDED: Manually included react-image-magnify component ---
-// This is the minified code for react-image-magnify
-// We add this here to avoid needing `npm install`
+// --- Manually included react-image-magnify component ---
 class ReactImageMagnify extends Component<any, any> {
   constructor(props: any) {
     super(props);
@@ -131,12 +129,12 @@ type ProductPageProps = {
   price: number;
   currency: string;
   priceLabel: string;
-  imageUrls: string[]; // <-- UPDATED
+  imageUrls: string[]; 
   description: string;
   sellerName: string;
   delivery: string;
   payment: string;
-  status: string; // <-- ADDED
+  status: string;
 };
 
 export default function ProductPage({
@@ -145,18 +143,17 @@ export default function ProductPage({
   price,
   currency,
   priceLabel,
-  imageUrls, // <-- UPDATED
+  imageUrls,
   description,
   sellerName,
   delivery,
   payment,
-  status, // <-- ADDED
+  status,
 }: ProductPageProps) {
   const [loading, setLoading] = useState(false);
   const [rating, setRating] = useState<number | null>(null);
   const [showThanks, setShowThanks] = useState(false);
   
-  // --- ADDED: State for image gallery ---
   const [activeImage, setActiveImage] = useState(
     imageUrls.length > 0 ? imageUrls[0] : "https://images.unsplash.com/photo-1550009158-9ebf69173e03?auto=format&fit=crop&w=900&q=80"
   );
@@ -489,7 +486,7 @@ export const getServerSideProps: GetServerSideProps = async (ctx) => {
 
     const sellerName =
       d.sellerName || d.sellerDisplayName || "Independent seller";
-
+      
     // --- UPDATED: Handle new 'imageUrls' array ---
     let imageUrls: string[] = [];
     if (Array.isArray(d.imageUrls) && d.imageUrls.length > 0) {
@@ -511,15 +508,14 @@ export const getServerSideProps: GetServerSideProps = async (ctx) => {
         title: d.title || "Untitled listing",
         price: priceNumber,
         currency,
-*
-*
+        // --- FIX: Removed the stray asterisks ---
         priceLabel,
-        imageUrls: imageUrls, // <-- UPDATED
+        imageUrls: imageUrls, 
         description: d.description || "",
         sellerName,
         delivery: d.delivery || "",
         payment: d.payment || "",
-        status: d.status || "PendingReview", // <-- ADDED
+        status: d.status || "PendingReview",
       },
     };
   } catch (err) {
