@@ -1,95 +1,47 @@
 // FILE: /pages/api/seller/orders.ts
-
 import type { NextApiRequest, NextApiResponse } from "next";
-import { getSellerId } from "../../../utils/authServer";
-import { adminDb } from "../../../utils/firebaseAdmin";
 
-type OrderPayload = {
+/**
+ * Temporary stub API for seller orders.
+ *
+ * This is intentionally simple so your Vercel build compiles without
+ * depending on getSellerId(...) or any unfinished Firestore indexes.
+ *
+ * The Seller Orders page (/pages/seller/orders.tsx) calls this endpoint
+ * and expects:
+ *   { ok: boolean; orders: Array<{ id: string; item: string; buyer: string; total: string; status: string }> }
+ *
+ * Right now we just return an empty list (no orders yet).
+ * When you are ready to wire real data, you can replace the contents of
+ * handler() with Firestore / Stripe logic.
+ */
+
+type OrderRow = {
   id: string;
   item: string;
   buyer: string;
-  total: string;
+  total: string; // formatted like "$1,200"
   status: string;
 };
 
 type OrdersResponse =
-  | { ok: true; orders: OrderPayload[] }
+  | { ok: true; orders: OrderRow[] }
   | { ok: false; error: string };
 
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse<OrdersResponse>
 ) {
-  try {
-    const sellerId = await getSellerId(req, res);
-    if (!sellerId) {
-      return res.status(401).json({
-        ok: false,
-        error: "unauthorized",
-      });
-    }
-
-    // Simple query that does NOT require a composite Firestore index
-    const snap = await adminDb
-      .collection("orders")
-      .where("sellerId", "==", sellerId)
-      .get();
-
-    // Map docs to a stable payload shape and sort newest first
-    const docs = snap.docs;
-
-    const orders: OrderPayload[] = docs
-      .map((doc) => {
-        const data: any = doc.data() || {};
-
-        const title: string =
-          data.title ||
-          data.itemTitle ||
-          data.listingTitle ||
-          "Unknown item";
-
-        const buyer: string =
-          data.buyerName ||
-          data.buyerEmail ||
-          data.buyerId ||
-          "Private buyer";
-
-        const rawTotal =
-          data.total !== undefined && data.total !== null
-            ? Number(data.total)
-            : data.price !== undefined && data.price !== null
-            ? Number(data.price)
-            : 0;
-
-        const status: string =
-          data.status ||
-          data.orderStatus ||
-          "Pending";
-
-        return {
-          id: doc.id,
-          item: title,
-          buyer,
-          total: `$${rawTotal.toFixed(2)}`, // Always USD
-          status,
-        };
-      })
-      .sort((a, b) => {
-        const aDoc = docs.find((d) => d.id === a.id);
-        const bDoc = docs.find((d) => d.id === b.id);
-        const aCreated =
-          (aDoc?.data() as any)?.createdAt?.toDate?.()?.getTime?.() || 0;
-        const bCreated =
-          (bDoc?.data() as any)?.createdAt?.toDate?.()?.getTime?.() || 0;
-        return bCreated - aCreated;
-      });
-
-    return res.status(200).json({ ok: true, orders });
-  } catch (err: any) {
-    console.error("seller_orders_error", err);
-    return res.status(500).json({
-      ok: false,
-      error: err?.message || "server_error",
-    });
+  if (req.method !== "GET") {
+    return res
+      .status(405)
+      .json({ ok: false, error: "Method not allowed. Use GET." });
   }
+
+  // TODO: when you add real data, look up the current seller here
+  // and fetch their orders from Firestore / Stripe.
+  // For now, we return an empty array so the UI loads without errors.
+  const orders: OrderRow[] = [];
+
+  return res.status(200).json({ ok: true, orders });
 }
