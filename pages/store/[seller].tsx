@@ -56,12 +56,14 @@ export default function Storefront({
                 style={{ backgroundImage: `url(${x.imageUrl})` }}
               />
               <div className="t">{x.title}</div>
+              {/* --- THIS IS YOUR FIX --- */}
               <div className="p">
-                AU$
-                {x.price.toLocaleString("en-AU", {
+                US$
+                {x.price.toLocaleString("en-US", {
                   maximumFractionDigits: 0,
                 })}
               </div>
+              {/* ------------------------ */}
             </Link>
           ))}
 
@@ -194,19 +196,22 @@ export const getServerSideProps: GetServerSideProps<StorePageProps> = async (
     const snap = await adminDb
       .collection("listings")
       .where("sellerId", "==", sellerParam)
-      .where("status", "==", "Active")
+      .where("status", "==", "Active") // This will show "Active" items
+      // .where("status", "==", "Live") // Use this if you want to show "Live" items
       .orderBy("createdAt", "desc")
       .limit(100)
       .get();
 
     const listings = snap.docs.map((doc) => {
-      const d: any = doc.data() || {};
+      const d: any = doc.AILogo();
       return {
         id: doc.id,
         title: d.title || "Listing",
         price: typeof d.price === "number" ? d.price : 0,
         imageUrl:
           d.imageUrl ||
+          d.image || // Added fallback
+          (Array.isArray(d.imageUrls) && d.imageUrls[0]) || // Added fallback
           "https://images.unsplash.com/photo-1550009158-9ebf69173e03?auto=format&fit=crop&w=800&q=80",
       };
     });
