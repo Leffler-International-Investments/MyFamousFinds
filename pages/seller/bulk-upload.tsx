@@ -174,6 +174,9 @@ export default function SellerBulkUpload() {
     const newFiles = Array.from(files);
     setSingleImageFiles(newFiles);
     
+    // Revoke old preview URLs to prevent memory leaks
+    singleImagePreviews.forEach(URL.revokeObjectURL);
+    
     const newPreviews = newFiles.map(file => URL.createObjectURL(file));
     setSingleImagePreviews(newPreviews);
   }
@@ -186,7 +189,7 @@ export default function SellerBulkUpload() {
     if (files) {
       for (const file of Array.from(files)) {
         if (!file.type.startsWith("image/")) {
-          setSingleError("Please choose image files (jpg, png, etc.)");
+          setSingleError("Please choose image files (jpg, png, webp, etc.)");
           return;
         }
       }
@@ -201,7 +204,7 @@ export default function SellerBulkUpload() {
     if (files) {
        for (const file of Array.from(files)) {
         if (!file.type.startsWith("image/")) {
-          setSingleError("Please drop image files (jpg, png, etc.)");
+          setSingleError("Please drop image files (jpg, png, webp, etc.)");
           return;
         }
       }
@@ -539,8 +542,9 @@ export default function SellerBulkUpload() {
                         Choose files
                         <input
                           type="file"
-                          accept="image/*"
-                          multiple // <-- UPDATED
+                          // --- THIS IS THE FIX ---
+                          accept="image/png, image/jpeg, image/webp" // Be specific
+                          multiple // <-- Allow multiple
                           className="hidden"
                           onChange={handleSingleImageInputChange}
                         />
