@@ -20,46 +20,69 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse<OrdersResponse>
 ) {
-  if (req.method !== "GET") {
-    return res
-      .status(405)
-      .json({ ok: false, error: "method_not_allowed" });
-  }
-
   try {
-    const sellerId = getSellerId(req);
+    const sellerId = await getSellerId(req, res);
     if (!sellerId) {
-      return res
-        .status(401)
-        .json({ ok: false, error: "unauthorized" });
+      return res.status(401).json({
+        ok: false,
+        error: "unauthorized",
+      });
     }
 
+    // Simple query that does NOT require a composite Firestore index
     const snap = await adminDb
       .collection("orders")
       .where("sellerId", "==", sellerId)
-      .orderBy("createdAt", "desc")
-      .limit(100)
       .get();
 
-    const orders: OrderPayload[] = snap.docs.map((doc) => {
-      const data: any = doc.data() || {};
-      const gross =
-        data.totalGross ??
-        data.total ??
-        data.price ??
-        0;
+    // Map docs to a stable payload shape and sort newest first
+    const docs = snap.docs;
 
-      return {
-        id: doc.id,
-        item:
-          data.listingTitle ||
+    const orders: OrderPayload[] = docs
+      .map((doc) => {
+        const data: any = doc.data() || {};
+
+        const title: string =
           data.title ||
-          "Unknown item",
-        buyer: data.buyerName || "Private buyer",
-        total: `$${Number(gross).toFixed(2)}`,
-        status: data.status || "Pending",
-      };
-    });
+          data.itemTitle ||
+          data.listingTitle ||
+          "Unknown item";
+
+        const buyer: string =
+          data.buyerName ||
+          data.buyerEmail ||
+          data.buyerId ||
+          "Private buyer";
+
+        const rawTotal =
+          data.total !== undefined && data.total !== null
+            ? Number(data.total)
+            : data.price !== undefined && data.price !== null
+            ? Number(data.price)
+            : 0;
+
+        const status: string =
+          data.status ||
+          data.orderStatus ||
+          "Pending";
+
+        return {
+          id: doc.id,
+          item: title,
+          buyer,
+          total: `$${rawTotal.toFixed(2)}`, // Always USD
+          status,
+        };
+      })
+      .sort((a, b) => {
+        const aDoc = docs.find((d) => d.id === a.id);
+        const bDoc = docs.find((d) => d.id === b.id);
+        const aCreated =
+          (aDoc?.data() as any)?.createdAt?.toDate?.()?.getTime?.() || 0;
+        const bCreated =
+          (bDoc?.data() as any)?.createdAt?.toDate?.()?.getTime?.() || 0;
+        return bCreated - aCreated;
+      });
 
     return res.status(200).json({ ok: true, orders });
   } catch (err: any) {
