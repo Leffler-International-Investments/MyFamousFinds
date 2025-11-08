@@ -258,26 +258,26 @@ export default function Home({ trending, newArrivals }: HomeProps) {
 // --- UPDATED data-loading function ---
 export const getServerSideProps: GetServerSideProps<HomeProps> = async () => {
   try {
+    // --- THIS IS THE FIX ---
+    // 1. Fetch all recent listings without the status filter
     const snap = await adminDb
       .collection("listings")
-      .where("status", "==", "Live") // <-- FIX 1: Look for "Live"
       .orderBy("createdAt", "desc")
-      .limit(24)
+      .limit(50) // Fetch more to find enough "Live" ones
       .get();
 
-    const items: ProductLike[] = snap.docs.map((doc) => {
+    const allItems: ProductLike[] = snap.docs.map((doc) => {
       const d: any = doc.data() || {};
       const priceNumber = Number(d.price) || 0;
       
-      // --- FIX 2: Set currency to USD ---
       const price = priceNumber
-        ? `US$${priceNumber.toLocaleString("en-US")}` // <-- Changed
+        ? `US$${priceNumber.toLocaleString("en-US")}` // Correct USD
         : "";
       
       const image: string =
         d.imageUrl ||
         d.image || 
-        (Array.isArray(d.imageUrls) && d.imageUrls[0]) || // <-- Check new array
+        (Array.isArray(d.imageUrls) && d.imageUrls[0]) || // Check new array
         "https://images.unsplash.com/photo-1550009158-9ebf69173e03?auto-format&fit=crop&w=800&q=80";
 
       return {
@@ -286,15 +286,20 @@ export const getServerSideProps: GetServerSideProps<HomeProps> = async () => {
         brand: d.brand || "",
         price,
         image,
-        href: `/product/${doc.id}`, // <-- Correct path
+        href: `/product/${doc.id}`,
         badge: d.badge || undefined,
+        status: d.status || "PendingReview", // Get the status
       };
     });
 
+    // 2. Filter for "Live" items in the code
+    const liveItems = allItems.filter(item => item.status === "Live");
+    // -------------------------
+
     return {
       props: {
-        trending: items.slice(0, 12),
-        newArrivals: items.slice(12, 24),
+        trending: liveItems.slice(0, 12),
+        newArrivals: liveItems.slice(12, 24),
       },
     };
   } catch (err) {
