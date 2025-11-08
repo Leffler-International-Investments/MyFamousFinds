@@ -27,40 +27,35 @@ type UploadRow = {
   brand: string;
   price: string;
   category: string;
-  imageUrls?: string[]; // <-- UPDATED
+  imageUrls?: string[];
+  // --- ADDED: New fields ---
+  purchase_source: string;
+  purchase_proof: string;
+  serial_number?: string;
+  auth_photos?: string[];
+  authenticity_confirmed: boolean;
+  // -------------------------
   status: "ready" | "missing" | "error";
 };
 
-// --- ADDED: Lists for dropdowns ---
+// --- Dropdown Lists ---
 const TOP_BRANDS = [
-  "Prada",
-  "Gucci",
-  "Chanel",
-  "Rolex",
-  "Hermès",
-  "Louis Vuitton",
-  "Dior",
-  "Cartier",
-  "Fendi",
-  "Saint Laurent",
-  "Other"
+  "Prada", "Gucci", "Chanel", "Rolex", "Hermès", "Louis Vuitton",
+  "Dior", "Cartier", "Fendi", "Saint Laurent", "Other"
 ];
-
 const CATEGORIES = [
-  "Bags",
-  "Watches",
-  "Kids",
-  "Clothing",
-  "Jewelry",
-  "Home",
-  "Shoes",
-  "Men",
-  "Beauty",
-  "Accessories",
-  "Women",
-  "Sale",
+  "Bags", "Watches", "Kids", "Clothing", "Jewelry", "Home",
+  "Shoes", "Men", "Beauty", "Accessories", "Women", "Sale",
 ];
-// ---------------------------------
+const PROOF_TYPES = [
+  "Original Receipt",
+  "Certificate of Authenticity",
+  "Brand Service Record",
+  "Third-party Authenticator Report",
+  "Other Documented Proof",
+  "N/A"
+];
+// -----------------------
 
 export default function SellerBulkUpload() {
   const [fileName, setFileName] = useState<string | null>(null);
@@ -70,23 +65,29 @@ export default function SellerBulkUpload() {
   const [error, setError] = useState<string | null>(null);
   const [committing, setCommitting] = useState(false);
 
-  // Quick single-listing state (no CSV required)
+  // --- State for new single-listing fields ---
   const [singleTitle, setSingleTitle] = useState("");
   const [singleBrand, setSingleBrand] = useState("");
   const [singleCategory, setSingleCategory] = useState("");
   const [singlePrice, setSinglePrice] = useState("");
+  const [singlePurchaseSource, setSinglePurchaseSource] = useState("");
+  const [singlePurchaseProof, setSinglePurchaseProof] = useState("");
+  const [singleSerialNumber, setSingleSerialNumber] = useState("");
+  const [authConfirm, setAuthConfirm] = useState(false); // Legal checkbox
   const [singleBusy, setSingleBusy] = useState(false);
   const [singleMessage, setSingleMessage] = useState<string | null>(null);
   const [singleError, setSingleError] = useState<string | null>(null);
-
-  // --- UPDATED: Image state for MULTIPLE images ---
+  
   const [singleImageFiles, setSingleImageFiles] = useState<File[]>([]);
   const [singleImagePreviews, setSingleImagePreviews] = useState<string[]>([]);
   const [singleUploadingImage, setSingleUploadingImage] = useState(false);
+  
+  const [proofImageFiles, setProofImageFiles] = useState<File[]>([]);
+  const [proofImagePreviews, setProofImagePreviews] = useState<string[]>([]);
+  const [uploadingProofImages, setUploadingProofImages] = useState(false);
+  // --------------------------------------------------
 
-
-  // ---------------- CSV BULK UPLOAD ----------------
-  // (Your existing CSV logic is unchanged)
+  // --- CSV UPLOAD LOGIC ---
   const handleFileChange = async (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -107,16 +108,28 @@ export default function SellerBulkUpload() {
         throw new Error(json.error || "Failed to parse file");
       }
 
+      // --- PARSE ALL FIELDS FROM CSV ---
       const parsed = (json.rows || []).map((r: any, idx: number) => {
         const price = String(r.price ?? "").trim();
+        const confirmed = String(r.authenticity_confirmed || "").toUpperCase() === "YES";
+        
         let status: UploadRow["status"] = "ready";
-        if (!price) status = "missing";
+        if (!r.title || !price || !r.purchase_source || !r.purchase_proof || !r.serial_number || !confirmed) {
+          status = "missing";
+        }
+
         return {
           id: String(r.id ?? idx + 1),
-          title: String(r.title || "Untitled"),
+          title: String(r.title || ""),
           brand: String(r.brand || ""),
           price,
           category: String(r.category || ""),
+          imageUrls: r.imageUrls ? String(r.imageUrls).split(',').map(url => url.trim()) : [],
+          purchase_source: String(r.purchase_source || ""),
+          purchase_proof: String(r.purchase_proof || ""),
+          serial_number: String(r.serial_number || ""),
+          auth_photos: r.auth_photos ? String(r.auth_photos).split(',').map(url => url.trim()) : [],
+          authenticity_confirmed: confirmed,
           status,
         } as UploadRow;
       });
@@ -134,7 +147,7 @@ export default function SellerBulkUpload() {
   const handleConfirm = async () => {
     const ready = rows.filter((r) => r.status === "ready");
     if (!ready.length) {
-      alert("There are no rows marked as ready.");
+      alert("There are no rows marked as 'Ready'. Please check for missing fields and re-upload.");
       return;
     }
 
@@ -163,74 +176,61 @@ export default function SellerBulkUpload() {
 
   // ---------------- SINGLE LISTING + IMAGE ----------------
 
-  // --- UPDATED: Handle multiple files ---
-  function handleSingleImageSelect(files: FileList | null) {
+  // Reusable image selection function
+  function handleImageSelect(
+    files: FileList | null, 
+    setFiles: (files: File[]) => void, 
+    setPreviews: (previews: string[]) => void
+  ) {
     if (!files || files.length === 0) {
-      setSingleImageFiles([]);
-      setSingleImagePreviews([]);
+      setFiles([]);
+      setPreviews([]);
       return;
     }
-    
     const newFiles = Array.from(files);
-    setSingleImageFiles(newFiles);
-    
-    // Revoke old preview URLs to prevent memory leaks
-    singleImagePreviews.forEach(URL.revokeObjectURL);
-    
-    const newPreviews = newFiles.map(file => URL.createObjectURL(file));
-    setSingleImagePreviews(newPreviews);
+    setFiles(newFiles);
+    // Revoke old preview URLs
+    setPreviews((oldPreviews) => {
+      oldPreviews.forEach(URL.revokeObjectURL);
+      return newFiles.map(file => URL.createObjectURL(file));
+    });
   }
 
-  const handleSingleImageInputChange = (
-    e: ChangeEvent<HTMLInputElement>
-  ) => {
-    const files = e.target.files;
-    setSingleError(null);
-    if (files) {
-      for (const file of Array.from(files)) {
-        if (!file.type.startsWith("image/")) {
-          setSingleError("Please choose image files (jpg, png, webp, etc.)");
-          return;
-        }
-      }
-    }
-    handleSingleImageSelect(files);
+  // Specific handlers for each uploader
+  const handleSingleImageInputChange = (e: ChangeEvent<HTMLInputElement>) => {
+    handleImageSelect(e.target.files, setSingleImageFiles, setSingleImagePreviews);
   };
-
-  const handleSingleImageDrop = (e: DragEvent<HTMLDivElement>) => {
+  const handleProofImageInputChange = (e: ChangeEvent<HTMLInputElement>) => {
+    handleImageSelect(e.target.files, setProofImageFiles, setProofImagePreviews);
+  };
+  const handleSingleImageDrop = (e: DragEvent<HTMLDivElement>)V) => {
     e.preventDefault();
-    const files = e.dataTransfer.files;
-    setSingleError(null);
-    if (files) {
-       for (const file of Array.from(files)) {
-        if (!file.type.startsWith("image/")) {
-          setSingleError("Please drop image files (jpg, png, webp, etc.)");
-          return;
-        }
-      }
-    }
-    handleSingleImageSelect(files);
+    handleImageSelect(e.dataTransfer.files, setSingleImageFiles, setSingleImagePreviews);
   };
-
+  const handleProofImageDrop = (e: DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    handleImageSelect(e.dataTransfer.files, setProofImageFiles, setProofImagePreviews);
+  };
   const handleSingleImageDragOver = (e: DragEvent<HTMLDivElement>) => {
     e.preventDefault();
   };
 
-  // --- UPDATED: Upload MULTIPLE images ---
-  async function uploadSingleImagesIfNeeded(
-    timeoutMs = 60000 // Increased timeout
+  // Reusable upload function
+  async function uploadImages(
+    files: File[], 
+    pathPrefix: string,
+    setLoading: (loading: boolean) => void,
+    timeoutMs = 60000
   ): Promise<string[] | null> {
-    if (singleImageFiles.length === 0) return null;
+    if (files.length === 0) return null;
 
-    setSingleUploadingImage(true);
+    setLoading(true);
     try {
-      // Create an array of upload promises
-      const uploadPromises = singleImageFiles.map(file => {
+      const uploadPromises = files.map(file => {
         return new Promise<string>(async (resolve, reject) => {
           const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
-          const path = `listing-images/${uuidv4()}-${safeName}`;
+          const path = `${pathPrefix}/${uuidv4()}-${safeName}`;
           const storageRef = ref(storage, path);
-          
           try {
             const snap = await uploadBytes(storageRef, file);
             const url = await getDownloadURL(snap.ref);
@@ -241,99 +241,78 @@ export default function SellerBulkUpload() {
         });
       });
 
-      // Add a timeout for the entire batch
       const timeoutPromise = new Promise<never>((_, reject) => {
-        const err: any = new Error(
-          "Image upload timed out before Firebase responded."
-        );
+        const err: any = new Error("Image upload timed out.");
         err.code = "local/timeout";
         setTimeout(() => reject(err), timeoutMs);
       });
 
-      // Wait for all uploads to finish or for the timeout
       const urls = await Promise.race([Promise.all(uploadPromises), timeoutPromise]);
       return urls as string[];
 
     } catch (err: any) {
       console.error("Image upload failed:", err);
       if (err.code === "storage/unauthorized") {
-        throw new Error("Image upload failed: Permission denied. Check your Firebase Storage rules.");
+        throw new Error("Image upload failed: Permission denied. Check Firebase Storage rules.");
       }
       throw new Error("One or more image uploads failed. Please try again.");
     } finally {
-      setSingleUploadingImage(false);
+      setLoading(false);
     }
   }
 
-
-  // Quick single listing without CSV
+  // --- UPDATED: handleSingleSubmit with all fields ---
   const handleSingleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setSingleError(null);
     setSingleMessage(null);
 
-    if (!singleTitle.trim() || !singlePrice.trim()) {
-      setSingleError("Title and price are required.");
+    if (!singleTitle.trim() || !singlePrice.trim() || !singleBrand || !singleCategory || !singlePurchaseSource || !singlePurchaseProof || !singleSerialNumber) {
+      setSingleError("Please fill out all required fields marked with *.");
       return;
     }
     
-    // --- ADDED: Check if brand/category are selected ---
-    if (!singleBrand) {
-      setSingleError("Please select a brand.");
+    if (!authConfirm) {
+      setSingleError("You must confirm the item's authenticity to submit.");
       return;
     }
-    if (!singleCategory) {
-      setSingleError("Please select a category.");
-      return;
-    }
-    // --------------------------------------------------
 
     setSingleBusy(true);
 
     try {
-      // 1) Try to upload the image(s)
-      let imageUrls: string[] | null = null; // <-- UPDATED
-
-      if (singleImageFiles.length > 0) { // <-- UPDATED
+      let imageUrls: string[] | null = null;
+      if (singleImageFiles.length > 0) {
         try {
-          imageUrls = await uploadSingleImagesIfNeeded(); // <-- UPDATED
+          imageUrls = await uploadImages(singleImageFiles, "listing-images", setSingleUploadingImage);
         } catch (err: any) {
-          console.error("single_image_upload_error", err);
-          const code = err?.code;
-          const msg = String(err?.message || "").toLowerCase();
-
-          if (
-            code === "storage/retry-limit-exceeded" ||
-            code === "local/timeout" ||
-            msg.includes("retry time for operation exceeded")
-          ) {
-            setSingleError(
-              "The photo upload took too long. The listing will be created without a photo—you can add it later from your catalogue."
-            );
-          } else if (code === "storage/unauthorized") {
-            setSingleError(
-              "Image upload failed: permission denied. The listing will be created without a photo. Check your Firebase Storage rules."
-            );
-          } else {
-            setSingleError(
-              "We couldn't upload the photo. The listing will be created without a photo."
-            );
-          }
-
-          // Soft-fail: continue with no image
+          setSingleError(err.message + " The listing will be created without product photos.");
           imageUrls = null;
         }
       }
 
-      // 2) Create the listing via bulk-commit
+      let authPhotoUrls: string[] | null = null;
+      if (proofImageFiles.length > 0) {
+         try {
+          authPhotoUrls = await uploadImages(proofImageFiles, "auth-proof-images", setUploadingProofImages);
+        } catch (err: any) {
+          setSingleError(err.message + " Proof photos failed to upload, but listing will be created.");
+          authPhotoUrls = null;
+        }
+      }
+
       const row: UploadRow = {
         id: "manual-" + Date.now(),
         title: singleTitle.trim(),
         brand: singleBrand.trim(),
         category: singleCategory.trim(),
         price: singlePrice.trim(),
-        imageUrls: imageUrls || undefined, // <-- UPDATED
-        status: "ready",
+        imageUrls: imageUrls || undefined,
+        status: "ready", 
+        purchase_source: singlePurchaseSource,
+        purchase_proof: singlePurchaseProof,
+        serial_number: singleSerialNumber,
+        auth_photos: authPhotoUrls || undefined,
+        authenticity_confirmed: authConfirm,
       };
 
       const res = await fetch("/api/seller/bulk-commit", {
@@ -346,42 +325,81 @@ export default function SellerBulkUpload() {
         throw new Error(json.error || "Failed to create listing");
       }
 
-      // Success
+      // Success: Clear form
       setSingleTitle("");
       setSingleBrand("");
       setSingleCategory("");
       setSinglePrice("");
-      handleSingleImageSelect(null); // <-- UPDATED
+      setSinglePurchaseSource("");
+      setSinglePurchaseProof("");
+      setSingleSerialNumber("");
+      setAuthConfirm(false);
+      handleImageSelect(null, setSingleImageFiles, setSingleImagePreviews);
+      handleImageSelect(null, setProofImageFiles, setProofImagePreviews);
 
-      setSingleMessage(
-        imageUrls
-          ? `Listing created with ${imageUrls.length} image(s).` // <-- UPDATED
-          : "Listing created (without photo). You can add a photo later from your catalogue."
-      );
+      setSingleMessage("Listing created and submitted for review.");
+      
     } catch (err: any) {
       console.error("single_listing_error", err);
-      setSingleError(
-        err?.message || "Unable to create listing. Please try again."
-      );
+      setSingleError(err?.message || "Unable to create listing.");
     } finally {
-      // Always clear both flags so the UI never stays stuck
       setSingleBusy(false);
-      setSingleUploadingImage(false);
+      setSingleUploadingImage(false); 
+      setUploadingProofImages(false);
     }
   };
 
-  const singleDisabled = singleBusy || singleUploadingImage;
-  
-  // Style for the dropdowns
+  const singleDisabled = singleBusy || singleUploadingImage || uploadingProofImages;
   const selectInputStyle = "mt-1 w-full rounded-md border border-neutral-700 bg-black/40 px-3 py-2 text-xs text-gray-100 focus:border-gray-200 focus:outline-none";
 
-
-  // ---------------- RENDER ----------------
+  // --- Reusable image uploader component ---
+  const ImageUploaderBox = ({ label, onDrop, onDragOver, onChange, previews, uploading, filesLength }: any) => (
+    <div className="md:col-span-2">
+      <label className="block text-[11px] font-medium text-gray-300">
+        {label}
+      </label>
+      <div
+        onDragOver={onDragOver}
+        onDrop={onDrop}
+        className="mt-1 flex flex-col items-center justify-center rounded-md border border-dashed border-neutral-700 bg-black/40 px-3 py-4 text-center text-[11px] text-gray-400"
+      >
+        <p className="mb-1">Drag & drop images here, or click to browse.</p>
+        <label className="cursor-pointer rounded-full border border-neutral-600 px-3 py-1 text-[11px] hover:border-neutral-400">
+          Choose files
+          <input
+            type="file"
+            accept="image/png, image/jpeg, image/webp"
+            multiple
+            className="hidden"
+            onChange={onChange}
+          />
+        </label>
+        {uploading && (
+          <p className="mt-2 text-[11px] text-gray-300">
+            Uploading {filesLength} image(s)…
+          </p>
+        )}
+        {previews.length > 0 && (
+          <div className="mt-3 flex flex-wrap justify-center gap-2">
+            {previews.map((previewUrl: string, i: number) => (
+              <img
+                key={i}
+                src={previewUrl}
+                alt="Preview"
+                className="h-16 w-16 rounded-md border border-neutral-700 object-cover"
+              />
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+  // ---------------------------------------------
 
   return (
     <div className="min-h-screen bg-black text-gray-100">
       <Head>
-        <title>Seller — Bulk Upload | Famous Finds</title>
+        <title>Seller — Upload Listings | Famous Finds</title>
       </Head>
 
       <Header />
@@ -394,14 +412,15 @@ export default function SellerBulkUpload() {
           ← Back to Dashboard
         </Link>
 
+        {/* --- UPDATED: Instructions --- */}
         <h1 className="mt-4 text-2xl font-semibold text-white">
-          Bulk upload listings
+          Upload Your Listings
         </h1>
         <p className="mt-1 text-sm text-gray-400">
-          Upload a spreadsheet to create many listings at once, or use the
-          quick form below to create a single listing. Each listing is created
-          as a draft or pending review before going live.
+          Add items one-by-one or upload many at once with a CSV. All submissions
+          require authenticity details and are held for admin review before going live.
         </p>
+        {/* ----------------------------- */}
 
         {/* Steps indicator (Unchanged) */}
         <ol className="mt-6 flex flex-wrap gap-3 text-xs">
@@ -436,35 +455,19 @@ export default function SellerBulkUpload() {
         {/* STEP 1 */}
         {step === 1 && (
           <section className="mt-8 grid gap-8 md:grid-cols-[minmax(0,2fr)_minmax(0,1.5fr)]">
+            {/* --- UPDATED: Single Listing Form --- */}
             <div className="rounded-xl border border-neutral-800 bg-neutral-950 p-6">
-              <h2 className="text-sm font-semibold">1. CSV structure</h2>
-              <p className="mt-2 text-xs text-gray-400">
-                The parser expects columns like <code>title</code>,{" "}
-                <code>brand</code>, <code>category</code>, <code>price</code>,
-                etc. Download the template for the exact column names and
-                export your spreadsheet as CSV.
-              </p>
-              <div className="mt-4 flex flex-wrap gap-3">
-                <a
-                  href="/api/seller/bulk-template"
-                  className="rounded-full bg-white px-3 py-1.5 text-xs font-medium text-black hover:bg-gray-100"
-                >
-                  Download CSV template
-                </a>
-              </div>
-
-              {/* Quick single listing form */}
-              <div className="mt-8 border-t border-neutral-800 pt-5">
-                <h3 className="text-sm font-semibold">
-                  Or add a single listing (no CSV)
+              <div>
+                <h3 className="text-lg font-semibold">
+                  Option 1: Add a Single Listing
                 </h3>
                 <p className="mt-1 text-xs text-gray-400">
-                  Use this form to add one item with multiple photos. {/* <-- UPDATED TEXT */}
+                  Use this form for one item. All fields marked with * are required.
                 </p>
 
                 <form
                   onSubmit={handleSingleSubmit}
-                  className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2"
+                  className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2"
                 >
                   <div className="md:col-span-2">
                     <label className="block text-[11px] font-medium text-gray-300">
@@ -474,11 +477,10 @@ export default function SellerBulkUpload() {
                       type="text"
                       value={singleTitle}
                       onChange={(e) => setSingleTitle(e.target.value)}
-                      className="mt-1 w-full rounded-md border border-neutral-700 bg-black/40 px-3 py-2 text-xs text-gray-100 focus:border-gray-200 focus:outline-none"
+                      className={selectInputStyle}
+                      required
                     />
                   </div>
-                  
-                  {/* --- Brand Dropdown (Unchanged) --- */}
                   <div>
                     <label className="block text-[11px] font-medium text-gray-300">
                       Brand *
@@ -487,6 +489,7 @@ export default function SellerBulkUpload() {
                       value={singleBrand}
                       onChange={(e) => setSingleBrand(e.target.value)}
                       className={selectInputStyle}
+                      required
                     >
                       <option value="">Select a brand</option>
                       {TOP_BRANDS.map((brand) => (
@@ -494,8 +497,6 @@ export default function SellerBulkUpload() {
                       ))}
                     </select>
                   </div>
-                  
-                  {/* --- Category Dropdown (Unchanged) --- */}
                   <div>
                     <label className="block text-[11px] font-medium text-gray-300">
                       Category *
@@ -504,6 +505,7 @@ export default function SellerBulkUpload() {
                       value={singleCategory}
                       onChange={(e) => setSingleCategory(e.target.value)}
                       className={selectInputStyle}
+                      required
                     >
                       <option value="">Select a category</option>
                       {CATEGORIES.map((cat) => (
@@ -511,72 +513,119 @@ export default function SellerBulkUpload() {
                       ))}
                     </select>
                   </div>
-
-                  <div>
+                  <div className="md:col-span-2">
                     <label className="block text-[11px] font-medium text-gray-300">
-                      Price (USD) * {/* <-- UPDATED CURRENCY */}
+                      Price (USD) *
                     </label>
                     <input
                       type="number"
                       step="0.01"
                       value={singlePrice}
                       onChange={(e) => setSinglePrice(e.target.value)}
-                      className="mt-1 w-full rounded-md border border-neutral-700 bg-black/40 px-3 py-2 text-xs text-gray-100 focus:border-gray-200 focus:outline-none"
+                      className={selectInputStyle}
+                      required
                     />
                   </div>
-
-                  {/* --- UPDATED: Image drop / upload for MULTIPLE --- */}
+                  
+                  {/* --- ADDED: Authenticity Fields --- */}
+                  <div className="md:col-span-2 mt-4 border-t border-neutral-800 pt-4">
+                    <h4 className="text-sm font-semibold text-white">
+                      Authenticity & Proof *
+                    </h4>
+                    <p className="text-[11px] text-gray-400 mb-2">
+                      To protect buyers and your reputation, we require authenticity details for all items.
+                    </p>
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-medium text-gray-300">
+                      Purchase Source *
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="e.g., Gucci Store, NYC"
+                      value={singlePurchaseSource}
+                      onChange={(e) => setSinglePurchaseSource(e.target.value)}
+                      className={selectInputStyle}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-medium text-gray-300">
+                      Type of Proof *
+                    </label>
+                    <select
+                      value={singlePurchaseProof}
+                      onChange={(e) => setSinglePurchaseProof(e.target.value)}
+                      className={selectInputStyle}
+                      required
+                    >
+                      <option value="">Select proof type</option>
+                      {PROOF_TYPES.map((proof) => (
+                        <option key={proof} value={proof}>{proof}</option>
+                      ))}
+                    </select>
+                  </div>
                   <div className="md:col-span-2">
                     <label className="block text-[11px] font-medium text-gray-300">
-                      Photos (optional)
+                      Serial Number *
                     </label>
-                    <div
-                      onDragOver={handleSingleImageDragOver}
-                      onDrop={handleSingleImageDrop}
-                      className="mt-1 flex flex-col items-center justify-center rounded-md border border-dashed border-neutral-700 bg-black/40 px-3 py-4 text-center text-[11px] text-gray-400"
-                    >
-                      <p className="mb-1">
-                        Drag &amp; drop images here, or click to browse.
-                      </p>
-                      <label className="cursor-pointer rounded-full border border-neutral-600 px-3 py-1 text-[11px] hover:border-neutral-400">
-                        Choose files
-                        <input
-                          type="file"
-                          // --- THIS IS THE FIX ---
-                          accept="image/png, image/jpeg, image/webp" // Be specific
-                          multiple // <-- Allow multiple
-                          className="hidden"
-                          onChange={handleSingleImageInputChange}
-                        />
-                      </label>
-                      {singleUploadingImage && (
-                        <p className="mt-2 text-[11px] text-gray-300">
-                          Uploading {singleImageFiles.length} image(s)…
-                        </p>
-                      )}
-                      {/* --- UPDATED: Show multiple previews --- */}
-                      {singleImagePreviews.length > 0 && (
-                        <div className="mt-3 flex flex-wrap justify-center gap-2">
-                          {singleImagePreviews.map((previewUrl, i) => (
-                            <img
-                              key={i}
-                              src={previewUrl}
-                              alt="Preview"
-                              className="h-16 w-16 rounded-md border border-neutral-700 object-cover"
-                            />
-                          ))}
-                        </div>
-                      )}
-                    </div>
+                    <input
+                      type="text"
+                      placeholder="Enter 'N/A' if not applicable"
+                      value={singleSerialNumber}
+                      onChange={(e) => setSingleSerialNumber(e.target.value)}
+                      className={selectInputStyle}
+                      required
+                    />
                   </div>
+                  
+                  {/* Product Image Uploader */}
+                  <ImageUploaderBox
+                    label="Product Photos (Highly Recommended)"
+                    onDrop={handleSingleImageDrop}
+                    onDragOver={handleSingleImageDragOver}
+                    onChange={handleSingleImageInputChange}
+                    previews={singleImagePreviews}
+                    uploading={singleUploadingImage}
+                    filesLength={singleImageFiles.length}
+                  />
 
-                  <div className="flex items-end">
+                  {/* Proof Image Uploader */}
+                  <ImageUploaderBox
+                    label="Authenticity Photos (e.g., receipt, serial number)"
+                    onDrop={handleProofImageDrop}
+                    onDragOver={handleSingleImageDragOver}
+                    onChange={handleProofImageInputChange}
+                    previews={proofImagePreviews}
+                    uploading={uploadingProofImages}
+                    filesLength={proofImageFiles.length}
+                  />
+                  
+                  {/* Legal Checkbox */}
+                  <div className="md:col-span-2 mt-4 border-t border-neutral-800 pt-4">
+                     <label className="flex items-start gap-2">
+                      <input
+                        type="checkbox"
+                        checked={authConfirm}
+                        onChange={(e) => setAuthConfirm(e.target.checked)}
+                        className="mt-[1px] h-4 w-4 rounded border-gray-500 bg-black/40 text-yellow-400 focus:ring-yellow-400"
+                        required
+                      />
+                      <span className="text-[11px] text-gray-300">
+                        I confirm this item is authentic to the best of my knowledge, and I
+                        understand I am legally responsible for any counterfeit or misrepresented
+                        goods listed on Famous-Finds.
+                      </span>
+                    </label>
+                  </div>
+                  
+                  <div className="flex items-end md:col-span-2">
                     <button
                       type="submit"
                       disabled={singleDisabled}
                       className="rounded-full bg-white px-4 py-2 text-xs font-medium text-black hover:bg-gray-100 disabled:opacity-60"
                     >
-                      {singleDisabled ? "Creating…" : "Create listing"}
+                      {singleDisabled ? "Submitting..." : "Submit Listing for Review"}
                     </button>
                   </div>
                 </form>
@@ -591,19 +640,27 @@ export default function SellerBulkUpload() {
               </div>
             </div>
 
-            {/* CSV Dropzone (Unchanged) */}
-            <div className="rounded-xl border border-dashed border-neutral-700 bg-neutral-950/60 p-6">
-              <h2 className="text-sm font-semibold">2. Upload your file</h2>
+            {/* --- UPDATED: CSV Uploader --- */}
+            <div className="rounded-xl border border-neutral-800 bg-neutral-950 p-6">
+              <h2 className="text-lg font-semibold">Option 2: Upload CSV File</h2>
               <p className="mt-2 text-xs text-gray-400">
-                CSV file exported from Excel/Sheets, up to 5,000 rows.
+                1. Download our template to see all required columns (including authenticity fields).
               </p>
-
-              <label className="mt-5 flex cursor-pointer flex-col items-center justify-center rounded-lg border border-neutral-700 bg-black/40 px-4 py-10 text-center text-xs text-neutral-400 hover:border-neutral-500">
+               <a
+                  href="/api/seller/bulk-template"
+                  className="mt-2 inline-block rounded-full bg-white px-3 py-1.5 text-xs font-medium text-black hover:bg-gray-100"
+                >
+                  Download CSV template
+                </a>
+              <p className="mt-4 text-xs text-gray-400">
+                2. Upload your completed CSV here. All items will be submitted for review.
+              </p>
+              <label className="mt-2 flex cursor-pointer flex-col items-center justify-center rounded-lg border border-neutral-700 bg-black/40 px-4 py-10 text-center text-xs text-neutral-400 hover:border-neutral-500">
                 <span className="mb-2 text-sm text-gray-100">
                   Drop CSV here or click to browse
                 </span>
                 <span className="text-[11px]">
-                  We&apos;ll parse it and highlight any rows that need fixes.
+                  We'll parse it and highlight any rows that need fixes.
                 </span>
                 <input
                   type="file"
@@ -631,17 +688,16 @@ export default function SellerBulkUpload() {
           </section>
         )}
 
-        {/* STEP 2 (Unchanged) */}
+        {/* --- UPDATED: Step 2 Review Table --- */}
         {step === 2 && (
           <section className="mt-8 rounded-xl border border-neutral-800 bg-neutral-950 p-6">
             <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
               <div>
-                <h2 className="text-sm font-semibold">
-                  Review detected rows
+                <h2 className="text-lg font-semibold">
+                  Review Detected Rows
                 </h2>
                 <p className="text-xs text-gray-400">
-                  Only rows marked as <strong>Ready</strong> will be created.
-                  You can cancel and upload a corrected file at any time.
+                  Only rows marked as <strong>Ready</strong> (all required fields present) will be created.
                 </p>
               </div>
               <button
@@ -662,45 +718,18 @@ export default function SellerBulkUpload() {
                 <thead className="border-b border-neutral-800 text-[11px] uppercase tracking-wide text-gray-400">
                   <tr>
                     <th className="py-2 pr-3 text-left">Title</th>
-                    <th className="px-3 py-2 text-left">Brand</th>
-                    <th className="px-3 py-2 text-left">Category</th>
                     <th className="px-3 py-2 text-left">Price (USD)</th>
+                    <th className="px-3 py-2 text-left">Serial #</th>
+                    <th className="px-3 py-2 text-left">Proof Source</th>
+                    <th className="px-3 py-2 text-left">Proof Type</th>
+                    <th className="px-3 py-2 text-left">Confirmed</th>
                     <th className="px-3 py-2 text-left">Status</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {loading && (
-                    <tr>
-                      <td
-                        className="py-4 text-center text-xs text-gray-400"
-                        colSpan={5}
-                      >
-                        Parsing file…
-                      </td>
-                    </tr>
-                  )}
-
-                  {!loading && error && (
-                    <tr>
-                      <td
-                        className="py-4 text-center text-xs text-red-400"
-                        colSpan={5}
-                      >
-                        {error}
-                      </td>
-                    </tr>
-                  )}
-
-                  {!loading && !error && rows.length === 0 && (
-                    <tr>
-                      <td
-                        className="py-4 text-center text-xs text-gray-400"
-                        colSpan={5}
-                      >
-                        No rows detected in this file.
-                      </td>
-                    </tr>
-                  )}
+                  {loading && ( <tr><td colSpan={7}>...</td></tr> )}
+                  {!loading && error && ( <tr><td colSpan={7}>{error}</td></tr> )}
+                  {!loading && !error && rows.length === 0 && ( <tr><td colSpan={7}>No rows detected.</td></tr> )}
 
                   {!loading &&
                     !error &&
@@ -710,13 +739,11 @@ export default function SellerBulkUpload() {
                         className="border-b border-neutral-900 last:border-0"
                       >
                         <td className="py-2 pr-3">{row.title}</td>
-                        <td className="px-3 py-2">{row.brand}</td>
-                        <td className="px-3 py-2">{row.category}</td>
-                        <td className="px-3 py-2">
-                          {row.price || (
-                            <span className="text-amber-300">Missing</span>
-                          )}
-                        </td>
+                        <td className="px-3 py-2">{row.price}</td>
+                        <td className="px-3 py-2">{row.serial_number}</td>
+                        <td className="px-3 py-2">{row.purchase_source}</td>
+                        <td className="px-3 py-2">{row.purchase_proof}</td>
+                        <td className="px-3 py-2">{row.authenticity_confirmed ? "YES" : "NO"}</td>
                         <td className="px-3 py-2">
                           {row.status === "ready" && (
                             <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-[11px] text-emerald-300">
@@ -724,13 +751,8 @@ export default function SellerBulkUpload() {
                             </span>
                           )}
                           {row.status === "missing" && (
-                            <span className="rounded-full bg-amber-500/10 px-2 py-0.5 text-[11px] text-amber-300">
-                              Needs price
-                            </span>
-                          )}
-                          {row.status === "error" && (
                             <span className="rounded-full bg-red-500/10 px-2 py-0.5 text-[11px] text-red-300">
-                              Error
+                              Missing Fields
                             </span>
                           )}
                         </td>
@@ -742,8 +764,7 @@ export default function SellerBulkUpload() {
 
             <div className="mt-5 flex flex-col gap-3 border-t border-neutral-800 pt-4 text-xs text-gray-400 md:flex-row md:items-center md:justify-between">
               <p>
-                We will create listings only for rows marked as Ready. You can
-                re-upload a corrected file whenever you need.
+                We will create listings only for rows marked as Ready.
               </p>
               <div className="flex gap-2">
                 <button
@@ -761,9 +782,9 @@ export default function SellerBulkUpload() {
                   type="button"
                   onClick={handleConfirm}
                   className="rounded-full bg-white px-3 py-1.5 text-xs font-medium text-black hover:bg-gray-100 disabled:opacity-60"
-                  disabled={committing || !rows.length}
+                  disabled={committing || !rows.filter(r => r.status === 'ready').length}
                 >
-                  {committing ? "Creating listings…" : "Create listings"}
+                  {committing ? "Submitting..." : `Submit ${rows.filter(r => r.status === 'ready').length} listings`}
                 </button>
               </div>
             </div>
@@ -773,11 +794,10 @@ export default function SellerBulkUpload() {
         {/* STEP 3 (Unchanged) */}
         {step === 3 && (
           <section className="mt-8 rounded-xl border border-neutral-800 bg-neutral-950 p-6 text-sm">
-            <h2 className="text-base font-semibold">Listings created</h2>
+            <h2 className="text-base font-semibold">Listings Submitted</h2>
             <p className="mt-2 text-sm text-gray-300">
-              Your file has been processed and draft listings have been created
-              in your catalogue. Items may still require review before going
-              live.
+              Your listings have been submitted for review. You can track their
+              status in your catalogue.
             </p>
             <div className="mt-6 flex flex-wrap gap-2">
               <Link
