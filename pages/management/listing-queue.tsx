@@ -4,7 +4,7 @@ import Link from "next/link";
 import { GetServerSideProps } from "next";
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
-import { adminDb } from "../../utils/firebaseAdmin";
+import { adminDb, FieldValue } from "../../utils/firebaseAdmin";
 import { useRequireAdmin } from "../../hooks/useRequireAdmin";
 import { useState } from "react"; 
 
@@ -13,13 +13,15 @@ type Listing = {
   title: string;
   seller: string;
   category: string;
+  // --- ADDED: New fields ---
   purchase_source?: string;
   purchase_proof?: string;
   serial_number?: string;
-  auth_photos?: string;
+  auth_photos?: string[]; // Expect an array of URLs
+  // -------------------------
   submittedAt: string;
   status: string;
-  proofRequested?: boolean; // <-- ADDED
+  proofRequested?: boolean;
 };
 
 type Props = {
@@ -41,7 +43,6 @@ export default function ManagementListingQueue({ items: initialItems }: Props) {
     setError(null);
 
     try {
-      // --- UPDATED: Use the correct API path for each action ---
       const res = await fetch(`/api/admin/${action}/${id}`, {
         method: "POST",
       });
@@ -51,11 +52,9 @@ export default function ManagementListingQueue({ items: initialItems }: Props) {
         throw new Error(json.error || `Failed to ${action} item`);
       }
       
-      // Success: Remove the item from the local list
       if (action === "approve" || action === "reject") {
         setItems((prevItems) => prevItems.filter((item) => item.id !== id));
       } else {
-        // For "request-proof", just update the item's state locally
         setItems((prevItems) => 
           prevItems.map((item) =>
             item.id === id ? { ...item, proofRequested: true } : item
@@ -80,15 +79,14 @@ export default function ManagementListingQueue({ items: initialItems }: Props) {
       </Head>
       <div className="min-h-screen bg-gray-50 text-gray-900">
         <Header />
-        <main className="mx-auto max-w-7xl px-4 pb-16 pt-6">
+        <main className="mx-auto max-w-full px-4 pb-16 pt-6 lg:px-8">
           <div className="mb-4 flex items-center justify-between gap-2">
             <div>
               <h1 className="text-xl font-semibold tracking-tight">
                 Listing review queue
               </h1>
               <p className="text-sm text-gray-600">
-                Pending submissions from open-market / casual sellers. Check
-                authenticity notes before approval.
+                Pending submissions from all sellers. Check authenticity notes before approval.
               </p>
             </div>
             <Link
@@ -105,42 +103,20 @@ export default function ManagementListingQueue({ items: initialItems }: Props) {
             </div>
           )}
 
-          {/* --- THIS IS THE FIX --- */}
           <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white shadow-sm">
-          {/* --------------------- */}
             <table className="min-w-full divide-y divide-gray-200 text-sm">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-4 py-2 text-left font-medium text-gray-700">
-                    Listing
-                  </th>
-                  <th className="px-4 py-2 text-left font-medium text-gray-700">
-                    Seller
-                  </th>
-                  <th className="px-4 py-2 text-left font-medium text-gray-700">
-                    Category
-                  </th>
-                  <th className="px-4 py-2 text-left font-medium text-gray-700">
-                    Purchased From
-                  </th>
-                  <th className="px-4 py-2 text-left font-medium text-gray-700">
-                    Proof
-                  </th>
-                  <th className="px-4 py-2 text-left font-medium text-gray-700">
-                    Serial
-                  </th>
-                  <th className="px-4 py-2 text-left font-medium text-gray-700">
-                    Proof Docs
-                  </th>
-                  <th className="px-4 py-2 text-left font-medium text-gray-700">
-                    Submitted
-                  </th>
-                  <th className="px-4 py-2 text-left font-medium text-gray-700">
-                    Status
-                  </th>
-                  <th className="px-4 py-2 text-left font-medium text-gray-700">
-                    Actions
-                  </th>
+                  <th className="px-4 py-2 text-left font-medium text-gray-700">Listing</th>
+                  <th className="px-4 py-2 text-left font-medium text-gray-700">Seller</th>
+                  <th className="px-4 py-2 text-left font-medium text-gray-700">Category</th>
+                  <th className="px-4 py-2 text-left font-medium text-gray-700">Purchased From</th>
+                  <th className="px-4 py-2 text-left font-medium text-gray-700">Proof</th>
+                  <th className="px-4 py-2 text-left font-medium text-gray-700">Serial #</th>
+                  <th className="px-4 py-2 text-left font-medium text-gray-700">Proof Docs</th>
+                  <th className="px-4 py-2 text-left font-medium text-gray-700">Submitted</th>
+                  <th className="px-4 py-2 text-left font-medium text-gray-700">Status</th>
+                  <th className="px-4 py-2 text-left font-medium text-gray-700">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
@@ -148,38 +124,26 @@ export default function ManagementListingQueue({ items: initialItems }: Props) {
                   items.map((item) => (
                     <tr key={item.id}>
                       <td className="px-4 py-2 text-gray-900">{item.title}</td>
+                      <td className="px-4 py-2 text-gray-700">{item.seller}</td>
+                      <td className="px-4 py-2 text-gray-700">{item.category || "—"}</td>
+                      <td className="px-4 py-2 text-gray-700">{item.purchase_source || "—"}</td>
+                      <td className="px-4 py-2 text-gray-700">{item.purchase_proof || "—"}</td>
+                      <td className="px-4 py-2 text-gray-700">{item.serial_number || "—"}</td>
                       <td className="px-4 py-2 text-gray-700">
-                        {item.seller}
-                      </td>
-                      <td className="px-4 py-2 text-gray-700">
-                        {item.category || "—"}
-                      </td>
-                      <td className="px-4 py-2 text-gray-700">
-                        {item.purchase_source || "—"}
-                      </td>
-                      <td className="px-4 py-2 text-gray-700">
-                        {item.purchase_proof || "—"}
-                      </td>
-                      <td className="px-4 py-2 text-gray-700">
-                        {item.serial_number || "—"}
-                      </td>
-                      <td className="px-4 py-2 text-gray-700">
-                        {item.auth_photos ? (
+                        {item.auth_photos && item.auth_photos.length > 0 ? (
                           <a
-                            href={item.auth_photos}
+                            href={item.auth_photos[0]}
                             target="_blank"
                             rel="noreferrer"
                             className="text-blue-600 hover:underline"
                           >
-                            View
+                            View ({item.auth_photos.length})
                           </a>
                         ) : (
                           "—"
                         )}
                       </td>
-                      <td className="px-4 py-2 text-gray-700">
-                        {item.submittedAt || "—"}
-                      </td>
+                      <td className="px-4 py-2 text-gray-700">{item.submittedAt || "—"}</td>
                       <td className="px-4 py-2">
                         <span
                           className={
@@ -187,13 +151,12 @@ export default function ManagementListingQueue({ items: initialItems }: Props) {
                             (item.status === "Pending" && !item.proofRequested
                               ? "bg-yellow-100 text-yellow-800"
                               : item.status === "Pending" && item.proofRequested
-                              ? "bg-blue-100 text-blue-800" // <-- ADDED for requested proof
+                              ? "bg-blue-100 text-blue-800"
                               : item.status === "Rejected"
                               ? "bg-red-100 text-red-800"
                               : "bg-green-100 text-green-800")
                           }
                         >
-                          {/* --- UPDATED: Show "Proof Requested" --- */}
                           {item.status === "Pending" && item.proofRequested 
                             ? "Proof Requested" 
                             : item.status
@@ -216,7 +179,6 @@ export default function ManagementListingQueue({ items: initialItems }: Props) {
                           >
                             {actionLoading === item.id ? "..." : "Reject"}
                           </button>
-                          {/* --- ADDED: Request Proof Button --- */}
                           <button
                             onClick={() => handleAction(item.id, "request-proof")}
                             disabled={actionLoading === item.id || item.proofRequested}
@@ -231,7 +193,7 @@ export default function ManagementListingQueue({ items: initialItems }: Props) {
                 ) : (
                   <tr>
                     <td
-                      colSpan={10} // <-- Increased colspan
+                      colSpan={10}
                       className="px-4 py-6 text-center text-sm text-gray-500"
                     >
                       No listings awaiting review.
@@ -247,7 +209,7 @@ export default function ManagementListingQueue({ items: initialItems }: Props) {
     </>
   );
 }
-// ... (formatDate function is unchanged) ...
+
 function formatDate(ts: any): string {
   try {
     if (!ts) return "";
@@ -267,7 +229,6 @@ function formatDate(ts: any): string {
   }
 }
 
-// ... (getServerSideProps is unchanged) ...
 export const getServerSideProps: GetServerSideProps<Props> = async () => {
   try {
     const snap = await adminDb
@@ -288,13 +249,15 @@ export const getServerSideProps: GetServerSideProps<Props> = async () => {
         title: d.title || "Untitled listing",
         seller: d.sellerName || d.sellerDisplayName || d.sellerId || "Seller",
         category: d.categoryName || d.category || "",
-        purchase_source: d.purchase_source || "",
-        purchase_proof: d.purchase_proof || "",
-        serial_number: d.serial_number || "",
-        auth_photos: d.auth_photos || "",
         submittedAt: formatDate(d.createdAt),
         status,
         proofRequested: d.proofRequested || false,
+        // --- ADDED: Pass new fields to page ---
+        purchase_source: d.purchase_source || "",
+        purchase_proof: d.purchase_proof || "",
+        serial_number: d.serial_number || "",
+        auth_photos: d.auth_photos || [],
+        // ------------------------------------
       };
     });
 
