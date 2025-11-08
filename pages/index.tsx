@@ -4,7 +4,7 @@ import Link from "next/link";
 import Header from "../components/Header";
 import Footer from "../components/Footer";
 import DemoGrid from "../components/DemoGrid";
-import { ProductLike } from "../components/ProductCard";
+import { ProductLike } from "../components/ProductCard"; // This import is unchanged
 import { adminDb } from "../utils/firebaseAdmin";
 import type { GetServerSideProps } from "next";
 
@@ -29,13 +29,13 @@ type HomeProps = {
 };
 
 export default function Home({ trending, newArrivals }: HomeProps) {
+  // (Your existing React component code is unchanged)
   return (
     <div className="dark-theme-page">
       <Head>
         <title>Famous Finds — US</title>
       </Head>
       <Header />
-
       <main className="wrap">
         {/* (All your Hero and Category JSX is unchanged) */}
         <section className="hero">
@@ -76,7 +76,6 @@ export default function Home({ trending, newArrivals }: HomeProps) {
             </div>
           </div>
         </section>
-
         <section className="cats">
           {categories.map((c) => (
             <Link key={c.slug} href={`/category/${c.slug}`} className="cat">
@@ -84,13 +83,10 @@ export default function Home({ trending, newArrivals }: HomeProps) {
             </Link>
           ))}
         </section>
-
         <DemoGrid title="Now Trending" items={trending} />
         <DemoGrid title="New Arrivals" items={newArrivals} />
       </main>
-
       <Footer />
-
       {/* (All your styles are unchanged) */}
       <style jsx>{`
         .wrap {
@@ -258,16 +254,26 @@ export default function Home({ trending, newArrivals }: HomeProps) {
 // --- UPDATED data-loading function ---
 export const getServerSideProps: GetServerSideProps<HomeProps> = async () => {
   try {
-    // --- THIS IS THE FIX ---
-    // 1. Fetch all recent listings without the status filter
+    // 1. Fetch recent listings
     const snap = await adminDb
       .collection("listings")
       .orderBy("createdAt", "desc")
-      .limit(50) // Fetch more to find enough "Live" ones
+      .limit(50) 
       .get();
 
-    const allItems: ProductLike[] = snap.docs.map((doc) => {
+    // 2. Filter for "Live" items in the code
+    const liveItems: ProductLike[] = [];
+    
+    snap.docs.forEach((doc) => {
       const d: any = doc.data() || {};
+      
+      // --- THIS IS THE FIX ---
+      // Only proceed if the status is "Live"
+      if (d.status !== "Live") {
+        return;
+      }
+      // ---------------------
+
       const priceNumber = Number(d.price) || 0;
       
       const price = priceNumber
@@ -277,10 +283,11 @@ export const getServerSideProps: GetServerSideProps<HomeProps> = async () => {
       const image: string =
         d.imageUrl ||
         d.image || 
-        (Array.isArray(d.imageUrls) && d.imageUrls[0]) || // Check new array
+        (Array.isArray(d.imageUrls) && d.imageUrls[0]) || 
         "https://images.unsplash.com/photo-1550009158-9ebf69173e03?auto-format&fit=crop&w=800&q=80";
 
-      return {
+      // This item is "Live", so add it to the list
+      liveItems.push({
         id: doc.id,
         title: d.title || "Untitled listing",
         brand: d.brand || "",
@@ -288,16 +295,13 @@ export const getServerSideProps: GetServerSideProps<HomeProps> = async () => {
         image,
         href: `/product/${doc.id}`,
         badge: d.badge || undefined,
-        status: d.status || "PendingReview", // Get the status
-      };
+        // No 'status' property is added here, so it matches ProductLike
+      });
     });
-
-    // 2. Filter for "Live" items in the code
-    const liveItems = allItems.filter(item => item.status === "Live");
-    // -------------------------
 
     return {
       props: {
+        // Now we slice the already-filtered 'liveItems'
         trending: liveItems.slice(0, 12),
         newArrivals: liveItems.slice(12, 24),
       },
