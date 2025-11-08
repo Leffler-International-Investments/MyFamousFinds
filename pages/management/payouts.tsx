@@ -4,53 +4,50 @@ import Head from "next/head";
 import Link from "next/link";
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
-import { useRequireAdmin } from "../../hooks/useRequireAdmin";
 import { adminDb } from "../../utils/firebaseAdmin";
+import { useRequireAdmin } from "../../hooks/useRequireAdmin";
 
-type PayoutRow = {
+type Payout = {
   id: string;
-  seller: string;
-  date: string;
-  status: string;
+  sellerName: string;
   amount: number;
+  currency: string;
+  status: string;
+  createdAt: string;
 };
 
 type Props = {
-  payouts: PayoutRow[];
+  payouts: Payout[];
 };
 
 export default function ManagementPayouts({ payouts }: Props) {
   const { loading } = useRequireAdmin();
   if (loading) return null;
 
-  const hasAny = payouts.length > 0;
-
   return (
     <>
       <Head>
-        <title>Payouts & Finance — Admin</title>
+        <title>Payouts &amp; Finance — Admin</title>
       </Head>
       <div className="min-h-screen bg-gray-50 text-gray-900">
         <Header />
         <main className="mx-auto max-w-6xl px-4 pb-16 pt-6">
-          <div className="mb-6 flex items-center justify-between">
+          <div className="mb-6 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
             <div>
-              <h1 className="text-2xl font-semibold text-gray-900">
-                Payouts & Finance
-              </h1>
+              <h1 className="text-2xl font-semibold">Payouts &amp; Finance</h1>
               <p className="mt-1 text-sm text-gray-600">
-                Review seller payouts and their current status.
+                Review seller payouts and platform fees, denominated in USD.
               </p>
             </div>
             <Link
               href="/management/dashboard"
               className="text-sm text-gray-600 hover:text-gray-900"
             >
-              ← Back to Management Dash
+              ← Back to Management Dashboard
             </Link>
           </div>
 
-          <div className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
+          <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white shadow-sm">
             <table className="min-w-full divide-y divide-gray-200 text-sm">
               <thead className="bg-gray-50">
                 <tr>
@@ -60,49 +57,39 @@ export default function ManagementPayouts({ payouts }: Props) {
                   <th className="px-4 py-2 text-left font-medium text-gray-700">
                     Seller
                   </th>
-                  <th className="px-4 py-2 text-left font-medium text-gray-700">
-                    Date
+                  <th className="px-4 py-2 text-right font-medium text-gray-700">
+                    Amount (USD)
                   </th>
                   <th className="px-4 py-2 text-left font-medium text-gray-700">
                     Status
                   </th>
-                  <th className="px-4 py-2 text-right font-medium text-gray-700">
-                    Amount
+                  <th className="px-4 py-2 text-left font-medium text-gray-700">
+                    Created
                   </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-200 bg-white">
-                {hasAny ? (
-                  payouts.map((p) => (
-                    <tr key={p.id}>
-                      <td className="px-4 py-2 text-gray-900">{p.id}</td>
-                      <td className="px-4 py-2 text-gray-900">{p.seller}</td>
-                      <td className="px-4 py-2 text-gray-700">
-                        {p.date || "—"}
-                      </td>
-                      <td className="px-4 py-2">
-                        <span
-                          className={
-                            "rounded-full px-3 py-1 text-xs font-medium " +
-                            (p.status === "Paid"
-                              ? "bg-green-100 text-green-800"
-                              : p.status === "Pending"
-                              ? "bg-yellow-100 text-yellow-800"
-                              : "bg-gray-200 text-gray-700")
-                          }
-                        >
-                          {p.status}
-                        </span>
-                      </td>
-                      <td className="px-4 py-2 text-right text-gray-900">
-                        {p.amount.toLocaleString("en-AU", {
-                          style: "currency",
-                          currency: "AUD",
-                        })}
-                      </td>
-                    </tr>
-                  ))
-                ) : (
+              <tbody className="divide-y divide-gray-100">
+                {payouts.map((p) => (
+                  <tr key={p.id}>
+                    <td className="px-4 py-2 text-gray-900">{p.id}</td>
+                    <td className="px-4 py-2 text-gray-700">
+                      {p.sellerName}
+                    </td>
+                    <td className="px-4 py-2 text-right text-gray-700">
+                      {p.amount
+                        ? p.amount.toLocaleString("en-US", {
+                            style: "currency",
+                            currency: "USD",
+                          })
+                        : "—"}
+                    </td>
+                    <td className="px-4 py-2 text-gray-700">{p.status}</td>
+                    <td className="px-4 py-2 text-gray-700">
+                      {p.createdAt}
+                    </td>
+                  </tr>
+                ))}
+                {payouts.length === 0 && (
                   <tr>
                     <td
                       colSpan={5}
@@ -122,25 +109,6 @@ export default function ManagementPayouts({ payouts }: Props) {
   );
 }
 
-function formatDate(ts: any): string {
-  try {
-    if (!ts) return "";
-    const d =
-      typeof ts.toDate === "function"
-        ? ts.toDate()
-        : ts instanceof Date
-        ? ts
-        : null;
-    if (!d) return "";
-    const pad = (n: number) => String(n).padStart(2, "0");
-    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(
-      d.getDate()
-    )}`;
-  } catch {
-    return "";
-  }
-}
-
 export const getServerSideProps: GetServerSideProps<Props> = async () => {
   try {
     const snap = await adminDb
@@ -149,23 +117,16 @@ export const getServerSideProps: GetServerSideProps<Props> = async () => {
       .limit(200)
       .get();
 
-    const payouts: PayoutRow[] = snap.docs.map((doc) => {
+    const payouts: Payout[] = snap.docs.map((doc) => {
       const d: any = doc.data() || {};
-      const amountRaw = d.amount ?? d.total ?? 0;
-      const amount =
-        typeof amountRaw === "number"
-          ? amountRaw
-          : typeof amountRaw === "string"
-          ? Number(amountRaw) || 0
-          : 0;
-
       return {
         id: doc.id,
-        seller:
-          d.sellerName || d.sellerDisplayName || d.sellerId || "Seller",
-        date: formatDate(d.createdAt),
+        sellerName: d.sellerName || "",
+        amount: Number(d.amount || 0),
+        currency: d.currency || "USD",
         status: d.status || "Pending",
-        amount,
+        createdAt:
+          d.createdAt?.toDate?.().toLocaleString("en-US") || "",
       };
     });
 
@@ -175,4 +136,3 @@ export const getServerSideProps: GetServerSideProps<Props> = async () => {
     return { props: { payouts: [] } };
   }
 };
-
