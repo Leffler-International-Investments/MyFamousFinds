@@ -4,9 +4,9 @@ import Link from "next/link";
 import { GetServerSideProps } from "next";
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
-import { adminDb, FieldValue } from "../../utils/firebaseAdmin";
+import { adminDb } from "../../utils/firebaseAdmin";
 import { useRequireAdmin } from "../../hooks/useRequireAdmin";
-import { useState } from "react"; 
+import { useState } from "react";
 
 type Listing = {
   id: string;
@@ -14,31 +14,30 @@ type Listing = {
   seller: string;
   category: string;
   price: number;
-  // --- ADDED: New fields ---
+  status: "Pending" | "Live" | "Rejected";
   purchase_source?: string;
   purchase_proof?: string;
   serial_number?: string;
-  auth_photos?: string[]; // Expect an array of URLs
-  // -------------------------
-  submittedAt: string;
-  status: string;
-  proofRequested?: boolean;
+  auth_photos?: string[];
+  submittedAt?: string;
 };
 
-type Props = {
-  items: Listing[];
-};
+type Props = { items: Listing[] };
 
-export default function ManagementListingQueue({ items: initialItems }: Props) {
+export default function ManagementListingQueue({
+  items: initialItems,
+}: Props) {
   const { loading } = useRequireAdmin();
-  
-  const [items, setItems] = useState<Listing[]>(initialItems);
+  const [items, setItems] = useState(initialItems);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   if (loading) return <div className="min-h-screen bg-gray-50"></div>;
 
-  const handleAction = async (id: string, action: "approve" | "reject" | "request-proof") => {
+  const handleAction = async (
+    id: string,
+    action: "approve" | "reject" | "request-proof"
+  ) => {
     if (actionLoading) return;
     setActionLoading(id);
     setError(null);
@@ -47,25 +46,29 @@ export default function ManagementListingQueue({ items: initialItems }: Props) {
       const res = await fetch(`/api/admin/${action}/${id}`, {
         method: "POST",
       });
-      
-      const json = await res.json();
+      const json = await res.json().catch(() => ({}));
       if (!res.ok) {
         throw new Error(json.error || `Failed to ${action} item`);
       }
-      
-      if (action === "approve" || action === "reject") {
-        setItems((prevItems) => prevItems.filter((item) => item.id !== id));
+
+      if (action === "request-proof") {
+        setItems((prev) =>
+          prev.map((x) =>
+            x.id === id ? { ...x, purchase_proof: "Requested" } : x
+          )
+        );
       } else {
-        setItems((prevItems) => 
-          prevItems.map((item) =>
-            item.id === id ? { ...item, proofRequested: true } : item
+        const nextStatus: Listing["status"] =
+          action === "approve" ? "Live" : "Rejected";
+        setItems((prev) =>
+          prev.map((x) =>
+            x.id === id ? { ...x, status: nextStatus } : x
           )
         );
       }
-
     } catch (err: any) {
       console.error(err);
-      setError(err.message);
+      setError(err?.message || "Something went wrong.");
     } finally {
       setActionLoading(null);
     }
@@ -87,17 +90,19 @@ export default function ManagementListingQueue({ items: initialItems }: Props) {
                 Listing Review Queue
               </h1>
               <p className="text-sm text-gray-600">
-                Pending submissions from all sellers. Check authenticity notes before approval.
+                Pending submissions from all sellers. Check authenticity before
+                approval. Your Prada bag and LV sneakers both show here when
+                status is Pending.
               </p>
             </div>
             <Link
-              href="/management/dashboard" 
+              href="/management/dashboard"
               className="rounded-full bg-gray-900 px-4 py-2 text-xs font-medium text-white"
             >
               ← Back to admin home
             </Link>
           </div>
-          
+
           {error && (
             <div className="mb-4 rounded-md bg-red-100 p-3 text-sm text-red-700">
               <strong>Error:</strong> {error}
@@ -108,86 +113,118 @@ export default function ManagementListingQueue({ items: initialItems }: Props) {
             <table className="min-w-full divide-y divide-gray-200 text-sm">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-4 py-2 text-left font-medium text-gray-700">Listing</th>
-                  <th className="px-4 py-2 text-left font-medium text-gray-700">Seller</th>
-                  <th className="px-4 py-2 text-left font-medium text-gray-700">Price</th>
-                  <th className="px-4 py-2 text-left font-medium text-gray-700">Category</th>
-                  <th className="px-4 py-2 text-left font-medium text-gray-700">Purchased From</th>
-                  <th className="px-4 py-2 text-left font-medium text-gray-700">Proof</th>
-                  <th className="px-4 py-2 text-left font-medium text-gray-700">Serial #</th>
-                  <th className="px-4 py-2 text-left font-medium text-gray-700">Proof Docs</th>
-                  <th className="px-4 py-2 text-left font-medium text-gray-700">Submitted</th>
-                  <th className="px-4 py-2 text-left font-medium text-gray-700">Status</th>
-                  <th className="px-4 py-2 text-left font-medium text-gray-700">Actions</th>
+                  <th className="px-4 py-2 text-left font-medium text-gray-700">
+                    Listing
+                  </th>
+                  <th className="px-4 py-2 text-left font-medium text-gray-700">
+                    Seller
+                  </th>
+                  <th className="px-4 py-2 text-left font-medium text-gray-700">
+                    Price
+                  </th>
+                  <th className="px-4 py-2 text-left font-medium text-gray-700">
+                    Category
+                  </th>
+                  <th className="px-4 py-2 text-left font-medium text-gray-700">
+                    Purchased From
+                  </th>
+                  <th className="px-4 py-2 text-left font-medium text-gray-700">
+                    Proof
+                  </th>
+                  <th className="px-4 py-2 text-left font-medium text-gray-700">
+                    Serial #
+                  </th>
+                  <th className="px-4 py-2 text-left font-medium text-gray-700">
+                    Proof Docs
+                  </th>
+                  <th className="px-4 py-2 text-left font-medium text-gray-700">
+                    Submitted
+                  </th>
+                  <th className="px-4 py-2 text-left font-medium text-gray-700">
+                    Status
+                  </th>
+                  <th className="px-4 py-2 text-left font-medium text-gray-700">
+                    Actions
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {hasAny ? (
                   items.map((item) => (
                     <tr key={item.id}>
-                      <td className="px-4 py-2 text-gray-900">{item.title}</td>
-                      <td className="px-4 py-2 text-gray-700">{item.seller}</td>
-                      <td className="px-4 py-2 text-gray-700">US${item.price}</td>
-                      <td className="px-4 py-2 text-gray-700">{item.category || "—"}</td>
-                      <td className="px-4 py-2 text-gray-700">{item.purchase_source || "—"}</td>
-                      <td className="px-4 py-2 text-gray-700">{item.purchase_proof || "—"}</td>
-                      <td className="px-4 py-2 text-gray-700">{item.serial_number || "—"}</td>
+                      <td className="px-4 py-2 text-gray-900">
+                        {item.title}
+                      </td>
+                      <td className="px-4 py-2 text-gray-700">
+                        {item.seller}
+                      </td>
+                      <td className="px-4 py-2 text-gray-700">
+                        {item.price
+                          ? `US$${item.price.toLocaleString("en-US")}`
+                          : "—"}
+                      </td>
+                      <td className="px-4 py-2 text-gray-700">
+                        {item.category || "—"}
+                      </td>
+                      <td className="px-4 py-2 text-gray-700">
+                        {item.purchase_source || "—"}
+                      </td>
+                      <td className="px-4 py-2 text-gray-700">
+                        {item.purchase_proof || "—"}
+                      </td>
+                      <td className="px-4 py-2 text-gray-700">
+                        {item.serial_number || "—"}
+                      </td>
                       <td className="px-4 py-2 text-gray-700">
                         {item.auth_photos && item.auth_photos.length > 0 ? (
-                          <a
-                            href={item.auth_photos[0]}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="text-blue-600 hover:underline"
-                          >
-                            View ({item.auth_photos.length})
-                          </a>
+                          <span>
+                            {item.auth_photos.length} photo
+                            {item.auth_photos.length > 1 ? "s" : ""}
+                          </span>
                         ) : (
                           "—"
                         )}
                       </td>
-                      <td className="px-4 py-2 text-gray-700">{item.submittedAt || "—"}</td>
-                      <td className="px-4 py-2">
-                        <span
-                          className={
-                            "rounded-full px-3 py-1 text-xs font-medium " +
-                            (item.status === "Pending" && !item.proofRequested
-                              ? "bg-yellow-100 text-yellow-800"
-                              : item.status === "Pending" && item.proofRequested
-                              ? "bg-blue-100 text-blue-800"
-                              : item.status === "Rejected"
-                              ? "bg-red-100 text-red-800"
-                              : "bg-green-100 text-green-800")
-                          }
-                        >
-                          {item.status === "Pending" && item.proofRequested 
-                            ? "Proof Requested" 
-                            : item.status
-                          }
-                        </span>
+                      <td className="px-4 py-2 text-gray-700">
+                        {item.submittedAt || "—"}
+                      </td>
+                      <td className="px-4 py-2 text-gray-700">
+                        {item.status}
                       </td>
                       <td className="px-4 py-2">
-                        <div className="flex gap-2">
+                        <div className="flex flex-wrap gap-2">
                           <button
-                            onClick={() => handleAction(item.id, "approve")}
-                            disabled={actionLoading === item.id}
-                            className="rounded-full bg-green-100 px-3 py-1 text-xs font-medium text-green-800 hover:bg-green-200 disabled:opacity-50"
+                            onClick={() =>
+                              handleAction(item.id, "approve")
+                            }
+                            disabled={
+                              actionLoading === item.id ||
+                              item.status === "Live"
+                            }
+                            className="rounded-full bg-green-600 px-3 py-1 text-xs font-semibold text-white disabled:opacity-50"
                           >
-                            {actionLoading === item.id ? "..." : "Approve"}
+                            Approve
                           </button>
                           <button
-                            onClick={() => handleAction(item.id, "reject")}
-                            disabled={actionLoading === item.id}
-                            className="rounded-full bg-red-100 px-3 py-1 text-xs font-medium text-red-800 hover:bg-red-200 disabled:opacity-50"
+                            onClick={() =>
+                              handleAction(item.id, "reject")
+                            }
+                            disabled={
+                              actionLoading === item.id ||
+                              item.status === "Rejected"
+                            }
+                            className="rounded-full bg-red-600 px-3 py-1 text-xs font-semibold text-white disabled:opacity-50"
                           >
-                            {actionLoading === item.id ? "..." : "Reject"}
+                            Reject
                           </button>
                           <button
-                            onClick={() => handleAction(item.id, "request-proof")}
-                            disabled={actionLoading === item.id || item.proofRequested}
-                            className="rounded-full bg-blue-100 px-3 py-1 text-xs font-medium text-blue-800 hover:bg-blue-200 disabled:opacity-50"
+                            onClick={() =>
+                              handleAction(item.id, "request-proof")
+                            }
+                            disabled={actionLoading === item.id}
+                            className="rounded-full bg-yellow-500 px-3 py-1 text-xs font-semibold text-black disabled:opacity-50"
                           >
-                            {actionLoading === item.id ? "..." : (item.proofRequested ? "Sent" : "Request Proof")}
+                            Request proof
                           </button>
                         </div>
                       </td>
@@ -196,10 +233,10 @@ export default function ManagementListingQueue({ items: initialItems }: Props) {
                 ) : (
                   <tr>
                     <td
-                      colSpan={11} // <-- Increased colspan
+                      colSpan={11}
                       className="px-4 py-6 text-center text-sm text-gray-500"
                     >
-                      No listings awaiting review.
+                      No listings are currently pending review.
                     </td>
                   </tr>
                 )}
@@ -213,25 +250,6 @@ export default function ManagementListingQueue({ items: initialItems }: Props) {
   );
 }
 
-function formatDate(ts: any): string {
-  try {
-    if (!ts) return "";
-    const d =
-      typeof ts.toDate === "function"
-        ? ts.toDate()
-        : ts instanceof Date
-        ? ts
-        : null;
-    if (!d) return "";
-    const pad = (n: number) => String(n).padStart(2, "0");
-    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(
-      d.getDate()
-    )}`;
-  } catch {
-    return "";
-  }
-}
-
 export const getServerSideProps: GetServerSideProps<Props> = async () => {
   try {
     const snap = await adminDb
@@ -243,7 +261,7 @@ export const getServerSideProps: GetServerSideProps<Props> = async () => {
     const all: Listing[] = snap.docs.map((doc) => {
       const d: any = doc.data() || {};
       const rawStatus = (d.status || "").toString();
-      let status: string = "Live";
+      let status: Listing["status"] = "Live";
       if (/pending/i.test(rawStatus)) status = "Pending";
       else if (/reject/i.test(rawStatus)) status = "Rejected";
 
@@ -251,22 +269,19 @@ export const getServerSideProps: GetServerSideProps<Props> = async () => {
         id: doc.id,
         title: d.title || "Untitled listing",
         seller: d.sellerName || d.sellerDisplayName || d.sellerId || "Seller",
-        price: d.price || 0,
-        category: d.categoryName || d.category || "",
-        submittedAt: formatDate(d.createdAt),
+        category: d.category || "",
+        price: Number(d.price || 0),
         status,
-        proofRequested: d.proofRequested || false,
-        // --- ADDED: Pass new fields to page ---
         purchase_source: d.purchase_source || "",
         purchase_proof: d.purchase_proof || "",
         serial_number: d.serial_number || "",
         auth_photos: d.auth_photos || [],
-        // ------------------------------------
+        submittedAt:
+          d.createdAt?.toDate?.().toLocaleString("en-US") || "",
       };
     });
 
     const items = all.filter((i) => i.status === "Pending");
-
     return { props: { items } };
   } catch (err) {
     console.error("Error loading listing queue", err);
