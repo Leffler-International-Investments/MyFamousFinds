@@ -3,7 +3,7 @@ import Head from "next/head";
 import Link from "next/link";
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
-import React, { // <-- UPDATED: Added 'React'
+import React, { // <-- ADDED React
   useState,
   FormEvent,
   ChangeEvent,
@@ -38,7 +38,7 @@ type UploadRow = {
   status: "ready" | "missing" | "error";
 };
 
-// (Dropdown lists are unchanged)
+// --- Dropdown Lists ---
 const TOP_BRANDS = [
   "Prada", "Gucci", "Chanel", "Rolex", "Hermès", "Louis Vuitton",
   "Dior", "Cartier", "Fendi", "Saint Laurent", "Other"
@@ -55,7 +55,7 @@ const PROOF_TYPES = [
   "Other Documented Proof",
   "N/A"
 ];
-// ----------------------------------
+// -----------------------
 
 export default function SellerBulkUpload() {
   const [fileName, setFileName] = useState<string | null>(null);
@@ -87,9 +87,8 @@ export default function SellerBulkUpload() {
   const [uploadingProofImages, setUploadingProofImages] = useState(false);
   // --------------------------------------------------
 
-  // (CSV logic is unchanged)
+  // --- CSV UPLOAD LOGIC ---
   const handleFileChange = async (e: ChangeEvent<HTMLInputElement>) => {
-    /* ... existing code from your file ... */
     const file = e.target.files?.[0];
     if (!file) return;
     setFileName(file.name);
@@ -173,17 +172,17 @@ export default function SellerBulkUpload() {
       setCommitting(false);
     }
   };
+  // ----------------------------------------------------
   
   // ---------------- SINGLE LISTING + IMAGE ----------------
 
-  // --- THIS IS THE FIX ---
-  // The type for setPreviews was wrong.
+  // --- THIS IS THE FIX for the build error ---
   function handleImageSelect(
     files: FileList | null, 
     setFiles: React.Dispatch<React.SetStateAction<File[]>>, 
-    setPreviews: React.Dispatch<React.SetStateAction<string[]>> // <-- Corrected Type
+    setPreviews: React.Dispatch<React.SetStateAction<string[]>>
   ) {
-  // -----------------------
+  // --------------------------------------------
     if (!files || files.length === 0) {
       setFiles([]);
       setPreviews([]);
@@ -255,7 +254,7 @@ export default function SellerBulkUpload() {
     } catch (err: any) {
       console.error("Image upload failed:", err);
       if (err.code === "storage/unauthorized") {
-        throw new Error("Image upload failed: Permission denied. Check Firebase Storage rules.");
+        throw new Error("Image upload failed: Permission denied. Check your Firebase Storage rules.");
       }
       throw new Error("One or more image uploads failed. Please try again.");
     } finally {
@@ -264,7 +263,7 @@ export default function SellerBulkUpload() {
   }
 
 
-  // handleSingleSubmit function (unchanged)
+  // --- UPDATED: handleSingleSubmit with all fields ---
   const handleSingleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setSingleError(null);
@@ -399,7 +398,7 @@ export default function SellerBulkUpload() {
   );
   // ---------------------------------------------
 
-  // --- RENDER function (All JSX is unchanged) ---
+  // --- RENDER function ---
   return (
     <div className="min-h-screen bg-black text-gray-100">
       <Head>
@@ -421,8 +420,8 @@ export default function SellerBulkUpload() {
           Upload Your Listings
         </h1>
         <p className="mt-1 text-sm text-gray-400">
-          You can add items one-by-one or upload many at once with a CSV.
-          All submissions are held for admin review before going live.
+          Add items one-by-one or upload many at once with a CSV. All submissions
+          require authenticity details and are held for admin review before going live.
         </p>
         {/* ----------------------------- */}
 
