@@ -5,40 +5,37 @@ import Head from "next/head";
 import Link from "next/link";
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
-import { useRequireAdmin } from "../../hooks/useRequireAdmin";
 import { adminDb } from "../../utils/firebaseAdmin";
+import { useRequireAdmin } from "../../hooks/useRequireAdmin";
 
-type Seller = {
+type SellerRow = {
   id: string;
   name: string;
   email: string;
-  country: string;
-  listings: number;
   status: string;
+  totalListings: number;
+  createdAt: string;
 };
 
 type Props = {
-  sellers: Seller[];
+  sellers: SellerRow[];
 };
 
 export default function ManagementSellers({ sellers }: Props) {
   const { loading } = useRequireAdmin();
   const [query, setQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState<"All" | "Active" | "Pending" | "Suspended">("All");
 
   const visible = useMemo(() => {
     const q = query.trim().toLowerCase();
+    if (!q) return sellers;
     return sellers.filter((s) => {
-      if (statusFilter !== "All" && s.status !== statusFilter) return false;
-      if (!q) return true;
       return (
         s.name.toLowerCase().includes(q) ||
         s.email.toLowerCase().includes(q) ||
-        s.country.toLowerCase().includes(q) ||
         s.id.toLowerCase().includes(q)
       );
     });
-  }, [sellers, query, statusFilter]);
+  }, [sellers, query]);
 
   if (loading) return null;
 
@@ -57,7 +54,7 @@ export default function ManagementSellers({ sellers }: Props) {
                 Seller Directory
               </h1>
               <p className="mt-1 text-sm text-gray-600">
-                Search and filter all approved sellers on the platform.
+                View and manage all active sellers on Famous-Finds.
               </p>
             </div>
             <Link
@@ -70,98 +67,55 @@ export default function ManagementSellers({ sellers }: Props) {
 
           <div className="mb-4 flex flex-wrap items-center gap-3">
             <input
-              type="text"
-              placeholder="Search by name, email, or ID…"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search by seller name, email, or ID…"
               className="w-full max-w-xs rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-gray-900 focus:outline-none"
             />
-            <select
-              value={statusFilter}
-              onChange={(e) =>
-                setStatusFilter(e.target.value as typeof statusFilter)
-              }
-              className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm focus:border-gray-900 focus:outline-none"
-            >
-              <option value="All">All statuses</option>
-              <option value="Active">Active</option>
-              <option value="Pending">Pending</option>
-              <option value="Suspended">Suspended</option>
-            </select>
           </div>
 
-          <div className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
+          <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white shadow-sm">
             <table className="min-w-full divide-y divide-gray-200 text-sm">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-4 py-2 text-left font-medium text-gray-700">
+                  <th className="px-3 py-2 text-left font-medium text-gray-700">
                     Seller
                   </th>
-                  <th className="px-4 py-2 text-left font-medium text-gray-700">
+                  <th className="px-3 py-2 text-left font-medium text-gray-700">
                     Email
                   </th>
-                  <th className="px-4 py-2 text-left font-medium text-gray-700">
-                    Country
-                  </th>
-                  <th className="px-4 py-2 text-right font-medium text-gray-700">
-                    Listings
-                  </th>
-                  <th className="px-4 py-2 text-left font-medium text-gray-700">
+                  <th className="px-3 py-2 text-left font-medium text-gray-700">
                     Status
                   </th>
-                  <th className="px-4 py-2 text-right font-medium text-gray-700">
-                    Actions
+                  <th className="px-3 py-2 text-right font-medium text-gray-700">
+                    Listings
+                  </th>
+                  <th className="px-3 py-2 text-left font-medium text-gray-700">
+                    Created
                   </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {visible.map((s) => (
                   <tr key={s.id}>
-                    <td className="px-4 py-2 text-sm text-gray-900">
-                      <div className="font-medium">{s.name}</div>
-                      <div className="text-xs text-gray-500">{s.id}</div>
+                    <td className="px-3 py-2 text-gray-900">{s.name}</td>
+                    <td className="px-3 py-2 text-gray-700">{s.email}</td>
+                    <td className="px-3 py-2 text-gray-700">{s.status}</td>
+                    <td className="px-3 py-2 text-right text-gray-700">
+                      {s.totalListings.toLocaleString("en-US")}
                     </td>
-                    <td className="px-4 py-2 text-sm text-gray-700">
-                      {s.email}
-                    </td>
-                    <td className="px-4 py-2 text-sm text-gray-700">
-                      {s.country}
-                    </td>
-                    <td className="px-4 py-2 text-right text-sm text-gray-900">
-                      {s.listings}
-                    </td>
-                    <td className="px-4 py-2 text-xs">
-                      <span
-                        className={`inline-flex rounded-full px-2 py-1 text-xs font-semibold ${
-                          s.status === "Active"
-                            ? "bg-emerald-100 text-emerald-700"
-                            : s.status === "Pending"
-                            ? "bg-yellow-100 text-yellow-800"
-                            : "bg-red-100 text-red-700"
-                        }`}
-                      >
-                        {s.status}
-                      </span>
-                    </td>
-                    <td className="px-4 py-2 text-right text-xs">
-                      <Link
-                        href={`/management/seller-profiles?id=${encodeURIComponent(
-                          s.id
-                        )}`}
-                        className="font-medium text-blue-600 hover:text-blue-800"
-                      >
-                        View
-                      </Link>
+                    <td className="px-3 py-2 text-gray-700">
+                      {s.createdAt}
                     </td>
                   </tr>
                 ))}
-                {!visible.length && (
+                {visible.length === 0 && (
                   <tr>
                     <td
-                      colSpan={6}
-                      className="px-4 py-6 text-center text-xs text-gray-500"
+                      colSpan={5}
+                      className="px-3 py-6 text-center text-sm text-gray-500"
                     >
-                      No sellers found for the current filters.
+                      No sellers match this search.
                     </td>
                   </tr>
                 )}
@@ -178,18 +132,30 @@ export default function ManagementSellers({ sellers }: Props) {
 
 export const getServerSideProps: GetServerSideProps<Props> = async () => {
   try {
-    const snap = await adminDb.collection("sellers").get();
+    const [sellersSnap, listingsSnap] = await Promise.all([
+      adminDb.collection("sellers").get(),
+      adminDb.collection("listings").get(),
+    ]);
 
-    const sellers: Seller[] = snap.docs.map((doc) => {
+    const listingsBySeller: Record<string, number> = {};
+    listingsSnap.docs.forEach((doc) => {
       const d: any = doc.data() || {};
+      const sellerId = d.sellerId || d.seller || "";
+      if (!sellerId) return;
+      listingsBySeller[sellerId] = (listingsBySeller[sellerId] || 0) + 1;
+    });
+
+    const sellers: SellerRow[] = sellersSnap.docs.map((doc) => {
+      const d: any = doc.data() || {};
+      const id = doc.id;
       return {
-        id: doc.id,
-        name: d.businessName || d.displayName || "Unnamed seller",
+        id,
+        name: d.name || d.businessName || "Seller",
         email: d.email || "",
-        country: d.country || "",
-        listings:
-          typeof d.listingsCount === "number" ? d.listingsCount : 0,
         status: d.status || "Active",
+        totalListings: listingsBySeller[id] || 0,
+        createdAt:
+          d.createdAt?.toDate?.().toLocaleString("en-US") || "",
       };
     });
 
