@@ -10,13 +10,12 @@ type IncomingRow = {
   category?: string;
   price?: string | number;
   imageUrls?: string[];
-  // --- ADDED: New authenticity fields ---
+  // Authenticity fields
   purchase_source?: string;
   purchase_proof?: string;
   serial_number?: string;
   auth_photos?: string[];
   authenticity_confirmed?: boolean | string;
-  // ------------------------------------
 };
 
 type BulkCommitResponse =
@@ -41,10 +40,8 @@ export default async function handler(
         .json({ ok: false, error: "unauthorized" });
     }
 
-    const body = req.body as { rows?: IncomingRow[] } | undefined;
-    const rows = Array.isArray(body?.rows) ? body!.rows : [];
-
-    if (!rows.length) {
+    const rows = (req.body?.rows || []) as IncomingRow[];
+    if (!Array.isArray(rows) || !rows.length) {
       return res
         .status(400)
         .json({ ok: false, error: "no_rows" });
@@ -60,14 +57,19 @@ export default async function handler(
         continue;
       }
 
-      // --- ADDED: Authenticity check ---
-      const confirmed = r.authenticity_confirmed === true || String(r.authenticity_confirmed).toUpperCase() === 'YES';
-      if (!r.purchase_source || !r.purchase_proof || !r.serial_number || !confirmed) {
-        // Skip rows that are missing mandatory proof or confirmation
+      const confirmed =
+        r.authenticity_confirmed === true ||
+        String(r.authenticity_confirmed).toUpperCase() === "YES";
+
+      if (
+        !r.purchase_source ||
+        !r.purchase_proof ||
+        !r.serial_number ||
+        !confirmed
+      ) {
         skipped++;
         continue;
       }
-      // ---------------------------------
 
       const priceRaw =
         typeof r.price === "number" ? r.price : Number(r.price);
@@ -86,38 +88,39 @@ export default async function handler(
         brand: r.brand ? String(r.brand) : "",
         category: r.category ? String(r.category).toLowerCase() : "",
         price: numericPrice,
-        currency: "USD", // --- SET TO USD ---
-        status: "PendingReview", // All uploads go to review
+        currency: "USD",
+        // ✅ unified status
+        status: "Pending", // all bulk uploads go to review queue
         imageUrls: Array.isArray(r.imageUrls) ? r.imageUrls : [],
-        description: "", // Can be added later
+        description: "",
         createdAt: FieldValue.serverTimestamp(),
         updatedAt: FieldValue.serverTimestamp(),
-        // --- ADDED: Save new fields to database ---
         purchase_source: String(r.purchase_source),
         purchase_proof: String(r.purchase_proof),
         serial_number: String(r.serial_number),
-        auth_photos: Array.isArray(r.auth_photos) ? r.auth_photos : [],
+        auth_photos: Array.isArray(r.auth_photos)
+          ? r.auth_photos
+          : [],
         authenticity_confirmed: true,
-        // ------------------------------------------
       });
 
       created += 1;
     }
 
     if (!created && skipped > 0) {
-      return res
-        .status(400)
-        .json({ ok: false, error: `No listings created. ${skipped} row(s) were skipped due to missing required authenticity fields (purchase_source, purchase_proof, serial_number, or authenticity_confirmed).` });
+      return res.status(400).json({
+        ok: false,
+        error: `No listings created. ${skipped} row(s) were skipped due to missing price, purchase_source, purchase_proof, serial_number, or authenticity_confirmed.`,
+      });
     }
-    
+
     if (!created) {
-       return res
+      return res
         .status(400)
         .json({ ok: false, error: "No valid rows provided." });
     }
 
     await batch.commit();
-
     return res.status(200).json({ ok: true, created });
   } catch (err: any) {
     console.error("bulk_commit_error", err);
