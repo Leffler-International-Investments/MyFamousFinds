@@ -1,6 +1,7 @@
 // FILE: /pages/api/seller/orders.ts
 
 import type { NextApiRequest, NextApiResponse } from "next";
+// --- IMPORTANT: Make sure this path is correct ---
 import { getSellerId } from "../../../utils/authServer";
 import { adminDb } from "../../../utils/firebaseAdmin";
 
@@ -21,7 +22,11 @@ export default async function handler(
   res: NextApiResponse<OrdersResponse>
 ) {
   try {
-    const sellerId = await getSellerId(req, res);
+    // --- THIS IS THE FIX ---
+    // Changed from getSellerId(req, res) to getSellerId(req)
+    const sellerId = await getSellerId(req);
+    // ---------------------
+
     if (!sellerId) {
       return res.status(401).json({
         ok: false,
@@ -85,7 +90,7 @@ export default async function handler(
       });
 
     return res.status(200).json({ ok: true, orders });
-  } catch (err: any) {
+  } catch (err: any)
     console.error("seller_orders_error", err);
     return res.status(500).json({
       ok: false,
