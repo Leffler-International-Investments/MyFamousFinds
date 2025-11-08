@@ -125,7 +125,7 @@ export default function Sell() {
           <input
             name="price"
             type="number"
-            placeholder="Price (AUD)"
+            placeholder="Price (USD)"
             required
           />
 
