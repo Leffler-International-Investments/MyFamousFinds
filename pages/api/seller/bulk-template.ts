@@ -1,4 +1,4 @@
-// FILE: /pages/api/seller/bulk-template.tsx
+// FILE: /pages/api/seller/bulk-template.ts
 import type { NextApiRequest, NextApiResponse } from "next";
 
 // --- UPDATED: Added new authenticity fields ---
