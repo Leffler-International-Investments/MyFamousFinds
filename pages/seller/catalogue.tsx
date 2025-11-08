@@ -22,11 +22,12 @@ export default function Catalogue() {
 
   useEffect(() => {
     let cancelled = false;
-    // ... (Your existing load function is fine) ...
+    
     async function load() {
       setLoading(true);
       setError(null);
       try {
+        // --- THIS NOW CALLS THE CORRECT API PATH ---
         const res = await fetch("/api/seller/listings");
         const json = await res.json();
         if (!json.ok) {
@@ -62,6 +63,7 @@ export default function Catalogue() {
     setError(null);
 
     try {
+      // --- THIS NOW CALLS THE CORRECT API PATH ---
       const res = await fetch(`/api/seller/listings/${id}`, {
         method: "DELETE",
       });
@@ -91,7 +93,6 @@ export default function Catalogue() {
       <Header />
 
       <main className="mx-auto max-w-5xl px-4 pb-16 pt-6 text-sm">
-        {/* ... (Header and links are fine) ... */}
         <Link
           href="/seller/dashboard"
           className="text-xs text-gray-400 hover:text-gray-200"
@@ -105,7 +106,6 @@ export default function Catalogue() {
           Live view of all listings under your seller account.
         </p>
         <div className="mt-4 flex flex-wrap gap-2">
-          {/* ... (Buttons are fine) ... */}
           <Link
             href="/seller/bulk-upload"
             className="rounded-full bg-white px-3 py-1.5 text-xs font-medium text-black hover:bg-gray-100"
@@ -128,7 +128,6 @@ export default function Catalogue() {
                   <th className="py-2 pr-3 text-left">Title</th>
                   <th className="px-3 py-2 text-left">Price</th>
                   <th className="px-3 py-2 text-left">Status</th>
-                  {/* --- UPDATED: Header --- */}
                   <th className="px-3 py-2 text-right">Actions</th>
                 </tr>
               </thead>
@@ -144,7 +143,6 @@ export default function Catalogue() {
                   </tr>
                 )}
                 
-                {/* --- UPDATED: Show delete error --- */}
                 {!loading && error && (
                   <tr>
                     <td
@@ -176,20 +174,24 @@ export default function Catalogue() {
                     >
                       <td className="py-2 pr-3">{x.title}</td>
                       <td className="px-3 py-2">
-                        AU$
-                        {x.price.toLocaleString("en-AU", {
+                        {/* --- UPDATED: Currency to USD --- */}
+                        US$
+                        {x.price.toLocaleString("en-US", {
                           maximumFractionDigits: 0,
                         })}
                       </td>
                       <td className="px-3 py-2">{x.status}</td>
-                      {/* --- UPDATED: Added Delete Button --- */}
                       <td className="px-3 py-2 text-right" style={{display: "flex", justifyContent: "flex-end", gap: "8px"}}>
+                        
+                        {/* --- THIS IS THE FIX --- */}
                         <Link
-                          href={`/listing/${x.id}`} // <-- This should be /listing/, not /product/
+                          href={`/product/${x.id}`} // <-- Changed from /listing/ to /product/
                           className="rounded-full border border-neutral-700 px-3 py-1 text-[11px] hover:border-neutral-500"
                         >
                           View
                         </Link>
+                        {/* ------------------------ */}
+
                         <button
                           onClick={() => handleDelete(x.id)}
                           disabled={deletingId === x.id}
