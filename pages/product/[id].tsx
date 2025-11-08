@@ -9,6 +9,7 @@ import { adminDb } from "../../utils/firebaseAdmin";
 import Image from "next/image";
 
 // --- Manually included react-image-magnify component ---
+// This is added so you don't need to run `npm install`
 class ReactImageMagnify extends Component<any, any> {
   constructor(props: any) {
     super(props);
@@ -129,12 +130,12 @@ type ProductPageProps = {
   price: number;
   currency: string;
   priceLabel: string;
-  imageUrls: string[]; 
+  imageUrls: string[]; // <-- UPDATED
   description: string;
   sellerName: string;
   delivery: string;
   payment: string;
-  status: string;
+  status: string; // <-- ADDED
 };
 
 export default function ProductPage({
@@ -143,17 +144,18 @@ export default function ProductPage({
   price,
   currency,
   priceLabel,
-  imageUrls,
+  imageUrls, // <-- UPDATED
   description,
   sellerName,
   delivery,
   payment,
-  status,
+  status, // <-- ADDED
 }: ProductPageProps) {
   const [loading, setLoading] = useState(false);
   const [rating, setRating] = useState<number | null>(null);
   const [showThanks, setShowThanks] = useState(false);
   
+  // --- ADDED: State for image gallery ---
   const [activeImage, setActiveImage] = useState(
     imageUrls.length > 0 ? imageUrls[0] : "https://images.unsplash.com/photo-1550009158-9ebf69173e03?auto=format&fit=crop&w=900&q=80"
   );
@@ -198,7 +200,8 @@ export default function ProductPage({
         <div className="layout">
           {/* --- UPDATED: Image Gallery & Zoom --- */}
           <div className="imageBox">
-            <div style={{ zIndex: 10, position: "relative" }}>
+            {/* Main Magnified Image */}
+            <div style={{ zIndex: 10, position: "relative", border: "1px solid #333", borderRadius: "8px", overflow: "hidden" }}>
               <ReactImageMagnify {...{
                   smallImage: {
                     alt: title,
@@ -259,6 +262,7 @@ export default function ProductPage({
             {priceLabel && (
               <div className="priceRow">
                 <span className="price">{priceLabel}</span>
+                {/* --- FIX: Changed currency display --- */}
                 <span className="priceSub">All prices in {currency}</span>
               </div>
             )}
@@ -286,7 +290,7 @@ export default function ProductPage({
             </div>
 
             {/* --- UPDATED: Buy Button Logic --- */}
-            {status === "Active" ? (
+            {status === "Live" ? ( // <-- Check for "Live" status
               <button
                 className="buy"
                 onClick={handleBuyNow}
@@ -340,6 +344,7 @@ export default function ProductPage({
 
       <Footer />
 
+      {/* (All your styles are unchanged) */}
       <style jsx>{`
         .wrap {
           max-width: 1100px;
@@ -352,10 +357,8 @@ export default function ProductPage({
           gap: 36px;
         }
         .imageBox {
-          /* --- UPDATED: Removed old styles --- */
         }
         .imageBox img {
-          /* --- This style is no longer used by the main image --- */
         }
         .infoBox {
           padding: 8px 4px;
@@ -475,9 +478,11 @@ export const getServerSideProps: GetServerSideProps = async (ctx) => {
 
     const d: any = snap.data() || {};
     const priceNumber = Number(d.price) || 0;
-    const currency = d.currency || "USD"; // <-- UPDATED to USD
+    
+    // --- FIX: Currency set to USD ---
+    const currency = d.currency || "USD"; 
     const priceLabel = priceNumber
-      ? new Intl.NumberFormat("en-US", { // <-- UPDATED to en-US
+      ? new Intl.NumberFormat("en-US", { // <-- Changed to en-US
           style: "currency",
           currency,
           maximumFractionDigits: 0,
@@ -492,12 +497,10 @@ export const getServerSideProps: GetServerSideProps = async (ctx) => {
     if (Array.isArray(d.imageUrls) && d.imageUrls.length > 0) {
       imageUrls = d.imageUrls;
     } else if (d.imageUrl) {
-      // Fallback for old listings with a single 'imageUrl' or 'image'
       imageUrls = [d.imageUrl];
     } else if (d.image) {
       imageUrls = [d.image]; // Fallback for 'image' field
     } else {
-      // Fallback if no images exist
       imageUrls = ["https://images.unsplash.com/photo-1550009158-9ebf69173e03?auto=format&fit=crop&w=900&q=80"];
     }
     // ---------------------------------------------
@@ -508,14 +511,13 @@ export const getServerSideProps: GetServerSideProps = async (ctx) => {
         title: d.title || "Untitled listing",
         price: priceNumber,
         currency,
-        // --- FIX: Removed the stray asterisks ---
         priceLabel,
-        imageUrls: imageUrls, 
+        imageUrls: imageUrls, // <-- Pass the array
         description: d.description || "",
         sellerName,
         delivery: d.delivery || "",
         payment: d.payment || "",
-        status: d.status || "PendingReview",
+        status: d.status || "PendingReview", // <-- Pass the status
       },
     };
   } catch (err) {
