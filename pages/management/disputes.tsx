@@ -4,55 +4,52 @@ import Head from "next/head";
 import Link from "next/link";
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
-import { useRequireAdmin } from "../../hooks/useRequireAdmin";
 import { adminDb } from "../../utils/firebaseAdmin";
+import { useRequireAdmin } from "../../hooks/useRequireAdmin";
 
-type DisputeRow = {
+type Dispute = {
   id: string;
   orderId: string;
-  buyer: string;
+  buyerEmail: string;
+  sellerEmail: string;
   reason: string;
   status: string;
-  openedAt: string;
+  createdAt: string;
 };
 
 type Props = {
-  disputes: DisputeRow[];
+  disputes: Dispute[];
 };
 
 export default function ManagementDisputes({ disputes }: Props) {
   const { loading } = useRequireAdmin();
   if (loading) return null;
 
-  const hasAny = disputes.length > 0;
-
   return (
     <>
       <Head>
-        <title>Returns & Disputes — Admin</title>
+        <title>Returns &amp; Disputes — Admin</title>
       </Head>
       <div className="min-h-screen bg-gray-50 text-gray-900">
         <Header />
         <main className="mx-auto max-w-6xl px-4 pb-16 pt-6">
-          <div className="mb-6 flex items-center justify-between">
+          <div className="mb-6 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
             <div>
-              <h1 className="text-2xl font-semibold text-gray-900">
-                Returns & Disputes
-              </h1>
+              <h1 className="text-2xl font-semibold">Returns &amp; Disputes</h1>
               <p className="mt-1 text-sm text-gray-600">
-                Track escalations between buyers and sellers and resolve cases.
+                Review active disputes between buyers and sellers and track their
+                outcomes.
               </p>
             </div>
             <Link
               href="/management/dashboard"
               className="text-sm text-gray-600 hover:text-gray-900"
             >
-              ← Back to Management Dash
+              ← Back to Management Dashboard
             </Link>
           </div>
 
-          {/* Disputes table */}
-          <div className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
+          <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white shadow-sm">
             <table className="min-w-full divide-y divide-gray-200 text-sm">
               <thead className="bg-gray-50">
                 <tr>
@@ -60,62 +57,48 @@ export default function ManagementDisputes({ disputes }: Props) {
                     Dispute ID
                   </th>
                   <th className="px-4 py-2 text-left font-medium text-gray-700">
-                    Order ID
+                    Order
                   </th>
                   <th className="px-4 py-2 text-left font-medium text-gray-700">
                     Buyer
                   </th>
                   <th className="px-4 py-2 text-left font-medium text-gray-700">
-                    Reason
+                    Seller
                   </th>
                   <th className="px-4 py-2 text-left font-medium text-gray-700">
-                    Opened
+                    Reason
                   </th>
                   <th className="px-4 py-2 text-left font-medium text-gray-700">
                     Status
                   </th>
+                  <th className="px-4 py-2 text-left font-medium text-gray-700">
+                    Created
+                  </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-200 bg-white">
-                {hasAny ? (
-                  disputes.map((d) => (
-                    <tr key={d.id}>
-                      <td className="px-4 py-2 text-gray-900">{d.id}</td>
-                      <td className="px-4 py-2 text-gray-900">
-                        {d.orderId || "—"}
-                      </td>
-                      <td className="px-4 py-2 text-gray-700">
-                        {d.buyer || "—"}
-                      </td>
-                      <td className="px-4 py-2 text-gray-700">
-                        {d.reason || "—"}
-                      </td>
-                      <td className="px-4 py-2 text-gray-700">
-                        {d.openedAt || "—"}
-                      </td>
-                      <td className="px-4 py-2">
-                        <span
-                          className={
-                            "rounded-full px-3 py-1 text-xs font-medium " +
-                            (d.status === "Open"
-                              ? "bg-red-100 text-red-800"
-                              : d.status === "In Review"
-                              ? "bg-yellow-100 text-yellow-800"
-                              : "bg-green-100 text-green-800")
-                          }
-                        >
-                          {d.status}
-                        </span>
-                      </td>
-                    </tr>
-                  ))
-                ) : (
+              <tbody className="divide-y divide-gray-100">
+                {disputes.map((d) => (
+                  <tr key={d.id}>
+                    <td className="px-4 py-2 text-gray-900">{d.id}</td>
+                    <td className="px-4 py-2 text-gray-700">{d.orderId}</td>
+                    <td className="px-4 py-2 text-gray-700">
+                      {d.buyerEmail || "—"}
+                    </td>
+                    <td className="px-4 py-2 text-gray-700">
+                      {d.sellerEmail || "—"}
+                    </td>
+                    <td className="px-4 py-2 text-gray-700">{d.reason}</td>
+                    <td className="px-4 py-2 text-gray-700">{d.status}</td>
+                    <td className="px-4 py-2 text-gray-700">{d.createdAt}</td>
+                  </tr>
+                ))}
+                {disputes.length === 0 && (
                   <tr>
                     <td
-                      colSpan={6}
+                      colSpan={7}
                       className="px-4 py-6 text-center text-sm text-gray-500"
                     >
-                      No disputes or returns recorded yet.
+                      No disputes recorded yet.
                     </td>
                   </tr>
                 )}
@@ -129,26 +112,6 @@ export default function ManagementDisputes({ disputes }: Props) {
   );
 }
 
-function formatDate(ts: any): string {
-  try {
-    if (!ts) return "";
-    const d =
-      typeof ts.toDate === "function"
-        ? ts.toDate()
-        : ts instanceof Date
-        ? ts
-        : null;
-    if (!d) return "";
-    const pad = (n: number) => String(n).padStart(2, "0");
-    return (
-      `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ` +
-      `${pad(d.getHours())}:${pad(d.getMinutes())}`
-    );
-  } catch {
-    return "";
-  }
-}
-
 export const getServerSideProps: GetServerSideProps<Props> = async () => {
   try {
     const snap = await adminDb
@@ -157,15 +120,17 @@ export const getServerSideProps: GetServerSideProps<Props> = async () => {
       .limit(200)
       .get();
 
-    const disputes: DisputeRow[] = snap.docs.map((doc) => {
+    const disputes: Dispute[] = snap.docs.map((doc) => {
       const d: any = doc.data() || {};
       return {
         id: doc.id,
-        orderId: d.orderId || d.orderRef || "",
-        buyer: d.buyerName || d.buyerEmail || "",
-        reason: d.reason || d.type || "",
+        orderId: d.orderId || "",
+        buyerEmail: d.buyerEmail || d.buyer || "",
+        sellerEmail: d.sellerEmail || d.seller || "",
+        reason: d.reason || "",
         status: d.status || "Open",
-        openedAt: formatDate(d.createdAt),
+        createdAt:
+          d.createdAt?.toDate?.().toLocaleString("en-US") || "",
       };
     });
 
