@@ -1,7 +1,9 @@
 // FILE: /pages/api/admin/approve/[id].ts
 import type { NextApiRequest, NextApiResponse } from "next";
-import { adminDb, FieldValue } from "../../../utils/firebaseAdmin";
-import { getSellerId } from "../../../utils/authServer"; // Using this as a placeholder for admin auth
+// --- THIS IS THE FIX ---
+import { adminDb, FieldValue } from "../../../../utils/firebaseAdmin";
+import { getSellerId } from "../../../../utils/authServer";
+// ----------------------
 
 export default async function handler(
   req: NextApiRequest,
@@ -12,7 +14,6 @@ export default async function handler(
   }
 
   // --- Security Check ---
-  // You MUST replace this with a real admin check.
   const adminId = getSellerId(req);
   if (!adminId) {
     return res.status(401).json({ ok: false, error: "Unauthorized" });
@@ -27,7 +28,6 @@ export default async function handler(
 
     const listingRef = adminDb.collection("listings").doc(id);
 
-    // Update the status from "PendingReview" to "Active"
     await listingRef.update({
       status: "Active",
       updatedAt: FieldValue.serverTimestamp(),
