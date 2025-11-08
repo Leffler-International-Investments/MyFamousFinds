@@ -1,16 +1,17 @@
 // FILE: /pages/management/orders.tsx
-import { useMemo, useState } from "react";
+import { useState, useMemo } from "react";
 import type { GetServerSideProps } from "next";
 import Head from "next/head";
 import Link from "next/link";
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
-import { useRequireAdmin } from "../../hooks/useRequireAdmin";
 import { adminDb } from "../../utils/firebaseAdmin";
+import { useRequireAdmin } from "../../hooks/useRequireAdmin";
 
 type Order = {
   id: string;
-  buyer: string;
+  buyerEmail: string;
+  sellerName: string;
   total: number;
   status: string;
   createdAt: string;
@@ -28,11 +29,14 @@ export default function ManagementOrders({ orders }: Props) {
   const visible = useMemo(() => {
     const q = query.trim().toLowerCase();
     return orders.filter((o) => {
-      if (statusFilter !== "All" && o.status !== statusFilter) return false;
+      if (statusFilter !== "All" && o.status !== statusFilter) {
+        return false;
+      }
       if (!q) return true;
       return (
         o.id.toLowerCase().includes(q) ||
-        o.buyer.toLowerCase().includes(q)
+        o.buyerEmail.toLowerCase().includes(q) ||
+        o.sellerName.toLowerCase().includes(q)
       );
     });
   }, [orders, query, statusFilter]);
@@ -54,8 +58,8 @@ export default function ManagementOrders({ orders }: Props) {
                 Orders Overview
               </h1>
               <p className="mt-1 text-sm text-gray-600">
-                Track orders, shipping status, and refunds across the
-                marketplace.
+                Search and view all platform orders, including those in progress,
+                completed, or refunded.
               </p>
             </div>
             <Link
@@ -68,81 +72,82 @@ export default function ManagementOrders({ orders }: Props) {
 
           <div className="mb-4 flex flex-wrap items-center gap-3">
             <input
-              type="text"
-              placeholder="Search by order ID or buyer…"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search by order ID, buyer, or seller…"
               className="w-full max-w-xs rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-gray-900 focus:outline-none"
             />
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm focus:border-gray-900 focus:outline-none"
+              className="rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-gray-900 focus:outline-none"
             >
               <option value="All">All statuses</option>
               <option value="Pending">Pending</option>
-              <option value="Paid">Paid</option>
               <option value="Processing">Processing</option>
-              <option value="Dispatched">Dispatched</option>
-              <option value="Delivered">Delivered</option>
+              <option value="Paid">Paid</option>
+              <option value="Shipped">Shipped</option>
+              <option value="Completed">Completed</option>
               <option value="Refunded">Refunded</option>
               <option value="Cancelled">Cancelled</option>
             </select>
           </div>
 
-          <div className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
+          <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white shadow-sm">
             <table className="min-w-full divide-y divide-gray-200 text-sm">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-4 py-2 text-left font-medium text-gray-700">
+                  <th className="px-3 py-2 text-left font-medium text-gray-700">
                     Order ID
                   </th>
-                  <th className="px-4 py-2 text-left font-medium text-gray-700">
+                  <th className="px-3 py-2 text-left font-medium text-gray-700">
                     Buyer
                   </th>
-                  <th className="px-4 py-2 text-left font-medium text-gray-700">
-                    Created
+                  <th className="px-3 py-2 text-left font-medium text-gray-700">
+                    Seller
                   </th>
-                  <th className="px-4 py-2 text-right font-medium text-gray-700">
-                    Total (US$)
+                  <th className="px-3 py-2 text-right font-medium text-gray-700">
+                    Total (USD)
                   </th>
-                  <th className="px-4 py-2 text-left font-medium text-gray-700">
+                  <th className="px-3 py-2 text-left font-medium text-gray-700">
                     Status
+                  </th>
+                  <th className="px-3 py-2 text-left font-medium text-gray-700">
+                    Created
                   </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {visible.map((o) => (
                   <tr key={o.id}>
-                    <td className="px-4 py-2 text-xs font-mono text-gray-700">
-                      {o.id}
+                    <td className="px-3 py-2 text-gray-900">{o.id}</td>
+                    <td className="px-3 py-2 text-gray-700">
+                      {o.buyerEmail}
                     </td>
-                    <td className="px-4 py-2 text-sm text-gray-900">
-                      {o.buyer}
+                    <td className="px-3 py-2 text-gray-700">
+                      {o.sellerName}
                     </td>
-                    <td className="px-4 py-2 text-xs text-gray-500">
+                    <td className="px-3 py-2 text-right text-gray-700">
+                      {o.total
+                        ? o.total.toLocaleString("en-US", {
+                            style: "currency",
+                            currency: "USD",
+                          })
+                        : "—"}
+                    </td>
+                    <td className="px-3 py-2 text-gray-700">{o.status}</td>
+                    <td className="px-3 py-2 text-gray-700">
                       {o.createdAt}
-                    </td>
-                    <td className="px-4 py-2 text-right text-sm text-gray-900">
-                      {o.total.toLocaleString("en-AU", {
-                        minimumFractionDigits: 2,
-                        maximumFractionDigits: 2,
-                      })}
-                    </td>
-                    <td className="px-4 py-2 text-xs">
-                      <span className="inline-flex rounded-full bg-gray-100 px-2 py-1 text-xs font-semibold text-gray-800">
-                        {o.status}
-                      </span>
                     </td>
                   </tr>
                 ))}
-                {!visible.length && (
+                {visible.length === 0 && (
                   <tr>
                     <td
-                      colSpan={5}
-                      className="px-4 py-6 text-center text-xs text-gray-500"
+                      colSpan={6}
+                      className="px-3 py-6 text-center text-sm text-gray-500"
                     >
-                      No orders found for the current filters.
+                      No orders match this filter.
                     </td>
                   </tr>
                 )}
@@ -159,32 +164,22 @@ export default function ManagementOrders({ orders }: Props) {
 
 export const getServerSideProps: GetServerSideProps<Props> = async () => {
   try {
-    const snap = await adminDb.collection("orders").orderBy("createdAt", "desc").limit(200).get();
+    const snap = await adminDb
+      .collection("orders")
+      .orderBy("createdAt", "desc")
+      .limit(200)
+      .get();
 
     const orders: Order[] = snap.docs.map((doc) => {
       const d: any = doc.data() || {};
-      const createdAt =
-        d.createdAt && typeof d.createdAt.toDate === "function"
-          ? d.createdAt.toDate()
-          : null;
-      const iso =
-        createdAt && !isNaN(createdAt.getTime())
-          ? createdAt.toISOString().slice(0, 10)
-          : "";
-
-      const total =
-        typeof d.totalGross === "number"
-          ? d.totalGross
-          : typeof d.total === "number"
-          ? d.total
-          : 0;
-
       return {
         id: doc.id,
-        buyer: d.buyerName || d.buyerEmail || "Buyer",
-        total,
-        status: d.status || "Paid",
-        createdAt: iso,
+        buyerEmail: d.buyerEmail || "",
+        sellerName: d.sellerName || "",
+        total: Number(d.total || 0),
+        status: d.status || "Pending",
+        createdAt:
+          d.createdAt?.toDate?.().toLocaleString("en-US") || "",
       };
     });
 
