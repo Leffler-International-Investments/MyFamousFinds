@@ -22,10 +22,8 @@ export default async function handler(
   res: NextApiResponse<OrdersResponse>
 ) {
   try {
-    // --- THIS IS THE FIX ---
-    // Changed from getSellerId(req, res) to getSellerId(req)
+    // This was our previous fix
     const sellerId = await getSellerId(req);
-    // ---------------------
 
     if (!sellerId) {
       return res.status(401).json({
@@ -90,11 +88,12 @@ export default async function handler(
       });
 
     return res.status(200).json({ ok: true, orders });
-  } catch (err: any)
+    
+  } catch (err: any) { // <-- ADDED THE OPENING {
     console.error("seller_orders_error", err);
     return res.status(500).json({
       ok: false,
       error: err?.message || "server_error",
     });
-  }
+  } // <-- ADDED THE CLOSING }
 }
