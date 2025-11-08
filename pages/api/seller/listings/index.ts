@@ -1,9 +1,7 @@
 // FILE: /pages/api/seller/listings/index.ts
 import type { NextApiRequest, NextApiResponse } from "next";
-// --- THIS IS THE FIX ---
 import { adminDb } from "../../../../utils/firebaseAdmin";
 import { getSellerId } from "../../../../utils/authServer";
-// ----------------------
 
 type Item = {
   id: string;
