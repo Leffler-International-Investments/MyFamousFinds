@@ -7,7 +7,6 @@ import type { ReactNode } from "react";
 import SellerDashboardTutorial from "../../components/SellerDashboardTutorial";
 import { useRequireSeller } from "../../hooks/useRequireSeller";
 
-// (DashboardSection and DashboardLink components are unchanged)
 const DashboardSection = ({
   title,
   children,
@@ -20,6 +19,7 @@ const DashboardSection = ({
     <div className="grid gap-4 md:grid-cols-3">{children}</div>
   </section>
 );
+
 const DashboardLink = ({
   href,
   title,
@@ -31,16 +31,17 @@ const DashboardLink = ({
   description: string;
   accentColor?: "blue" | "green" | "gray";
 }) => {
-  const colors = {
+  const colors: Record<string, string> = {
     blue: "border-gray-200 hover:border-blue-500",
     green: "border-gray-200 hover:border-emerald-500",
     gray: "border-gray-200 hover:border-gray-500",
   };
-  const textColors = {
+  const textColors: Record<string, string> = {
     blue: "text-blue-600 group-hover:text-blue-500",
     green: "text-emerald-600 group-hover:text-emerald-500",
     gray: "text-gray-600 group-hover:text-gray-500",
   };
+
   return (
     <Link
       href={href}
@@ -57,11 +58,11 @@ const DashboardLink = ({
   );
 };
 
-
 export default function SellerDashboard() {
   const { loading: authLoading } = useRequireSeller();
+
   if (authLoading) {
-    return <div className="min-h-screen bg-gray-50"></div>;
+    return <div className="min-h-screen bg-gray-50" />;
   }
 
   return (
@@ -92,84 +93,75 @@ export default function SellerDashboard() {
 
           <SellerDashboardTutorial />
 
-          {/* (Onboarding banner is unchanged) */}
+          {/* Onboarding banner */}
           <section className="mb-8 rounded-lg border-2 border-blue-500 bg-white p-5 shadow-lg">
             <h2 className="mb-2 text-lg font-semibold text-gray-900">
               Welcome to Famous Finds!
             </h2>
             <p className="mb-4 text-sm text-gray-600">
-              Your application is approved.
-              Please complete your profile to
-              start selling.
+              Your seller application is approved. Please complete your profile
+              to start listing items and receiving USD payouts.
             </p>
             <div>
               <Link
                 href="/seller/profile"
                 className="inline-block rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700"
               >
-                Complete Your Profile 
-                →
+                Complete your profile →
               </Link>
             </div>
           </section>
 
-          {/* Manage Listings */}
-          <DashboardSection title="Manage Listings">
+          {/* Manage listings */}
+          <DashboardSection title="Manage listings">
             <DashboardLink
-              // --- UPDATED: Link points to bulk-upload page ---
               href="/seller/bulk-upload"
-              title="Create New Listing"
-              description="Upload a new item to your catalogue."
+              title="Upload listings"
+              description="Add a single listing or upload many at once via CSV. Authenticity fields and photos required."
               accentColor="blue"
             />
             <DashboardLink
               href="/seller/catalogue"
-              title="My Catalogue"
-              description="Edit prices, quantity, and details for your active listings."
-              accentColor="blue"
-            />
-            <DashboardLink
-              href="/seller/bulk-upload"
-              title="Bulk Upload (CSV)"
-              description="Upload many items at once using our CSV template."
+              title="My catalogue"
+              description="View and edit your active, pending, and rejected listings."
               accentColor="blue"
             />
           </DashboardSection>
 
-          {/* (Orders & Performance section is unchanged) */}
-          <DashboardSection title="Orders & Performance">
+          {/* Orders & performance */}
+          <DashboardSection title="Orders & performance">
             <DashboardLink
               href="/seller/orders"
               title="Orders"
-              description="View new, in-transit, and delivered orders."
+              description="Review new orders, see buyer details, and track shipping status."
               accentColor="green"
             />
             <DashboardLink
               href="/seller/insights"
-              title="Insights"
-              description="Track your sales, top products, and performance."
+              title="Seller insights"
+              description="See brand performance, sell-through, and pricing suggestions."
               accentColor="green"
             />
           </DashboardSection>
 
-          {/* (Finance & Account section is unchanged) */}
-          <DashboardSection title="Finance & Account">
+          {/* Finance & account */}
+          <DashboardSection title="Finance & account">
             <DashboardLink
               href="/seller/wallet"
-              title="Wallet & Payouts"
-              description="See your available balance and payout history."
+              title="Wallet & payouts"
+              description="Check your available balance, upcoming payouts, and payout history (USD)."
               accentColor="gray"
             />
             <DashboardLink
               href="/seller/statements"
               title="Statements"
-              description="Download monthly financial statements for your records."
+              description="Download monthly sales and fee statements for your records."
               accentColor="gray"
             />
             <DashboardLink
               href="/seller/profile"
-              title="Seller Profile"
-              description="Update your business details and bank information."
+              title="Seller profile"
+              description="Update your business details and manage Stripe payout settings."
               accentColor="gray"
             />
           </DashboardSection>
