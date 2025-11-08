@@ -46,10 +46,16 @@ export default async function handler(
     if (!title || !price) {
       return res
         .status(400)
-        .json({ ok: false, error: "missing_title_or_price" });
+        .json({ ok: false, error: "missing_required_fields" });
     }
 
-    if (!purchase_source || !purchase_proof) {
+    // Require basic authenticity info
+    if (
+      !purchase_source ||
+      !purchase_proof ||
+      !serial_number ||
+      !auth_photos
+    ) {
       return res
         .status(400)
         .json({ ok: false, error: "missing_authenticity_fields" });
@@ -69,14 +75,21 @@ export default async function handler(
       size: size ? String(size) : "",
       color: color ? String(color) : "",
       price: numericPrice,
-      currency: currency || "USD",
+      currency: "USD",
       imageUrl: image ? String(image) : "",
       description: description ? String(description) : "",
       purchase_source: purchase_source ? String(purchase_source) : "",
       purchase_proof: purchase_proof ? String(purchase_proof) : "",
       serial_number: serial_number ? String(serial_number) : "",
-      auth_photos: auth_photos ? String(auth_photos) : "",
-      status: "PendingReview" as const,
+      // store as array if it comes in comma-separated
+      auth_photos: Array.isArray(auth_photos)
+        ? auth_photos
+        : String(auth_photos)
+            .split(",")
+            .map((x) => x.trim())
+            .filter(Boolean),
+      // ✅ unified status
+      status: "Pending" as const,
       createdAt: FieldValue.serverTimestamp(),
       updatedAt: FieldValue.serverTimestamp(),
     };
