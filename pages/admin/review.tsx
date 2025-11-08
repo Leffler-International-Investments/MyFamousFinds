@@ -142,7 +142,7 @@ export default function AdminReviewPage() {
                 <strong>Brand:</strong> {item.brand || "—"}
               </p>
               <p style={{ margin: "4px 0" }}>
-                <strong>Price:</strong> ${item.price} {item.currency || "AUD"}
+                <strong>Price:</strong> ${item.price} {item.currency || "USD"}
               </p>
               <p style={{ margin: "4px 0" }}>
                 <strong>Seller Type:</strong> {item.sellerType || "—"}
