@@ -4,11 +4,10 @@ import Link from "next/link";
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
 import type { ReactNode } from "react";
-// --- 1. ADDED IMPORTS ---
 import SellerDashboardTutorial from "../../components/SellerDashboardTutorial";
 import { useRequireSeller } from "../../hooks/useRequireSeller";
 
-// Helper component for dashboard sections
+// (DashboardSection and DashboardLink components are unchanged)
 const DashboardSection = ({
   title,
   children,
@@ -21,8 +20,6 @@ const DashboardSection = ({
     <div className="grid gap-4 md:grid-cols-3">{children}</div>
   </section>
 );
-
-// Helper component for dashboard links
 const DashboardLink = ({
   href,
   title,
@@ -44,7 +41,6 @@ const DashboardLink = ({
     green: "text-emerald-600 group-hover:text-emerald-500",
     gray: "text-gray-600 group-hover:text-gray-500",
   };
-
   return (
     <Link
       href={href}
@@ -61,10 +57,9 @@ const DashboardLink = ({
   );
 };
 
+
 export default function SellerDashboard() {
-  // --- 2. ADDED SECURITY HOOK ---
   const { loading: authLoading } = useRequireSeller();
-  
   if (authLoading) {
     return <div className="min-h-screen bg-gray-50"></div>;
   }
@@ -95,16 +90,16 @@ export default function SellerDashboard() {
             </Link>
           </div>
 
-          {/* --- 3. ADDED TUTORIAL COMPONENT --- */}
           <SellerDashboardTutorial />
 
-          {/* Onboarding banner – same layout, no demo flags */}
+          {/* (Onboarding banner is unchanged) */}
           <section className="mb-8 rounded-lg border-2 border-blue-500 bg-white p-5 shadow-lg">
             <h2 className="mb-2 text-lg font-semibold text-gray-900">
               Welcome to Famous Finds!
             </h2>
             <p className="mb-4 text-sm text-gray-600">
-              Your application is approved. Please complete your profile to
+              Your application is approved.
+              Please complete your profile to
               start selling.
             </p>
             <div>
@@ -112,7 +107,8 @@ export default function SellerDashboard() {
                 href="/seller/profile"
                 className="inline-block rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700"
               >
-                Complete Your Profile →
+                Complete Your Profile 
+                →
               </Link>
             </div>
           </section>
@@ -120,7 +116,8 @@ export default function SellerDashboard() {
           {/* Manage Listings */}
           <DashboardSection title="Manage Listings">
             <DashboardLink
-              href="/sell"
+              // --- UPDATED: Link points to bulk-upload page ---
+              href="/seller/bulk-upload"
               title="Create New Listing"
               description="Upload a new item to your catalogue."
               accentColor="blue"
@@ -133,13 +130,13 @@ export default function SellerDashboard() {
             />
             <DashboardLink
               href="/seller/bulk-upload"
-              title="Bulk Upload"
+              title="Bulk Upload (CSV)"
               description="Upload many items at once using our CSV template."
               accentColor="blue"
             />
           </DashboardSection>
 
-          {/* Orders & Performance */}
+          {/* (Orders & Performance section is unchanged) */}
           <DashboardSection title="Orders & Performance">
             <DashboardLink
               href="/seller/orders"
@@ -155,7 +152,7 @@ export default function SellerDashboard() {
             />
           </DashboardSection>
 
-          {/* Finance & Account */}
+          {/* (Finance & Account section is unchanged) */}
           <DashboardSection title="Finance & Account">
             <DashboardLink
               href="/seller/wallet"
@@ -182,5 +179,4 @@ export default function SellerDashboard() {
       </div>
     </>
   );
-  
 }
