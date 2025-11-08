@@ -13,6 +13,7 @@ type Listing = {
   title: string;
   seller: string;
   category: string;
+  price: number;
   // --- ADDED: New fields ---
   purchase_source?: string;
   purchase_proof?: string;
@@ -35,7 +36,7 @@ export default function ManagementListingQueue({ items: initialItems }: Props) {
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  if (loading) return null;
+  if (loading) return <div className="min-h-screen bg-gray-50"></div>;
 
   const handleAction = async (id: string, action: "approve" | "reject" | "request-proof") => {
     if (actionLoading) return;
@@ -83,7 +84,7 @@ export default function ManagementListingQueue({ items: initialItems }: Props) {
           <div className="mb-4 flex items-center justify-between gap-2">
             <div>
               <h1 className="text-xl font-semibold tracking-tight">
-                Listing review queue
+                Listing Review Queue
               </h1>
               <p className="text-sm text-gray-600">
                 Pending submissions from all sellers. Check authenticity notes before approval.
@@ -109,6 +110,7 @@ export default function ManagementListingQueue({ items: initialItems }: Props) {
                 <tr>
                   <th className="px-4 py-2 text-left font-medium text-gray-700">Listing</th>
                   <th className="px-4 py-2 text-left font-medium text-gray-700">Seller</th>
+                  <th className="px-4 py-2 text-left font-medium text-gray-700">Price</th>
                   <th className="px-4 py-2 text-left font-medium text-gray-700">Category</th>
                   <th className="px-4 py-2 text-left font-medium text-gray-700">Purchased From</th>
                   <th className="px-4 py-2 text-left font-medium text-gray-700">Proof</th>
@@ -125,6 +127,7 @@ export default function ManagementListingQueue({ items: initialItems }: Props) {
                     <tr key={item.id}>
                       <td className="px-4 py-2 text-gray-900">{item.title}</td>
                       <td className="px-4 py-2 text-gray-700">{item.seller}</td>
+                      <td className="px-4 py-2 text-gray-700">US${item.price}</td>
                       <td className="px-4 py-2 text-gray-700">{item.category || "—"}</td>
                       <td className="px-4 py-2 text-gray-700">{item.purchase_source || "—"}</td>
                       <td className="px-4 py-2 text-gray-700">{item.purchase_proof || "—"}</td>
@@ -193,7 +196,7 @@ export default function ManagementListingQueue({ items: initialItems }: Props) {
                 ) : (
                   <tr>
                     <td
-                      colSpan={10}
+                      colSpan={11} // <-- Increased colspan
                       className="px-4 py-6 text-center text-sm text-gray-500"
                     >
                       No listings awaiting review.
@@ -248,6 +251,7 @@ export const getServerSideProps: GetServerSideProps<Props> = async () => {
         id: doc.id,
         title: d.title || "Untitled listing",
         seller: d.sellerName || d.sellerDisplayName || d.sellerId || "Seller",
+        price: d.price || 0,
         category: d.categoryName || d.category || "",
         submittedAt: formatDate(d.createdAt),
         status,
