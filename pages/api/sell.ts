@@ -69,7 +69,7 @@ export default async function handler(
       size: size ? String(size) : "",
       color: color ? String(color) : "",
       price: numericPrice,
-      currency: currency || "AUD",
+      currency: currency || "USD",
       imageUrl: image ? String(image) : "",
       description: description ? String(description) : "",
       purchase_source: purchase_source ? String(purchase_source) : "",
