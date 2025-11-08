@@ -100,7 +100,7 @@ export default function ManagementListings({ items }: Props) {
                     Seller
                   </th>
                   <th className="px-4 py-2 text-right font-medium text-gray-700">
-                    Price (AU$)
+                    Price (US$)
                   </th>
                   <th className="px-4 py-2 text-left font-medium text-gray-700">
                     Status
