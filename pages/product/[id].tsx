@@ -467,6 +467,7 @@ export default function ProductPage({
     </div>
   );
 }
+{/* --------------------------------- */}
 
 export const getServerSideProps: GetServerSideProps = async (ctx) => {
   try {
