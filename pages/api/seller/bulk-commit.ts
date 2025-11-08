@@ -1,131 +1,128 @@
-// FILE: /pages/seller/bulk-template.tsx
-import Head from "next/head";
-import Link from "next/link";
-import Header from "../../components/Header";
-import Footer from "../../components/Footer";
+// FILE: /pages/api/seller/bulk-commit.ts
+import type { NextApiRequest, NextApiResponse } from "next";
+import { adminDb, FieldValue } from "../../../utils/firebaseAdmin";
+import { getSellerId } from "../../../utils/authServer";
 
-export default function SellerBulkTemplatePage() {
-  return (
-    <>
-      <Head>
-        <title>Seller Bulk Template — Famous Finds</title>
-      </Head>
+type IncomingRow = {
+  id?: string;
+  title?: string;
+  brand?: string;
+  category?: string;
+  price?: string | number;
+  imageUrls?: string[];
+  // --- ADDED: New authenticity fields ---
+  purchase_source?: string;
+  purchase_proof?: string;
+  serial_number?: string;
+  auth_photos?: string[];
+  authenticity_confirmed?: boolean | string;
+  // ------------------------------------
+};
 
-      <div className="min-h-screen bg-gray-50 text-gray-900">
-        <Header />
+type BulkCommitResponse =
+  | { ok: true; created: number }
+  | { ok: false; error: string };
 
-        <main className="mx-auto max-w-4xl px-4 py-10">
-          <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
-            <h1 className="mb-2 text-xl font-semibold">
-              Bulk upload listings
-            </h1>
+export default async function handler(
+  req: NextApiRequest,
+  res: NextApiResponse<BulkCommitResponse>
+) {
+  if (req.method !== "POST") {
+    return res
+      .status(405)
+      .json({ ok: false, error: "method_not_allowed" });
+  }
 
-            {/* High-level explanation */}
-            <p className="mb-3 text-sm text-gray-700">
-              Use this CSV template to upload many listings at once. Every row
-              you upload becomes a <strong>pending listing</strong> in our
-              review queue. Only items that pass authenticity checks will be
-              approved and pushed to the Famous-Finds main catalogue.
-            </p>
+  try {
+    const sellerId = getSellerId(req);
+    if (!sellerId) {
+      return res
+        .status(401)
+        .json({ ok: false, error: "unauthorized" });
+    }
 
-            <p className="mb-4 text-sm text-gray-700">
-              If you only have one item, you can also use the{" "}
-              <strong>&ldquo;Add a single listing (no CSV)&rdquo;</strong> form
-              on the bulk upload page – it collects the same authenticity
-              details as this template.
-            </p>
+    const body = req.body as { rows?: IncomingRow[] } | undefined;
+    const rows = Array.isArray(body?.rows) ? body!.rows : [];
 
-            <div className="mb-6 flex flex-wrap gap-3">
-              <Link
-                href="/seller/bulk-upload"
-                className="inline-flex items-center rounded-md border border-gray-900 bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-black"
-              >
-                Go to bulk upload
-              </Link>
+    if (!rows.length) {
+      return res
+        .status(400)
+        .json({ ok: false, error: "no_rows" });
+    }
 
-              <a
-                href="/api/seller/bulk-template"
-                className="inline-flex items-center rounded-md border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-800 hover:border-gray-400"
-              >
-                Download CSV template
-              </a>
-            </div>
+    const batch = adminDb.batch();
+    let created = 0;
+    let skipped = 0;
 
-            {/* --- UPDATED: Instructions for new fields --- */}
-            <h2 className="mb-2 text-lg font-semibold text-gray-900">
-              Template columns explained
-            </h2>
-            <ul className="mb-4 list-disc space-y-1 pl-5 text-sm text-gray-700">
-              <li>
-                <strong>title (required):</strong> The product title (e.g.,
-                "Prada Galleria Saffiano Bag").
-              </li>
-              <li>
-                <strong>brand (required):</strong> Brand name (e.g., "Prada").
-              </li>
-              <li>
-                <strong>category (required):</strong> Category (e.g., "Bags").
-              </li>
-              <li>
-                <strong>price (required):</strong> Price in **USD** (e.g., 1500). Do
-                not include "$" or "USD".
-              </li>
-              <li>
-                <strong>imageUrls:</strong> One or more public URLs for your product
-                images. Separate multiple URLs with a comma.
-              </li>
-              <li className="font-medium text-black">
-                <strong>purchase_source (required):</strong> Where you got the
-                item (e.g., "Prada Store, NYC", "Vintage Dealer").
-              </li>
-              <li className="font-medium text-black">
-                <strong>purchase_proof (required):</strong> The type of proof
-                you have (e.g., "Original Receipt", "Certificate of Authenticity").
-              </li>
-              <li className="font-medium text-black">
-                <strong>serial_number (required):</strong> The item's serial
-                number. Enter "N/A" if the item does not have one.
-              </li>
-              <li className="font-medium text-black">
-                <strong>auth_photos:</strong> One or more URLs to photos of your
-                proof (e.g., a photo of the receipt or serial number).
-              </li>
-              <li className="font-medium text-black">
-                <strong>authenticity_confirmed (required):</strong> Must be <code>YES</code>.
-                By entering <code>YES</code>, the seller confirms the item is authentic
-                and accepts legal responsibility for counterfeits.
-              </li>
-            </ul>
-            {/* ------------------------------------------- */}
+    for (const r of rows) {
+      if (!r || !r.title) {
+        skipped++;
+        continue;
+      }
 
-            {/* Legal + reassurance */}
-            <h2 className="mb-1 text-sm font-semibold text-gray-900">
-              Why we ask for this
-            </h2>
-            <p className="mb-2 text-sm text-gray-700">
-              Famous-Finds operates as a peer-to-peer marketplace in the United
-              States. U.S. trademark and consumer laws hold sellers, and in some
-              cases platforms, responsible for counterfeit goods. Collecting
-              serial numbers, proof of authenticity and clear photos helps:
-            </p>
-            <ul className="mb-4 list-disc space-y-1 pl-5 text-sm text-gray-700">
-              <li>Protect you as a genuine seller.</li>
-              <li>Show regulators and brands that we vet high-risk listings.</li>
-              <li>
-                Keep the Famous-Finds™ brand trusted for buyers and partners.
-              </li>
-            </ul>
+      // --- ADDED: Authenticity check ---
+      const confirmed = r.authenticity_confirmed === true || String(r.authenticity_confirmed).toUpperCase() === 'YES';
+      if (!r.purchase_source || !r.purchase_proof || !r.serial_number || !confirmed) {
+        // Skip rows that are missing mandatory proof or confirmation
+        skipped++;
+        continue;
+      }
+      // ---------------------------------
 
-            <p className="text-xs text-gray-500">
-              Tip: keep your original receipts, certificates and serial photos.
-              If a brand or buyer raises a concern, our team may request these
-              documents again before releasing funds.
-            </p>
-          </div>
-        </main>
+      const priceRaw =
+        typeof r.price === "number" ? r.price : Number(r.price);
+      const numericPrice = isFinite(priceRaw) ? Number(priceRaw) : 0;
+      if (!numericPrice) {
+        skipped++;
+        continue;
+      }
 
-        <Footer />
-      </div>
-    </>
-  );
+      const col = adminDb.collection("listings");
+      const docRef = r.id ? col.doc(String(r.id)) : col.doc();
+
+      batch.set(docRef, {
+        sellerId,
+        title: String(r.title),
+        brand: r.brand ? String(r.brand) : "",
+        category: r.category ? String(r.category).toLowerCase() : "",
+        price: numericPrice,
+        currency: "USD", // --- SET TO USD ---
+        status: "PendingReview", // All uploads go to review
+        imageUrls: Array.isArray(r.imageUrls) ? r.imageUrls : [],
+        description: "", // Can be added later
+        createdAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
+        // --- ADDED: Save new fields to database ---
+        purchase_source: String(r.purchase_source),
+        purchase_proof: String(r.purchase_proof),
+        serial_number: String(r.serial_number),
+        auth_photos: Array.isArray(r.auth_photos) ? r.auth_photos : [],
+        authenticity_confirmed: true,
+        // ------------------------------------------
+      });
+
+      created += 1;
+    }
+
+    if (!created && skipped > 0) {
+      return res
+        .status(400)
+        .json({ ok: false, error: `No listings created. ${skipped} row(s) were skipped due to missing required authenticity fields (purchase_source, purchase_proof, serial_number, or authenticity_confirmed).` });
+    }
+    
+    if (!created) {
+       return res
+        .status(400)
+        .json({ ok: false, error: "No valid rows provided." });
+    }
+
+    await batch.commit();
+
+    return res.status(200).json({ ok: true, created });
+  } catch (err: any) {
+    console.error("bulk_commit_error", err);
+    return res
+      .status(500)
+      .json({ ok: false, error: err?.message || "server_error" });
+  }
 }
