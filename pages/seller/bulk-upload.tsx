@@ -3,7 +3,7 @@ import Head from "next/head";
 import Link from "next/link";
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
-import React, { // <-- ADDED React
+import React, {
   useState,
   FormEvent,
   ChangeEvent,
@@ -11,6 +11,7 @@ import React, { // <-- ADDED React
 } from "react";
 import { storage } from "../../utils/firebaseClient";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { useRequireSeller } from "../../hooks/useRequireSeller"; // <-- ADDED
 
 // --- ADDED: Manually added uuidv4 function ---
 function uuidv4() {
@@ -58,6 +59,7 @@ const PROOF_TYPES = [
 // -----------------------
 
 export default function SellerBulkUpload() {
+  const { loading: authLoading } = useRequireSeller(); // <-- ADDED
   const [fileName, setFileName] = useState<string | null>(null);
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [rows, setRows] = useState<UploadRow[]>([]);
@@ -397,6 +399,12 @@ export default function SellerBulkUpload() {
     </div>
   );
   // ---------------------------------------------
+  
+  // --- ADDED: Auth loading state ---
+  if (authLoading) {
+    return <div className="min-h-screen bg-black" />;
+  }
+  // ---------------------------------
 
   // --- RENDER function ---
   return (
@@ -464,8 +472,10 @@ export default function SellerBulkUpload() {
                 <h3 className="text-lg font-semibold">
                   Option 1: Add a Single Listing
                 </h3>
+                {/* --- MODIFIED: Added USD copy --- */}
                 <p className="mt-1 text-xs text-gray-400">
-                  Use this form for one item. All fields marked with * are required.
+                  Use this form for one item. All fields marked with * are required. 
+                  All prices must be in <strong>USD</strong>.
                 </p>
 
                 <form
@@ -646,8 +656,10 @@ export default function SellerBulkUpload() {
             {/* --- UPDATED: CSV Uploader --- */}
             <div className="rounded-xl border border-neutral-800 bg-neutral-950 p-6">
               <h2 className="text-lg font-semibold">Option 2: Upload CSV File</h2>
+              {/* --- MODIFIED: Added USD copy --- */}
               <p className="mt-2 text-xs text-gray-400">
-                1. Download our template to see all required columns (including authenticity fields).
+                1. Download our template to see all required columns (including 
+                authenticity fields). All prices must be in <strong>USD</strong>.
               </p>
                <a
                   href="/api/seller/bulk-template"
