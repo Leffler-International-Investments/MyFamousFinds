@@ -1,104 +1,108 @@
 // FILE: /pages/management/categories.tsx
+import { useState } from "react";
 import type { GetServerSideProps } from "next";
 import Head from "next/head";
 import Link from "next/link";
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
-import { useRequireAdmin } from "../../hooks/useRequireAdmin";
 import { adminDb } from "../../utils/firebaseAdmin";
+import { useRequireAdmin } from "../../hooks/useRequireAdmin";
 
-type CategoryRow = {
+type Category = {
   id: string;
   name: string;
-  attributesCount: number;
+  slug: string;
+  parent?: string;
   active: boolean;
 };
 
 type Props = {
-  categories: CategoryRow[];
+  categories: Category[];
 };
 
 export default function ManagementCategories({ categories }: Props) {
   const { loading } = useRequireAdmin();
-  if (loading) return null;
+  const [items] = useState(categories);
 
-  const hasAny = categories.length > 0;
+  if (loading) return null;
 
   return (
     <>
       <Head>
-        <title>Categories & Attributes — Admin</title>
+        <title>Categories &amp; Attributes — Admin</title>
       </Head>
+
       <div className="min-h-screen bg-gray-50 text-gray-900">
         <Header />
 
-        <main className="mx-auto max-w-6xl px-4 pb-16 pt-6">
-          <div className="mb-6 flex items-center justify-between">
+        <main className="mx-auto max-w-5xl px-4 pb-16 pt-6">
+          <div className="mb-6 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
             <div>
-              <h1 className="text-2xl font-semibold text-gray-900">
-                Categories & Attributes
-              </h1>
+              <h1 className="text-2xl font-semibold">Categories &amp; Attributes</h1>
               <p className="mt-1 text-sm text-gray-600">
-                View and manage the product categories used across the marketplace.
+                Manage your top-level categories and how items are structured throughout
+                Famous Finds.
               </p>
             </div>
             <Link
               href="/management/dashboard"
               className="text-sm text-gray-600 hover:text-gray-900"
             >
-              ← Back to Management Dash
+              ← Back to Management Dashboard
             </Link>
           </div>
 
-          {/* Categories table */}
-          <div className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
+          <div className="mb-4 flex justify-end">
+            <button className="rounded-full bg-gray-900 px-4 py-2 text-xs font-semibold text-white">
+              + Add Category (coming soon)
+            </button>
+          </div>
+
+          <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white shadow-sm">
             <table className="min-w-full divide-y divide-gray-200 text-sm">
               <thead className="bg-gray-50">
                 <tr>
+                  <th className="px-4 py-2 text-left font-medium text-gray-700">Name</th>
                   <th className="px-4 py-2 text-left font-medium text-gray-700">
-                    Category
+                    Slug
                   </th>
                   <th className="px-4 py-2 text-left font-medium text-gray-700">
-                    ID / Slug
-                  </th>
-                  <th className="px-4 py-2 text-right font-medium text-gray-700">
-                    Attributes
+                    Parent
                   </th>
                   <th className="px-4 py-2 text-left font-medium text-gray-700">
-                    Status
+                    Active
                   </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-200 bg-white">
-                {hasAny ? (
-                  categories.map((c) => (
-                    <tr key={c.id}>
-                      <td className="px-4 py-2 text-gray-900">{c.name}</td>
-                      <td className="px-4 py-2 text-gray-700">{c.id}</td>
-                      <td className="px-4 py-2 text-right text-gray-900">
-                        {c.attributesCount}
-                      </td>
-                      <td className="px-4 py-2">
-                        <span
-                          className={
-                            "rounded-full px-3 py-1 text-xs font-medium " +
-                            (c.active
-                              ? "bg-green-100 text-green-800"
-                              : "bg-gray-200 text-gray-700")
-                          }
-                        >
-                          {c.active ? "Active" : "Disabled"}
-                        </span>
-                      </td>
-                    </tr>
-                  ))
-                ) : (
+              <tbody className="divide-y divide-gray-100">
+                {items.map((cat) => (
+                  <tr key={cat.id}>
+                    <td className="px-4 py-2 text-gray-900">{cat.name}</td>
+                    <td className="px-4 py-2 text-gray-700">{cat.slug}</td>
+                    <td className="px-4 py-2 text-gray-700">
+                      {cat.parent || "Top level"}
+                    </td>
+                    <td className="px-4 py-2">
+                      <span
+                        className={
+                          "inline-flex rounded-full px-2 py-0.5 text-xs font-medium " +
+                          (cat.active
+                            ? "bg-green-100 text-green-800"
+                            : "bg-gray-200 text-gray-700")
+                        }
+                      >
+                        {cat.active ? "Active" : "Hidden"}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+                {items.length === 0 && (
                   <tr>
                     <td
                       colSpan={4}
                       className="px-4 py-6 text-center text-sm text-gray-500"
                     >
-                      No categories found yet.
+                      No categories configured yet.
                     </td>
                   </tr>
                 )}
@@ -116,26 +120,14 @@ export default function ManagementCategories({ categories }: Props) {
 export const getServerSideProps: GetServerSideProps<Props> = async () => {
   try {
     const snap = await adminDb.collection("categories").get();
-
-    const categories: CategoryRow[] = snap.docs.map((doc) => {
+    const categories: Category[] = snap.docs.map((doc) => {
       const d: any = doc.data() || {};
-      const attributesCount =
-        typeof d.attributesCount === "number"
-          ? d.attributesCount
-          : Array.isArray(d.attributes)
-          ? d.attributes.length
-          : 0;
-      const active =
-        d.active === true ||
-        d.enabled === true ||
-        d.status === "Active" ||
-        d.status === "LIVE";
-
       return {
         id: doc.id,
-        name: d.name || d.label || doc.id,
-        attributesCount,
-        active,
+        name: d.name || "Category",
+        slug: d.slug || doc.id,
+        parent: d.parent || "",
+        active: !!d.active,
       };
     });
 
