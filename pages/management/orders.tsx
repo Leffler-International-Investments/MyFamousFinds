@@ -104,7 +104,7 @@ export default function ManagementOrders({ orders }: Props) {
                     Created
                   </th>
                   <th className="px-4 py-2 text-right font-medium text-gray-700">
-                    Total (AU$)
+                    Total (US$)
                   </th>
                   <th className="px-4 py-2 text-left font-medium text-gray-700">
                     Status
