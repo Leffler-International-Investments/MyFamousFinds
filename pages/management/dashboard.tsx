@@ -58,8 +58,8 @@ const DashboardLink = ({
 );
 
 export default function ManagementDashboard({ stats }: Props) {
-  const { loading } = useRequireAdmin(); [cite: 3, 8]
-  if (loading) return <div className="min-h-screen bg-gray-50"></div>; [cite: 9]
+  const { loading } = useRequireAdmin();
+  if (loading) return <div className="min-h-screen bg-gray-50"></div>;
   
   return (
     <div className="min-h-screen bg-gray-50 text-gray-900">
@@ -73,7 +73,7 @@ export default function ManagementDashboard({ stats }: Props) {
         <div className="mb-8 flex items-center justify-between">
           <h1 className="text-2xl font-bold text-gray-900">
             Management Admin Dashboard
-          </h1> [cite: 10]
+          </h1>
           <Link
             href="/"
             className="text-sm text-gray-600 hover:text-gray-900"
@@ -84,13 +84,12 @@ export default function ManagementDashboard({ stats }: Props) {
 
         <ManagementDashboardTutorial />
 
-      
-        <section className="mb-8 rounded-xl border border-neutral-200 bg-white p-5 shadow-sm"> [cite: 11]
+        <section className="mb-8 rounded-xl border border-neutral-200 bg-white p-5 shadow-sm">
           <h2 className="text-lg font-semibold text-gray-900">
             Live Summary
           </h2>
           
-          {/* --- THIS BLOCK HAS BEEN UPDATED --- */}
+          {/* --- THIS BLOCK IS UPDATED --- */}
           <div className="mt-4 grid gap-4 md:grid-cols-3">
             {/* Sellers summary card → Seller Directory */}
             <Link
@@ -134,14 +133,14 @@ export default function ManagementDashboard({ stats }: Props) {
           </div>
           {/* --- END OF UPDATE --- */}
           
-        </section> [cite: 16]
+        </section>
 
         {/* --- SELLER MANAGEMENT --- */}
         <DashboardSection title="Seller Management">
           <DashboardLink
             href="/management/vetting-queue"
             title="Seller Vetting Queue"
-            description={`Approve or deny new seller applications. (${stats.pendingSellers} pending)`} [cite: 17]
+            description={`Approve or deny new seller applications. (${stats.pendingSellers} pending)`}
           />
           <DashboardLink
             href="/management/sellers"
@@ -150,8 +149,8 @@ export default function ManagementDashboard({ stats }: Props) {
           />
           <DashboardLink
             href="/management/seller-profiles"
-            title="Seller Profiles / Controls" [cite: 18]
-            description="Edit seller details, status, and permissions." [cite: 19]
+            title="Seller Profiles / Controls"
+            description="Edit seller details, status, and permissions."
           />
         </DashboardSection>
 
@@ -160,7 +159,7 @@ export default function ManagementDashboard({ stats }: Props) {
           <DashboardLink
             href="/management/listing-queue"
             title="Listing Review Queue"
-            description={`Approve or deny new product listings. (${stats.pendingListings} pending)`} [cite: 20]
+            description={`Approve or deny new product listings. (${stats.pendingListings} pending)`}
           />
           <DashboardLink
             href="/management/listings"
@@ -169,18 +168,18 @@ export default function ManagementDashboard({ stats }: Props) {
           />
           <DashboardLink
             href="/management/categories"
-            title="Categories & Attributes" [cite: 21]
-            description="Manage product categories and metadata." [cite: 22]
+            title="Categories & Attributes"
+            description="Manage product categories and metadata."
           />
           <DashboardLink
             href="/management/reviews"
             title="Reviews & Moderation"
-            description="Moderate product and seller reviews." [cite: 23]
+            description="Moderate product and seller reviews."
           />
           <DashboardLink
             href="/management/content"
             title="Content Management"
-            description="Edit static pages, banners, and promotions." [cite: 24]
+            description="Edit static pages, banners, and promotions."
           />
         </DashboardSection>
 
@@ -189,27 +188,27 @@ export default function ManagementDashboard({ stats }: Props) {
           <DashboardLink
             href="/management/orders"
             title="Orders Overview"
-            description={`Search and view all platform orders. (${stats.pendingOrders} in progress)`} [cite: 25]
+            description={`Search and view all platform orders. (${stats.pendingOrders} in progress)`}
           />
           <DashboardLink
             href="/management/disputes"
             title="Returns & Disputes"
-            description="Manage customer returns and seller disputes." [cite: 26]
+            description="Manage customer returns and seller disputes."
           />
           <DashboardLink
             href="/management/payouts"
             title="Payouts & Finance"
-            description="Review seller payouts and platform fees." [cite: 27]
+            description="Review seller payouts and platform fees."
           />
           <DashboardLink
             href="/management/tax"
             title="Tax & Compliance"
-            description="Manage tax settings and compliance (e.g., 1099-K forms)." [cite: 28]
+            description="Manage tax settings and compliance (e.g., 1099-K forms)."
           />
           <DashboardLink
             href="/management/stripe-settings"
             title="Stripe & Payment Settings"
-            description="Configure platform payment processing." [cite: 29]
+            description="Configure platform payment processing."
           />
         </DashboardSection>
 
@@ -218,32 +217,32 @@ export default function ManagementDashboard({ stats }: Props) {
           <DashboardLink
             href="/management/analytics"
             title="Analytics & Reports"
-            description="View platform-wide sales and user reports." [cite: 30]
+            description="View platform-wide sales and user reports."
           />
           <DashboardLink
             href="/management/support-tickets"
             title="Support Tickets"
-            description="View and respond to customer support requests." [cite: 31]
+            description="View and respond to customer support requests."
           />
           <DashboardLink
             href="/management/settings"
             title="System Settings"
-            description="Configure global platform settings." [cite: 32]
+            description="Configure global platform settings."
           />
           <DashboardLink
             href="/management/logs"
             title="Logs & Audit Trail"
-            description="View system and admin action logs." [cite: 33]
+            description="View system and admin action logs."
           />
           <DashboardLink
             href="/management/users"
             title="User & Role Management"
-            description="Manage admin user accounts and roles." [cite: 34]
+            description="Manage admin user accounts and roles."
           />
           <DashboardLink
             href="/management/developer"
             title="Developer / Integrations"
-            description="Manage API keys and third-party integrations." [cite: 35]
+            description="Manage API keys and third-party integrations."
           />
           {/* --- NEW BUTTON ADDED HERE --- */}
           <Link
@@ -251,15 +250,15 @@ export default function ManagementDashboard({ stats }: Props) {
             className="block rounded-lg border-2 border-blue-500 bg-blue-50 p-4 text-sm shadow-lg transition-all hover:border-blue-600 hover:bg-white"
           >
             <h3 className="font-medium text-gray-800">Management Team</h3>
-            <p className="mt-1 text-xs text-gray-600"> [cite: 36]
+            <p className="mt-1 text-xs text-gray-600">
               Add/remove admins and manage permissions.
-              (Owner Only) [cite: 37]
+              (Owner Only)
             </p>
           </Link>
         </DashboardSection>
       </main>
 
-      <ButlerChat /> [cite: 2]
+      <ButlerChat />
       <Footer />
     </div>
   );
@@ -277,7 +276,7 @@ export const getServerSideProps: GetServerSideProps<Props> = async () => {
         adminDb.collection("orders").get(),
         adminDb.collection("orders").where("status", "in", ["Pending", "Processing", "Paid"]).get(),
       ]);
-    const stats: MgmtStats = { [cite: 39]
+    const stats: MgmtStats = {
       sellers: sellersSnap.size,
       pendingSellers: pendingSellersSnap.size,
       listings: listingsSnap.size,
@@ -285,10 +284,10 @@ export const getServerSideProps: GetServerSideProps<Props> = async () => {
       orders: ordersSnap.size,
       pendingOrders: pendingOrdersSnap.size,
     };
-    return { props: { stats } }; [cite: 40]
+    return { props: { stats } };
   } catch (err) {
     console.error("Error loading management dashboard:", err);
-    const empty: MgmtStats = { [cite: 41]
+    const empty: MgmtStats = {
       sellers: 0,
       pendingSellers: 0,
       listings: 0,
@@ -296,6 +295,6 @@ export const getServerSideProps: GetServerSideProps<Props> = async () => {
       orders: 0,
       pendingOrders: 0,
     };
-    return { props: { stats: empty } }; [cite: 42]
+    return { props: { stats: empty } };
   }
 };
