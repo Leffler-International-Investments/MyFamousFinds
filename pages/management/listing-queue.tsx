@@ -6,6 +6,7 @@ import Header from "../../components/Header";
 import Footer from "../../components/Footer";
 import { adminDb } from "../../utils/firebaseAdmin";
 import { useRequireAdmin } from "../../hooks/useRequireAdmin";
+import { useState } from "react"; // <-- ADDED
 
 type Listing = {
   id: string;
@@ -24,9 +25,42 @@ type Props = {
   items: Listing[];
 };
 
-export default function ManagementListingQueue({ items }: Props) {
+export default function ManagementListingQueue({ items: initialItems }: Props) {
   const { loading } = useRequireAdmin();
+  
+  // --- ADDED: State to manage items and loading status ---
+  const [items, setItems] = useState<Listing[]>(initialItems);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
   if (loading) return null;
+
+  // --- ADDED: Handle Approve/Reject ---
+  const handleAction = async (id: string, action: "approve" | "reject") => {
+    if (actionLoading) return; // Prevent simultaneous actions
+    setActionLoading(id);
+    setError(null);
+
+    try {
+      const res = await fetch(`/api/admin/${action}/${id}`, {
+        method: "POST",
+      });
+      
+      const json = await res.json();
+      if (!res.ok) {
+        throw new Error(json.error || `Failed to ${action} item`);
+      }
+      
+      // Success: Remove the item from the local list
+      setItems((prevItems) => prevItems.filter((item) => item.id !== id));
+
+    } catch (err: any) {
+      console.error(err);
+      setError(err.message);
+    } finally {
+      setActionLoading(null);
+    }
+  };
 
   const hasAny = items.length > 0;
 
@@ -37,7 +71,7 @@ export default function ManagementListingQueue({ items }: Props) {
       </Head>
       <div className="min-h-screen bg-gray-50 text-gray-900">
         <Header />
-        <main className="mx-auto max-w-6xl px-4 pb-16 pt-6">
+        <main className="mx-auto max-w-7xl px-4 pb-16 pt-6"> {/* Widened container */}
           <div className="mb-4 flex items-center justify-between gap-2">
             <div>
               <h1 className="text-xl font-semibold tracking-tight">
@@ -49,14 +83,21 @@ export default function ManagementListingQueue({ items }: Props) {
               </p>
             </div>
             <Link
-              href="/management"
+              href="/management/dashboard" // <-- Corrected link
               className="rounded-full bg-gray-900 px-4 py-2 text-xs font-medium text-white"
             >
               ← Back to admin home
             </Link>
           </div>
+          
+          {/* --- ADDED: Error message display --- */}
+          {error && (
+            <div className="mb-4 rounded-md bg-red-100 p-3 text-sm text-red-700">
+              <strong>Error:</strong> {error}
+            </div>
+          )}
 
-          <div className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
+          <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white shadow-sm">
             <table className="min-w-full divide-y divide-gray-200 text-sm">
               <thead className="bg-gray-50">
                 <tr>
@@ -86,6 +127,10 @@ export default function ManagementListingQueue({ items }: Props) {
                   </th>
                   <th className="px-4 py-2 text-left font-medium text-gray-700">
                     Status
+                  </th>
+                  {/* --- ADDED: Actions Header --- */}
+                  <th className="px-4 py-2 text-left font-medium text-gray-700">
+                    Actions
                   </th>
                 </tr>
               </thead>
@@ -140,12 +185,31 @@ export default function ManagementListingQueue({ items }: Props) {
                           {item.status}
                         </span>
                       </td>
+                      {/* --- ADDED: Action Buttons --- */}
+                      <td className="px-4 py-2">
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => handleAction(item.id, "approve")}
+                            disabled={actionLoading === item.id}
+                            className="rounded-full bg-green-100 px-3 py-1 text-xs font-medium text-green-800 hover:bg-green-200 disabled:opacity-50"
+                          >
+                            {actionLoading === item.id ? "..." : "Approve"}
+                          </button>
+                          <button
+                            onClick={() => handleAction(item.id, "reject")}
+                            disabled={actionLoading === item.id}
+                            className="rounded-full bg-red-100 px-3 py-1 text-xs font-medium text-red-800 hover:bg-red-200 disabled:opacity-50"
+                          >
+                            {actionLoading === item.id ? "..." : "Reject"}
+                          </button>
+                        </div>
+                      </td>
                     </tr>
                   ))
                 ) : (
                   <tr>
                     <td
-                      colSpan={9}
+                      colSpan={10} // <-- Increased colspan
                       className="px-4 py-6 text-center text-sm text-gray-500"
                     >
                       No listings awaiting review.
@@ -161,7 +225,7 @@ export default function ManagementListingQueue({ items }: Props) {
     </>
   );
 }
-
+// ... (formatDate function is unchanged) ...
 function formatDate(ts: any): string {
   try {
     if (!ts) return "";
@@ -181,6 +245,7 @@ function formatDate(ts: any): string {
   }
 }
 
+// ... (getServerSideProps is unchanged) ...
 export const getServerSideProps: GetServerSideProps<Props> = async () => {
   try {
     // Reuse the listings collection and filter to "pending" in JS
