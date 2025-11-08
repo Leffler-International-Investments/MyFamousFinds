@@ -1,11 +1,11 @@
-// FILE: /pages/api/admin/request-proof/[listingId].ts
-
+// FILE: /pages/api/admin/request-proof/[id].ts
 import type { NextApiRequest, NextApiResponse } from "next";
+// --- THIS IS THE FIX ---
 import { adminDb, FieldValue } from "../../../../utils/firebaseAdmin";
+// ----------------------
 
 // TODO: Implement your own admin authentication logic
 const isAdmin = (req: NextApiRequest): boolean => {
-  // You MUST secure this endpoint before production.
   console.log("Admin check bypassed in request-proof. TODO: Secure this endpoint!");
   return true;
 };
@@ -27,14 +27,17 @@ export default async function handler(
   }
 
   try {
-    const { listingId } = req.query;
-    if (typeof listingId !== "string") {
+    // --- UPDATED: to use 'id' to match the filename ---
+    const { id } = req.query;
+    if (typeof id !== "string") {
       return res
         .status(400)
         .json({ error: "Invalid listing ID" });
     }
 
-    const listingRef = adminDb.collection("listings").doc(listingId);
+    const listingRef = adminDb.collection("listings").doc(id);
+    // ----------------------------------------------------
+    
     const snap = await listingRef.get();
 
     if (!snap.exists) {
@@ -52,27 +55,8 @@ export default async function handler(
       updatedAt: FieldValue.serverTimestamp(),
     });
 
-    // ------------------------------------------------------------------
     // TODO: Hook your email / notification system here.
-    //
-    // At this point you know:
-    //   - listingId
-    //   - sellerId (if stored on the listing)
-    //   - sellerEmail (if stored on the listing)
-    //
-    // Example pseudo-logic:
-    //
-    // if (sellerEmail) {
-    //   await sendEmail({
-    //     to: sellerEmail,
-    //     subject: "Famous Finds – proof of authenticity requested",
-    //     text: `Hi, our team has requested additional proof of authenticity for your listing "${listingData.title}". Please reply with receipts or certificates.`,
-    //   });
-    // }
-    //
-    // Or: create a Firestore notification in a "notifications" collection.
-    // ------------------------------------------------------------------
-
+    
     return res.status(200).json({
       ok: true,
       message: "Proof requested and flag saved.",
