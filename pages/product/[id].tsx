@@ -344,7 +344,7 @@ export default function ProductPage({
 
       <Footer />
 
-      {/* (All your styles are unchanged) */}
+      {/* --- UPDATED: Styles to remove border --- */}
       <style jsx>{`
         .wrap {
           max-width: 1100px;
@@ -357,8 +357,10 @@ export default function ProductPage({
           gap: 36px;
         }
         .imageBox {
+          /* Removed the old border/background styles */
         }
         .imageBox img {
+          /* This is no longer used for the main image */
         }
         .infoBox {
           padding: 8px 4px;
