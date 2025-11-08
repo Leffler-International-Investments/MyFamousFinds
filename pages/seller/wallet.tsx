@@ -4,9 +4,9 @@ import Link from "next/link";
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
 import { useRequireSeller } from "../../hooks/useRequireSeller"; // Security
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react"; // <-- ADDED useCallback
 
-// You will get this data from the Stripe Connect API
+// Data from your Stripe Connect API
 type PayoutRow = {
   id: string;
   date: string;
@@ -15,11 +15,20 @@ type PayoutRow = {
   destination: string;
 };
 
+// --- ADDED: Type for bank account ---
+type BankAccount = {
+  bankName: string;
+  last4: string;
+};
+
+// --- UPDATED: WalletData type ---
 type WalletData = {
   available: number;
   upcoming: number;
   lifetime: number;
   payouts: PayoutRow[];
+  account: BankAccount | null; // <-- ADDED: To show bank details
+  upcomingDate: string | null; // <-- ADDED: To show next payout date
 };
 
 export default function SellerWallet() {
@@ -28,55 +37,81 @@ export default function SellerWallet() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // --- ADDED: States for the payout button ---
+  const [payoutLoading, setPayoutLoading] = useState(false);
+  const [payoutError, setPayoutError] = useState<string | null>(null);
+
+  // --- UPDATED: loadWallet function ---
+  // Wrapped in useCallback so it can be safely called by handlePayout
+  const loadWallet = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      // This is now a live API call
+      const res = await fetch("/api/seller/wallet");
+      const data = await res.json();
+
+      if (!res.ok || !data.ok) {
+        throw new Error(data.error || "Failed to load wallet data");
+      }
+
+      // Set the data from the API
+      setData(data.wallet);
+      
+    } catch (err: any) {
+      setError(err.message || "Failed to load wallet data.");
+    } finally {
+      setLoading(false);
+    }
+  }, []); // No dependencies, safe to cache
+
   useEffect(() => {
     if (authLoading) return;
-    
-    async function loadWallet() {
-      setLoading(true);
-      setError(null);
-      try {
-        // TODO: Build an API route at /api/seller/wallet
-        // This route will call the Stripe Connect API to get:
-        // 1. Account balance (available, pending)
-        // 2. List of Payouts (history)
-        // 3. Lifetime volume
-        
-        // For now, we will simulate an empty state
-        await new Promise(res => setTimeout(res, 500)); // simulate fetch
-        
-        // --- THIS IS MOCK DATA ---
-        // Replace this with your API call
-        const mockData: WalletData = {
-          available: 8120.00,
-          upcoming: 2430.00,
-          lifetime: 142780.00,
-          payouts: [
-            { id: "po_01", date: "2025-10-28", amount: "$4,320.00", status: "Paid", destination: "Bank •••• 1234" },
-            { id: "po_02", date: "2025-10-21", amount: "$2,110.00", status: "Paid", destination: "Bank •••• 1234" },
-          ]
-        };
-        setData(mockData);
-        // --- END MOCK DATA ---
-
-      } catch (err: any) {
-        setError(err.message || "Failed to load wallet data.");
-      } finally {
-        setLoading(false);
-      }
-    }
-    
     loadWallet();
-  }, [authLoading]);
+  }, [authLoading, loadWallet]);
 
-  const handlePayout = () => {
-    alert(
-      "This would call the Stripe API to create a Payout from the 'available' balance."
-    );
+  // --- UPDATED: handlePayout function ---
+  // This is now a live API call
+  const handlePayout = async () => {
+    setPayoutLoading(true);
+    setPayoutError(null);
+
+    try {
+      const res = await fetch("/api/seller/wallet/payout", {
+        method: "POST",
+        // You could add a body here if you need to specify an amount
+        // body: JSON.stringify({ amount: data?.available }) 
+      });
+
+      const data = await res.json();
+      if (!res.ok || !data.ok) {
+        throw new Error(data.error || "Payout request failed");
+      }
+
+      // Success!
+      alert("Payout successful! Your balance is being updated.");
+      // Refresh the wallet data to show the new balance
+      await loadWallet();
+
+    } catch (err: any) {
+      console.error("Payout error:", err);
+      setPayoutError(err.message);
+    } finally {
+      setPayoutLoading(false);
+    }
   };
 
   if (authLoading) {
     return <div className="min-h-screen bg-black"></div>;
   }
+
+  // Helper for formatting
+  const formatCurrency = (amount: number) => {
+    return `$${(amount || 0).toLocaleString("en-US", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    })}`;
+  };
 
   return (
     <>
@@ -99,13 +134,19 @@ export default function SellerWallet() {
           <p className="mt-1 text-sm text-gray-400">
             Track what you&apos;ve earned and when your money is on the way.
           </p>
+          
+          {error && (
+            <div className="mt-4 rounded-md bg-red-900/50 p-3 text-xs text-red-300">
+              <p><strong>Error:</strong> {error}</p>
+            </div>
+          )}
 
           {/* Summary cards */}
           <section className="mt-6 grid gap-4 md:grid-cols-3">
             <div className="rounded-xl border border-neutral-800 bg-neutral-950 p-4">
               <p className="text-xs text-gray-400">Available balance</p>
               <p className="mt-2 text-xl font-semibold">
-                {loading ? "..." : `$${(data?.available || 0).toLocaleString("en-US")}`}
+                {loading ? "..." : formatCurrency(data?.available || 0)}
               </p>
               <p className="mt-1 text-xs text-gray-500">
                 Ready to pay out to your bank.
@@ -114,16 +155,17 @@ export default function SellerWallet() {
             <div className="rounded-xl border border-neutral-800 bg-neutral-950 p-4">
               <p className="text-xs text-gray-400">Upcoming payout</p>
               <p className="mt-2 text-xl font-semibold">
-                {loading ? "..." : `$${(data?.upcoming || 0).toLocaleString("en-US")}`}
+                {loading ? "..." : formatCurrency(data?.upcoming || 0)}
               </p>
+              {/* --- UPDATED: Live Date --- */}
               <p className="mt-1 text-xs text-gray-500">
-                Scheduled for Fri, 7 Nov.
+                {loading ? "..." : (data?.upcomingDate || "No upcoming payouts")}
               </p>
             </div>
             <div className="rounded-xl border border-neutral-800 bg-neutral-950 p-4">
               <p className="text-xs text-gray-400">Lifetime earnings</p>
               <p className="mt-2 text-xl font-semibold">
-                {loading ? "..." : `$${(data?.lifetime || 0).toLocaleString("en-US")}`}
+                {loading ? "..." : formatCurrency(data?.lifetime || 0)}
               </p>
               <p className="mt-1 text-xs text-gray-500">
                 Since joining Famous Finds.
@@ -138,25 +180,41 @@ export default function SellerWallet() {
               <p className="mt-2 text-xs text-gray-400">
                 Payouts are processed via Stripe and sent to your linked bank.
               </p>
-              {/* This part will be dynamic from Stripe Connect */}
-              <dl className="mt-4 space-y-1 text-xs text-gray-300">
-                <div className="flex justify-between">
-                  <dt>Bank</dt>
-                  <dd>Bendigo Bank</dd>
-                </div>
-                <div className="flex justify-between">
-                  <dt>Account ending</dt>
-                  <dd>•••• 1234</dd>
-                </div>
-              </dl>
-              <div className="mt-4 flex flex-wrap gap-2">
+              
+              {/* --- UPDATED: Live Bank Details --- */}
+              {loading ? (
+                <p className="mt-4 text-xs text-gray-400">Loading account...</p>
+              ) : data?.account ? (
+                <dl className="mt-4 space-y-1 text-xs text-gray-300">
+                  <div className="flex justify-between">
+                    <dt>Bank</dt>
+                    <dd>{data.account.bankName}</dd>
+                  </div>
+                  <div className="flex justify-between">
+                    <dt>Account ending</dt>
+                    <dd>•••• {data.account.last4}</dd>
+                  </div>
+                </dl>
+              ) : (
+                <p className="mt-4 text-xs text-yellow-400">
+                  No payout account connected. Please set up your account in Stripe.
+                </p>
+              )}
+
+              <div className="mt-4 flex flex-col items-start gap-2">
                 <button
                   type="button"
                   onClick={handlePayout}
-                  className="rounded-full bg-white px-3 py-1.5 text-xs font-medium text-black hover:bg-gray-100"
+                  // --- UPDATED: Disabled states ---
+                  disabled={payoutLoading || loading || !data?.available || data.available <= 0}
+                  className="rounded-full bg-white px-3 py-1.5 text-xs font-medium text-black hover:bg-gray-100 disabled:opacity-60"
                 >
-                  Request instant payout
+                  {payoutLoading ? "Processing..." : "Request instant payout"}
                 </button>
+                {/* --- ADDED: Payout error message --- */}
+                {payoutError && (
+                  <p className="text-xs text-red-400">{payoutError}</p>
+                )}
               </div>
             </div>
 
@@ -200,6 +258,13 @@ export default function SellerWallet() {
                       </td>
                     </tr>
                   )}
+                  {!loading && !data?.payouts.length && (
+                     <tr>
+                      <td colSpan={5} className="py-4 text-center text-gray-400">
+                        No payout history found.
+                      </td>
+                    </tr>
+                  )}
                   {!loading && data?.payouts.map((p) => (
                     <tr
                       key={p.id}
@@ -208,6 +273,7 @@ export default function SellerWallet() {
                       <td className="py-2 pr-3">{p.date}</td>
                       <td className="px-3 py-2">{p.amount}</td>
                       <td className="px-3 py-2">
+                        {/* You could add logic here for different status colors */}
                         <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-[11px] text-emerald-300">
                           {p.status}
                         </span>
