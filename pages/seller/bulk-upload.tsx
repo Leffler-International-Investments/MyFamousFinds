@@ -660,7 +660,7 @@ export default function SellerBulkUpload() {
                     <th className="py-2 pr-3 text-left">Title</th>
                     <th className="px-3 py-2 text-left">Brand</th>
                     <th className="px-3 py-2 text-left">Category</th>
-                    <th className="px-3 py-2 text-left">Price (AUD)</th>
+                    <th className="px-3 py-2 text-left">Price (USD)</th>
                     <th className="px-3 py-2 text-left">Status</th>
                   </tr>
                 </thead>
