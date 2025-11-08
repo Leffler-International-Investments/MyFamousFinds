@@ -28,15 +28,15 @@ export default function ManagementTax({ summaries }: Props) {
   return (
     <>
       <Head>
-        <title>Tax & Compliance — US Reporting</title>
+        <title>Tax &amp; Compliance — US Reporting</title>
       </Head>
       <div className="min-h-screen bg-gray-50 text-gray-900">
         <Header />
         <main className="mx-auto max-w-6xl px-4 pb-16 pt-6">
-          <div className="mb-6 flex items-center justify-between">
+          <div className="mb-6 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
             <div>
               <h1 className="text-2xl font-semibold text-gray-900">
-                Tax & Compliance
+                Tax &amp; Compliance
               </h1>
               <p className="mt-1 text-sm text-gray-600">
                 View annual US-dollar sales totals and tax form issuance for
@@ -47,11 +47,11 @@ export default function ManagementTax({ summaries }: Props) {
               href="/management/dashboard"
               className="text-sm text-gray-600 hover:text-gray-900"
             >
-              ← Back to Management Dash
+              ← Back to Management Dashboard
             </Link>
           </div>
 
-          <div className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
+          <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white shadow-sm">
             <table className="min-w-full divide-y divide-gray-200 text-sm">
               <thead className="bg-gray-50">
                 <tr>
@@ -59,7 +59,7 @@ export default function ManagementTax({ summaries }: Props) {
                     Seller
                   </th>
                   <th className="px-4 py-2 text-left font-medium text-gray-700">
-                    Year
+                    Tax Year
                   </th>
                   <th className="px-4 py-2 text-right font-medium text-gray-700">
                     Gross Sales (USD)
@@ -69,14 +69,16 @@ export default function ManagementTax({ summaries }: Props) {
                   </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-200 bg-white">
+              <tbody className="divide-y divide-gray-100">
                 {hasAny ? (
                   summaries.map((row) => (
                     <tr key={row.id}>
                       <td className="px-4 py-2 text-gray-900">
                         {row.sellerName}
                       </td>
-                      <td className="px-4 py-2 text-gray-700">{row.year}</td>
+                      <td className="px-4 py-2 text-gray-700">
+                        {row.year}
+                      </td>
                       <td className="px-4 py-2 text-right text-gray-900">
                         {row.grossSales.toLocaleString("en-US", {
                           style: "currency",
@@ -86,7 +88,7 @@ export default function ManagementTax({ summaries }: Props) {
                       <td className="px-4 py-2">
                         <span
                           className={
-                            "rounded-full px-3 py-1 text-xs font-medium " +
+                            "inline-flex rounded-full px-2 py-0.5 text-xs font-medium " +
                             (row.formsIssued
                               ? "bg-green-100 text-green-800"
                               : "bg-gray-200 text-gray-700")
