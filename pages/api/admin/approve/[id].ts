@@ -1,9 +1,7 @@
 // FILE: /pages/api/admin/approve/[id].ts
 import type { NextApiRequest, NextApiResponse } from "next";
-// --- THIS IS THE FIX ---
 import { adminDb, FieldValue } from "../../../../utils/firebaseAdmin";
 import { getSellerId } from "../../../../utils/authServer";
-// ----------------------
 
 export default async function handler(
   req: NextApiRequest,
@@ -13,12 +11,10 @@ export default async function handler(
     return res.status(405).json({ ok: false, error: "Method not allowed" });
   }
 
-  // --- Security Check ---
   const adminId = getSellerId(req);
   if (!adminId) {
     return res.status(401).json({ ok: false, error: "Unauthorized" });
   }
-  // --- End Security Check ---
 
   try {
     const { id } = req.query;
@@ -28,10 +24,13 @@ export default async function handler(
 
     const listingRef = adminDb.collection("listings").doc(id);
 
+    // --- THIS IS THE FIX ---
+    // Change status to "Live" to match your other pages
     await listingRef.update({
-      status: "Active",
+      status: "Live",
       updatedAt: FieldValue.serverTimestamp(),
     });
+    // ------------------------
 
     return res.status(200).json({ ok: true });
   } catch (err: any) {
