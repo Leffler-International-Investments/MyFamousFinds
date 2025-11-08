@@ -157,7 +157,7 @@ export default function ProductPage({
   
   // --- ADDED: State for image gallery ---
   const [activeImage, setActiveImage] = useState(
-    imageUrls.length > 0 ? imageUrls[0] : "https://images.unsplash.com/photo-1550009158-9ebf69173e03?auto=format&fit=crop&w=900&q=80"
+    imageUrls.length > 0 ? imageUrls[0] : "https://images.unsplash.com/photo-1550009158-9ebf69173e03?auto-format&fit=crop&w=900&q=80"
   );
 
   async function handleBuyNow() {
@@ -289,8 +289,8 @@ export default function ProductPage({
               </div>
             </div>
 
-            {/* --- UPDATED: Buy Button Logic --- */}
-            {status === "Live" ? ( // <-- Check for "Live" status
+            {/* --- UPDATED: Buy Button Logic (YOUR FIX B) --- */}
+            {(status === "Live" || status === "Active" || status === "Approved") ? (
               <button
                 className="buy"
                 onClick={handleBuyNow}
@@ -307,6 +307,7 @@ export default function ProductPage({
                 {status || "Not Available"}
               </button>
             )}
+            {/* -------------------------------------------- */}
 
 
             <p className="authDisclaimer">
@@ -482,8 +483,8 @@ export const getServerSideProps: GetServerSideProps = async (ctx) => {
     const d: any = snap.data() || {};
     const priceNumber = Number(d.price) || 0;
     
-    // --- FIX: Currency set to USD ---
-    const currency = d.currency || "USD"; 
+    // --- THIS IS YOUR FIX (A) ---
+    const currency = "USD"; // <-- Force USD
     const priceLabel = priceNumber
       ? new Intl.NumberFormat("en-US", { // <-- Changed to en-US
           style: "currency",
@@ -491,6 +492,7 @@ export const getServerSideProps: GetServerSideProps = async (ctx) => {
           maximumFractionDigits: 0,
         }).format(priceNumber)
       : "";
+    // ----------------------------
 
     const sellerName =
       d.sellerName || d.sellerDisplayName || "Independent seller";
@@ -504,7 +506,7 @@ export const getServerSideProps: GetServerSideProps = async (ctx) => {
     } else if (d.image) {
       imageUrls = [d.image]; // Fallback for 'image' field
     } else {
-      imageUrls = ["https://images.unsplash.com/photo-1550009158-9ebf69173e03?auto=format&fit=crop&w=900&q=80"];
+      imageUrls = ["https://images.unsplash.com/photo-1550009158-9ebf69173e03?auto-format&fit=crop&w=900&q=80"];
     }
     // ---------------------------------------------
 
