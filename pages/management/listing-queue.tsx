@@ -6,7 +6,7 @@ import Header from "../../components/Header";
 import Footer from "../../components/Footer";
 import { adminDb } from "../../utils/firebaseAdmin";
 import { useRequireAdmin } from "../../hooks/useRequireAdmin";
-import { useState } from "react"; // <-- ADDED
+import { useState } from "react"; 
 
 type Listing = {
   id: string;
@@ -19,6 +19,7 @@ type Listing = {
   auth_photos?: string;
   submittedAt: string;
   status: string;
+  proofRequested?: boolean; // <-- ADDED
 };
 
 type Props = {
@@ -28,20 +29,19 @@ type Props = {
 export default function ManagementListingQueue({ items: initialItems }: Props) {
   const { loading } = useRequireAdmin();
   
-  // --- ADDED: State to manage items and loading status ---
   const [items, setItems] = useState<Listing[]>(initialItems);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   if (loading) return null;
 
-  // --- ADDED: Handle Approve/Reject ---
-  const handleAction = async (id: string, action: "approve" | "reject") => {
-    if (actionLoading) return; // Prevent simultaneous actions
+  const handleAction = async (id: string, action: "approve" | "reject" | "request-proof") => {
+    if (actionLoading) return;
     setActionLoading(id);
     setError(null);
 
     try {
+      // --- UPDATED: Use the correct API path for each action ---
       const res = await fetch(`/api/admin/${action}/${id}`, {
         method: "POST",
       });
@@ -52,7 +52,16 @@ export default function ManagementListingQueue({ items: initialItems }: Props) {
       }
       
       // Success: Remove the item from the local list
-      setItems((prevItems) => prevItems.filter((item) => item.id !== id));
+      if (action === "approve" || action === "reject") {
+        setItems((prevItems) => prevItems.filter((item) => item.id !== id));
+      } else {
+        // For "request-proof", just update the item's state locally
+        setItems((prevItems) => 
+          prevItems.map((item) =>
+            item.id === id ? { ...item, proofRequested: true } : item
+          )
+        );
+      }
 
     } catch (err: any) {
       console.error(err);
@@ -71,7 +80,7 @@ export default function ManagementListingQueue({ items: initialItems }: Props) {
       </Head>
       <div className="min-h-screen bg-gray-50 text-gray-900">
         <Header />
-        <main className="mx-auto max-w-7xl px-4 pb-16 pt-6"> {/* Widened container */}
+        <main className="mx-auto max-w-7xl px-4 pb-16 pt-6">
           <div className="mb-4 flex items-center justify-between gap-2">
             <div>
               <h1 className="text-xl font-semibold tracking-tight">
@@ -83,14 +92,13 @@ export default function ManagementListingQueue({ items: initialItems }: Props) {
               </p>
             </div>
             <Link
-              href="/management/dashboard" // <-- Corrected link
+              href="/management/dashboard" 
               className="rounded-full bg-gray-900 px-4 py-2 text-xs font-medium text-white"
             >
               ← Back to admin home
             </Link>
           </div>
           
-          {/* --- ADDED: Error message display --- */}
           {error && (
             <div className="mb-4 rounded-md bg-red-100 p-3 text-sm text-red-700">
               <strong>Error:</strong> {error}
@@ -128,7 +136,6 @@ export default function ManagementListingQueue({ items: initialItems }: Props) {
                   <th className="px-4 py-2 text-left font-medium text-gray-700">
                     Status
                   </th>
-                  {/* --- ADDED: Actions Header --- */}
                   <th className="px-4 py-2 text-left font-medium text-gray-700">
                     Actions
                   </th>
@@ -175,17 +182,22 @@ export default function ManagementListingQueue({ items: initialItems }: Props) {
                         <span
                           className={
                             "rounded-full px-3 py-1 text-xs font-medium " +
-                            (item.status === "Pending"
+                            (item.status === "Pending" && !item.proofRequested
                               ? "bg-yellow-100 text-yellow-800"
+                              : item.status === "Pending" && item.proofRequested
+                              ? "bg-blue-100 text-blue-800" // <-- ADDED for requested proof
                               : item.status === "Rejected"
                               ? "bg-red-100 text-red-800"
                               : "bg-green-100 text-green-800")
                           }
                         >
-                          {item.status}
+                          {/* --- UPDATED: Show "Proof Requested" --- */}
+                          {item.status === "Pending" && item.proofRequested 
+                            ? "Proof Requested" 
+                            : item.status
+                          }
                         </span>
                       </td>
-                      {/* --- ADDED: Action Buttons --- */}
                       <td className="px-4 py-2">
                         <div className="flex gap-2">
                           <button
@@ -201,6 +213,14 @@ export default function ManagementListingQueue({ items: initialItems }: Props) {
                             className="rounded-full bg-red-100 px-3 py-1 text-xs font-medium text-red-800 hover:bg-red-200 disabled:opacity-50"
                           >
                             {actionLoading === item.id ? "..." : "Reject"}
+                          </button>
+                          {/* --- ADDED: Request Proof Button --- */}
+                          <button
+                            onClick={() => handleAction(item.id, "request-proof")}
+                            disabled={actionLoading === item.id || item.proofRequested}
+                            className="rounded-full bg-blue-100 px-3 py-1 text-xs font-medium text-blue-800 hover:bg-blue-200 disabled:opacity-50"
+                          >
+                            {actionLoading === item.id ? "..." : (item.proofRequested ? "Sent" : "Request Proof")}
                           </button>
                         </div>
                       </td>
@@ -245,10 +265,9 @@ function formatDate(ts: any): string {
   }
 }
 
-// ... (getServerSideProps is unchanged) ...
+// ... (getServerSideProps is unchanged, but we add 'proofRequested') ...
 export const getServerSideProps: GetServerSideProps<Props> = async () => {
   try {
-    // Reuse the listings collection and filter to "pending" in JS
     const snap = await adminDb
       .collection("listings")
       .orderBy("createdAt", "desc")
@@ -273,6 +292,7 @@ export const getServerSideProps: GetServerSideProps<Props> = async () => {
         auth_photos: d.auth_photos || "",
         submittedAt: formatDate(d.createdAt),
         status,
+        proofRequested: d.proofRequested || false, // <-- ADDED
       };
     });
 
