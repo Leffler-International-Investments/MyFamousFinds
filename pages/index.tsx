@@ -5,7 +5,6 @@ import Header from "../components/Header";
 import Footer from "../components/Footer";
 import DemoGrid from "../components/DemoGrid";
 import { ProductLike } from "../components/ProductCard";
-// --- ADDED: Imports for live data ---
 import { adminDb } from "../utils/firebaseAdmin";
 import type { GetServerSideProps } from "next";
 
@@ -24,16 +23,13 @@ const categories = [
   { name: "Sale", slug: "sale" },
 ];
 
-// --- Type definition for our props ---
 type HomeProps = {
   trending: ProductLike[];
   newArrivals: ProductLike[];
 };
 
-// --- UPDATED: The component now receives 'trending' and 'newArrivals' as props ---
 export default function Home({ trending, newArrivals }: HomeProps) {
   return (
-    // Your layout is 100% preserved
     <div className="dark-theme-page">
       <Head>
         <title>Famous Finds — US</title>
@@ -41,7 +37,7 @@ export default function Home({ trending, newArrivals }: HomeProps) {
       <Header />
 
       <main className="wrap">
-        {/* HERO (This is your layout) */}
+        {/* (All your Hero and Category JSX is unchanged) */}
         <section className="hero">
           <div className="heroCopy">
             <p className="eyebrow">WELCOME TO OUR WORLD OF LUXURY</p>
@@ -52,14 +48,11 @@ export default function Home({ trending, newArrivals }: HomeProps) {
               stories.
             </p>
           </div>
-
-          {/* Right: AI Butler (This is your layout) */}
           <div className="heroVisual">
             <p className="heroIntro">
               Meet your Famous Finds AI Butler – a friendly concierge to help you discover
               the perfect piece, by voice or chat, from our curated catalogue.
             </p>
-
             <div className="heroButlerRow">
               <div className="butlerAvatar">
                 <span className="butlerEmoji">🤵‍♂️</span>
@@ -72,13 +65,11 @@ export default function Home({ trending, newArrivals }: HomeProps) {
                 </div>
               </div>
             </div>
-
             <div className="heroPills">
               <Link href="/concierge" className="pill">
                 <span className="pillTitle">AI Butler</span>
                 <span className="pillSub">Ask by voice or chat</span>
               </Link>
-              {/* --- THIS IS THE CORRECTED LINK --- */}
               <Link href="/catalogue" className="pill pillSecondary">
                 <span className="pillTitle">Browse the catalogue</span>
               </Link>
@@ -86,7 +77,6 @@ export default function Home({ trending, newArrivals }: HomeProps) {
           </div>
         </section>
 
-        {/* Category chips (Your layout) */}
         <section className="cats">
           {categories.map((c) => (
             <Link key={c.slug} href={`/category/${c.slug}`} className="cat">
@@ -95,21 +85,19 @@ export default function Home({ trending, newArrivals }: HomeProps) {
           ))}
         </section>
 
-        {/* These components now use the 'live' data from props */}
         <DemoGrid title="Now Trending" items={trending} />
         <DemoGrid title="New Arrivals" items={newArrivals} />
       </main>
 
       <Footer />
 
-      {/* Your styles are 100% preserved */}
+      {/* (All your styles are unchanged) */}
       <style jsx>{`
         .wrap {
           max-width: 1200px;
           margin: 0 auto;
           padding: 24px 16px 40px;
         }
-
         .hero {
           display: grid;
           grid-template-columns: minmax(0, 1.4fr) minmax(0, 1.1fr);
@@ -272,7 +260,7 @@ export const getServerSideProps: GetServerSideProps<HomeProps> = async () => {
   try {
     const snap = await adminDb
       .collection("listings")
-      .where("status", "==", "Active") // <-- ADDED THIS FILTER BACK
+      .where("status", "==", "Live") // <-- FIX 1: Look for "Live"
       .orderBy("createdAt", "desc")
       .limit(24)
       .get();
@@ -280,13 +268,16 @@ export const getServerSideProps: GetServerSideProps<HomeProps> = async () => {
     const items: ProductLike[] = snap.docs.map((doc) => {
       const d: any = doc.data() || {};
       const priceNumber = Number(d.price) || 0;
+      
+      // --- FIX 2: Set currency to USD ---
       const price = priceNumber
-        ? `$${priceNumber.toLocaleString("en-US")}`
+        ? `US$${priceNumber.toLocaleString("en-US")}` // <-- Changed
         : "";
       
       const image: string =
         d.imageUrl ||
-        d.image || // <— pick up images saved as "image" (Sell form)
+        d.image || 
+        (Array.isArray(d.imageUrls) && d.imageUrls[0]) || // <-- Check new array
         "https://images.unsplash.com/photo-1550009158-9ebf69173e03?auto-format&fit=crop&w=800&q=80";
 
       return {
@@ -295,7 +286,7 @@ export const getServerSideProps: GetServerSideProps<HomeProps> = async () => {
         brand: d.brand || "",
         price,
         image,
-        href: `/product/${doc.id}`, // <-- Note: This should be /listing/[id] based on your other files
+        href: `/product/${doc.id}`, // <-- Correct path
         badge: d.badge || undefined,
       };
     });
