@@ -105,7 +105,9 @@ export default function ManagementListingQueue({ items: initialItems }: Props) {
             </div>
           )}
 
+          {/* --- THIS IS THE FIX --- */}
           <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white shadow-sm">
+          {/* --------------------- */}
             <table className="min-w-full divide-y divide-gray-200 text-sm">
               <thead className="bg-gray-50">
                 <tr>
@@ -265,7 +267,7 @@ function formatDate(ts: any): string {
   }
 }
 
-// ... (getServerSideProps is unchanged, but we add 'proofRequested') ...
+// ... (getServerSideProps is unchanged) ...
 export const getServerSideProps: GetServerSideProps<Props> = async () => {
   try {
     const snap = await adminDb
@@ -292,7 +294,7 @@ export const getServerSideProps: GetServerSideProps<Props> = async () => {
         auth_photos: d.auth_photos || "",
         submittedAt: formatDate(d.createdAt),
         status,
-        proofRequested: d.proofRequested || false, // <-- ADDED
+        proofRequested: d.proofRequested || false,
       };
     });
 
