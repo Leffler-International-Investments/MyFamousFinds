@@ -28,95 +28,182 @@ class ReactImageMagnify extends Component<any, any> {
     this.onMouseLeave = this.onMouseLeave.bind(this);
     this.setImage = this.setImage.bind(this);
   }
-  componentDidMount() { this.setImage(); }
-  componentDidUpdate(prevProps: any) { if (this.props.smallImage.src !== prevProps.smallImage.src) { this.setState({ isLoaded: false }); this.setImage(); } }
-  onSmallImageLoad(e: any) { this.setState({ isLoaded: true, imageDimensions: { width: e.target.width, height: e.target.height } }); }
+
+  componentDidMount() {
+    this.setImage();
+  }
+  componentDidUpdate(prevProps: any) {
+    // eslint-disable-next-line
+    // @ts-ignore
+    if (this.props.smallImage?.src !== prevProps.smallImage?.src) {
+      this.setState({ isLoaded: false });
+      this.setImage();
+    }
+  }
+
+  onSmallImageLoad(e: any) {
+    this.setState({
+      isLoaded: true,
+      imageDimensions: { width: e.target.width, height: e.target.height },
+    });
+  }
+
   onMouseEnter(e: any) {
     const { elementDimensions, imageDimensions } = this.state as any;
     const el = e.currentTarget.getBoundingClientRect();
     const elDims = { width: el.width, height: el.height };
     const imgDims = { width: e.target.width, height: e.target.height };
-    this.setState({ isZoomed: true, elementDimensions: elDims, imageDimensions: imgDims });
+    this.setState({
+      isZoomed: true,
+      elementDimensions: elDims,
+      imageDimensions: imgDims,
+    });
   }
+
   onMouseMove(e: any) {
     const { elementDimensions, imageDimensions } = this.state as any;
     const { largeImage, smallImage } = this.props as any;
-    const el = e.currentTarget.getBoundingClientRect();
-    const x = e.clientX - el.left;
-    const y = e.clientY - el.top;
-    const largeWidth = largeImage.width;
-    const largeHeight = largeImage.height;
-    const smallWidth = imageDimensions.width;
-    const smallHeight = imageDimensions.height;
-    const ratioX = largeWidth / smallWidth;
-    const ratioY = largeHeight / smallHeight;
-    const isPositionOutside = x < 0 || y < 0 || x > smallWidth || y > smallHeight;
+
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+
+    // Lens position in small image space
+    const lensX = Math.max(
+      0,
+      Math.min(x, elementDimensions.width || imageDimensions.width)
+    );
+    const lensY = Math.max(
+      0,
+      Math.min(y, elementDimensions.height || imageDimensions.height)
+    );
+
+    // Map lens position to large image translation
+    const ratioX = (largeImage.width - (smallImage.width || 0)) /
+      (elementDimensions.width || imageDimensions.width || 1);
+    const ratioY = (largeImage.height - (smallImage.height || 0)) /
+      (elementDimensions.height || imageDimensions.height || 1);
+
+    const posX = -lensX * ratioX;
+    const posY = -lensY * ratioY;
+
+    const isOutside =
+      x < 0 ||
+      y < 0 ||
+      x > (elementDimensions.width || imageDimensions.width) ||
+      y > (elementDimensions.height || imageDimensions.height);
+
     this.setState({
-      isPositionOutside,
-      position: { x: x * -ratioX, y: y * -ratioY },
-      lensPosition: { x, y },
+      lensPosition: { x: lensX, y: lensY },
+      position: { x: posX, y: posY },
+      isPositionOutside: isOutside,
     });
   }
-  onMouseLeave() { this.setState({ isZoomed: false }); }
-  setImage() { const img = new (window as any).Image(); img.onload = this.onSmallImageLoad; img.src = this.props.smallImage.src; }
+
+  onMouseLeave() {
+    this.setState({
+      isZoomed: false,
+      lensPosition: { x: 0, y: 0 },
+      position: { x: 0, y: 0 },
+      isPositionOutside: true,
+    });
+  }
+
+  setImage() {
+    // We could add additional logic if needed
+  }
+
   render() {
-    const { smallImage, largeImage, isHintEnabled, enlargedImageContainerStyle } = this.props as any;
-    const { isLoaded, isZoomed, isPositionOutside, position, lensPosition, imageDimensions } = this.state as any;
+    const {
+      smallImage,
+      largeImage,
+      isHintEnabled,
+      enlargedImageContainerStyle,
+    } = this.props as any;
+    const {
+      isLoaded,
+      isZoomed,
+      isPositionOutside,
+      position,
+      imageDimensions,
+    } = this.state as any;
     const { width: largeWidth, height: largeHeight } = largeImage;
     const { width: smallWidth, height: smallHeight } = imageDimensions;
     const isFluid = smallImage.isFluidWidth;
-    
+
     const styles: any = {
-      container: { position: 'relative', overflow: 'hidden' },
+      container: { position: "relative", overflow: "hidden" },
       smallImage: {
-        display: 'block',
-        width: isFluid ? '100%' : smallWidth,
-        height: 'auto',
+        display: "block",
+        width: isFluid ? "100%" : smallWidth,
+        height: "auto",
         opacity: isLoaded ? 1 : 0,
-        transition: 'opacity 0.3s ease-in',
+        transition: "opacity 0.3s ease-in",
       },
       largeImage: {
-        position: 'absolute',
+        position: "absolute",
         top: 0,
         left: 0,
         width: largeWidth,
         height: largeHeight,
         transform: `translate(${position.x}px, ${position.y}px)`,
-        pointerEvents: 'none',
+        pointerEvents: "none",
       },
       zoomContainer: {
-        position: 'absolute',
+        position: "absolute",
         top: 0,
-        left: '100%',
-        marginLeft: '10px',
+        left: "100%",
+        marginLeft: "10px",
         width: largeWidth,
         height: largeHeight,
-        overflow: 'hidden',
-        border: '1px solid #ccc',
-        backgroundColor: '#fff',
+        overflow: "hidden",
+        border: "1px solid #ccc",
+        backgroundColor: "#fff",
         opacity: isLoaded && isZoomed && !isPositionOutside ? 1 : 0,
-        transition: 'opacity 0.3s ease-in',
-        pointerEvents: 'none',
+        transition: "opacity 0.3s ease-in",
+        pointerEvents: "none",
         ...enlargedImageContainerStyle,
       },
       hint: {
-        position: 'absolute',
-        top: '10px',
-        right: '10px',
-        backgroundColor: 'rgba(0,0,0,0.4)',
-        color: '#fff',
-        padding: '3px 6px',
-        fontSize: '12px',
-        borderRadius: '3px',
-      }
+        position: "absolute",
+        top: "10px",
+        right: "10px",
+        backgroundColor: "rgba(0,0,0,0.4)",
+        color: "#fff",
+        padding: "3px 6px",
+        fontSize: "12px",
+        borderRadius: "3px",
+      },
     };
 
     return (
-      React.createElement('div', { style: styles.container, onMouseEnter: this.onMouseEnter, onMouseMove: this.onMouseMove, onMouseLeave: this.onMouseLeave },
-        React.createElement('img', { src: smallImage.src, alt: smallImage.alt, style: styles.smallImage }),
-        isHintEnabled && !isZoomed && React.createElement('span', { style: styles.hint }, 'Hover to zoom'),
-        React.createElement('div', { style: styles.zoomContainer },
-          React.createElement('img', { src: largeImage.src, alt: '', style: styles.largeImage })
+      // eslint-disable-next-line
+      // @ts-ignore
+      React.createElement(
+        "div",
+        {
+          style: styles.container,
+          onMouseEnter: this.onMouseEnter,
+          onMouseMove: this.onMouseMove,
+          onMouseLeave: this.onMouseLeave,
+        },
+        React.createElement("img", {
+          src: smallImage.src,
+          alt: smallImage.alt,
+          style: styles.smallImage,
+          onLoad: this.onSmallImageLoad,
+        }),
+        isHintEnabled &&
+          !isZoomed &&
+          React.createElement("span", { style: styles.hint }, "Hover to zoom"),
+        React.createElement(
+          "div",
+          { style: styles.zoomContainer },
+          React.createElement("img", {
+            src: largeImage.src,
+            alt: "",
+            style: styles.largeImage,
+          })
         )
       )
     );
@@ -130,12 +217,12 @@ type ProductPageProps = {
   price: number;
   currency: string;
   priceLabel: string;
-  imageUrls: string[]; // <-- UPDATED
+  imageUrls: string[];
   description: string;
   sellerName: string;
   delivery: string;
   payment: string;
-  status: string; // <-- ADDED
+  status: string | null;
 };
 
 export default function ProductPage({
@@ -154,10 +241,12 @@ export default function ProductPage({
   const [loading, setLoading] = useState(false);
   const [rating, setRating] = useState<number | null>(null);
   const [showThanks, setShowThanks] = useState(false);
-  
+
   // --- ADDED: State for image gallery ---
   const [activeImage, setActiveImage] = useState(
-    imageUrls.length > 0 ? imageUrls[0] : "https://images.unsplash.com/photo-1550009158-9ebf69173e03?auto-format&fit=crop&w=900&q=80"
+    imageUrls.length > 0
+      ? imageUrls[0]
+      : "https://images.unsplash.com/photo-1550009158-9ebf69173e03?auto-format&fit=crop&w=900&q=80"
   );
 
   async function handleBuyNow() {
@@ -168,17 +257,14 @@ export default function ProductPage({
         method: "POST",
       });
       const json = await res.json();
-      if (!res.ok || !json?.sessionId) {
-        throw new Error(json?.error || "Checkout failed");
-      }
       const stripe = await getStripe();
-      if (!stripe) {
-        throw new Error("Stripe not loaded");
+      if (stripe) {
+        await stripe.redirectToCheckout({ sessionId: json.id });
       }
-      await stripe.redirectToCheckout({ sessionId: json.sessionId });
     } catch (err) {
-      console.error(err);
-      alert("Could not start checkout. Please try again.");
+      console.error("Checkout error", err);
+      alert("There was an issue preparing checkout.");
+    } finally {
       setLoading(false);
     }
   }
@@ -201,29 +287,47 @@ export default function ProductPage({
           {/* --- UPDATED: Image Gallery & Zoom --- */}
           <div className="imageBox">
             {/* Main Magnified Image */}
-            <div style={{ zIndex: 10, position: "relative", border: "1px solid #333", borderRadius: "8px", overflow: "hidden" }}>
-              <ReactImageMagnify {...{
+            <div
+              style={{
+                zIndex: 10,
+                position: "relative",
+                border: "1px solid #333",
+                borderRadius: "8px",
+                overflow: "hidden",
+              }}
+            >
+              <ReactImageMagnify
+                {...{
                   smallImage: {
                     alt: title,
                     isFluidWidth: true,
-                    src: activeImage
+                    src: activeImage,
                   },
                   largeImage: {
                     src: activeImage,
                     width: 1200,
-                    height: 1200
+                    height: 1200,
                   },
+                  // turn off “Hover to zoom” hint overlay
+                  isHintEnabled: false,
                   enlargedImageContainerStyle: {
                     zIndex: 9999,
                     backgroundColor: "black",
-                    border: "1px solid #555"
+                    border: "1px solid #555",
                   },
-                  isHintEnabled: true,
-                }} />
+                }}
+              />
             </div>
-            
+
             {/* Thumbnail Gallery */}
-            <div style={{ display: "flex", gap: "10px", marginTop: "10px", flexWrap: "wrap" }}>
+            <div
+              style={{
+                display: "flex",
+                gap: "10px",
+                marginTop: "10px",
+                flexWrap: "wrap",
+              }}
+            >
               {imageUrls.map((url, i) => (
                 <div
                   key={i}
@@ -234,8 +338,11 @@ export default function ProductPage({
                     cursor: "pointer",
                     borderRadius: "4px",
                     overflow: "hidden",
-                    border: activeImage === url ? "2px solid #facc15" : "2px solid #333",
-                    position: "relative"
+                    border:
+                      activeImage === url
+                        ? "2px solid #facc15"
+                        : "2px solid #333",
+                    position: "relative",
                   }}
                 >
                   <Image
@@ -250,34 +357,33 @@ export default function ProductPage({
           </div>
           {/* ------------------------------------- */}
 
-          <div className="infoBox">
+          <div>
             <p className="eyebrow">FAMOUS FINDS / CURATED MARKETPLACE</p>
             <h1>{title}</h1>
-            {sellerName && (
-              <p className="sub">
-                Listed by <strong>{sellerName}</strong>
-              </p>
-            )}
+            <p className="sub">
+              Listed by{" "}
+              <span className="sellerName">
+                {sellerName || "Independent seller"}
+              </span>
+            </p>
 
-            {priceLabel && (
-              <div className="priceRow">
-                <span className="price">{priceLabel}</span>
-                {/* --- FIX: Changed currency display --- */}
+            {price > 0 && (
+              <div className="priceBlock">
+                <div className="priceMain">
+                  <span className="price">{priceLabel}</span>
+                </div>
                 <span className="priceSub">All prices in {currency}</span>
               </div>
             )}
 
-            {description && (
-              <p className="desc">
-                {description}
-              </p>
-            )}
+            {description && <p className="desc">{description}</p>}
 
             <div className="meta">
               <div>
                 <p className="metaLabel">Delivery</p>
                 <p className="metaValue">
-                  {delivery || "Tracked, insured shipping arranged with seller."}
+                  {delivery ||
+                    "Tracked, insured shipping arranged with seller."}
                 </p>
               </div>
               <div>
@@ -289,63 +395,62 @@ export default function ProductPage({
               </div>
             </div>
 
-            {/* --- UPDATED: Buy Button Logic (YOUR FIX B) --- */}
-            {(status === "Live" || status === "Active" || status === "Approved") ? (
-              <button
-                className="buy"
-                onClick={handleBuyNow}
-                disabled={loading || !price}
-              >
-                {loading ? "Processing..." : "Buy now"}
-              </button>
-            ) : (
-              <button
-                className="buy"
-                disabled
-                style={{ background: "#555", color: "#999", cursor: "not-allowed" }}
-              >
-                {status || "Not Available"}
-              </button>
-            )}
-            {/* -------------------------------------------- */}
+            <button
+              className="buy"
+              disabled={loading || !price}
+              onClick={handleBuyNow}
+            >
+              {loading ? "Preparing checkout…" : "Buy now"}
+            </button>
 
-
-            <p className="authDisclaimer">
+            <p className="disclaimer">
               <strong>Disclaimer:</strong> Famous Finds operates as a peer-to-peer
-              marketplace. Each listing is uploaded by an independent seller. While we
-              apply authenticity review measures, Famous Finds does not guarantee the
-              authenticity of any individual item. In case of a dispute, legal
-              responsibility rests solely with the seller.
+              marketplace. Each listing is uploaded by an independent seller.
+              While we apply authenticity review measures, Famous Finds does not
+              guarantee the authenticity of any individual item. In case of a
+              dispute, legal responsibility rests solely with the seller.
             </p>
 
+            {/* Rating block – bigger stars, numbers, yellow when active */}
             <div className="rating">
               <p className="ratingLabel">
                 Rate this item{" "}
-                <span className="text-gray-500">(private signal to our team)</span>
+                <span className="text-gray-500">
+                  (private signal to our team)
+                </span>
               </p>
-              <div>
-                {[1, 2, 3, 4, 5].map((star) => (
-                  <button
-                    key={star}
-                    className="star"
-                    type="button"
-                    onClick={() => handleRating(star)}
-                  >
-                    {rating && star <= rating ? "★" : "☆"}
-                  </button>
-                ))}
+              <div className="ratingRow">
+                {[1, 2, 3, 4, 5].map((star) => {
+                  const isActive = rating !== null && star <= rating;
+                  return (
+                    <button
+                      key={star}
+                      className="star"
+                      type="button"
+                      onClick={() => handleRating(star)}
+                      style={{
+                        color: isActive ? "#facc15" : "#4b5563",
+                      }}
+                    >
+                      <span>{isActive ? "★" : "☆"}</span>
+                      <span className="starNumber">{star}</span>
+                    </button>
+                  );
+                })}
               </div>
+              {rating !== null && (
+                <p className="ratingHint">You rated this item {rating} / 5</p>
+              )}
               {showThanks && (
-                <p className="ratingThanks">Thanks, your signal has been noted.</p>
+                <p className="ratingThanks">
+                  Thanks, your signal has been noted.
+                </p>
               )}
             </div>
           </div>
         </div>
       </main>
 
-      <Footer />
-
-      {/* --- UPDATED: Styles to remove border --- */}
       <style jsx>{`
         .wrap {
           max-width: 1100px;
@@ -358,13 +463,9 @@ export default function ProductPage({
           gap: 36px;
         }
         .imageBox {
-          /* Removed the old border/background styles */
         }
-        .imageBox img {
-          /* This is no longer used for the main image */
-        }
-        .infoBox {
-          padding: 8px 4px;
+        .heroCopy {
+          margin-bottom: 18px;
         }
         .eyebrow {
           font-size: 11px;
@@ -378,17 +479,19 @@ export default function ProductPage({
           letter-spacing: 0.02em;
         }
         .sub {
-          font-size: 13px;
-          color: #d1d5db;
+          font-size: 14px;
+          margin-top: 6px;
+          color: #9ca3af;
         }
-        .priceRow {
+        .sellerName {
+          color: #facc15;
+        }
+        .priceBlock {
           margin-top: 16px;
-          display: flex;
-          align-items: baseline;
-          gap: 10px;
+          margin-bottom: 12px;
         }
-        .price {
-          font-size: 24px;
+        .priceMain {
+          font-size: 26px;
           font-weight: 600;
         }
         .priceSub {
@@ -396,7 +499,7 @@ export default function ProductPage({
           color: #9ca3af;
         }
         .desc {
-          margin-top: 16px;
+          margin-top: 10px;
           font-size: 14px;
           color: #e5e7eb;
           line-height: 1.6;
@@ -432,32 +535,52 @@ export default function ProductPage({
           opacity: 0.6;
           cursor: default;
         }
-        .rating {
+        .disclaimer {
           margin-top: 18px;
-          font-size: 13px;
-        }
-        .authDisclaimer {
-          margin-top: 10px;
           font-size: 12px;
           color: #9ca3af;
-          line-height: 1.4;
+          line-height: 1.6;
+        }
+        .rating {
+          margin-top: 20px;
         }
         .ratingLabel {
-          color: #d1d5db;
+          font-size: 13px;
+          color: #e5e7eb;
+          margin-bottom: 4px;
         }
-        .ratingThanks {
-          color: #a3e635;
-          font-size: 12px;
+        .ratingRow {
+          display: flex;
+          gap: 8px;
+          margin-top: 6px;
         }
         .star {
           background: transparent;
           border: none;
           cursor: pointer;
-          font-size: 20px;
-          color: #4b5563;
+          font-size: 24px;
+          display: inline-flex;
+          flex-direction: column;
+          align-items: center;
+          padding: 0 4px;
         }
-        .star:hover {
-          color: #e5e7eb;
+        .starNumber {
+          font-size: 11px;
+          margin-top: -2px;
+          color: #9ca3af;
+        }
+        .ratingHint {
+          margin-top: 4px;
+          font-size: 11px;
+          color: #9ca3af;
+        }
+        .star:hover span:first-child {
+          transform: scale(1.05);
+        }
+        .ratingThanks {
+          margin-top: 4px;
+          font-size: 12px;
+          color: #a3e635;
         }
         @media (max-width: 900px) {
           .layout {
@@ -468,7 +591,6 @@ export default function ProductPage({
     </div>
   );
 }
-{/* --------------------------------- */}
 
 export const getServerSideProps: GetServerSideProps = async (ctx) => {
   try {
@@ -482,47 +604,35 @@ export const getServerSideProps: GetServerSideProps = async (ctx) => {
 
     const d: any = snap.data() || {};
     const priceNumber = Number(d.price) || 0;
-    
-    // --- THIS IS YOUR FIX (A) ---
-    const currency = "USD"; // <-- Force USD
+    const currency = "USD";
     const priceLabel = priceNumber
-      ? new Intl.NumberFormat("en-US", { // <-- Changed to en-US
-          style: "currency",
-          currency,
-          maximumFractionDigits: 0,
-        }).format(priceNumber)
+      ? `$${priceNumber.toLocaleString("en-US")}`
       : "";
-    // ----------------------------
 
-    const sellerName =
-      d.sellerName || d.sellerDisplayName || "Independent seller";
-      
-    // --- UPDATED: Handle new 'imageUrls' array ---
-    let imageUrls: string[] = [];
-    if (Array.isArray(d.imageUrls) && d.imageUrls.length > 0) {
-      imageUrls = d.imageUrls;
-    } else if (d.imageUrl) {
-      imageUrls = [d.imageUrl];
-    } else if (d.image) {
-      imageUrls = [d.image]; // Fallback for 'image' field
-    } else {
-      imageUrls = ["https://images.unsplash.com/photo-1550009158-9ebf69173e03?auto-format&fit=crop&w=900&q=80"];
-    }
-    // ---------------------------------------------
+    // Normalize imageUrls
+    const images: string[] = Array.isArray(d.imageUrls)
+      ? d.imageUrls
+      : d.imageUrl
+      ? [d.imageUrl]
+      : d.image
+      ? [d.image]
+      : [
+          "https://images.unsplash.com/photo-1550009158-9ebf69173e03?auto-format&fit=crop&w=900&q=80",
+        ];
 
     return {
       props: {
-        id,
+        id: snap.id,
         title: d.title || "Untitled listing",
         price: priceNumber,
         currency,
         priceLabel,
-        imageUrls: imageUrls, // <-- Pass the array
+        imageUrls: images,
         description: d.description || "",
-        sellerName,
+        sellerName: d.sellerName || d.seller || "",
         delivery: d.delivery || "",
         payment: d.payment || "",
-        status: d.status || "PendingReview", // <-- Pass the status
+        status: d.status || null,
       },
     };
   } catch (err) {
