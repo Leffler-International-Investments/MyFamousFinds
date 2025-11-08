@@ -79,7 +79,7 @@ export default function ManagementTax({ summaries }: Props) {
                       <td className="px-4 py-2 text-right text-gray-900">
                         {row.grossSales.toLocaleString("en-AU", {
                           style: "currency",
-                          currency: "AUD",
+                          currency: "USD",
                         })}
                       </td>
                       <td className="px-4 py-2">
