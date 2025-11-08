@@ -1,3 +1,4 @@
+// FILE: /next.config.js
 /** @type {import('next').NextConfig} */
 const path = require("path");
 
@@ -6,6 +7,8 @@ const nextConfig = {
     remotePatterns: [
       { protocol: "https", hostname: "images.unsplash.com" },
       { protocol: "https", hostname: "cdn.shopify.com" },
+      // ✅ Allow listing images from Firebase Storage
+      { protocol: "https", hostname: "firebasestorage.googleapis.com" },
     ],
   },
   webpack: (config) => {
