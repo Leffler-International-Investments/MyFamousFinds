@@ -78,9 +78,9 @@ export default function ManagementListings({ items }: Props) {
             <select
               value={statusFilter}
               onChange={(e) =>
-                setStatusFilter(e.target.value as typeof statusFilter)
+                setStatusFilter(e.target.value as any)
               }
-              className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm focus:border-gray-900 focus:outline-none"
+              className="rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-gray-900 focus:outline-none"
             >
               <option value="All">All statuses</option>
               <option value="Live">Live</option>
@@ -89,25 +89,23 @@ export default function ManagementListings({ items }: Props) {
             </select>
           </div>
 
-          {/* --- THIS IS THE FIX --- */}
           <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white shadow-sm">
-          {/* --------------------- */}
             <table className="min-w-full divide-y divide-gray-200 text-sm">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-4 py-2 text-left font-medium text-gray-700">
+                  <th className="px-3 py-2 text-left font-medium text-gray-700">
                     Listing
                   </th>
-                  <th className="px-4 py-2 text-left font-medium text-gray-700">
+                  <th className="px-3 py-2 text-left font-medium text-gray-700">
                     Seller
                   </th>
-                  <th className="px-4 py-2 text-right font-medium text-gray-700">
+                  <th className="px-3 py-2 text-left font-medium text-gray-700">
                     Price (US$)
                   </th>
-                  <th className="px-4 py-2 text-left font-medium text-gray-700">
+                  <th className="px-3 py-2 text-left font-medium text-gray-700">
                     Status
                   </th>
-                  <th className="px-4 py-2 text-right font-medium text-gray-700">
+                  <th className="px-3 py-2 text-left font-medium text-gray-700">
                     Actions
                   </th>
                 </tr>
@@ -115,49 +113,47 @@ export default function ManagementListings({ items }: Props) {
               <tbody className="divide-y divide-gray-100">
                 {visible.map((l) => (
                   <tr key={l.id}>
-                    <td className="px-4 py-2 text-sm text-gray-900">
-                      <div className="font-medium">{l.title}</div>
-                      <div className="text-xs text-gray-500">{l.id}</div>
+                    <td className="px-3 py-2 text-gray-900">{l.title}</td>
+                    <td className="px-3 py-2 text-gray-700">{l.seller}</td>
+                    <td className="px-3 py-2 text-gray-700">
+                      {l.price
+                        ? l.price.toLocaleString("en-US", {
+                            style: "currency",
+                            currency: "USD",
+                          })
+                        : "—"}
                     </td>
-                    <td className="px-4 py-2 text-sm text-gray-700">
-                      {l.seller}
-                    </td>
-                    <td className="px-4 py-2 text-right text-sm text-gray-900">
-                      {l.price.toLocaleString("en-AU", {
-                        minimumFractionDigits: 2,
-                        maximumFractionDigits: 2,
-                      })}
-                    </td>
-                    <td className="px-4 py-2 text-xs">
+                    <td className="px-3 py-2">
                       <span
-                        className={`inline-flex rounded-full px-2 py-1 text-xs font-semibold ${
-                          l.status === "Live"
-                            ? "bg-emerald-100 text-emerald-700"
+                        className={
+                          "inline-flex rounded-full px-2 py-0.5 text-xs font-medium " +
+                          (l.status === "Live"
+                            ? "bg-green-100 text-green-800"
                             : l.status === "Pending"
                             ? "bg-yellow-100 text-yellow-800"
-                            : "bg-red-100 text-red-700"
-                        }`}
+                            : "bg-red-100 text-red-800")
+                        }
                       >
                         {l.status}
                       </span>
                     </td>
-                    <td className="px-4 py-2 text-right text-xs">
+                    <td className="px-3 py-2">
                       <Link
-                        href={`/product/${encodeURIComponent(l.id)}`}
-                        className="font-medium text-blue-600 hover:text-blue-800"
+                        href={`/product/${l.id}`}
+                        className="text-xs font-medium text-blue-600 hover:text-blue-800"
                       >
                         View
                       </Link>
                     </td>
                   </tr>
                 ))}
-                {!visible.length && (
+                {visible.length === 0 && (
                   <tr>
                     <td
                       colSpan={5}
-                      className="px-4 py-6 text-center text-xs text-gray-500"
+                      className="px-3 py-6 text-center text-sm text-gray-500"
                     >
-                      No listings found for the current filters.
+                      No listings match this filter.
                     </td>
                   </tr>
                 )}
@@ -174,32 +170,21 @@ export default function ManagementListings({ items }: Props) {
 
 export const getServerSideProps: GetServerSideProps<Props> = async () => {
   try {
-    const snap = await adminDb
-      .collection("listings")
-      .orderBy("createdAt", "desc")
-      .limit(200)
-      .get();
+    const snap = await adminDb.collection("listings").get();
 
     const items: Listing[] = snap.docs.map((doc) => {
       const d: any = doc.data() || {};
-      const price =
-        typeof d.price === "number"
-          ? d.price
-          : typeof d.price === "string"
-          ? Number(d.price) || 0
-          : 0;
-
       const rawStatus = (d.status || "").toString();
       let status: Listing["status"] = "Live";
       if (/pending/i.test(rawStatus)) status = "Pending";
-      if (/reject/i.test(rawStatus)) status = "Rejected";
+      else if (/reject/i.test(rawStatus)) status = "Rejected";
 
       return {
         id: doc.id,
         title: d.title || "Untitled listing",
-        seller: d.sellerName || d.sellerDisplayName || d.sellerId || "Seller",
+        seller: d.sellerName || d.sellerId || "Seller",
+        price: Number(d.price || 0),
         status,
-        price,
       };
     });
 
