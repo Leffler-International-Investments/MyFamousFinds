@@ -28,7 +28,7 @@ export default function ManagementTax({ summaries }: Props) {
   return (
     <>
       <Head>
-        <title>Tax & Compliance — Admin</title>
+        <title>Tax & Compliance — US Reporting</title>
       </Head>
       <div className="min-h-screen bg-gray-50 text-gray-900">
         <Header />
@@ -39,7 +39,8 @@ export default function ManagementTax({ summaries }: Props) {
                 Tax & Compliance
               </h1>
               <p className="mt-1 text-sm text-gray-600">
-                View annual sales totals and form issuance for sellers.
+                View annual US-dollar sales totals and tax form issuance for
+                sellers.
               </p>
             </div>
             <Link
@@ -61,7 +62,7 @@ export default function ManagementTax({ summaries }: Props) {
                     Year
                   </th>
                   <th className="px-4 py-2 text-right font-medium text-gray-700">
-                    Gross Sales
+                    Gross Sales (USD)
                   </th>
                   <th className="px-4 py-2 text-left font-medium text-gray-700">
                     Form Issued
@@ -77,7 +78,7 @@ export default function ManagementTax({ summaries }: Props) {
                       </td>
                       <td className="px-4 py-2 text-gray-700">{row.year}</td>
                       <td className="px-4 py-2 text-right text-gray-900">
-                        {row.grossSales.toLocaleString("en-AU", {
+                        {row.grossSales.toLocaleString("en-US", {
                           style: "currency",
                           currency: "USD",
                         })}
@@ -155,4 +156,3 @@ export const getServerSideProps: GetServerSideProps<Props> = async () => {
     return { props: { summaries: [] } };
   }
 };
-
