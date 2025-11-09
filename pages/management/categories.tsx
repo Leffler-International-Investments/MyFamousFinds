@@ -21,10 +21,10 @@ type Props = {
 };
 
 export default function ManagementCategories({ categories }: Props) {
-  const { loading } = useRequireAdmin();
+  const { loading } } = useRequireAdmin();
   const [items] = useState(categories);
 
-  if (loading) return null;
+  if (loading) return <div className="dashboard-page"></div>;
 
   return (
     <>
@@ -32,87 +32,156 @@ export default function ManagementCategories({ categories }: Props) {
         <title>Categories &amp; Attributes — Admin</title>
       </Head>
 
-      <div className="min-h-screen bg-gray-50 text-gray-900">
+      <div className="dashboard-page">
         <Header />
 
-        <main className="mx-auto max-w-5xl px-4 pb-16 pt-6">
-          <div className="mb-6 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+        <main className="dashboard-main">
+          <div className="dashboard-header">
             <div>
-              <h1 className="text-2xl font-semibold">Categories &amp; Attributes</h1>
-              <p className="mt-1 text-sm text-gray-600">
-                Manage your top-level categories and how items are structured throughout
-                Famous Finds.
+              <h1>Categories &amp; Attributes</h1>
+              <p>
+                Manage your top-level categories and how items are structured.
               </p>
             </div>
-            <Link
-              href="/management/dashboard"
-              className="text-sm text-gray-600 hover:text-gray-900"
-            >
+            <Link href="/management/dashboard">
               ← Back to Management Dashboard
             </Link>
           </div>
 
-          <div className="mb-4 flex justify-end">
-            <button className="rounded-full bg-gray-900 px-4 py-2 text-xs font-semibold text-white">
-              + Add Category (coming soon)
-            </button>
-          </div>
+          <section className="dashboard-section">
+            <div className="controls">
+              <button className="action-button-dark" disabled>
+                + Add Category (coming soon)
+              </button>
+            </div>
 
-          <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white shadow-sm">
-            <table className="min-w-full divide-y divide-gray-200 text-sm">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-4 py-2 text-left font-medium text-gray-700">Name</th>
-                  <th className="px-4 py-2 text-left font-medium text-gray-700">
-                    Slug
-                  </th>
-                  <th className="px-4 py-2 text-left font-medium text-gray-700">
-                    Parent
-                  </th>
-                  <th className="px-4 py-2 text-left font-medium text-gray-700">
-                    Active
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {items.map((cat) => (
-                  <tr key={cat.id}>
-                    <td className="px-4 py-2 text-gray-900">{cat.name}</td>
-                    <td className="px-4 py-2 text-gray-700">{cat.slug}</td>
-                    <td className="px-4 py-2 text-gray-700">
-                      {cat.parent || "Top level"}
-                    </td>
-                    <td className="px-4 py-2">
-                      <span
-                        className={
-                          "inline-flex rounded-full px-2 py-0.5 text-xs font-medium " +
-                          (cat.active
-                            ? "bg-green-100 text-green-800"
-                            : "bg-gray-200 text-gray-700")
-                        }
-                      >
-                        {cat.active ? "Active" : "Hidden"}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-                {items.length === 0 && (
+            <div className="table-wrapper">
+              <table className="data-table">
+                <thead>
                   <tr>
-                    <td
-                      colSpan={4}
-                      className="px-4 py-6 text-center text-sm text-gray-500"
-                    >
-                      No categories configured yet.
-                    </td>
+                    <th>Name</th>
+                    <th>Slug</th>
+                    <th>Parent</th>
+                    <th>Active</th>
                   </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {items.map((cat) => (
+                    <tr key={cat.id}>
+                      <td className="font-medium">{cat.name}</td>
+                      <td>{cat.slug}</td>
+                      <td>{cat.parent || "Top level"}</td>
+                      <td>
+                        <span
+                          className={`status-badge ${
+                            cat.active ? "status-live" : "status-gray"
+                          }`}
+                        >
+                          {cat.active ? "Active" : "Hidden"}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                  {items.length === 0 && (
+                    <tr>
+                      <td colSpan={4} className="text-center">
+                        No categories configured yet.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </section>
         </main>
 
         <Footer />
       </div>
+
+      <style jsx>{`
+        .controls {
+          margin-bottom: 16px;
+          display: flex;
+          justify-content: flex-end;
+        }
+        .action-button-dark {
+          border-radius: 999px;
+          background-color: #1f2937; /* gray-800 */
+          color: #f9fafb; /* gray-50 */
+          padding: 8px 16px;
+          font-size: 12px;
+          font-weight: 500;
+          text-decoration: none;
+          white-space: nowrap;
+          border: none;
+          cursor: pointer;
+        }
+        .action-button-dark:hover:not(:disabled) {
+          background-color: #111827; /* gray-900 */
+        }
+        .action-button-dark:disabled {
+          opacity: 0.6;
+          cursor: not-allowed;
+        }
+        .table-wrapper {
+          overflow-x: auto;
+          width: 100%;
+          border: 1px solid #e5e7eb; /* gray-200 */
+          border-radius: 8px;
+        }
+        .data-table {
+          width: 100%;
+          min-width: 600px;
+          font-size: 14px;
+          border-collapse: collapse;
+        }
+        .data-table thead {
+          background-color: #f9fafb; /* gray-50 */
+        }
+        .data-table th,
+        .data-table td {
+          padding: 10px 14px;
+          text-align: left;
+          border-bottom: 1px solid #e5e7eb; /* gray-200 */
+          white-space: nowrap;
+        }
+        .data-table th {
+          font-weight: 600;
+          color: #374151; /* gray-700 */
+          font-size: 12px;
+          text-transform: uppercase;
+        }
+        .data-table td {
+          color: #4b5563; /* gray-600 */
+        }
+        .data-table td.font-medium {
+          font-weight: 500;
+          color: #111827; /* gray-900 */
+        }
+        .data-table tbody tr:last-child td {
+          border-bottom: none;
+        }
+        .text-center {
+          text-align: center;
+          padding: 24px;
+          color: #6b7280; /* gray-500 */
+        }
+        .status-badge {
+          display: inline-flex;
+          border-radius: 999px;
+          padding: 2px 8px;
+          font-size: 12px;
+          font-weight: 500;
+        }
+        .status-live {
+          background-color: #dcfce7; /* green-100 */
+          color: #166534; /* green-800 */
+        }
+        .status-gray {
+          background-color: #f3f4f6; /* gray-100 */
+          color: #374151; /* gray-700 */
+        }
+      `}</style>
     </>
   );
 }
