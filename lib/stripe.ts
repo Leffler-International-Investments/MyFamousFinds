@@ -1,15 +1,18 @@
 // FILE: /lib/stripe.ts
 import Stripe from "stripe";
 
+// Ensure the secret key exists before initializing
 if (!process.env.STRIPE_SECRET_KEY) {
   throw new Error("STRIPE_SECRET_KEY is not set");
 }
 
-export const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+// Initialize Stripe client using compatible API version
+export const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
+  apiVersion: "2023-10-16",
+});
 
-export async function createCheckoutSession(
-  params: Stripe.Checkout.SessionCreateParams
-) {
+// Optionally, you can export helpers for reuse
+export async function createCheckoutSession(params: Stripe.Checkout.SessionCreateParams) {
   return await stripe.checkout.sessions.create(params);
 }
 
