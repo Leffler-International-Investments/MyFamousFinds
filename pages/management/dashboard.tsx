@@ -1,6 +1,6 @@
 // FILE: /pages/management/dashboard.tsx
 // This is the ORIGINAL version that uses Tailwind classes.
-// NO TYPOS.
+// The "Normal" typo has been removed.
 import Head from "next/head";
 import Link from "next/link";
 import type { GetServerSideProps } from "next";
@@ -213,6 +213,7 @@ export default function ManagementDashboard({ stats }: Props) {
             title="Management Team"
             description="Add or remove internal admins and decide who can access finance, vetting, or support."
             href="/management/team"
+          Failure
           />
         </DashboardSection>
 
@@ -262,7 +263,6 @@ export default function ManagementDashboard({ stats }: Props) {
             title="Support Tickets"
             description="View and respond to customer support tickets."
             href="/management/support-tickets"
-Normal
           />
           <DashboardTile
             title="Logs & Audit Trail"
@@ -278,6 +278,7 @@ Normal
             title="Developer / Integrations"
             description="API keys and integrations with external tools and services."
             href="/management/developer"
+Check
           />
         </DashboardSection>
       </main>
