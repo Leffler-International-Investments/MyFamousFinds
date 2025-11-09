@@ -14,295 +14,342 @@ type ProductPageProps = {
   currency: string;
   priceLabel: string;
   imageUrl: string;
+  condition: string;
+  brand: string;
+  category: string;
+  color: string;
+  size: string;
   description: string;
   sellerName: string;
-  delivery: string;
-  payment: string;
 };
 
-export default function ProductPage({
-  id,
-  title,
-  price,
-  currency,
-  priceLabel,
-  imageUrl,
-  description,
-  sellerName,
-  delivery,
-  payment,
-}: ProductPageProps) {
-  const [loading, setLoading] = useState(false);
-  const [rating, setRating] = useState<number | null>(null);
-  const [showThanks, setShowThanks] = useState(false);
+export default function ProductPage(props: ProductPageProps) {
+  const {
+    id,
+    title,
+    price,
+    currency,
+    priceLabel,
+    imageUrl,
+    condition,
+    brand,
+    category,
+    color,
+    size,
+    description,
+    sellerName,
+  } = props;
 
-  async function handleBuyNow() {
-    if (!price) return;
-    setLoading(true);
+  const [loading, setLoading] = useState(false);
+  const [offerSubmitting, setOfferSubmitting] = useState(false);
+  const [offerError, setOfferError] = useState<string | null>(null);
+
+  const handleBuyNow = async () => {
     try {
-      const res = await fetch(`/api/checkout?id=${encodeURIComponent(id)}`, {
+      setLoading(true);
+      const res = await fetch("/api/checkout", {
         method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id,
+          title,
+          price,
+          image: imageUrl,
+        }),
       });
+
       const json = await res.json();
       if (!res.ok || !json?.sessionId) {
-        throw new Error(json?.error || "Checkout failed");
+        throw new Error(json?.error || "Unable to create checkout session");
       }
+
       const stripe = await getStripe();
       if (!stripe) {
         throw new Error("Stripe not loaded");
       }
+
       await stripe.redirectToCheckout({ sessionId: json.sessionId });
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      alert("Could not start checkout. Please try again.");
+      alert(err?.message || "Checkout failed, please try again.");
+    } finally {
       setLoading(false);
     }
-  }
+  };
 
-  function handleRating(value: number) {
-    setRating(value);
-    setShowThanks(true);
-    setTimeout(() => setShowThanks(false), 2000);
-  }
+  const handleOfferSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setOfferError(null);
+
+    const form = e.currentTarget;
+    const formData = new FormData(form);
+    const offerValue = Number(formData.get("offer_value") || 0);
+    const email = String(formData.get("email") || "").trim();
+    const message = String(formData.get("message") || "").trim();
+
+    if (!offerValue || offerValue <= 0) {
+      setOfferError("Please enter a valid offer.");
+      return;
+    }
+
+    if (!email) {
+      setOfferError("Please enter your email so we can respond.");
+      return;
+    }
+
+    try {
+      setOfferSubmitting(true);
+      const res = await fetch("/api/offers/create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          productId: id,
+          offerValue,
+          buyerEmail: email,
+          message,
+        }),
+      });
+
+      const json = await res.json();
+      if (!res.ok || !json?.ok) {
+        throw new Error(json?.error || "Unable to submit offer");
+      }
+
+      form.reset();
+      alert("Your offer has been submitted to the seller.");
+    } catch (err: any) {
+      console.error(err);
+      setOfferError(err?.message || "Unable to submit offer");
+    } finally {
+      setOfferSubmitting(false);
+    }
+  };
 
   return (
-    <div className="dark-theme-page">
+    <div className="min-h-screen bg-black text-gray-100">
       <Head>
-        <title>{title} – Famous Finds</title>
+        <title>{title} — Famous-Finds</title>
       </Head>
       <Header />
 
-      <main className="wrap">
-        <div className="layout">
-          <div className="imageBox">
-            <img src={imageUrl} alt={title} />
+      <main className="mx-auto max-w-6xl px-4 pb-16 pt-6">
+        <nav className="mb-4 text-xs text-gray-400">
+          <span>Home</span> <span className="mx-1">/</span>
+          <span>Women</span> <span className="mx-1">/</span>
+          <span className="text-gray-200">{title}</span>
+        </nav>
+
+        <div className="grid gap-10 md:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]">
+          {/* Product image */}
+          <div className="space-y-4">
+            <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-white/5">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={imageUrl}
+                alt={title}
+                className="aspect-[4/5] w-full object-cover"
+              />
+            </div>
+            <p className="text-xs text-gray-400">
+              Authenticity and quality vetted before shipment. Free returns if
+              not as described.
+            </p>
           </div>
 
-          <div className="infoBox">
-            <p className="eyebrow">FAMOUS FINDS / CURATED MARKETPLACE</p>
-            <h1>{title}</h1>
-            {sellerName && (
-              <p className="sub">
-                Listed by <strong>{sellerName}</strong>
+          {/* Product details */}
+          <div className="space-y-6">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-300">
+                Famous-Finds
               </p>
-            )}
-
-            {priceLabel && (
-              <div className="priceRow">
-                <span className="price">{priceLabel}</span>
-                <span className="priceSub">All prices in {currency}</span>
-              </div>
-            )}
-
-            {description && (
-              <p className="desc">
-                {description}
+              <h1 className="mt-1 text-2xl font-semibold text-white">
+                {title}
+              </h1>
+              <p className="mt-1 text-sm text-gray-400">
+                Sold by {sellerName}. Inspected and shipped via Famous-Finds
+                concierge.
               </p>
-            )}
-
-            <div className="meta">
-              <div>
-                <p className="metaLabel">Delivery</p>
-                <p className="metaValue">
-                  {delivery || "Tracked, insured shipping arranged with seller."}
-                </p>
-              </div>
-              <div>
-                <p className="metaLabel">Payment</p>
-                <p className="metaValue">
-                  {payment ||
-                    "Secure payments handled by Stripe. Major cards and wallets accepted."}
-                </p>
-              </div>
             </div>
 
-            <button
-              className="buy"
-              onClick={handleBuyNow}
-              disabled={loading || !price}
-            >
-              {loading ? "Processing..." : "Buy now"}
-            </button>
-
-            <p className="authDisclaimer">
-              <strong>Disclaimer:</strong> Famous Finds operates as a peer-to-peer
-              marketplace. Each listing is uploaded by an independent seller. While we
-              apply authenticity review measures, Famous Finds does not guarantee the
-              authenticity of any individual item. In case of a dispute, legal
-              responsibility rests solely with the seller.
-            </p>
-
-            <div className="rating">
-              <p className="ratingLabel">
-                Rate this item{" "}
-                <span className="text-gray-500">(private signal to our team)</span>
+            <div className="space-y-2">
+              <p className="text-2xl font-semibold text-white">{priceLabel}</p>
+              <p className="text-xs text-gray-400">
+                All prices in USD. Taxes and shipping calculated at checkout.
               </p>
+            </div>
+
+            <dl className="grid grid-cols-2 gap-4 text-xs text-gray-300">
               <div>
-                {[1, 2, 3, 4, 5].map((star) => (
-                  <button
-                    key={star}
-                    className="star"
-                    type="button"
-                    onClick={() => handleRating(star)}
-                  >
-                    {rating && star <= rating ? "★" : "☆"}
-                  </button>
-                ))}
+                <dt className="text-gray-500">Condition</dt>
+                <dd className="font-medium text-gray-100">{condition}</dd>
               </div>
-              {showThanks && (
-                <p className="ratingThanks">Thanks, your signal has been noted.</p>
-              )}
+              <div>
+                <dt className="text-gray-500">Brand</dt>
+                <dd className="font-medium text-gray-100">{brand}</dd>
+              </div>
+              <div>
+                <dt className="text-gray-500">Category</dt>
+                <dd className="font-medium text-gray-100">{category}</dd>
+              </div>
+              <div>
+                <dt className="text-gray-500">Color</dt>
+                <dd className="font-medium text-gray-100">{color}</dd>
+              </div>
+              <div>
+                <dt className="text-gray-500">Size</dt>
+                <dd className="font-medium text-gray-100">{size}</dd>
+              </div>
+            </dl>
+
+            <div>
+              <h2 className="mb-1 text-xs font-semibold uppercase tracking-[0.2em] text-gray-400">
+                Description
+              </h2>
+              <p className="text-sm leading-relaxed text-gray-200">
+                {description || "No additional description provided."}
+              </p>
+            </div>
+
+            <div className="flex flex-col gap-3 sm:flex-row">
+              <button
+                onClick={handleBuyNow}
+                disabled={loading}
+                className="inline-flex flex-1 items-center justify-center rounded-full bg-white px-6 py-3 text-sm font-semibold text-black transition hover:bg-gray-200 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {loading ? "Processing…" : "Buy now"}
+              </button>
+              <button
+                onClick={() => {
+                  const form = document.getElementById("offer-form");
+                  if (form) {
+                    form.scrollIntoView({ behavior: "smooth", block: "start" });
+                  }
+                }}
+                className="inline-flex flex-1 items-center justify-center rounded-full border border-white/20 px-6 py-3 text-sm font-semibold text-white transition hover:border-white/60 hover:bg-white/5"
+              >
+                Make an offer
+              </button>
+            </div>
+
+            <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-xs text-gray-200">
+              <p className="font-semibold text-white">
+                How Famous-Finds protects you
+              </p>
+              <ul className="mt-2 list-disc space-y-1 pl-4">
+                <li>Funds held securely until your item is authenticated.</li>
+                <li>
+                  If the item is not as described, you are fully refunded.
+                </li>
+                <li>All payments processed in USD via Stripe.</li>
+              </ul>
             </div>
           </div>
         </div>
+
+        {/* Offer form */}
+        <section id="offer-form" className="mt-12 max-w-lg space-y-4">
+          <h2 className="text-sm font-semibold uppercase tracking-[0.2em] text-gray-400">
+            Make an offer
+          </h2>
+          <p className="text-xs text-gray-300">
+            If you have a reasonable offer, submit it here and our team will
+            contact the seller on your behalf.
+          </p>
+
+          <form
+            onSubmit={handleOfferSubmit}
+            className="space-y-4 rounded-2xl border border-white/10 bg-white/5 p-4 text-xs"
+          >
+            <div>
+              <label
+                htmlFor="offer_value"
+                className="block text-[11px] font-medium uppercase tracking-[0.16em] text-gray-400"
+              >
+                Offer amount (USD)
+              </label>
+              <input
+                id="offer_value"
+                name="offer_value"
+                type="number"
+                step="1"
+                min="1"
+                className="mt-1 w-full rounded-md border border-white/10 bg-black/40 px-3 py-2 text-xs text-white focus:border-white focus:outline-none"
+                placeholder="Enter your offer in USD"
+              />
+            </div>
+
+            <div>
+              <label
+                htmlFor="email"
+                className="block text-[11px] font-medium uppercase tracking-[0.16em] text-gray-400"
+              >
+                Your email
+              </label>
+              <input
+                id="email"
+                name="email"
+                type="email"
+                className="mt-1 w-full rounded-md border border-white/10 bg-black/40 px-3 py-2 text-xs text-white focus:border-white focus:outline-none"
+                placeholder="you@example.com"
+              />
+            </div>
+
+            <div>
+              <label
+                htmlFor="message"
+                className="block text-[11px] font-medium uppercase tracking-[0.16em] text-gray-400"
+              >
+                Optional message
+              </label>
+              <textarea
+                id="message"
+                name="message"
+                rows={3}
+                className="mt-1 w-full rounded-md border border-white/10 bg-black/40 px-3 py-2 text-xs text-white focus:border-white focus:outline-none"
+                placeholder="Tell the seller anything you’d like them to know."
+              />
+            </div>
+
+            {offerError && (
+              <p className="text-xs text-red-400">{offerError}</p>
+            )}
+
+            <button
+              type="submit"
+              disabled={offerSubmitting}
+              className="inline-flex w-full items-center justify-center rounded-full bg-white px-6 py-2.5 text-xs font-semibold text-black transition hover:bg-gray-200 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {offerSubmitting ? "Submitting…" : "Submit offer"}
+            </button>
+          </form>
+        </section>
       </main>
 
       <Footer />
-
-      <style jsx>{`
-        .wrap {
-          max-width: 1100px;
-          margin: 0 auto;
-          padding: 24px 16px 80px;
-        }
-        .layout {
-          display: grid;
-          grid-template-columns: minmax(0, 1.1fr) minmax(0, 1.1fr);
-          gap: 36px;
-        }
-        .imageBox {
-          border-radius: 24px;
-          overflow: hidden;
-          background: #020617;
-          border: 1px solid #111827;
-        }
-        .imageBox img {
-          width: 100%;
-          height: 100%;
-          object-fit: cover;
-          display: block;
-        }
-        .infoBox {
-          padding: 8px 4px;
-        }
-        .eyebrow {
-          font-size: 11px;
-          text-transform: uppercase;
-          letter-spacing: 0.12em;
-          color: #9ca3af;
-        }
-        h1 {
-          margin-top: 4px;
-          font-size: 26px;
-          letter-spacing: 0.02em;
-        }
-        .sub {
-          font-size: 13px;
-          color: #d1d5db;
-        }
-        .priceRow {
-          margin-top: 16px;
-          display: flex;
-          align-items: baseline;
-          gap: 10px;
-        }
-        .price {
-          font-size: 24px;
-          font-weight: 600;
-        }
-        .priceSub {
-          font-size: 12px;
-          color: #9ca3af;
-        }
-        .desc {
-          margin-top: 16px;
-          font-size: 14px;
-          color: #e5e7eb;
-          line-height: 1.6;
-        }
-        .meta {
-          display: grid;
-          grid-template-columns: repeat(2, minmax(0, 1fr));
-          gap: 16px;
-          margin-top: 18px;
-        }
-        .metaLabel {
-          font-size: 12px;
-          text-transform: uppercase;
-          letter-spacing: 0.12em;
-          color: #9ca3af;
-        }
-        .metaValue {
-          font-size: 13px;
-          color: #e5e7eb;
-        }
-        .buy {
-          margin-top: 18px;
-          border-radius: 999px;
-          padding: 10px 24px;
-          border: none;
-          background: #ffffff;
-          color: #000;
-          font-size: 14px;
-          font-weight: 600;
-          cursor: pointer;
-        }
-        .buy:disabled {
-          opacity: 0.6;
-          cursor: default;
-        }
-        .rating {
-          margin-top: 18px;
-          font-size: 13px;
-        }
-        .authDisclaimer {
-          margin-top: 10px;
-          font-size: 12px;
-          color: #9ca3af;
-          line-height: 1.4;
-        }
-        .ratingLabel {
-          color: #d1d5db;
-        }
-        .ratingThanks {
-          color: #a3e635;
-          font-size: 12px;
-        }
-        .star {
-          background: transparent;
-          border: none;
-          cursor: pointer;
-          font-size: 20px;
-          color: #4b5563;
-        }
-        .star:hover {
-          color: #e5e7eb;
-        }
-        @media (max-width: 900px) {
-          .layout {
-            grid-template-columns: minmax(0, 1fr);
-          }
-        }
-      `}</style>
     </div>
   );
 }
 
-export const getServerSideProps: GetServerSideProps = async (ctx) => {
-  try {
-    const id = ctx.params?.id as string;
-    if (!id) return { notFound: true };
+export const getServerSideProps: GetServerSideProps<ProductPageProps> = async (
+  context
+) => {
+  const id = String(context.params?.id || "");
 
-    const snap = await adminDb.collection("listings").doc(id).get();
-    if (!snap.exists) {
+  if (!id) {
+    return { notFound: true };
+  }
+
+  try {
+    const doc = await adminDb.collection("listings").doc(id).get();
+    if (!doc.exists) {
       return { notFound: true };
     }
 
-    const d: any = snap.data() || {};
+    const d = doc.data() || {};
     const priceNumber = Number(d.price) || 0;
-    const currency = d.currency || "AUD";
+    const currency = d.currency || "USD";
     const priceLabel = priceNumber
-      ? new Intl.NumberFormat("en-AU", {
+      ? new Intl.NumberFormat("en-US", {
           style: "currency",
           currency,
           maximumFractionDigits: 0,
@@ -315,21 +362,25 @@ export const getServerSideProps: GetServerSideProps = async (ctx) => {
     return {
       props: {
         id,
-        title: d.title || "Untitled listing",
+        title: d.title || "Product",
         price: priceNumber,
         currency,
         priceLabel,
         imageUrl:
           d.imageUrl ||
-          "https://images.unsplash.com/photo-1550009158-9ebf69173e03?auto=format&fit=crop&w=900&q=80",
+          d.imageUrls?.[0] ||
+          "/images/placeholders/product-placeholder.jpg",
+        condition: d.condition || "Pre-owned",
+        brand: d.brand || "Designer",
+        category: d.category || "Fashion",
+        color: d.color || "Mixed",
+        size: d.size || "One size",
         description: d.description || "",
         sellerName,
-        delivery: d.delivery || "",
-        payment: d.payment || "",
       },
     };
   } catch (err) {
-    console.error("Error loading product", err);
+    console.error("Error loading product:", err);
     return { notFound: true };
   }
 };
