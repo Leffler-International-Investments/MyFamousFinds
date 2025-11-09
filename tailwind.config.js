@@ -1,6 +1,15 @@
+// FILE: tailwind.config.js
+
 /** @type {import('tailwindcss').Config} */
 module.exports = {
-  content: ["./pages/**/*.{js,ts,jsx,tsx}", "./components/**/*.{js,ts,jsx,tsx}"],
-  theme: { extend: {} },
-  plugins: [],
+  content: [
+    "./pages/**/*.{js,ts,jsx,tsx}",
+    "./components/**/*.{js,ts,jsx,tsx}",
+  ],
+  theme: {
+    extend: {},
+  },
+  plugins: [
+    require("@tailwindcss/forms"), // 👈 this gives you the nice input boxes
+  ],
 };
