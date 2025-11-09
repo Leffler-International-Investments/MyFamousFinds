@@ -262,6 +262,7 @@ export default function ManagementDashboard({ stats }: Props) {
             title="Support Tickets"
             description="View and respond to customer support tickets."
             href="/management/support-tickets"
+Normal
           />
           <DashboardTile
             title="Logs & Audit Trail"
