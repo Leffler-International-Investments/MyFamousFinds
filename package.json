@@ -5,35 +5,26 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start",
-    "vercel-build": "next build",
-    "lint": "next lint"
+    "start": "next start"
   },
   "dependencies": {
+    "firebase": "^11.1.0",
+    "formidable": "^3.5.1",
     "next": "16.0.1",
-    "react": "18.3.1",
-    "react-dom": "18.3.1",
-    "sharp": "0.34.5",
-    "formidable": "3.5.4",
-    "tailwindcss": "4.1.17",
-    "postcss": "8.4.38",
-    "autoprefixer": "10.4.20",
-    "firebase": "^12.5.0",
-    "firebase-admin": "^13.6.0",
-    "stripe": "^19.3.0",
-    "@stripe/stripe-js": "^8.3.0",
-    "nodemailer": "^7.0.10"
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
   },
   "devDependencies": {
-    "typescript": "5.6.3",
-    "@types/react": "19.2.2",
-    "@types/react-dom": "19.2.2",
-    "@types/node": "20.12.12",
-    "@types/formidable": "^3.4.6",
-    "@types/nodemailer": "^7.0.3",
-    "eslint": "9.39.1",
+    "@types/formidable": "^3.4.5",
+    "@types/node": "^22.10.7",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "autoprefixer": "^10.4.20",
+    "eslint": "9.14.0",
     "eslint-config-next": "16.0.1",
-    "@tailwindcss/postcss": "^4.1.17"   // ✅ Added for Tailwind 4 compatibility
+    "postcss": "^8.4.49",
+    "tailwindcss": "^4.1.17",
+    "@tailwindcss/postcss": "^4.1.17"
   },
   "engines": {
     "node": ">=20.9.0 <23"
