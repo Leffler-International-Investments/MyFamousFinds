@@ -14,12 +14,14 @@ export default function ManagementSettings() {
       <Head>
         <title>System Settings — Admin</title>
       </Head>
-      <div className="min-h-screen bg-gray-50 text-gray-900">
+
+      <div className="min-h-screen bg-black text-gray-100">
         <Header />
-        <main className="mx-auto max-w-3xl px-4 pb-16 pt-6">
+
+        <main className="mx-auto max-w-5xl px-4 pb-16 pt-6">
           <div className="mb-6 flex items-center justify-between">
             <div>
-              <h1 className="text-2xl font-semibold text-gray-900">
+              <h1 className="text-xl font-semibold text-white">
                 System Settings
               </h1>
               <p className="mt-1 text-sm text-gray-600">
@@ -34,64 +36,56 @@ export default function ManagementSettings() {
             </Link>
           </div>
 
-          <form className="space-y-5 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
-            <div>
-              <label className="block text-xs font-medium text-gray-700">
-                Marketplace Name
-              </label>
-              <input
-                type="text"
-                defaultValue="Famous-Finds"
-                className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-gray-900 focus:outline-none"
-              />
+          <section className="rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-gray-100">
+            <h2 className="text-xs font-semibold uppercase tracking-[0.2em] text-gray-400">
+              Marketplace configuration
+            </h2>
+
+            <div className="mt-4 grid gap-4 md:grid-cols-2">
+              <div>
+                <label
+                  htmlFor="default-currency"
+                  className="text-xs font-medium text-gray-700"
+                >
+                  Default Currency
+                </label>
+                <select
+                  id="default-currency"
+                  className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-gray-900 focus:outline-none"
+                  value="USD"
+                  disabled
+                >
+                  <option>USD</option>
+                </select>
+                <p className="mt-1 text-xs text-gray-400">
+                  All listings, statements, and payouts are currently locked to
+                  US Dollars (USD).
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <input
+                  id="maintenance-mode"
+                  type="checkbox"
+                  className="h-4 w-4 rounded border-gray-300 text-gray-900 focus:ring-gray-900"
+                  disabled
+                />
+                <label
+                  htmlFor="maintenance-mode"
+                  className="text-xs text-gray-700"
+                >
+                  Maintenance mode (placeholder only — controlled via deploys).
+                </label>
+              </div>
             </div>
 
-            <div>
-              <label className="block text-xs font-medium text-gray-700">
-                Support Email
-              </label>
-              <input
-                type="email"
-                defaultValue="support@famous-finds.com"
-                className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-gray-900 focus:outline-none"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-medium text-gray-700">
-                Default Currency
-              </label>
-              <select className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-gray-900 focus:outline-none">
-                <option>USD</option>
-                <option>EUR</option>
-                <option>AUD</option>
-                <option>GBP</option>
-              </select>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <input
-                id="maintenance-mode"
-                type="checkbox"
-                className="h-4 w-4 rounded border-gray-300 text-gray-900 focus:ring-gray-900"
-              />
-              <label htmlFor="maintenance-mode" className="text-xs text-gray-700">
-                Enable maintenance mode (buyers see a maintenance page)
-              </label>
-            </div>
-
-            <button
-              type="submit"
-              className="rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-black"
-            >
-              Save Settings
-            </button>
-
-            <p className="text-xs text-gray-500">
-              Later connect this form to your configuration store or Firestore.
+            <p className="mt-6 text-xs text-gray-400">
+              Note: This page is currently informational. Currency and platform
+              mode are controlled by code and infrastructure, not live toggles.
             </p>
-          </form>
+          </section>
         </main>
+
         <Footer />
       </div>
     </>
