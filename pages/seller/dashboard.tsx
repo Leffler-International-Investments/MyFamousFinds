@@ -1,4 +1,5 @@
 // FILE: /pages/seller/dashboard.tsx
+// This is the original file, restored to use Tailwind classes.
 import Head from "next/head";
 import Link from "next/link";
 import Header from "../../components/Header";
@@ -16,11 +17,9 @@ const DashboardSection = ({
   title: string;
   children: ReactNode;
 }) => (
-  <section className="dashboard-section">
-    <div className="dashboard-section-header">
-      <h2 className="dashboard-section-title">{title}</h2>
-    </div>
-    <div className="dashboard-grid">{children}</div>
+  <section className="mb-8 rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
+    <h2 className="mb-4 text-lg font-semibold text-gray-900">{title}</h2>
+    <div className="grid gap-4 md:grid-cols-3">{children}</div>
   </section>
 );
 
@@ -36,22 +35,27 @@ const DashboardLink = ({
   description: string;
   accentColor?: "blue" | "green" | "gray";
 }) => {
-  // We can use the accentColor to pick the right class
-  const linkColorClass = 
-    accentColor === 'green' ? 'dashboard-tile-link-green' :
-    accentColor === 'gray' ? 'dashboard-tile-link-gray' :
-    'dashboard-tile-link-blue';
+  const colors = {
+    blue: "border-gray-200 hover:border-blue-500",
+    green: "border-gray-200 hover:border-emerald-500",
+    gray: "border-gray-200 hover:border-gray-500",
+  };
+  const textColors = {
+    blue: "text-blue-600 group-hover:text-blue-500",
+    green: "text-emerald-600 group-hover:text-emerald-500",
+    gray: "text-gray-600 group-hover:text-gray-500",
+  };
 
   return (
     <Link
       href={href}
-      className="dashboard-tile"
+      className={`group flex flex-col justify-between rounded-lg border bg-gray-50 p-4 text-sm shadow-sm transition-all hover:bg-white hover:shadow-md ${colors[accentColor]}`}
     >
       <div>
-        <h3 className="dashboard-tile-title">{title}</h3>
-        <p className="dashboard-tile-desc">{description}</p>
+        <h3 className="text-sm font-semibold text-gray-900">{title}</h3>
+        <p className="mt-1 text-xs text-gray-600">{description}</p>
       </div>
-      <div className={`dashboard-tile-link ${linkColorClass}`}>
+      <div className={`mt-3 text-xs font-semibold ${textColors[accentColor]}`}>
         Go to page →
       </div>
     </Link>
@@ -63,7 +67,7 @@ export default function SellerDashboard() {
   const { loading: authLoading } = useRequireSeller();
   
   if (authLoading) {
-    return <div className="dashboard-page"></div>;
+    return <div className="min-h-screen bg-gray-50"></div>;
   }
 
   return (
@@ -71,21 +75,22 @@ export default function SellerDashboard() {
       <Head>
         <title>Seller Console — Famous Finds</title>
       </Head>
-      <div className="dashboard-page">
+      <div className="min-h-screen bg-gray-50 text-gray-900">
         <Header />
 
-        <main className="dashboard-main">
-          <div className="dashboard-header">
+        <main className="mx-auto max-w-6xl px-4 pb-16 pt-6">
+          <div className="mb-8 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
             <div>
-              <h1>
+              <h1 className="text-2xl font-semibold text-gray-900">
                 Seller Console
               </h1>
-              <p>
+              <p className="mt-1 text-sm text-gray-600">
                 Manage your listings, orders, and payouts in one place.
               </p>
             </div>
             <Link
               href="/"
+              className="text-sm text-gray-600 hover:text-gray-900"
             >
               ← Back to Storefront
             </Link>
@@ -94,19 +99,19 @@ export default function SellerDashboard() {
           {/* --- 3. ADDED TUTORIAL COMPONENT --- */}
           <SellerDashboardTutorial />
 
-          {/* Onboarding banner */}
-          <section className="seller-welcome-banner">
-            <h2>
+          {/* Onboarding banner – same layout, no demo flags */}
+          <section className="mb-8 rounded-lg border-2 border-blue-500 bg-white p-5 shadow-lg">
+            <h2 className="mb-2 text-lg font-semibold text-gray-900">
               Welcome to Famous Finds!
             </h2>
-            <p>
+            <p className="mb-4 text-sm text-gray-600">
               Your application is approved. Please complete your profile to
               start selling.
             </p>
             <div>
               <Link
                 href="/seller/profile"
-                className="seller-welcome-banner-button"
+                className="inline-block rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700"
               >
                 Complete Your Profile →
               </Link>
