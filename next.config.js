@@ -4,27 +4,31 @@
 const nextConfig = {
   reactStrictMode: false,
 
-  // ✅ Enable Turbopack explicitly (avoids “webpack config” conflict)
-  experimental: {
-    turbo: {
-      rules: {},
-    },
-  },
+  // ✅ Explicitly opt into Turbopack with an empty config
+  //    This silences the “webpack config and no turbopack config” error.
+  turbopack: {},
 
-  // ✅ Allow remote images for product listings, etc.
+  // ✅ Remote images (replacement for deprecated images.domains)
   images: {
-    domains: [
-      "images.unsplash.com",
-      "famous-finds.vercel.app",
-      "cdn.shopify.com",
-      "res.cloudinary.com",
+    remotePatterns: [
+      {
+        protocol: "https",
+        hostname: "images.unsplash.com",
+      },
+      {
+        protocol: "https",
+        hostname: "famous-finds.vercel.app",
+      },
+      {
+        protocol: "https",
+        hostname: "cdn.shopify.com",
+      },
+      {
+        protocol: "https",
+        hostname: "res.cloudinary.com",
+      },
     ],
-  },
-
-  // ✅ PostCSS & Tailwind compatibility for Next 16
-  webpack(config) {
-    return config;
   },
 };
 
-export default nextConfig;
+module.exports = nextConfig;
