@@ -79,9 +79,11 @@ class ReactImageMagnify extends Component<any, any> {
     );
 
     // Map lens position to large image translation
-    const ratioX = (largeImage.width - (smallImage.width || 0)) /
+    const ratioX =
+      (largeImage.width - (smallImage.width || 0)) /
       (elementDimensions.width || imageDimensions.width || 1);
-    const ratioY = (largeImage.height - (smallImage.height || 0)) /
+    const ratioY =
+      (largeImage.height - (smallImage.height || 0)) /
       (elementDimensions.height || imageDimensions.height || 1);
 
     const posX = -lensX * ratioX;
@@ -231,18 +233,18 @@ export default function ProductPage({
   price,
   currency,
   priceLabel,
-  imageUrls, // <-- UPDATED
+  imageUrls,
   description,
   sellerName,
   delivery,
   payment,
-  status, // <-- ADDED
+  status,
 }: ProductPageProps) {
   const [loading, setLoading] = useState(false);
   const [rating, setRating] = useState<number | null>(null);
   const [showThanks, setShowThanks] = useState(false);
 
-  // --- ADDED: State for image gallery ---
+  // --- State for image gallery ---
   const [activeImage, setActiveImage] = useState(
     imageUrls.length > 0
       ? imageUrls[0]
@@ -257,9 +259,13 @@ export default function ProductPage({
         method: "POST",
       });
       const json = await res.json();
-      const stripe = await getStripe();
-      if (stripe) {
+
+      // 🔧 FIX: cast to any to avoid type clash between server Stripe and Stripe.js
+      const stripe = (await getStripe()) as any;
+      if (stripe && typeof stripe.redirectToCheckout === "function") {
         await stripe.redirectToCheckout({ sessionId: json.id });
+      } else {
+        throw new Error("Stripe.js failed to load");
       }
     } catch (err) {
       console.error("Checkout error", err);
@@ -284,7 +290,7 @@ export default function ProductPage({
 
       <main className="wrap">
         <div className="layout">
-          {/* --- UPDATED: Image Gallery & Zoom --- */}
+          {/* --- Image Gallery & Zoom --- */}
           <div className="imageBox">
             {/* Main Magnified Image */}
             <div
