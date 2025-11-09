@@ -10,6 +10,7 @@ module.exports = {
     extend: {},
   },
   plugins: [
-    require("@tailwindcss/forms"), // 👈 this gives you the nice input boxes
+    require("@tailwindcss/forms"), // ✅ gives the nice framed input boxes
   ],
 };
+
