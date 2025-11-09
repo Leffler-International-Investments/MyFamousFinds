@@ -20,79 +20,107 @@ type Props = {
 };
 
 export default function ManagementSellerProfiles({ sellers }: Props) {
-  const { loading } = useRequireAdmin();
-  if (loading) return null;
+  const { loading } } = useRequireAdmin();
+  if (loading) return <div className="dashboard-page"></div>;
 
   return (
     <>
       <Head>
         <title>Seller Profiles / Controls — Admin</title>
       </Head>
-      <div className="min-h-screen bg-gray-50 text-gray-900">
+      <div className="dashboard-page">
         <Header />
-        <main className="mx-auto max-w-6xl px-4 pb-16 pt-6">
-          <div className="mb-6 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+        <main className="dashboard-main">
+          <div className="dashboard-header">
             <div>
-              <h1 className="text-2xl font-semibold">
-                Seller Profiles / Controls
-              </h1>
-              <p className="mt-1 text-sm text-gray-600">
-                View and edit seller details, statuses, and permissions.
-              </p>
+              <h1>Seller Profiles / Controls</h1>
+              <p>View and edit seller details, statuses, and permissions.</p>
             </div>
-            <Link
-              href="/management/dashboard"
-              className="text-sm text-gray-600 hover:text-gray-900"
-            >
+            <Link href="/management/dashboard">
               ← Back to Management Dashboard
             </Link>
           </div>
 
-          <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white shadow-sm">
-            <table className="min-w-full divide-y divide-gray-200 text-sm">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-4 py-2 text-left font-medium text-gray-700">
-                    Seller
-                  </th>
-                  <th className="px-4 py-2 text-left font-medium text-gray-700">
-                    Email
-                  </th>
-                  <th className="px-4 py-2 text-left font-medium text-gray-700">
-                    Status
-                  </th>
-                  <th className="px-4 py-2 text-left font-medium text-gray-700">
-                    Created
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {sellers.map((s) => (
-                  <tr key={s.id}>
-                    <td className="px-4 py-2 text-gray-900">{s.name}</td>
-                    <td className="px-4 py-2 text-gray-700">{s.email}</td>
-                    <td className="px-4 py-2 text-gray-700">{s.status}</td>
-                    <td className="px-4 py-2 text-gray-700">
-                      {s.createdAt}
-                    </td>
-                  </tr>
-                ))}
-                {sellers.length === 0 && (
+          <section className="dashboard-section">
+            <div className="table-wrapper">
+              <table className="data-table">
+                <thead>
                   <tr>
-                    <td
-                      colSpan={4}
-                      className="px-4 py-6 text-center text-sm text-gray-500"
-                    >
-                      No sellers found.
-                    </td>
+                    <th>Seller</th>
+                    <th>Email</th>
+                    <th>Status</th>
+                    <th>Created</th>
                   </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {sellers.map((s) => (
+                    <tr key={s.id}>
+                      <td className="font-medium">{s.name}</td>
+                      <td>{s.email}</td>
+                      <td>{s.status}</td>
+                      <td>{s.createdAt}</td>
+                    </tr>
+                  ))}
+                  {sellers.length === 0 && (
+                    <tr>
+                      <td colSpan={4} className="text-center">
+                        No sellers found.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </section>
         </main>
         <Footer />
       </div>
+
+      <style jsx>{`
+        .table-wrapper {
+          overflow-x: auto;
+          width: 100%;
+          border: 1px solid #e5e7eb; /* gray-200 */
+          border-radius: 8px;
+        }
+        .data-table {
+          width: 100%;
+          min-width: 600px;
+          font-size: 14px;
+          border-collapse: collapse;
+        }
+        .data-table thead {
+          background-color: #f9fafb; /* gray-50 */
+        }
+        .data-table th,
+        .data-table td {
+          padding: 10px 14px;
+          text-align: left;
+          border-bottom: 1px solid #e5e7eb; /* gray-200 */
+          white-space: nowrap;
+        }
+        .data-table th {
+          font-weight: 600;
+          color: #374151; /* gray-700 */
+          font-size: 12px;
+          text-transform: uppercase;
+        }
+        .data-table td {
+          color: #4b5563; /* gray-600 */
+        }
+        .data-table td.font-medium {
+          font-weight: 500;
+          color: #111827; /* gray-900 */
+        }
+        .data-table tbody tr:last-child td {
+          border-bottom: none;
+        }
+        .text-center {
+          text-align: center;
+          padding: 24px;
+          color: #6b7280; /* gray-500 */
+        }
+      `}</style>
     </>
   );
 }
