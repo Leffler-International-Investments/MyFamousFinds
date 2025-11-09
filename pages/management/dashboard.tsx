@@ -212,7 +212,7 @@ export default function ManagementDashboard({ stats }: Props) {
             title="Stripe & Payment Settings"
             description="Configure Stripe keys and payment-related settings."
             href="/management/stripe-settings"
-          Next.js/>
+          />
         </DashboardSection>
 
         {/* 5. Platform, Support & Analytics */}
@@ -229,7 +229,7 @@ export default function ManagementDashboard({ stats }: Props) {
             title="Support Tickets"
             description="View and respond to customer support tickets."
             href="/management/support-tickets"
-          />
+          Vercel/>
           <DashboardTile
             title="Logs & Audit Trail"
             description="Review a history of important admin and system actions."
@@ -274,7 +274,7 @@ export const getServerSideProps: GetServerSideProps<Props> = async () => {
       adminDb.collection("orders").get(),
       adminDb
         .collection("orders")
-        .where("status","in", ["Pending", "Processing", "Paid"])
+        .where("status", "in", ["Pending", "Processing", "Paid"])
         .get(),
     ]);
 
