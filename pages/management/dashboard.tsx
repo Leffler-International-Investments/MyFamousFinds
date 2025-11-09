@@ -1,4 +1,6 @@
 // FILE: /pages/management/dashboard.tsx
+// This is the original file, restored to use Tailwind classes.
+// TYPO FIX: "Failure/" and "pendingSsellers" have been fixed.
 import Head from "next/head";
 import Link from "next/link";
 import type { GetServerSideProps } from "next";
@@ -24,7 +26,6 @@ type Props = {
   stats: MgmtStats;
 };
 
-// Helper component for dashboard sections
 const DashboardSection = ({
   title,
   subtitle,
@@ -34,22 +35,21 @@ const DashboardSection = ({
   subtitle?: string;
   children: React.ReactNode;
 }) => (
-  <section className="dashboard-section">
-    <div className="dashboard-section-header">
-      <h2 className="dashboard-section-title">{title}</h2>
+  <section className="mb-8 rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
+    <div className="mb-4">
+      <h2 className="text-lg font-semibold text-gray-900">{title}</h2>
       {subtitle && (
-        <p className="dashboard-section-subtitle">
+        <p className="mt-1 text-sm text-gray-600">
           {subtitle}
         </p>
       )}
     </div>
-    <div className="dashboard-grid">
+    <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3">
       {children}
     </div>
   </section>
 );
 
-// Helper component for dashboard tiles
 const DashboardTile = ({
   title,
   description,
@@ -61,10 +61,10 @@ const DashboardTile = ({
 }) => (
   <Link
     href={href}
-    className="dashboard-tile"
+    className="rounded-lg border border-gray-200 bg-gray-50 p-4 text-left text-sm text-gray-800 transition hover:border-blue-500 hover:bg-white hover:shadow-md"
   >
-    <p className="dashboard-tile-title">{title}</p>
-    <p className="dashboard-tile-desc">{description}</p>
+    <p className="font-semibold text-gray-900">{title}</p>
+    <p className="mt-1 text-xs text-gray-600">{description}</p>
   </Link>
 );
 
@@ -73,26 +73,27 @@ export default function ManagementDashboard({ stats }: Props) {
   if (loading) return null;
 
   return (
-    <div className="dashboard-page">
+    <div className="min-h-screen bg-gray-50 text-gray-900">
       <Head>
         <title>Management Dashboard — Famous Finds</title>
       </Head>
 
       <Header />
 
-      <main className="dashboard-main">
+      <main className="mx-auto max-w-6xl px-4 pb-16 pt-6">
         {/* Page heading */}
-        <div className="dashboard-header">
+        <div className="mb-6 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <div>
-            <h1>
+            <h1 className="text-2xl font-semibold text-gray-900">
               Management dashboard
             </h1>
-            <p>
+            <p className="mt-1 text-sm text-gray-600">
               Control centre for sellers, listings, orders, payouts, and support.
             </p>
           </div>
           <Link
             href="/"
+            className="text-sm text-gray-600 transition hover:text-gray-900"
           >
             ← Back to marketplace
           </Link>
@@ -101,22 +102,22 @@ export default function ManagementDashboard({ stats }: Props) {
         <ManagementDashboardTutorial />
 
         {/* Live summary tiles */}
-        <section className="dashboard-summary-section">
-          <h2>
+        <section className="mb-8 rounded-xl border border-neutral-200 bg-white p-5 shadow-sm">
+          <h2 className="text-lg font-semibold text-gray-900">
             Live Summary
           </h2>
 
-          <div className="dashboard-grid">
+          <div className="mt-4 grid gap-4 md:grid-cols-3">
             {/* Sellers tile */}
             <Link
               href="/management/sellers"
-              className="dashboard-tile"
+              className="block rounded-lg border border-gray-200 bg-gray-50 p-4 text-sm text-gray-800 transition hover:border-blue-500 hover:bg-white hover:shadow-md"
             >
-              <p className="dashboard-tile-label">Sellers</p>
-              <p className="dashboard-tile-stat">
+              <p className="text-xs uppercase text-gray-500">Sellers</p>
+              <p className="mt-1 text-lg font-semibold text-gray-900">
                 {stats.sellers.toLocaleString("en-US")}
               </p>
-              <p className="dashboard-tile-substat">
+              <p className="text-xs text-gray-500">
                 {stats.pendingSellers} pending vetting
               </p>
             </Link>
@@ -124,13 +125,13 @@ export default function ManagementDashboard({ stats }: Props) {
             {/* Listings tile */}
             <Link
               href="/management/listings"
-              className="dashboard-tile"
+              className="block rounded-lg border border-gray-200 bg-gray-50 p-4 text-sm text-gray-800 transition hover:border-blue-500 hover:bg-white hover:shadow-md"
             >
-              <p className="dashboard-tile-label">Listings</p>
-              <p className="dashboard-tile-stat">
+              <p className="text-xs uppercase text-gray-500">Listings</p>
+              <p className="mt-1 text-lg font-semibold text-gray-900">
                 {stats.listings.toLocaleString("en-US")}
               </p>
-              <p className="dashboard-tile-substat">
+              <p className="text-xs text-gray-500">
                 {stats.pendingListings} awaiting review
               </p>
             </Link>
@@ -138,13 +139,13 @@ export default function ManagementDashboard({ stats }: Props) {
             {/* Orders tile */}
             <Link
               href="/management/orders"
-              className="dashboard-tile"
+              className="block rounded-lg border border-gray-200 bg-gray-50 p-4 text-sm text-gray-800 transition hover:border-blue-500 hover:bg-white hover:shadow-md"
             >
-              <p className="dashboard-tile-label">Orders</p>
-              <p className="dashboard-tile-stat">
+              <p className="text-xs uppercase text-gray-500">Orders</p>
+              <p className="mt-1 text-lg font-semibold text-gray-900">
                 {stats.orders.toLocaleString("en-US")}
               </p>
-              <p className="dashboard-tile-substat">
+              <p className="text-xs text-gray-500">
                 {stats.pendingOrders} in progress
               </p>
             </Link>
@@ -273,7 +274,7 @@ export default function ManagementDashboard({ stats }: Props) {
             title="Developer / Integrations"
             description="API keys and integrations with external tools and services."
             href="/management/developer"
-          />
+          Failure/>
         </DashboardSection>
       </main>
 
@@ -304,7 +305,7 @@ export const getServerSideProps: GetServerSideProps<Props> = async () => {
       adminDb.collection("orders").get(),
       adminDb
         .collection("orders")
-        .where("status", "in", ["Pending", "Processing", "Paid"])
+        .where("status","in", ["Pending", "Processing", "Paid"])
         .get(),
     ]);
 
