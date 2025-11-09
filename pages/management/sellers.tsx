@@ -22,7 +22,7 @@ type Props = {
 };
 
 export default function ManagementSellers({ sellers }: Props) {
-  const { loading } = useRequireAdmin();
+  const { loading } } = useRequireAdmin();
   const [query, setQuery] = useState("");
 
   const visible = useMemo(() => {
@@ -37,95 +37,148 @@ export default function ManagementSellers({ sellers }: Props) {
     });
   }, [sellers, query]);
 
-  if (loading) return null;
+  if (loading) return <div className="dashboard-page"></div>;
 
   return (
     <>
       <Head>
         <title>Seller Directory — Admin</title>
       </Head>
-      <div className="min-h-screen bg-gray-50 text-gray-900">
+      <div className="dashboard-page">
         <Header />
 
-        <main className="mx-auto max-w-6xl px-4 pb-16 pt-6">
-          <div className="mb-6 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+        <main className="dashboard-main">
+          <div className="dashboard-header">
             <div>
-              <h1 className="text-2xl font-semibold text-gray-900">
-                Seller Directory
-              </h1>
-              <p className="mt-1 text-sm text-gray-600">
-                View and manage all active sellers on Famous-Finds.
-              </p>
+              <h1>Seller Directory</h1>
+              <p>View and manage all active sellers on Famous-Finds.</p>
             </div>
-            <Link
-              href="/management/dashboard"
-              className="text-sm text-gray-600 hover:text-gray-900"
-            >
+            <Link href="/management/dashboard">
               ← Back to Management Dashboard
             </Link>
           </div>
 
-          <div className="mb-4 flex flex-wrap items-center gap-3">
-            <input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search by seller name, email, or ID…"
-              className="w-full max-w-xs rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-gray-900 focus:outline-none"
-            />
-          </div>
+          <section className="dashboard-section">
+            <div className="controls">
+              <input
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Search by seller name, email, or ID…"
+                className="search-input"
+              />
+            </div>
 
-          <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white shadow-sm">
-            <table className="min-w-full divide-y divide-gray-200 text-sm">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-3 py-2 text-left font-medium text-gray-700">
-                    Seller
-                  </th>
-                  <th className="px-3 py-2 text-left font-medium text-gray-700">
-                    Email
-                  </th>
-                  <th className="px-3 py-2 text-left font-medium text-gray-700">
-                    Status
-                  </th>
-                  <th className="px-3 py-2 text-right font-medium text-gray-700">
-                    Listings
-                  </th>
-                  <th className="px-3 py-2 text-left font-medium text-gray-700">
-                    Created
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {visible.map((s) => (
-                  <tr key={s.id}>
-                    <td className="px-3 py-2 text-gray-900">{s.name}</td>
-                    <td className="px-3 py-2 text-gray-700">{s.email}</td>
-                    <td className="px-3 py-2 text-gray-700">{s.status}</td>
-                    <td className="px-3 py-2 text-right text-gray-700">
-                      {s.totalListings.toLocaleString("en-US")}
-                    </td>
-                    <td className="px-3 py-2 text-gray-700">
-                      {s.createdAt}
-                    </td>
-                  </tr>
-                ))}
-                {visible.length === 0 && (
+            <div className="table-wrapper">
+              <table className="data-table">
+                <thead>
                   <tr>
-                    <td
-                      colSpan={5}
-                      className="px-3 py-6 text-center text-sm text-gray-500"
-                    >
-                      No sellers match this search.
-                    </td>
+                    <th>Seller</th>
+                    <th>Email</th>
+                    <th>Status</th>
+                    <th className="text-right">Listings</th>
+                    <th>Created</th>
                   </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {visible.map((s) => (
+                    <tr key={s.id}>
+                      <td className="font-medium">{s.name}</td>
+                      <td>{s.email}</td>
+                      <td>{s.status}</td>
+                      <td className="text-right">
+                        {s.totalListings.toLocaleString("en-US")}
+                      </td>
+                      <td>{s.createdAt}</td>
+                    </tr>
+                  ))}
+                  {visible.length === 0 && (
+                    <tr>
+                      <td colSpan={5} className="text-center">
+                        No sellers match this search.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </section>
         </main>
 
         <Footer />
       </div>
+
+      <style jsx>{`
+        .controls {
+          margin-bottom: 16px;
+          display: flex;
+          flex-wrap: wrap;
+          gap: 12px;
+        }
+        .search-input,
+        .filter-select {
+          border-radius: 6px;
+          border: 1px solid #d1d5db; /* gray-300 */
+          padding: 8px 12px;
+          font-size: 14px;
+          background: #ffffff;
+        }
+        .search-input {
+          width: 100%;
+          max-width: 320px;
+        }
+        .search-input:focus,
+        .filter-select:focus {
+          outline: none;
+          border-color: #3b82f6; /* blue-500 */
+          box-shadow: 0 0 0 1px #3b82f6;
+        }
+        .table-wrapper {
+          overflow-x: auto;
+          width: 100%;
+          border: 1px solid #e5e7eb; /* gray-200 */
+          border-radius: 8px;
+        }
+        .data-table {
+          width: 100%;
+          min-width: 600px;
+          font-size: 14px;
+          border-collapse: collapse;
+        }
+        .data-table thead {
+          background-color: #f9fafb; /* gray-50 */
+        }
+        .data-table th,
+        .data-table td {
+          padding: 10px 14px;
+          text-align: left;
+          border-bottom: 1px solid #e5e7eb; /* gray-200 */
+          white-space: nowrap;
+        }
+        .data-table th {
+          font-weight: 600;
+          color: #374151; /* gray-700 */
+          font-size: 12px;
+          text-transform: uppercase;
+        }
+        .data-table td {
+          color: #4b5563; /* gray-600 */
+        }
+        .data-table td.font-medium {
+          font-weight: 500;
+          color: #111827; /* gray-900 */
+        }
+        .data-table tbody tr:last-child td {
+          border-bottom: none;
+        }
+        .text-right {
+          text-align: right;
+        }
+        .text-center {
+          text-align: center;
+          padding: 24px;
+          color: #6b7280; /* gray-500 */
+        }
+      `}</style>
     </>
   );
 }
