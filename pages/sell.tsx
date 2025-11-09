@@ -4,8 +4,7 @@ import Link from "next/link";
 import Header from "../components/Header";
 import Footer from "../components/Footer";
 import { FormEvent, useState } from "react";
-import { storage } from "../utils/firebaseClient";
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import firebaseApp from "../utils/firebaseClient";
 
 export default function Sell() {
   const [submitted, setSubmitted] = useState(false);
@@ -13,7 +12,9 @@ export default function Sell() {
   const [uploadingImage, setUploadingImage] = useState(false);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
 
-  async function uploadImageIfNeeded(formData: FormData): Promise<string | null> {
+  async function uploadImageIfNeeded(
+    formData: FormData
+  ): Promise<string | null> {
     const file = formData.get("image_file");
     if (!file || !(file instanceof File) || !file.size) {
       return null;
@@ -23,8 +24,18 @@ export default function Sell() {
     try {
       const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
       const path = `listing-images/${Date.now()}-${safeName}`;
+
+      // Import Firebase Storage only on the client
+      const {
+        getStorage,
+        ref,
+        uploadBytes,
+        getDownloadURL,
+      } = await import("firebase/storage");
+      const storage = getStorage(firebaseApp);
+
       const storageRef = ref(storage, path);
-      const snapshot = await uploadBytes(storageRef, file);
+      const snapshot = await uploadBytes(storageRef, file as File);
       const url = await getDownloadURL(snapshot.ref);
       return url;
     } finally {
@@ -35,34 +46,20 @@ export default function Sell() {
   async function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (submitting) return;
-    setSubmitting(true);
-    setSubmitted(false);
 
     const form = e.currentTarget;
     const formData = new FormData(form);
+    setSubmitting(true);
 
     try {
-      // 1) Upload image file (if present) to Firebase Storage
-      const uploadedImageUrl = await uploadImageIfNeeded(formData);
-
-      // 2) Build JSON body
-      const body: any = {};
-      formData.forEach((value, key) => {
-        if (key === "image_file") return; // don't send raw file
-        body[key] = value;
-      });
-
-      // API expects the image URL in `image`
-      if (uploadedImageUrl) {
-        body.image = uploadedImageUrl;
+      const imageUrl = await uploadImageIfNeeded(formData);
+      if (imageUrl) {
+        formData.set("image_url", imageUrl);
       }
 
       const res = await fetch("/api/sell", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(body),
+        body: formData,
       });
 
       const json = await res.json();
@@ -75,173 +72,299 @@ export default function Sell() {
       setImagePreview(null);
     } catch (err) {
       console.error(err);
-      alert("Something went wrong submitting your listing. Please try again.");
+      alert(
+        "Something went wrong submitting your listing. Please try again."
+      );
     } finally {
       setSubmitting(false);
     }
   }
 
-  function handleImageFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+  function handleImageFileChange(
+    e: React.ChangeEvent<HTMLInputElement>
+  ): void {
     const file = e.target.files?.[0];
     if (!file) {
       setImagePreview(null);
       return;
     }
-    const url = URL.createObjectURL(file);
-    setImagePreview(url);
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === "string") {
+        setImagePreview(reader.result);
+      }
+    };
+    reader.readAsDataURL(file);
   }
-
-  const disabled = submitting || uploadingImage;
 
   return (
     <div className="dark-theme-page">
       <Head>
-        <title>Sell an item – Famous Finds</title>
+        <title>Sell on Famous Finds</title>
       </Head>
 
       <Header />
 
-      <main className="wrap">
-        <h1>Sell an item</h1>
-        <p className="intro">
-          This form is for casual, passing-by sellers who want to list a single
-          item or a small number of pieces. All items are manually vetted and
-          must be authentic. Your listing will not go live until it is reviewed.
-        </p>
-
-        {submitted && (
-          <div className="msg success">
-            ✅ Your listing has been received for review.
+      <main className="section">
+        <div className="section-header">
+          <div>
+            <h1>Sell your luxury items</h1>
+            <p style={{ opacity: 0.8, marginTop: 4 }}>
+              Submit a high–level description. A member of our team will follow
+              up to help you create a full listing.
+            </p>
           </div>
-        )}
+          <Link href="/" className="cta">
+            ← Back to browsing
+          </Link>
+        </div>
 
-        <form onSubmit={onSubmit} className="form">
-          <input name="title" placeholder="Title" required />
-          <input name="brand" placeholder="Brand" />
-          <input
-            name="category"
-            placeholder="Category (bags, shoes, etc.)"
-          />
-          <input
-            name="price"
-            type="number"
-            placeholder="Price (USD)"
-            required
-          />
+        <div className="sell-grid">
+          <section className="sell-card">
+            <h2>Tell us about your item</h2>
+            <p className="muted">
+              Include brand, model, condition, original purchase details, and
+              any flaws. Prices are in USD.
+            </p>
 
-          {/* Image upload */}
-          <label className="file-label">
-            <span>Item photo</span>
-            <input
-              type="file"
-              name="image_file"
-              accept="image/*"
-              onChange={handleImageFileChange}
-            />
-          </label>
-          {imagePreview && (
-            <div className="image-preview">
-              <img src={imagePreview} alt="Preview" />
+            <form onSubmit={onSubmit} className="sell-form">
+              <label>
+                Your name
+                <input
+                  name="name"
+                  type="text"
+                  placeholder="First and last name"
+                  required
+                />
+              </label>
+
+              <label>
+                Email
+                <input
+                  name="email"
+                  type="email"
+                  placeholder="you@example.com"
+                  required
+                />
+              </label>
+
+              <label>
+                Brand
+                <input
+                  name="brand"
+                  type="text"
+                  placeholder="e.g. Chanel, Louis Vuitton, Rolex"
+                  required
+                />
+              </label>
+
+              <label>
+                Item name / model
+                <input
+                  name="title"
+                  type="text"
+                  placeholder="e.g. Classic Flap Bag, Speedy 30"
+                  required
+                />
+              </label>
+
+              <label>
+                Condition
+                <input
+                  name="condition"
+                  type="text"
+                  placeholder="e.g. New with tags, Gently used"
+                  required
+                />
+              </label>
+
+              <label>
+                Size (if applicable)
+                <input
+                  name="size"
+                  type="text"
+                  placeholder="e.g. EU 39, Medium, 36mm"
+                />
+              </label>
+
+              <label>
+                Color / material
+                <input
+                  name="color"
+                  type="text"
+                  placeholder="e.g. Black caviar leather, Gold hardware"
+                />
+              </label>
+
+              <label>
+                Desired price (USD)
+                <input
+                  name="price"
+                  type="number"
+                  placeholder="Price (USD)"
+                  required
+                />
+              </label>
+
+              {/* Image upload */}
+              <label className="file-label">
+                <span>Item photo</span>
+                <input
+                  type="file"
+                  name="image_file"
+                  accept="image/*"
+                  onChange={handleImageFileChange}
+                />
+                <span className="file-help">
+                  Optional, but strongly recommended. JPEG or PNG.
+                </span>
+              </label>
+
+              {imagePreview && (
+                <div className="image-preview">
+                  <span>Preview</span>
+                  <img src={imagePreview} alt="Preview" />
+                </div>
+              )}
+
+              <label>
+                Additional details
+                <textarea
+                  name="details"
+                  rows={4}
+                  placeholder="Tell us more about the item, original purchase location, proof of authenticity, packaging, etc."
+                />
+              </label>
+
+              <button type="submit" disabled={submitting || uploadingImage}>
+                {submitting
+                  ? "Submitting…"
+                  : uploadingImage
+                  ? "Uploading image…"
+                  : "Submit for review"}
+              </button>
+
+              {submitted && (
+                <p className="banner success">
+                  Thank you! We&apos;ve received your submission in USD. A team
+                  member will be in touch.
+                </p>
+              )}
+            </form>
+
+            <p className="note">
+              By submitting, you confirm that the item is authentic and that you
+              agree to Famous Finds&apos; terms.
+            </p>
+          </section>
+
+          <aside className="sell-aside">
+            <div className="sell-card">
+              <h3>How it works</h3>
+              <ol>
+                <li>Tell us about your item and upload a photo.</li>
+                <li>Our team reviews the details and may ask follow–up.</li>
+                <li>
+                  If approved, we help you create a polished listing in USD.
+                </li>
+                <li>
+                  Once it sells and is delivered, you get paid via secure
+                  payout.
+                </li>
+              </ol>
             </div>
-          )}
 
-          {/* Optional direct image URL as backup */}
-          <input
-            name="image"
-            placeholder="Image URL (optional, used if no file is uploaded)"
-          />
-
-          <textarea
-            name="description"
-            rows={4}
-            placeholder="Description"
-            required
-          />
-
-          {/* AUTHENTICITY FIELDS */}
-          <input
-            name="purchase_source"
-            placeholder="Purchased from (store / website / original owner)"
-            required
-          />
-          <select name="purchase_proof" required>
-            <option value="">Proof of authenticity</option>
-            <option value="original_receipt">Original receipt available</option>
-            <option value="certificate">Certificate of authenticity</option>
-            <option value="trusted_seller">
-              Purchased from trusted verified seller
-            </option>
-            <option value="none">No proof available</option>
-          </select>
-          <input
-            name="serial_number"
-            placeholder="Serial number / code (if applicable)"
-          />
-          <input
-            name="auth_photos"
-            placeholder="Proof photo URL (receipt / certificate / serial label)"
-          />
-
-          <button type="submit" disabled={disabled}>
-            {disabled ? "Submitting..." : "Submit Listing"}
-          </button>
-        </form>
-
-        <p className="note">
-          Listings will appear as <strong>Pending Review</strong> until
-          authenticated and approved. By submitting, you confirm the item is
-          authentic and you agree to our{" "}
-          <Link href="/terms-of-sale">Terms of Sale</Link> and{" "}
-          <Link href="/authenticity-policy">Authenticity Policy</Link>.
-        </p>
+            <div className="sell-card">
+              <h3>What sells best</h3>
+              <ul>
+                <li>Current–season or iconic handbags</li>
+                <li>Limited–edition sneakers and streetwear</li>
+                <li>Fine jewelry and watches</li>
+                <li>Excellent condition, with proof of purchase</li>
+              </ul>
+            </div>
+          </aside>
+        </div>
       </main>
 
       <Footer />
 
       <style jsx>{`
-        .wrap {
-          max-width: 600px;
-          margin: 0 auto;
-          padding: 24px 16px 80px;
+        .sell-grid {
+          display: grid;
+          grid-template-columns: minmax(0, 2fr) minmax(0, 1.3fr);
+          gap: 24px;
         }
-        h1 {
-          font-size: 26px;
-          margin-bottom: 8px;
+        @media (max-width: 900px) {
+          .sell-grid {
+            grid-template-columns: minmax(0, 1fr);
+          }
         }
-        .intro {
+        .sell-card {
+          background: #111827;
+          border-radius: 16px;
+          padding: 18px 18px 20px;
+          border: 1px solid #1f2937;
+        }
+        .sell-card h2,
+        .sell-card h3 {
+          margin: 0 0 6px;
+          font-size: 18px;
+        }
+        .sell-card p {
+          margin: 0 0 8px;
           font-size: 14px;
-          color: #d1d5db;
-          margin-bottom: 20px;
+          line-height: 1.4;
         }
-        .form {
+        .muted {
+          color: #9ca3af;
+          font-size: 13px;
+        }
+        .sell-form {
+          margin-top: 14px;
           display: flex;
           flex-direction: column;
           gap: 10px;
         }
-        input,
-        textarea,
-        select {
-          border-radius: 8px;
-          border: 1px solid #374151;
-          background: #111827;
-          color: white;
-          padding: 8px 10px;
-          font-size: 14px;
-        }
-        .file-label {
+        label {
           display: flex;
           flex-direction: column;
-          gap: 6px;
+          gap: 4px;
           font-size: 13px;
-          color: #d1d5db;
         }
-        .file-label input[type="file"] {
-          border-radius: 8px;
-          border: 1px dashed #4b5563;
-          padding: 6px;
+        input,
+        textarea {
           background: #020617;
+          border-radius: 8px;
+          border: 1px solid #374151;
+          padding: 8px 10px;
+          color: #e5e7eb;
+          font-size: 14px;
+        }
+        input::placeholder,
+        textarea::placeholder {
+          color: #6b7280;
+        }
+        textarea {
+          resize: vertical;
+        }
+        .file-label {
+          margin-top: 4px;
+        }
+        .file-help {
+          font-size: 12px;
+          color: #9ca3af;
         }
         .image-preview {
+          margin-top: 8px;
+          border: 1px dashed #374151;
+          padding: 8px;
+          border-radius: 8px;
+          font-size: 12px;
+          color: #d1d5db;
+        }
+        .image-preview span {
+          display: block;
           margin-bottom: 4px;
         }
         .image-preview img {
@@ -259,12 +382,24 @@ export default function Sell() {
           font-weight: 600;
           cursor: pointer;
         }
-        button:disabled {
-          opacity: 0.6;
+        button[disabled] {
+          opacity: 0.7;
           cursor: default;
         }
-        .msg {
-          margin-bottom: 16px;
+        .sell-aside {
+          display: flex;
+          flex-direction: column;
+          gap: 16px;
+        }
+        .sell-aside ol,
+        .sell-aside ul {
+          padding-left: 18px;
+          margin: 6px 0 0;
+          font-size: 13px;
+          color: #e5e7eb;
+        }
+        .banner {
+          margin-top: 12px;
           padding: 8px 10px;
           border-radius: 6px;
           font-size: 13px;
