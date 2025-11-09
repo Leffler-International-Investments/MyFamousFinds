@@ -14,27 +14,19 @@ const firebaseConfig = {
   measurementId: "G-NHM648X2ZR",
 };
 
-// Initialize app once (works on server + client)
 const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
 
-// Firestore + Auth are safe on both server and client
 export const db = getFirestore(app);
 export const auth = getAuth(app);
 
-// ---- Storage: browser-only to avoid "Service storage is not available" ----
+// ✅ prevent “Service storage is not available” during build
 let storage: FirebaseStorage;
-
-// Next.js will execute this module on the server while building pages.
-// Firebase Storage is not available there, so we only call getStorage in
-// a real browser environment.
 if (typeof window !== "undefined") {
   storage = getStorage(app);
 } else {
-  // Dummy placeholder so code that *imports* `storage` during SSR
-  // doesn't crash the build. You should only actually use Storage
-  // in client-side code (components, hooks, etc.).
   storage = {} as FirebaseStorage;
 }
 
 export { app, storage };
 export default app;
+
