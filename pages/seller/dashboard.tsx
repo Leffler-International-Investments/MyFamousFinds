@@ -4,9 +4,11 @@ import Link from "next/link";
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
 import type { ReactNode } from "react";
+// --- 1. ADDED IMPORTS ---
 import SellerDashboardTutorial from "../../components/SellerDashboardTutorial";
 import { useRequireSeller } from "../../hooks/useRequireSeller";
 
+// Helper component for dashboard sections
 const DashboardSection = ({
   title,
   children,
@@ -20,6 +22,7 @@ const DashboardSection = ({
   </section>
 );
 
+// Helper component for dashboard links
 const DashboardLink = ({
   href,
   title,
@@ -31,12 +34,12 @@ const DashboardLink = ({
   description: string;
   accentColor?: "blue" | "green" | "gray";
 }) => {
-  const colors: Record<string, string> = {
+  const colors = {
     blue: "border-gray-200 hover:border-blue-500",
     green: "border-gray-200 hover:border-emerald-500",
     gray: "border-gray-200 hover:border-gray-500",
   };
-  const textColors: Record<string, string> = {
+  const textColors = {
     blue: "text-blue-600 group-hover:text-blue-500",
     green: "text-emerald-600 group-hover:text-emerald-500",
     gray: "text-gray-600 group-hover:text-gray-500",
@@ -59,10 +62,11 @@ const DashboardLink = ({
 };
 
 export default function SellerDashboard() {
+  // --- 2. ADDED SECURITY HOOK ---
   const { loading: authLoading } = useRequireSeller();
-
+  
   if (authLoading) {
-    return <div className="min-h-screen bg-gray-50" />;
+    return <div className="min-h-screen bg-gray-50"></div>;
   }
 
   return (
@@ -91,77 +95,84 @@ export default function SellerDashboard() {
             </Link>
           </div>
 
+          {/* --- 3. ADDED TUTORIAL COMPONENT --- */}
           <SellerDashboardTutorial />
 
-          {/* Onboarding banner */}
+          {/* Onboarding banner – same layout, no demo flags */}
           <section className="mb-8 rounded-lg border-2 border-blue-500 bg-white p-5 shadow-lg">
             <h2 className="mb-2 text-lg font-semibold text-gray-900">
               Welcome to Famous Finds!
             </h2>
             <p className="mb-4 text-sm text-gray-600">
-              Your seller application is approved. Please complete your profile
-              to start listing items and receiving USD payouts.
+              Your application is approved. Please complete your profile to
+              start selling.
             </p>
             <div>
               <Link
                 href="/seller/profile"
                 className="inline-block rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700"
               >
-                Complete your profile →
+                Complete Your Profile →
               </Link>
             </div>
           </section>
 
-          {/* Manage listings */}
-          <DashboardSection title="Manage listings">
+          {/* Manage Listings */}
+          <DashboardSection title="Manage Listings">
             <DashboardLink
-              href="/seller/bulk-upload"
-              title="Upload listings"
-              description="Add a single listing or upload many at once via CSV. Authenticity fields and photos required."
+              href="/sell"
+              title="Create New Listing"
+              description="Upload a new item to your catalogue."
               accentColor="blue"
             />
             <DashboardLink
               href="/seller/catalogue"
-              title="My catalogue"
-              description="View and edit your active, pending, and rejected listings."
+              title="My Catalogue"
+              description="Edit prices, quantity, and details for your active listings."
+              accentColor="blue"
+            />
+            <DashboardLink
+              href="/seller/bulk-upload"
+              title="Bulk Upload"
+              description="Upload many items at once using our CSV template."
               accentColor="blue"
             />
           </DashboardSection>
 
-          {/* Orders & performance */}
-          <DashboardSection title="Orders & performance">
+          {/* Orders & Performance */}
+          <DashboardSection title="Orders & Performance">
             <DashboardLink
               href="/seller/orders"
               title="Orders"
-              description="Review new orders, see buyer details, and track shipping status."
+              description="View new, in-transit, and delivered orders."
               accentColor="green"
             />
             <DashboardLink
               href="/seller/insights"
-              title="Seller insights"
-              description="See brand performance, sell-through, and pricing suggestions."
+              title="Insights"
+              description="Track your sales, top products, and performance."
               accentColor="green"
             />
           </DashboardSection>
 
-          {/* Finance & account */}
-          <DashboardSection title="Finance & account">
+          {/* Finance & Account */}
+          <DashboardSection title="Finance & Account">
             <DashboardLink
               href="/seller/wallet"
-              title="Wallet & payouts"
-              description="Check your available balance, upcoming payouts, and payout history (USD)."
+              title="Wallet & Payouts"
+              description="See your available balance and payout history."
               accentColor="gray"
             />
             <DashboardLink
               href="/seller/statements"
               title="Statements"
-              description="Download monthly sales and fee statements for your records."
+              description="Download monthly financial statements for your records."
               accentColor="gray"
             />
             <DashboardLink
               href="/seller/profile"
-              title="Seller profile"
-              description="Update your business details and manage Stripe payout settings."
+              title="Seller Profile"
+              description="Update your business details and bank information."
               accentColor="gray"
             />
           </DashboardSection>
@@ -171,4 +182,5 @@ export default function SellerDashboard() {
       </div>
     </>
   );
+  
 }
