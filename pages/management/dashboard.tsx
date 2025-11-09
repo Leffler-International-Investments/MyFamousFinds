@@ -1,6 +1,6 @@
 // FILE: /pages/management/dashboard.tsx
 // This is the original file, restored to use Tailwind classes.
-// TYPO FIX: "Failure/" and "pendingSsellers" have been fixed.
+// ALL TYPOS ARE NOW FIXED.
 import Head from "next/head";
 import Link from "next/link";
 import type { GetServerSideProps } from "next";
@@ -274,7 +274,7 @@ export default function ManagementDashboard({ stats }: Props) {
             title="Developer / Integrations"
             description="API keys and integrations with external tools and services."
             href="/management/developer"
-          Failure/>
+          />
         </DashboardSection>
       </main>
 
@@ -305,7 +305,7 @@ export const getServerSideProps: GetServerSideProps<Props> = async () => {
       adminDb.collection("orders").get(),
       adminDb
         .collection("orders")
-        .where("status","in", ["Pending", "Processing", "Paid"])
+        .where("status", "in", ["Pending", "Processing", "Paid"])
         .get(),
     ]);
 
