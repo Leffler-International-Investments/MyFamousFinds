@@ -1,65 +1,63 @@
 // FILE: /pages/seller/statement-print.tsx
-import Head from "next/head";
 import { useEffect, useState } from "react";
+import Head from "next/head";
 import { useRouter } from "next/router";
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
 
-type StatementSummary = {
-  period: { start: string; end: string };
-  totals: { listed: number; sold: number; refunded: number };
-  money: { gross: number; fees: number; net: number; refunds: number };
+type Summary = {
+  periodLabel: string;
+  orders: number;
+  listings: number;
+  buyers: number;
+  money: { gross: number; fees: number; net: number };
 };
 
-type StatementRow = {
+type Row = {
   date: string;
-  sku: string;
-  title: string;
-  action: string;
-  qty: number;
+  orderId: string;
+  item: string;
+  buyer: string;
+  status: string;
   gross: number;
-  fee: number;
+  fees: number;
   net: number;
 };
 
-type ApiResponse = {
-  ok: boolean;
-  error?: string;
-  summary?: StatementSummary;
-  rows?: StatementRow[];
-};
+type ApiResponse =
+  | { ok: true; summary: Summary; rows: Row[] }
+  | { ok: false; error: string };
 
 export default function SellerStatementPrint() {
   const router = useRouter();
-  const [data, setData] = useState<ApiResponse | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [data, setData] = useState<{ summary: Summary; rows: Row[] } | null>(
+    null
+  );
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!router.isReady) return;
-    let cancelled = false;
 
+    let cancelled = false;
     async function load() {
-      setLoading(true);
       try {
-        const params = new URLSearchParams();
-        if (typeof router.query.start === "string") {
-          params.set("start", router.query.start);
-        }
-        if (typeof router.query.end === "string") {
-          params.set("end", router.query.end);
-        }
-        const qs = params.toString();
-        const res = await fetch(
-          qs ? `/api/seller/statement?${qs}` : "/api/seller/statement"
-        );
+        const qs = new URLSearchParams(
+          router.query as Record<string, string>
+        ).toString();
+        const res = await fetch(`/api/seller/statement?${qs}`);
         const json: ApiResponse = await res.json();
-        if (!cancelled) setData(json);
-      } catch (err) {
-        console.error(err);
-        if (!cancelled)
-          setData({ ok: false, error: "Failed to load statement." });
-      } finally {
-        if (!cancelled) setLoading(false);
+        if (!res.ok || !("ok" in json) || !json.ok) {
+          throw new Error(
+            (json as any)?.error || "Unable to load statement data"
+          );
+        }
+        if (!cancelled) {
+          setData({ summary: json.summary, rows: json.rows });
+        }
+      } catch (err: any) {
+        if (!cancelled) {
+          setError(err?.message || "Unable to load statement data");
+        }
       }
     }
 
@@ -85,124 +83,157 @@ export default function SellerStatementPrint() {
             Seller statement
           </h1>
           <button
-            type="button"
             onClick={() => window.print()}
-            className="rounded-full border border-neutral-700 px-3 py-1 text-xs hover:border-neutral-500"
+            className="rounded-full border border-white/20 px-4 py-1.5 text-xs font-medium text-white hover:border-white/60 hover:bg-white/5"
           >
             Print
           </button>
         </div>
 
-        <section className="rounded-xl border border-neutral-800 bg-neutral-950 p-5">
-          {loading && (
-            <p className="text-xs text-gray-400">Loading statement…</p>
-          )}
+        {error && (
+          <p className="mb-4 rounded-md border border-red-500/40 bg-red-500/10 px-3 py-2 text-xs text-red-100">
+            {error}
+          </p>
+        )}
 
-          {!loading && data && !data.ok && (
-            <p className="text-xs text-red-400">
-              {data.error || "We couldn&apos;t load this statement."}
-            </p>
-          )}
-
-          {!loading && data?.ok && summary && (
-            <>
-              <div className="grid gap-4 border-b border-neutral-800 pb-4 text-xs md:grid-cols-3">
-                <div>
-                  <h2 className="mb-1 font-semibold text-gray-200">Period</h2>
-                  <p>
-                    {summary.period.start} – {summary.period.end}
-                  </p>
-                </div>
-                <div>
-                  <h2 className="mb-1 font-semibold text-gray-200">Seller</h2>
-                  <p>Seller account</p>
-                  <p className="text-[11px] text-gray-400">
-                    Based on your logged-in account
-                  </p>
-                </div>
-                <div>
-                  <h2 className="mb-1 font-semibold text-gray-200">Summary</h2>
-                  <p>
-                    Orders: <strong>{summary.totals.sold}</strong>
-                  </p>
-                  <p>
-                    GMV: $
-                    {summary.money.gross.toLocaleString("en-AU", {
-                      maximumFractionDigits: 2,
-                    })}
-                  </p>
-                  <p>
-                    Net payout: $
-                    {summary.money.net.toLocaleString("en-AU", {
-                      maximumFractionDigits: 2,
-                    })}
-                  </p>
-                </div>
+        {summary ? (
+          <>
+            <section className="mb-6 grid gap-4 rounded-2xl border border-white/10 bg-white/5 p-4 md:grid-cols-4">
+              <div>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-gray-400">
+                  Period
+                </p>
+                <p className="mt-1 text-sm font-medium text-white">
+                  {summary.periodLabel}
+                </p>
               </div>
-
-              <div className="mt-4 text-xs">
-                <h2 className="mb-2 font-semibold text-gray-200">
-                  Line items
-                </h2>
-                <div className="overflow-x-auto">
-                  <table className="min-w-[640px] w-full text-[11px]">
-                    <thead className="border-b border-neutral-800 text-[10px] uppercase tracking-wide text-gray-400">
-                      <tr>
-                        <th className="py-2 pr-3 text-left">Date</th>
-                        <th className="px-3 py-2 text-left">SKU</th>
-                        <th className="px-3 py-2 text-left">Title</th>
-                        <th className="px-3 py-2 text-left">Action</th>
-                        <th className="px-3 py-2 text-right">Qty</th>
-                        <th className="px-3 py-2 text-right">Gross</th>
-                        <th className="px-3 py-2 text-right">Fee</th>
-                        <th className="px-3 py-2 text-right">Net</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {rows.map((r, idx) => (
-                        <tr
-                          key={idx}
-                          className="border-b border-neutral-900 last:border-0"
-                        >
-                          <td className="py-1 pr-3">{r.date}</td>
-                          <td className="px-3 py-1">{r.sku}</td>
-                          <td className="px-3 py-1">{r.title}</td>
-                          <td className="px-3 py-1">{r.action}</td>
-                          <td className="px-3 py-1 text-right">{r.qty}</td>
-                          <td className="px-3 py-1 text-right">
-                            ${r.gross.toFixed(2)}
-                          </td>
-                          <td className="px-3 py-1 text-right">
-                            ${r.fee.toFixed(2)}
-                          </td>
-                          <td className="px-3 py-1 text-right">
-                            ${r.net.toFixed(2)}
-                          </td>
-                        </tr>
-                      ))}
-                      {!rows.length && (
-                        <tr>
-                          <td
-                            colSpan={8}
-                            className="py-4 text-center text-gray-400"
-                          >
-                            No statement rows found for this period.
-                          </td>
-                        </tr>
-                      )}
-                    </tbody>
-                  </table>
-                </div>
+              <div>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-gray-400">
+                  Orders
+                </p>
+                <p className="mt-1 text-sm font-medium text-white">
+                  {summary.orders}
+                </p>
               </div>
+              <div>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-gray-400">
+                  Unique buyers
+                </p>
+                <p className="mt-1 text-sm font-medium text-white">
+                  {summary.buyers}
+                </p>
+              </div>
+              <div>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-gray-400">
+                  GMV (USD)
+                </p>
+                <p className="mt-1 text-sm font-medium text-white">
+                  $
+                  {summary.money.gross.toLocaleString("en-US", {
+                    maximumFractionDigits: 2,
+                  })}
+                </p>
+              </div>
+            </section>
 
-              <p className="mt-6 text-[11px] text-gray-500">
-                This statement is generated directly from your live orders,
-                refunds and fees in Famous Finds. Use it together with your
-                Stripe payout reports and bank statements for reconciliation.
+            <section className="mb-6 rounded-2xl border border-white/10 bg-white/5 p-4">
+              <h2 className="text-xs font-semibold uppercase tracking-[0.2em] text-gray-400">
+                Payout summary (USD)
+              </h2>
+              <div className="mt-3 grid gap-4 text-xs text-gray-200 md:grid-cols-3">
+                <p>
+                  Gross sales: $
+                  {summary.money.gross.toLocaleString("en-US", {
+                    maximumFractionDigits: 2,
+                  })}
+                </p>
+                <p>
+                  Fees and charges: -$
+                  {summary.money.fees.toLocaleString("en-US", {
+                    maximumFractionDigits: 2,
+                  })}
+                </p>
+                <p>
+                  Net payout: $
+                  {summary.money.net.toLocaleString("en-US", {
+                    maximumFractionDigits: 2,
+                  })}
+                </p>
+              </div>
+              <p className="mt-2 text-[11px] text-gray-400">
+                All amounts are in US Dollars (USD). This statement is provided
+                for your records and is not tax advice.
               </p>
-            </>
-          )}
-        </section>
+            </section>
+
+            <section className="rounded-2xl border border-white/10 bg-white/5">
+              <table className="min-w-full text-left text-xs text-gray-100">
+                <thead className="border-b border-white/10 bg-white/5 text-[11px] uppercase tracking-[0.16em] text-gray-400">
+                  <tr>
+                    <th className="px-3 py-2">Date</th>
+                    <th className="px-3 py-2">Order ID</th>
+                    <th className="px-3 py-2">Item</th>
+                    <th className="px-3 py-2">Buyer</th>
+                    <th className="px-3 py-2">Status</th>
+                    <th className="px-3 py-2 text-right">Gross (USD)</th>
+                    <th className="px-3 py-2 text-right">Fees (USD)</th>
+                    <th className="px-3 py-2 text-right">Net (USD)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {rows.map((row) => (
+                    <tr
+                      key={row.orderId + row.date}
+                      className="border-b border-white/5 last:border-0"
+                    >
+                      <td className="px-3 py-2 text-gray-300">{row.date}</td>
+                      <td className="px-3 py-2 text-gray-300">
+                        {row.orderId}
+                      </td>
+                      <td className="px-3 py-2 text-gray-100">{row.item}</td>
+                      <td className="px-3 py-2 text-gray-300">{row.buyer}</td>
+                      <td className="px-3 py-2 text-gray-300">
+                        {row.status}
+                      </td>
+                      <td className="px-3 py-2 text-right text-gray-100">
+                        $
+                        {row.gross.toLocaleString("en-US", {
+                          maximumFractionDigits: 2,
+                        })}
+                      </td>
+                      <td className="px-3 py-2 text-right text-gray-100">
+                        -$
+                        {row.fees.toLocaleString("en-US", {
+                          maximumFractionDigits: 2,
+                        })}
+                      </td>
+                      <td className="px-3 py-2 text-right text-gray-100">
+                        $
+                        {row.net.toLocaleString("en-US", {
+                          maximumFractionDigits: 2,
+                        })}
+                      </td>
+                    </tr>
+                  ))}
+                  {!rows.length && (
+                    <tr>
+                      <td
+                        colSpan={8}
+                        className="px-3 py-6 text-center text-gray-400"
+                      >
+                        No transactions in this period.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </section>
+          </>
+        ) : !error ? (
+          <p className="mt-6 text-xs text-gray-400">
+            Loading statement data…
+          </p>
+        ) : null}
       </main>
 
       <Footer />
