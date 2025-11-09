@@ -248,21 +248,7 @@ export default function ManagementDashboard({ stats }: Props) {
           title="Platform, Support & Analytics"
           subtitle="Support customers, track performance, and manage internal access."
         >
-          <DashboardTile
-            title="Analytics & Reports"
-            description="High-level sales and traffic insights across Famous Finds."
-            href="/management/analytics"
-          />
-          <DashboardTile
-            title="Support Tickets"
-            description="View and respond to customer support tickets."
-            href="/management/support-tickets"
-          />
-          <DashboardTile
-            title="Logs & Audit Trail"
-            description="Review a history of important admin and system actions."
-            href="/management/logs"
-          />
+{/* ... existing code ... */}
           <DashboardTile
             title="User & Role Management"
             description="Manage admin accounts and their roles (operations, finance, support, etc.)."
@@ -272,7 +258,7 @@ export default function ManagementDashboard({ stats }: Props) {
             title="Developer / Integrations"
             description="API keys and integrations with external tools and services."
             href="/management/developer"
-          Failure/>
+          />
         </DashboardSection>
       </main>
 
