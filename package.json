@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "vercel-build": "next build"
   },
   "dependencies": {
     "@stripe/stripe-js": "^4.6.0",
@@ -33,6 +34,8 @@
     "@tailwindcss/forms": "^0.5.7",
     "@tailwindcss/postcss": "4.1.17",
     "typescript": "5.6.3"
+  },
+  "engines": {
+    "node": ">=18 <23"
   }
 }
-
