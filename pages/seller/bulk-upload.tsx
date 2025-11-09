@@ -1,91 +1,146 @@
 // FILE: /pages/seller/bulk-upload.tsx
+import { useState, useRef, useMemo } from "react";
 import Head from "next/head";
 import Link from "next/link";
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
-import { useState } from "react";
+import { useRequireSeller } from "../../hooks/useRequireSeller";
 
-type UploadRow = {
-  id: string;
-  title: string;
-  brand: string;
-  price: string;
-  category: string;
-  status: "ready" | "missing" | "error";
+type RawRow = {
+  id?: string;
+  title?: string;
+  brand?: string;
+  category?: string;
+  condition?: string;
+  size?: string;
+  color?: string;
+  price?: string | number;
+  purchase_source?: string;
+  purchase_proof?: string;
+  serial_number?: string;
+  authenticity_confirmed?: string | boolean;
+  imageUrls?: string[];
+};
+
+type ParsedRow = RawRow & {
+  _row: number;
+  _status: "ok" | "missing_field" | "invalid_price" | "auth_missing";
+  _reason?: string;
+};
+
+type ApiResult = {
+  ok: boolean;
+  created: number;
+  skipped: number;
+  error?: string;
 };
 
 export default function SellerBulkUpload() {
-  const [fileName, setFileName] = useState<string | null>(null);
+  const { loading, seller } = useRequireSeller();
   const [step, setStep] = useState<1 | 2 | 3>(1);
-  const [rows, setRows] = useState<UploadRow[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [rawText, setRawText] = useState("");
+  const [rows, setRows] = useState<ParsedRow[]>([]);
+  const [busy, setBusy] = useState(false);
   const [committing, setCommitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [result, setResult] = useState<ApiResult | null>(null);
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setFileName(file.name);
-    setLoading(true);
+  const okRows = useMemo(
+    () => rows.filter((r) => r._status === "ok"),
+    [rows]
+  );
+
+  if (loading) return null;
+
+  const handleParse = () => {
     setError(null);
-    setRows([]);
+    setResult(null);
 
-    try {
-      const text = await file.text();
-      const res = await fetch("/api/seller/bulk-parse", {
-        method: "POST",
-        headers: { "Content-Type": "text/csv" },
-        body: text,
-      });
-      const json = await res.json();
-      if (!res.ok || !json.ok) {
-        throw new Error(json.error || "Failed to parse file");
-      }
-
-      const parsed = (json.rows || []).map((r: any, idx: number) => {
-        const price = String(r.price ?? "").trim();
-        let status: UploadRow["status"] = "ready";
-        if (!price) status = "missing";
-        return {
-          id: String(r.id ?? idx + 1),
-          title: String(r.title || "Untitled"),
-          brand: String(r.brand || ""),
-          price,
-          category: String(r.category || ""),
-          status,
-        } as UploadRow;
-      });
-
-      setRows(parsed);
+    const trimmed = rawText.trim();
+    if (!trimmed) {
+      setRows([]);
       setStep(2);
-    } catch (err: any) {
-      console.error(err);
-      setError(err?.message || "Unable to read this file.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleConfirm = async () => {
-    const ready = rows.filter((r) => r.status === "ready");
-    if (!ready.length) {
-      alert("There are no rows marked as ready.");
       return;
     }
 
-    setCommitting(true);
+    const lines = trimmed
+      .split(/\r?\n/)
+      .map((l) => l.trim())
+      .filter(Boolean);
+
+    const parsed: ParsedRow[] = [];
+    lines.forEach((line, idx) => {
+      const parts = line.split(",").map((p) => p.trim());
+      if (parts.length < 10) {
+        parsed.push({
+          _row: idx + 1,
+          _status: "missing_field",
+          _reason:
+            "Expected 10 fields: title,brand,category,condition,size,color,price,purchase_source,purchase_proof,serial_number",
+        });
+        return;
+      }
+
+      const [
+        title,
+        brand,
+        category,
+        condition,
+        size,
+        color,
+        price,
+        purchase_source,
+        purchase_proof,
+        serial_number,
+      ] = parts;
+
+      const priceNum = Number(price);
+      if (!price || !isFinite(priceNum) || priceNum <= 0) {
+        parsed.push({
+          _row: idx + 1,
+          _status: "invalid_price",
+          _reason: "Price must be a positive number in USD.",
+        });
+        return;
+      }
+
+      parsed.push({
+        _row: idx + 1,
+        _status: "ok",
+        title,
+        brand,
+        category,
+        condition,
+        size,
+        color,
+        price: priceNum,
+        purchase_source,
+        purchase_proof,
+        serial_number,
+      });
+    });
+
+    setRows(parsed);
+    setStep(2);
+  };
+
+  const handleCommit = async () => {
     setError(null);
+    setResult(null);
+    setCommitting(true);
 
     try {
       const res = await fetch("/api/seller/bulk-commit", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ rows: ready }),
+        body: JSON.stringify({ rows: okRows }),
       });
-      const json = await res.json();
+      const json: ApiResult = await res.json();
       if (!res.ok || !json.ok) {
-        throw new Error(json.error || "Failed to create listings");
+        throw new Error(json.error || "Unable to create listings.");
       }
+      setResult(json);
       setStep(3);
     } catch (err: any) {
       console.error(err);
@@ -94,6 +149,11 @@ export default function SellerBulkUpload() {
       setCommitting(false);
     }
   };
+
+  const exampleLines = [
+    "Chanel Classic Flap Bag,Chanel,bags,Like New,M,Black,5200,Neiman Marcus,Original receipt,12345-ABCD",
+    "Gucci Marmont Belt,Gucci,accessories,Good,M,Black,480,Saks,PDF invoice,GG-778899",
+  ];
 
   return (
     <div className="min-h-screen bg-black text-gray-100">
@@ -111,271 +171,184 @@ export default function SellerBulkUpload() {
           ← Back to Dashboard
         </Link>
 
-        <h1 className="mt-4 text-2xl font-semibold text-white">
-          Bulk upload listings
-        </h1>
-        <p className="mt-1 text-sm text-gray-400">
-          Upload a spreadsheet to create many listings at once. Each listing is
-          created as a draft or pending review before going live.
-        </p>
+        <div className="mt-4 flex items-center justify-between">
+          <div>
+            <h1 className="text-xl font-semibold text-white">
+              Bulk upload listings
+            </h1>
+            <p className="mt-1 text-xs text-gray-400">
+              Paste multiple items in one go. All prices are treated as USD.
+            </p>
+          </div>
+        </div>
 
-        {/* Steps indicator */}
-        <ol className="mt-6 flex flex-wrap gap-3 text-xs">
-          {["Upload file", "Review rows", "Create listings"].map(
-            (label, i) => {
-              const n = (i + 1) as 1 | 2 | 3;
-              const active = step === n;
-              const done = step > n;
-              return (
-                <li key={label} className="flex items-center gap-2 text-xs">
-                  <span
-                    className={
-                      "flex h-5 w-5 items-center justify-center rounded-full border text-[10px] " +
-                      (done
-                        ? "border-emerald-400 bg-emerald-500/20 text-emerald-200"
-                        : active
-                        ? "border-white text-white"
-                        : "border-neutral-600 text-neutral-500")
-                    }
-                  >
-                    {done ? "✓" : n}
-                  </span>
-                  <span className={active ? "text-white" : "text-neutral-400"}>
-                    {label}
-                  </span>
-                </li>
-              );
-            }
-          )}
+        <ol className="mt-6 grid gap-3 text-xs text-gray-300 md:grid-cols-3">
+          <li className={step >= 1 ? "font-semibold text-white" : ""}>
+            1. Paste your items
+          </li>
+          <li className={step >= 2 ? "font-semibold text-white" : ""}>
+            2. Review and fix issues
+          </li>
+          <li className={step >= 3 ? "font-semibold text-white" : ""}>
+            3. Confirm and submit
+          </li>
         </ol>
 
-        {/* STEP 1 */}
-        {step === 1 && (
-          <section className="mt-8 grid gap-8 md:grid-cols-[minmax(0,2fr)_minmax(0,1.5fr)]">
-            <div className="rounded-xl border border-neutral-800 bg-neutral-950 p-6">
-              <h2 className="text-sm font-semibold">1. CSV structure</h2>
-              <p className="mt-2 text-xs text-gray-400">
-                The parser expects columns like <code>title</code>,{" "}
-                <code>brand</code>, <code>category</code>, <code>price</code>,
-                etc. Download the template for the exact column names.
+        <section className="mt-6 rounded-2xl border border-white/10 bg-white/5 p-4 text-xs">
+          <h2 className="text-[11px] font-semibold uppercase tracking-[0.16em] text-gray-400">
+            1. Paste your items (USD)
+          </h2>
+          <p className="mt-2 text-gray-300">
+            One item per line, fields separated by commas:
+          </p>
+          <p className="mt-1 text-gray-300">
+            <code>
+              title, brand, category, condition, size, color, price (USD),
+              purchase_source, purchase_proof, serial_number
+            </code>
+          </p>
+
+          <div className="mt-3 space-y-2 rounded-md bg-black/40 p-3 text-[11px] text-gray-400">
+            <p className="font-semibold text-gray-200">Example (copy/paste):</p>
+            {exampleLines.map((line) => (
+              <p key={line} className="font-mono">
+                {line}
               </p>
-              <div className="mt-4 flex flex-wrap gap-3">
-                <a
-                  href="/api/seller/bulk-template"
-                  className="rounded-full bg-white px-3 py-1.5 text-xs font-medium text-black hover:bg-gray-100"
-                >
-                  Download CSV template
-                </a>
-              </div>
-            </div>
+            ))}
+          </div>
 
-            <div className="rounded-xl border border-dashed border-neutral-700 bg-neutral-950/60 p-6">
-              <h2 className="text-sm font-semibold">2. Upload your file</h2>
-              <p className="mt-2 text-xs text-gray-400">
-                CSV or Excel exported as CSV, up to 5,000 rows.
+          <textarea
+            ref={textareaRef}
+            className="mt-4 h-48 w-full rounded-md border border-white/10 bg-black/40 px-3 py-2 text-xs text-white focus:border-white focus:outline-none"
+            placeholder="Paste your items here…"
+            value={rawText}
+            onChange={(e) => setRawText(e.target.value)}
+          />
+
+          <div className="mt-3 flex gap-2">
+            <button
+              onClick={handleParse}
+              disabled={busy}
+              className="rounded-full bg-white px-4 py-2 text-xs font-semibold text-black hover:bg-gray-200 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              Parse items
+            </button>
+          </div>
+        </section>
+
+        <section className="mt-6 rounded-2xl border border-white/10 bg-white/5 p-4 text-xs">
+          <h2 className="text-[11px] font-semibold uppercase tracking-[0.16em] text-gray-400">
+            2. Review parsed items
+          </h2>
+
+          {!rows.length ? (
+            <p className="mt-2 text-gray-400">
+              Nothing parsed yet. Paste your items above and click{" "}
+              <span className="font-semibold text-gray-200">Parse items</span>.
+            </p>
+          ) : (
+            <>
+              <p className="mt-2 text-gray-300">
+                Parsed{" "}
+                <span className="font-semibold text-white">
+                  {rows.length}
+                </span>{" "}
+                lines. Valid rows in USD:{" "}
+                <span className="font-semibold text-emerald-300">
+                  {okRows.length}
+                </span>
+                .
               </p>
 
-              <label className="mt-5 flex cursor-pointer flex-col items-center justify-center rounded-lg border border-neutral-700 bg-black/40 px-4 py-10 text-center text-xs text-neutral-400 hover:border-neutral-500">
-                <span className="mb-2 text-sm text-gray-100">
-                  Drop file here or click to browse
-                </span>
-                <span className="text-[11px]">
-                  We&apos;ll parse it and highlight any rows that need fixes.
-                </span>
-                <input
-                  type="file"
-                  accept=".csv, text/csv"
-                  className="hidden"
-                  onChange={handleFileChange}
-                />
-              </label>
-
-              {fileName && !loading && !error && (
-                <p className="mt-3 text-xs text-gray-400">
-                  Selected file: <span className="font-medium">{fileName}</span>
-                </p>
-              )}
-
-              {loading && (
-                <p className="mt-3 text-xs text-gray-400">
-                  Parsing file, please wait…
-                </p>
-              )}
-              {error && !loading && (
-                <p className="mt-3 text-xs text-red-400">{error}</p>
-              )}
-            </div>
-          </section>
-        )}
-
-        {/* STEP 2 */}
-        {step === 2 && (
-          <section className="mt-8 rounded-xl border border-neutral-800 bg-neutral-950 p-6">
-            <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-              <div>
-                <h2 className="text-sm font-semibold">
-                  Review detected rows
-                </h2>
-                <p className="text-xs text-gray-400">
-                  Only rows marked as <strong>Ready</strong> will be created.
-                  You can cancel and upload a corrected file at any time.
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => {
-                  setStep(1);
-                  setRows([]);
-                  setFileName(null);
-                }}
-                className="self-start rounded-full border border-neutral-700 px-3 py-1 text-xs hover:border-neutral-500"
-              >
-                Choose a different file
-              </button>
-            </div>
-
-            <div className="mt-5 overflow-x-auto">
-              <table className="w-full min-w-[640px] text-xs">
-                <thead className="border-b border-neutral-800 text-[11px] uppercase tracking-wide text-gray-400">
-                  <tr>
-                    <th className="py-2 pr-3 text-left">Title</th>
-                    <th className="px-3 py-2 text-left">Brand</th>
-                    <th className="px-3 py-2 text-left">Category</th>
-                    <th className="px-3 py-2 text-left">Price (AUD)</th>
-                    <th className="px-3 py-2 text-left">Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {loading && (
+              <div className="mt-3 overflow-x-auto rounded-md border border-white/10">
+                <table className="min-w-full text-left text-[11px] text-gray-100">
+                  <thead className="bg-white/5 text-[10px] uppercase tracking-[0.16em] text-gray-400">
                     <tr>
-                      <td
-                        className="py-4 text-center text-xs text-gray-400"
-                        colSpan={5}
-                      >
-                        Parsing file…
-                      </td>
+                      <th className="px-3 py-2 text-left">Row</th>
+                      <th className="px-3 py-2 text-left">Title</th>
+                      <th className="px-3 py-2 text-left">Brand</th>
+                      <th className="px-3 py-2 text-left">Category</th>
+                      <th className="px-3 py-2 text-left">Price (USD)</th>
+                      <th className="px-3 py-2 text-left">Status</th>
                     </tr>
-                  )}
-
-                  {!loading && error && (
-                    <tr>
-                      <td
-                        className="py-4 text-center text-xs text-red-400"
-                        colSpan={5}
-                      >
-                        {error}
-                      </td>
-                    </tr>
-                  )}
-
-                  {!loading && !error && rows.length === 0 && (
-                    <tr>
-                      <td
-                        className="py-4 text-center text-xs text-gray-400"
-                        colSpan={5}
-                      >
-                        No rows detected in this file.
-                      </td>
-                    </tr>
-                  )}
-
-                  {!loading &&
-                    !error &&
-                    rows.map((row) => (
+                  </thead>
+                  <tbody>
+                    {rows.map((row) => (
                       <tr
-                        key={row.id}
-                        className="border-b border-neutral-900 last:border-0"
+                        key={row._row}
+                        className="border-b border-white/10 last:border-0"
                       >
-                        <td className="py-2 pr-3">{row.title}</td>
-                        <td className="px-3 py-2">{row.brand}</td>
-                        <td className="px-3 py-2">{row.category}</td>
-                        <td className="px-3 py-2">
-                          {row.price || (
-                            <span className="text-amber-300">Missing</span>
-                          )}
+                        <td className="px-3 py-2 text-gray-400">
+                          {row._row}
+                        </td>
+                        <td className="px-3 py-2 text-gray-100">
+                          {row.title || "—"}
+                        </td>
+                        <td className="px-3 py-2 text-gray-200">
+                          {row.brand || "—"}
+                        </td>
+                        <td className="px-3 py-2 text-gray-200">
+                          {row.category || "—"}
+                        </td>
+                        <td className="px-3 py-2 text-gray-200">
+                          {typeof row.price === "number"
+                            ? `$${row.price.toLocaleString("en-US", {
+                                maximumFractionDigits: 2,
+                              })}`
+                            : "—"}
                         </td>
                         <td className="px-3 py-2">
-                          {row.status === "ready" && (
-                            <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-[11px] text-emerald-300">
-                              Ready
+                          {row._status === "ok" ? (
+                            <span className="rounded-full bg-emerald-500/10 px-2 py-1 text-[10px] font-semibold text-emerald-300">
+                              OK
                             </span>
-                          )}
-                          {row.status === "missing" && (
-                            <span className="rounded-full bg-amber-500/10 px-2 py-0.5 text-[11px] text-amber-300">
-                              Needs price
-                            </span>
-                          )}
-                          {row.status === "error" && (
-                            <span className="rounded-full bg-red-500/10 px-2 py-0.5 text-[11px] text-red-300">
-                              Error
+                          ) : (
+                            <span className="rounded-full bg-red-500/10 px-2 py-1 text-[10px] font-semibold text-red-300">
+                              {row._reason || row._status}
                             </span>
                           )}
                         </td>
                       </tr>
                     ))}
-                </tbody>
-              </table>
-            </div>
-
-            <div className="mt-5 flex flex-col gap-3 border-t border-neutral-800 pt-4 text-xs text-gray-400 md:flex-row md:items-center md:justify-between">
-              <p>
-                We will create listings only for rows marked as Ready. You can
-                re-upload a corrected file whenever you need.
-              </p>
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setStep(1);
-                    setRows([]);
-                    setFileName(null);
-                  }}
-                  className="rounded-full border border-neutral-700 px-3 py-1.5 text-xs hover:border-neutral-500"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  onClick={handleConfirm}
-                  className="rounded-full bg-white px-3 py-1.5 text-xs font-medium text-black hover:bg-gray-100 disabled:opacity-60"
-                  disabled={committing || !rows.length}
-                >
-                  {committing ? "Creating listings…" : "Create listings"}
-                </button>
+                  </tbody>
+                </table>
               </div>
-            </div>
-          </section>
-        )}
+            </>
+          )}
+        </section>
 
-        {/* STEP 3 */}
-        {step === 3 && (
-          <section className="mt-8 rounded-xl border border-neutral-800 bg-neutral-950 p-6 text-sm">
-            <h2 className="text-base font-semibold">Listings created</h2>
-            <p className="mt-2 text-sm text-gray-300">
-              Your file has been processed and draft listings have been created
-              in your catalogue. Items may still require review before going
-              live.
+        <section className="mt-6 rounded-2xl border border-white/10 bg-white/5 p-4 text-xs">
+          <h2 className="text-[11px] font-semibold uppercase tracking-[0.16em] text-gray-400">
+            3. Confirm and submit
+          </h2>
+          <p className="mt-2 text-gray-300">
+            When you confirm, we will create listings for all{" "}
+            <span className="font-semibold text-emerald-300">
+              valid rows in USD
+            </span>{" "}
+            and send them to the vetting queue.
+          </p>
+          {error && (
+            <p className="mt-2 text-red-400">
+              {error}
             </p>
-            <div className="mt-6 flex flex-wrap gap-2">
-              <Link
-                href="/seller/catalogue"
-                className="rounded-full bg-white px-3 py-1.5 text-xs font-medium text-black hover:bg-gray-100"
-              >
-                Go to my catalogue
-              </Link>
-              <Link
-                href="/seller/dashboard"
-                className="rounded-full border border-neutral-700 px-3 py-1.5 text-xs hover:border-neutral-500"
-              >
-                Back to seller dashboard
-              </Link>
-            </div>
-          </section>
-        )}
+          )}
+          {result && (
+            <p className="mt-2 text-emerald-300">
+              Created {result.created} listings. Skipped {result.skipped} rows.
+            </p>
+          )}
 
-        {error && step === 3 && (
-          <p className="mt-3 text-xs text-red-400">{error}</p>
-        )}
+          <div className="mt-3 flex gap-2">
+            <button
+              onClick={handleCommit}
+              disabled={committing || !okRows.length}
+              className="rounded-full bg-white px-4 py-2 text-xs font-semibold text-black hover:bg-gray-200 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {committing ? "Submitting…" : "Create listings in USD"}
+            </button>
+          </div>
+        </section>
       </main>
 
       <Footer />
