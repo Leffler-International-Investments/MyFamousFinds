@@ -1,11 +1,11 @@
 // FILE: postcss.config.js
 //
-// This is the fix for the build log error.
-// The build is failing because Vercel is using an old, cached
-// version of this file from a previous build.
+// The build is failing because this file is wrong.
 //
-// This correct version uses the '@tailwindcss/postcss' plugin,
-// which is required by Tailwind v4 (in your package.json).
+// Your package.json uses Tailwind v4, which REQUIRES
+// the plugin to be '@tailwindcss/postcss'.
+//
+// This is the only file you need to replace.
 //
 module.exports = {
   plugins: {
