@@ -19,7 +19,7 @@ type SellerApplication = {
 type Props = { items: SellerApplication[] };
 
 export default function ManagementVettingQueue({ items }: Props) {
-  const { loading } = useRequireAdmin();
+  const { loading } } = useRequireAdmin();
   const [query, setQuery] = useState("");
   const [localItems, setLocalItems] = useState(items);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
@@ -67,121 +67,241 @@ export default function ManagementVettingQueue({ items }: Props) {
     }
   };
 
-  if (loading) return null;
+  if (loading) return <div className="dashboard-page"></div>;
 
   return (
     <>
       <Head>
         <title>Seller Vetting Queue — Admin</title>
       </Head>
-      <div className="min-h-screen bg-gray-50 text-gray-900">
+      <div className="dashboard-page">
         <Header />
-        <main className="mx-auto max-w-6xl px-4 pb-16 pt-6">
-          <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+        <main className="dashboard-main">
+          <div className="dashboard-header">
             <div>
-              <h1 className="text-xl font-semibold tracking-tight">
-                Seller Vetting Queue
-              </h1>
-              <p className="text-sm text-gray-600">
-                One row per seller application. Once a seller is approved,
-                new products go to{" "}
-                <strong>Listing Review Queue</strong>, not this page.
+              <h1>Seller Vetting Queue</h1>
+              <p>
+                Approve or deny new seller applications.
               </p>
             </div>
             <Link
               href="/management/dashboard"
-              className="rounded-full bg-gray-900 px-4 py-2 text-xs font-medium text-white"
+              className="action-button-dark"
             >
               ← Back to admin home
             </Link>
           </div>
 
-          <div className="mb-4 flex flex-wrap items-center gap-3">
-            <input
-              type="text"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search by business, email, or ID…"
-              className="w-full max-w-xs rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-gray-900 focus:outline-none"
-            />
-          </div>
+          <section className="dashboard-section">
+             <div className="controls">
+              <input
+                type="text"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Search by business, email, or ID…"
+                className="search-input"
+              />
+            </div>
 
-          <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white shadow-sm">
-            <table className="min-w-full divide-y divide-gray-200 text-sm">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-4 py-2 text-left font-medium text-gray-700">
-                    Business
-                  </th>
-                  <th className="px-4 py-2 text-left font-medium text-gray-700">
-                    Contact email
-                  </th>
-                  <th className="px-4 py-2 text-left font-medium text-gray-700">
-                    Submitted
-                  </th>
-                  <th className="px-4 py-2 text-left font-medium text-gray-700">
-                    Status
-                  </th>
-                  <th className="px-4 py-2 text-left font-medium text-gray-700">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {visible.map((s) => (
-                  <tr key={s.id}>
-                    <td className="px-4 py-2 text-gray-900">
-                      {s.businessName || "—"}
-                    </td>
-                    <td className="px-4 py-2 text-gray-700">
-                      {s.contactEmail || "—"}
-                    </td>
-                    <td className="px-4 py-2 text-gray-700">
-                      {s.submittedAt || "—"}
-                    </td>
-                    <td className="px-4 py-2 text-gray-700">
-                      {s.status}
-                    </td>
-                    <td className="px-4 py-2">
-                      <div className="flex flex-wrap gap-2">
-                        <button
-                          onClick={() => handleAction(s.id, "approve")}
-                          disabled={
-                            actionLoading === s.id || s.status === "Approved"
-                          }
-                          className="rounded-full bg-green-600 px-3 py-1 text-xs font-semibold text-white disabled:opacity-50"
-                        >
-                          Approve
-                        </button>
-                        <button
-                          onClick={() => handleAction(s.id, "reject")}
-                          disabled={
-                            actionLoading === s.id || s.status === "Rejected"
-                          }
-                          className="rounded-full bg-red-600 px-3 py-1 text-xs font-semibold text-white disabled:opacity-50"
-                        >
-                          Reject
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-                {visible.length === 0 && (
+            <div className="table-wrapper">
+              <table className="data-table">
+                <thead>
                   <tr>
-                    <td
-                      colSpan={5}
-                      className="px-4 py-6 text-center text-sm text-gray-500"
-                    >
-                      No seller applications pending review.
-                    </td>
+                    <th>Business</th>
+                    <th>Contact email</th>
+                    <th>Submitted</th>
+                    <th>Status</th>
+                    <th>Actions</th>
                   </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {visible.map((s) => (
+                    <tr key={s.id}>
+                      <td className="font-medium">
+                        {s.businessName || "—"}
+                      </td>
+                      <td>{s.contactEmail || "—"}</td>
+                      <td>{s.submittedAt || "—"}</td>
+                      <td>
+                        <span
+                          className={`status-badge ${
+                            s.status === "Approved"
+                              ? "status-live"
+                              : s.status === "Pending"
+                              ? "status-pending"
+                              : "status-rejected"
+                          }`}
+                        >
+                          {s.status}
+                        </span>
+                      </td>
+                      <td>
+                        <div className="action-buttons">
+                          <button
+                            onClick={() => handleAction(s.id, "approve")}
+                            disabled={
+                              actionLoading === s.id || s.status === "Approved"
+                            }
+                            className="action-button button-approve"
+                          >
+                            Approve
+                          </button>
+                          <button
+                            onClick={() => handleAction(s.id, "reject")}
+                            disabled={
+                              actionLoading === s.id || s.status === "Rejected"
+                            }
+                            className="action-button button-reject"
+                          >
+                            Reject
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                  {visible.length === 0 && (
+                    <tr>
+                      <td colSpan={5} className="text-center">
+                        No seller applications pending review.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </section>
         </main>
         <Footer />
       </div>
+      <style jsx>{`
+        .action-button-dark {
+          border-radius: 999px;
+          background-color: #1f2937; /* gray-800 */
+          color: #f9fafb; /* gray-50 */
+          padding: 8px 16px;
+          font-size: 12px;
+          font-weight: 500;
+          text-decoration: none;
+          white-space: nowrap;
+        }
+        .action-button-dark:hover {
+          background-color: #111827; /* gray-900 */
+        }
+        .controls {
+          margin-bottom: 16px;
+          display: flex;
+          flex-wrap: wrap;
+          gap: 12px;
+        }
+        .search-input {
+          border-radius: 6px;
+          border: 1px solid #d1d5db; /* gray-300 */
+          padding: 8px 12px;
+          font-size: 14px;
+          background: #ffffff;
+          width: 100%;
+          max-width: 320px;
+        }
+        .search-input:focus {
+          outline: none;
+          border-color: #3b82f6; /* blue-500 */
+          box-shadow: 0 0 0 1px #3b82f6;
+        }
+        .table-wrapper {
+          overflow-x: auto;
+          width: 100%;
+          border: 1px solid #e5e7eb; /* gray-200 */
+          border-radius: 8px;
+        }
+        .data-table {
+          width: 100%;
+          min-width: 600px;
+          font-size: 14px;
+          border-collapse: collapse;
+        }
+        .data-table thead {
+          background-color: #f9fafb; /* gray-50 */
+        }
+        .data-table th,
+        .data-table td {
+          padding: 10px 14px;
+          text-align: left;
+          border-bottom: 1px solid #e5e7eb; /* gray-200 */
+          white-space: nowrap;
+        }
+        .data-table th {
+          font-weight: 600;
+          color: #374151; /* gray-700 */
+          font-size: 12px;
+          text-transform: uppercase;
+        }
+        .data-table td {
+          color: #4b5563; /* gray-600 */
+        }
+        .data-table td.font-medium {
+          font-weight: 500;
+          color: #111827; /* gray-900 */
+        }
+        .data-table tbody tr:last-child td {
+          border-bottom: none;
+        }
+        .text-center {
+          text-align: center;
+          padding: 24px;
+          color: #6b7280; /* gray-500 */
+        }
+        .action-buttons {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 8px;
+        }
+        .action-button {
+          border-radius: 999px;
+          padding: 4px 12px;
+          font-size: 12px;
+          font-weight: 500;
+          border: none;
+          cursor: pointer;
+          white-space: nowrap;
+        }
+        .action-button:disabled {
+          opacity: 0.5;
+          cursor: not-allowed;
+        }
+        .button-approve {
+          background-color: #16a34a; /* green-600 */
+          color: white;
+        }
+        .button-approve:hover:not(:disabled) {
+          background-color: #15803d; /* green-700 */
+        }
+        .button-reject {
+          background-color: #dc2626; /* red-600 */
+          color: white;
+        }
+        .button-reject:hover:not(:disabled) {
+          background-color: #b91c1c; /* red-700 */
+        }
+        .status-badge {
+          display: inline-flex;
+          border-radius: 999px;
+          padding: 2px 8px;
+          font-size: 12px;
+          font-weight: 500;
+        }
+        .status-live {
+          background-color: #dcfce7; /* green-100 */
+          color: #166534; /* green-800 */
+        }
+        .status-pending {
+          background-color: #fef9c3; /* yellow-100 */
+          color: #854d0e; /* yellow-800 */
+        }
+        .status-rejected {
+          background-color: #fee2e2; /* red-100 */
+          color: #991b1b; /* red-800 */
+        }
+      `}</style>
     </>
   );
 }
