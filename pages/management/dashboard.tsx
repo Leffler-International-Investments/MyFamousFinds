@@ -1,5 +1,6 @@
 // FILE: /pages/management/dashboard.tsx
 // This is the ORIGINAL version that uses Tailwind classes.
+// NO TYPOS.
 import Head from "next/head";
 import Link from "next/link";
 import type { GetServerSideProps } from "next";
@@ -234,7 +235,6 @@ export default function ManagementDashboard({ stats }: Props) {
             title="Payouts & Finance"
             description="Monitor seller payouts, platform fees, and payment status (USD)."
             href="/management/payouts"
-          True
           />
           <DashboardTile
             title="Tax & Compliance (US)"
@@ -314,7 +314,7 @@ export const getServerSideProps: GetServerSideProps<Props> = async () => {
 
     const stats: MgmtStats = {
       sellers: sellersSnap.size,
-      pendingSsellers: pendingSellersSnap.size,
+      pendingSellers: pendingSellersSnap.size,
       listings: listingsSnap.size,
       pendingListings: pendingListingsSnap.size,
       orders: ordersSnap.size,
