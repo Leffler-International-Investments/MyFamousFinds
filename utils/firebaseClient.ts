@@ -2,7 +2,7 @@
 import { initializeApp, getApps, getApp } from "firebase/app";
 import { getFirestore } from "firebase/firestore";
 import { getAuth } from "firebase/auth";
-import { getStorage, type FirebaseStorage } from "firebase/storage";
+import { getStorage, FirebaseStorage } from "firebase/storage";
 
 const firebaseConfig = {
   apiKey: "AIzaSyDddxs7XqxDhkfzvFxZigUQlZJu0fZ7VJQ",
@@ -14,25 +14,27 @@ const firebaseConfig = {
   measurementId: "G-NHM648X2ZR",
 };
 
-// Make sure we only ever create one Firebase app
-const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
+// Initialize app once (works on server + client)
+const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
 
+// Firestore + Auth are safe on both server and client
 export const db = getFirestore(app);
 export const auth = getAuth(app);
 
-// --- IMPORTANT PART ---
-// Only initialise Storage in the browser.
-// On the server (during `next build` / page-data collection) we *don't*
-// call getStorage(), which avoids "Service storage is not available".
-let storageInstance: FirebaseStorage | null = null;
+// ---- Storage: browser-only to avoid "Service storage is not available" ----
+let storage: FirebaseStorage;
 
+// Next.js will execute this module on the server while building pages.
+// Firebase Storage is not available there, so we only call getStorage in
+// a real browser environment.
 if (typeof window !== "undefined") {
-  storageInstance = getStorage(app);
+  storage = getStorage(app);
+} else {
+  // Dummy placeholder so code that *imports* `storage` during SSR
+  // doesn't crash the build. You should only actually use Storage
+  // in client-side code (components, hooks, etc.).
+  storage = {} as FirebaseStorage;
 }
 
-// Keep the old `storage` export name so all existing imports keep working.
-// In the browser this is a real FirebaseStorage; on the server it's just
-// a no-op placeholder and won't be used.
-export const storage = storageInstance as unknown as FirebaseStorage;
-
+export { app, storage };
 export default app;
