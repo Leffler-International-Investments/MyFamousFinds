@@ -1,11 +1,9 @@
 // FILE: /pages/management/dashboard.tsx
-// This is the ORIGINAL version that uses Tailwind classes.
-// ALL TYPOS ("Failure", "Normal", "True", "Check") have been removed.
+// This version uses the custom CSS classes from globals.css
 import Head from "next/head";
 import Link from "next/link";
 import type { GetServerSideProps } from "next";
 import type React from "react";
-
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
 import ButlerChat from "../../components/ButlerChat";
@@ -26,6 +24,7 @@ type Props = {
   stats: MgmtStats;
 };
 
+// Helper component for dashboard sections
 const DashboardSection = ({
   title,
   subtitle,
@@ -35,22 +34,18 @@ const DashboardSection = ({
   subtitle?: string;
   children: React.ReactNode;
 }) => (
-  // This component uses Tailwind utility classes
-  <section className="mb-8 rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
-    <div className="mb-4">
-      <h2 className="text-lg font-semibold text-gray-900">{title}</h2>
+  <section className="dashboard-section">
+    <div className="dashboard-section-header">
+      <h2 className="dashboard-section-title">{title}</h2>
       {subtitle && (
-        <p className="mt-1 text-sm text-gray-600">
-          {subtitle}
-        </p>
+        <p className="dashboard-section-subtitle">{subtitle}</p>
       )}
     </div>
-    <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3">
-      {children}
-    </div>
+    <div className="dashboard-grid">{children}</div>
   </section>
 );
 
+// Helper component for dashboard tiles
 const DashboardTile = ({
   title,
   description,
@@ -60,97 +55,69 @@ const DashboardTile = ({
   description: string;
   href: string;
 }) => (
-  // This component uses Tailwind utility classes
-  <Link
-    href={href}
-    className="rounded-lg border border-gray-200 bg-gray-50 p-4 text-left text-sm text-gray-800 transition hover:border-blue-500 hover:bg-white hover:shadow-md"
-  >
-    <p className="font-semibold text-gray-900">{title}</p>
-    <p className="mt-1 text-xs text-gray-600">{description}</p>
+  <Link href={href} className="dashboard-tile">
+    <p className="dashboard-tile-title">{title}</p>
+    <p className="dashboard-tile-description">{description}</p>
   </Link>
 );
 
 export default function ManagementDashboard({ stats }: Props) {
   const { loading } = useRequireAdmin();
+
   if (loading) return null;
 
   return (
-    // This component uses Tailwind utility classes
-    <div className="min-h-screen bg-gray-50 text-gray-900">
+    <div className="dashboard-page">
       <Head>
-        <title>Management Dashboard — Famous Finds</title>
+        <title>Management Dashboard - Famous Finds</title>
       </Head>
-
       <Header />
-
-      <main className="mx-auto max-w-6xl px-4 pb-16 pt-6">
+      <main className="dashboard-main">
         {/* Page heading */}
-        <div className="mb-6 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+        <div className="dashboard-header">
           <div>
-            <h1 className="text-2xl font-semibold text-gray-900">
-              Management dashboard
-            </h1>
-            <p className="mt-1 text-sm text-gray-600">
-              Control centre for sellers, listings, orders, payouts, and support.
+            <h1>Management dashboard</h1>
+            <p>
+              Control centre for sellers, listings, orders, payouts, and
+              support.
             </p>
           </div>
-          <Link
-            href="/"
-            className="text-sm text-gray-600 transition hover:text-gray-900"
-          >
-            ← Back to marketplace
-          </Link>
+          <Link href="/">Back to marketplace</Link>
         </div>
 
         <ManagementDashboardTutorial />
 
         {/* Live summary tiles */}
-        <section className="mb-8 rounded-xl border border-neutral-200 bg-white p-5 shadow-sm">
-          <h2 className="text-lg font-semibold text-gray-900">
-            Live Summary
-          </h2>
-
-          <div className="mt-4 grid gap-4 md:grid-cols-3">
+        <section className="dashboard-summary-section">
+          <h2>Live Summary</h2>
+          <div className="dashboard-summary-grid">
             {/* Sellers tile */}
             <Link
               href="/management/sellers"
-              className="block rounded-lg border border-gray-200 bg-gray-50 p-4 text-sm text-gray-800 transition hover:border-blue-500 hover:bg-white hover:shadow-md"
+              className="dashboard-summary-tile"
             >
-              <p className="text-xs uppercase text-gray-500">Sellers</p>
-              <p className="mt-1 text-lg font-semibold text-gray-900">
-                {stats.sellers.toLocaleString("en-US")}
-              </p>
-              <p className="text-xs text-gray-500">
+              <p className="label">Sellers</p>
+              <p className="stat">{stats.sellers.toLocaleString("en-US")}</p>
+              <p className="sub-stat">
                 {stats.pendingSellers} pending vetting
               </p>
             </Link>
-
             {/* Listings tile */}
             <Link
               href="/management/listings"
-              className="block rounded-lg border border-gray-200 bg-gray-50 p-4 text-sm text-gray-800 transition hover:border-blue-500 hover:bg-white hover:shadow-md"
+              className="dashboard-summary-tile"
             >
-              <p className="text-xs uppercase text-gray-500">Listings</p>
-              <p className="mt-1 text-lg font-semibold text-gray-900">
-                {stats.listings.toLocaleString("en-US")}
-              </p>
-              <p className="text-xs text-gray-500">
+              <p className="label">Listings</p>
+              <p className="stat">{stats.listings.toLocaleString("en-US")}</p>
+              <p className="sub-stat">
                 {stats.pendingListings} awaiting review
               </p>
             </Link>
-
             {/* Orders tile */}
-            <Link
-              href="/management/orders"
-              className="block rounded-lg border border-gray-200 bg-gray-50 p-4 text-sm text-gray-800 transition hover:border-blue-500 hover:bg-white hover:shadow-md"
-            >
-              <p className="text-xs uppercase text-gray-500">Orders</p>
-              <p className="mt-1 text-lg font-semibold text-gray-900">
-                {stats.orders.toLocaleString("en-US")}
-              </p>
-              <p className="text-xs text-gray-500">
-                {stats.pendingOrders} in progress
-              </p>
+            <Link href="/management/orders" className="dashboard-summary-tile">
+              <p className="label">Orders</p>
+              <p className="stat">{stats.orders.toLocaleString("en-US")}</p>
+              <p className="sub-stat">{stats.pendingOrders} in progress</p>
             </Link>
           </div>
         </section>
@@ -158,7 +125,7 @@ export default function ManagementDashboard({ stats }: Props) {
         {/* 1. Product Approval Process */}
         <DashboardSection
           title="Product Approval Process"
-          subtitle="From new seller → listing review → live products. Start here to control what appears on the site."
+          subtitle="From new seller listing review → live products. Start here to control what appears on the site."
         >
           <DashboardTile
             title="Listing Review Queue"
@@ -228,7 +195,7 @@ export default function ManagementDashboard({ stats }: Props) {
           />
           <DashboardTile
             title="Returns & Disputes"
-            description="Handle returns, chargebacks, and buyer–seller disputes."
+            description="Handle returns, chargebacks, and buyer-seller disputes."
             href="/management/disputes"
           />
           <DashboardTile
@@ -277,10 +244,9 @@ export default function ManagementDashboard({ stats }: Props) {
             title="Developer / Integrations"
             description="API keys and integrations with external tools and services."
             href="/management/developer"
-          />
+          ANd/>
         </DashboardSection>
       </main>
-
       <ButlerChat />
       <Footer />
     </div>
@@ -303,7 +269,7 @@ export const getServerSideProps: GetServerSideProps<Props> = async () => {
       adminDb
         .collection("listings")
         // count both modern and older "PendingReview" statuses
-        .where("status", "in", ["Pending", "PendingReview"])
+        .where("status", "in", ["Pending", "Pending Review"])
         .get(),
       adminDb.collection("orders").get(),
       adminDb
@@ -320,7 +286,6 @@ export const getServerSideProps: GetServerSideProps<Props> = async () => {
       orders: ordersSnap.size,
       pendingOrders: pendingOrdersSnap.size,
     };
-
     return { props: { stats } };
   } catch (err) {
     console.error("Error loading management stats", err);
