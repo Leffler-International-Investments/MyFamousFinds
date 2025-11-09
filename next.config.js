@@ -1,26 +1,30 @@
-// FILE: /next.config.js
-/** @type {import('next').NextConfig} */
-const path = require("path");
+// FILE: next.config.js
 
+/** @type {import('next').NextConfig} */
 const nextConfig = {
+  reactStrictMode: false,
+
+  // ✅ Enable Turbopack explicitly (avoids “webpack config” conflict)
+  experimental: {
+    turbo: {
+      rules: {},
+    },
+  },
+
+  // ✅ Allow remote images for product listings, etc.
   images: {
-    remotePatterns: [
-      { protocol: "https", hostname: "images.unsplash.com" },
-      { protocol: "https", hostname: "cdn.shopify.com" },
-      // ✅ Allow listing images from Firebase Storage
-      { protocol: "https", hostname: "firebasestorage.googleapis.com" },
+    domains: [
+      "images.unsplash.com",
+      "famous-finds.vercel.app",
+      "cdn.shopify.com",
+      "res.cloudinary.com",
     ],
   },
 
-  // Your existing custom webpack config
-  webpack: (config) => {
-    config.resolve.alias["@"] = path.resolve(__dirname);
+  // ✅ PostCSS & Tailwind compatibility for Next 16
+  webpack(config) {
     return config;
   },
-
-  // ✅ Required for Next 16 when you have a webpack config
-  // This tells Next "yes, I'm intentionally using Turbopack"
-  turbopack: {},
 };
 
-module.exports = nextConfig;
+export default nextConfig;
