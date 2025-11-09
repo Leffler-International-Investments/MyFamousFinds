@@ -24,6 +24,7 @@ type Props = {
   stats: MgmtStats;
 };
 
+// Helper component for dashboard sections
 const DashboardSection = ({
   title,
   subtitle,
@@ -33,21 +34,22 @@ const DashboardSection = ({
   subtitle?: string;
   children: React.ReactNode;
 }) => (
-  <section className="mb-8 rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
-    <div className="mb-4">
-      <h2 className="text-lg font-semibold text-gray-900">{title}</h2>
+  <section className="dashboard-section">
+    <div className="dashboard-section-header">
+      <h2 className="dashboard-section-title">{title}</h2>
       {subtitle && (
-        <p className="mt-1 text-sm text-gray-600">
+        <p className="dashboard-section-subtitle">
           {subtitle}
         </p>
       )}
     </div>
-    <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3">
+    <div className="dashboard-grid">
       {children}
     </div>
   </section>
 );
 
+// Helper component for dashboard tiles
 const DashboardTile = ({
   title,
   description,
@@ -59,10 +61,10 @@ const DashboardTile = ({
 }) => (
   <Link
     href={href}
-    className="rounded-lg border border-gray-200 bg-gray-50 p-4 text-left text-sm text-gray-800 transition hover:border-blue-500 hover:bg-white hover:shadow-md"
+    className="dashboard-tile"
   >
-    <p className="font-semibold text-gray-900">{title}</p>
-    <p className="mt-1 text-xs text-gray-600">{description}</p>
+    <p className="dashboard-tile-title">{title}</p>
+    <p className="dashboard-tile-desc">{description}</p>
   </Link>
 );
 
@@ -71,27 +73,26 @@ export default function ManagementDashboard({ stats }: Props) {
   if (loading) return null;
 
   return (
-    <div className="min-h-screen bg-gray-50 text-gray-900">
+    <div className="dashboard-page">
       <Head>
         <title>Management Dashboard — Famous Finds</title>
       </Head>
 
       <Header />
 
-      <main className="mx-auto max-w-6xl px-4 pb-16 pt-6">
+      <main className="dashboard-main">
         {/* Page heading */}
-        <div className="mb-6 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+        <div className="dashboard-header">
           <div>
-            <h1 className="text-2xl font-semibold text-gray-900">
+            <h1>
               Management dashboard
             </h1>
-            <p className="mt-1 text-sm text-gray-600">
+            <p>
               Control centre for sellers, listings, orders, payouts, and support.
             </p>
           </div>
           <Link
             href="/"
-            className="text-sm text-gray-600 transition hover:text-gray-900"
           >
             ← Back to marketplace
           </Link>
@@ -100,22 +101,22 @@ export default function ManagementDashboard({ stats }: Props) {
         <ManagementDashboardTutorial />
 
         {/* Live summary tiles */}
-        <section className="mb-8 rounded-xl border border-neutral-200 bg-white p-5 shadow-sm">
-          <h2 className="text-lg font-semibold text-gray-900">
+        <section className="dashboard-summary-section">
+          <h2>
             Live Summary
           </h2>
 
-          <div className="mt-4 grid gap-4 md:grid-cols-3">
+          <div className="dashboard-grid">
             {/* Sellers tile */}
             <Link
               href="/management/sellers"
-              className="block rounded-lg border border-gray-200 bg-gray-50 p-4 text-sm text-gray-800 transition hover:border-blue-500 hover:bg-white hover:shadow-md"
+              className="dashboard-tile"
             >
-              <p className="text-xs uppercase text-gray-500">Sellers</p>
-              <p className="mt-1 text-lg font-semibold text-gray-900">
+              <p className="dashboard-tile-label">Sellers</p>
+              <p className="dashboard-tile-stat">
                 {stats.sellers.toLocaleString("en-US")}
               </p>
-              <p className="text-xs text-gray-500">
+              <p className="dashboard-tile-substat">
                 {stats.pendingSellers} pending vetting
               </p>
             </Link>
@@ -123,13 +124,13 @@ export default function ManagementDashboard({ stats }: Props) {
             {/* Listings tile */}
             <Link
               href="/management/listings"
-              className="block rounded-lg border border-gray-200 bg-gray-50 p-4 text-sm text-gray-800 transition hover:border-blue-500 hover:bg-white hover:shadow-md"
+              className="dashboard-tile"
             >
-              <p className="text-xs uppercase text-gray-500">Listings</p>
-              <p className="mt-1 text-lg font-semibold text-gray-900">
+              <p className="dashboard-tile-label">Listings</p>
+              <p className="dashboard-tile-stat">
                 {stats.listings.toLocaleString("en-US")}
               </p>
-              <p className="text-xs text-gray-500">
+              <p className="dashboard-tile-substat">
                 {stats.pendingListings} awaiting review
               </p>
             </Link>
@@ -137,13 +138,13 @@ export default function ManagementDashboard({ stats }: Props) {
             {/* Orders tile */}
             <Link
               href="/management/orders"
-              className="block rounded-lg border border-gray-200 bg-gray-50 p-4 text-sm text-gray-800 transition hover:border-blue-500 hover:bg-white hover:shadow-md"
+              className="dashboard-tile"
             >
-              <p className="text-xs uppercase text-gray-500">Orders</p>
-              <p className="mt-1 text-lg font-semibold text-gray-900">
+              <p className="dashboard-tile-label">Orders</p>
+              <p className="dashboard-tile-stat">
                 {stats.orders.toLocaleString("en-US")}
               </p>
-              <p className="text-xs text-gray-500">
+              <p className="dashboard-tile-substat">
                 {stats.pendingOrders} in progress
               </p>
             </Link>
@@ -248,7 +249,21 @@ export default function ManagementDashboard({ stats }: Props) {
           title="Platform, Support & Analytics"
           subtitle="Support customers, track performance, and manage internal access."
         >
-{/* ... existing code ... */}
+          <DashboardTile
+            title="Analytics & Reports"
+            description="High-level sales and traffic insights across Famous Finds."
+            href="/management/analytics"
+          />
+          <DashboardTile
+            title="Support Tickets"
+            description="View and respond to customer support tickets."
+            href="/management/support-tickets"
+          />
+          <DashboardTile
+            title="Logs & Audit Trail"
+            description="Review a history of important admin and system actions."
+            href="/management/logs"
+          />
           <DashboardTile
             title="User & Role Management"
             description="Manage admin accounts and their roles (operations, finance, support, etc.)."
