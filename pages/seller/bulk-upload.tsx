@@ -36,7 +36,8 @@ type ApiResult = {
 };
 
 export default function SellerBulkUpload() {
-  const { loading, seller } = useRequireSeller();
+  // ✅ FIX: your hook returns { loading, isSeller }, not { loading, seller }
+  const { loading } = useRequireSeller();
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [rawText, setRawText] = useState("");
   const [rows, setRows] = useState<ParsedRow[]>([]);
