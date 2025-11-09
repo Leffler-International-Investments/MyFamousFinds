@@ -1,15 +1,17 @@
 // FILE: /lib/getStripe.ts
 import { Stripe, loadStripe } from "@stripe/stripe-js";
 
-let stripePromise: Promise<Stripe | null>;
+let stripePromise: Promise<Stripe | null> | null = null;
 
-export const getStripe = (): Promise<Stripe | null> => {
+export function getStripe() {
   if (!stripePromise) {
-    const publicKey = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;
-    if (!publicKey) {
-      throw new Error("Missing NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY");
+    const key = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;
+    if (!key) {
+      console.error("NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY is not set");
+      stripePromise = Promise.resolve(null);
+    } else {
+      stripePromise = loadStripe(key);
     }
-    stripePromise = loadStripe(publicKey);
   }
   return stripePromise;
-};
+}
