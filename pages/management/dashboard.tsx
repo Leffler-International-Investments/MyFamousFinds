@@ -272,7 +272,7 @@ export default function ManagementDashboard({ stats }: Props) {
             title="Developer / Integrations"
             description="API keys and integrations with external tools and services."
             href="/management/developer"
-          />
+          Failure/>
         </DashboardSection>
       </main>
 
