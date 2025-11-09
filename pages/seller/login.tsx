@@ -1,5 +1,5 @@
 // FILE: /pages/seller/login.tsx
-// This is the ORIGINAL version that uses Tailwind classes.
+// This version uses the custom CSS classes from globals.css
 import Head from "next/head";
 import Link from "next/link";
 import { useRouter } from "next/router";
@@ -22,11 +22,19 @@ type Start2faSuccess = {
   via: "sms" | "email";
   devCode?: string;
 };
-type Start2faError = { ok: false; message: string };
+type Start2faError = {
+  ok: false;
+  message?: string;
+};
 type Start2faResponse = Start2faSuccess | Start2faError;
 
-type Verify2faSuccess = { ok: true; email: string; role: string };
-type Verify2faError = { ok: false; message: string };
+type Verify2faSuccess = {
+  ok: true;
+};
+type Verify2faError = {
+  ok: false;
+  message?: string;
+};
 type Verify2faResponse = Verify2faSuccess | Verify2faError;
 
 type TwoFactorStep = "credentials" | "verify";
@@ -38,10 +46,9 @@ export default function SellerLoginPage() {
   const [code, setCode] = useState("");
   const [step, setStep] = useState<TwoFactorStep>("credentials");
   const [challengeId, setChallengeId] = useState<string | null>(null);
-  const [pendingSellerId, setPendingSellerId] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const from =
     typeof router.query.from === "string" ? router.query.from : null;
@@ -50,18 +57,14 @@ export default function SellerLoginPage() {
     e.preventDefault();
     setError(null);
     setInfo(null);
-
     const trimmedEmail = email.trim().toLowerCase();
 
     if (!trimmedEmail || !password) {
       setError("Please enter your email and password.");
       return;
     }
-
     setLoading(true);
-
     try {
-      // 1) Email + password check
       const res = await fetch("/api/seller/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -72,29 +75,33 @@ export default function SellerLoginPage() {
 
       if (!json.ok) {
         const errJson = json as LoginError;
-
         if (errJson.code === "apply_first") {
-          setError(
-            "We couldn’t find a seller account for that email. Please apply to become a seller first."
+          setError("");
+          setInfo(
+            "You need to apply and be approved as a seller before you can log in."
           );
-        } else if (errJson.code === "pending") {
-          setError(
-            "Your seller application is still under review. You’ll be notified once approved."
-          );
-        } else if (errJson.code === "bad_credentials") {
-          setError("Incorrect email or password.");
-        } else {
-          setError(
-            errJson.message || "Unable to sign you in. Please try again."
-          );
+          router.push("/seller/apply");
+          return;
         }
-        setLoading(false);
+        if (errJson.code === "pending") {
+          setError("");
+          setInfo(
+            "Your seller application is still under review. We'll email you as soon as it's approved."
+          );
+          return;
+        }
+        if (errJson.code === "bad_credentials") {
+          setError("Incorrect email or password. Please try again.");
+          return;
+        }
+        setError(
+          errJson.message ||
+            "We couldn't sign you in. Please check your details and try again."
+        );
         return;
       }
 
-      setPendingSellerId(json.sellerId);
-
-      // 2) Start 2FA challenge
+      // Start 2FA
       const twofaRes = await fetch("/api/auth/start-2fa", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -109,20 +116,19 @@ export default function SellerLoginPage() {
 
       if (!twofaJson.ok) {
         const errJson = twofaJson as Start2faError;
-        setError(errJson.message || "Could not start verification step.");
-        setLoading(false);
+        setError(
+          errJson.message ||
+            "We couldn't start the verification process. Please try again."
+        );
         return;
       }
 
       setChallengeId(twofaJson.challengeId);
       setStep("verify");
-
-      let message = "We’ve sent a 6-digit code to your email address.";
-
-      if (twofaJson.devCode) {
-        message += ` (Dev code: ${twofaJson.devCode})`;
+      let message = "We've sent a 6-digit code to your email address.";
+      if ((twofaJson as Start2faSuccess).devCode) {
+        message += ` (Dev code: ${(twofaJson as Start2faSuccess).devCode})`;
       }
-
       setInfo(message);
     } catch (err) {
       console.error("seller_login_error", err);
@@ -135,19 +141,15 @@ export default function SellerLoginPage() {
   async function handleVerifySubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError(null);
-
     if (!challengeId) {
       setError("Your verification session has expired. Please log in again.");
       return;
     }
-
     if (!code.trim()) {
       setError("Please enter the verification code.");
       return;
     }
-
     setLoading(true);
-
     try {
       const res = await fetch("/api/auth/verify-2fa", {
         method: "POST",
@@ -163,22 +165,19 @@ export default function SellerLoginPage() {
       if (!json.ok) {
         const errJson = json as Verify2faError;
         setError(errJson.message || "Incorrect or expired code.");
-        setLoading(false);
         return;
       }
 
-      const trimmedEmail = email.trim().toLowerCase();
-
       if (typeof window !== "undefined") {
         window.localStorage.setItem("ff-role", "seller");
-        window.localStorage.setItem("ff-email", trimmedEmail);
-        if (pendingSellerId) {
-          window.localStorage.setItem("ff-seller-id", pendingSellerId);
-        }
+        window.localStorage.setItem("ff-email", email.toLowerCase().trim());
       }
 
-      const target = from || "/seller/dashboard";
-      router.push(target);
+      if (from) {
+        router.push(from);
+      } else {
+        router.push("/seller/dashboard");
+      }
     } catch (err) {
       console.error("seller_verify_2fa_error", err);
       setError("Unable to verify the code. Please try again.");
@@ -192,139 +191,113 @@ export default function SellerLoginPage() {
   return (
     <>
       <Head>
-        <title>Seller Login — Famous Finds</title>
+        <title>Seller Login - Famous Finds</title>
       </Head>
-      {/* This component uses Tailwind utility classes */}
-      <div className="flex min-h-screen flex-col bg-black text-gray-100">
+      <div className="auth-page">
         <Header />
-
-        <main className="flex flex-1 justify-center px-4 py-8">
-          <div className="w-full max-w-md rounded-2xl bg-neutral-900/80 p-6 shadow-lg ring-1 ring-white/10">
-            <h1 className="text-center text-2xl font-semibold tracking-tight text-white">
-              Seller Login
-            </h1>
-            <p className="mt-1 text-center text-xs text-gray-400">
+        <main className="auth-main">
+          <div className="auth-card">
+            <h1>Seller Login</h1>
+            <p className="auth-subtitle">
               Only vetted and approved sellers can access this console.
             </p>
 
-            {error && (
-              <div className="mt-4 rounded-md bg-red-900/40 px-3 py-2 text-xs text-red-200">
-                {error}
-              </div>
-            )}
-
-            {info && (
-              <div className="mt-4 rounded-md bg-emerald-900/30 px-3 py-2 text-xs text-emerald-200">
-                {info}
-              </div>
-            )}
+            {error && <div className="auth-error">{error}</div>}
+            {info && <div className="auth-info">{info}</div>}
 
             {step === "credentials" ? (
-              <form
-                onSubmit={handleCredentialsSubmit}
-                className="mt-6 space-y-4"
-              >
-                <div>
-                  <label className="block text-xs font-medium text-gray-300">
-                    Email
-                  </label>
-                  <input
-                    type="email"
+              <form onSubmit={handleCredentialsSubmit}>
+                <div className="auth-fields">
+                  <div className="auth-field">
+                    <label htmlFor="email">Email</label>
+                    <input
+                      id="email"
+                      type="email"
+                      required
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      className="auth-input"
+                      placeholder="you@example.com"
+                      disabled={disabled}
+                    />
+                  </div>
+                  <PasswordInput
+                    label="Password"
+                    value={password}
+                    onChange={setPassword}
+                    name="password"
                     required
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="mt-1 w-full rounded-md border border-neutral-700 bg-black/40 px-3 py-2 text-sm text-gray-100 focus:border-gray-300 focus:outline-none"
+                    showStrength
+                    placeholder="Enter your seller password"
                   />
-                </div>
-
-                <PasswordInput
-                  label="Password"
-                  value={password}
-                  onChange={setPassword}
-                  name="password"
-                  required
-                  showStrength
-                  placeholder="Enter your seller password"
-                />
-
-                <button
-                  type="submit"
-                  disabled={disabled}
-                  className="mt-2 flex w-full items-center justify-center rounded-md bg-white py-2 text-sm font-semibold text-black shadow-sm hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-70"
-                >
-                  {loading ? "Checking…" : "Send code & continue"}
-                </button>
-
-                <div className="text-right">
-                  <Link
-                    href="/seller/forgot-password"
-                    className="text-xs font-medium text-blue-400 hover:text-blue-200"
+                  <button
+                    type="submit"
+                    disabled={disabled}
+                    className="auth-button-primary"
                   >
-                    Forgot password?
-                  </Link>
+                    {loading ? "Checking..." : "Send code & continue"}
+                  </button>
+                  <p className="auth-secondary-link-inline">
+                    <Link href="/seller/apply">
+                      New here? Apply to become a seller
+                    </Link>
+                  </p>
                 </div>
               </form>
             ) : (
-              <form onSubmit={handleVerifySubmit} className="mt-6 space-y-4">
-                <p className="text-xs text-gray-300">
-                  Enter the 6-digit code we sent to your email address to
-                  complete your login.
+              <form onSubmit={handleVerifySubmit}>
+                <p className="auth-secondary-link-inline">
+                  Enter the 6-digit code we sent to your email address to finish
+                  signing in.
                 </p>
-                <div>
-                  <label className="block text-xs font-medium text-gray-300">
-                    Verification code
-                  </label>
-                  <input
-                    type="text"
-                    inputMode="numeric"
-                    autoComplete="one-time-code"
-                    maxLength={6}
-                    required
-                    value={code}
-                    onChange={(e) => setCode(e.target.value)}
-                    className="mt-1 w-full rounded-md border border-neutral-700 bg-black/40 px-3 py-2 text-sm tracking-[0.35em] text-gray-100 focus:border-gray-300 focus:outline-none"
-                  />
+                <div className="auth-fields">
+                  <div className="auth-field">
+                    <label htmlFor="code">Verification code</label>
+                    <input
+                      id="code"
+                      type="text"
+                      inputMode="numeric"
+                      autoComplete="one-time-code"
+                      maxLength={6}
+                      value={code}
+                      onChange={(e) => setCode(e.target.value)}
+                      className="auth-input auth-code-input"
+                      disabled={disabled}
+                    />
+                  </div>
+                  <button
+                    type="submit"
+                    disabled={disabled}
+                    className="auth-button-primary"
+                  >
+                    {loading ? "Verifying..." : "Confirm & continue"}
+                  </button>
                 </div>
-
-                <button
-                  type="submit"
-                  disabled={disabled}
-                  className="mt-2 flex w-full items-center justify-center rounded-md bg-white py-2 text-sm font-semibold text-black shadow-sm hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-70"
-                >
-                  {loading ? "Verifying…" : "Enter Seller Console"}
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    setStep("credentials");
-                    setCode("");
-                    setChallengeId(null);
-                  }}
-                  className="w-full text-center text-xs text-gray-400 hover:text-gray-200"
-                >
-                  ← Start over
-                </button>
+                <p className="auth-secondary-link-inline">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (disabled) return;
+                      setStep("credentials");
+                      setCode("");
+                      setInfo(null);
+                      setError(null);
+                    }}
+                  >
+                    Use a different email
+                  </button>
+                </p>
               </form>
             )}
 
-            <div className="mt-4 space-y-2 text-center">
-              <Link
-                href="/seller/register-vetting"
-                className="block text-xs font-medium text-blue-400 hover:text-blue-200"
-              >
-                New here? Apply to become a seller →
-              </Link>
-              <Link
-                href="/"
-                className="block text-xs text-gray-400 hover:text-gray-200"
-              >
-                ← Back to storefront
-              </Link>
-            </div>
+            <p className="auth-secondary-link">
+              <Link href="/"> Back to storefront</Link>
+            </p>
+            <p className="auth-secondary-link">
+              <Link href="/seller/forgot-password">Forgot password?</Link>
+            </p>
           </div>
         </main>
-
         <Footer />
       </div>
     </>
