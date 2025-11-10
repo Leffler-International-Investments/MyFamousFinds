@@ -22,7 +22,7 @@ type Props = {
 };
 
 export default function ManagementOrders({ orders }: Props) {
-  const { loading } } = useRequireAdmin();
+  const { loading } = useRequireAdmin();
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("All");
 
