@@ -71,37 +71,20 @@ export default async function handler(
     // 5. Fetch Lifetime Volume (you may need to get this from your own DB)
     //
     
-    // --- MOCK DATA FOR DEVELOPMENT ---
-    const mockWalletData: WalletData = {
-      available: 8120.00,
-      upcoming: 2430.00,
-      lifetime: 142780.00,
-      account: {
-        bankName: "Stripe Test Bank",
-        last4: "6789",
-      },
-      upcomingDate: "Scheduled for Nov 14, 2025",
-      payouts: [
-        { 
-          id: "po_123", 
-          date: "Nov 02, 2025", 
-          amount: "$4,320.00", 
-          status: "Paid", 
-          destination: "Bank •••• 6789" 
-        },
-        { 
-          id: "po_456", 
-          date: "Oct 28, 2025", 
-          amount: "$2,110.00", 
-          status: "Paid", 
-          destination: "Bank •••• 6789" 
-        },
-      ],
+    // --- MOCK DATA REMOVED ---
+    // This is now live data, ready to be populated by your Stripe API calls above
+    const liveWalletData: WalletData = {
+      available: 0,
+      upcoming: 0,
+      lifetime: 0,
+      account: null, // Set to null, Stripe will populate this
+      upcomingDate: null, // Set to null, Stripe will populate this
+      payouts: [], // Empty array, Stripe will populate this
     };
-    // --- END MOCK DATA ---
+    // --- END LIVE DATA ---
 
     // When live, you will build this object from your Stripe responses
-    res.status(200).json({ ok: true, wallet: mockWalletData });
+    res.status(200).json({ ok: true, wallet: liveWalletData });
 
   } catch (err: any) {
     console.error("Error fetching wallet data:", err);
