@@ -28,9 +28,7 @@ async function getRawBody(req: NextApiRequest): Promise<Buffer> {
     req.on("data", (chunk) => {
       chunks.push(typeof chunk === "string" ? Buffer.from(chunk) : chunk);
     });
-    req.on("end", () => {
-      resolve(Buffer.concat(chunks));
-    });
+    req.on("end", () => resolve(Buffer.concat(chunks)));
     req.on("error", (err) => reject(err));
   });
 }
@@ -59,7 +57,7 @@ export default async function handler(
 
     event = stripe.webhooks.constructEvent(buf, sig, webhookSecret!);
   } catch (err: any) {
-    console.error("Stripe webhook signature verification failed:", err?.message);
+    console.error("Stripe webhook signature error:", err?.message || err);
     return res.status(400).send(`Webhook Error: ${err.message}`);
   }
 
@@ -77,14 +75,14 @@ export default async function handler(
         const listingSnap = await listingRef.get();
         const listing = listingSnap.data() || {};
 
-        // A. Mark listing sold
+        // Mark listing as Sold
         await listingRef.update({
           status: "Sold",
           updatedAt: FieldValue.serverTimestamp(),
           stripePaymentIntent: session.payment_intent || null,
         });
 
-        // B. Create order record
+        // Create order record
         const buyerEmail = session.customer_details?.email || "";
         const buyerName = session.customer_details?.name || "";
         const currency = (session.currency || "usd").toUpperCase();
@@ -116,7 +114,7 @@ export default async function handler(
         const orderRef = await ordersRef.add(orderDoc);
         const orderId = orderRef.id;
 
-        // C. Email receipt
+        // Send email receipt
         if (buyerEmail) {
           const emailPayload: OrderEmailPayload = {
             id: orderId,
