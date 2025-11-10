@@ -19,7 +19,7 @@ type SellerApplication = {
 type Props = { items: SellerApplication[] };
 
 export default function ManagementVettingQueue({ items }: Props) {
-  const { loading } } = useRequireAdmin();
+  const { loading } = useRequireAdmin();
   const [query, setQuery] = useState("");
   const [localItems, setLocalItems] = useState(items);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
