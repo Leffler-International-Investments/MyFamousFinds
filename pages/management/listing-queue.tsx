@@ -27,7 +27,7 @@ type Props = { items: Listing[] };
 export default function ManagementListingQueue({
   items: initialItems,
 }: Props) {
-  const { loading } } = useRequireAdmin();
+  const { loading } = useRequireAdmin();
   const [items, setItems] = useState(initialItems);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
