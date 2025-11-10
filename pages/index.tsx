@@ -89,14 +89,14 @@ export default function Home({ trending, newArrivals }: HomeProps) {
         .wrap {
           max-width: 1200px;
           margin: 0 auto;
-          padding: 24px 16px 80px;
+          padding: 16px 16px 80px; /* CHANGED: Reduced top padding */
         }
         .hero {
           display: grid;
           grid-template-columns: minmax(0, 1.1fr) minmax(0, 1.1fr);
           gap: 40px;
-          margin-top: 24px;
-          margin-bottom: 32px;
+          margin-top: 16px;      /* CHANGED: Reduced top margin */
+          margin-bottom: 24px;   /* CHANGED: Reduced bottom margin */
         }
         .heroCopy {
           max-width: 520px;
@@ -176,7 +176,7 @@ export default function Home({ trending, newArrivals }: HomeProps) {
           display: flex;
           flex-wrap: wrap;
           gap: 10px;
-          margin-bottom: 24px;
+          margin-bottom: 16px; /* CHANGED: Reduced bottom margin */
         }
         .cat {
           font-size: 13px;
