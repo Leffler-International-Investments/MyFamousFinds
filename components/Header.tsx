@@ -1,15 +1,13 @@
 // FILE: /components/Header.tsx
-// --- UPDATED per your new instructions ---
+// --- UPDATED to link to the new /vip-welcome page ---
 
 import Link from "next/link";
 import Image from "next/image";
-// --- ADDED (Change 1a) ---
 import { useEffect, useState } from "react";
 import { onAuthStateChanged, User } from "firebase/auth";
 import { auth } from "../utils/firebaseClient"; // Assuming this path is correct
 
 export default function Header() {
-  // --- ADDED (Change 1b) ---
   const [vipUser, setVipUser] = useState<User | null>(null);
 
   useEffect(() => {
@@ -18,7 +16,6 @@ export default function Header() {
     });
     return () => unsubscribe();
   }, []);
-  // -------------------------
 
   return (
     <header className="site-header">
@@ -34,22 +31,27 @@ export default function Header() {
           />
         </Link>
 
+        {/* --- MOVED AND RESTYLED VIP BUTTON (per new request) --- */}
+        <div className="vip-link-area">
+          <Link
+            // --- THIS IS THE KEY CHANGE ---
+            // If logged in, go to profile.
+            // If logged OUT, go to the new WELCOME page.
+            href={vipUser ? "/club-profile" : "/vip-welcome"}
+            className="admin-button vip"
+          >
+            {/* Updated text to be more inviting */ }
+            {vipUser ? "My VIP Profile" : "VIP Front Row"}
+          </Link>
+        </div>
+        {/* --------------------------------------------------- */}
+
         {/* Navigation */}
         <nav className="main-nav">
           <Link href="/" className="nav-link-item">Dashboard</Link>
           <Link href="/help" className="nav-link-item">Help</Link>
           <Link href="/about" className="nav-link-item">About</Link>
           <Link href="/contact" className="nav-link-item">Contact</Link>
-
-          {/* --- ADDED (Change 1c) --- */}
-          {/* VIP Club link (Famous-Finds Front Row) */}
-          <Link
-            href={vipUser ? "/club-profile" : "/club-login"}
-            className="nav-link-item"
-          >
-            {vipUser ? "My VIP Profile" : "VIP Sign In"}
-          </Link>
-          {/* ------------------------- */}
         </nav>
 
         {/* Admin portals - Classes remain, styles are now in globals.css */}
@@ -65,7 +67,7 @@ export default function Header() {
 
       <style jsx>{`
         /* Reset any potential global spacing on these elements */
-        .site-header, .inner-container, .brand-logo, .main-nav, .nav-link-item, .admin-portals {
+        .site-header, .inner-container, .brand-logo, .main-nav, .nav-link-item, .admin-portals, .vip-link-area {
           margin: 0;
           padding: 0;
           box-sizing: border-box; /* Crucial for consistent sizing */
@@ -94,6 +96,10 @@ export default function Header() {
           align-items: center;
           text-decoration: none;
           flex-shrink: 0; /* Prevents logo from shrinking */
+        }
+
+        .vip-link-area {
+          flex-shrink: 0; /* Prevents button from shrinking */
         }
 
         .main-nav {
@@ -139,13 +145,18 @@ export default function Header() {
 
           .brand-logo,
           .main-nav,
-          .admin-portals {
+          .admin-portals,
+          .vip-link-area { /* <-- Added .vip-link-area */
             width: 100%; /* All main sections take full width on mobile */
             margin-bottom: 0 !important; 
           }
           
           .brand-logo {
             margin-bottom: 5px !important; /* Small space below logo */
+          }
+
+          .vip-link-area { /* <-- Added this block */
+            margin-top: 5px !important;
           }
 
           .main-nav {
