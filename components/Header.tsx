@@ -9,7 +9,7 @@ export default function Header() {
         {/* Brand */}
         <Link href="/" className="brand">
           <Image
-            src="/Famous-Finds-Logo.jpg"
+            src="/Famous-Finds-Logo.png"  {/* <--- THE FIX IS HERE */}
             alt="Famous Finds Logo"
             width={46}
             height={50}
