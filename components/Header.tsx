@@ -49,7 +49,7 @@ export default function Header() {
           display: flex;
           align-items: center;
           justify-content: space-between;
-          gap: 16px; /* Default gap for larger screens */
+          gap: 20px; /* Increased gap for larger screens to give space between main sections */
           flex-wrap: wrap;
         }
         .brand {
@@ -62,13 +62,14 @@ export default function Header() {
           align-items: center;
           gap: 18px;
           font-size: 13px;
-          flex-grow: 1; /* Allow navigation to take available space */
-          justify-content: flex-start; /* Align nav links to start on larger screens */
+          /* flex-grow: 1; /* Removed flex-grow here to prevent over-expansion when space is limited */
+          justify-content: flex-start;
+          flex-wrap: wrap; /* Allow nav links to wrap if needed */
         }
         .navLink {
           color: #e5e7eb;
           text-decoration: none;
-          white-space: nowrap; /* Prevent nav links from breaking */
+          white-space: nowrap;
         }
         .navLink:hover {
           color: #fff;
@@ -87,7 +88,7 @@ export default function Header() {
           font-weight: 600;
           text-decoration: none;
           transition: all 0.2s ease;
-          white-space: nowrap; /* Prevent buttons from breaking words */
+          white-space: nowrap;
         }
         .management {
           background: linear-gradient(90deg, #d1d5db, #9ca3af);
@@ -102,30 +103,41 @@ export default function Header() {
           opacity: 0.9;
         }
 
-        /* --- Mobile-specific adjustments --- */
+        /* --- Mobile-specific adjustments (more aggressive) --- */
         @media (max-width: 850px) {
           .inner {
-            flex-direction: column; /* Stack elements vertically */
-            align-items: flex-start; /* Align everything to the left */
-            gap: 10px; /* Consistent vertical gap between stacked sections */
-            padding-bottom: 12px; /* Add some padding at the bottom when stacked */
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 5px; /* Significantly reduced vertical gap between stacked sections */
+            padding: 8px 18px; /* Reduced vertical padding */
           }
           .brand {
-            width: 100%; /* Brand takes full width */
-            margin-bottom: 5px; /* Little space below logo */
+            width: 100%;
+            margin-bottom: 0px; /* No extra margin below logo */
           }
           .nav {
-            width: 100%; /* Navigation takes full width */
-            flex-direction: row; /* Keep nav links horizontal */
-            justify-content: flex-start; /* Align nav links to start */
-            gap: 15px; /* Space between nav links */
-            flex-wrap: wrap; /* Allow nav links to wrap if needed */
+            width: 100%;
+            flex-direction: row;
+            justify-content: flex-start;
+            gap: 10px; /* Reduced gap between nav links */
+            margin-top: 5px; /* Small gap above nav */
           }
           .right {
-            width: 100%; /* Admin buttons take full width */
-            justify-content: flex-start; /* Align buttons to the left */
-            gap: 8px; /* Space between admin buttons */
-            margin-top: 5px; /* Small space above admin buttons */
+            width: 100%;
+            justify-content: flex-start;
+            gap: 6px; /* Reduced gap between admin buttons */
+            margin-top: 5px; /* Small gap above admin buttons */
+          }
+        }
+
+        /* Further refinement for very small screens if necessary */
+        @media (max-width: 480px) {
+          .nav {
+            gap: 8px; /* Even smaller gap for nav on very small screens */
+          }
+          .adminBtn {
+            font-size: 11px; /* Slightly smaller font for buttons if they are too wide */
+            padding: 5px 10px; /* Smaller padding for buttons */
           }
         }
       `}</style>
