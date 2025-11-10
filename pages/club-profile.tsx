@@ -82,7 +82,7 @@ export default function ProfilePage() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-black text-gray-100">
+    <div className="dark-theme-page">
       <Head>
         <title>My Profile — Famous Finds</title>
       </Head>
