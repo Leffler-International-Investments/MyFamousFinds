@@ -1,11 +1,25 @@
 // FILE: /pages/api/butler.ts
-// Butler API: searches the Famous Finds catalogue (Firestore `listings`).
+// Butler API: search Firestore `listings` and return structured results.
 
 import type { NextApiRequest, NextApiResponse } from "next";
 import { adminDb } from "../../utils/firebaseAdmin";
 
-type Ok = { answer: string };
-type Err = { error: string };
+type ButlerResult = {
+  id: string;
+  title: string;
+  brand: string;
+  price: string;
+  href: string;
+};
+
+type Ok = {
+  answer: string;
+  results: ButlerResult[];
+};
+
+type Err = {
+  error: string;
+};
 
 function norm(v: any): string {
   return (v || "").toString().toLowerCase();
@@ -25,11 +39,10 @@ export default async function handler(
   if (!userQuery) {
     return res
       .status(400)
-      .json({ error: "Please tell me what you are looking for." });
+      .json({ error: "Please tell me what you’re looking for." });
   }
 
   try {
-    // Load latest listings (same source as homepage/catalogue)
     const snap = await adminDb
       .collection("listings")
       .orderBy("createdAt", "desc")
@@ -39,15 +52,17 @@ export default async function handler(
     const q = norm(userQuery);
     const words = q.split(/\s+/).filter(Boolean);
 
+    const allowedStatuses = ["Live", "Active", "Approved"];
+
     type Hit = {
       id: string;
       title: string;
       brand: string;
       price: string;
+      href: string;
       score: number;
     };
 
-    const allowedStatuses = ["Live", "Active", "Approved"];
     const hits: Hit[] = [];
 
     snap.docs.forEach((doc) => {
@@ -55,7 +70,7 @@ export default async function handler(
 
       if (d.status && !allowedStatuses.includes(d.status)) return;
 
-      const title = d.title || "";
+      const title = d.title || "Untitled listing";
       const brand = d.brand || "";
       const category = d.category || d.categorySlug || "";
       const description = d.description || "";
@@ -80,6 +95,7 @@ export default async function handler(
         title,
         brand,
         price,
+        href: `/product/${doc.id}`,
         score,
       });
     });
@@ -90,30 +106,38 @@ export default async function handler(
       return res.json({
         answer:
           `I checked the Famous Finds catalogue but couldn’t find a good match for “${userQuery}”. ` +
-          `Try another brand, colour, or item type – or tap “Browse the catalogue”.`,
+          `Try another brand, colour or item type – or tap “Browse the catalogue”.`,
+        results: [],
       });
     }
 
     const top = hits.slice(0, 5);
-
     const lines = top.map((item, i) => {
       const label =
         (item.brand ? item.brand + " — " : "") +
         item.title +
         (item.price ? ` (${item.price})` : "");
-      // Note: /product/[id] is the product page route.
-      return `${i + 1}. ${label} – open /product/${item.id}`;
+      return `${i + 1}. ${label}`;
     });
 
     const answer =
       `Here’s what I found in the Famous Finds catalogue for “${userQuery}”:\n\n` +
-      lines.join("\n");
+      lines.join("\n") +
+      `\n\nTap a result below to open the product.`;
 
-    return res.status(200).json({ answer });
+    const results: ButlerResult[] = top.map((item) => ({
+      id: item.id,
+      title: item.title,
+      brand: item.brand,
+      price: item.price,
+      href: item.href,
+    }));
+
+    return res.status(200).json({ answer, results });
   } catch (err) {
     console.error("Butler search error:", err);
-    return res.status(500).json({
-      error: "There was a problem searching the catalogue.",
-    });
+    return res
+      .status(500)
+      .json({ error: "There was a problem searching the catalogue." });
   }
 }
