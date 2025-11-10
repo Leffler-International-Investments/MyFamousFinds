@@ -37,84 +37,66 @@ export default function ManagementSellers({ sellers }: Props) {
     });
   }, [sellers, query]);
 
-  if (loading) return null;
+  if (loading) return <div className="dashboard-page" />; // Light theme skeleton
 
   return (
     <>
       <Head>
         <title>Seller Directory — Admin</title>
       </Head>
-      <div className="min-h-screen bg-gray-50 text-gray-900">
+      {/* Use light theme classes from globals.css */}
+      <div className="dashboard-page">
         <Header />
 
-        <main className="mx-auto max-w-6xl px-4 pb-16 pt-6">
-          <div className="mb-6 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+        <main className="dashboard-main">
+          {/* Use light theme classes from globals.css */}
+          <div className="dashboard-header">
             <div>
-              <h1 className="text-2xl font-semibold text-gray-900">
-                Seller Directory
-              </h1>
-              <p className="mt-1 text-sm text-gray-600">
+              <h1>Seller Directory</h1>
+              <p>
                 View and manage all active sellers on Famous-Finds.
               </p>
             </div>
-            <Link
-              href="/management/dashboard"
-              className="text-sm text-gray-600 hover:text-gray-900"
-            >
+            <Link href="/management/dashboard">
               ← Back to Management Dashboard
             </Link>
           </div>
 
-          <div className="mb-4 flex flex-wrap items-center gap-3">
+          <div className="filters-bar">
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Search by seller name, email, or ID…"
-              className="w-full max-w-xs rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-gray-900 focus:outline-none"
+              className="form-input"
             />
           </div>
 
-          <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white shadow-sm">
-            <table className="min-w-full divide-y divide-gray-200 text-sm">
-              <thead className="bg-gray-50">
+          <div className="table-wrapper">
+            <table className="data-table">
+              <thead>
                 <tr>
-                  <th className="px-3 py-2 text-left font-medium text-gray-700">
-                    Seller
-                  </th>
-                  <th className="px-3 py-2 text-left font-medium text-gray-700">
-                    Email
-                  </th>
-                  <th className="px-3 py-2 text-left font-medium text-gray-700">
-                    Status
-                  </th>
-                  <th className="px-3 py-2 text-right font-medium text-gray-700">
-                    Listings
-                  </th>
-                  <th className="px-3 py-2 text-left font-medium text-gray-700">
-                    Created
-                  </th>
+                  <th>Seller</th>
+                  <th>Email</th>
+                  <th>Status</th>
+                  <th style={{textAlign: "right"}}>Listings</th>
+                  <th>Created</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
+              <tbody>
                 {visible.map((s) => (
                   <tr key={s.id}>
-                    <td className="px-3 py-2 text-gray-900">{s.name}</td>
-                    <td className="px-3 py-2 text-gray-700">{s.email}</td>
-                    <td className="px-3 py-2 text-gray-700">{s.status}</td>
-                    <td className="px-3 py-2 text-right text-gray-700">
+                    <td>{s.name}</td>
+                    <td>{s.email}</td>
+                    <td>{s.status}</td>
+                    <td style={{textAlign: "right"}}>
                       {s.totalListings.toLocaleString("en-US")}
                     </td>
-                    <td className="px-3 py-2 text-gray-700">
-                      {s.createdAt}
-                    </td>
+                    <td>{s.createdAt}</td>
                   </tr>
                 ))}
                 {visible.length === 0 && (
                   <tr>
-                    <td
-                      colSpan={5}
-                      className="px-3 py-6 text-center text-sm text-gray-500"
-                    >
+                    <td colSpan={5} className="table-message">
                       No sellers match this search.
                     </td>
                   </tr>
@@ -126,6 +108,67 @@ export default function ManagementSellers({ sellers }: Props) {
 
         <Footer />
       </div>
+      
+      {/* Styles for the light theme table and forms */}
+      <style jsx>{`
+        .filters-bar {
+          margin-bottom: 16px;
+          display: flex;
+          gap: 12px;
+        }
+        .form-input {
+          width: 100%;
+          max-width: 320px;
+          border-radius: 6px;
+          border: 1px solid #d1d5db; /* gray-300 */
+          padding: 8px 12px;
+          font-size: 14px;
+        }
+        .form-input:focus {
+          border-color: #111827; /* gray-900 */
+          outline: none;
+        }
+        
+        .table-wrapper {
+          overflow-x: auto;
+          border-radius: 8px;
+          border: 1px solid #e5e7eb; /* gray-200 */
+          background: #ffffff;
+          box-shadow: 0 1px 2px 0 rgba(0,0,0,0.05);
+        }
+        .data-table {
+          min-width: 100%;
+          border-collapse: collapse;
+          font-size: 14px;
+        }
+        .data-table thead {
+          background: #f9fafb; /* gray-50 */
+        }
+        .data-table th {
+          padding: 8px 12px;
+          text-align: left;
+          font-weight: 500;
+          color: #374151; /* gray-700 */
+        }
+        .data-table tbody tr {
+          border-bottom: 1px solid #f3f4f6; /* gray-100 */
+        }
+        .data-table tbody tr:last-child {
+          border-bottom: none;
+        }
+        .data-table td {
+          padding: 8px 12px;
+          color: #111827; /* gray-900 */
+        }
+        .data-table td:first-child {
+          font-weight: 500;
+        }
+        .table-message {
+          padding: 24px;
+          text-align: center;
+          color: #6b7280; /* gray-500 */
+        }
+      `}</style>
     </>
   );
 }
