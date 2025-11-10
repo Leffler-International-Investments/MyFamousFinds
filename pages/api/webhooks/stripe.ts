@@ -5,7 +5,7 @@ import Stripe from "stripe";
 import { adminDb, FieldValue } from "../../../utils/firebaseAdmin";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: "2024-04-10",
+  apiVersion: "2025-10-29.clover", // <-- THIS LINE IS THE FIX
 });
 
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET!;
