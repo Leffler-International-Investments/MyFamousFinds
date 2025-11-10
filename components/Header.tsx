@@ -11,8 +11,8 @@ export default function Header() {
           <Image
             src="/Famous-Finds-Logo.png"
             alt="Famous Finds Logo"
-            width={80}
-            height={95}
+            width={46}
+            height={50}
             priority
           />
         </Link>
@@ -49,7 +49,7 @@ export default function Header() {
           display: flex;
           align-items: center;
           justify-content: space-between;
-          gap: 16px;
+          gap: 16px; /* Default gap for larger screens */
           flex-wrap: wrap;
         }
         .brand {
@@ -62,10 +62,13 @@ export default function Header() {
           align-items: center;
           gap: 18px;
           font-size: 13px;
+          flex-grow: 1; /* Allow navigation to take available space */
+          justify-content: flex-start; /* Align nav links to start on larger screens */
         }
         .navLink {
           color: #e5e7eb;
           text-decoration: none;
+          white-space: nowrap; /* Prevent nav links from breaking */
         }
         .navLink:hover {
           color: #fff;
@@ -75,6 +78,7 @@ export default function Header() {
           align-items: center;
           gap: 10px;
           flex-wrap: wrap;
+          justify-content: flex-end; /* Align admin buttons to the end by default */
         }
         .adminBtn {
           font-size: 12px;
@@ -83,6 +87,7 @@ export default function Header() {
           font-weight: 600;
           text-decoration: none;
           transition: all 0.2s ease;
+          white-space: nowrap; /* Prevent buttons from breaking words */
         }
         .management {
           background: linear-gradient(90deg, #d1d5db, #9ca3af);
@@ -96,20 +101,31 @@ export default function Header() {
           transform: translateY(-1px);
           opacity: 0.9;
         }
+
+        /* --- Mobile-specific adjustments --- */
         @media (max-width: 850px) {
           .inner {
-            flex-direction: column;
-            align-items: flex-start;
+            flex-direction: column; /* Stack elements vertically */
+            align-items: flex-start; /* Align everything to the left */
+            gap: 10px; /* Consistent vertical gap between stacked sections */
+            padding-bottom: 12px; /* Add some padding at the bottom when stacked */
+          }
+          .brand {
+            width: 100%; /* Brand takes full width */
+            margin-bottom: 5px; /* Little space below logo */
           }
           .nav {
-            flex-wrap: wrap;
-            gap: 10px;
+            width: 100%; /* Navigation takes full width */
+            flex-direction: row; /* Keep nav links horizontal */
+            justify-content: flex-start; /* Align nav links to start */
+            gap: 15px; /* Space between nav links */
+            flex-wrap: wrap; /* Allow nav links to wrap if needed */
           }
           .right {
-            margin-top: 6px;
-            width: 100%;
-            justify-content: flex-start;
-            flex-wrap: wrap;
+            width: 100%; /* Admin buttons take full width */
+            justify-content: flex-start; /* Align buttons to the left */
+            gap: 8px; /* Space between admin buttons */
+            margin-top: 5px; /* Small space above admin buttons */
           }
         }
       `}</style>
