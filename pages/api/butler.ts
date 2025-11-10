@@ -1,143 +1,112 @@
-// FILE: /pages/api/butler.ts
-// Butler API: search Firestore `listings` and return structured results.
-
+// FILE: pages/api/butler.ts
 import type { NextApiRequest, NextApiResponse } from "next";
 import { adminDb } from "../../utils/firebaseAdmin";
 
 type ButlerResult = {
   id: string;
   title: string;
-  brand: string;
-  price: string;
-  href: string;
+  brand?: string;
+  price?: number;
+  currency?: string;
 };
 
-type Ok = {
+type ButlerResponse = {
   answer: string;
-  results: ButlerResult[];
+  results?: ButlerResult[];
 };
-
-type Err = {
-  error: string;
-};
-
-function norm(v: any): string {
-  return (v || "").toString().toLowerCase();
-}
 
 export default async function handler(
   req: NextApiRequest,
-  res: NextApiResponse<Ok | Err>
+  res: NextApiResponse<ButlerResponse>
 ) {
   if (req.method !== "POST") {
-    return res.status(405).json({ error: "Method not allowed" });
-  }
-
-  const { query } = (req.body || {}) as { query?: string };
-  const userQuery = (query || "").trim();
-
-  if (!userQuery) {
     return res
-      .status(400)
-      .json({ error: "Please tell me what you’re looking for." });
+      .status(405)
+      .json({ answer: "I can only accept POST requests, my friend." });
   }
+
+  const { query } = req.body as { query?: string };
+
+  if (!query || !query.trim()) {
+    return res.status(400).json({
+      answer:
+        "Pardon me, I didn’t quite catch that. Please tell me what you’re looking for.",
+    });
+  }
+
+  const q = query.trim().toLowerCase();
 
   try {
+    // 1. Fetch listings (you can adjust filters as needed)
     const snap = await adminDb
       .collection("listings")
       .orderBy("createdAt", "desc")
-      .limit(100)
       .get();
 
-    const q = norm(userQuery);
-    const words = q.split(/\s+/).filter(Boolean);
+    const allListings: any[] = snap.docs.map((d) => ({
+      id: d.id,
+      ...(d.data() as any),
+    }));
 
-    const allowedStatuses = ["Live", "Active", "Approved"];
+    // 2. Very simple text match on title / brand / category
+    const matched: ButlerResult[] = allListings
+      .filter((item) => {
+        const title = (item.title || "").toLowerCase();
+        const brand = (item.brand || "").toLowerCase();
+        const category = (item.category || "").toLowerCase();
+        return (
+          title.includes(q) ||
+          brand.includes(q) ||
+          category.includes(q) ||
+          q.includes(brand) ||
+          q.includes(category)
+        );
+      })
+      .slice(0, 8) // show up to 8 matches
+      .map((item) => ({
+        id: item.slug || item.id,
+        title: item.title || "Listing",
+        brand: item.brand || "",
+        price: item.price || undefined,
+        currency: (item.currency || "USD").toUpperCase(),
+      }));
 
-    type Hit = {
-      id: string;
-      title: string;
-      brand: string;
-      price: string;
-      href: string;
-      score: number;
-    };
-
-    const hits: Hit[] = [];
-
-    snap.docs.forEach((doc) => {
-      const d: any = doc.data() || {};
-
-      if (d.status && !allowedStatuses.includes(d.status)) return;
-
-      const title = d.title || "Untitled listing";
-      const brand = d.brand || "";
-      const category = d.category || d.categorySlug || "";
-      const description = d.description || "";
-
-      const haystack = norm(`${title} ${brand} ${category} ${description}`);
-      if (!haystack) return;
-
-      let score = 0;
-      if (haystack.includes(q)) score += 5;
-      for (const w of words) {
-        if (w && haystack.includes(w)) score += 1;
-      }
-      if (!score) return;
-
-      const priceNumber = Number(d.price) || 0;
-      const price = priceNumber
-        ? `US$${priceNumber.toLocaleString("en-US")}`
-        : "";
-
-      hits.push({
-        id: doc.id,
-        title,
-        brand,
-        price,
-        href: `/product/${doc.id}`,
-        score,
-      });
-    });
-
-    hits.sort((a, b) => b.score - a.score);
-
-    if (!hits.length) {
-      return res.json({
+    if (matched.length === 0) {
+      return res.status(200).json({
         answer:
-          `I checked the Famous Finds catalogue but couldn’t find a good match for “${userQuery}”. ` +
-          `Try another brand, colour or item type – or tap “Browse the catalogue”.`,
+          `I’ve searched the Famous Finds catalogue but couldn’t find a good match for “${query}”. ` +
+          "You can also browse by category or try a different description, and I’ll gladly help again.",
         results: [],
       });
     }
 
-    const top = hits.slice(0, 5);
-    const lines = top.map((item, i) => {
-      const label =
-        (item.brand ? item.brand + " — " : "") +
-        item.title +
-        (item.price ? ` (${item.price})` : "");
-      return `${i + 1}. ${label}`;
+    // Build a nice conversational answer
+    const intro =
+      matched.length === 1
+        ? `Here’s what I found in the Famous Finds catalogue for “${query}”:`
+        : `Here’s what I found in the Famous Finds catalogue for “${query}”. Tap a result below to open the product:`;
+
+    const listText = matched
+      .map((m, idx) => {
+        const pricePart =
+          typeof m.price === "number"
+            ? ` (${m.currency} ${m.price.toLocaleString("en-US")})`
+            : "";
+        return `${idx + 1}. ${m.brand ? m.brand + " — " : ""}${m.title}${pricePart}`;
+      })
+      .join(" ");
+
+    const answer = `Ah, an excellent choice. ${intro} ${listText}`;
+
+    return res.status(200).json({
+      answer,
+      results: matched,
     });
-
-    const answer =
-      `Here’s what I found in the Famous Finds catalogue for “${userQuery}”:\n\n` +
-      lines.join("\n") +
-      `\n\nTap a result below to open the product.`;
-
-    const results: ButlerResult[] = top.map((item) => ({
-      id: item.id,
-      title: item.title,
-      brand: item.brand,
-      price: item.price,
-      href: item.href,
-    }));
-
-    return res.status(200).json({ answer, results });
-  } catch (err) {
-    console.error("Butler search error:", err);
-    return res
-      .status(500)
-      .json({ error: "There was a problem searching the catalogue." });
+  } catch (err: any) {
+    console.error("Butler search error:", err?.message || err);
+    return res.status(500).json({
+      answer:
+        "My apologies, something went wrong while searching the catalogue. Please try again in a moment.",
+    });
   }
 }
