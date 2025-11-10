@@ -77,6 +77,12 @@ like your homepage.
   background: linear-gradient(90deg, #facc15, #f59e0b) !important;
   color: #000 !important;
 }
+/* --- THIS IS THE NEW STYLE FOR THE GOLD VIP BUTTON --- */
+.admin-button.vip {
+  background: linear-gradient(90deg, #facc15, #f59e0b) !important;
+  color: #000 !important;
+}
+/* --------------------------------------------------- */
 .admin-button:hover {
   transform: translateY(-1px);
   opacity: 0.9;
