@@ -84,7 +84,7 @@ export default function ProfilePage() {
         <p className="text-gray-400">
           You are a{" "}
           <span style={{ color: "#facc15" }}>{profile.vipTier}</span> member.
-        </UPPERCASE>
+        </p>
 
         <div
           className="mt-8 bg-neutral-900 p-6 rounded-lg"
