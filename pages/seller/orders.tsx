@@ -22,20 +22,20 @@ export default function SellerOrders() {
 
   useEffect(() => {
     if (authLoading) return; // Wait for security check
-    
+
     // Function to load orders
     async function loadOrders() {
       setLoading(true);
       setError(null);
       try {
         // This API route will securely get the orders for the logged-in seller
-        const res = await fetch("/api/seller/orders"); 
+        const res = await fetch("/api/seller/orders");
         const json = await res.json();
-        
+
         if (!json.ok) {
           throw new Error(json.error || "Failed to fetch orders.");
         }
-        
+
         // Format data for the table
         const formattedRows = json.orders.map((order: any) => ({
           id: order.id,
@@ -45,19 +45,18 @@ export default function SellerOrders() {
           status: order.status || "Unknown",
         }));
         setRows(formattedRows);
-
       } catch (err: any) {
         setError(err.message);
       } finally {
         setLoading(false);
       }
     }
-    
+
     loadOrders();
   }, [authLoading]);
 
   if (authLoading) {
-    return <div className="min-h-screen bg-black"></div>; // Show blank while checking auth
+    return <div className="dark-theme-page"></div>; // Show blank while checking auth
   }
 
   return (
@@ -65,81 +64,78 @@ export default function SellerOrders() {
       <Head>
         <title>Seller — Orders | Famous Finds</title>
       </Head>
-      <div className="min-h-screen bg-black text-gray-100">
+      <div className="dark-theme-page">
         <Header />
-        <main className="mx-auto max-w-5xl px-4 pb-16 pt-6 text-sm">
-          <Link
-            href="/seller/dashboard"
-            className="text-xs text-gray-400 hover:text-gray-200"
-          >
-            ← Back to Dashboard
-          </Link>
+        <main className="section">
+          <div className="back-link">
+            <Link href="/seller/dashboard">← Back to Dashboard</Link>
+          </div>
 
           <h1 className="mt-4 text-2xl font-semibold text-white">My orders</h1>
-          <p className="mt-1 text-sm text-gray-400">
+          <p className="subtitle">
             Review new orders and mark items as shipped once dispatched.
           </p>
 
-          <section className="mt-6 rounded-xl border border-neutral-800 bg-neutral-950 p-4">
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[560px] text-xs">
-                <thead className="border-b border-neutral-800 text-[11px] uppercase tracking-wide text-gray-400">
+          {/* Using sell-card style from catalogue */}
+          <section className="sell-card" style={{ marginTop: "24px" }}>
+            <div className="table-overflow-wrapper">
+              <table className="catalogue-table">
+                <thead>
                   <tr>
-                    <th className="py-2 pr-3 text-left">Order</th>
-                    <th className="px-3 py-2 text-left">Item</th>
-                    <th className="px-3 py-2 text-left">Buyer</th>
-                    <th className="px-3 py-2 text-left">Total</th>
-                    <th className="px-3 py-2 text-left">Status</th>
-                    <th className="px-3 py-2 text-right">Action</th>
+                    <th>Order</th>
+                    <th>Item</th>
+                    <th>Buyer</th>
+                    <th>Total</th>
+                    <th>Status</th>
+                    <th style={{ textAlign: "right" }}>Action</th>
                   </tr>
                 </thead>
                 <tbody>
                   {loading && (
                     <tr>
-                      <td colSpan={6} className="py-4 text-center text-gray-400">
+                      <td colSpan={6} className="table-message">
                         Loading orders...
                       </td>
                     </tr>
                   )}
                   {error && (
                     <tr>
-                      <td colSpan={6} className="py-4 text-center text-red-400">
+                      <td colSpan={6} className="table-message error">
                         {error}
                       </td>
                     </tr>
                   )}
                   {!loading && !error && rows.length === 0 && (
-                     <tr>
-                      <td colSpan={6} className="py-4 text-center text-gray-400">
+                    <tr>
+                      <td colSpan={6} className="table-message">
                         You have no orders yet.
                       </td>
                     </tr>
                   )}
-                  {!loading && !error && rows.map((r) => (
-                    <tr
-                      key={r.id}
-                      className="border-b border-neutral-900 last:border-0"
-                    >
-                      <td className="py-2 pr-3">{r.id}</td>
-                      <td className="px-3 py-2">{r.item}</td>
-                      <td className="px-3 py-2">{r.buyer}</td>
-                      <td className="px-3 py-2">{r.total}</td>
-                      <td className="px-3 py-2">{r.status}</td>
-                      <td className="px-3 py-2 text-right">
-                        <button
-                          type="button"
-                          onClick={() =>
-                            alert(
-                              `In a full version, ${r.id} would be updated to "Shipped".`
-                            )
-                          }
-                          className="rounded-full bg-white px-3 py-1.5 text-[11px] font-medium text-black hover:bg-gray-100"
-                        >
-                          Mark as shipped
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
+                  {!loading &&
+                    !error &&
+                    rows.map((r) => (
+                      <tr key={r.id}>
+                        <td>{r.id}</td>
+                        <td>{r.item}</td>
+                        <td>{r.buyer}</td>
+                        <td>{r.total}</td>
+                        <td>{r.status}</td>
+                        <td style={{ textAlign: "right" }}>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              alert(
+                                `In a full version, ${r.id} would be updated to "Shipped".`
+                              )
+                            }
+                            className="btn-primary"
+                          >
+                            Mark as shipped
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
                 </tbody>
               </table>
             </div>
@@ -147,6 +143,81 @@ export default function SellerOrders() {
         </main>
         <Footer />
       </div>
+
+      <style jsx>{`
+        .back-link a {
+          font-size: 12px;
+          color: #9ca3af; /* gray-400 */
+        }
+        .back-link a:hover {
+          color: #e5e7eb; /* gray-200 */
+        }
+        h1 {
+          margin-top: 16px;
+          font-size: 24px;
+          font-weight: 600;
+          color: white;
+        }
+        .subtitle {
+          margin-top: 4px;
+          font-size: 14px;
+          color: #9ca3af; /* gray-400 */
+        }
+        
+        /* From catalogue.tsx */
+        .sell-card {
+          background: #111827;
+          border-radius: 16px;
+          padding: 18px 18px 20px;
+          border: 1px solid #1f2937;
+        }
+        .table-overflow-wrapper {
+          overflow-x: auto;
+        }
+        .catalogue-table {
+          width: 100%;
+          border-collapse: collapse;
+          font-size: 12px;
+          color: #e5e7eb;
+        }
+        .catalogue-table th,
+        .catalogue-table td {
+          padding: 8px 10px;
+          text-align: left;
+          border-bottom: 1px solid #374151;
+        }
+        .catalogue-table th {
+          font-size: 11px;
+          text-transform: uppercase;
+          color: #9ca3af;
+          font-weight: 500;
+        }
+        .catalogue-table tr:last-child td {
+          border-bottom: none;
+        }
+        .table-message {
+          text-align: center;
+          color: #9ca3af;
+          padding: 24px;
+        }
+        .table-message.error {
+          color: #f87171; /* red-400 */
+        }
+
+        .btn-primary {
+          border-radius: 999px;
+          background: white;
+          padding: 6px 12px;
+          font-size: 11px;
+          font-weight: 500;
+          color: black;
+          border: none;
+          cursor: pointer;
+        }
+        .btn-primary:hover {
+          background: #e5e7eb; /* gray-200 */
+        }
+      `}</style>
     </>
   );
 }
