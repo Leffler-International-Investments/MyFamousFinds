@@ -1,5 +1,4 @@
 // FILE: components/ButlerChat.tsx
-
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/router";
 
@@ -15,7 +14,7 @@ type ChatMessage = {
 };
 
 type ButlerResult = {
-  id: string; // Firestore listing id, used in /product/[id]
+  id: string;
   title: string;
   brand?: string;
   price?: number;
@@ -38,14 +37,10 @@ export default function ButlerChat({ isOpen, onClose }: ButlerChatProps) {
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const recognitionRef = useRef<any>(null);
 
-  // Scroll to bottom on new message
   useEffect(() => {
-    if (messagesEndRef.current) {
-      messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
-    }
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, results]);
 
-  // --- Voice: setup Web Speech API instance on first use ---
   const ensureRecognition = () => {
     if (recognitionRef.current) return recognitionRef.current;
     if (typeof window === "undefined") return null;
@@ -63,28 +58,6 @@ export default function ButlerChat({ isOpen, onClose }: ButlerChatProps) {
     return rec;
   };
 
-  const handleStartListening = () => {
-    const rec = ensureRecognition();
-    if (!rec) {
-      alert("Voice recognition is not supported on this device/browser.");
-      return;
-    }
-    setListening(true);
-
-    rec.onresult = (event: any) => {
-      const transcript = event.results[0][0].transcript;
-      setInput(transcript);
-    };
-    rec.onerror = () => {
-      setListening(false);
-    };
-    rec.onend = () => {
-      setListening(false);
-    };
-
-    rec.start();
-  };
-
   const handleVoiceClick = () => {
     if (listening) {
       const rec = recognitionRef.current;
@@ -92,37 +65,46 @@ export default function ButlerChat({ isOpen, onClose }: ButlerChatProps) {
       setListening(false);
       return;
     }
-    handleStartListening();
+    const rec = ensureRecognition();
+    if (!rec) {
+      alert("Voice recognition is not supported on this device/browser.");
+      return;
+    }
+    setListening(true);
+    rec.onresult = (event: any) => {
+      const transcript = event.results[0][0].transcript;
+      setInput(transcript);
+    };
+    rec.onerror = () => setListening(false);
+    rec.onend = () => setListening(false);
+    rec.start();
   };
 
-  // --- Call API ---
-  async function callButler(query: string): Promise<ButlerResponse> {
+  async function askButler(query: string): Promise<ButlerResponse> {
     const res = await fetch("/api/butler", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ query }),
     });
-    if (!res.ok) {
-      throw new Error(`Butler error: ${res.status}`);
-    }
-    return (await res.json()) as ButlerResponse;
+    if (!res.ok) throw new Error(`Butler error: ${res.status}`);
+    return res.json();
   }
 
   const handleSend = async () => {
-    const trimmed = input.trim();
-    if (!trimmed || loading) return;
+    const text = input.trim();
+    if (!text || loading) return;
 
-    const newUserMessage: ChatMessage = {
+    const userMessage: ChatMessage = {
       id: String(Date.now()),
       role: "user",
-      text: trimmed,
+      text,
     };
-    setMessages((prev) => [...prev, newUserMessage]);
+    setMessages((prev) => [...prev, userMessage]);
     setInput("");
     setLoading(true);
 
     try {
-      const data = await callButler(trimmed);
+      const data = await askButler(text);
       const butlerMessage: ChatMessage = {
         id: `${Date.now()}-butler`,
         role: "butler",
@@ -130,22 +112,21 @@ export default function ButlerChat({ isOpen, onClose }: ButlerChatProps) {
       };
       setMessages((prev) => [...prev, butlerMessage]);
       setResults(data.results || []);
-    } catch (err: any) {
-      const errMsg: ChatMessage = {
-        id: `${Date.now()}-error`,
+    } catch (err) {
+      console.error(err);
+      const errMessage: ChatMessage = {
+        id: `${Date.now()}-err`,
         role: "butler",
         text:
           "My apologies, something went wrong while searching the catalogue. Please try again.",
       };
-      setMessages((prev) => [...prev, errMsg]);
-      console.error(err);
+      setMessages((prev) => [...prev, errMessage]);
     } finally {
       setLoading(false);
     }
   };
 
   const handleResultClick = (id: string) => {
-    // open the product page
     router.push(`/product/${id}`);
   };
 
@@ -154,13 +135,9 @@ export default function ButlerChat({ isOpen, onClose }: ButlerChatProps) {
   return (
     <div className="ff-butler-overlay">
       <div className="ff-butler-window">
-        {/* Header */}
         <div className="ff-butler-header">
           <div className="ff-butler-title">
-            <span role="img" aria-label="Butler">
-              🤵
-            </span>{" "}
-            AI Butler
+            🤵 AI Butler
           </div>
           <button
             className="ff-butler-close"
@@ -171,7 +148,6 @@ export default function ButlerChat({ isOpen, onClose }: ButlerChatProps) {
           </button>
         </div>
 
-        {/* Messages */}
         <div className="ff-butler-messages">
           {messages.map((m) => (
             <div
@@ -189,7 +165,6 @@ export default function ButlerChat({ isOpen, onClose }: ButlerChatProps) {
           <div ref={messagesEndRef} />
         </div>
 
-        {/* Results */}
         {results.length > 0 && (
           <div className="ff-butler-results">
             {results.map((r) => (
@@ -207,7 +182,6 @@ export default function ButlerChat({ isOpen, onClose }: ButlerChatProps) {
                     {new Intl.NumberFormat("en-US", {
                       style: "currency",
                       currency: r.currency || "USD",
-                      maximumFractionDigits: 2,
                     }).format(r.price)}
                   </div>
                 )}
@@ -217,7 +191,6 @@ export default function ButlerChat({ isOpen, onClose }: ButlerChatProps) {
           </div>
         )}
 
-        {/* Input */}
         <div className="ff-butler-inputRow">
           <input
             value={input}
@@ -238,7 +211,6 @@ export default function ButlerChat({ isOpen, onClose }: ButlerChatProps) {
             className={`ff-butler-voice ${
               listening ? "ff-butler-voice-on" : "ff-butler-voice-off"
             }`}
-            aria-label={listening ? "Stop listening" : "Start listening"}
           >
             🎙️
           </button>
@@ -249,10 +221,10 @@ export default function ButlerChat({ isOpen, onClose }: ButlerChatProps) {
         .ff-butler-overlay {
           position: fixed;
           inset: 0;
-          background: rgba(0, 0, 0, 0.45);
           display: flex;
           justify-content: center;
           align-items: flex-end;
+          background: rgba(0, 0, 0, 0.45);
           z-index: 9999;
         }
         .ff-butler-window {
@@ -263,7 +235,7 @@ export default function ButlerChat({ isOpen, onClose }: ButlerChatProps) {
           color: #f9fafb;
           border-radius: 16px;
           box-shadow: 0 18px 40px rgba(0, 0, 0, 0.5);
-          padding: 12px 12px 10px;
+          padding: 12px;
           font-size: 13px;
         }
         .ff-butler-header {
@@ -293,12 +265,6 @@ export default function ButlerChat({ isOpen, onClose }: ButlerChatProps) {
         .ff-msg {
           margin: 2px 0;
         }
-        .ff-msg-user {
-          text-align: left;
-        }
-        .ff-msg-butler {
-          text-align: left;
-        }
         .ff-butler-results {
           margin-bottom: 6px;
           display: flex;
@@ -318,7 +284,6 @@ export default function ButlerChat({ isOpen, onClose }: ButlerChatProps) {
         }
         .ff-result-price {
           font-size: 12px;
-          color: #e5e7eb;
         }
         .ff-result-link {
           font-size: 11px;
@@ -362,11 +327,6 @@ export default function ButlerChat({ isOpen, onClose }: ButlerChatProps) {
         .ff-butler-voice-off {
           background: #e5e7eb;
           color: #000000;
-        }
-        @media (min-width: 640px) {
-          .ff-butler-window {
-            margin-bottom: 24px;
-          }
         }
       `}</style>
     </div>
