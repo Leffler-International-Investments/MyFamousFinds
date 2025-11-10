@@ -1,8 +1,25 @@
 // FILE: /components/Header.tsx
+// --- UPDATED per your new instructions ---
+
 import Link from "next/link";
 import Image from "next/image";
+// --- ADDED (Change 1a) ---
+import { useEffect, useState } from "react";
+import { onAuthStateChanged, User } from "firebase/auth";
+import { auth } from "../utils/firebaseClient"; // Assuming this path is correct
 
 export default function Header() {
+  // --- ADDED (Change 1b) ---
+  const [vipUser, setVipUser] = useState<User | null>(null);
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      setVipUser(user);
+    });
+    return () => unsubscribe();
+  }, []);
+  // -------------------------
+
   return (
     <header className="site-header">
       <div className="inner-container">
@@ -23,6 +40,16 @@ export default function Header() {
           <Link href="/help" className="nav-link-item">Help</Link>
           <Link href="/about" className="nav-link-item">About</Link>
           <Link href="/contact" className="nav-link-item">Contact</Link>
+
+          {/* --- ADDED (Change 1c) --- */}
+          {/* VIP Club link (Famous-Finds Front Row) */}
+          <Link
+            href={vipUser ? "/club-profile" : "/club-login"}
+            className="nav-link-item"
+          >
+            {vipUser ? "My VIP Profile" : "VIP Sign In"}
+          </Link>
+          {/* ------------------------- */}
         </nav>
 
         {/* Admin portals - Classes remain, styles are now in globals.css */}
