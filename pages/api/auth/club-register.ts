@@ -1,0 +1,54 @@
+// FILE: /pages/api/auth/club-register.ts
+// --- Provided "as-is" but with the CRITICAL { merge: true } fix ---
+import type { NextApiRequest, NextApiResponse } from "next";
+import { adminDb, adminAuth, FieldValue } from "../../../utils/firebaseAdmin";
+
+export default async function handler(
+  req: NextApiRequest,
+  res: NextApiResponse
+) {
+  if (req.method !== "POST") {
+    return res.status(405).json({ error: "Method not allowed" });
+  }
+
+  try {
+    // 1. Get the token from the Authorization header
+    const authHeader = req.headers.authorization;
+    if (!authHeader) {
+      return res.status(401).json({ error: "No auth token provided" });
+    }
+    const token = authHeader.split(" ")[1];
+
+    // 2. Verify the token
+    const decodedToken = await adminAuth.verifyIdToken(token);
+    const uid = decodedToken.uid;
+    const email = decodedToken.email;
+    const { name } = req.body;
+
+    // 3. Create the user document in Firestore
+    const userRef = adminDb.collection("users").doc(uid);
+
+    const newUserProfile = {
+      uid: uid,
+      email: email,
+      name: name || "",
+      role: "customer", // Differentiate from 'seller' or 'management'
+      vipTier: "Bronze", // Starting tier
+      points: 0,
+      createdAt: FieldValue.serverTimestamp(),
+    };
+
+    // --- SAFETY FIX APPLIED ---
+    // Using { merge: true } prevents this from overwriting an existing
+    // Seller or Management user who is also signing up for the VIP club.
+    // This is necessary because your stripe.ts webhook confirms
+    // that Sellers are in this same 'users' collection.
+    await userRef.set(newUserProfile, { merge: true });
+    // --------------------------
+
+    res.status(201).json({ ok: true, uid: uid });
+  } catch (err: any) {
+    console.error("User registration API error:", err);
+    res.status(500).json({ error: err.message || "Server error" });
+  }
+}
