@@ -11,8 +11,8 @@ export default function Header() {
           <Image
             src="/Famous-Finds-Logo.png"
             alt="Famous Finds Logo"
-            width={46}
-            height={50}
+            width={60}
+            height={75}
             priority
           />
         </Link>
