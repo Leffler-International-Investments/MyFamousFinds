@@ -1,5 +1,6 @@
 // FILE: /pages/index.tsx
-// I have updated this file to use the new HomepageButler component.
+// This is your homepage, now updated to use the
+// functional <HomepageButler /> component.
 
 import Head from "next/head";
 import Link from "next/link";
@@ -10,7 +11,7 @@ import { ProductLike } from "../components/ProductCard";
 import { adminDb } from "../utils/firebaseAdmin";
 import type { GetServerSideProps } from "next";
 
-// --- IMPORT THE NEW COMPONENT ---
+// --- FIX: Import the new component ---
 import HomepageButler from "../components/HomepageButler";
 
 const categories = [
@@ -52,33 +53,12 @@ export default function Home({ trending, newArrivals }: HomeProps) {
             </p>
           </div>
           <div className="heroVisual">
-            {/* --- THIS ENTIRE BLOCK IS REPLACED ---
             
-            <p className="heroIntro">
-              Meet your Famous Finds AI Butler – a friendly concierge to help
-              you discover the perfect piece, by voice or chat, from our curated
-              catalogue.
-            </p>
-            <div className="heroButlerRow">
-              <div className="butlerAvatar">
-                <span className="butlerEmoji">🤵‍♂️</span>
-              </div>
-              <div className="butlerCopy">
-                <div className="butlerTitle">Your personal style butler</div>
-                <div className="butlerText">
-                  Tell me what you&apos;re looking for – a Chanel bag, a Rolex,
-                  or a special dress – and the Butler will search only within
-                  Famous Finds.
-                </div>
-              </div>
-            </div>
-            <div className="heroActions">
-              <button className="butlerBtn">AI Butler</button>
-              <button className="browseBtn">Browse the catalogue</button>
-            </div>
-
-            --- WITH THIS SINGLE, FUNCTIONAL COMPONENT --- */}
+            {/* --- FIX: Replaced the old static buttons --- */}
+            {/* ---    with the new functional component   --- */}
             <HomepageButler />
+            {/* ------------------------------------------- */}
+
           </div>
         </section>
 
@@ -95,19 +75,18 @@ export default function Home({ trending, newArrivals }: HomeProps) {
       </main>
       <Footer />
 
-      {/* --- NO CHANGES NEEDED TO CSS --- */}
       <style jsx>{`
         .wrap {
           max-width: 1200px;
           margin: 0 auto;
-          padding: 16px 16px 80px; /* CHANGED: Reduced top padding */
+          padding: 16px 16px 80px;
         }
         .hero {
           display: grid;
           grid-template-columns: minmax(0, 1.1fr) minmax(0, 1.1fr);
           gap: 40px;
-          margin-top: 16px; /* CHANGED: Reduced top margin */
-          margin-bottom: 24px; /* CHANGED: Reduced bottom margin */
+          margin-top: 16px;
+          margin-bottom: 24px;
         }
         .heroCopy {
           max-width: 520px;
@@ -135,62 +114,14 @@ export default function Home({ trending, newArrivals }: HomeProps) {
           background: radial-gradient(circle at top, #334155, #020617);
           border: 1px solid rgba(148, 163, 184, 0.3);
         }
-        /* These styles are no longer needed as HomepageButler provides its own */
-        /*
-        .heroIntro {
-          font-size: 13px;
-          color: #e5e7eb;
-          margin-bottom: 14px;
-        }
-        .heroButlerRow {
-          display: flex;
-          gap: 12px;
-        }
-        .butlerAvatar {
-          width: 40px;
-          height: 40px;
-          border-radius: 999px;
-          background: #020617;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-        }
-        .butlerEmoji {
-          font-size: 24px;
-        }
-        .butlerTitle {
-          font-size: 14px;
-          font-weight: 600;
-        }
-        .butlerText {
-          font-size: 13px;
-          color: #e5e7eb;
-        }
-        .heroActions {
-          margin-top: 16px;
-          display: flex;
-          gap: 8px;
-        }
-        .butlerBtn,
-        .browseBtn {
-          border-radius: 999px;
-          font-size: 13px;
-          padding: 8px 16px;
-          border: 1px solid #e5e7eb;
-          background: transparent;
-          color: #e5e7eb;
-          cursor: pointer;
-        }
-        .butlerBtn {
-          background: #e5e7eb;
-          color: #020617;
-        }
-        */
+        /* Removed styles for .heroIntro, .heroButlerRow, etc. */
+        /* as they are now inside the HomepageButler component */
+        
         .categories {
           display: flex;
           flex-wrap: wrap;
           gap: 10px;
-          margin-bottom: 16px; /* CHANGED: Reduced bottom margin */
+          margin-bottom: 16px;
         }
         .cat {
           font-size: 13px;
@@ -198,6 +129,7 @@ export default function Home({ trending, newArrivals }: HomeProps) {
           border-radius: 999px;
           border: 1px solid #374151;
           color: #e5e7eb;
+          text-decoration: none;
         }
         @media (max-width: 900px) {
           .hero {
@@ -222,23 +154,18 @@ export const getServerSideProps: GetServerSideProps<HomeProps> = async () => {
     snap.docs.forEach((doc) => {
       const d: any = doc.data() || {};
 
-      // --- STATUS FILTER ---
-      // Show only approved / live items on the homepage
       const allowedStatuses = ["Live", "Active", "Approved"];
       if (d.status && !allowedStatuses.includes(d.status)) {
         return;
       }
-      // ---------------------
-
+      
       const priceNumber = Number(d.price) || 0;
       const price = priceNumber
         ? `US$${priceNumber.toLocaleString("en-US")}`
         : "";
 
-      // --- THIS IS THE FIX ---
-      // We add `d.image_url` to the front of the list
       const image: string =
-        d.image_url || // <--- ADDED THIS
+        d.image_url ||
         d.imageUrl ||
         d.image ||
         (Array.isArray(d.imageUrls) && d.imageUrls[0]) ||
