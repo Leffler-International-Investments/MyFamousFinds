@@ -77,145 +77,260 @@ export default function SellerProfile() {
 
   // While checking auth, keep screen blank
   if (authLoading) {
-    return <div className="min-h-screen bg-white"></div>;
+    return <div className="dashboard-page"></div>;
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 text-gray-900">
+    <div className="dashboard-page">
       <Head>
         <title>Seller Profile — Famous Finds</title>
       </Head>
       <Header />
 
-      <main className="mx-auto max-w-6xl px-4 pb-16 pt-6">
-        <div className="mb-6 flex items-center justify-between">
-          <h1 className="text-2xl font-bold text-gray-900">
-            Seller Profile
-          </h1>
-          <Link
-            href="/seller/dashboard"
-            className="text-sm text-gray-600 hover:text-gray-900"
-          >
-            ← Back to Seller Dashboard
-          </Link>
+      <main className="dashboard-main">
+        <div className="dashboard-header">
+          <h1>Seller Profile</h1>
+          <Link href="/seller/dashboard">← Back to Seller Dashboard</Link>
         </div>
 
         {/* --- Main Form --- */}
-        <form onSubmit={handleSubmit} className="space-y-8">
+        <form onSubmit={handleSubmit} className="form-container">
           {/* Section 1: Business Details */}
-          <section className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
-            <h2 className="text-lg font-semibold text-gray-900">
-              Business Details
-            </h2>
-            <p className="mt-1 text-sm text-gray-600">
+          <section className="form-card">
+            <h2>Business Details</h2>
+            <p className="form-subtitle">
               This information will be shown on your public seller profile.
             </p>
-            <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
-              <div>
-                <label className="block text-xs font-medium text-gray-700">
-                  Business Name
-                </label>
+            <div className="form-grid">
+              <div className="form-field">
+                <label>Business Name</label>
                 <input
                   type="text"
                   name="businessName"
                   defaultValue="VintageLux Boutique"
-                  className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-gray-900 focus:outline-none"
+                  className="form-input"
                 />
               </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-700">
-                  Contact Email
-                </label>
+              <div className="form-field">
+                <label>Contact Email</label>
                 <input
                   type="email"
                   name="email"
                   defaultValue="hello@vintagelux.com"
-                  className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-gray-900 focus:outline-none"
+                  className="form-input"
                 />
               </div>
             </div>
-            <div className="mt-4">
-              <label className="block text-xs font-medium text-gray-700">
-                Public Bio
-              </label>
+            <div className="form-field">
+              <label>Public Bio</label>
               <textarea
                 name="bio"
                 rows={3}
                 defaultValue="Curators of fine vintage bags and accessories. All items 100% authentic."
-                className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-gray-900 focus:outline-none"
+                className="form-input"
               />
             </div>
           </section>
 
           {/* Section 2: Payouts (Stripe) */}
-          <section className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
-            <h2 className="text-lg font-semibold text-gray-900">
-              Bank & Payout Details
-            </h2>
-            <p className="mt-1 text-sm text-gray-600">
+          <section className="form-card">
+            <h2>Bank & Payout Details</h2>
+            <p className="form-subtitle">
               Your bank details are managed securely by Stripe. We do not
               store this information.
             </p>
-            <div className="mt-4">
+            <div className="form-field">
               <button
                 type="button"
                 onClick={handleStripeClick}
                 disabled={stripeBusy}
-                className="rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-black disabled:opacity-60"
+                className="btn-primary-dark"
               >
                 {stripeBusy
                   ? "Opening Stripe…"
                   : "Manage Stripe Payout Account"}
               </button>
-              <p className="mt-2 text-xs text-gray-500">
+              <p className="form-note">
                 (This will redirect to Stripe Connect to securely manage your
                 bank account.)
               </p>
               {stripeError && (
-                <p className="mt-2 text-xs text-red-600">{stripeError}</p>
+                <p className="form-message error">{stripeError}</p>
               )}
             </div>
           </section>
 
           {/* Section 3: Tax (Avalara/Tax1099) */}
-          <section className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
-            <h2 className="text-lg font-semibold text-gray-900">
-              Tax Information (W-9)
-            </h2>
-            <p className="mt-1 text-sm text-gray-600">
+          <section className="form-card">
+            <h2>Tax Information (W-9)</h2>
+            <p className="form-subtitle">
               We are required to collect this information for all US sellers.
             </p>
-            <div className="mt-4">
+            <div className="form-field">
               <button
                 type="button"
                 onClick={handleTaxClick}
                 disabled={taxBusy}
-                className="rounded-md border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 disabled:opacity-60"
+                className="btn-secondary"
               >
                 {taxBusy ? "Opening…" : "Update W-9 Tax Form"}
               </button>
-              <p className="mt-2 text-xs text-gray-500">
+              <p className="form-note">
                 (This will open a secure form from our tax partner.)
               </p>
             </div>
           </section>
 
           {/* Save Button */}
-          <div className="flex items-center gap-4">
+          <div className="form-save-bar">
             <button
               type="submit"
               disabled={saving}
-              className="rounded-md bg-blue-600 px-5 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-60"
+              className="btn-submit-blue"
             >
               {saving ? "Saving..." : "Save Profile"}
             </button>
             {message && (
-              <p className="text-sm text-green-700">{message}</p>
+              <p className="form-message success">{message}</p>
             )}
           </div>
         </form>
       </main>
       <Footer />
+
+      <style jsx>{`
+        .form-container {
+          display: flex;
+          flex-direction: column;
+          gap: 32px;
+        }
+        
+        .form-card {
+          border-radius: 8px;
+          border: 1px solid #e5e7eb; /* gray-200 */
+          background: #ffffff;
+          padding: 24px;
+          box-shadow: 0 1px 2px 0 rgba(0,0,0,0.05);
+        }
+        .form-card h2 {
+          font-size: 18px;
+          font-weight: 600;
+          color: #111827; /* gray-900 */
+        }
+        .form-subtitle {
+          margin-top: 4px;
+          font-size: 14px;
+          color: #4b5563; /* gray-600 */
+        }
+        
+        .form-grid {
+          margin-top: 16px;
+          display: grid;
+          grid-template-columns: 1fr;
+          gap: 16px;
+        }
+        @media (min-width: 768px) {
+          .form-grid {
+            grid-template-columns: 1fr 1fr;
+          }
+        }
+        
+        .form-field {
+          margin-top: 16px;
+        }
+        .form-field label {
+          display: block;
+          font-size: 12px;
+          font-weight: 500;
+          color: #374151; /* gray-700 */
+        }
+        .form-input,
+        .form-input[type="textarea"] {
+          margin-top: 4px;
+          width: 100%;
+          border-radius: 6px;
+          border: 1px solid #d1d5db; /* gray-300 */
+          padding: 8px 12px;
+          font-size: 14px;
+          box-shadow: 0 1px 2px 0 rgba(0,0,0,0.05);
+        }
+        .form-input:focus {
+          border-color: #111827; /* gray-900 */
+          outline: none;
+        }
+        
+        .form-note {
+          margin-top: 8px;
+          font-size: 12px;
+          color: #6b7280; /* gray-500 */
+        }
+        
+        .btn-primary-dark {
+          border-radius: 6px;
+          background: #111827; /* gray-900 */
+          padding: 8px 16px;
+          font-size: 14px;
+          font-weight: 500;
+          color: #ffffff;
+          border: none;
+          cursor: pointer;
+        }
+        .btn-primary-dark:hover {
+          background: #000;
+        }
+        .btn-primary-dark:disabled {
+          opacity: 0.6;
+        }
+        
+        .btn-secondary {
+          border-radius: 6px;
+          border: 1px solid #d1d5db; /* gray-300 */
+          padding: 8px 16px;
+          font-size: 14px;
+          color: #374151; /* gray-700 */
+          cursor: pointer;
+        }
+        .btn-secondary:hover {
+          background: #f9fafb; /* gray-50 */
+        }
+        .btn-secondary:disabled {
+          opacity: 0.6;
+        }
+        
+        .form-save-bar {
+          display: flex;
+          align-items: center;
+          gap: 16px;
+        }
+        
+        .btn-submit-blue {
+          border-radius: 6px;
+          background: #2563eb; /* blue-600 */
+          padding: 8px 20px;
+          font-size: 14px;
+          font-weight: 500;
+          color: #ffffff;
+          border: none;
+          cursor: pointer;
+        }
+        .btn-submit-blue:hover {
+          background: #1d4ed8; /* blue-700 */
+        }
+        .btn-submit-blue:disabled {
+          opacity: 0.6;
+        }
+        
+        .form-message {
+          font-size: 14px;
+        }
+        .form-message.success {
+          color: #059669; /* green-600 */
+        }
+        .form-message.error {
+          font-size: 12px;
+          color: #dc2626; /* red-600 */
+        }
+      `}</style>
     </div>
   );
 }
