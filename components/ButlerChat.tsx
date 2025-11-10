@@ -1,4 +1,5 @@
 // FILE: /components/ButlerChat.tsx
+
 import { useState, useRef, useEffect } from "react";
 
 type ButlerChatProps = {
@@ -32,7 +33,8 @@ export default function ButlerChat({ isOpen, onClose }: ButlerChatProps) {
       if (!res.ok) throw new Error("API request failed");
       const data = await res.json();
       setMessages((m) => [...m, `🤵 Butler: ${data.answer}`]);
-    } catch {
+    } catch (e) {
+      console.error(e);
       setMessages((m) => [...m, "🤵 Butler: (connection error)"]);
     }
   }
@@ -44,7 +46,7 @@ export default function ButlerChat({ isOpen, onClose }: ButlerChatProps) {
       return;
     }
 
-    if (!("webkitSpeechRecognition" in window)) {
+    if (typeof window === "undefined" || !("webkitSpeechRecognition" in window)) {
       alert("Voice recognition not supported in this browser.");
       return;
     }
@@ -60,12 +62,11 @@ export default function ButlerChat({ isOpen, onClose }: ButlerChatProps) {
       setListening(false);
       recognitionRef.current = null;
     };
-    rec.onerror = (e: any) => {
-      console.error("Speech recognition error:", e.error);
+    rec.onerror = () => {
       setListening(false);
     };
-    rec.onresult = (e: any) => {
-      const transcript = Array.from(e.results)
+    rec.onresult = (event: any) => {
+      const transcript = Array.from(event.results)
         .map((r: any) => r[0].transcript)
         .join("");
       setInput(transcript);
@@ -76,54 +77,136 @@ export default function ButlerChat({ isOpen, onClose }: ButlerChatProps) {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed bottom-4 right-4 bg-white rounded-2xl shadow-lg p-4 w-80 text-sm z-50 border border-gray-200">
-      <div className="flex justify-between items-center mb-2">
-        <div className="font-semibold text-gray-900">🤵 AI Butler</div>
-        <button
-          onClick={onClose}
-          className="text-gray-500 hover:text-gray-900 text-2xl font-light"
-        >
-          &times;
-        </button>
+    <>
+      <div className="butlerChatPanel">
+        <div className="butlerChatHeader">
+          <span className="butlerChatTitle">🤵 AI Butler</span>
+          <button className="butlerCloseBtn" onClick={onClose} aria-label="Close chat">
+            ×
+          </button>
+        </div>
+
+        <div className="butlerMessages">
+          {messages.length === 0 && (
+            <div className="butlerWelcome">
+              Welcome! Ask me to find products, e.g. “Show me red Gucci bags”.
+            </div>
+          )}
+          {messages.map((m, i) => (
+            <div key={i} className="butlerMessage">
+              {m}
+            </div>
+          ))}
+          <div ref={messagesEndRef} />
+        </div>
+
+        <div className="butlerInputRow">
+          <input
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && handleSend()}
+            placeholder="Ask the butler..."
+            className="butlerInput"
+          />
+          <button onClick={handleSend} className="butlerSendBtn">
+            Send
+          </button>
+          <button
+            onClick={handleVoice}
+            className={`butlerVoiceBtn ${listening ? "listening" : ""}`}
+          >
+            🎙️
+          </button>
+        </div>
       </div>
 
-      <div className="h-48 overflow-y-auto bg-gray-100 rounded-md p-2 mb-2 text-black">
-        {messages.length === 0 && (
-          <div className="text-gray-600 p-1">
-            Welcome! Ask me to find products, e.g., “Show me red Gucci bags.”
-          </div>
-        )}
-        {messages.map((m, i) => (
-          <div key={i} className="py-1 px-1">
-            {m}
-          </div>
-        ))}
-        <div ref={messagesEndRef} />
-      </div>
+      <style jsx>{`
+        .butlerChatPanel {
+          position: fixed;
+          bottom: 16px;
+          right: 16px;
+          width: 320px;
+          max-width: 90vw;
+          background: #ffffff;
+          color: #000000;
+          border-radius: 16px;
+          box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+          padding: 12px;
+          font-size: 13px;
+          z-index: 10000;
+        }
+        .butlerChatHeader {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 6px;
+        }
+        .butlerChatTitle {
+          font-weight: 600;
+        }
+        .butlerCloseBtn {
+          border: none;
+          background: transparent;
+          font-size: 20px;
+          cursor: pointer;
+          line-height: 1;
+        }
+        .butlerMessages {
+          height: 180px;
+          overflow-y: auto;
+          background: #f3f4f6;
+          border-radius: 8px;
+          padding: 6px;
+          margin-bottom: 8px;
+        }
+        .butlerWelcome {
+          color: #4b5563;
+          font-size: 12px;
+        }
+        .butlerMessage {
+          padding: 3px 0;
+        }
+        .butlerInputRow {
+          display: flex;
+          gap: 4px;
+          align-items: center;
+        }
+        .butlerInput {
+          flex: 1;
+          border-radius: 6px;
+          border: 1px solid #9ca3af;
+          padding: 4px 6px;
+          font-size: 13px;
+        }
+        .butlerSendBtn,
+        .butlerVoiceBtn {
+          border-radius: 6px;
+          border: none;
+          padding: 4px 8px;
+          font-size: 12px;
+          cursor: pointer;
+        }
+        .butlerSendBtn {
+          background: #000;
+          color: #fff;
+        }
+        .butlerVoiceBtn {
+          background: #e5e7eb;
+          color: #111827;
+        }
+        .butlerVoiceBtn.listening {
+          background: #ef4444;
+          color: #fff;
+        }
 
-      <div className="flex gap-2">
-        <input
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && handleSend()}
-          className="flex-1 border border-gray-400 rounded px-2 py-1 text-black"
-          placeholder="Ask the butler..."
-        />
-        <button
-          onClick={handleSend}
-          className="bg-black text-white px-3 py-1 rounded hover:bg-gray-800"
-        >
-          Send
-        </button>
-        <button
-          onClick={handleVoice}
-          className={`px-3 py-1 rounded ${
-            listening ? "bg-red-500 text-white" : "bg-gray-300 text-black"
-          }`}
-        >
-          🎙️
-        </button>
-      </div>
-    </div>
+        @media (max-width: 480px) {
+          .butlerChatPanel {
+            right: 8px;
+            left: 8px;
+            width: auto;
+          }
+        }
+      `}</style>
+    </>
   );
 }
