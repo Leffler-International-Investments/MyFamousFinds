@@ -1,4 +1,3 @@
-// FILE: /pages/seller/catalogue.tsx
 import Head from "next/head";
 import Link from "next/link";
 import Header from "../../components/Header";
@@ -11,6 +10,8 @@ type CatalogueItem = {
   title: string;
   price: number;
   status: string;
+  // NEW: whether "Make an offer" is enabled for this listing
+  allowOffers?: boolean;
 };
 
 export default function SellerCatalogue() {
@@ -20,6 +21,7 @@ export default function SellerCatalogue() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [togglingId, setTogglingId] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -76,13 +78,43 @@ export default function SellerCatalogue() {
     }
   };
 
-  // Use a loading skeleton that matches the dark theme
+  // NEW: toggle "Make an offer" on/off for a listing
+  const handleToggleOffers = async (item: CatalogueItem) => {
+    if (togglingId) return;
+    const current = !!item.allowOffers;
+    setTogglingId(item.id);
+    setError(null);
+    try {
+      const res = await fetch(`/api/seller/listings/${item.id}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ allowOffers: !current }),
+      });
+      const json = await res.json();
+      if (!res.ok || json.error) {
+        throw new Error(json.error || "Failed to update offer setting");
+      }
+      // Update local state
+      setItems((prev) =>
+        prev.map((x) =>
+          x.id === item.id ? { ...x, allowOffers: !current } : x
+        )
+      );
+    } catch (err: any) {
+      console.error(err);
+      setError(err.message || "Unable to update offer setting.");
+    } finally {
+      setTogglingId(null);
+    }
+  };
+
   if (authLoading) {
     return <div className="dark-theme-page"></div>;
   }
 
   return (
-    // Use the same wrapper class as sell.tsx
     <div className="dark-theme-page">
       <Head>
         <title>My Catalogue - Famous Finds</title>
@@ -90,9 +122,7 @@ export default function SellerCatalogue() {
 
       <Header />
 
-      {/* Use the same <main> class as sell.tsx */}
       <main className="section">
-        {/* Use the same header class as sell.tsx */}
         <div className="section-header">
           <div>
             <h1>My catalogue</h1>
@@ -100,13 +130,11 @@ export default function SellerCatalogue() {
               Live view of all listings under your seller account.
             </p>
           </div>
-          {/* Use the .cta class from globals.css, just like sell.tsx */}
           <Link href="/seller/dashboard" className="cta">
             ← Back to Dashboard
           </Link>
         </div>
 
-        {/* This div holds the buttons */}
         <div className="actions-bar">
           <Link href="/seller/bulk-upload" className="btn-secondary">
             Bulk upload CSV
@@ -116,10 +144,8 @@ export default function SellerCatalogue() {
           </Link>
         </div>
 
-        {/* Render error message if any, styled like sell.tsx */}
         {error && <p className="banner error">{error}</p>}
 
-        {/* Use the same .sell-card class to wrap the table */}
         <section className="sell-card">
           <div className="table-overflow-wrapper">
             <table className="catalogue-table">
@@ -128,13 +154,15 @@ export default function SellerCatalogue() {
                   <th>Title</th>
                   <th>Price</th>
                   <th>Status</th>
+                  {/* NEW column */}
+                  <th>Make an offer</th>
                   <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {loading && (
                   <tr>
-                    <td colSpan={4} className="table-message">
+                    <td colSpan={5} className="table-message">
                       Loading your listings…
                     </td>
                   </tr>
@@ -142,7 +170,7 @@ export default function SellerCatalogue() {
 
                 {!loading && !error && items.length === 0 && (
                   <tr>
-                    <td colSpan={4} className="table-message">
+                    <td colSpan={5} className="table-message">
                       You don&apos;t have any listings yet.
                     </td>
                   </tr>
@@ -150,33 +178,52 @@ export default function SellerCatalogue() {
 
                 {!loading &&
                   !error &&
-                  items.map((x) => (
-                    <tr key={x.id}>
-                      <td>{x.title}</td>
-                      <td>
-                        US$
-                        {x.price.toLocaleString("en-US", {
-                          maximumFractionDigits: 0,
-                        })}
-                      </td>
-                      <td>{x.status}</td>
-                      <td className="actions-cell">
-                        <Link
-                          href={`/product/${x.id}`}
-                          className="btn-table-view"
-                        >
-                          View
-                        </Link>
-                        <button
-                          onClick={() => handleDelete(x.id)}
-                          disabled={deletingId === x.id}
-                          className="btn-table-delete"
-                        >
-                          {deletingId === x.id ? "Deleting..." : "Delete"}
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
+                  items.map((x) => {
+                    const offersOn = !!x.allowOffers;
+                    return (
+                      <tr key={x.id}>
+                        <td>{x.title}</td>
+                        <td>
+                          US$
+                          {x.price.toLocaleString("en-US", {
+                            maximumFractionDigits: 0,
+                          })}
+                        </td>
+                        <td>{x.status}</td>
+                        {/* NEW cell with toggle */}
+                        <td>
+                          <button
+                            className={`btn-offer-toggle ${
+                              offersOn ? "on" : "off"
+                            }`}
+                            disabled={togglingId === x.id}
+                            onClick={() => handleToggleOffers(x)}
+                          >
+                            {togglingId === x.id
+                              ? "Updating..."
+                              : offersOn
+                              ? "Enabled"
+                              : "Disabled"}
+                          </button>
+                        </td>
+                        <td className="actions-cell">
+                          <Link
+                            href={`/product/${x.id}`}
+                            className="btn-table-view"
+                          >
+                            View
+                          </Link>
+                          <button
+                            onClick={() => handleDelete(x.id)}
+                            disabled={deletingId === x.id}
+                            className="btn-table-delete"
+                          >
+                            {deletingId === x.id ? "Deleting..." : "Delete"}
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
               </tbody>
             </table>
           </div>
@@ -185,11 +232,7 @@ export default function SellerCatalogue() {
 
       <Footer />
 
-      {/* This <style jsx> block is added to match sell.tsx.
-        It copies styles from sell.tsx and adds styles for the table.
-      */}
       <style jsx>{`
-        /* Copied from sell.tsx */
         .sell-card {
           background: #111827;
           border-radius: 16px;
@@ -197,7 +240,6 @@ export default function SellerCatalogue() {
           border: 1px solid #1f2937;
         }
 
-        /* New styles for catalogue page */
         .actions-bar {
           display: flex;
           gap: 12px;
@@ -234,20 +276,20 @@ export default function SellerCatalogue() {
           width: 100%;
           border-collapse: collapse;
           font-size: 14px;
-          color: #e5e7eb; /* Light text */
+          color: #e5e7eb;
         }
 
         .catalogue-table th,
         .catalogue-table td {
           padding: 10px 12px;
           text-align: left;
-          border-bottom: 1px solid #374151; /* Dark border */
+          border-bottom: 1px solid #374151;
         }
 
         .catalogue-table th {
           font-size: 12px;
           text-transform: uppercase;
-          color: #9ca3af; /* Muted header text */
+          color: #9ca3af;
           font-weight: 500;
         }
 
@@ -287,9 +329,9 @@ export default function SellerCatalogue() {
         }
 
         .btn-table-delete {
-          border: 1px solid #b91c1c; /* Red border */
-          color: #fca5a5; /* Red text */
-          background: #7f1d1d; /* Dark red bg */
+          border: 1px solid #b91c1c;
+          color: #fca5a5;
+          background: #7f1d1d;
         }
         .btn-table-delete:hover {
           opacity: 0.8;
@@ -298,7 +340,32 @@ export default function SellerCatalogue() {
           opacity: 0.5;
         }
 
-        /* Error banner styles */
+        /* NEW: toggle button for Make an offer */
+        .btn-offer-toggle {
+          padding: 4px 10px;
+          font-size: 12px;
+          font-weight: 500;
+          border-radius: 999px;
+          border: 1px solid #374151;
+          background: #111827;
+          color: #e5e7eb;
+          cursor: pointer;
+        }
+        .btn-offer-toggle.on {
+          border-color: #10b981;
+          background: #064e3b;
+          color: #a7f3d0;
+        }
+        .btn-offer-toggle.off {
+          border-color: #4b5563;
+          background: #111827;
+          color: #9ca3af;
+        }
+        .btn-offer-toggle:disabled {
+          opacity: 0.6;
+          cursor: default;
+        }
+
         .banner {
           margin-bottom: 16px;
           padding: 8px 10px;
@@ -306,8 +373,8 @@ export default function SellerCatalogue() {
           font-size: 13px;
         }
         .error {
-          background: #7f1d1d; /* red-900 */
-          color: #fee2e2; /* red-100 */
+          background: #7f1d1d;
+          color: #fee2e2;
         }
       `}</style>
     </div>
