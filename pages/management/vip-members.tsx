@@ -51,7 +51,7 @@ export default function VipMembersPage() {
           <div className="p-4 bg-white rounded-lg border border-gray-200">
             <p className="text-gray-600">
               This is the placeholder page for managing your VIP members.
-            </Fp>
+            </p>
             <p className="mt-4 text-gray-600">
               From here, you will be able to:
             </p>
