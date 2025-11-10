@@ -1,5 +1,6 @@
 // FILE: /pages/api/butler.ts
-// This new file makes the chat functional.
+// This is the NEW file that makes the chat respond.
+// Please CREATE this file.
 
 import type { NextApiRequest, NextApiResponse } from "next";
 
