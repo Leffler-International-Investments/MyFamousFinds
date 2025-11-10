@@ -1,13 +1,13 @@
 // FILE: /components/HomepageButler.tsx
-// Butler hero + floating chat trigger
 
 import { useState } from "react";
 import Link from "next/link";
 import ButlerChat from "./ButlerChat";
 
 export default function HomepageButler() {
-  // ✅ Start OPEN by default so chat always appears on load
+  // Keep the chat OPEN by default so you can see it immediately
   const [isChatOpen, setIsChatOpen] = useState(true);
+
   const openChat = () => setIsChatOpen(true);
   const closeChat = () => setIsChatOpen(false);
 
@@ -33,40 +33,29 @@ export default function HomepageButler() {
           </div>
         </div>
         <div className="heroActions">
-          {/* Button 1: AI Butler */}
-          <button
-            type="button"
-            onClick={openChat}
-            className="butlerBtn"
-          >
+          <button type="button" onClick={openChat} className="butlerBtn">
             AI Butler
           </button>
 
-          {/* Button 2: Browse Catalogue */}
-          <Link
-            href="/catalogue"
-            className="browseBtn"
-          >
+          <Link href="/catalogue" className="browseBtn">
             Browse the catalogue
           </Link>
         </div>
       </div>
 
-      {/* Floating Chat Icon (only shown if chat is closed) */}
+      {/* floating round button (only if chat closed) */}
       {!isChatOpen && (
         <button
           onClick={openChat}
-          className="fixed bottom-4 right-4 z-50 bg-black text-white w-16 h-16 rounded-full shadow-lg flex items-center justify-center text-3xl hover:bg-gray-800 transition-all"
+          className="butlerFloatingBtn"
           aria-label="Open AI Butler"
         >
           🤵
         </button>
       )}
 
-      {/* Chat window – now open by default */}
       <ButlerChat isOpen={isChatOpen} onClose={closeChat} />
 
-      {/* Local styles */}
       <style jsx>{`
         .heroIntro {
           font-size: 13px;
@@ -116,6 +105,23 @@ export default function HomepageButler() {
         .butlerBtn {
           background: #e5e7eb;
           color: #020617;
+        }
+        .butlerFloatingBtn {
+          position: fixed;
+          bottom: 16px;
+          right: 16px;
+          width: 64px;
+          height: 64px;
+          border-radius: 999px;
+          background: #000;
+          color: #fff;
+          border: none;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 30px;
+          box-shadow: 0 8px 20px rgba(0, 0, 0, 0.35);
+          z-index: 9999;
         }
       `}</style>
     </>
