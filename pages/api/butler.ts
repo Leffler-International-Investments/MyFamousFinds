@@ -116,4 +116,4 @@ export default async function handler(
       error: "There was a problem searching the catalogue.",
     });
   }
-}b
+}
