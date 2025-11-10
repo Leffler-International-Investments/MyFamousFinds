@@ -81,10 +81,17 @@ export default async function handler(
             const amountSpent = (session.amount_total || 0) / 100;
             const pointsToAdd = Math.floor(amountSpent); // 1 point per $1
             const userRef = adminDb.collection("users").doc(userId);
-            await userRef.update({
-              points: FieldValue.increment(pointsToAdd),
-            });
-            console.log(`Awarded ${pointsToAdd} points to user ${userId}`);
+            
+            // Check if user document exists before updating
+            const userDoc = await userRef.get();
+            if (userDoc.exists) {
+              await userRef.update({
+                points: FieldValue.increment(pointsToAdd),
+              });
+              console.log(`Awarded ${pointsToAdd} points to user ${userId}`);
+            } else {
+              console.warn(`User ${userId} not found, cannot award points.`);
+            }
           }
         }
         break;
