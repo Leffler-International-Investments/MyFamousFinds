@@ -6,7 +6,7 @@ import Footer from "../../components/Footer";
 import { useRequireAdmin } from "../../hooks/useRequireAdmin";
 
 export default function ManagementSettings() {
-  const { loading } } = useRequireAdmin();
+  const { loading } = useRequireAdmin();
   if (loading) return <div className="dark-theme-page"></div>;
 
   return (
