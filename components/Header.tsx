@@ -40,7 +40,7 @@ export default function Header() {
             href={vipUser ? "/club-profile" : "/vip-welcome"}
             className="admin-button vip"
           >
-            {/* Updated text to be more inviting */ }
+            {/* Updated text to be more inviting */}
             {vipUser ? "My VIP Profile" : "VIP Front Row"}
           </Link>
         </div>
@@ -48,10 +48,18 @@ export default function Header() {
 
         {/* Navigation */}
         <nav className="main-nav">
-          <Link href="/" className="nav-link-item">Dashboard</Link>
-          <Link href="/help" className="nav-link-item">Help</Link>
-          <Link href="/about" className="nav-link-item">About</Link>
-          <Link href="/contact" className="nav-link-item">Contact</Link>
+          <Link href="/" className="nav-link-item">
+            Dashboard
+          </Link>
+          <Link href="/help" className="nav-link-item">
+            Help
+          </Link>
+          <Link href="/about" className="nav-link-item">
+            About
+          </Link>
+          <Link href="/contact" className="nav-link-item">
+            Contact
+          </Link>
         </nav>
 
         {/* Admin portals - Classes remain, styles are now in globals.css */}
@@ -67,12 +75,18 @@ export default function Header() {
 
       <style jsx>{`
         /* Reset any potential global spacing on these elements */
-        .site-header, .inner-container, .brand-logo, .main-nav, .nav-link-item, .admin-portals, .vip-link-area {
+        .site-header,
+        .inner-container,
+        .brand-logo,
+        .main-nav,
+        .nav-link-item,
+        .admin-portals,
+        .vip-link-area {
           margin: 0;
           padding: 0;
           box-sizing: border-box; /* Crucial for consistent sizing */
         }
-        
+
         .site-header {
           background: #000;
           border-bottom: 1px solid #111;
@@ -129,10 +143,9 @@ export default function Header() {
           justify-content: flex-end; /* Align buttons to the right on wider screens */
           flex-shrink: 0; /* Prevents button block from shrinking too much */
         }
-        
+
         /* --- STYLES FOR .admin-button, .management, .seller REMOVED --- */
         /* --- They are now correctly placed in globals.css --- */
-
 
         /* --- Mobile Layout (max-width: 850px) --- */
         @media (max-width: 850px) {
@@ -146,16 +159,18 @@ export default function Header() {
           .brand-logo,
           .main-nav,
           .admin-portals,
-          .vip-link-area { /* <-- Added .vip-link-area */
+          .vip-link-area {
+            /* <-- Added .vip-link-area */
             width: 100%; /* All main sections take full width on mobile */
-            margin-bottom: 0 !important; 
+            margin-bottom: 0 !important;
           }
-          
+
           .brand-logo {
             margin-bottom: 5px !important; /* Small space below logo */
           }
 
-          .vip-link-area { /* <-- Added this block */
+          .vip-link-area {
+            /* <-- Added this block */
             margin-top: 5px !important;
           }
 
@@ -176,7 +191,7 @@ export default function Header() {
             gap: 6px; /* Even smaller gap for nav on very small screens */
             font-size: 12px; /* Slightly smaller font size for nav links */
           }
-          
+
           /* The .admin-button styles for mobile were also removed */
           /* as they are now handled globally in globals.css */
         }
