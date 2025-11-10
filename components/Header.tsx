@@ -11,8 +11,8 @@ export default function Header() {
           <Image
             src="/Famous-Finds-Logo.png"
             alt="Famous Finds Logo"
-            width={80}
-            height={95}
+            width={95}
+            height={80}
             priority
           />
         </Link>
@@ -25,7 +25,7 @@ export default function Header() {
           <Link href="/contact" className="nav-link-item">Contact</Link>
         </nav>
 
-        {/* Admin portals - This code already creates the pills as requested */}
+        {/* Admin portals - Classes remain, styles are now in globals.css */}
         <div className="admin-portals">
           <Link href="/management/login" className="admin-button management">
             Management Admin Login
@@ -38,12 +38,12 @@ export default function Header() {
 
       <style jsx>{`
         /* Reset any potential global spacing on these elements */
-        .site-header, .inner-container, .brand-logo, .main-nav, .nav-link-item, .admin-portals, .admin-button {
+        .site-header, .inner-container, .brand-logo, .main-nav, .nav-link-item, .admin-portals {
           margin: 0;
           padding: 0;
           box-sizing: border-box; /* Crucial for consistent sizing */
         }
-
+        
         .site-header {
           background: #000;
           border-bottom: 1px solid #111;
@@ -96,28 +96,10 @@ export default function Header() {
           justify-content: flex-end; /* Align buttons to the right on wider screens */
           flex-shrink: 0; /* Prevents button block from shrinking too much */
         }
+        
+        /* --- STYLES FOR .admin-button, .management, .seller REMOVED --- */
+        /* --- They are now correctly placed in globals.css --- */
 
-        .admin-button {
-          font-size: 12px;
-          border-radius: 20px; /* This makes the "pill" shape */
-          padding: 6px 12px;
-          font-weight: 600;
-          text-decoration: none;
-          transition: all 0.2s ease;
-          white-space: nowrap; /* Keep button text on one line */
-        }
-        .management {
-          background: linear-gradient(90deg, #d1d5db, #9ca3af); /* Gray gradient */
-          color: #000;
-        }
-        .seller {
-          background: linear-gradient(90deg, #facc15, #f59e0b); /* Orange/Yellow gradient */
-          color: #000;
-        }
-        .admin-button:hover {
-          transform: translateY(-1px);
-          opacity: 0.9;
-        }
 
         /* --- Mobile Layout (max-width: 850px) --- */
         @media (max-width: 850px) {
@@ -156,10 +138,9 @@ export default function Header() {
             gap: 6px; /* Even smaller gap for nav on very small screens */
             font-size: 12px; /* Slightly smaller font size for nav links */
           }
-          .admin-button {
-            font-size: 11px; /* Slightly smaller font for buttons if they are too wide */
-            padding: 4px 8px; /* Smaller padding for buttons */
-          }
+          
+          /* The .admin-button styles for mobile were also removed */
+          /* as they are now handled globally in globals.css */
         }
       `}</style>
     </header>
