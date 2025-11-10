@@ -1,6 +1,7 @@
-// FILE: pages/api/checkout.ts
+// FILE: /pages/api/checkout.ts
+// --- This is the replacement file provided in your instructions ---
 import type { NextApiRequest, NextApiResponse } from "next";
-import { stripe } from "../../lib/stripe";
+import { stripe } from "../../lib/stripe"; // Assuming this path is correct
 
 // Define the expected body from the frontend
 type RequestBody = {
@@ -23,7 +24,9 @@ export default async function handler(
     const { id, title, price, image } = req.body as RequestBody;
 
     if (!id || !title || !price) {
-      return res.status(400).json({ ok: false, error: "Missing product data" });
+      return res
+        .status(400)
+        .json({ ok: false, error: "Missing product data" });
     }
 
     // Get the base URL for Stripe's success/cancel redirects
@@ -33,7 +36,15 @@ export default async function handler(
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ["card", "afterpay_clearpay"],
       mode: "payment",
-      
+
+      // --- THIS BLOCK WAS ADDED ---
+      // Attach metadata so the webhook can update Firestore + VIP points
+      metadata: {
+        listingId: id,
+        // userId can be added later from the frontend when a VIP member is logged in
+      },
+      // --- END OF ADDED BLOCK ---
+
       // We pass the product info to Stripe
       line_items: [
         {
@@ -52,7 +63,7 @@ export default async function handler(
           quantity: 1,
         },
       ],
-      
+
       // Set the redirect URLs
       success_url: `${baseUrl}/order/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${baseUrl}/product/${id}`, // Send user back to the product
@@ -60,9 +71,10 @@ export default async function handler(
 
     // Send the session ID back to the frontend
     res.status(200).json({ ok: true, sessionId: session.id });
-
   } catch (err: any) {
     console.error("Stripe Error:", err.message);
-    res.status(500).json({ ok: false, error: "Stripe session creation failed" });
+    res
+      .status(500)
+      .json({ ok: false, error: "Stripe session creation failed" });
   }
 }
