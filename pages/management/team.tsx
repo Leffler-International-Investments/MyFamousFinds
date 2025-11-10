@@ -75,167 +75,272 @@ export default function ManagementTeam() {
   }
 
   if (loading) {
-    return <div className="min-h-screen bg-gray-50" />;
+    return <div className="dashboard-page" />; // Light theme skeleton
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 text-gray-900">
+    // Use light theme classes from globals.css
+    <div className="dashboard-page">
       <Head>
         <title>Management Team — Admin</title>
       </Head>
       <Header />
-      <main className="mx-auto max-w-6xl px-4 pb-16 pt-6">
-        <div className="mb-6 flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
+      <main className="dashboard-main">
+        {/* Use light theme classes from globals.css */}
+        <div className="dashboard-header">
           <div>
-            <h1 className="text-2xl font-semibold text-gray-900">
-              Management Team
-            </h1>
-            <p className="mt-1 text-sm text-gray-600">
-              Add new admins and set their console permissions.
-            </p>
+            <h1>Management Team</h1>
+            <p>Add new admins and set their console permissions.</p>
           </div>
-          <Link
-            href="/management/dashboard"
-            className="flex-shrink-0 text-sm text-gray-600 hover:text-gray-900"
-          >
+          <Link href="/management/dashboard">
             ← Back to Management Dashboard
           </Link>
         </div>
 
-        <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
+        <div className="team-grid">
           {/* Add New Member Form */}
-          <form
-            onSubmit={handleAddMember}
-            className="space-y-4 rounded-lg border border-gray-200 bg-white p-6 shadow-sm lg:col-span-1"
-          >
-            <h2 className="text-lg font-semibold">Add New Member</h2>
-            <div>
-              <label className="text-xs font-medium text-gray-700">
-                Full Name
-              </label>
-              <input type="text" name="name" required className="mt-1 w-full rounded-md border border-gray-300 p-2 text-sm" />
+          <form onSubmit={handleAddMember} className="form-card">
+            <h2>Add New Member</h2>
+            <div className="form-field">
+              <label htmlFor="name">Full Name</label>
+              <input type="text" id="name" name="name" required />
             </div>
-            <div>
-              <label className="text-xs font-medium text-gray-700">
-                Email
-              </label>
-              <input type="email" name="email" required className="mt-1 w-full rounded-md border border-gray-300 p-2 text-sm" />
+            <div className="form-field">
+              <label htmlFor="email">Email</label>
+              <input type="email" id="email" name="email" required />
             </div>
-            <div>
-              <label className="text-xs font-medium text-gray-700">
-                Mobile Number (for 2FA)
-              </label>
-              <input type="tel" name="phone" placeholder="+14041234567" required className="mt-1 w-full rounded-md border border-gray-300 p-2 text-sm" />
+            <div className="form-field">
+              <label htmlFor="phone">Mobile Number (for 2FA)</label>
+              <input type="tel" id="phone" name="phone" placeholder="+14041234567" required />
             </div>
-            <fieldset>
-              <legend className="text-xs font-medium text-gray-700">Permissions</legend>
-              <div className="mt-2 space-y-2">
-                <div className="flex items-center gap-2">
+            <fieldset className="form-fieldset">
+              <legend>Permissions</legend>
+              <div className="form-check-group">
+                <div className="form-check">
                   <input type="checkbox" id="perm_sellers" name="perm_sellers" defaultChecked />
-                  <label htmlFor="perm_sellers" className="text-sm">Seller Management</label>
+                  <label htmlFor="perm_sellers">Seller Management</label>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="form-check">
                   <input type="checkbox" id="perm_products" name="perm_products" defaultChecked />
-                  <label htmlFor="perm_products" className="text-sm">Product & Content</label>
+                  <label htmlFor="perm_products">Product & Content</label>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="form-check">
                   <input type="checkbox" id="perm_finance" name="perm_finance" />
-                  <label htmlFor="perm_finance" className="text-sm font-medium text-red-700">Finance & Payouts</label>
+                  <label htmlFor="perm_finance" className="label-danger">Finance & Payouts</label>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="form-check">
                   <input type="checkbox" id="perm_support" name="perm_support" defaultChecked />
-                  <label htmlFor="perm_support" className="text-sm">Support Tickets</label>
+                  <label htmlFor="perm_support">Support Tickets</label>
                 </div>
               </div>
             </fieldset>
-            {message && <p className="text-xs text-green-700">{message}</p>}
-            {error && <p className="text-xs text-red-600">{error}</p>}
+            {message && <p className="form-message success">{message}</p>}
+            {error && <p className="form-message error">{error}</p>}
             <button
               type="submit"
               disabled={saving}
-              className="w-full rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-black disabled:opacity-60"
+              className="btn-submit"
             >
               {saving ? "Creating User..." : "Add Team Member"}
             </button>
           </form>
 
-          {/* REBUILT RESPONSIVE TEAM LIST */}
-          <div className="lg:col-span-2">
-            {/* Desktop Table Header (Hidden on Mobile) */}
-            <div className="hidden lg:grid lg:grid-cols-10 gap-4 px-6 py-3 bg-gray-50 border border-gray-200 rounded-t-lg text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
-              <div className="col-span-3">Name</div>
-              <div className="col-span-4">Email</div>
-              <div className="col-span-2">Role</div>
-              <div className="col-span-1 text-right">Actions</div>
-            </div>
-
-            {/* Member List */}
-            <div className="space-y-4 lg:space-y-0 lg:border-x lg:border-b lg:rounded-b-lg lg:border-gray-200 lg:divide-y lg:divide-gray-200">
-              {teamMembers.map((member) => (
-                <div
-                  key={member.id}
-                  // Mobile Card styles
-                  className="bg-white shadow-sm rounded-lg p-4 border border-gray-200
-                                 // Desktop Row styles
-                                 lg:shadow-none lg:rounded-none lg:border-0 
-                                 lg:grid lg:grid-cols-10 lg:gap-4 lg:items-center 
-                                 lg:px-6 lg:py-4"
-                >
-                  {/* Mobile View (Stacked) */}
-                  <div className="lg:hidden">
-                    <div className="flex justify-between items-center mb-2">
-                      <h3 className="text-base font-semibold text-gray-900">
-                        {member.name}
-                      </h3>
-                      <span
-                        className={`rounded-full px-2 py-0.5 text-xs font-medium ${
-                          member.role === "Owner"
-                            ? "bg-blue-100 text-blue-800"
-                            : "bg-gray-100 text-gray-700"
-                        }`}
-                      >
-                        {member.role}
-                      </span>
-                    </div>
-                    <p className="text-sm text-gray-600 mb-4 truncate">
-                      {member.email}
-                    </p>
-                    <button className="w-full text-center text-xs font-medium text-red-600 hover:text-red-800 bg-red-50 hover:bg-red-100 rounded-md py-2 transition-colors">
-                      Remove
-                    </button>
-                  </div>
-
-                  {/* Desktop View (Grid Row) */}
-                  <div className="hidden lg:block col-span-3 text-sm font-medium text-gray-900">
-                    {member.name}
-                  </div>
-                  <div className="hidden lg:block col-span-4 text-sm text-gray-600 truncate">
-                    {member.email}
-                  </div>
-                  <div className="hidden lg:block col-span-2">
-                    <span
-                      className={`rounded-full px-2 py-0.5 text-xs font-medium ${
-                        member.role === "Owner"
-                          ? "bg-blue-100 text-blue-800"
-                          : "bg-gray-100 text-gray-700"
-                      }`}
-                    >
-                      {member.role}
-                    </span>
-                  </div>
-                  <div className="hidden lg:block col-span-1 text-right">
-                    <button className="text-xs font-medium text-red-600 hover:text-red-800">
-                      Remove
-                    </button>
-                  </div>
+          {/* Team List */}
+          <div className="team-list-wrapper">
+            {teamMembers.map((member) => (
+              <div key={member.id} className="team-card">
+                <div className="team-card-header">
+                  <h3>{member.name}</h3>
+                  <span
+                    className={
+                      "status-badge " +
+                      (member.role === "Owner"
+                        ? "status-owner"
+                        : "status-admin")
+                    }
+                  >
+                    {member.role}
+                  </span>
                 </div>
-              ))}
-            </div>
+                <p className="team-card-email">{member.email}</p>
+                <button className="btn-remove">
+                  Remove
+                </button>
+              </div>
+            ))}
           </div>
         </div>
       </main>
       <Footer />
+
+      {/* Styles for the light theme form and cards */}
+      <style jsx>{`
+        .team-grid {
+          display: grid;
+          grid-template-columns: 1fr;
+          gap: 32px;
+        }
+        @media (min-width: 1024px) {
+          .team-grid {
+            grid-template-columns: 1fr 2fr;
+          }
+        }
+
+        .form-card {
+          display: flex;
+          flex-direction: column;
+          gap: 16px;
+          border-radius: 8px;
+          border: 1px solid #e5e7eb; /* gray-200 */
+          background: #ffffff;
+          padding: 24px;
+          box-shadow: 0 1px 2px 0 rgba(0,0,0,0.05);
+        }
+        .form-card h2 {
+          font-size: 18px;
+          font-weight: 600;
+        }
+
+        .form-field {
+          display: flex;
+          flex-direction: column;
+        }
+        .form-field label {
+          font-size: 12px;
+          font-weight: 500;
+          color: #374151; /* gray-700 */
+          margin-bottom: 4px;
+        }
+        .form-field input {
+          width: 100%;
+          border-radius: 6px;
+          border: 1px solid #d1d5db; /* gray-300 */
+          padding: 8px 12px;
+          font-size: 14px;
+        }
+        
+        .form-fieldset {
+          border: none;
+          padding: 0;
+          margin: 0;
+        }
+        .form-fieldset legend {
+          font-size: 12px;
+          font-weight: 500;
+          color: #374151; /* gray-700 */
+        }
+        .form-check-group {
+          margin-top: 8px;
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
+        }
+        .form-check {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        }
+        .form-check label {
+          font-size: 14px;
+        }
+        .form-check .label-danger {
+          font-weight: 500;
+          color: #b91c1c; /* red-700 */
+        }
+        
+        .form-message {
+          font-size: 12px;
+        }
+        .form-message.success {
+          color: #065f46; /* green-700 */
+        }
+        .form-message.error {
+          color: #b91c1c; /* red-600 */
+        }
+
+        .btn-submit {
+          width: 100%;
+          border-radius: 6px;
+          background: #111827; /* gray-900 */
+          padding: 8px 16px;
+          font-size: 14px;
+          font-weight: 500;
+          color: #ffffff;
+          border: none;
+          cursor: pointer;
+        }
+        .btn-submit:hover {
+          background: #000;
+        }
+        .btn-submit:disabled {
+          opacity: 0.6;
+        }
+        
+        .team-list-wrapper {
+          display: flex;
+          flex-direction: column;
+          gap: 16px;
+        }
+        
+        .team-card {
+          background: #ffffff;
+          box-shadow: 0 1px 2px 0 rgba(0,0,0,0.05);
+          border-radius: 8px;
+          padding: 16px;
+          border: 1px solid #e5e7eb; /* gray-200 */
+        }
+        
+        .team-card-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 8px;
+        }
+        .team-card-header h3 {
+          font-size: 16px;
+          font-weight: 600;
+          color: #111827; /* gray-900 */
+        }
+        
+        .team-card-email {
+          font-size: 14px;
+          color: #4b5563; /* gray-600 */
+          margin-bottom: 16px;
+        }
+        
+        .btn-remove {
+          width: 100%;
+          text-align: center;
+          font-size: 12px;
+          font-weight: 500;
+          color: #dc2626; /* red-600 */
+          background: #fee2e2; /* red-100 */
+          border-radius: 6px;
+          padding: 8px;
+          border: none;
+          cursor: pointer;
+          transition: background-color 150ms;
+        }
+        .btn-remove:hover {
+          background: #fecaca; /* red-200 */
+        }
+
+        .status-badge {
+          display: inline-flex;
+          border-radius: 999px;
+          padding: 2px 8px;
+          font-size: 12px;
+          font-weight: 500;
+        }
+        .status-owner {
+          background: #dbeafe; /* blue-100 */
+          color: #1e40af; /* blue-800 */
+        }
+        .status-admin {
+          background: #e5e7eb; /* gray-200 */
+          color: #374151; /* gray-700 */
+        }
+      `}</style>
     </div>
   );
 }
-
