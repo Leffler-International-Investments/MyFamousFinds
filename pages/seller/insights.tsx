@@ -4,6 +4,8 @@ import Link from "next/link";
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
 import { useEffect, useState } from "react";
+// Import security hook
+import { useRequireSeller } from "../../hooks/useRequireSeller";
 
 type Insight = {
   brand: string;
@@ -22,6 +24,7 @@ type Suggest = {
 };
 
 export default function SellerInsights() {
+  const { loading: authLoading } = useRequireSeller(); // Add security
   const [brand, setBrand] = useState("Gucci");
   const [category, setCategory] = useState("Bags");
   const [insights, setInsights] = useState<Insight[]>([]);
@@ -55,121 +58,101 @@ export default function SellerInsights() {
   }
 
   useEffect(() => {
+    if (authLoading) return; // Wait for auth
     load();
-  }, []);
+  }, [authLoading]); // Add authLoading dependency
+
+  if (authLoading) {
+    return <div className="dark-theme-page"></div>;
+  }
 
   return (
     <>
       <Head>
         <title>Seller — Insights | Famous Finds</title>
       </Head>
-      <div className="min-h-screen bg-black text-gray-100">
+      <div className="dark-theme-page">
         <Header />
-        <main className="mx-auto max-w-5xl px-4 pb-16 pt-6 text-sm">
-          <Link
-            href="/"
-            className="text-xs text-gray-400 hover:text-gray-200"
-          >
-            ← Back to Dashboard
-          </Link>
+        <main className="section">
+          <div className="back-link">
+            {/* Link back to dashboard */}
+            <Link href="/seller/dashboard">← Back to Dashboard</Link>
+          </div>
 
           <h1 className="mt-4 text-2xl font-semibold text-white">
             Seller insights
           </h1>
-          <p className="mt-1 text-sm text-gray-400">
+          <p className="subtitle">
             Brand performance, sell-through and a pricing estimator to help you
             choose the right price.
           </p>
 
-          <section className="mt-6 grid gap-3 md:grid-cols-3">
+          <section className="metrics-grid">
             {insights.map((x) => (
-              <div
-                className="rounded-xl border border-neutral-800 bg-neutral-950 p-4"
-                key={x.brand}
-              >
-                <div className="text-sm font-semibold">{x.brand}</div>
-                <div className="mt-2 text-xs text-gray-200">
+              <div className="metric-card" key={x.brand}>
+                <div className="metric-title">{x.brand}</div>
+                <div className="metric-note">
                   Avg sold: ${x.avgPrice.toFixed(0)}
                 </div>
-                <div className="text-xs text-gray-200">
+                <div className="metric-note">
                   Sell-through: {(x.sellThrough * 100).toFixed(0)}%
                 </div>
-                <div className="text-xs text-gray-200">
+                <div className="metric-note">
                   Time to sell: {x.timeToSellDays} days
                 </div>
-                <div className="text-xs text-gray-200">
+                <div className="metric-note">
                   Volume (30d): {x.volume}
                 </div>
               </div>
             ))}
           </section>
 
-          <section className="mt-8 rounded-xl border border-neutral-800 bg-neutral-950 p-5">
-            <h3 className="text-sm font-semibold text-white">
-              Pricing estimator
-            </h3>
-            <form
-              className="mt-4 grid gap-3 md:grid-cols-5"
-              onSubmit={estimate}
-            >
-              <label className="flex flex-col gap-1 text-xs text-gray-200">
-                Brand
+          <section className="sell-card" style={{ marginTop: "32px" }}>
+            <h3>Pricing estimator</h3>
+            <form className="estimator-form" onSubmit={estimate}>
+              <label className="form-field">
+                <span>Brand</span>
                 <input
                   name="brand"
                   value={brand}
                   onChange={(e) => setBrand(e.target.value)}
-                  className="rounded-lg border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm outline-none focus:border-fuchsia-500"
                 />
               </label>
-              <label className="flex flex-col gap-1 text-xs text-gray-200">
-                Category
+              <label className="form-field">
+                <span>Category</span>
                 <input
                   name="category"
                   value={category}
                   onChange={(e) => setCategory(e.target.value)}
-                  className="rounded-lg border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm outline-none focus:border-fuchsia-500"
                 />
               </label>
-              <label className="flex flex-col gap-1 text-xs text-gray-200">
-                Condition
-                <select
-                  name="condition"
-                  defaultValue="Excellent"
-                  className="rounded-lg border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm outline-none focus:border-fuchsia-500"
-                >
+              <label className="form-field">
+                <span>Condition</span>
+                <select name="condition" defaultValue="Excellent">
                   <option>New</option>
                   <option>Excellent</option>
                   <option>Good</option>
                   <option>Fair</option>
                 </select>
               </label>
-              <label className="flex flex-col gap-1 text-xs text-gray-200">
-                Original price (USD)
-                <input
-                  name="msrp"
-                  type="number"
-                  step="1"
-                  placeholder="3000"
-                  className="rounded-lg border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm outline-none focus:border-fuchsia-500"
-                />
+              <label className="form-field">
+                <span>Original price (USD)</span>
+                <input name="msrp" type="number" step="1" placeholder="3000" />
               </label>
-              <div className="flex items-end">
-                <button
-                  className="w-full rounded-lg bg-white px-4 py-2 text-xs font-semibold text-black hover:bg-gray-100"
-                  disabled={busy}
-                >
+              <div className="form-button-wrap">
+                <button className="btn-primary" disabled={busy}>
                   {busy ? "Estimating…" : "Estimate price"}
                 </button>
               </div>
             </form>
 
             {est && (
-              <div className="mt-4 rounded-lg border border-neutral-800 bg-black/40 p-3 text-xs text-gray-200">
+              <div className="estimator-result">
                 <div>
                   <b>Suggested:</b> ${est.suggested.toFixed(0)} (range $
                   {est.low.toFixed(0)} – ${est.high.toFixed(0)})
                 </div>
-                <div className="mt-1 text-gray-400">
+                <div className="result-note">
                   <b>Confidence:</b> {(est.confidence * 100).toFixed(0)}% •{" "}
                   <b>Comparables:</b> {est.comps}
                 </div>
@@ -179,6 +162,136 @@ export default function SellerInsights() {
         </main>
         <Footer />
       </div>
+
+      <style jsx>{`
+        .back-link a {
+          font-size: 12px;
+          color: #9ca3af; /* gray-400 */
+        }
+        .back-link a:hover {
+          color: #e5e7eb; /* gray-200 */
+        }
+        h1 {
+          margin-top: 16px;
+          font-size: 24px;
+          font-weight: 600;
+          color: white;
+        }
+        .subtitle {
+          margin-top: 4px;
+          font-size: 14px;
+          color: #9ca3af; /* gray-400 */
+        }
+
+        .metrics-grid {
+          margin-top: 24px;
+          display: grid;
+          gap: 12px;
+        }
+        @media (min-width: 768px) {
+          .metrics-grid {
+            grid-template-columns: repeat(3, 1fr);
+          }
+        }
+        
+        .metric-card {
+          border-radius: 12px;
+          border: 1px solid #1f2937; /* neutral-800 */
+          background: #030712; /* neutral-950 */
+          padding: 16px;
+        }
+        .metric-title {
+          font-size: 14px;
+          font-weight: 600;
+        }
+        .metric-note {
+          margin-top: 8px;
+          font-size: 12px;
+          color: #d1d5db; /* gray-200 */
+        }
+        
+        /* Copied from sell.tsx */
+        .sell-card {
+          background: #111827;
+          border-radius: 16px;
+          padding: 18px 18px 20px;
+          border: 1px solid #1f2937;
+        }
+        .sell-card h3 {
+          margin: 0 0 16px;
+          font-size: 14px;
+          font-weight: 600;
+        }
+        
+        .estimator-form {
+          display: grid;
+          gap: 12px;
+        }
+        @media (min-width: 768px) {
+          .estimator-form {
+            grid-template-columns: repeat(5, 1fr);
+          }
+        }
+        
+        .form-field {
+          display: flex;
+          flex-direction: column;
+          gap: 4px;
+          font-size: 12px;
+          color: #d1d5db; /* gray-200 */
+        }
+        .form-field input,
+        .form-field select {
+          border-radius: 8px;
+          border: 1px solid #374151; /* neutral-700 */
+          background: #030712; /* neutral-900 */
+          padding: 8px 10px;
+          color: #e5e7eb;
+          font-size: 14px;
+        }
+        .form-field input:focus,
+        .form-field select:focus {
+          outline: none;
+          border-color: #ec4899; /* fuchsia-500 */
+        }
+        
+        .form-button-wrap {
+          display: flex;
+          align-items: flex-end;
+        }
+        
+        .btn-primary {
+          width: 100%;
+          border-radius: 8px;
+          background: white;
+          padding: 8px 12px;
+          font-size: 12px;
+          font-weight: 600;
+          color: black;
+          border: none;
+          cursor: pointer;
+        }
+        .btn-primary:hover {
+          background: #e5e7eb; /* gray-200 */
+        }
+        .btn-primary:disabled {
+          opacity: 0.6;
+        }
+        
+        .estimator-result {
+          margin-top: 16px;
+          border-radius: 8px;
+          border: 1px solid #1f2937; /* neutral-800 */
+          background: #00000066; /* black/40 */
+          padding: 12px;
+          font-size: 12px;
+          color: #d1d5db; /* gray-200 */
+        }
+        .result-note {
+          margin-top: 4px;
+          color: #9ca3af; /* gray-400 */
+        }
+      `}</style>
     </>
   );
 }
