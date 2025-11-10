@@ -1,4 +1,5 @@
 // FILE: /pages/product/[id].tsx
+
 import React, { useState } from "react";
 import Head from "next/head";
 import type { GetServerSideProps } from "next";
@@ -21,6 +22,7 @@ type ProductPageProps = {
   size: string;
   description: string;
   sellerName: string;
+  allowOffers: boolean; // ⬅ NEW
 };
 
 export default function ProductPage(props: ProductPageProps) {
@@ -38,6 +40,7 @@ export default function ProductPage(props: ProductPageProps) {
     size,
     description,
     sellerName,
+    allowOffers,
   } = props;
 
   const [loading, setLoading] = useState(false);
@@ -208,17 +211,23 @@ export default function ProductPage(props: ProductPageProps) {
               >
                 {loading ? "Processing…" : "Buy now"}
               </button>
-              <button
-                onClick={() => {
-                  const form = document.getElementById("offer-form");
-                  if (form) {
-                    form.scrollIntoView({ behavior: "smooth", block: "start" });
-                  }
-                }}
-                className="btn-offer"
-              >
-                Make an offer
-              </button>
+
+              {allowOffers && (
+                <button
+                  onClick={() => {
+                    const form = document.getElementById("offer-form");
+                    if (form) {
+                      form.scrollIntoView({
+                        behavior: "smooth",
+                        block: "start",
+                      });
+                    }
+                  }}
+                  className="btn-offer"
+                >
+                  Make an offer
+                </button>
+              )}
             </div>
 
             <div className="protection-box">
@@ -236,86 +245,87 @@ export default function ProductPage(props: ProductPageProps) {
           </div>
         </div>
 
-        {/* Offer form */}
-        <section id="offer-form" className="offer-section">
-          <h2 className="offer-heading">Make an offer</h2>
-          <p className="offer-subtitle">
-            If you have a reasonable offer, submit it here and our team will
-            contact the seller on your behalf.
-          </p>
+        {/* Offer form – only when allowed */}
+        {allowOffers && (
+          <section id="offer-form" className="offer-section">
+            <h2 className="offer-heading">Make an offer</h2>
+            <p className="offer-subtitle">
+              If you have a reasonable offer, submit it here and our team will
+              contact the seller on your behalf.
+            </p>
 
-          <form onSubmit={handleOfferSubmit} className="offer-form">
-            <div className="form-field">
-              <label htmlFor="offer_value" className="form-label">
-                Offer amount (USD)
-              </label>
-              <input
-                id="offer_value"
-                name="offer_value"
-                type="number"
-                step="1"
-                min="1"
-                className="form-input"
-                placeholder="Enter your offer in USD"
-              />
-            </div>
+            <form onSubmit={handleOfferSubmit} className="offer-form">
+              <div className="form-field">
+                <label htmlFor="offer_value" className="form-label">
+                  Offer amount (USD)
+                </label>
+                <input
+                  id="offer_value"
+                  name="offer_value"
+                  type="number"
+                  step="1"
+                  min="1"
+                  className="form-input"
+                  placeholder="Enter your offer in USD"
+                />
+              </div>
 
-            <div className="form-field">
-              <label htmlFor="email" className="form-label">
-                Your email
-              </label>
-              <input
-                id="email"
-                name="email"
-                type="email"
-                className="form-input"
-                placeholder="you@example.com"
-              />
-            </div>
+              <div className="form-field">
+                <label htmlFor="email" className="form-label">
+                  Your email
+                </label>
+                <input
+                  id="email"
+                  name="email"
+                  type="email"
+                  className="form-input"
+                  placeholder="you@example.com"
+                />
+              </div>
 
-            <div className="form-field">
-              <label htmlFor="message" className="form-label">
-                Optional message
-              </label>
-              <textarea
-                id="message"
-                name="message"
-                rows={3}
-                className="form-textarea"
-                placeholder="Tell the seller anything you’d like them to know."
-              />
-            </div>
+              <div className="form-field">
+                <label htmlFor="message" className="form-label">
+                  Optional message
+                </label>
+                <textarea
+                  id="message"
+                  name="message"
+                  rows={3}
+                  className="form-textarea"
+                  placeholder="Tell the seller anything you’d like them to know."
+                />
+              </div>
 
-            {offerError && <p className="form-error">{offerError}</p>}
+              {offerError && <p className="form-error">{offerError}</p>}
 
-            <button
-              type="submit"
-              disabled={offerSubmitting}
-              className="btn-submit-offer"
-            >
-              {offerSubmitting ? "Submitting…" : "Submit offer"}
-            </button>
-          </form>
-        </section>
+              <button
+                type="submit"
+                disabled={offerSubmitting}
+                className="btn-submit-offer"
+              >
+                {offerSubmitting ? "Submitting…" : "Submit offer"}
+              </button>
+            </form>
+          </section>
+        )}
       </main>
 
       <Footer />
 
-      {/* STYLES START HERE */}
       <style jsx>{`
         .product-wrap {
-          max-width: 1152px; /* 6xl */
+          max-width: 1152px;
           margin: 0 auto;
           padding: 24px 16px 64px;
         }
-        
+
         .breadcrumb {
           margin-bottom: 16px;
           font-size: 12px;
-          color: #9ca3af; /* gray-400 */
+          color: #9ca3af;
         }
         .breadcrumb-active {
-          color: #e5e7eb; /* gray-200 */
+          color: #e5e7eb;
         }
 
         .product-grid {
@@ -327,7 +337,7 @@ export default function ProductPage(props: ProductPageProps) {
             grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
           }
         }
-        
+
         .image-column {
           display: flex;
           flex-direction: column;
@@ -337,8 +347,8 @@ export default function ProductPage(props: ProductPageProps) {
           position: relative;
           overflow: hidden;
           border-radius: 16px;
-          border: 1px solid #ffffff1a; /* white/10 */
-          background: #ffffff0d; /* white/5 */
+          border: 1px solid #ffffff1a;
+          background: #ffffff0d;
         }
         .product-image {
           aspect-ratio: 4 / 5;
@@ -347,21 +357,21 @@ export default function ProductPage(props: ProductPageProps) {
         }
         .image-note {
           font-size: 12px;
-          color: #9ca3af; /* gray-400 */
+          color: #9ca3af;
         }
-        
+
         .details-column {
           display: flex;
           flex-direction: column;
           gap: 24px;
         }
-        
+
         .eyebrow {
           font-size: 12px;
           font-weight: 600;
           text-transform: uppercase;
           letter-spacing: 0.2em;
-          color: #6ee7b7; /* emerald-300 */
+          color: #6ee7b7;
         }
         h1 {
           margin-top: 4px;
@@ -372,9 +382,9 @@ export default function ProductPage(props: ProductPageProps) {
         .seller-note {
           margin-top: 4px;
           font-size: 14px;
-          color: #9ca3af; /* gray-400 */
+          color: #9ca3af;
         }
-        
+
         .price-box {
           display: flex;
           flex-direction: column;
@@ -387,38 +397,38 @@ export default function ProductPage(props: ProductPageProps) {
         }
         .price-note {
           font-size: 12px;
-          color: #9ca3af; /* gray-400 */
+          color: #9ca3af;
         }
-        
+
         .details-grid {
           display: grid;
           grid-template-columns: repeat(2, 1fr);
           gap: 16px;
           font-size: 12px;
-          color: #d1d5db; /* gray-300 */
+          color: #d1d5db;
         }
         .detail-item dt {
-          color: #6b7280; /* gray-500 */
+          color: #6b7280;
         }
         .detail-item dd {
           font-weight: 500;
-          color: #f9fafb; /* gray-100 */
+          color: #f9fafb;
         }
-        
+
         .description-heading {
           margin-bottom: 4px;
           font-size: 12px;
           font-weight: 600;
           text-transform: uppercase;
           letter-spacing: 0.2em;
-          color: #9ca3af; /* gray-400 */
+          color: #9ca3af;
         }
         .description-body {
           font-size: 14px;
           line-height: 1.6;
-          color: #e5e7eb; /* gray-200 */
+          color: #e5e7eb;
         }
-        
+
         .button-row {
           display: flex;
           flex-direction: column;
@@ -429,8 +439,9 @@ export default function ProductPage(props: ProductPageProps) {
             flex-direction: row;
           }
         }
-        
-        .btn-buy, .btn-offer {
+
+        .btn-buy,
+        .btn-offer {
           display: inline-flex;
           flex: 1;
           align-items: center;
@@ -448,30 +459,30 @@ export default function ProductPage(props: ProductPageProps) {
           border: none;
         }
         .btn-buy:hover {
-          background: #e5e7eb; /* gray-200 */
+          background: #e5e7eb;
         }
         .btn-buy:disabled {
           cursor: not-allowed;
           opacity: 0.6;
         }
-        
+
         .btn-offer {
-          border: 1px solid #ffffff33; /* white/20 */
+          border: 1px solid #ffffff33;
           color: white;
           background: transparent;
         }
         .btn-offer:hover {
-          border-color: #ffffff99; /* white/60 */
-          background: #ffffff0d; /* white/5 */
+          border-color: #ffffff99;
+          background: #ffffff0d;
         }
 
         .protection-box {
           border-radius: 16px;
-          border: 1px solid #ffffff1a; /* white/10 */
-          background: #ffffff0d; /* white/5 */
+          border: 1px solid #ffffff1a;
+          background: #ffffff0d;
           padding: 16px;
           font-size: 12px;
-          color: #e5e7eb; /* gray-200 */
+          color: #e5e7eb;
         }
         .protection-title {
           font-weight: 600;
@@ -486,10 +497,9 @@ export default function ProductPage(props: ProductPageProps) {
           padding-left: 16px;
         }
 
-        /* --- Offer Form --- */
         .offer-section {
           margin-top: 48px;
-          max-width: 640px; /* lg */
+          max-width: 640px;
           display: flex;
           flex-direction: column;
           gap: 16px;
@@ -499,52 +509,54 @@ export default function ProductPage(props: ProductPageProps) {
           font-weight: 600;
           text-transform: uppercase;
           letter-spacing: 0.2em;
-          color: #9ca3af; /* gray-400 */
+          color: #9ca3af;
         }
         .offer-subtitle {
           font-size: 12px;
-          color: #d1d5db; /* gray-300 */
+          color: #d1d5db;
         }
-        
+
         .offer-form {
           display: flex;
           flex-direction: column;
           gap: 16px;
           border-radius: 16px;
-          border: 1px solid #ffffff1a; /* white/10 */
-          background: #ffffff0d; /* white/5 */
+          border: 1px solid #ffffff1a;
+          background: #ffffff0d;
           padding: 16px;
           font-size: 12px;
         }
-        
+
         .form-label {
           display: block;
           font-size: 11px;
           font-weight: 500;
           text-transform: uppercase;
           letter-spacing: 0.16em;
-          color: #9ca3af; /* gray-400 */
+          color: #9ca3af;
         }
-        .form-input, .form-textarea {
+        .form-input,
+        .form-textarea {
           margin-top: 4px;
           width: 100%;
           border-radius: 6px;
-          border: 1px solid #ffffff1a; /* white/10 */
-          background: #00000066; /* black/40 */
+          border: 1px solid #ffffff1a;
+          background: #00000066;
           padding: 8px 12px;
           font-size: 12px;
           color: white;
         }
-        .form-input:focus, .form-textarea:focus {
+        .form-input:focus,
+        .form-textarea:focus {
           border-color: white;
           outline: none;
         }
-        
+
         .form-error {
           font-size: 12px;
-          color: #f87171; /* red-400 */
+          color: #f87171;
         }
-        
+
         .btn-submit-offer {
           display: inline-flex;
           width: 100%;
@@ -561,7 +573,7 @@ export default function ProductPage(props: ProductPageProps) {
           cursor: pointer;
         }
         .btn-submit-offer:hover {
-          background: #e5e7eb; /* gray-200 */
+          background: #e5e7eb;
         }
         .btn-submit-offer:disabled {
           cursor: not-allowed;
@@ -601,12 +613,11 @@ export const getServerSideProps: GetServerSideProps<ProductPageProps> = async (
     const sellerName =
       d.sellerName || d.sellerDisplayName || "Independent seller";
 
-    // --- FIX: Add image_url from sell.tsx ---
     const imageUrl =
-      d.image_url || // <-- Check for the field from sell.tsx
+      d.image_url ||
       d.imageUrl ||
       d.imageUrls?.[0] ||
-      "/images/placeholders/product-placeholder.jpg"; // Fallback
+      "/images/placeholders/product-placeholder.jpg";
 
     return {
       props: {
@@ -615,7 +626,7 @@ export const getServerSideProps: GetServerSideProps<ProductPageProps> = async (
         price: priceNumber,
         currency,
         priceLabel,
-        imageUrl, // <-- Use the corrected imageUrl
+        imageUrl,
         condition: d.condition || "Pre-owned",
         brand: d.brand || "Designer",
         category: d.category || "Fashion",
@@ -623,6 +634,7 @@ export const getServerSideProps: GetServerSideProps<ProductPageProps> = async (
         size: d.size || "One size",
         description: d.description || "",
         sellerName,
+        allowOffers: !!d.allowOffers, // ⬅ NEW
       },
     };
   } catch (err) {
