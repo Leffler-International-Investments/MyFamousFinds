@@ -41,46 +41,44 @@ export default function ManagementOrders({ orders }: Props) {
     });
   }, [orders, query, statusFilter]);
 
-  if (loading) return null;
+  if (loading) return <div className="dashboard-page" />; // Light theme skeleton
 
   return (
     <>
       <Head>
         <title>Orders Overview — Admin</title>
       </Head>
-      <div className="min-h-screen bg-gray-50 text-gray-900">
+      {/* Use light theme classes from globals.css */}
+      <div className="dashboard-page">
         <Header />
 
-        <main className="mx-auto max-w-6xl px-4 pb-16 pt-6">
-          <div className="mb-6 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+        <main className="dashboard-main">
+          {/* Use light theme classes from globals.css */}
+          <div className="dashboard-header">
             <div>
-              <h1 className="text-2xl font-semibold text-gray-900">
-                Orders Overview
-              </h1>
-              <p className="mt-1 text-sm text-gray-600">
+              <h1>Orders Overview</h1>
+              <p>
                 Search and view all platform orders, including those in progress,
                 completed, or refunded.
               </p>
             </div>
-            <Link
-              href="/management/dashboard"
-              className="text-sm text-gray-600 hover:text-gray-900"
-            >
+            <Link href="/management/dashboard">
               ← Back to Management Dashboard
             </Link>
           </div>
 
-          <div className="mb-4 flex flex-wrap items-center gap-3">
+          <div className="filters-bar">
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Search by order ID, buyer, or seller…"
-              className="w-full max-w-xs rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-gray-900 focus:outline-none"
+              className="form-input"
             />
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-gray-900 focus:outline-none"
+              className="form-input"
+              style={{maxWidth: "200px"}}
             >
               <option value="All">All statuses</option>
               <option value="Pending">Pending</option>
@@ -93,41 +91,25 @@ export default function ManagementOrders({ orders }: Props) {
             </select>
           </div>
 
-          <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white shadow-sm">
-            <table className="min-w-full divide-y divide-gray-200 text-sm">
-              <thead className="bg-gray-50">
+          <div className="table-wrapper">
+            <table className="data-table">
+              <thead>
                 <tr>
-                  <th className="px-3 py-2 text-left font-medium text-gray-700">
-                    Order ID
-                  </th>
-                  <th className="px-3 py-2 text-left font-medium text-gray-700">
-                    Buyer
-                  </th>
-                  <th className="px-3 py-2 text-left font-medium text-gray-700">
-                    Seller
-                  </th>
-                  <th className="px-3 py-2 text-right font-medium text-gray-700">
-                    Total (USD)
-                  </th>
-                  <th className="px-3 py-2 text-left font-medium text-gray-700">
-                    Status
-                  </th>
-                  <th className="px-3 py-2 text-left font-medium text-gray-700">
-                    Created
-                  </th>
+                  <th>Order ID</th>
+                  <th>Buyer</th>
+                  <th>Seller</th>
+                  <th style={{textAlign: "right"}}>Total (USD)</th>
+                  <th>Status</th>
+                  <th>Created</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
+              <tbody>
                 {visible.map((o) => (
                   <tr key={o.id}>
-                    <td className="px-3 py-2 text-gray-900">{o.id}</td>
-                    <td className="px-3 py-2 text-gray-700">
-                      {o.buyerEmail}
-                    </td>
-                    <td className="px-3 py-2 text-gray-700">
-                      {o.sellerName}
-                    </td>
-                    <td className="px-3 py-2 text-right text-gray-700">
+                    <td>{o.id}</td>
+                    <td>{o.buyerEmail}</td>
+                    <td>{o.sellerName}</td>
+                    <td style={{textAlign: "right"}}>
                       {o.total
                         ? o.total.toLocaleString("en-US", {
                             style: "currency",
@@ -135,18 +117,13 @@ export default function ManagementOrders({ orders }: Props) {
                           })
                         : "—"}
                     </td>
-                    <td className="px-3 py-2 text-gray-700">{o.status}</td>
-                    <td className="px-3 py-2 text-gray-700">
-                      {o.createdAt}
-                    </td>
+                    <td>{o.status}</td>
+                    <td>{o.createdAt}</td>
                   </tr>
                 ))}
                 {visible.length === 0 && (
                   <tr>
-                    <td
-                      colSpan={6}
-                      className="px-3 py-6 text-center text-sm text-gray-500"
-                    >
+                    <td colSpan={6} className="table-message">
                       No orders match this filter.
                     </td>
                   </tr>
@@ -158,6 +135,68 @@ export default function ManagementOrders({ orders }: Props) {
 
         <Footer />
       </div>
+
+      {/* Styles for the light theme table and forms */}
+      <style jsx>{`
+        .filters-bar {
+          margin-bottom: 16px;
+          display: flex;
+          flex-wrap: wrap;
+          gap: 12px;
+        }
+        .form-input {
+          /* width: 100%; */
+          max-width: 320px;
+          border-radius: 6px;
+          border: 1px solid #d1d5db; /* gray-300 */
+          padding: 8px 12px;
+          font-size: 14px;
+        }
+        .form-input:focus {
+          border-color: #111827; /* gray-900 */
+          outline: none;
+        }
+        
+        .table-wrapper {
+          overflow-x: auto;
+          border-radius: 8px;
+          border: 1px solid #e5e7eb; /* gray-200 */
+          background: #ffffff;
+          box-shadow: 0 1px 2px 0 rgba(0,0,0,0.05);
+        }
+        .data-table {
+          min-width: 100%;
+          border-collapse: collapse;
+          font-size: 14px;
+        }
+        .data-table thead {
+          background: #f9fafb; /* gray-50 */
+        }
+        .data-table th {
+          padding: 8px 12px;
+          text-align: left;
+          font-weight: 500;
+          color: #374151; /* gray-700 */
+        }
+        .data-table tbody tr {
+          border-bottom: 1px solid #f3f4f6; /* gray-100 */
+        }
+        .data-table tbody tr:last-child {
+          border-bottom: none;
+        }
+        .data-table td {
+          padding: 8px 12px;
+          color: #111827; /* gray-900 */
+        }
+        .data-table td:first-child {
+          font-weight: 500;
+        }
+        .table-message {
+          padding: 24px;
+          text-align: center;
+          color: #6b7280; /* gray-500 */
+        }
+      `}</style>
     </>
   );
 }
