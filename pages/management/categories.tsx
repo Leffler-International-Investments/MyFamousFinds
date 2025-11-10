@@ -21,7 +21,7 @@ type Props = {
 };
 
 export default function ManagementCategories({ categories }: Props) {
-  const { loading } } = useRequireAdmin();
+  const { loading } = useRequireAdmin();
   const [items] = useState(categories);
 
   if (loading) return <div className="dashboard-page"></div>;
