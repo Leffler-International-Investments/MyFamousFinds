@@ -5,9 +5,9 @@ import Image from "next/image";
 export default function Header() {
   return (
     <header className="site-header">
-      <div className="inner-container"> {/* Changed class name here */}
+      <div className="inner-container">
         {/* Brand */}
-        <Link href="/" className="brand-logo"> {/* Changed class name here */}
+        <Link href="/" className="brand-logo">
           <Image
             src="/Famous-Finds-Logo.png"
             alt="Famous Finds Logo"
@@ -18,19 +18,19 @@ export default function Header() {
         </Link>
 
         {/* Navigation */}
-        <nav className="main-nav"> {/* Changed class name here */}
-          <Link href="/" className="nav-link-item">Dashboard</Link> {/* Changed class name here */}
+        <nav className="main-nav">
+          <Link href="/" className="nav-link-item">Dashboard</Link>
           <Link href="/help" className="nav-link-item">Help</Link>
           <Link href="/about" className="nav-link-item">About</Link>
           <Link href="/contact" className="nav-link-item">Contact</Link>
         </nav>
 
-        {/* Admin portals */}
-        <div className="admin-portals"> {/* Changed class name here */}
-          <Link href="/management/login" className="admin-button management"> {/* Changed class name here */}
+        {/* Admin portals - CORRECTED JSX HERE */}
+        <div className="admin-portals">
+          <Link href="/management/login" className="admin-button management">
             Management Admin Login
           </Link>
-          <Link href="/seller/login" className="admin-button seller">
+          <Link href="/seller/login" className="admin-button seller"> {/* CORRECTED: Now links to seller login with 'seller' class */}
             Seller Admin Login
           </Link>
         </div>
@@ -99,7 +99,7 @@ export default function Header() {
 
         .admin-button {
           font-size: 12px;
-          border-radius: 20px;
+          border-radius: 20px; /* This makes the "pill" shape */
           padding: 6px 12px;
           font-weight: 600;
           text-decoration: none;
@@ -107,11 +107,11 @@ export default function Header() {
           white-space: nowrap; /* Keep button text on one line */
         }
         .management {
-          background: linear-gradient(90deg, #d1d5db, #9ca3af);
+          background: linear-gradient(90deg, #d1d5db, #9ca3af); /* Gray gradient */
           color: #000;
         }
         .seller {
-          background: linear-gradient(90deg, #facc15, #f59e0b);
+          background: linear-gradient(90deg, #facc15, #f59e0b); /* Orange/Yellow gradient */
           color: #000;
         }
         .admin-button:hover {
@@ -132,7 +132,6 @@ export default function Header() {
           .main-nav,
           .admin-portals {
             width: 100%; /* All main sections take full width on mobile */
-            /* Explicitly set margin-bottom to 0 for these sections to prevent extra space */
             margin-bottom: 0 !important; 
           }
           
