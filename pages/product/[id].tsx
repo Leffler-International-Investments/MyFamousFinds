@@ -126,95 +126,85 @@ export default function ProductPage(props: ProductPageProps) {
   };
 
   return (
-    <div className="min-h-screen bg-black text-gray-100">
+    <div className="dark-theme-page">
       <Head>
         <title>{title} — Famous-Finds</title>
       </Head>
       <Header />
 
-      <main className="mx-auto max-w-6xl px-4 pb-16 pt-6">
-        <nav className="mb-4 text-xs text-gray-400">
+      <main className="product-wrap">
+        <nav className="breadcrumb">
           <span>Home</span> <span className="mx-1">/</span>
           <span>Women</span> <span className="mx-1">/</span>
-          <span className="text-gray-200">{title}</span>
+          <span className="breadcrumb-active">{title}</span>
         </nav>
 
-        <div className="grid gap-10 md:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]">
+        <div className="product-grid">
           {/* Product image */}
-          <div className="space-y-4">
-            <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-white/5">
+          <div className="image-column">
+            <div className="image-wrapper">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={imageUrl}
-                alt={title}
-                className="aspect-[4/5] w-full object-cover"
-              />
+              <img src={imageUrl} alt={title} className="product-image" />
             </div>
-            <p className="text-xs text-gray-400">
+            <p className="image-note">
               Authenticity and quality vetted before shipment. Free returns if
               not as described.
             </p>
           </div>
 
           {/* Product details */}
-          <div className="space-y-6">
+          <div className="details-column">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-300">
-                Famous-Finds
-              </p>
-              <h1 className="mt-1 text-2xl font-semibold text-white">
-                {title}
-              </h1>
-              <p className="mt-1 text-sm text-gray-400">
+              <p className="eyebrow">Famous-Finds</p>
+              <h1>{title}</h1>
+              <p className="seller-note">
                 Sold by {sellerName}. Inspected and shipped via Famous-Finds
                 concierge.
               </p>
             </div>
 
-            <div className="space-y-2">
-              <p className="text-2xl font-semibold text-white">{priceLabel}</p>
-              <p className="text-xs text-gray-400">
+            <div className="price-box">
+              <p className="price-label">{priceLabel}</p>
+              <p className="price-note">
                 All prices in USD. Taxes and shipping calculated at checkout.
               </p>
             </div>
 
-            <dl className="grid grid-cols-2 gap-4 text-xs text-gray-300">
-              <div>
-                <dt className="text-gray-500">Condition</dt>
-                <dd className="font-medium text-gray-100">{condition}</dd>
+            <dl className="details-grid">
+              <div className="detail-item">
+                <dt>Condition</dt>
+                <dd>{condition}</dd>
               </div>
-              <div>
-                <dt className="text-gray-500">Brand</dt>
-                <dd className="font-medium text-gray-100">{brand}</dd>
+              <div className="detail-item">
+                <dt>Brand</dt>
+                <dd>{brand}</dd>
               </div>
-              <div>
-                <dt className="text-gray-500">Category</dt>
-                <dd className="font-medium text-gray-100">{category}</dd>
+              <div className="detail-item">
+                <dt>Category</dt>
+                <dd>{category}</dd>
               </div>
-              <div>
-                <dt className="text-gray-500">Color</dt>
-                <dd className="font-medium text-gray-100">{color}</dd>
+              <div className="detail-item">
+                <dt>Color</dt>
+                <dd>{color}</dd>
               </div>
-              <div>
-                <dt className="text-gray-500">Size</dt>
-                <dd className="font-medium text-gray-100">{size}</dd>
+              <div className="detail-item">
+                <dt>Size</dt>
+                <dd>{size}</dd>
               </div>
             </dl>
 
             <div>
-              <h2 className="mb-1 text-xs font-semibold uppercase tracking-[0.2em] text-gray-400">
-                Description
-              </h2>
-              <p className="text-sm leading-relaxed text-gray-200">
+              <h2 className="description-heading">Description</h2>
+              <p className="description-body">
                 {description || "No additional description provided."}
               </p>
             </div>
 
-            <div className="flex flex-col gap-3 sm:flex-row">
+            <div className="button-row">
               <button
                 onClick={handleBuyNow}
                 disabled={loading}
-                className="inline-flex flex-1 items-center justify-center rounded-full bg-white px-6 py-3 text-sm font-semibold text-black transition hover:bg-gray-200 disabled:cursor-not-allowed disabled:opacity-60"
+                className="btn-buy"
               >
                 {loading ? "Processing…" : "Buy now"}
               </button>
@@ -225,17 +215,17 @@ export default function ProductPage(props: ProductPageProps) {
                     form.scrollIntoView({ behavior: "smooth", block: "start" });
                   }
                 }}
-                className="inline-flex flex-1 items-center justify-center rounded-full border border-white/20 px-6 py-3 text-sm font-semibold text-white transition hover:border-white/60 hover:bg-white/5"
+                className="btn-offer"
               >
                 Make an offer
               </button>
             </div>
 
-            <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-xs text-gray-200">
-              <p className="font-semibold text-white">
+            <div className="protection-box">
+              <p className="protection-title">
                 How Famous-Finds protects you
               </p>
-              <ul className="mt-2 list-disc space-y-1 pl-4">
+              <ul className="protection-list">
                 <li>Funds held securely until your item is authenticated.</li>
                 <li>
                   If the item is not as described, you are fully refunded.
@@ -247,24 +237,16 @@ export default function ProductPage(props: ProductPageProps) {
         </div>
 
         {/* Offer form */}
-        <section id="offer-form" className="mt-12 max-w-lg space-y-4">
-          <h2 className="text-sm font-semibold uppercase tracking-[0.2em] text-gray-400">
-            Make an offer
-          </h2>
-          <p className="text-xs text-gray-300">
+        <section id="offer-form" className="offer-section">
+          <h2 className="offer-heading">Make an offer</h2>
+          <p className="offer-subtitle">
             If you have a reasonable offer, submit it here and our team will
             contact the seller on your behalf.
           </p>
 
-          <form
-            onSubmit={handleOfferSubmit}
-            className="space-y-4 rounded-2xl border border-white/10 bg-white/5 p-4 text-xs"
-          >
-            <div>
-              <label
-                htmlFor="offer_value"
-                className="block text-[11px] font-medium uppercase tracking-[0.16em] text-gray-400"
-              >
+          <form onSubmit={handleOfferSubmit} className="offer-form">
+            <div className="form-field">
+              <label htmlFor="offer_value" className="form-label">
                 Offer amount (USD)
               </label>
               <input
@@ -273,51 +255,43 @@ export default function ProductPage(props: ProductPageProps) {
                 type="number"
                 step="1"
                 min="1"
-                className="mt-1 w-full rounded-md border border-white/10 bg-black/40 px-3 py-2 text-xs text-white focus:border-white focus:outline-none"
+                className="form-input"
                 placeholder="Enter your offer in USD"
               />
             </div>
 
-            <div>
-              <label
-                htmlFor="email"
-                className="block text-[11px] font-medium uppercase tracking-[0.16em] text-gray-400"
-              >
+            <div className="form-field">
+              <label htmlFor="email" className="form-label">
                 Your email
               </label>
               <input
                 id="email"
                 name="email"
                 type="email"
-                className="mt-1 w-full rounded-md border border-white/10 bg-black/40 px-3 py-2 text-xs text-white focus:border-white focus:outline-none"
+                className="form-input"
                 placeholder="you@example.com"
               />
             </div>
 
-            <div>
-              <label
-                htmlFor="message"
-                className="block text-[11px] font-medium uppercase tracking-[0.16em] text-gray-400"
-              >
+            <div className="form-field">
+              <label htmlFor="message" className="form-label">
                 Optional message
               </label>
               <textarea
                 id="message"
                 name="message"
                 rows={3}
-                className="mt-1 w-full rounded-md border border-white/10 bg-black/40 px-3 py-2 text-xs text-white focus:border-white focus:outline-none"
+                className="form-textarea"
                 placeholder="Tell the seller anything you’d like them to know."
               />
             </div>
 
-            {offerError && (
-              <p className="text-xs text-red-400">{offerError}</p>
-            )}
+            {offerError && <p className="form-error">{offerError}</p>}
 
             <button
               type="submit"
               disabled={offerSubmitting}
-              className="inline-flex w-full items-center justify-center rounded-full bg-white px-6 py-2.5 text-xs font-semibold text-black transition hover:bg-gray-200 disabled:cursor-not-allowed disabled:opacity-60"
+              className="btn-submit-offer"
             >
               {offerSubmitting ? "Submitting…" : "Submit offer"}
             </button>
@@ -326,6 +300,274 @@ export default function ProductPage(props: ProductPageProps) {
       </main>
 
       <Footer />
+
+      {/* STYLES START HERE */}
+      <style jsx>{`
+        .product-wrap {
+          max-width: 1152px; /* 6xl */
+          margin: 0 auto;
+          padding: 24px 16px 64px;
+        }
+        
+        .breadcrumb {
+          margin-bottom: 16px;
+          font-size: 12px;
+          color: #9ca3af; /* gray-400 */
+        }
+        .breadcrumb-active {
+          color: #e5e7eb; /* gray-200 */
+        }
+
+        .product-grid {
+          display: grid;
+          gap: 40px;
+        }
+        @media (min-width: 768px) {
+          .product-grid {
+            grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+          }
+        }
+        
+        .image-column {
+          display: flex;
+          flex-direction: column;
+          gap: 16px;
+        }
+        .image-wrapper {
+          position: relative;
+          overflow: hidden;
+          border-radius: 16px;
+          border: 1px solid #ffffff1a; /* white/10 */
+          background: #ffffff0d; /* white/5 */
+        }
+        .product-image {
+          aspect-ratio: 4 / 5;
+          width: 100%;
+          object-fit: cover;
+        }
+        .image-note {
+          font-size: 12px;
+          color: #9ca3af; /* gray-400 */
+        }
+        
+        .details-column {
+          display: flex;
+          flex-direction: column;
+          gap: 24px;
+        }
+        
+        .eyebrow {
+          font-size: 12px;
+          font-weight: 600;
+          text-transform: uppercase;
+          letter-spacing: 0.2em;
+          color: #6ee7b7; /* emerald-300 */
+        }
+        h1 {
+          margin-top: 4px;
+          font-size: 24px;
+          font-weight: 600;
+          color: white;
+        }
+        .seller-note {
+          margin-top: 4px;
+          font-size: 14px;
+          color: #9ca3af; /* gray-400 */
+        }
+        
+        .price-box {
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
+        }
+        .price-label {
+          font-size: 24px;
+          font-weight: 600;
+          color: white;
+        }
+        .price-note {
+          font-size: 12px;
+          color: #9ca3af; /* gray-400 */
+        }
+        
+        .details-grid {
+          display: grid;
+          grid-template-columns: repeat(2, 1fr);
+          gap: 16px;
+          font-size: 12px;
+          color: #d1d5db; /* gray-300 */
+        }
+        .detail-item dt {
+          color: #6b7280; /* gray-500 */
+        }
+        .detail-item dd {
+          font-weight: 500;
+          color: #f9fafb; /* gray-100 */
+        }
+        
+        .description-heading {
+          margin-bottom: 4px;
+          font-size: 12px;
+          font-weight: 600;
+          text-transform: uppercase;
+          letter-spacing: 0.2em;
+          color: #9ca3af; /* gray-400 */
+        }
+        .description-body {
+          font-size: 14px;
+          line-height: 1.6;
+          color: #e5e7eb; /* gray-200 */
+        }
+        
+        .button-row {
+          display: flex;
+          flex-direction: column;
+          gap: 12px;
+        }
+        @media (min-width: 640px) {
+          .button-row {
+            flex-direction: row;
+          }
+        }
+        
+        .btn-buy, .btn-offer {
+          display: inline-flex;
+          flex: 1;
+          align-items: center;
+          justify-content: center;
+          border-radius: 999px;
+          padding: 12px 24px;
+          font-size: 14px;
+          font-weight: 600;
+          transition: all 150ms;
+          cursor: pointer;
+        }
+        .btn-buy {
+          background: white;
+          color: black;
+          border: none;
+        }
+        .btn-buy:hover {
+          background: #e5e7eb; /* gray-200 */
+        }
+        .btn-buy:disabled {
+          cursor: not-allowed;
+          opacity: 0.6;
+        }
+        
+        .btn-offer {
+          border: 1px solid #ffffff33; /* white/20 */
+          color: white;
+          background: transparent;
+        }
+        .btn-offer:hover {
+          border-color: #ffffff99; /* white/60 */
+          background: #ffffff0d; /* white/5 */
+        }
+
+        .protection-box {
+          border-radius: 16px;
+          border: 1px solid #ffffff1a; /* white/10 */
+          background: #ffffff0d; /* white/5 */
+          padding: 16px;
+          font-size: 12px;
+          color: #e5e7eb; /* gray-200 */
+        }
+        .protection-title {
+          font-weight: 600;
+          color: white;
+        }
+        .protection-list {
+          margin-top: 8px;
+          list-style-type: disc;
+          display: flex;
+          flex-direction: column;
+          gap: 4px;
+          padding-left: 16px;
+        }
+
+        /* --- Offer Form --- */
+        .offer-section {
+          margin-top: 48px;
+          max-width: 640px; /* lg */
+          display: flex;
+          flex-direction: column;
+          gap: 16px;
+        }
+        .offer-heading {
+          font-size: 14px;
+          font-weight: 600;
+          text-transform: uppercase;
+          letter-spacing: 0.2em;
+          color: #9ca3af; /* gray-400 */
+        }
+        .offer-subtitle {
+          font-size: 12px;
+          color: #d1d5db; /* gray-300 */
+        }
+        
+        .offer-form {
+          display: flex;
+          flex-direction: column;
+          gap: 16px;
+          border-radius: 16px;
+          border: 1px solid #ffffff1a; /* white/10 */
+          background: #ffffff0d; /* white/5 */
+          padding: 16px;
+          font-size: 12px;
+        }
+        
+        .form-label {
+          display: block;
+          font-size: 11px;
+          font-weight: 500;
+          text-transform: uppercase;
+          letter-spacing: 0.16em;
+          color: #9ca3af; /* gray-400 */
+        }
+        .form-input, .form-textarea {
+          margin-top: 4px;
+          width: 100%;
+          border-radius: 6px;
+          border: 1px solid #ffffff1a; /* white/10 */
+          background: #00000066; /* black/40 */
+          padding: 8px 12px;
+          font-size: 12px;
+          color: white;
+        }
+        .form-input:focus, .form-textarea:focus {
+          border-color: white;
+          outline: none;
+        }
+        
+        .form-error {
+          font-size: 12px;
+          color: #f87171; /* red-400 */
+        }
+        
+        .btn-submit-offer {
+          display: inline-flex;
+          width: 100%;
+          align-items: center;
+          justify-content: center;
+          border-radius: 999px;
+          background: white;
+          padding: 10px 24px;
+          font-size: 12px;
+          font-weight: 600;
+          color: black;
+          transition: all 150ms;
+          border: none;
+          cursor: pointer;
+        }
+        .btn-submit-offer:hover {
+          background: #e5e7eb; /* gray-200 */
+        }
+        .btn-submit-offer:disabled {
+          cursor: not-allowed;
+          opacity: 0.6;
+        }
+      `}</style>
     </div>
   );
 }
@@ -359,6 +601,13 @@ export const getServerSideProps: GetServerSideProps<ProductPageProps> = async (
     const sellerName =
       d.sellerName || d.sellerDisplayName || "Independent seller";
 
+    // --- FIX: Add image_url from sell.tsx ---
+    const imageUrl =
+      d.image_url || // <-- Check for the field from sell.tsx
+      d.imageUrl ||
+      d.imageUrls?.[0] ||
+      "/images/placeholders/product-placeholder.jpg"; // Fallback
+
     return {
       props: {
         id,
@@ -366,10 +615,7 @@ export const getServerSideProps: GetServerSideProps<ProductPageProps> = async (
         price: priceNumber,
         currency,
         priceLabel,
-        imageUrl:
-          d.imageUrl ||
-          d.imageUrls?.[0] ||
-          "/images/placeholders/product-placeholder.jpg",
+        imageUrl, // <-- Use the corrected imageUrl
         condition: d.condition || "Pre-owned",
         brand: d.brand || "Designer",
         category: d.category || "Fashion",
