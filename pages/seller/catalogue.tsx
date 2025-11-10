@@ -140,7 +140,7 @@ export default function Catalogue() {
                     >
                       Loading your listings…
                     </td>
-                  </tr>
+                  }
                 )}
 
                 {!loading && error && (
@@ -152,7 +152,6 @@ export default function Catalogue() {
                       {error}
                     </td>
                   </tr>
-Dosn't 
                 )}
 
                 {!loading && !error && items.length === 0 && (
