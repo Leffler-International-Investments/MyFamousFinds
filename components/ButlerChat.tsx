@@ -1,262 +1,374 @@
-// FILE: /pages/api/butler.ts
-// Butler API: search Firestore `listings` with category awareness.
+// FILE: components/ButlerChat.tsx
 
-import type { NextApiRequest, NextApiResponse } from "next";
-import { adminDb } from "../../utils/firebaseAdmin";
+import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/router";
+
+type ButlerChatProps = {
+  isOpen: boolean;
+  onClose: () => void;
+};
+
+type ChatMessage = {
+  id: string;
+  role: "user" | "butler";
+  text: string;
+};
 
 type ButlerResult = {
-  id: string;
+  id: string; // Firestore listing id, used in /product/[id]
   title: string;
-  brand: string;
-  price: string;
-  href: string;
+  brand?: string;
+  price?: number;
+  currency?: string;
 };
 
-type Ok = {
+type ButlerResponse = {
   answer: string;
-  results: ButlerResult[];
+  results?: ButlerResult[];
 };
 
-type Err = {
-  error: string;
-};
+export default function ButlerChat({ isOpen, onClose }: ButlerChatProps) {
+  const router = useRouter();
+  const [input, setInput] = useState("");
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [results, setResults] = useState<ButlerResult[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [listening, setListening] = useState(false);
 
-function norm(v: any): string {
-  return (v || "").toString().toLowerCase();
-}
+  const messagesEndRef = useRef<HTMLDivElement | null>(null);
+  const recognitionRef = useRef<any>(null);
 
-// Map query words -> catalogue category slugs
-const CATEGORY_KEYWORDS: Record<string, string[]> = {
-  bags: ["bag", "bags", "handbag", "hand bag", "tote", "clutch", "crossbody"],
-  shoes: [
-    "shoe",
-    "shoes",
-    "sneaker",
-    "sneakers",
-    "trainer",
-    "trainers",
-    "boots",
-    "heels",
-  ],
-  watches: ["watch", "watches", "timepiece"],
-  jewelry: [
-    "jewelry",
-    "jewelery",
-    "ring",
-    "rings",
-    "necklace",
-    "necklaces",
-    "bracelet",
-    "bracelets",
-    "earring",
-    "earrings",
-  ],
-  clothing: [
-    "clothing",
-    "dress",
-    "dresses",
-    "coat",
-    "coats",
-    "jacket",
-    "jackets",
-    "shirt",
-    "shirts",
-    "top",
-    "tops",
-    "skirt",
-    "skirts",
-    "trousers",
-    "pants",
-  ],
-  beauty: ["beauty", "perfume", "fragrance", "makeup", "lipstick"],
-  accessories: [
-    "accessory",
-    "accessories",
-    "belt",
-    "belts",
-    "wallet",
-    "wallets",
-    "scarf",
-    "scarves",
-    "hat",
-    "hats",
-  ],
-  kids: ["kids", "child", "children", "boy", "girl"],
-  men: ["men", "mens", "menswear"],
-  women: ["women", "womens", "womenswear"],
-  home: ["home", "homeware", "decor"],
-};
-
-function detectCategoryFromQuery(q: string): string | null {
-  for (const [slug, words] of Object.entries(CATEGORY_KEYWORDS)) {
-    if (words.some((w) => q.includes(w))) {
-      return slug;
+  // Scroll to bottom on new message
+  useEffect(() => {
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
     }
-  }
-  return null;
-}
+  }, [messages, results]);
 
-function itemMatchesCategory(
-  requiredSlug: string | null,
-  itemCategoryRaw: string,
-  titleRaw: string,
-  descriptionRaw: string
-): boolean {
-  if (!requiredSlug) return true; // no category constraint
+  // --- Voice: setup Web Speech API instance on first use ---
+  const ensureRecognition = () => {
+    if (recognitionRef.current) return recognitionRef.current;
+    if (typeof window === "undefined") return null;
 
-  const itemCategory = itemCategoryRaw.toLowerCase();
-  const title = titleRaw.toLowerCase();
-  const desc = descriptionRaw.toLowerCase();
+    const SpeechRecognition =
+      (window as any).SpeechRecognition ||
+      (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognition) return null;
 
-  const synonyms = CATEGORY_KEYWORDS[requiredSlug] || [requiredSlug];
+    const rec = new SpeechRecognition();
+    rec.lang = "en-US";
+    rec.continuous = false;
+    rec.interimResults = false;
+    recognitionRef.current = rec;
+    return rec;
+  };
 
-  // 1) Direct match on category field
-  if (
-    itemCategory &&
-    synonyms.some((w) => itemCategory.includes(w) || itemCategory === requiredSlug)
-  ) {
-    return true;
-  }
+  const handleStartListening = () => {
+    const rec = ensureRecognition();
+    if (!rec) {
+      alert("Voice recognition is not supported on this device/browser.");
+      return;
+    }
+    setListening(true);
 
-  // 2) Fallback: title/description contains category words
-  const haystack = `${title} ${desc}`;
-  if (synonyms.some((w) => haystack.includes(w))) {
-    return true;
-  }
-
-  // Otherwise, treat as not matching this category
-  return false;
-}
-
-export default async function handler(
-  req: NextApiRequest,
-  res: NextApiResponse<Ok | Err>
-) {
-  if (req.method !== "POST") {
-    return res.status(405).json({ error: "Method not allowed" });
-  }
-
-  const { query } = (req.body || {}) as { query?: string };
-  const userQuery = (query || "").trim();
-
-  if (!userQuery) {
-    return res
-      .status(400)
-      .json({ error: "Please tell me what you’re looking for." });
-  }
-
-  try {
-    const snap = await adminDb
-      .collection("listings")
-      .orderBy("createdAt", "desc")
-      .limit(100)
-      .get();
-
-    const q = norm(userQuery);
-    const words = q.split(/\s+/).filter(Boolean);
-    const allowedStatuses = ["Live", "Active", "Approved"];
-
-    // 🔹 detect “bags / shoes / watches / …” from what the user said
-    const requiredCategory = detectCategoryFromQuery(q);
-
-    type Hit = {
-      id: string;
-      title: string;
-      brand: string;
-      price: string;
-      href: string;
-      score: number;
+    rec.onresult = (event: any) => {
+      const transcript = event.results[0][0].transcript;
+      setInput(transcript);
+    };
+    rec.onerror = () => {
+      setListening(false);
+    };
+    rec.onend = () => {
+      setListening(false);
     };
 
-    const hits: Hit[] = [];
+    rec.start();
+  };
 
-    snap.docs.forEach((doc) => {
-      const d: any = doc.data() || {};
-
-      if (d.status && !allowedStatuses.includes(d.status)) return;
-
-      const title = d.title || "Untitled listing";
-      const brand = d.brand || "";
-      const categoryField = d.category || d.categorySlug || "";
-      const description = d.description || "";
-
-      // ❗ category filter – e.g. “bag” will **exclude sneakers**
-      if (
-        !itemMatchesCategory(
-          requiredCategory,
-          categoryField,
-          title,
-          description
-        )
-      ) {
-        return;
-      }
-
-      const haystack = norm(
-        `${title} ${brand} ${categoryField} ${description}`
-      );
-      if (!haystack) return;
-
-      let score = 0;
-      if (haystack.includes(q)) score += 5;
-      for (const w of words) {
-        if (w && haystack.includes(w)) score += 1;
-      }
-      if (!score) return;
-
-      const priceNumber = Number(d.price) || 0;
-      const price = priceNumber
-        ? `US$${priceNumber.toLocaleString("en-US")}`
-        : "";
-
-      hits.push({
-        id: doc.id,
-        title,
-        brand,
-        price,
-        href: `/product/${doc.id}`,
-        score,
-      });
-    });
-
-    hits.sort((a, b) => b.score - a.score);
-
-    if (!hits.length) {
-      return res.json({
-        answer:
-          `I checked the Famous Finds catalogue but couldn’t find a good match for “${userQuery}”. ` +
-          `Try another brand, colour or item type – or tap “Browse the catalogue”.`,
-        results: [],
-      });
+  const handleVoiceClick = () => {
+    if (listening) {
+      const rec = recognitionRef.current;
+      if (rec) rec.stop();
+      setListening(false);
+      return;
     }
+    handleStartListening();
+  };
 
-    const top = hits.slice(0, 5);
-    const lines = top.map((item, i) => {
-      const label =
-        (item.brand ? item.brand + " — " : "") +
-        item.title +
-        (item.price ? ` (${item.price})` : "");
-      return `${i + 1}. ${label}`;
+  // --- Call API ---
+  async function callButler(query: string): Promise<ButlerResponse> {
+    const res = await fetch("/api/butler", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ query }),
     });
-
-    const answer =
-      `Here’s what I found in the Famous Finds catalogue for “${userQuery}”:\n\n` +
-      lines.join("\n") +
-      `\n\nTap a result below to open the product.`;
-
-    const results: ButlerResult[] = top.map((item) => ({
-      id: item.id,
-      title: item.title,
-      brand: item.brand,
-      price: item.price,
-      href: item.href,
-    }));
-
-    return res.status(200).json({ answer, results });
-  } catch (err) {
-    console.error("Butler search error:", err);
-    return res
-      .status(500)
-      .json({ error: "There was a problem searching the catalogue." });
+    if (!res.ok) {
+      throw new Error(`Butler error: ${res.status}`);
+    }
+    return (await res.json()) as ButlerResponse;
   }
+
+  const handleSend = async () => {
+    const trimmed = input.trim();
+    if (!trimmed || loading) return;
+
+    const newUserMessage: ChatMessage = {
+      id: String(Date.now()),
+      role: "user",
+      text: trimmed,
+    };
+    setMessages((prev) => [...prev, newUserMessage]);
+    setInput("");
+    setLoading(true);
+
+    try {
+      const data = await callButler(trimmed);
+      const butlerMessage: ChatMessage = {
+        id: `${Date.now()}-butler`,
+        role: "butler",
+        text: data.answer,
+      };
+      setMessages((prev) => [...prev, butlerMessage]);
+      setResults(data.results || []);
+    } catch (err: any) {
+      const errMsg: ChatMessage = {
+        id: `${Date.now()}-error`,
+        role: "butler",
+        text:
+          "My apologies, something went wrong while searching the catalogue. Please try again.",
+      };
+      setMessages((prev) => [...prev, errMsg]);
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResultClick = (id: string) => {
+    // open the product page
+    router.push(`/product/${id}`);
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="ff-butler-overlay">
+      <div className="ff-butler-window">
+        {/* Header */}
+        <div className="ff-butler-header">
+          <div className="ff-butler-title">
+            <span role="img" aria-label="Butler">
+              🤵
+            </span>{" "}
+            AI Butler
+          </div>
+          <button
+            className="ff-butler-close"
+            onClick={onClose}
+            aria-label="Close butler"
+          >
+            ✕
+          </button>
+        </div>
+
+        {/* Messages */}
+        <div className="ff-butler-messages">
+          {messages.map((m) => (
+            <div
+              key={m.id}
+              className={
+                m.role === "user"
+                  ? "ff-msg ff-msg-user"
+                  : "ff-msg ff-msg-butler"
+              }
+            >
+              {m.role === "user" ? "🧑 " : "🤵 Butler: "}
+              {m.text}
+            </div>
+          ))}
+          <div ref={messagesEndRef} />
+        </div>
+
+        {/* Results */}
+        {results.length > 0 && (
+          <div className="ff-butler-results">
+            {results.map((r) => (
+              <button
+                key={r.id}
+                className="ff-result-card"
+                onClick={() => handleResultClick(r.id)}
+              >
+                <div className="ff-result-title">
+                  {r.brand && <strong>{r.brand} — </strong>}
+                  {r.title}
+                </div>
+                {typeof r.price === "number" && (
+                  <div className="ff-result-price">
+                    {new Intl.NumberFormat("en-US", {
+                      style: "currency",
+                      currency: r.currency || "USD",
+                      maximumFractionDigits: 2,
+                    }).format(r.price)}
+                  </div>
+                )}
+                <div className="ff-result-link">View listing →</div>
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* Input */}
+        <div className="ff-butler-inputRow">
+          <input
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && handleSend()}
+            className="ff-butler-input"
+            placeholder="Ask the butler..."
+          />
+          <button
+            onClick={handleSend}
+            className="ff-butler-send"
+            disabled={loading}
+          >
+            {loading ? "…" : "Send"}
+          </button>
+          <button
+            onClick={handleVoiceClick}
+            className={`ff-butler-voice ${
+              listening ? "ff-butler-voice-on" : "ff-butler-voice-off"
+            }`}
+            aria-label={listening ? "Stop listening" : "Start listening"}
+          >
+            🎙️
+          </button>
+        </div>
+      </div>
+
+      <style jsx>{`
+        .ff-butler-overlay {
+          position: fixed;
+          inset: 0;
+          background: rgba(0, 0, 0, 0.45);
+          display: flex;
+          justify-content: center;
+          align-items: flex-end;
+          z-index: 9999;
+        }
+        .ff-butler-window {
+          width: 100%;
+          max-width: 480px;
+          margin: 0 8px 16px;
+          background: #020617;
+          color: #f9fafb;
+          border-radius: 16px;
+          box-shadow: 0 18px 40px rgba(0, 0, 0, 0.5);
+          padding: 12px 12px 10px;
+          font-size: 13px;
+        }
+        .ff-butler-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 6px;
+        }
+        .ff-butler-title {
+          font-weight: 600;
+        }
+        .ff-butler-close {
+          border: none;
+          background: transparent;
+          color: #f9fafb;
+          font-size: 16px;
+          cursor: pointer;
+        }
+        .ff-butler-messages {
+          max-height: 180px;
+          overflow-y: auto;
+          padding: 6px 4px;
+          border-radius: 8px;
+          background: rgba(15, 23, 42, 0.85);
+          margin-bottom: 6px;
+        }
+        .ff-msg {
+          margin: 2px 0;
+        }
+        .ff-msg-user {
+          text-align: left;
+        }
+        .ff-msg-butler {
+          text-align: left;
+        }
+        .ff-butler-results {
+          margin-bottom: 6px;
+          display: flex;
+          flex-direction: column;
+          gap: 4px;
+        }
+        .ff-result-card {
+          text-align: left;
+          border-radius: 10px;
+          border: 1px solid #1f2937;
+          padding: 6px 8px;
+          background: #020617;
+          cursor: pointer;
+        }
+        .ff-result-title {
+          font-size: 13px;
+        }
+        .ff-result-price {
+          font-size: 12px;
+          color: #e5e7eb;
+        }
+        .ff-result-link {
+          font-size: 11px;
+          color: #9ca3af;
+        }
+        .ff-butler-inputRow {
+          display: flex;
+          gap: 6px;
+          margin-top: 4px;
+        }
+        .ff-butler-input {
+          flex: 1;
+          border-radius: 999px;
+          border: 1px solid #4b5563;
+          padding: 6px 10px;
+          font-size: 13px;
+          background: #020617;
+          color: #f9fafb;
+        }
+        .ff-butler-send {
+          border-radius: 999px;
+          padding: 6px 12px;
+          border: none;
+          background: #f9fafb;
+          color: #111827;
+          font-size: 13px;
+          font-weight: 600;
+          cursor: pointer;
+        }
+        .ff-butler-voice {
+          border-radius: 999px;
+          padding: 6px 10px;
+          border: none;
+          font-size: 16px;
+          cursor: pointer;
+        }
+        .ff-butler-voice-on {
+          background: #ef4444;
+          color: #ffffff;
+        }
+        .ff-butler-voice-off {
+          background: #e5e7eb;
+          color: #000000;
+        }
+        @media (min-width: 640px) {
+          .ff-butler-window {
+            margin-bottom: 24px;
+          }
+        }
+      `}</style>
+    </div>
+  );
 }
