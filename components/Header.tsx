@@ -17,22 +17,25 @@ export default function Header() {
           />
         </Link>
 
-        {/* Main navigation */}
-        <nav className="nav">
-          <Link href="/" className="navLink">Dashboard</Link>
-          <Link href="/help" className="navLink">Help</Link>
-          <Link href="/about" className="navLink">About</Link>
-          <Link href="/contact" className="navLink">Contact</Link>
-        </nav>
+        {/* Wrapper for Navigation and Admin portals for better control on mobile */}
+        <div className="nav-and-admin-wrapper">
+          {/* Main navigation */}
+          <nav className="nav">
+            <Link href="/" className="navLink">Dashboard</Link>
+            <Link href="/help" className="navLink">Help</Link>
+            <Link href="/about" className="navLink">About</Link>
+            <Link href="/contact" className="navLink">Contact</Link>
+          </nav>
 
-        {/* Admin portals */}
-        <div className="right">
-          <Link href="/management/login" className="adminBtn management">
-            Management Admin Login
-          </Link>
-          <Link href="/seller/login" className="adminBtn seller">
-            Seller Admin Login
-          </Link>
+          {/* Admin portals */}
+          <div className="right">
+            <Link href="/management/login" className="adminBtn management">
+              Management Admin Login
+            </Link>
+            <Link href="/seller/login" className="adminBtn seller">
+              Seller Admin Login
+            </Link>
+          </div>
         </div>
       </div>
 
@@ -45,33 +48,49 @@ export default function Header() {
         .inner {
           max-width: 1280px;
           margin: 0 auto;
-          padding: 12px 18px;
+          padding: 12px 18px; /* Default padding for header container */
           display: flex;
           align-items: center;
           justify-content: space-between;
-          gap: 20px; /* Responsible for space between main sections (logo, nav, admin buttons) on large screens */
-          flex-wrap: wrap; /* Allows items to wrap if space is insufficient */
+          flex-wrap: wrap; /* Allows sections to wrap */
+          gap: 20px; /* Space between logo and the nav-and-admin-wrapper on larger screens */
         }
         .brand {
           display: inline-flex;
           align-items: center;
           text-decoration: none;
-          /* flex-shrink: 0; */ /* Ensure logo doesn't shrink */
+          /* Explicitly reset margins/paddings if any were inherited */
+          margin: 0; 
+          padding: 0;
         }
+
+        /* New wrapper for navigation and admin portals */
+        .nav-and-admin-wrapper {
+          display: flex;
+          align-items: center;
+          gap: 20px; /* Space between nav and admin on larger screens */
+          flex-wrap: wrap; /* Allows nav and admin to wrap relative to each other */
+          margin: 0;
+          padding: 0;
+          flex-grow: 1; /* Allows this wrapper to take available space */
+          justify-content: flex-end; /* Pushes content to the right on larger screens */
+        }
+
         .nav {
           display: flex;
           align-items: center;
-          gap: 18px; /* Responsible for space between individual nav links */
+          gap: 18px; /* Space between individual nav links */
           font-size: 13px;
-          flex-grow: 1; /* Allows navigation to take up available space on larger screens */
-          flex-basis: auto; /* Allow items to determine their own size */
-          justify-content: flex-start;
-          flex-wrap: wrap; /* Allow nav links to wrap individually */
+          margin: 0; /* <--- Reset margins */
+          padding: 0; /* <--- Reset padding */
+          flex-wrap: wrap;
         }
         .navLink {
           color: #e5e7eb;
           text-decoration: none;
           white-space: nowrap;
+          margin: 0; /* <--- Reset margins */
+          padding: 0; /* <--- Reset padding */
         }
         .navLink:hover {
           color: #fff;
@@ -79,10 +98,11 @@ export default function Header() {
         .right {
           display: flex;
           align-items: center;
-          gap: 10px; /* Responsible for space between admin buttons */
-          flex-wrap: wrap; /* Allows admin buttons to wrap */
-          justify-content: flex-end; /* Align admin buttons to the end by default */
-          flex-shrink: 0; /* Prevents admin buttons block from shrinking too much */
+          gap: 10px; /* Space between admin buttons */
+          flex-wrap: wrap;
+          margin: 0; /* <--- Reset margins */
+          padding: 0; /* <--- Reset padding */
+          justify-content: flex-end; /* Aligns buttons to the right */
         }
         .adminBtn {
           font-size: 12px;
@@ -92,6 +112,8 @@ export default function Header() {
           text-decoration: none;
           transition: all 0.2s ease;
           white-space: nowrap;
+          margin: 0; /* <--- Reset margins */
+          /* No padding reset here, as padding is intentional for button size */
         }
         .management {
           background: linear-gradient(90deg, #d1d5db, #9ca3af);
@@ -109,26 +131,33 @@ export default function Header() {
         /* --- Mobile-specific adjustments --- */
         @media (max-width: 850px) {
           .inner {
-            flex-direction: column; /* Stacks logo, nav, and admin buttons vertically */
-            align-items: flex-start; /* Aligns everything to the left */
-            gap: 5px; /* <--- THIS LINE IS CRITICAL for vertical space between brand, nav, and admin sections */
-            padding: 8px 18px; /* Reduced vertical padding for the header container */
+            flex-direction: column; /* Stacks sections vertically */
+            align-items: flex-start; /* Aligns sections to the left */
+            gap: 5px; /* <--- CRITICAL: Vertical space between Logo and Nav/Admin Wrapper */
+            padding: 8px 18px; /* Reduced vertical padding for the overall header */
           }
           .brand {
-            width: 100%; /* Ensure logo block takes full width */
-            margin-bottom: 0px; /* Removes extra space below logo */
+            width: 100%; /* Logo takes full width */
+            margin-bottom: 0px; /* Ensure no bottom margin pushes content down */
+          }
+          .nav-and-admin-wrapper {
+            width: 100%; /* Wrapper takes full width */
+            flex-direction: column; /* Nav and Admin stack vertically */
+            align-items: flex-start; /* Nav and Admin align to the left */
+            gap: 5px; /* <--- CRITICAL: Vertical space between Nav and Admin sections */
+            margin-top: 5px; /* Small space above this wrapper from the logo */
           }
           .nav {
-            width: 100%; /* Ensure nav block takes full width */
+            width: 100%; /* Nav section takes full width */
             justify-content: flex-start;
-            gap: 8px; /* <--- THIS LINE IS CRITICAL for horizontal space between individual nav links */
-            margin-top: 5px; /* Small space above nav section */
+            gap: 8px; /* <--- CRITICAL: Horizontal space between individual nav links */
+            margin-top: 0; /* Ensure no top margin */
           }
           .right {
-            width: 100%; /* Ensure admin buttons block takes full width */
-            justify-content: flex-start; /* Aligns admin buttons to the left */
-            gap: 6px; /* <--- THIS LINE IS CRITICAL for horizontal space between individual admin buttons */
-            margin-top: 5px; /* Small space above admin buttons section */
+            width: 100%; /* Admin section takes full width */
+            justify-content: flex-start;
+            gap: 6px; /* <--- CRITICAL: Horizontal space between individual admin buttons */
+            margin-top: 0; /* Ensure no top margin */
           }
         }
 
