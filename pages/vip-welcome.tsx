@@ -221,7 +221,8 @@ export default function VipWelcomePage() {
             </Link>
             <div className="secondary-link">
               <Link href="/club-login">
-                Already a member? <span className="font-semibold underline">Sign In</span>
+                Already a member?{" "}
+                <span className="font-semibold underline">Sign In</span>
               </Link>
             </div>
           </section>
