@@ -1,12 +1,13 @@
 // FILE: /pages/club-login.tsx
-// --- Provided "as-is" from your original VIP Club files ---
+// --- UPDATED to use the correct CSS classes from globals.css ---
+
 import { useState, FormEvent } from "react";
 import { useRouter } from "next/router";
 import Link from "next/link";
 import { signInWithEmailAndPassword } from "firebase/auth";
 import { auth } from "../utils/firebaseClient";
 import Header from "../components/Header";
-import Footer from "../components/Footer"; // Assuming you have a Footer component
+// import Footer from "../components/Footer"; // Footer removed to match auth page design
 import Head from "next/head";
 
 export default function LoginPage() {
@@ -39,65 +40,59 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="flex min-h-screen flex-col bg-black text-gray-100">
+    // Use the .auth-page class from globals.css
+    <div className="auth-page">
       <Head>
         <title>Sign In — Famous Finds</title>
       </Head>
       <Header />
 
-      <main className="flex flex-1 justify-center px-4 py-8">
-        <div className="w-full max-w-md rounded-2xl bg-neutral-900/80 p-6 shadow-lg ring-1 ring-white/10">
-          <h1 className="text-center text-2xl font-semibold tracking-tight text-white">
-            Sign In
-          </h1>
+      {/* Use the .auth-main class from globals.css */}
+      <main className="auth-main">
+        {/* Use the .auth-card class from globals.css */}
+        <div className="auth-card">
+          <h1>Sign In</h1>
 
           {error && (
-            <div className="mt-4 rounded-md bg-red-900/40 px-3 py-2 text-xs text-red-200">
-              {error}
-            </div>
+            // Use the .auth-error class from globals.css
+            <div className="auth-error">{error}</div>
           )}
 
-          <form onSubmit={handleLogin} className="mt-6 space-y-4">
-            <div>
-              <label className="block text-xs font-medium text-gray-300">
-                Email
-              </label>
+          <form onSubmit={handleLogin} className="auth-fields">
+            <div className="auth-field">
+              <label>Email</label>
               <input
                 type="email"
                 autoComplete="email"
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="mt-1 w-full rounded-md border border-neutral-700 bg-black/40 px-3 py-2 text-sm text-gray-100 focus:border-gray-100 focus:outline-none"
+                className="auth-input" // Use .auth-input class
               />
             </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-300">
-                Password
-              </label>
+            <div className="auth-field">
+              <label>Password</label>
               <input
                 type="password"
                 autoComplete="current-password"
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="mt-1 w-full rounded-md border border-neutral-700 bg-black/40 px-3 py-2 text-sm text-gray-100 focus:border-gray-100 focus:outline-none"
+                className="auth-input" // Use .auth-input class
               />
             </div>
             <button
               type="submit"
               disabled={loading}
-              className="mt-2 flex w-full items-center justify-center rounded-md bg-white py-2 text-sm font-semibold text-black shadow-sm hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-70"
+              className="auth-button-primary" // Use .auth-button-primary class
             >
               {loading ? "Signing In..." : "Sign In"}
             </button>
           </form>
 
-          <div className="mt-4 text-center">
-            <Link
-              href="/club-register"
-              className="text-xs text-gray-400 hover:text-gray-200"
-            >
+          {/* Use the .auth-secondary-link class from globals.css */}
+          <div className="auth-secondary-link">
+            <Link href="/club-register">
               Don't have an account? Join the VIP Club
             </Link>
           </div>
