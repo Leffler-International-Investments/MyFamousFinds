@@ -20,7 +20,7 @@ type Props = {
 };
 
 export default function ManagementSellerProfiles({ sellers }: Props) {
-  const { loading } } = useRequireAdmin();
+  const { loading } = useRequireAdmin();
   if (loading) return <div className="dashboard-page"></div>;
 
   return (
