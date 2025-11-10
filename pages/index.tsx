@@ -221,7 +221,10 @@ export const getServerSideProps: GetServerSideProps<HomeProps> = async () => {
         ? `US$${priceNumber.toLocaleString("en-US")}`
         : "";
 
+      // --- THIS IS THE FIX ---
+      // We add `d.image_url` to the front of the list
       const image: string =
+        d.image_url || // <--- ADDED THIS
         d.imageUrl ||
         d.image ||
         (Array.isArray(d.imageUrls) && d.imageUrls[0]) ||
