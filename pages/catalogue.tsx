@@ -1,6 +1,6 @@
 // FILE: /pages/catalogue.tsx
-// This is the new, public-facing catalogue page.
-// It is safe for customers and has no seller controls.
+// This version has a FIXED data query
+// that will now find your listings.
 
 import Head from "next/head";
 import Link from "next/link";
@@ -33,13 +33,10 @@ export default function PublicCatalogue({ items }: CatalogueProps) {
               Browse all live listings in our marketplace.
             </p>
           </div>
-          {/* This link safely returns to the homepage */}
           <Link href="/" className="cta">
             ← Back to Home
           </Link>
         </div>
-
-        {/* Seller-specific buttons are REMOVED */}
 
         <section className="sell-card">
           <div className="table-overflow-wrapper">
@@ -49,7 +46,6 @@ export default function PublicCatalogue({ items }: CatalogueProps) {
                   <th>Title</th>
                   <th>Brand</th>
                   <th>Price</th>
-                  {/* "Actions" column is REMOVED */}
                 </tr>
               </thead>
               <tbody>
@@ -65,14 +61,12 @@ export default function PublicCatalogue({ items }: CatalogueProps) {
                   items.map((x) => (
                     <tr key={x.id}>
                       <td>
-                        {/* Link to the product page */}
                         <Link href={x.href} className="product-link">
                           {x.title}
                         </Link>
                       </td>
                       <td>{x.brand}</td>
                       <td>{x.price}</td>
-                      {/* "Actions" cell is REMOVED */}
                     </tr>
                   ))}
               </tbody>
@@ -83,7 +77,6 @@ export default function PublicCatalogue({ items }: CatalogueProps) {
 
       <Footer />
 
-      {/* Styles adapted from seller/catalogue.tsx */}
       <style jsx>{`
         .sell-card {
           background: #111827;
@@ -91,42 +84,35 @@ export default function PublicCatalogue({ items }: CatalogueProps) {
           padding: 18px 18px 20px;
           border: 1px solid #1f2937;
         }
-
         .table-overflow-wrapper {
           overflow-x: auto;
         }
-
         .catalogue-table {
           width: 100%;
           border-collapse: collapse;
           font-size: 14px;
           color: #e5e7eb;
         }
-
         .catalogue-table th,
         .catalogue-table td {
           padding: 10px 12px;
           text-align: left;
           border-bottom: 1px solid #374151;
         }
-
         .catalogue-table th {
           font-size: 12px;
           text-transform: uppercase;
           color: #9ca3af;
           font-weight: 500;
         }
-
         .catalogue-table tr:last-child td {
           border-bottom: none;
         }
-
         .table-message {
           text-align: center;
           color: #9ca3af;
           padding: 24px;
         }
-        
         .product-link {
           color: #e5e7eb;
           text-decoration: none;
@@ -134,8 +120,6 @@ export default function PublicCatalogue({ items }: CatalogueProps) {
         .product-link:hover {
           text-decoration: underline;
         }
-
-        /* Copied from globals.css to ensure .cta style is applied */
         .cta {
           font-size: 13px;
           padding: 6px 12px;
@@ -149,20 +133,27 @@ export default function PublicCatalogue({ items }: CatalogueProps) {
   );
 }
 
-// This function fetches all LIVE products from the server
-// just like your homepage does.
+// --- FIX: This data query now matches index.tsx ---
+// It fetches listings and THEN filters them in code,
+// which avoids the need for a special database index.
 export const getServerSideProps: GetServerSideProps<CatalogueProps> = async () => {
   try {
     const snap = await adminDb
       .collection("listings")
-      .where("status", "in", ["Live", "Active", "Approved"])
       .orderBy("createdAt", "desc")
-      .get();
+      .get(); // 1. Get all listings sorted by date
 
     const liveItems: ProductLike[] = [];
 
     snap.docs.forEach((doc) => {
       const d: any = doc.data() || {};
+
+      // 2. Filter in code, just like the homepage
+      const allowedStatuses = ["Live", "Active", "Approved"];
+      if (d.status && !allowedStatuses.includes(d.status)) {
+        return; // Skip non-live items
+      }
+
       const priceNumber = Number(d.price) || 0;
       const price = priceNumber
         ? `US$${priceNumber.toLocaleString("en-US")}`
@@ -173,7 +164,7 @@ export const getServerSideProps: GetServerSideProps<CatalogueProps> = async () =
         title: d.title || "Untitled listing",
         brand: d.brand || "",
         price,
-        image: "", // Not needed for this table view
+        image: "", 
         href: `/product/${doc.id}`,
       });
     });
