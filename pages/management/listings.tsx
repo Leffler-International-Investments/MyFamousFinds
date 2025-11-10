@@ -21,7 +21,7 @@ type Props = {
 };
 
 export default function ManagementListings({ items }: Props) {
-  const { loading } } = useRequireAdmin();
+  const { loading } = useRequireAdmin();
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] =
     useState<"All" | "Live" | "Pending" | "Rejected">("All");
