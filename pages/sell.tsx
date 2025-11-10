@@ -56,6 +56,9 @@ export default function Sell() {
       if (imageUrl) {
         formData.set("image_url", imageUrl);
       }
+      
+      // The new fields (serial_number, purchase_proof) are
+      // automatically included here thanks to new FormData()
 
       const res = await fetch("/api/sell", {
         method: "POST",
@@ -206,6 +209,16 @@ export default function Sell() {
                 />
               </label>
 
+              {/* --- ADDED: Serial Number --- */}
+              <label>
+                Serial Number (if applicable)
+                <input
+                  name="serial_number"
+                  type="text"
+                  placeholder="e.g. 12345-ABCD"
+                />
+              </label>
+
               {/* Image upload */}
               <label className="file-label">
                 <span>Item photo</span>
@@ -219,6 +232,20 @@ export default function Sell() {
                   Optional, but strongly recommended. JPEG or PNG.
                 </span>
               </label>
+              
+              {/* --- ADDED: Proof of Purchase --- */}
+              <label className="file-label">
+                <span>Proof of Purchase (Optional)</span>
+                <input
+                  name="purchase_proof"
+                  type="text"
+                  placeholder="e.g. Original receipt, PDF invoice, Bank statement"
+                />
+                <span className="file-help">
+                  Helps speed up authentication.
+                </span>
+              </label>
+
 
               {imagePreview && (
                 <div className="image-preview">
@@ -236,6 +263,22 @@ export default function Sell() {
                 />
               </label>
 
+              {/* --- ADDED: Seller Responsibility Warning --- */}
+              <div className="seller-responsibility">
+                <strong>Seller's Responsibility</strong>
+                <p>
+                  By submitting this item, you declare, under penalty of law,
+                  that this item is <strong>authentic</strong> and that all
+                  details provided are true and accurate.
+                </p>
+                <p>
+                  As a seller on this peer-to-peer platform, you are solely
+                  responsible for any and all claims, damages, or liabilities
+                  arising from the sale of your item, including any claims of
+                  non-authenticity.
+                </p>
+              </div>
+
               <button type="submit" disabled={submitting || uploadingImage}>
                 {submitting
                   ? "Submitting…"
@@ -251,7 +294,10 @@ export default function Sell() {
                 </p>
               )}
             </form>
-
+            
+            {/* This original note is good, but the box above is more explicit.
+              We can keep it as a final confirmation.
+            */}
             <p className="note">
               By submitting, you confirm that the item is authentic and that you
               agree to Famous Finds&apos; terms.
@@ -413,6 +459,31 @@ export default function Sell() {
           font-size: 12px;
           color: #9ca3af;
         }
+
+        /* --- ADDED FOR SELLER WARNING --- */
+        .seller-responsibility {
+          margin-top: 12px;
+          padding: 12px;
+          border-radius: 8px;
+          border: 1px solid #ca8a04; /* yellow-600 */
+          background: #422006; /* Dark yellow/brown */
+          font-size: 12px;
+          color: #fef08a; /* yellow-200 */
+          line-height: 1.5;
+        }
+        .seller-responsibility strong {
+          color: #fef9c3; /* yellow-100 */
+          display: block;
+          margin-bottom: 4px;
+        }
+        .seller-responsibility p {
+          font-size: 12px;
+          margin-bottom: 8px;
+        }
+        .seller-responsibility p:last-child {
+          margin-bottom: 0;
+        }
+        /* --- END OF ADDED STYLES --- */
       `}</style>
     </div>
   );
