@@ -1,332 +1,334 @@
-// FILE: components/ButlerChat.tsx
-import { useEffect, useRef, useState } from "react";
-import { useRouter } from "next/router";
+// FILE: /components/ButlerChat.tsx
+
+import { useState, useRef, useEffect } from "react";
 
 type ButlerChatProps = {
   isOpen: boolean;
   onClose: () => void;
 };
 
-type ChatMessage = {
-  id: string;
-  role: "user" | "butler";
-  text: string;
-};
-
 type ButlerResult = {
   id: string;
   title: string;
-  brand?: string;
-  price?: number;
-  currency?: string;
+  brand: string;
+  price: string;
+  href: string;
 };
 
-type ButlerResponse = {
-  answer: string;
-  results?: ButlerResult[];
-};
+type ChatMessage =
+  | { id: number; role: "user"; text: string }
+  | { id: number; role: "butler"; text: string; results?: ButlerResult[] };
 
 export default function ButlerChat({ isOpen, onClose }: ButlerChatProps) {
-  const router = useRouter();
   const [input, setInput] = useState("");
   const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [results, setResults] = useState<ButlerResult[]>([]);
-  const [loading, setLoading] = useState(false);
   const [listening, setListening] = useState(false);
 
-  const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const recognitionRef = useRef<any>(null);
+  const messagesEndRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, results]);
+  }, [messages]);
 
-  const ensureRecognition = () => {
-    if (recognitionRef.current) return recognitionRef.current;
-    if (typeof window === "undefined") return null;
+  async function handleSend() {
+    if (!input.trim()) return;
 
-    const SpeechRecognition =
-      (window as any).SpeechRecognition ||
-      (window as any).webkitSpeechRecognition;
-    if (!SpeechRecognition) return null;
-
-    const rec = new SpeechRecognition();
-    rec.lang = "en-US";
-    rec.continuous = false;
-    rec.interimResults = false;
-    recognitionRef.current = rec;
-    return rec;
-  };
-
-  const handleVoiceClick = () => {
-    if (listening) {
-      const rec = recognitionRef.current;
-      if (rec) rec.stop();
-      setListening(false);
-      return;
-    }
-    const rec = ensureRecognition();
-    if (!rec) {
-      alert("Voice recognition is not supported on this device/browser.");
-      return;
-    }
-    setListening(true);
-    rec.onresult = (event: any) => {
-      const transcript = event.results[0][0].transcript;
-      setInput(transcript);
-    };
-    rec.onerror = () => setListening(false);
-    rec.onend = () => setListening(false);
-    rec.start();
-  };
-
-  async function askButler(query: string): Promise<ButlerResponse> {
-    const res = await fetch("/api/butler", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ query }),
-    });
-    if (!res.ok) throw new Error(`Butler error: ${res.status}`);
-    return res.json();
-  }
-
-  const handleSend = async () => {
     const text = input.trim();
-    if (!text || loading) return;
+    setInput("");
 
     const userMessage: ChatMessage = {
-      id: String(Date.now()),
+      id: Date.now(),
       role: "user",
       text,
     };
-    setMessages((prev) => [...prev, userMessage]);
-    setInput("");
-    setLoading(true);
+    setMessages((m) => [...m, userMessage]);
+
+    const lower = text.toLowerCase();
+
+    // Voice shortcut: "open it" / "open" / "buy it" → open first result
+    if (lower === "open it" || lower === "open" || lower === "buy it") {
+      const lastWithResults = [...messages]
+        .reverse()
+        .find((msg) => msg.role === "butler" && (msg as any).results?.length);
+
+      const target = (lastWithResults as any)?.results?.[0] as
+        | ButlerResult
+        | undefined;
+
+      if (target && typeof window !== "undefined") {
+        window.location.href = target.href;
+        return;
+      }
+    }
 
     try {
-      const data = await askButler(text);
-      const butlerMessage: ChatMessage = {
-        id: `${Date.now()}-butler`,
-        role: "butler",
-        text: data.answer,
-      };
-      setMessages((prev) => [...prev, butlerMessage]);
-      setResults(data.results || []);
-    } catch (err) {
-      console.error(err);
-      const errMessage: ChatMessage = {
-        id: `${Date.now()}-err`,
-        role: "butler",
-        text:
-          "My apologies, something went wrong while searching the catalogue. Please try again.",
-      };
-      setMessages((prev) => [...prev, errMessage]);
-    } finally {
-      setLoading(false);
-    }
-  };
+      const res = await fetch("/api/butler", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ query: text }),
+      });
 
-  const handleResultClick = (id: string) => {
-    router.push(`/product/${id}`);
-  };
+      if (!res.ok) throw new Error("API request failed");
+
+      const data = await res.json();
+
+      const butlerMessage: ChatMessage = {
+        id: Date.now() + 1,
+        role: "butler",
+        text: data.answer || "",
+        results: data.results || [],
+      };
+
+      setMessages((m) => [...m, butlerMessage]);
+    } catch (e) {
+      console.error(e);
+      const errorMessage: ChatMessage = {
+        id: Date.now() + 2,
+        role: "butler",
+        text: "I’m having trouble reaching the catalogue right now.",
+      };
+      setMessages((m) => [...m, errorMessage]);
+    }
+  }
+
+  function handleVoice() {
+    // tap again to stop
+    if (listening) {
+      recognitionRef.current?.stop();
+      return;
+    }
+
+    if (
+      typeof window === "undefined" ||
+      !(window as any).webkitSpeechRecognition
+    ) {
+      alert("Voice recognition not supported in this browser.");
+      return;
+    }
+
+    const rec = new (window as any).webkitSpeechRecognition();
+    recognitionRef.current = rec;
+
+    // ✅ single, slower phrase – wait for final result
+    rec.lang = "en-US";
+    rec.continuous = false;
+    rec.interimResults = false;
+
+    rec.onstart = () => {
+      setListening(true);
+    };
+
+    rec.onend = () => {
+      setListening(false);
+      recognitionRef.current = null;
+    };
+
+    rec.onerror = () => {
+      setListening(false);
+      recognitionRef.current = null;
+    };
+
+    rec.onresult = (event: any) => {
+      // Take the final text ONCE (no repetition)
+      const transcript = Array.from(event.results)
+        .map((r: any) => r[0].transcript)
+        .join(" ");
+
+      setInput((prev) => (prev ? `${prev} ${transcript}` : transcript));
+    };
+
+    rec.start();
+  }
 
   if (!isOpen) return null;
 
   return (
-    <div className="ff-butler-overlay">
-      <div className="ff-butler-window">
-        <div className="ff-butler-header">
-          <div className="ff-butler-title">
-            🤵 AI Butler
-          </div>
-          <button
-            className="ff-butler-close"
-            onClick={onClose}
-            aria-label="Close butler"
-          >
-            ✕
-          </button>
-        </div>
+    <div className="butlerChatPanel">
+      <div className="butlerChatHeader">
+        <span className="butlerChatTitle">🤵 AI Butler</span>
+        <button
+          className="butlerCloseBtn"
+          onClick={onClose}
+          aria-label="Close chat"
+        >
+          ×
+        </button>
+      </div>
 
-        <div className="ff-butler-messages">
-          {messages.map((m) => (
-            <div
-              key={m.id}
-              className={
-                m.role === "user"
-                  ? "ff-msg ff-msg-user"
-                  : "ff-msg ff-msg-butler"
-              }
-            >
-              {m.role === "user" ? "🧑 " : "🤵 Butler: "}
-              {m.text}
-            </div>
-          ))}
-          <div ref={messagesEndRef} />
-        </div>
-
-        {results.length > 0 && (
-          <div className="ff-butler-results">
-            {results.map((r) => (
-              <button
-                key={r.id}
-                className="ff-result-card"
-                onClick={() => handleResultClick(r.id)}
-              >
-                <div className="ff-result-title">
-                  {r.brand && <strong>{r.brand} — </strong>}
-                  {r.title}
-                </div>
-                {typeof r.price === "number" && (
-                  <div className="ff-result-price">
-                    {new Intl.NumberFormat("en-US", {
-                      style: "currency",
-                      currency: r.currency || "USD",
-                    }).format(r.price)}
-                  </div>
-                )}
-                <div className="ff-result-link">View listing →</div>
-              </button>
-            ))}
+      <div className="butlerMessages">
+        {messages.length === 0 && (
+          <div className="butlerWelcome">
+            Ask me for something in the catalogue, e.g. “Prada bag” or “Rolex
+            watch”.
           </div>
         )}
 
-        <div className="ff-butler-inputRow">
-          <input
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && handleSend()}
-            className="ff-butler-input"
-            placeholder="Ask the butler..."
-          />
-          <button
-            onClick={handleSend}
-            className="ff-butler-send"
-            disabled={loading}
-          >
-            {loading ? "…" : "Send"}
-          </button>
-          <button
-            onClick={handleVoiceClick}
-            className={`ff-butler-voice ${
-              listening ? "ff-butler-voice-on" : "ff-butler-voice-off"
-            }`}
-          >
-            🎙️
-          </button>
-        </div>
+        {messages.map((msg) => (
+          <div key={msg.id} className="butlerMessageBlock">
+            {msg.role === "user" ? (
+              <div>🧑: {msg.text}</div>
+            ) : (
+              <>
+                <div>🤵 Butler: {msg.text}</div>
+                {msg.results && msg.results.length > 0 && (
+                  <div className="butlerResults">
+                    {msg.results.map((item) => (
+                      <a
+                        key={item.id}
+                        href={item.href}
+                        className="butlerResultCard"
+                      >
+                        <div className="butlerResultTitle">
+                          {item.brand && <strong>{item.brand} — </strong>}
+                          {item.title}
+                        </div>
+                        {item.price && (
+                          <div className="butlerResultPrice">
+                            {item.price}
+                          </div>
+                        )}
+                        <div className="butlerResultLink">View listing →</div>
+                      </a>
+                    ))}
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        ))}
+        <div ref={messagesEndRef} />
+      </div>
+
+      <div className="butlerInputRow">
+        <input
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && handleSend()}
+          placeholder="Ask the butler..."
+          className="butlerInput"
+        />
+        <button onClick={handleSend} className="butlerSendBtn">
+          Send
+        </button>
+        <button
+          onClick={handleVoice}
+          className={`butlerVoiceBtn ${listening ? "listening" : ""}`}
+        >
+          🎙️
+        </button>
       </div>
 
       <style jsx>{`
-        .ff-butler-overlay {
+        .butlerChatPanel {
           position: fixed;
-          inset: 0;
-          display: flex;
-          justify-content: center;
-          align-items: flex-end;
-          background: rgba(0, 0, 0, 0.45);
-          z-index: 9999;
-        }
-        .ff-butler-window {
-          width: 100%;
-          max-width: 480px;
-          margin: 0 8px 16px;
-          background: #020617;
-          color: #f9fafb;
+          bottom: 16px;
+          right: 16px;
+          width: 320px;
+          max-width: 90vw;
+          background: #ffffff;
+          color: #000000;
           border-radius: 16px;
-          box-shadow: 0 18px 40px rgba(0, 0, 0, 0.5);
+          box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
           padding: 12px;
           font-size: 13px;
+          z-index: 10000;
         }
-        .ff-butler-header {
+        .butlerChatHeader {
           display: flex;
           justify-content: space-between;
           align-items: center;
           margin-bottom: 6px;
         }
-        .ff-butler-title {
+        .butlerChatTitle {
           font-weight: 600;
         }
-        .ff-butler-close {
+        .butlerCloseBtn {
           border: none;
           background: transparent;
-          color: #f9fafb;
-          font-size: 16px;
+          font-size: 20px;
           cursor: pointer;
+          line-height: 1;
         }
-        .ff-butler-messages {
-          max-height: 180px;
+        .butlerMessages {
+          height: 190px;
           overflow-y: auto;
-          padding: 6px 4px;
+          background: #f3f4f6;
           border-radius: 8px;
-          background: rgba(15, 23, 42, 0.85);
-          margin-bottom: 6px;
+          padding: 6px;
+          margin-bottom: 8px;
         }
-        .ff-msg {
-          margin: 2px 0;
+        .butlerWelcome {
+          color: #4b5563;
+          font-size: 12px;
         }
-        .ff-butler-results {
-          margin-bottom: 6px;
+        .butlerMessageBlock {
+          padding: 4px 0;
+        }
+        .butlerResults {
+          margin-top: 4px;
           display: flex;
           flex-direction: column;
           gap: 4px;
         }
-        .ff-result-card {
-          text-align: left;
-          border-radius: 10px;
-          border: 1px solid #1f2937;
-          padding: 6px 8px;
-          background: #020617;
-          cursor: pointer;
+        .butlerResultCard {
+          display: block;
+          border-radius: 8px;
+          background: #111827;
+          padding: 8px;
+          text-decoration: none;
+          color: #e5e7eb;
         }
-        .ff-result-title {
+        .butlerResultTitle {
           font-size: 13px;
         }
-        .ff-result-price {
+        .butlerResultPrice {
           font-size: 12px;
+          margin-top: 2px;
         }
-        .ff-result-link {
-          font-size: 11px;
-          color: #9ca3af;
-        }
-        .ff-butler-inputRow {
-          display: flex;
-          gap: 6px;
+        .butlerResultLink {
+          font-size: 12px;
           margin-top: 4px;
+          opacity: 0.85;
         }
-        .ff-butler-input {
+        .butlerInputRow {
+          display: flex;
+          gap: 4px;
+          align-items: center;
+        }
+        .butlerInput {
           flex: 1;
-          border-radius: 999px;
-          border: 1px solid #4b5563;
-          padding: 6px 10px;
+          border-radius: 6px;
+          border: 1px solid #9ca3af;
+          padding: 4px 6px;
           font-size: 13px;
-          background: #020617;
-          color: #f9fafb;
         }
-        .ff-butler-send {
-          border-radius: 999px;
-          padding: 6px 12px;
+        .butlerSendBtn,
+        .butlerVoiceBtn {
+          border-radius: 6px;
           border: none;
-          background: #f9fafb;
-          color: #111827;
-          font-size: 13px;
-          font-weight: 600;
+          padding: 4px 8px;
+          font-size: 12px;
           cursor: pointer;
         }
-        .ff-butler-voice {
-          border-radius: 999px;
-          padding: 6px 10px;
-          border: none;
-          font-size: 16px;
-          cursor: pointer;
+        .butlerSendBtn {
+          background: #000;
+          color: #fff;
         }
-        .ff-butler-voice-on {
-          background: #ef4444;
-          color: #ffffff;
-        }
-        .ff-butler-voice-off {
+        .butlerVoiceBtn {
           background: #e5e7eb;
-          color: #000000;
+          color: #111827;
+        }
+        .butlerVoiceBtn.listening {
+          background: #ef4444;
+          color: #fff;
+        }
+        @media (max-width: 480px) {
+          .butlerChatPanel {
+            right: 8px;
+            left: 8px;
+            width: auto;
+          }
         }
       `}</style>
     </div>
