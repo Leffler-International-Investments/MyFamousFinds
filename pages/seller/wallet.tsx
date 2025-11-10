@@ -57,7 +57,6 @@ export default function SellerWallet() {
 
       // Set the data from the API
       setData(data.wallet);
-      
     } catch (err: any) {
       setError(err.message || "Failed to load wallet data.");
     } finally {
@@ -80,7 +79,7 @@ export default function SellerWallet() {
       const res = await fetch("/api/seller/wallet/payout", {
         method: "POST",
         // You could add a body here if you need to specify an amount
-        // body: JSON.stringify({ amount: data?.available }) 
+        // body: JSON.stringify({ amount: data?.available })
       });
 
       const data = await res.json();
@@ -92,7 +91,6 @@ export default function SellerWallet() {
       alert("Payout successful! Your balance is being updated.");
       // Refresh the wallet data to show the new balance
       await loadWallet();
-
     } catch (err: any) {
       console.error("Payout error:", err);
       setPayoutError(err.message);
@@ -102,7 +100,7 @@ export default function SellerWallet() {
   };
 
   if (authLoading) {
-    return <div className="min-h-screen bg-black"></div>;
+    return <div className="dark-theme-page"></div>;
   }
 
   // Helper for formatting
@@ -118,111 +116,110 @@ export default function SellerWallet() {
       <Head>
         <title>Seller — Wallet | Famous Finds</title>
       </Head>
-      <div className="min-h-screen bg-black text-gray-100">
+      <div className="dark-theme-page">
         <Header />
-        <main className="mx-auto max-w-5xl px-4 pb-16 pt-6">
-          <div className="mb-4">
-            <Link
-              href="/seller/dashboard"
-              className="text-sm text-gray-400 hover:text-gray-200"
-            >
-              ← Back to Dashboard
-            </Link>
+        <main className="section">
+          <div className="back-link">
+            <Link href="/seller/dashboard">← Back to Dashboard</Link>
           </div>
 
-          <h1 className="text-2xl font-semibold">Wallet & payouts</h1>
-          <p className="mt-1 text-sm text-gray-400">
+          <h1>Wallet & payouts</h1>
+          <p className="subtitle">
             Track what you&apos;ve earned and when your money is on the way.
           </p>
-          
+
           {error && (
-            <div className="mt-4 rounded-md bg-red-900/50 p-3 text-xs text-red-300">
-              <p><strong>Error:</strong> {error}</p>
+            <div className="banner error">
+              <p>
+                <strong>Error:</strong> {error}
+              </p>
             </div>
           )}
 
           {/* Summary cards */}
-          <section className="mt-6 grid gap-4 md:grid-cols-3">
-            <div className="rounded-xl border border-neutral-800 bg-neutral-950 p-4">
-              <p className="text-xs text-gray-400">Available balance</p>
-              <p className="mt-2 text-xl font-semibold">
+          <section className="metrics-grid">
+            <div className="metric-card">
+              <p className="metric-label">Available balance</p>
+              <p className="metric-value">
                 {loading ? "..." : formatCurrency(data?.available || 0)}
               </p>
-              <p className="mt-1 text-xs text-gray-500">
-                Ready to pay out to your bank.
-              </p>
+              <p className="metric-note">Ready to pay out to your bank.</p>
             </div>
-            <div className="rounded-xl border border-neutral-800 bg-neutral-950 p-4">
-              <p className="text-xs text-gray-400">Upcoming payout</p>
-              <p className="mt-2 text-xl font-semibold">
+            <div className="metric-card">
+              <p className="metric-label">Upcoming payout</p>
+              <p className="metric-value">
                 {loading ? "..." : formatCurrency(data?.upcoming || 0)}
               </p>
               {/* --- UPDATED: Live Date --- */}
-              <p className="mt-1 text-xs text-gray-500">
-                {loading ? "..." : (data?.upcomingDate || "No upcoming payouts")}
+              <p className="metric-note">
+                {loading
+                  ? "..."
+                  : data?.upcomingDate || "No upcoming payouts"}
               </p>
             </div>
-            <div className="rounded-xl border border-neutral-800 bg-neutral-950 p-4">
-              <p className="text-xs text-gray-400">Lifetime earnings</p>
-              <p className="mt-2 text-xl font-semibold">
+            <div className="metric-card">
+              <p className="metric-label">Lifetime earnings</p>
+              <p className="metric-value">
                 {loading ? "..." : formatCurrency(data?.lifetime || 0)}
               </p>
-              <p className="mt-1 text-xs text-gray-500">
-                Since joining Famous Finds.
-              </p>
+              <p className="metric-note">Since joining Famous Finds.</p>
             </div>
           </section>
 
           {/* Bank and actions */}
-          <section className="mt-8 grid gap-6 md:grid-cols-[minmax(0,1.6fr)_minmax(0,1.2fr)]">
-            <div className="rounded-xl border border-neutral-800 bg-neutral-950 p-5 text-sm">
-              <h2 className="text-sm font-semibold">Connected payout account</h2>
-              <p className="mt-2 text-xs text-gray-400">
+          <section className="info-grid">
+            <div className="info-card">
+              <h2>Connected payout account</h2>
+              <p className="info-note">
                 Payouts are processed via Stripe and sent to your linked bank.
               </p>
-              
+
               {/* --- UPDATED: Live Bank Details --- */}
               {loading ? (
-                <p className="mt-4 text-xs text-gray-400">Loading account...</p>
+                <p className="bank-loading">Loading account...</p>
               ) : data?.account ? (
-                <dl className="mt-4 space-y-1 text-xs text-gray-300">
-                  <div className="flex justify-between">
+                <dl className="bank-details">
+                  <div className="detail-row">
                     <dt>Bank</dt>
                     <dd>{data.account.bankName}</dd>
                   </div>
-                  <div className="flex justify-between">
+                  <div className="detail-row">
                     <dt>Account ending</dt>
                     <dd>•••• {data.account.last4}</dd>
                   </div>
                 </dl>
               ) : (
-                <p className="mt-4 text-xs text-yellow-400">
-                  No payout account connected. Please set up your account in Stripe.
+                <p className="bank-warning">
+                  No payout account connected. Please set up your account in
+                  Stripe.
                 </p>
               )}
 
-              <div className="mt-4 flex flex-col items-start gap-2">
+              <div className="payout-action">
                 <button
                   type="button"
                   onClick={handlePayout}
                   // --- UPDATED: Disabled states ---
-                  disabled={payoutLoading || loading || !data?.available || data.available <= 0}
-                  className="rounded-full bg-white px-3 py-1.5 text-xs font-medium text-black hover:bg-gray-100 disabled:opacity-60"
+                  disabled={
+                    payoutLoading ||
+                    loading ||
+                    !data?.available ||
+                    data.available <= 0
+                  }
+                  className="btn-primary"
                 >
                   {payoutLoading ? "Processing..." : "Request instant payout"}
                 </button>
                 {/* --- ADDED: Payout error message --- */}
                 {payoutError && (
-                  <p className="text-xs text-red-400">{payoutError}</p>
+                  <p className="banner error">{payoutError}</p>
                 )}
               </div>
             </div>
 
-            <div className="rounded-xl border border-neutral-800 bg-neutral-950 p-5 text-xs text-gray-400">
-              <h2 className="text-sm font-semibold text-gray-100">
-                How payouts work
-              </h2>
-              <ul className="mt-2 list-disc space-y-1 pl-4">
+            <div className="info-card">
+              <h2>How payouts work</h2>
+              <ul className="info-list">
                 <li>Buyer pays Famous Finds at checkout (via Stripe).</li>
                 <li>
                   Funds are held until the order is delivered or return window
@@ -236,59 +233,53 @@ export default function SellerWallet() {
             </div>
           </section>
 
-          {/* Payout history */}
-          <section className="mt-10 rounded-xl border border-neutral-800 bg-neutral-950 p-5">
-            <h2 className="mb-3 text-sm font-semibold">Payout history</h2>
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[560px] text-xs">
-                <thead className="border-b border-neutral-800 text-[11px] uppercase tracking-wide text-gray-400">
+          {/* Payout history (using sell-card style from catalogue) */}
+          <section className="sell-card" style={{ marginTop: "40px" }}>
+            <h2>Payout history</h2>
+            <div className="table-overflow-wrapper">
+              <table className="catalogue-table">
+                <thead>
                   <tr>
-                    <th className="py-2 pr-3 text-left">Date</th>
-                    <th className="px-3 py-2 text-left">Amount</th>
-                    <th className="px-3 py-2 text-left">Status</th>
-                    <th className="px-3 py-2 text-left">Destination</th>
-                    <th className="px-3 py-2 text-right">Statement</th>
+                    <th>Date</th>
+                    <th>Amount</th>
+                    <th>Status</th>
+                    <th>Destination</th>
+                    <th style={{ textAlign: "right" }}>Statement</th>
                   </tr>
                 </thead>
                 <tbody>
                   {loading && (
                     <tr>
-                      <td colSpan={5} className="py-4 text-center text-gray-400">
+                      <td colSpan={5} className="table-message">
                         Loading history...
                       </td>
                     </tr>
                   )}
                   {!loading && !data?.payouts.length && (
-                     <tr>
-                      <td colSpan={5} className="py-4 text-center text-gray-400">
+                    <tr>
+                      <td colSpan={5} className="table-message">
                         No payout history found.
                       </td>
                     </tr>
                   )}
-                  {!loading && data?.payouts.map((p) => (
-                    <tr
-                      key={p.id}
-                      className="border-b border-neutral-900 last:border-0"
-                    >
-                      <td className="py-2 pr-3">{p.date}</td>
-                      <td className="px-3 py-2">{p.amount}</td>
-                      <td className="px-3 py-2">
-                        {/* You could add logic here for different status colors */}
-                        <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-[11px] text-emerald-300">
-                          {p.status}
-                        </span>
-                      </td>
-                      <td className="px-3 py-2">{p.destination}</td>
-                      <td className="px-3 py-2 text-right">
-                        <Link
-                          href="/seller/statements"
-                          className="text-[11px] text-gray-300 underline-offset-2 hover:underline"
-                        >
-                          View statement
-                        </Link>
-                      </td>
-                    </tr>
-                  ))}
+                  {!loading &&
+                    data?.payouts.map((p) => (
+                      <tr key={p.id}>
+                        <td>{p.date}</td>
+                        <td>{p.amount}</td>
+                        <td>
+                          <span className="status-badge status-paid">
+                            {p.status}
+                          </span>
+                        </td>
+                        <td>{p.destination}</td>
+                        <td style={{ textAlign: "right" }}>
+                          <Link href="/seller/statements" className="table-link">
+                            View statement
+                          </Link>
+                        </td>
+                      </tr>
+                    ))}
                 </tbody>
               </table>
             </div>
@@ -296,6 +287,223 @@ export default function SellerWallet() {
         </main>
         <Footer />
       </div>
+
+      <style jsx>{`
+        .back-link {
+          margin-bottom: 16px;
+        }
+        .back-link a {
+          font-size: 14px;
+          color: #9ca3af; /* gray-400 */
+        }
+        .back-link a:hover {
+          color: #e5e7eb; /* gray-200 */
+        }
+        h1 {
+          font-size: 24px;
+          font-weight: 600;
+          color: white;
+        }
+        .subtitle {
+          margin-top: 4px;
+          font-size: 14px;
+          color: #9ca3af; /* gray-400 */
+        }
+        
+        .banner {
+          margin-top: 16px;
+          padding: 8px 10px;
+          border-radius: 6px;
+          font-size: 13px;
+        }
+        .banner.error {
+          background: #7f1d1d; /* red-900 */
+          color: #fee2e2; /* red-100 */
+        }
+        
+        .metrics-grid {
+          margin-top: 24px;
+          display: grid;
+          gap: 16px;
+        }
+        @media (min-width: 768px) {
+          .metrics-grid {
+            grid-template-columns: repeat(3, 1fr);
+          }
+        }
+        
+        .metric-card {
+          border-radius: 12px;
+          border: 1px solid #1f2937; /* neutral-800 */
+          background: #030712; /* neutral-950 */
+          padding: 16px;
+        }
+        .metric-label {
+          font-size: 12px;
+          color: #9ca3af; /* gray-400 */
+        }
+        .metric-value {
+          margin-top: 8px;
+          font-size: 20px;
+          font-weight: 600;
+        }
+        .metric-note {
+          margin-top: 4px;
+          font-size: 12px;
+          color: #6b7280; /* gray-500 */
+        }
+        
+        .info-grid {
+          margin-top: 32px;
+          display: grid;
+          gap: 24px;
+        }
+        @media (min-width: 768px) {
+          .info-grid {
+            grid-template-columns: minmax(0, 1.6fr) minmax(0, 1.2fr);
+          }
+        }
+        
+        .info-card {
+          border-radius: 12px;
+          border: 1px solid #1f2937; /* neutral-800 */
+          background: #030712; /* neutral-950 */
+          padding: 20px;
+        }
+        .info-card h2 {
+          font-size: 14px;
+          font-weight: 600;
+        }
+        .info-note {
+          margin-top: 8px;
+          font-size: 12px;
+          color: #9ca3af; /* gray-400 */
+        }
+        .info-list {
+          margin-top: 8px;
+          list-style-type: disc;
+          padding-left: 16px;
+          font-size: 12px;
+          color: #9ca3af; /* gray-400 */
+          display: flex;
+          flex-direction: column;
+          gap: 4px;
+        }
+        
+        .bank-loading {
+          margin-top: 16px;
+          font-size: 12px;
+          color: #9ca3af; /* gray-400 */
+        }
+        .bank-warning {
+          margin-top: 16px;
+          font-size: 12px;
+          color: #facc15; /* yellow-400 */
+        }
+        .bank-details {
+          margin-top: 16px;
+          font-size: 12px;
+          color: #d1d5db; /* gray-300 */
+          display: flex;
+          flex-direction: column;
+          gap: 4px;
+        }
+        .detail-row {
+          display: flex;
+          justify-content: space-between;
+        }
+        .detail-row dd {
+          font-weight: 500;
+        }
+
+        .payout-action {
+          margin-top: 16px;
+          display: flex;
+          flex-direction: column;
+          align-items: flex-start;
+          gap: 8px;
+        }
+        
+        .btn-primary {
+          border-radius: 999px;
+          background: white;
+          padding: 6px 12px;
+          font-size: 12px;
+          font-weight: 500;
+          color: black;
+          border: none;
+          cursor: pointer;
+        }
+        .btn-primary:hover {
+          background: #e5e7eb; /* gray-200 */
+        }
+        .btn-primary:disabled {
+          opacity: 0.6;
+        }
+        
+        /* From catalogue.tsx */
+        .sell-card {
+          background: #111827;
+          border-radius: 16px;
+          padding: 18px 18px 20px;
+          border: 1px solid #1f2937;
+        }
+        .sell-card h2 {
+          margin-bottom: 12px;
+          font-size: 14px;
+          font-weight: 600;
+        }
+        .table-overflow-wrapper {
+          overflow-x: auto;
+        }
+        .catalogue-table {
+          width: 100%;
+          border-collapse: collapse;
+          font-size: 12px;
+          color: #e5e7eb;
+        }
+        .catalogue-table th,
+        .catalogue-table td {
+          padding: 8px 10px;
+          text-align: left;
+          border-bottom: 1px solid #374151;
+        }
+        .catalogue-table th {
+          font-size: 11px;
+          text-transform: uppercase;
+          color: #9ca3af;
+          font-weight: 500;
+        }
+        .catalogue-table tr:last-child td {
+          border-bottom: none;
+        }
+        .table-message {
+          text-align: center;
+          color: #9ca3af;
+          padding: 24px;
+        }
+        .table-link {
+          font-size: 11px;
+          color: #d1d5db; /* gray-300 */
+          text-decoration: underline;
+          text-underline-offset: 2px;
+        }
+        .table-link:hover {
+          text-decoration: none;
+        }
+        
+        .status-badge {
+          display: inline-flex;
+          border-radius: 999px;
+          padding: 2px 8px;
+          font-size: 11px;
+          font-weight: 500;
+        }
+        .status-paid {
+          background: #064e3b; /* green-900 */
+          color: #6ee7b7; /* emerald-300 */
+        }
+      `}</style>
     </>
   );
 }
