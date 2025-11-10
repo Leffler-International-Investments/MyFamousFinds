@@ -1,5 +1,4 @@
 // FILE: /pages/management/analytics.tsx
-
 import Head from "next/head";
 import Link from "next/link";
 import Header from "../../components/Header";
@@ -45,10 +44,11 @@ export default function ManagementAnalytics() {
         <Head>
           <title>Analytics &amp; Reports — Admin</title>
         </Head>
-        <div className="min-h-screen bg-gray-50 text-gray-900">
+        {/* Use light theme classes from globals.css */}
+        <div className="dashboard-page">
           <Header />
-          <main className="mx-auto max-w-6xl px-4 py-10">
-            <p className="text-sm text-gray-600">Checking admin access…</p>
+          <main className="dashboard-main">
+            <p>Checking admin access…</p>
           </main>
           <Footer />
         </div>
@@ -62,83 +62,60 @@ export default function ManagementAnalytics() {
         <title>Analytics &amp; Reports — Admin</title>
       </Head>
 
-      <div className="min-h-screen bg-gray-50 text-gray-900">
+      {/* Use light theme classes from globals.css */}
+      <div className="dashboard-page">
         <Header />
 
-        <main className="mx-auto max-w-6xl px-4 py-10">
-          <div className="mb-6 flex items-center justify-between">
+        <main className="dashboard-main">
+          {/* Use light theme classes from globals.css */}
+          <div className="dashboard-header">
             <div>
-              <h1 className="text-2xl font-semibold text-gray-900">
-                Analytics &amp; Reports
-              </h1>
-              <p className="mt-1 text-sm text-gray-600">
+              <h1>Analytics &amp; Reports</h1>
+              <p>
                 High-level KPIs for buyers, sellers, orders, and marketplace
                 health.
               </p>
             </div>
 
-            <Link
-              href="/management/dashboard"
-              className="text-sm text-gray-600 hover:text-gray-900"
-            >
+            <Link href="/management/dashboard">
               ← Back to Management Dashboard
             </Link>
           </div>
 
           {/* Metric cards */}
-          <div className="mb-6 grid gap-4 md:grid-cols-4">
+          <div className="metrics-grid">
             {METRICS.map((m) => (
-              <div
-                key={m.label}
-                className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm"
-              >
-                <p className="text-xs text-gray-500">{m.label}</p>
-                <p className="mt-1 text-lg font-semibold text-gray-900">
-                  {m.value}
-                </p>
-                {m.note && (
-                  <p className="mt-1 text-xs text-gray-500 leading-snug">
-                    {m.note}
-                  </p>
-                )}
+              <div key={m.label} className="metric-card">
+                <p className="metric-label">{m.label}</p>
+                <p className="metric-value">{m.value}</p>
+                {m.note && <p className="metric-note">{m.note}</p>}
               </div>
             ))}
           </div>
 
           {/* Downloads section */}
-          <section className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
-            <h2 className="text-sm font-medium text-gray-900">Downloads</h2>
-            <p className="mt-1 text-xs text-gray-600">
+          <section className="report-card">
+            <h2>Downloads</h2>
+            <p className="report-subtitle">
               Export CSV-ready reports once your orders and payouts data is
               connected. These buttons are wired into the UI and can later call
               real export endpoints.
             </p>
 
-            <div className="mt-4 flex flex-wrap gap-3">
-              <button
-                type="button"
-                className="inline-flex items-center rounded-md border border-gray-200 bg-gray-50 px-4 py-2 text-xs font-medium text-gray-800 hover:border-gray-400"
-              >
+            <div className="report-buttons">
+              <button type="button" className="btn-report">
                 Orders (Last 30 days)
               </button>
-
-              <button
-                type="button"
-                className="inline-flex items-center rounded-md border border-gray-200 bg-gray-50 px-4 py-2 text-xs font-medium text-gray-800 hover:border-gray-400"
-              >
+              <button type="button" className="btn-report">
                 Sellers Performance
               </button>
-
-              <button
-                type="button"
-                className="inline-flex items-center rounded-md border border-gray-200 bg-gray-50 px-4 py-2 text-xs font-medium text-gray-800 hover:border-gray-400"
-              >
+              <button type="button" className="btn-report">
                 Listings Conversion
               </button>
             </div>
           </section>
 
-          <p className="mt-4 text-xs text-gray-500">
+          <p className="page-note">
             This view is ready for live data. Once your orders, payouts and
             disputes are stored in your database (for example, in Firestore or a
             warehouse), you can plug in real metrics here or connect the same
@@ -148,6 +125,89 @@ export default function ManagementAnalytics() {
 
         <Footer />
       </div>
+
+      {/* Styles for the light theme analytics page */}
+      <style jsx>{`
+        .metrics-grid {
+          margin-bottom: 24px;
+          display: grid;
+          gap: 16px;
+        }
+        @media (min-width: 768px) {
+          .metrics-grid {
+            grid-template-columns: repeat(4, 1fr);
+          }
+        }
+        
+        .metric-card {
+          border-radius: 8px;
+          border: 1px solid #e5e7eb; /* gray-200 */
+          background: #ffffff;
+          padding: 16px;
+          box-shadow: 0 1px 2px 0 rgba(0,0,0,0.05);
+        }
+        .metric-label {
+          font-size: 12px;
+          color: #6b7280; /* gray-500 */
+        }
+        .metric-value {
+          margin-top: 4px;
+          font-size: 18px;
+          font-weight: 600;
+          color: #111827; /* gray-900 */
+        }
+        .metric-note {
+          margin-top: 4px;
+          font-size: 12px;
+          color: #6b7280; /* gray-500 */
+          line-height: 1.4;
+        }
+        
+        .report-card {
+          border-radius: 8px;
+          border: 1px solid #e5e7eb; /* gray-200 */
+          background: #ffffff;
+          padding: 16px;
+          box-shadow: 0 1px 2px 0 rgba(0,0,0,0.05);
+        }
+        .report-card h2 {
+          font-size: 14px;
+          font-weight: 500;
+          color: #111827; /* gray-900 */
+        }
+        .report-subtitle {
+          margin-top: 4px;
+          font-size: 12px;
+          color: #4b5563; /* gray-600 */
+        }
+        .report-buttons {
+          margin-top: 16px;
+          display: flex;
+          flex-wrap: wrap;
+          gap: 12px;
+        }
+        .btn-report {
+          display: inline-flex;
+          align-items: center;
+          border-radius: 6px;
+          border: 1px solid #e5e7eb; /* gray-200 */
+          background: #f9fafb; /* gray-50 */
+          padding: 8px 16px;
+          font-size: 12px;
+          font-weight: 500;
+          color: #374151; /* gray-700 */
+          cursor: pointer;
+        }
+        .btn-report:hover {
+          border-color: #d1d5db; /* gray-300 */
+        }
+        
+        .page-note {
+          margin-top: 16px;
+          font-size: 12px;
+          color: #6b7280; /* gray-500 */
+        }
+      `}</style>
     </>
   );
 }
