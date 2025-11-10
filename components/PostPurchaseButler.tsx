@@ -1,5 +1,4 @@
-// FILE: /components/PostPurchaseButler.tsx
-
+// FILE: components/PostPurchaseButler.tsx
 import { useEffect } from "react";
 import { useRouter } from "next/router";
 
@@ -24,8 +23,8 @@ export default function PostPurchaseButler({
     if (!("speechSynthesis" in window)) return;
 
     const utterance = new SpeechSynthesisUtterance(text);
-    utterance.rate = 1;   // normal speed
-    utterance.pitch = 1;  // normal tone
+    utterance.rate = 0.9; // slightly slower, calm
+    utterance.pitch = 1;
     window.speechSynthesis.speak(utterance);
   }
 
@@ -47,7 +46,6 @@ export default function PostPurchaseButler({
     "You’ll earn points on purchases, get early access to new arrivals, and enjoy exclusive member benefits.";
 
   function handleShowMatching() {
-    // Simple cross-sell: reuse catalogue search with brand + category
     const query = `${brand} ${category}`;
     router.push(`/catalogue?search=${encodeURIComponent(query)}`);
   }
