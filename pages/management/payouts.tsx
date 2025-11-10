@@ -22,60 +22,47 @@ type Props = {
 
 export default function ManagementPayouts({ payouts }: Props) {
   const { loading } = useRequireAdmin();
-  if (loading) return null;
+  if (loading) return <div className="dashboard-page" />; // Light theme skeleton
 
   return (
     <>
       <Head>
         <title>Payouts &amp; Finance — Admin</title>
       </Head>
-      <div className="min-h-screen bg-gray-50 text-gray-900">
+      {/* Use light theme classes from globals.css */}
+      <div className="dashboard-page">
         <Header />
-        <main className="mx-auto max-w-6xl px-4 pb-16 pt-6">
-          <div className="mb-6 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+        <main className="dashboard-main">
+          {/* Use light theme classes from globals.css */}
+          <div className="dashboard-header">
             <div>
-              <h1 className="text-2xl font-semibold">Payouts &amp; Finance</h1>
-              <p className="mt-1 text-sm text-gray-600">
+              <h1>Payouts &amp; Finance</h1>
+              <p>
                 Review seller payouts and platform fees, denominated in USD.
               </p>
             </div>
-            <Link
-              href="/management/dashboard"
-              className="text-sm text-gray-600 hover:text-gray-900"
-            >
+            <Link href="/management/dashboard">
               ← Back to Management Dashboard
             </Link>
           </div>
 
-          <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white shadow-sm">
-            <table className="min-w-full divide-y divide-gray-200 text-sm">
-              <thead className="bg-gray-50">
+          <div className="table-wrapper">
+            <table className="data-table">
+              <thead>
                 <tr>
-                  <th className="px-4 py-2 text-left font-medium text-gray-700">
-                    Payout ID
-                  </th>
-                  <th className="px-4 py-2 text-left font-medium text-gray-700">
-                    Seller
-                  </th>
-                  <th className="px-4 py-2 text-right font-medium text-gray-700">
-                    Amount (USD)
-                  </th>
-                  <th className="px-4 py-2 text-left font-medium text-gray-700">
-                    Status
-                  </th>
-                  <th className="px-4 py-2 text-left font-medium text-gray-700">
-                    Created
-                  </th>
+                  <th>Payout ID</th>
+                  <th>Seller</th>
+                  <th style={{ textAlign: "right" }}>Amount (USD)</th>
+                  <th>Status</th>
+                  <th>Created</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
+              <tbody>
                 {payouts.map((p) => (
                   <tr key={p.id}>
-                    <td className="px-4 py-2 text-gray-900">{p.id}</td>
-                    <td className="px-4 py-2 text-gray-700">
-                      {p.sellerName}
-                    </td>
-                    <td className="px-4 py-2 text-right text-gray-700">
+                    <td>{p.id}</td>
+                    <td>{p.sellerName}</td>
+                    <td style={{ textAlign: "right" }}>
                       {p.amount
                         ? p.amount.toLocaleString("en-US", {
                             style: "currency",
@@ -83,18 +70,13 @@ export default function ManagementPayouts({ payouts }: Props) {
                           })
                         : "—"}
                     </td>
-                    <td className="px-4 py-2 text-gray-700">{p.status}</td>
-                    <td className="px-4 py-2 text-gray-700">
-                      {p.createdAt}
-                    </td>
+                    <td>{p.status}</td>
+                    <td>{p.createdAt}</td>
                   </tr>
                 ))}
                 {payouts.length === 0 && (
                   <tr>
-                    <td
-                      colSpan={5}
-                      className="px-4 py-6 text-center text-sm text-gray-500"
-                    >
+                    <td colSpan={5} className="table-message">
                       No payouts recorded yet.
                     </td>
                   </tr>
@@ -105,6 +87,49 @@ export default function ManagementPayouts({ payouts }: Props) {
         </main>
         <Footer />
       </div>
+
+      {/* Styles for the light theme table */}
+      <style jsx>{`
+        .table-wrapper {
+          overflow-x: auto;
+          border-radius: 8px;
+          border: 1px solid #e5e7eb; /* gray-200 */
+          background: #ffffff;
+          box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+        }
+        .data-table {
+          min-width: 100%;
+          border-collapse: collapse;
+          font-size: 14px;
+        }
+        .data-table thead {
+          background: #f9fafb; /* gray-50 */
+        }
+        .data-table th {
+          padding: 8px 12px;
+          text-align: left;
+          font-weight: 500;
+          color: #374151; /* gray-700 */
+        }
+        .data-table tbody tr {
+          border-bottom: 1px solid #f3f4f6; /* gray-100 */
+        }
+        .data-table tbody tr:last-child {
+          border-bottom: none;
+        }
+        .data-table td {
+          padding: 8px 12px;
+          color: #111827; /* gray-900 */
+        }
+        .data-table td:first-child {
+          font-weight: 500;
+        }
+        .table-message {
+          padding: 24px;
+          text-align: center;
+          color: #6b7280; /* gray-500 */
+        }
+      `}</style>
     </>
   );
 }
