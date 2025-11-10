@@ -4,8 +4,7 @@ import Link from "next/link";
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
 import { useEffect, useState } from "react";
-// Import the same security hook as your dashboard
-import { useRequireSeller } from "../../hooks/useRequireSeller"; 
+import { useRequireSeller } from "../../hooks/useRequireSeller";
 
 type CatalogueItem = {
   id: string;
@@ -77,50 +76,52 @@ export default function SellerCatalogue() {
     }
   };
 
+  // Use a loading skeleton that matches the dark theme
   if (authLoading) {
-    // Use the dashboard-page class to prevent style flashing
-    return <div className="dashboard-page"></div>;
+    return <div className="dark-theme-page"></div>;
   }
 
   return (
-    <>
+    // Use the same wrapper class as sell.tsx
+    <div className="dark-theme-page">
       <Head>
-        <title>My Catalogue - Seller Console</title>
+        <title>My Catalogue - Famous Finds</title>
       </Head>
-      {/*
-        This page uses the "dashboard-page" class from globals.css
-        to match the style of your Seller Dashboard
-      */}
-      <div className="dashboard-page">
-        <Header />
-        <main className="dashboard-main">
-          {/* Page header (styles from globals.css) */}
-          <div className="dashboard-header">
-            <div>
-              <h1>My catalogue</h1>
-              <p>Live view of all listings under your seller account.</p>
-            </div>
-            <Link href="/seller/dashboard">← Back to Dashboard</Link>
+
+      <Header />
+
+      {/* Use the same <main> class as sell.tsx */}
+      <main className="section">
+        {/* Use the same header class as sell.tsx */}
+        <div className="section-header">
+          <div>
+            <h1>My catalogue</h1>
+            <p style={{ opacity: 0.8, marginTop: 4 }}>
+              Live view of all listings under your seller account.
+            </p>
           </div>
+          {/* Use the .cta class from globals.css, just like sell.tsx */}
+          <Link href="/seller/dashboard" className="cta">
+            ← Back to Dashboard
+          </Link>
+        </div>
 
-          {/* Action buttons (styles from globals.css) */}
-          <div className="catalogue-actions-bar">
-            <Link
-              href="/seller/bulk-upload"
-              className="catalogue-button-secondary"
-            >
-              Bulk upload CSV
-            </Link>
-            <Link href="/sell" className="catalogue-button">
-              Add single item
-            </Link>
-          </div>
+        {/* This div holds the buttons */}
+        <div className="actions-bar">
+          <Link href="/seller/bulk-upload" className="btn-secondary">
+            Bulk upload CSV
+          </Link>
+          <Link href="/sell" className="btn-primary">
+            Add single item
+          </Link>
+        </div>
 
-          {/* Render error message if any */}
-          {error && <div className="auth-error" style={{marginBottom: 16}}>{error}</div>}
+        {/* Render error message if any, styled like sell.tsx */}
+        {error && <p className="banner error">{error}</p>}
 
-          {/* Catalogue Table (styles from globals.css) */}
-          <div className="catalogue-table-wrapper">
+        {/* Use the same .sell-card class to wrap the table */}
+        <section className="sell-card">
+          <div className="table-overflow-wrapper">
             <table className="catalogue-table">
               <thead>
                 <tr>
@@ -133,7 +134,7 @@ export default function SellerCatalogue() {
               <tbody>
                 {loading && (
                   <tr>
-                    <td colSpan={4} style={{ textAlign: "center", padding: 16 }}>
+                    <td colSpan={4} className="table-message">
                       Loading your listings…
                     </td>
                   </tr>
@@ -141,7 +142,7 @@ export default function SellerCatalogue() {
 
                 {!loading && !error && items.length === 0 && (
                   <tr>
-                    <td colSpan={4} style={{ textAlign: "center", padding: 16 }}>
+                    <td colSpan={4} className="table-message">
                       You don&apos;t have any listings yet.
                     </td>
                   </tr>
@@ -159,18 +160,17 @@ export default function SellerCatalogue() {
                         })}
                       </td>
                       <td>{x.status}</td>
-                      <td className="catalogue-table-actions">
+                      <td className="actions-cell">
                         <Link
                           href={`/product/${x.id}`}
-                          className="catalogue-table-button"
+                          className="btn-table-view"
                         >
                           View
                         </Link>
                         <button
-                          type="button"
-                          className="catalogue-table-button delete"
                           onClick={() => handleDelete(x.id)}
                           disabled={deletingId === x.id}
+                          className="btn-table-delete"
                         >
                           {deletingId === x.id ? "Deleting..." : "Delete"}
                         </button>
@@ -180,9 +180,136 @@ export default function SellerCatalogue() {
               </tbody>
             </table>
           </div>
-        </main>
-        <Footer />
-      </div>
-    </>
+        </section>
+      </main>
+
+      <Footer />
+
+      {/* This <style jsx> block is added to match sell.tsx.
+        It copies styles from sell.tsx and adds styles for the table.
+      */}
+      <style jsx>{`
+        /* Copied from sell.tsx */
+        .sell-card {
+          background: #111827;
+          border-radius: 16px;
+          padding: 18px 18px 20px;
+          border: 1px solid #1f2937;
+        }
+
+        /* New styles for catalogue page */
+        .actions-bar {
+          display: flex;
+          gap: 12px;
+          margin-bottom: 20px;
+        }
+
+        .btn-primary,
+        .btn-secondary {
+          display: inline-block;
+          padding: 10px 16px;
+          border-radius: 8px;
+          font-weight: 600;
+          cursor: pointer;
+          font-size: 14px;
+          text-decoration: none;
+        }
+
+        .btn-primary {
+          background: white;
+          color: black;
+          border: none;
+        }
+
+        .btn-secondary {
+          border: 1px solid #fff;
+          color: #fff;
+        }
+
+        .table-overflow-wrapper {
+          overflow-x: auto;
+        }
+
+        .catalogue-table {
+          width: 100%;
+          border-collapse: collapse;
+          font-size: 14px;
+          color: #e5e7eb; /* Light text */
+        }
+
+        .catalogue-table th,
+        .catalogue-table td {
+          padding: 10px 12px;
+          text-align: left;
+          border-bottom: 1px solid #374151; /* Dark border */
+        }
+
+        .catalogue-table th {
+          font-size: 12px;
+          text-transform: uppercase;
+          color: #9ca3af; /* Muted header text */
+          font-weight: 500;
+        }
+
+        .catalogue-table tr:last-child td {
+          border-bottom: none;
+        }
+
+        .table-message {
+          text-align: center;
+          color: #9ca3af;
+          padding: 24px;
+        }
+
+        .actions-cell {
+          display: flex;
+          justify-content: flex-start;
+          gap: 12px;
+        }
+
+        .btn-table-view,
+        .btn-table-delete {
+          padding: 4px 10px;
+          font-size: 12px;
+          font-weight: 500;
+          border-radius: 999px;
+          text-decoration: none;
+          cursor: pointer;
+        }
+
+        .btn-table-view {
+          border: 1px solid #374151;
+          color: #e5e7eb;
+          background: #1f2937;
+        }
+        .btn-table-view:hover {
+          border-color: #6b7280;
+        }
+
+        .btn-table-delete {
+          border: 1px solid #b91c1c; /* Red border */
+          color: #fca5a5; /* Red text */
+          background: #7f1d1d; /* Dark red bg */
+        }
+        .btn-table-delete:hover {
+          opacity: 0.8;
+        }
+        .btn-table-delete:disabled {
+          opacity: 0.5;
+        }
+
+        /* Error banner styles */
+        .banner {
+          margin-bottom: 16px;
+          padding: 8px 10px;
+          border-radius: 6px;
+          font-size: 13px;
+        }
+        .error {
+          background: #7f1d1d; /* red-900 */
+          color: #fee2e2; /* red-100 */
+        }
+      `}</style>
+    </div>
   );
 }
