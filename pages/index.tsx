@@ -1,4 +1,6 @@
 // FILE: /pages/index.tsx
+// I have updated this file to use the new HomepageButler component.
+
 import Head from "next/head";
 import Link from "next/link";
 import Header from "../components/Header";
@@ -7,6 +9,9 @@ import DemoGrid from "../components/DemoGrid";
 import { ProductLike } from "../components/ProductCard";
 import { adminDb } from "../utils/firebaseAdmin";
 import type { GetServerSideProps } from "next";
+
+// --- IMPORT THE NEW COMPONENT ---
+import HomepageButler from "../components/HomepageButler";
 
 const categories = [
   { name: "Bags", slug: "bags" },
@@ -47,6 +52,8 @@ export default function Home({ trending, newArrivals }: HomeProps) {
             </p>
           </div>
           <div className="heroVisual">
+            {/* --- THIS ENTIRE BLOCK IS REPLACED ---
+            
             <p className="heroIntro">
               Meet your Famous Finds AI Butler – a friendly concierge to help
               you discover the perfect piece, by voice or chat, from our curated
@@ -69,6 +76,9 @@ export default function Home({ trending, newArrivals }: HomeProps) {
               <button className="butlerBtn">AI Butler</button>
               <button className="browseBtn">Browse the catalogue</button>
             </div>
+
+            --- WITH THIS SINGLE, FUNCTIONAL COMPONENT --- */}
+            <HomepageButler />
           </div>
         </section>
 
@@ -85,6 +95,7 @@ export default function Home({ trending, newArrivals }: HomeProps) {
       </main>
       <Footer />
 
+      {/* --- NO CHANGES NEEDED TO CSS --- */}
       <style jsx>{`
         .wrap {
           max-width: 1200px;
@@ -95,8 +106,8 @@ export default function Home({ trending, newArrivals }: HomeProps) {
           display: grid;
           grid-template-columns: minmax(0, 1.1fr) minmax(0, 1.1fr);
           gap: 40px;
-          margin-top: 16px;      /* CHANGED: Reduced top margin */
-          margin-bottom: 24px;   /* CHANGED: Reduced bottom margin */
+          margin-top: 16px; /* CHANGED: Reduced top margin */
+          margin-bottom: 24px; /* CHANGED: Reduced bottom margin */
         }
         .heroCopy {
           max-width: 520px;
@@ -124,6 +135,8 @@ export default function Home({ trending, newArrivals }: HomeProps) {
           background: radial-gradient(circle at top, #334155, #020617);
           border: 1px solid rgba(148, 163, 184, 0.3);
         }
+        /* These styles are no longer needed as HomepageButler provides its own */
+        /*
         .heroIntro {
           font-size: 13px;
           color: #e5e7eb;
@@ -172,6 +185,7 @@ export default function Home({ trending, newArrivals }: HomeProps) {
           background: #e5e7eb;
           color: #020617;
         }
+        */
         .categories {
           display: flex;
           flex-wrap: wrap;
