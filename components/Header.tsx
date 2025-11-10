@@ -11,8 +11,8 @@ export default function Header() {
           <Image
             src="/Famous-Finds-Logo.png"
             alt="Famous Finds Logo"
-            width={46}
-            height={50}
+            width={95}  {/* CHANGED */}
+            height={80} {/* CHANGED */}
             priority
           />
         </Link>
@@ -25,12 +25,12 @@ export default function Header() {
           <Link href="/contact" className="nav-link-item">Contact</Link>
         </nav>
 
-        {/* Admin portals - CORRECTED JSX HERE */}
+        {/* Admin portals - This code already creates the pills as requested */}
         <div className="admin-portals">
           <Link href="/management/login" className="admin-button management">
             Management Admin Login
           </Link>
-          <Link href="/seller/login" className="admin-button seller"> {/* CORRECTED: Now links to seller login with 'seller' class */}
+          <Link href="/seller/login" className="admin-button seller">
             Seller Admin Login
           </Link>
         </div>
