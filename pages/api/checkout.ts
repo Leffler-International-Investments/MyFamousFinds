@@ -3,10 +3,10 @@ import type { NextApiRequest, NextApiResponse } from "next";
 import { stripe } from "../../lib/stripe";
 
 type RequestBody = {
-  id: string;       // Firestore listing id
-  title: string;    // listing.title
-  price: number;    // in USD, e.g. 1111 for US$1,111
-  image?: string;   // product image URL
+  id: string;       // listing id
+  title: string;    // product title
+  price: number;    // in major units (e.g. 1111 for 1111 USD)
+  image?: string;   // optional image URL
 };
 
 type SuccessResponse = { ok: true; sessionId: string };
@@ -33,8 +33,8 @@ export default async function handler(
       "http://localhost:3000";
 
     const session = await stripe.checkout.sessions.create({
-      payment_method_types: ["card", "afterpay_clearpay"],
       mode: "payment",
+      payment_method_types: ["card"],
       metadata: {
         listingId: id,
       },
@@ -46,7 +46,7 @@ export default async function handler(
             product_data: {
               name: title,
               images: image ? [image] : [],
-              metadata: { productId: id },
+              metadata: { listingId: id },
             },
           },
           quantity: 1,
