@@ -5,8 +5,8 @@ import { useRouter } from "next/router";
 type PostPurchaseButlerProps = {
   brand: string;
   itemTitle: string;
-  category: string; // e.g. "bags"
-  vipUrl: string;   // e.g. "/vip" or "/front-floor-vip"
+  category: string;
+  vipUrl: string;
 };
 
 export default function PostPurchaseButler({
@@ -17,33 +17,30 @@ export default function PostPurchaseButler({
 }: PostPurchaseButlerProps) {
   const router = useRouter();
 
-  // ---- Voice helper ----
   function speak(text: string) {
     if (typeof window === "undefined") return;
     if (!("speechSynthesis" in window)) return;
 
     const utterance = new SpeechSynthesisUtterance(text);
-    utterance.rate = 0.9; // slightly slower, calm
+    utterance.rate = 0.9;
     utterance.pitch = 1;
     window.speechSynthesis.speak(utterance);
   }
 
-  // Speak once when the component first appears
   useEffect(() => {
-    const spokenMessage =
+    const msg =
       `Congratulations on your purchase. You have just secured a beautiful ${brand} ${itemTitle}. ` +
       `If you like, I can show you matching pieces to go with it, ` +
-      `and I also recommend joining our Famous Finds Front Floor VIP Club ` +
+      `and I recommend joining our Famous Finds Front Row VIP Club ` +
       `to earn points and receive exclusive member benefits.`;
-    speak(spokenMessage);
+    speak(msg);
   }, [brand, itemTitle]);
 
   const congratsText = `Congratulations on your purchase! You’ve just secured a beautiful ${brand} ${itemTitle}.`;
   const crossSellText =
     "Would you like to see other pieces that go perfectly with it?";
   const vipText =
-    "It’s very advisable to join our Famous Finds Front Floor VIP Club. " +
-    "You’ll earn points on purchases, get early access to new arrivals, and enjoy exclusive member benefits.";
+    "It’s very advisable to join our Famous Finds Front Row VIP Club. You’ll earn points on purchases, get early access to new arrivals, and enjoy exclusive member benefits.";
 
   function handleShowMatching() {
     const query = `${brand} ${category}`;
