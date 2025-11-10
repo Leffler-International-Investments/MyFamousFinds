@@ -37,9 +37,7 @@ const DashboardSection = ({
   <section className="dashboard-section">
     <div className="dashboard-section-header">
       <h2 className="dashboard-section-title">{title}</h2>
-      {subtitle && (
-        <p className="dashboard-section-subtitle">{subtitle}</p>
-      )}
+      {subtitle && <p className="dashboard-section-subtitle">{subtitle}</p>}
     </div>
     <div className="dashboard-grid">{children}</div>
   </section>
@@ -50,14 +48,22 @@ const DashboardTile = ({
   title,
   description,
   href,
+  linkText = "View", // Default link text
+  linkColor = "blue", // Default color
 }: {
   title: string;
   description: string;
   href: string;
+  linkText?: string;
+  linkColor?: "blue" | "green" | "gray" | "gold";
 }) => (
   <Link href={href} className="dashboard-tile">
     <p className="dashboard-tile-title">{title}</p>
     <p className="dashboard-tile-description">{description}</p>
+    {/* ADDED link text and color logic */}
+    <p className={`dashboard-tile-link dashboard-tile-link-${linkColor}`}>
+      {linkText} &rarr;
+    </p>
   </Link>
 );
 
@@ -131,16 +137,22 @@ export default function ManagementDashboard({ stats }: Props) {
             title="Listing Review Queue"
             description="Review and approve new product listings (Prada bag, LV sneakers, etc.) before they go live."
             href="/management/listing-queue"
+            linkText="Review Listings"
+            linkColor="blue"
           />
           <DashboardTile
             title="Seller Vetting Queue"
             description="Approve or deny new seller applications. Only approved sellers can list products."
             href="/management/vetting-queue"
+            linkText="Review Sellers"
+            linkColor="blue"
           />
           <DashboardTile
             title="All Listings"
             description="View and moderate all products across the marketplace (Live, Pending, Rejected)."
             href="/management/listings"
+            linkText="Manage Listings"
+            linkColor="gray"
           />
         </DashboardSection>
 
@@ -153,11 +165,15 @@ export default function ManagementDashboard({ stats }: Props) {
             title="Categories & Attributes"
             description="Manage product categories, attributes, and how items are grouped (bags, shoes, jewelry, etc.)."
             href="/management/categories"
+            linkText="Manage Categories"
+            linkColor="gray"
           />
           <DashboardTile
             title="System Settings"
             description="Configure global settings like regions, default currency (USD), and feature flags."
             href="/management/system-settings"
+            linkText="Configure Settings"
+            linkColor="gray"
           />
         </DashboardSection>
 
@@ -170,16 +186,23 @@ export default function ManagementDashboard({ stats }: Props) {
             title="Seller Directory"
             description="View and manage all active sellers, including their total listings and activity."
             href="/management/sellers"
+            linkText="View Directory"
+            linkColor="gray"
           />
           <DashboardTile
             title="Seller Profiles / Controls"
             description="Edit individual seller details, statuses, risk flags, and internal notes."
             href="/management/seller-profiles"
+            linkText="Edit Profiles"
+            linkColor="gray"
+          }
           />
           <DashboardTile
             title="Management Team"
             description="Add or remove internal admins and decide who can access finance, vetting, or support."
             href="/management/team"
+            linkText="Manage Team"
+            linkColor="gray"
           />
         </DashboardSection>
 
@@ -192,26 +215,36 @@ export default function ManagementDashboard({ stats }: Props) {
             title="Orders Overview"
             description="Search and manage all platform orders from checkout to completion or refund."
             href="/management/orders"
+            linkText="Manage Orders"
+            linkColor="blue"
           />
           <DashboardTile
             title="Returns & Disputes"
             description="Handle returns, chargebacks, and buyer-seller disputes."
             href="/management/disputes"
+            linkText="Handle Disputes"
+            linkColor="gray"
           />
           <DashboardTile
             title="Payouts & Finance"
             description="Monitor seller payouts, platform fees, and payment status (USD)."
             href="/management/payouts"
+            linkText="View Finance"
+            linkColor="green"
           />
           <DashboardTile
             title="Tax & Compliance (US)"
             description="View annual US-dollar sales per seller and track whether tax forms are issued."
             href="/management/tax"
+            linkText="View Tax Info"
+            linkColor="green"
           />
           <DashboardTile
             title="Stripe & Payment Settings"
             description="Configure Stripe keys and payment-related settings."
             href="/management/stripe-settings"
+            linkText="Configure Stripe"
+            linkColor="green"
           />
         </DashboardSection>
 
@@ -224,26 +257,51 @@ export default function ManagementDashboard({ stats }: Props) {
             title="Analytics & Reports"
             description="High-level sales and traffic insights across Famous Finds."
             href="/management/analytics"
+            linkText="View Analytics"
+            linkColor="gray"
           />
           <DashboardTile
             title="Support Tickets"
             description="View and respond to customer support tickets."
             href="/management/support-tickets"
+            linkText="View Tickets"
+            linkColor="gray"
           />
           <DashboardTile
             title="Logs & Audit Trail"
             description="Review a history of important admin and system actions."
             href="/management/logs"
+            linkText="View Logs"
+            linkColor="gray"
           />
           <DashboardTile
             title="User & Role Management"
             description="Manage admin accounts and their roles (operations, finance, support, etc.)."
             href="/management/users"
+            linkText="Manage Users"
+            linkColor="gray"
           />
           <DashboardTile
             title="Developer / Integrations"
             description="API keys and integrations with external tools and services."
             href="/management/developer"
+            linkText="View Integrations"
+Clickable
+            linkColor="gray"
+          />
+        </DashboardSection>
+
+        {/* --- 6. NEW VIP CLUB MANAGEMENT SECTION --- */}
+        <DashboardSection
+          title="VIP Club Management"
+          subtitle="Manage 'Front Row' members, points, and tiers."
+        >
+          <DashboardTile
+            title="VIP Member Directory"
+            description="View all VIP members, search by tier, and adjust loyalty points."
+            href="/management/vip-members"
+            linkText="Manage Members"
+            linkColor="gold"
           />
         </DashboardSection>
       </main>
@@ -263,8 +321,13 @@ export const getServerSideProps: GetServerSideProps<Props> = async () => {
       ordersSnap,
       pendingOrdersSnap,
     ] = await Promise.all([
-      adminDb.collection("sellers").get(),
-      adminDb.collection("sellers").where("status", "==", "Pending").get(),
+      // Note: Switched to 'users' collection for sellers
+      adminDb.collection("users").where("role", "==", "seller").get(),
+      adminDb
+        .collection("users")
+        .where("role", "==", "seller")
+        .where("status", "==", "Pending")
+        .get(),
       adminDb.collection("listings").get(),
       adminDb
         .collection("listings")
