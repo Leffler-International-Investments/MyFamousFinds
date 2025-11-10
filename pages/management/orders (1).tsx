@@ -1,5 +1,5 @@
-// FILE: /pages/management/sellers.tsx
-import { useMemo, useState } from "react";
+// FILE: /pages/management/orders.tsx
+import { useState, useMemo } from "react";
 import type { GetServerSideProps } from "next";
 import Head from "next/head";
 import Link from "next/link";
@@ -8,41 +8,45 @@ import Footer from "../../components/Footer";
 import { adminDb } from "../../utils/firebaseAdmin";
 import { useRequireAdmin } from "../../hooks/useRequireAdmin";
 
-type SellerRow = {
+type Order = {
   id: string;
-  name: string;
-  email: string;
+  buyerEmail: string;
+  sellerName: string;
+  total: number;
   status: string;
-  totalListings: number;
   createdAt: string;
 };
 
 type Props = {
-  sellers: SellerRow[];
+  orders: Order[];
 };
 
-export default function ManagementSellers({ sellers }: Props) {
+export default function ManagementOrders({ orders }: Props) {
   const { loading } = useRequireAdmin();
   const [query, setQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string>("All");
 
   const visible = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return sellers;
-    return sellers.filter((s) => {
+    return orders.filter((o) => {
+      if (statusFilter !== "All" && o.status !== statusFilter) {
+        return false;
+      }
+      if (!q) return true;
       return (
-        s.name.toLowerCase().includes(q) ||
-        s.email.toLowerCase().includes(q) ||
-        s.id.toLowerCase().includes(q)
+        o.id.toLowerCase().includes(q) ||
+        o.buyerEmail.toLowerCase().includes(q) ||
+        o.sellerName.toLowerCase().includes(q)
       );
     });
-  }, [sellers, query]);
+  }, [orders, query, statusFilter]);
 
   if (loading) return null;
 
   return (
     <>
       <Head>
-        <title>Seller Directory — Admin</title>
+        <title>Orders Overview — Admin</title>
       </Head>
       <div className="min-h-screen bg-gray-50 text-gray-900">
         <Header />
@@ -51,10 +55,11 @@ export default function ManagementSellers({ sellers }: Props) {
           <div className="mb-6 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
             <div>
               <h1 className="text-2xl font-semibold text-gray-900">
-                Seller Directory
+                Orders Overview
               </h1>
               <p className="mt-1 text-sm text-gray-600">
-                View and manage all active sellers on Famous-Finds.
+                Search and view all platform orders, including those in progress,
+                completed, or refunded.
               </p>
             </div>
             <Link
@@ -69,9 +74,23 @@ export default function ManagementSellers({ sellers }: Props) {
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search by seller name, email, or ID…"
+              placeholder="Search by order ID, buyer, or seller…"
               className="w-full max-w-xs rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-gray-900 focus:outline-none"
             />
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-gray-900 focus:outline-none"
+            >
+              <option value="All">All statuses</option>
+              <option value="Pending">Pending</option>
+              <option value="Processing">Processing</option>
+              <option value="Paid">Paid</option>
+              <option value="Shipped">Shipped</option>
+              <option value="Completed">Completed</option>
+              <option value="Refunded">Refunded</option>
+              <option value="Cancelled">Cancelled</option>
+            </select>
           </div>
 
           <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white shadow-sm">
@@ -79,16 +98,19 @@ export default function ManagementSellers({ sellers }: Props) {
               <thead className="bg-gray-50">
                 <tr>
                   <th className="px-3 py-2 text-left font-medium text-gray-700">
-                    Seller
+                    Order ID
                   </th>
                   <th className="px-3 py-2 text-left font-medium text-gray-700">
-                    Email
+                    Buyer
+                  </th>
+                  <th className="px-3 py-2 text-left font-medium text-gray-700">
+                    Seller
+                  </th>
+                  <th className="px-3 py-2 text-right font-medium text-gray-700">
+                    Total (USD)
                   </th>
                   <th className="px-3 py-2 text-left font-medium text-gray-700">
                     Status
-                  </th>
-                  <th className="px-3 py-2 text-right font-medium text-gray-700">
-                    Listings
                   </th>
                   <th className="px-3 py-2 text-left font-medium text-gray-700">
                     Created
@@ -96,26 +118,36 @@ export default function ManagementSellers({ sellers }: Props) {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {visible.map((s) => (
-                  <tr key={s.id}>
-                    <td className="px-3 py-2 text-gray-900">{s.name}</td>
-                    <td className="px-3 py-2 text-gray-700">{s.email}</td>
-                    <td className="px-3 py-2 text-gray-700">{s.status}</td>
-                    <td className="px-3 py-2 text-right text-gray-700">
-                      {s.totalListings.toLocaleString("en-US")}
+                {visible.map((o) => (
+                  <tr key={o.id}>
+                    <td className="px-3 py-2 text-gray-900">{o.id}</td>
+                    <td className="px-3 py-2 text-gray-700">
+                      {o.buyerEmail}
                     </td>
                     <td className="px-3 py-2 text-gray-700">
-                      {s.createdAt}
+                      {o.sellerName}
+                    </td>
+                    <td className="px-3 py-2 text-right text-gray-700">
+                      {o.total
+                        ? o.total.toLocaleString("en-US", {
+                            style: "currency",
+                            currency: "USD",
+                          })
+                        : "—"}
+                    </td>
+                    <td className="px-3 py-2 text-gray-700">{o.status}</td>
+                    <td className="px-3 py-2 text-gray-700">
+                      {o.createdAt}
                     </td>
                   </tr>
                 ))}
                 {visible.length === 0 && (
                   <tr>
                     <td
-                      colSpan={5}
+                      colSpan={6}
                       className="px-3 py-6 text-center text-sm text-gray-500"
                     >
-                      No sellers match this search.
+                      No orders match this filter.
                     </td>
                   </tr>
                 )}
@@ -132,36 +164,28 @@ export default function ManagementSellers({ sellers }: Props) {
 
 export const getServerSideProps: GetServerSideProps<Props> = async () => {
   try {
-    const [sellersSnap, listingsSnap] = await Promise.all([
-      adminDb.collection("sellers").get(),
-      adminDb.collection("listings").get(),
-    ]);
+    const snap = await adminDb
+      .collection("orders")
+      .orderBy("createdAt", "desc")
+      .limit(200)
+      .get();
 
-    const listingsBySeller: Record<string, number> = {};
-    listingsSnap.docs.forEach((doc) => {
+    const orders: Order[] = snap.docs.map((doc) => {
       const d: any = doc.data() || {};
-      const sellerId = d.sellerId || d.seller || "";
-      if (!sellerId) return;
-      listingsBySeller[sellerId] = (listingsBySeller[sellerId] || 0) + 1;
-    });
-
-    const sellers: SellerRow[] = sellersSnap.docs.map((doc) => {
-      const d: any = doc.data() || {};
-      const id = doc.id;
       return {
-        id,
-        name: d.name || d.businessName || "Seller",
-        email: d.email || "",
-        status: d.status || "Active",
-        totalListings: listingsBySeller[id] || 0,
+        id: doc.id,
+        buyerEmail: d.buyerEmail || "",
+        sellerName: d.sellerName || "",
+        total: Number(d.total || 0),
+        status: d.status || "Pending",
         createdAt:
           d.createdAt?.toDate?.().toLocaleString("en-US") || "",
       };
     });
 
-    return { props: { sellers } };
+    return { props: { orders } };
   } catch (err) {
-    console.error("Error loading sellers", err);
-    return { props: { sellers: [] } };
+    console.error("Error loading orders", err);
+    return { props: { orders: [] } };
   }
 };

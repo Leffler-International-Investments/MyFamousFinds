@@ -39,208 +39,131 @@ export default function ManagementListings({ items }: Props) {
     });
   }, [items, query, statusFilter]);
 
-  if (loading) return <div className="dashboard-page"></div>;
+  if (loading) return null;
 
   return (
     <>
       <Head>
         <title>All Listings — Admin</title>
       </Head>
-      <div className="dashboard-page">
+      <div className="min-h-screen bg-gray-50 text-gray-900">
         <Header />
 
-        <main className="dashboard-main">
-          <div className="dashboard-header">
+        <main className="mx-auto max-w-6xl px-4 pb-16 pt-6">
+          <div className="mb-6 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
             <div>
-              <h1>All Listings</h1>
-              <p>Search, review, and moderate every item on Famous-Finds.</p>
+              <h1 className="text-2xl font-semibold text-gray-900">
+                All Listings
+              </h1>
+              <p className="mt-1 text-sm text-gray-600">
+                Search, review, and moderate every item on Famous-Finds.
+              </p>
             </div>
-            <Link href="/management/dashboard">
+            <Link
+              href="/management/dashboard"
+              className="text-sm text-gray-600 hover:text-gray-900"
+            >
               ← Back to Management Dashboard
             </Link>
           </div>
 
-          <section className="dashboard-section">
-            <div className="controls">
-              <input
-                type="text"
-                placeholder="Search by title, seller, or ID…"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                className="search-input"
-              />
-              <select
-                value={statusFilter}
-                onChange={(e) =>
-                  setStatusFilter(e.target.value as any)
-                }
-                className="filter-select"
-              >
-                <option value="All">All statuses</option>
-                <option value="Live">Live</option>
-                <option value="Pending">Pending</option>
-                <option value="Rejected">Rejected</option>
-              </select>
-            </div>
+          <div className="mb-4 flex flex-wrap items-center gap-3">
+            <input
+              type="text"
+              placeholder="Search by title, seller, or ID…"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              className="w-full max-w-xs rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-gray-900 focus:outline-none"
+            />
+            <select
+              value={statusFilter}
+              onChange={(e) =>
+                setStatusFilter(e.target.value as any)
+              }
+              className="rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-gray-900 focus:outline-none"
+            >
+              <option value="All">All statuses</option>
+              <option value="Live">Live</option>
+              <option value="Pending">Pending</option>
+              <option value="Rejected">Rejected</option>
+            </select>
+          </div>
 
-            <div className="table-wrapper">
-              <table className="data-table">
-                <thead>
-                  <tr>
-                    <th>Listing</th>
-                    <th>Seller</th>
-                    <th>Price (US$)</th>
-                    <th>Status</th>
-                    <th>Actions</th>
+          <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white shadow-sm">
+            <table className="min-w-full divide-y divide-gray-200 text-sm">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-3 py-2 text-left font-medium text-gray-700">
+                    Listing
+                  </th>
+                  <th className="px-3 py-2 text-left font-medium text-gray-700">
+                    Seller
+                  </th>
+                  <th className="px-3 py-2 text-left font-medium text-gray-700">
+                    Price (US$)
+                  </th>
+                  <th className="px-3 py-2 text-left font-medium text-gray-700">
+                    Status
+                  </th>
+                  <th className="px-3 py-2 text-left font-medium text-gray-700">
+                    Actions
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {visible.map((l) => (
+                  <tr key={l.id}>
+                    <td className="px-3 py-2 text-gray-900">{l.title}</td>
+                    <td className="px-3 py-2 text-gray-700">{l.seller}</td>
+                    <td className="px-3 py-2 text-gray-700">
+                      {l.price
+                        ? l.price.toLocaleString("en-US", {
+                            style: "currency",
+                            currency: "USD",
+                          })
+                        : "—"}
+                    </td>
+                    <td className="px-3 py-2">
+                      <span
+                        className={
+                          "inline-flex rounded-full px-2 py-0.5 text-xs font-medium " +
+                          (l.status === "Live"
+                            ? "bg-green-100 text-green-800"
+                            : l.status === "Pending"
+                            ? "bg-yellow-100 text-yellow-800"
+                            : "bg-red-100 text-red-800")
+                        }
+                      >
+                        {l.status}
+                      </span>
+                    </td>
+                    <td className="px-3 py-2">
+                      <Link
+                        href={`/product/${l.id}`}
+                        className="text-xs font-medium text-blue-600 hover:text-blue-800"
+                      >
+                        View
+                      </Link>
+                    </td>
                   </tr>
-                </thead>
-                <tbody>
-                  {visible.map((l) => (
-                    <tr key={l.id}>
-                      <td className="font-medium">{l.title}</td>
-                      <td>{l.seller}</td>
-                      <td>
-                        {l.price
-                          ? l.price.toLocaleString("en-US", {
-                              style: "currency",
-                              currency: "USD",
-                            })
-                          : "—"}
-                      </td>
-                      <td>
-                        <span
-                          className={`status-badge ${
-                            l.status === "Live"
-                              ? "status-live"
-                              : l.status === "Pending"
-                              ? "status-pending"
-                              : "status-rejected"
-                          }`}
-                        >
-                          {l.status}
-                        </span>
-                      </td>
-                      <td>
-                        <Link href={`/product/${l.id}`} className="action-link">
-                          View
-                        </Link>
-                      </td>
-                    </tr>
-                  ))}
-                  {visible.length === 0 && (
-                    <tr>
-                      <td colSpan={5} className="text-center">
-                        No listings match this filter.
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </section>
+                ))}
+                {visible.length === 0 && (
+                  <tr>
+                    <td
+                      colSpan={5}
+                      className="px-3 py-6 text-center text-sm text-gray-500"
+                    >
+                      No listings match this filter.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
         </main>
 
         <Footer />
       </div>
-
-      <style jsx>{`
-        .controls {
-          margin-bottom: 16px;
-          display: flex;
-          flex-wrap: wrap;
-          gap: 12px;
-        }
-        .search-input,
-        .filter-select {
-          border-radius: 6px;
-          border: 1px solid #d1d5db; /* gray-300 */
-          padding: 8px 12px;
-          font-size: 14px;
-          background: #ffffff;
-        }
-        .search-input {
-          width: 100%;
-          max-width: 320px;
-        }
-        .search-input:focus,
-        .filter-select:focus {
-          outline: none;
-          border-color: #3b82f6; /* blue-500 */
-          box-shadow: 0 0 0 1px #3b82f6;
-        }
-        .table-wrapper {
-          overflow-x: auto;
-          width: 100%;
-          border: 1px solid #e5e7eb; /* gray-200 */
-          border-radius: 8px;
-        }
-        .data-table {
-          width: 100%;
-          min-width: 600px;
-          font-size: 14px;
-          border-collapse: collapse;
-        }
-        .data-table thead {
-          background-color: #f9fafb; /* gray-50 */
-        }
-        .data-table th,
-        .data-table td {
-          padding: 10px 14px;
-          text-align: left;
-          border-bottom: 1px solid #e5e7eb; /* gray-200 */
-          white-space: nowrap;
-        }
-        .data-table th {
-          font-weight: 600;
-          color: #374151; /* gray-700 */
-          font-size: 12px;
-          text-transform: uppercase;
-        }
-        .data-table td {
-          color: #4b5563; /* gray-600 */
-        }
-        .data-table td.font-medium {
-          font-weight: 500;
-          color: #111827; /* gray-900 */
-        }
-        .data-table tbody tr:last-child td {
-          border-bottom: none;
-        }
-        .text-center {
-          text-align: center;
-          padding: 24px;
-          color: #6b7280; /* gray-500 */
-        }
-        .status-badge {
-          display: inline-flex;
-          border-radius: 999px;
-          padding: 2px 8px;
-          font-size: 12px;
-          font-weight: 500;
-        }
-        .status-live {
-          background-color: #dcfce7; /* green-100 */
-          color: #166534; /* green-800 */
-        }
-        .status-pending {
-          background-color: #fef9c3; /* yellow-100 */
-          color: #854d0e; /* yellow-800 */
-        }
-        .status-rejected {
-          background-color: #fee2e2; /* red-100 */
-          color: #991b1b; /* red-800 */
-        }
-        .action-link {
-          font-size: 13px;
-          font-weight: 500;
-          color: #2563eb; /* blue-600 */
-          text-decoration: none;
-        }
-        .action-link:hover {
-          color: #1d4ed8; /* blue-700 */
-          text-decoration: underline;
-        }
-      `}</style>
     </>
   );
 }

@@ -32,7 +32,7 @@ export default function ManagementListingQueue({
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  if (loading) return <div className="dashboard-page"></div>;
+  if (loading) return <div className="min-h-screen bg-gray-50"></div>;
 
   const handleAction = async (
     id: string,
@@ -81,235 +81,171 @@ export default function ManagementListingQueue({
       <Head>
         <title>Listing Review Queue — Admin</title>
       </Head>
-      <div className="dashboard-page">
+      <div className="min-h-screen bg-gray-50 text-gray-900">
         <Header />
-        <main className="dashboard-main">
-          <div className="dashboard-header">
+        <main className="mx-auto max-w-full px-4 pb-16 pt-6 lg:px-8">
+          <div className="mb-4 flex items-center justify-between gap-2">
             <div>
-              <h1>Listing Review Queue</h1>
-              <p>
+              <h1 className="text-xl font-semibold tracking-tight">
+                Listing Review Queue
+              </h1>
+              <p className="text-sm text-gray-600">
                 Pending submissions from all sellers. Check authenticity before
-                approval.
+                approval. Your Prada bag and LV sneakers both show here when
+                status is Pending.
               </p>
             </div>
             <Link
               href="/management/dashboard"
-              className="action-button-dark"
+              className="rounded-full bg-gray-900 px-4 py-2 text-xs font-medium text-white"
             >
               ← Back to admin home
             </Link>
           </div>
 
-          <section className="dashboard-section">
-            {error && <div className="error-message">{error}</div>}
+          {error && (
+            <div className="mb-4 rounded-md bg-red-100 p-3 text-sm text-red-700">
+              <strong>Error:</strong> {error}
+            </div>
+          )}
 
-            <div className="table-wrapper">
-              <table className="data-table">
-                <thead>
-                  <tr>
-                    <th>Listing</th>
-                    <th>Seller</th>
-                    <th>Price</th>
-                    <th>Category</th>
-                    <th>Purchased From</th>
-                    <th>Proof</th>
-                    <th>Serial #</th>
-                    <th>Proof Docs</th>
-                    <th>Submitted</th>
-                    <th>Status</th>
-                    <th>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {hasAny ? (
-                    items.map((item) => (
-                      <tr key={item.id}>
-                        <td className="font-medium">{item.title}</td>
-                        <td>{item.seller}</td>
-                        <td>
-                          {item.price
-                            ? `US$${item.price.toLocaleString("en-US")}`
-                            : "—"}
-                        </td>
-                        <td>{item.category || "—"}</td>
-                        <td>{item.purchase_source || "—"}</td>
-                        <td>{item.purchase_proof || "—"}</td>
-                        <td>{item.serial_number || "—"}</td>
-                        <td>
-                          {item.auth_photos && item.auth_photos.length > 0 ? (
-                            <span>
-                              {item.auth_photos.length} photo
-                              {item.auth_photos.length > 1 ? "s" : ""}
-                            </span>
-                          ) : (
-                            "—"
-                          )}
-                        </td>
-                        <td>{item.submittedAt || "—"}</td>
-                        <td>{item.status}</td>
-                        <td>
-                          <div className="action-buttons">
-                            <button
-                              onClick={() =>
-                                handleAction(item.id, "approve")
-                              }
-                              disabled={
-                                actionLoading === item.id ||
-                                item.status === "Live"
-                              }
-                              className="action-button button-approve"
-                            >
-                              Approve
-                            </button>
-                            <button
-                              onClick={() =>
-                                handleAction(item.id, "reject")
-                              }
-                              disabled={
-                                actionLoading === item.id ||
-                                item.status === "Rejected"
-                              }
-                              className="action-button button-reject"
-                            >
-                              Reject
-                            </button>
-                            <button
-                              onClick={() =>
-                                handleAction(item.id, "request-proof")
-                              }
-                              disabled={actionLoading === item.id}
-                              className="action-button button-request"
-                            >
-                              Request proof
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))
-                  ) : (
-                    <tr>
-                      <td colSpan={11} className="text-center">
-                        No listings are currently pending review.
+          <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white shadow-sm">
+            <table className="min-w-full divide-y divide-gray-200 text-sm">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-4 py-2 text-left font-medium text-gray-700">
+                    Listing
+                  </th>
+                  <th className="px-4 py-2 text-left font-medium text-gray-700">
+                    Seller
+                  </th>
+                  <th className="px-4 py-2 text-left font-medium text-gray-700">
+                    Price
+                  </th>
+                  <th className="px-4 py-2 text-left font-medium text-gray-700">
+                    Category
+                  </th>
+                  <th className="px-4 py-2 text-left font-medium text-gray-700">
+                    Purchased From
+                  </th>
+                  <th className="px-4 py-2 text-left font-medium text-gray-700">
+                    Proof
+                  </th>
+                  <th className="px-4 py-2 text-left font-medium text-gray-700">
+                    Serial #
+                  </th>
+                  <th className="px-4 py-2 text-left font-medium text-gray-700">
+                    Proof Docs
+                  </th>
+                  <th className="px-4 py-2 text-left font-medium text-gray-700">
+                    Submitted
+                  </th>
+                  <th className="px-4 py-2 text-left font-medium text-gray-700">
+                    Status
+                  </th>
+                  <th className="px-4 py-2 text-left font-medium text-gray-700">
+                    Actions
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {hasAny ? (
+                  items.map((item) => (
+                    <tr key={item.id}>
+                      <td className="px-4 py-2 text-gray-900">
+                        {item.title}
+                      </td>
+                      <td className="px-4 py-2 text-gray-700">
+                        {item.seller}
+                      </td>
+                      <td className="px-4 py-2 text-gray-700">
+                        {item.price
+                          ? `US$${item.price.toLocaleString("en-US")}`
+                          : "—"}
+                      </td>
+                      <td className="px-4 py-2 text-gray-700">
+                        {item.category || "—"}
+                      </td>
+                      <td className="px-4 py-2 text-gray-700">
+                        {item.purchase_source || "—"}
+                      </td>
+                      <td className="px-4 py-2 text-gray-700">
+                        {item.purchase_proof || "—"}
+                      </td>
+                      <td className="px-4 py-2 text-gray-700">
+                        {item.serial_number || "—"}
+                      </td>
+                      <td className="px-4 py-2 text-gray-700">
+                        {item.auth_photos && item.auth_photos.length > 0 ? (
+                          <span>
+                            {item.auth_photos.length} photo
+                            {item.auth_photos.length > 1 ? "s" : ""}
+                          </span>
+                        ) : (
+                          "—"
+                        )}
+                      </td>
+                      <td className="px-4 py-2 text-gray-700">
+                        {item.submittedAt || "—"}
+                      </td>
+                      <td className="px-4 py-2 text-gray-700">
+                        {item.status}
+                      </td>
+                      <td className="px-4 py-2">
+                        <div className="flex flex-wrap gap-2">
+                          <button
+                            onClick={() =>
+                              handleAction(item.id, "approve")
+                            }
+                            disabled={
+                              actionLoading === item.id ||
+                              item.status === "Live"
+                            }
+                            className="rounded-full bg-green-600 px-3 py-1 text-xs font-semibold text-white disabled:opacity-50"
+                          >
+                            Approve
+                          </button>
+                          <button
+                            onClick={() =>
+                              handleAction(item.id, "reject")
+                            }
+                            disabled={
+                              actionLoading === item.id ||
+                              item.status === "Rejected"
+                            }
+                            className="rounded-full bg-red-600 px-3 py-1 text-xs font-semibold text-white disabled:opacity-50"
+                          >
+                            Reject
+                          </button>
+                          <button
+                            onClick={() =>
+                              handleAction(item.id, "request-proof")
+                            }
+                            disabled={actionLoading === item.id}
+                            className="rounded-full bg-yellow-500 px-3 py-1 text-xs font-semibold text-black disabled:opacity-50"
+                          >
+                            Request proof
+                          </button>
+                        </div>
                       </td>
                     </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </section>
+                  ))
+                ) : (
+                  <tr>
+                    <td
+                      colSpan={11}
+                      className="px-4 py-6 text-center text-sm text-gray-500"
+                    >
+                      No listings are currently pending review.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
         </main>
         <Footer />
       </div>
-
-      <style jsx>{`
-        .action-button-dark {
-          border-radius: 999px;
-          background-color: #1f2937; /* gray-800 */
-          color: #f9fafb; /* gray-50 */
-          padding: 8px 16px;
-          font-size: 12px;
-          font-weight: 500;
-          text-decoration: none;
-          white-space: nowrap;
-        }
-        .action-button-dark:hover {
-          background-color: #111827; /* gray-900 */
-        }
-        .error-message {
-          margin-bottom: 16px;
-          border-radius: 6px;
-          background-color: #fee2e2; /* red-100 */
-          padding: 12px;
-          font-size: 14px;
-          color: #991b1b; /* red-800 */
-          border: 1px solid #fca5a5; /* red-400 */
-        }
-        .table-wrapper {
-          overflow-x: auto;
-          width: 100%;
-          border: 1px solid #e5e7eb; /* gray-200 */
-          border-radius: 8px;
-        }
-        .data-table {
-          width: 100%;
-          min-width: 1000px;
-          font-size: 14px;
-          border-collapse: collapse;
-        }
-        .data-table thead {
-          background-color: #f9fafb; /* gray-50 */
-        }
-        .data-table th,
-        .data-table td {
-          padding: 10px 14px;
-          text-align: left;
-          border-bottom: 1px solid #e5e7eb; /* gray-200 */
-          white-space: nowrap;
-        }
-        .data-table th {
-          font-weight: 600;
-          color: #374151; /* gray-700 */
-          font-size: 12px;
-          text-transform: uppercase;
-        }
-        .data-table td {
-          color: #4b5563; /* gray-600 */
-          vertical-align: top;
-          padding-top: 12px;
-          padding-bottom: 12px;
-        }
-        .data-table td.font-medium {
-          font-weight: 500;
-          color: #111827; /* gray-900 */
-        }
-        .data-table tbody tr:last-child td {
-          border-bottom: none;
-        }
-        .text-center {
-          text-align: center;
-          padding: 24px;
-          color: #6b7280; /* gray-500 */
-        }
-        .action-buttons {
-          display: flex;
-          flex-wrap: wrap;
-          gap: 8px;
-        }
-        .action-button {
-          border-radius: 999px;
-          padding: 4px 12px;
-          font-size: 12px;
-          font-weight: 500;
-          border: none;
-          cursor: pointer;
-          white-space: nowrap;
-        }
-        .action-button:disabled {
-          opacity: 0.5;
-          cursor: not-allowed;
-        }
-        .button-approve {
-          background-color: #16a34a; /* green-600 */
-          color: white;
-        }
-        .button-approve:hover:not(:disabled) {
-          background-color: #15803d; /* green-700 */
-        }
-        .button-reject {
-          background-color: #dc2626; /* red-600 */
-          color: white;
-        }
-        .button-reject:hover:not(:disabled) {
-          background-color: #b91c1c; /* red-700 */
-        }
-        .button-request {
-          background-color: #facc15; /* yellow-400 */
-          color: #422006; /* yellow-900 */
-        }
-        .button-request:hover:not(:disabled) {
-          background-color: #eab308; /* yellow-500 */
-        }
-      `}</style>
     </>
   );
 }
