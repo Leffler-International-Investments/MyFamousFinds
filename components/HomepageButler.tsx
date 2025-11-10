@@ -1,10 +1,13 @@
 // FILE: /components/HomepageButler.tsx
+// Butler hero + floating chat trigger
+
 import { useState } from "react";
 import Link from "next/link";
 import ButlerChat from "./ButlerChat";
 
 export default function HomepageButler() {
-  const [isChatOpen, setIsChatOpen] = useState(false);
+  // ✅ Start OPEN by default so chat always appears on load
+  const [isChatOpen, setIsChatOpen] = useState(true);
   const openChat = () => setIsChatOpen(true);
   const closeChat = () => setIsChatOpen(false);
 
@@ -30,15 +33,26 @@ export default function HomepageButler() {
           </div>
         </div>
         <div className="heroActions">
-          <button type="button" onClick={openChat} className="butlerBtn">
+          {/* Button 1: AI Butler */}
+          <button
+            type="button"
+            onClick={openChat}
+            className="butlerBtn"
+          >
             AI Butler
           </button>
-          <Link href="/catalogue" className="browseBtn">
+
+          {/* Button 2: Browse Catalogue */}
+          <Link
+            href="/catalogue"
+            className="browseBtn"
+          >
             Browse the catalogue
           </Link>
         </div>
       </div>
 
+      {/* Floating Chat Icon (only shown if chat is closed) */}
       {!isChatOpen && (
         <button
           onClick={openChat}
@@ -49,8 +63,10 @@ export default function HomepageButler() {
         </button>
       )}
 
+      {/* Chat window – now open by default */}
       <ButlerChat isOpen={isChatOpen} onClose={closeChat} />
 
+      {/* Local styles */}
       <style jsx>{`
         .heroIntro {
           font-size: 13px;
