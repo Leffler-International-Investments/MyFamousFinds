@@ -1,26 +1,17 @@
 // FILE: /components/HomepageButler.tsx
-// This is a NEW component.
-// It is now imported by pages/index.tsx
+// This component links to the new, safe /catalogue page.
 
 import { useState } from "react";
 import Link from "next/link";
-import ButlerChat from "./ButlerChat"; // Imports the component we just modified
+import ButlerChat from "./ButlerChat";
 
 export default function HomepageButler() {
-  // This component now manages the state
   const [isChatOpen, setIsChatOpen] = useState(false);
-
-  // Function to open the chat
   const openChat = () => setIsChatOpen(true);
-  
-  // Function to close the chat
   const closeChat = () => setIsChatOpen(false);
 
   return (
     <>
-      {/* This is the section from your screenshot.
-        I've used the styles from your screenshot and index.tsx.
-      */}
       <div>
         <p className="heroIntro">
           Meet your Famous Finds AI Butler – a friendly concierge to help
@@ -41,18 +32,18 @@ export default function HomepageButler() {
           </div>
         </div>
         <div className="heroActions">
-          {/* Button 1: AI Butler (NOW LINKED) */}
+          {/* Button 1: AI Butler (Linked) */}
           <button
             type="button"
-            onClick={openChat} // Opens the chat
+            onClick={openChat}
             className="butlerBtn"
           >
             AI Butler
           </button>
 
-          {/* Button 2: Browse Catalogue (NOW LINKED) */}
+          {/* Button 2: Browse Catalogue (Linked) */}
           <Link
-            href="/seller/catalogue" // Links to the catalogue
+            href="/catalogue" // <-- Links to the new public page
             className="browseBtn"
           >
             Browse the catalogue
@@ -60,12 +51,9 @@ export default function HomepageButler() {
         </div>
       </div>
 
-      {/* This is the floating icon button that appears
-        when the chat is CLOSED.
-      */}
       {!isChatOpen && (
         <button
-          onClick={openChat} // Opens the chat
+          onClick={openChat}
           className="fixed bottom-4 right-4 z-50 bg-black text-white w-16 h-16 rounded-full shadow-lg flex items-center justify-center text-3xl hover:bg-gray-800 transition-all"
           aria-label="Open AI Butler"
         >
@@ -73,12 +61,8 @@ export default function HomepageButler() {
         </button>
       )}
 
-      {/* This renders the actual chat window component
-        and passes the state and close function to it.
-      */}
       <ButlerChat isOpen={isChatOpen} onClose={closeChat} />
 
-      {/* These styles are copied from your index.tsx to match perfectly */}
       <style jsx>{`
         .heroIntro {
           font-size: 13px;
@@ -123,7 +107,7 @@ export default function HomepageButler() {
           background: transparent;
           color: #e5e7eb;
           cursor: pointer;
-          text-decoration: none; /* Added for Link */
+          text-decoration: none;
         }
         .butlerBtn {
           background: #e5e7eb;
