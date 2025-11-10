@@ -20,7 +20,7 @@ type TeamMember = {
 };
 
 export default function ManagementTeam() {
-  const { loading } } = useRequireOwner();
+  const { loading } = useRequireOwner();
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
