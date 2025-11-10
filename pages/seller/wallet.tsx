@@ -4,7 +4,7 @@ import Link from "next/link";
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
 import { useRequireSeller } from "../../hooks/useRequireSeller"; // Security
-import { useEffect, useState, useCallback } from "react"; // <-- ADDED useCallback
+import { useEffect, useState, useCallback } from "react";
 
 // Data from your Stripe Connect API
 type PayoutRow = {
@@ -15,20 +15,18 @@ type PayoutRow = {
   destination: string;
 };
 
-// --- ADDED: Type for bank account ---
 type BankAccount = {
   bankName: string;
   last4: string;
 };
 
-// --- UPDATED: WalletData type ---
 type WalletData = {
   available: number;
   upcoming: number;
   lifetime: number;
   payouts: PayoutRow[];
-  account: BankAccount | null; // <-- ADDED: To show bank details
-  upcomingDate: string | null; // <-- ADDED: To show next payout date
+  account: BankAccount | null;
+  upcomingDate: string | null;
 };
 
 export default function SellerWallet() {
@@ -37,59 +35,43 @@ export default function SellerWallet() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // --- ADDED: States for the payout button ---
   const [payoutLoading, setPayoutLoading] = useState(false);
   const [payoutError, setPayoutError] = useState<string | null>(null);
 
-  // --- UPDATED: loadWallet function ---
-  // Wrapped in useCallback so it can be safely called by handlePayout
   const loadWallet = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      // This is now a live API call
       const res = await fetch("/api/seller/wallet");
       const data = await res.json();
-
       if (!res.ok || !data.ok) {
         throw new Error(data.error || "Failed to load wallet data");
       }
-
-      // Set the data from the API
       setData(data.wallet);
     } catch (err: any) {
       setError(err.message || "Failed to load wallet data.");
     } finally {
       setLoading(false);
     }
-  }, []); // No dependencies, safe to cache
+  }, []);
 
   useEffect(() => {
     if (authLoading) return;
     loadWallet();
   }, [authLoading, loadWallet]);
 
-  // --- UPDATED: handlePayout function ---
-  // This is now a live API call
   const handlePayout = async () => {
     setPayoutLoading(true);
     setPayoutError(null);
-
     try {
       const res = await fetch("/api/seller/wallet/payout", {
         method: "POST",
-        // You could add a body here if you need to specify an amount
-        // body: JSON.stringify({ amount: data?.available })
       });
-
       const data = await res.json();
       if (!res.ok || !data.ok) {
         throw new Error(data.error || "Payout request failed");
       }
-
-      // Success!
       alert("Payout successful! Your balance is being updated.");
-      // Refresh the wallet data to show the new balance
       await loadWallet();
     } catch (err: any) {
       console.error("Payout error:", err);
@@ -103,7 +85,6 @@ export default function SellerWallet() {
     return <div className="dark-theme-page"></div>;
   }
 
-  // Helper for formatting
   const formatCurrency = (amount: number) => {
     return `$${(amount || 0).toLocaleString("en-US", {
       minimumFractionDigits: 2,
@@ -150,7 +131,6 @@ export default function SellerWallet() {
               <p className="metric-value">
                 {loading ? "..." : formatCurrency(data?.upcoming || 0)}
               </p>
-              {/* --- UPDATED: Live Date --- */}
               <p className="metric-note">
                 {loading
                   ? "..."
@@ -174,7 +154,6 @@ export default function SellerWallet() {
                 Payouts are processed via Stripe and sent to your linked bank.
               </p>
 
-              {/* --- UPDATED: Live Bank Details --- */}
               {loading ? (
                 <p className="bank-loading">Loading account...</p>
               ) : data?.account ? (
@@ -199,7 +178,6 @@ export default function SellerWallet() {
                 <button
                   type="button"
                   onClick={handlePayout}
-                  // --- UPDATED: Disabled states ---
                   disabled={
                     payoutLoading ||
                     loading ||
@@ -210,7 +188,6 @@ export default function SellerWallet() {
                 >
                   {payoutLoading ? "Processing..." : "Request instant payout"}
                 </button>
-                {/* --- ADDED: Payout error message --- */}
                 {payoutError && (
                   <p className="banner error">{payoutError}</p>
                 )}
