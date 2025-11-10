@@ -36,7 +36,6 @@ type ApiResult = {
 };
 
 export default function SellerBulkUpload() {
-  // ✅ FIX: your hook returns { loading, isSeller }, not { loading, seller }
   const { loading } = useRequireSeller();
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [rawText, setRawText] = useState("");
@@ -52,7 +51,7 @@ export default function SellerBulkUpload() {
     [rows]
   );
 
-  if (loading) return null;
+  if (loading) return <div className="dark-theme-page"></div>;
 
   const handleParse = () => {
     setError(null);
@@ -157,62 +156,55 @@ export default function SellerBulkUpload() {
   ];
 
   return (
-    <div className="min-h-screen bg-black text-gray-100">
+    <div className="dark-theme-page">
       <Head>
         <title>Seller — Bulk Upload | Famous Finds</title>
       </Head>
 
       <Header />
 
-      <main className="mx-auto max-w-5xl px-4 pb-16 pt-6 text-sm">
-        <Link
-          href="/seller/dashboard"
-          className="text-xs text-gray-400 hover:text-gray-200"
-        >
-          ← Back to Dashboard
-        </Link>
+      <main className="section">
+        <div className="back-link">
+          <Link href="/seller/dashboard">← Back to Dashboard</Link>
+        </div>
 
-        <div className="mt-4 flex items-center justify-between">
+        <div className="page-header">
           <div>
-            <h1 className="text-xl font-semibold text-white">
-              Bulk upload listings
-            </h1>
-            <p className="mt-1 text-xs text-gray-400">
+            <h1>Bulk upload listings</h1>
+            <p className="subtitle">
               Paste multiple items in one go. All prices are treated as USD.
             </p>
           </div>
         </div>
 
-        <ol className="mt-6 grid gap-3 text-xs text-gray-300 md:grid-cols-3">
-          <li className={step >= 1 ? "font-semibold text-white" : ""}>
+        <ol className="steps-grid">
+          <li className={step >= 1 ? "step-active" : ""}>
             1. Paste your items
           </li>
-          <li className={step >= 2 ? "font-semibold text-white" : ""}>
+          <li className={step >= 2 ? "step-active" : ""}>
             2. Review and fix issues
           </li>
-          <li className={step >= 3 ? "font-semibold text-white" : ""}>
+          <li className={step >= 3 ? "step-active" : ""}>
             3. Confirm and submit
           </li>
         </ol>
 
-        <section className="mt-6 rounded-2xl border border-white/10 bg-white/5 p-4 text-xs">
-          <h2 className="text-[11px] font-semibold uppercase tracking-[0.16em] text-gray-400">
-            1. Paste your items (USD)
-          </h2>
-          <p className="mt-2 text-gray-300">
+        <section className="card">
+          <h2>1. Paste your items (USD)</h2>
+          <p className="card-subtitle">
             One item per line, fields separated by commas:
           </p>
-          <p className="mt-1 text-gray-300">
+          <p className="card-subtitle">
             <code>
               title, brand, category, condition, size, color, price (USD),
               purchase_source, purchase_proof, serial_number
             </code>
           </p>
 
-          <div className="mt-3 space-y-2 rounded-md bg-black/40 p-3 text-[11px] text-gray-400">
-            <p className="font-semibold text-gray-200">Example (copy/paste):</p>
+          <div className="example-box">
+            <p>Example (copy/paste):</p>
             {exampleLines.map((line) => (
-              <p key={line} className="font-mono">
+              <p key={line} className="example-mono">
                 {line}
               </p>
             ))}
@@ -220,91 +212,71 @@ export default function SellerBulkUpload() {
 
           <textarea
             ref={textareaRef}
-            className="mt-4 h-48 w-full rounded-md border border-white/10 bg-black/40 px-3 py-2 text-xs text-white focus:border-white focus:outline-none"
+            className="form-textarea"
             placeholder="Paste your items here…"
             value={rawText}
             onChange={(e) => setRawText(e.target.value)}
           />
 
-          <div className="mt-3 flex gap-2">
+          <div className="button-row">
             <button
               onClick={handleParse}
               disabled={busy}
-              className="rounded-full bg-white px-4 py-2 text-xs font-semibold text-black hover:bg-gray-200 disabled:cursor-not-allowed disabled:opacity-60"
+              className="btn-primary"
             >
               Parse items
             </button>
           </div>
         </section>
 
-        <section className="mt-6 rounded-2xl border border-white/10 bg-white/5 p-4 text-xs">
-          <h2 className="text-[11px] font-semibold uppercase tracking-[0.16em] text-gray-400">
-            2. Review parsed items
-          </h2>
+        <section className="card">
+          <h2>2. Review parsed items</h2>
 
           {!rows.length ? (
-            <p className="mt-2 text-gray-400">
+            <p className="card-subtitle">
               Nothing parsed yet. Paste your items above and click{" "}
-              <span className="font-semibold text-gray-200">Parse items</span>.
+              <strong>Parse items</strong>.
             </p>
           ) : (
             <>
-              <p className="mt-2 text-gray-300">
-                Parsed{" "}
-                <span className="font-semibold text-white">
-                  {rows.length}
-                </span>{" "}
-                lines. Valid rows in USD:{" "}
-                <span className="font-semibold text-emerald-300">
-                  {okRows.length}
-                </span>
-                .
+              <p className="card-subtitle">
+                Parsed <strong>{rows.length}</strong> lines. Valid rows in
+                USD: <strong className="text-ok">{okRows.length}</strong>.
               </p>
 
-              <div className="mt-3 overflow-x-auto rounded-md border border-white/10">
-                <table className="min-w-full text-left text-[11px] text-gray-100">
-                  <thead className="bg-white/5 text-[10px] uppercase tracking-[0.16em] text-gray-400">
+              <div className="table-wrapper">
+                <table className="data-table">
+                  <thead>
                     <tr>
-                      <th className="px-3 py-2 text-left">Row</th>
-                      <th className="px-3 py-2 text-left">Title</th>
-                      <th className="px-3 py-2 text-left">Brand</th>
-                      <th className="px-3 py-2 text-left">Category</th>
-                      <th className="px-3 py-2 text-left">Price (USD)</th>
-                      <th className="px-3 py-2 text-left">Status</th>
+                      <th>Row</th>
+                      <th>Title</th>
+                      <th>Brand</th>
+                      <th>Category</th>
+                      <th>Price (USD)</th>
+                      <th>Status</th>
                     </tr>
                   </thead>
                   <tbody>
                     {rows.map((row) => (
-                      <tr
-                        key={row._row}
-                        className="border-b border-white/10 last:border-0"
-                      >
-                        <td className="px-3 py-2 text-gray-400">
-                          {row._row}
-                        </td>
-                        <td className="px-3 py-2 text-gray-100">
-                          {row.title || "—"}
-                        </td>
-                        <td className="px-3 py-2 text-gray-200">
-                          {row.brand || "—"}
-                        </td>
-                        <td className="px-3 py-2 text-gray-200">
-                          {row.category || "—"}
-                        </td>
-                        <td className="px-3 py-2 text-gray-200">
+                      <tr key={row._row}>
+                        <td>{row._row}</td>
+                        <td>{row.title || "—"}</td>
+                        <td>{row.brand || "—"}</td>
+                        <td>{row.category || "—"}</td>
+                        <td>
                           {typeof row.price === "number"
                             ? `$${row.price.toLocaleString("en-US", {
                                 maximumFractionDigits: 2,
                               })}`
                             : "—"}
                         </td>
-                        <td className="px-3 py-2">
+                        <td>
                           {row._status === "ok" ? (
-                            <span className="rounded-full bg-emerald-500/10 px-2 py-1 text-[10px] font-semibold text-emerald-300">
+                            <span className="status-badge status-ok">
                               OK
                             </span>
                           ) : (
-                            <span className="rounded-full bg-red-500/10 px-2 py-1 text-[10px] font-semibold text-red-300">
+                            <span className="status-badge status-error">
                               {row._reason || row._status}
                             </span>
                           )}
@@ -318,33 +290,25 @@ export default function SellerBulkUpload() {
           )}
         </section>
 
-        <section className="mt-6 rounded-2xl border border-white/10 bg-white/5 p-4 text-xs">
-          <h2 className="text-[11px] font-semibold uppercase tracking-[0.16em] text-gray-400">
-            3. Confirm and submit
-          </h2>
-          <p className="mt-2 text-gray-300">
+        <section className="card">
+          <h2>3. Confirm and submit</h2>
+          <p className="card-subtitle">
             When you confirm, we will create listings for all{" "}
-            <span className="font-semibold text-emerald-300">
-              valid rows in USD
-            </span>{" "}
-            and send them to the vetting queue.
+            <strong className="text-ok">valid rows in USD</strong> and send
+            them to the vetting queue.
           </p>
-          {error && (
-            <p className="mt-2 text-red-400">
-              {error}
-            </p>
-          )}
+          {error && <p className="banner error">{error}</p>}
           {result && (
-            <p className="mt-2 text-emerald-300">
+            <p className="banner success">
               Created {result.created} listings. Skipped {result.skipped} rows.
             </p>
           )}
 
-          <div className="mt-3 flex gap-2">
+          <div className="button-row">
             <button
               onClick={handleCommit}
               disabled={committing || !okRows.length}
-              className="rounded-full bg-white px-4 py-2 text-xs font-semibold text-black hover:bg-gray-200 disabled:cursor-not-allowed disabled:opacity-60"
+              className="btn-primary"
             >
               {committing ? "Submitting…" : "Create listings in USD"}
             </button>
@@ -353,6 +317,195 @@ export default function SellerBulkUpload() {
       </main>
 
       <Footer />
+
+      <style jsx>{`
+        .back-link a {
+          font-size: 12px;
+          color: #9ca3af; /* gray-400 */
+        }
+        .back-link a:hover {
+          color: #e5e7eb; /* gray-200 */
+        }
+        
+        .page-header {
+          margin-top: 16px;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+        }
+        h1 {
+          font-size: 20px;
+          font-weight: 600;
+          color: white;
+        }
+        .subtitle {
+          margin-top: 4px;
+          font-size: 12px;
+          color: #9ca3af; /* gray-400 */
+        }
+        
+        .steps-grid {
+          margin-top: 24px;
+          display: grid;
+          gap: 12px;
+          font-size: 12px;
+          color: #d1d5db; /* gray-300 */
+        }
+        @media (min-width: 768px) {
+          .steps-grid {
+            grid-template-columns: repeat(3, 1fr);
+          }
+        }
+        .step-active {
+          font-weight: 600;
+          color: white;
+        }
+        
+        .card {
+          margin-top: 24px;
+          border-radius: 16px;
+          border: 1px solid #ffffff1a; /* white/10 */
+          background: #ffffff0d; /* white/5 */
+          padding: 16px;
+          font-size: 12px;
+        }
+        .card h2 {
+          font-size: 11px;
+          font-weight: 600;
+          text-transform: uppercase;
+          letter-spacing: 0.16em;
+          color: #9ca3af; /* gray-400 */
+        }
+        .card-subtitle {
+          margin-top: 8px;
+          color: #d1d5db; /* gray-300 */
+        }
+        .card-subtitle code {
+          font-family: monospace;
+        }
+        .card-subtitle strong {
+          font-weight: 600;
+          color: white;
+        }
+        .card-subtitle .text-ok {
+          color: #6ee7b7; /* emerald-300 */
+        }
+        
+        .example-box {
+          margin-top: 12px;
+          border-radius: 6px;
+          background: #00000066; /* black/40 */
+          padding: 12px;
+          font-size: 11px;
+          color: #9ca3af; /* gray-400 */
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
+        }
+        .example-box p {
+          font-weight: 600;
+          color: #d1d5db; /* gray-200 */
+        }
+        .example-box .example-mono {
+          font-family: monospace;
+          font-weight: 400;
+        }
+        
+        .form-textarea {
+          margin-top: 16px;
+          height: 192px;
+          width: 100%;
+          border-radius: 6px;
+          border: 1px solid #ffffff1a; /* white/10 */
+          background: #00000066; /* black/40 */
+          padding: 12px;
+          font-size: 12px;
+          color: white;
+        }
+        .form-textarea:focus {
+          border-color: white;
+          outline: none;
+        }
+        
+        .button-row {
+          margin-top: 12px;
+          display: flex;
+          gap: 8px;
+        }
+        .btn-primary {
+          border-radius: 999px;
+          background: white;
+          padding: 8px 16px;
+          font-size: 12px;
+          font-weight: 600;
+          color: black;
+          border: none;
+          cursor: pointer;
+        }
+        .btn-primary:hover {
+          background: #e5e7eb; /* gray-200 */
+        }
+        .btn-primary:disabled {
+          opacity: 0.6;
+          cursor: not-allowed;
+        }
+        
+        .table-wrapper {
+          margin-top: 12px;
+          overflow-x: auto;
+          border-radius: 6px;
+          border: 1px solid #ffffff1a; /* white/10 */
+        }
+        .data-table {
+          min-width: 100%;
+          text-align: left;
+          font-size: 11px;
+          color: #f3f4f6; /* gray-100 */
+        }
+        .data-table thead {
+          background: #ffffff0d; /* white/5 */
+          font-size: 10px;
+          text-transform: uppercase;
+          letter-spacing: 0.16em;
+          color: #9ca3af; /* gray-400 */
+        }
+        .data-table th, .data-table td {
+          padding: 8px 12px;
+        }
+        .data-table tr {
+          border-bottom: 1px solid #ffffff1a; /* white/10 */
+        }
+        .data-table tr:last-child {
+          border-bottom: 0;
+        }
+        
+        .status-badge {
+          display: inline-flex;
+          border-radius: 999px;
+          padding: 4px 8px;
+          font-size: 10px;
+          font-weight: 600;
+        }
+        .status-ok {
+          background: #065f46; /* green-900 */
+          color: #6ee7b7; /* emerald-300 */
+        }
+        .status-error {
+          background: #991b1b; /* red-900 */
+          color: #fca5a5; /* red-300 */
+        }
+        
+        .banner {
+          margin-top: 8px;
+          font-weight: 600;
+        }
+        .banner.error {
+          color: #f87171; /* red-400 */
+        }
+        .banner.success {
+          color: #6ee7b7; /* emerald-300 */
+        }
+      `}</style>
     </div>
   );
 }
