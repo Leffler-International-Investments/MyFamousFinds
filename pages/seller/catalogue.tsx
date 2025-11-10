@@ -140,7 +140,7 @@ export default function Catalogue() {
                     >
                       Loading your listings…
                     </td>
-                  }
+                  </tr>
                 )}
 
                 {!loading && error && (
