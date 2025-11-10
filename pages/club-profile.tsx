@@ -29,12 +29,14 @@ export default function ProfilePage() {
         // User is logged in, listen for profile changes
         const userRef = doc(db, "users", user.uid);
         const unsubProfile = onSnapshot(userRef, (docSnap) => {
-          if (docSnap.exists()) {
+          if (docSnap.exists() && docSnap.data().vipTier) {
+            // <-- Check if they are a VIP
             setProfile(docSnap.data() as UserProfile);
           } else {
             console.error("No user profile found in Firestore!");
             // This can happen if auth succeeded but the API call in club-register failed
             // Or if a seller/admin logs in via this flow by mistake
+            setProfile(null); // Explicitly set profile to null
           }
           setLoading(false);
         });
@@ -53,22 +55,29 @@ export default function ProfilePage() {
   };
 
   if (loading) {
-    return <div className="dark-theme-page" style={{padding: "40px"}}>Loading VIP profile...</div>;
+    return (
+      <div className="dark-theme-page" style={{ padding: "40px" }}>
+        Loading VIP profile...
+      </div>
+    );
   }
 
   if (!profile) {
     return (
-        <div className="dark-theme-page" style={{padding: "40px"}}>
-            <h1>Error</h1>
-            <p>Could not load your VIP profile.</p>
-            <p>This may be because you are logged in as a Seller or Admin. Please sign out and sign in with a VIP Club account.</p>
-            <button
-              onClick={handleLogout}
-              className="mt-8 rounded-md bg-gray-700 px-4 py-2 text-sm text-white hover:bg-gray-600"
-            >
-              Sign Out
-            </button>
-        </div>
+      <div className="dark-theme-page" style={{ padding: "40px" }}>
+        <h1>Error</h1>
+        <p>Could not load your VIP profile.</p>
+        <p>
+          This may be because you are logged in as a Seller or Admin. Please
+          sign out and sign in with a VIP Club account.
+        </p>
+        <button
+          onClick={handleLogout}
+          className="mt-8 rounded-md bg-gray-700 px-4 py-2 text-sm text-white hover:bg-gray-600"
+        >
+          Sign Out
+        </button>
+      </div>
     );
   }
 
