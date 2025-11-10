@@ -7,9 +7,21 @@ type ButlerChatProps = {
   onClose: () => void;
 };
 
+type ButlerResult = {
+  id: string;
+  title: string;
+  brand: string;
+  price: string;
+  href: string;
+};
+
+type ChatMessage =
+  | { id: number; role: "user"; text: string }
+  | { id: number; role: "butler"; text: string; results?: ButlerResult[] };
+
 export default function ButlerChat({ isOpen, onClose }: ButlerChatProps) {
   const [input, setInput] = useState("");
-  const [messages, setMessages] = useState<string[]>([]);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [listening, setListening] = useState(false);
 
   const recognitionRef = useRef<any>(null);
@@ -21,21 +33,55 @@ export default function ButlerChat({ isOpen, onClose }: ButlerChatProps) {
 
   async function handleSend() {
     if (!input.trim()) return;
-    const userMsg = input.trim();
-    setMessages((m) => [...m, `🧑: ${userMsg}`]);
+    const text = input.trim();
     setInput("");
+
+    const userMessage: ChatMessage = {
+      id: Date.now(),
+      role: "user",
+      text,
+    };
+    setMessages((m) => [...m, userMessage]);
+
+    // 🔹 Voice-style command: "open it" → open top result from last Butler reply
+    const lower = text.toLowerCase();
+    if (lower === "open it" || lower === "open" || lower === "buy it") {
+      const lastWithResults = [...messages]
+        .reverse()
+        .find((msg) => msg.role === "butler" && (msg as any).results?.length);
+      const target = (lastWithResults as any)?.results?.[0] as
+        | ButlerResult
+        | undefined;
+      if (target && typeof window !== "undefined") {
+        window.location.href = target.href;
+        return;
+      }
+    }
+
     try {
       const res = await fetch("/api/butler", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ query: userMsg }),
+        body: JSON.stringify({ query: text }),
       });
       if (!res.ok) throw new Error("API request failed");
       const data = await res.json();
-      setMessages((m) => [...m, `🤵 Butler: ${data.answer}`]);
+
+      const butlerMessage: ChatMessage = {
+        id: Date.now() + 1,
+        role: "butler",
+        text: data.answer || "",
+        results: data.results || [],
+      };
+      setMessages((m) => [...m, butlerMessage]);
     } catch (e) {
       console.error(e);
-      setMessages((m) => [...m, "🤵 Butler: (connection error)"]);
+      const errorMessage: ChatMessage = {
+        id: Date.now() + 2,
+        role: "butler",
+        text: "I’m having trouble reaching the catalogue right now.",
+      };
+      setMessages((m) => [...m, errorMessage]);
     }
   }
 
@@ -77,47 +123,73 @@ export default function ButlerChat({ isOpen, onClose }: ButlerChatProps) {
   if (!isOpen) return null;
 
   return (
-    <>
-      <div className="butlerChatPanel">
-        <div className="butlerChatHeader">
-          <span className="butlerChatTitle">🤵 AI Butler</span>
-          <button className="butlerCloseBtn" onClick={onClose} aria-label="Close chat">
-            ×
-          </button>
-        </div>
+    <div className="butlerChatPanel">
+      <div className="butlerChatHeader">
+        <span className="butlerChatTitle">🤵 AI Butler</span>
+        <button className="butlerCloseBtn" onClick={onClose} aria-label="Close chat">
+          ×
+        </button>
+      </div>
 
-        <div className="butlerMessages">
-          {messages.length === 0 && (
-            <div className="butlerWelcome">
-              Welcome! Ask me to find products, e.g. “Show me red Gucci bags”.
-            </div>
-          )}
-          {messages.map((m, i) => (
-            <div key={i} className="butlerMessage">
-              {m}
-            </div>
-          ))}
-          <div ref={messagesEndRef} />
-        </div>
+      <div className="butlerMessages">
+        {messages.length === 0 && (
+          <div className="butlerWelcome">
+            Ask me for something in the catalogue, e.g. “Prada bag” or “Rolex watch”.
+          </div>
+        )}
 
-        <div className="butlerInputRow">
-          <input
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && handleSend()}
-            placeholder="Ask the butler..."
-            className="butlerInput"
-          />
-          <button onClick={handleSend} className="butlerSendBtn">
-            Send
-          </button>
-          <button
-            onClick={handleVoice}
-            className={`butlerVoiceBtn ${listening ? "listening" : ""}`}
-          >
-            🎙️
-          </button>
-        </div>
+        {messages.map((msg) => (
+          <div key={msg.id} className="butlerMessageBlock">
+            {msg.role === "user" ? (
+              <div>🧑: {msg.text}</div>
+            ) : (
+              <>
+                <div>🤵 Butler: {msg.text}</div>
+
+                {msg.results && msg.results.length > 0 && (
+                  <div className="butlerResults">
+                    {msg.results.map((item) => (
+                      <a
+                        key={item.id}
+                        href={item.href}
+                        className="butlerResultCard"
+                      >
+                        <div className="butlerResultTitle">
+                          {item.brand && <strong>{item.brand} — </strong>}
+                          {item.title}
+                        </div>
+                        {item.price && (
+                          <div className="butlerResultPrice">{item.price}</div>
+                        )}
+                        <div className="butlerResultLink">View listing →</div>
+                      </a>
+                    ))}
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        ))}
+        <div ref={messagesEndRef} />
+      </div>
+
+      <div className="butlerInputRow">
+        <input
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && handleSend()}
+          placeholder="Ask the butler..."
+          className="butlerInput"
+        />
+        <button onClick={handleSend} className="butlerSendBtn">
+          Send
+        </button>
+        <button
+          onClick={handleVoice}
+          className={`butlerVoiceBtn ${listening ? "listening" : ""}`}
+        >
+          🎙️
+        </button>
       </div>
 
       <style jsx>{`
@@ -152,7 +224,7 @@ export default function ButlerChat({ isOpen, onClose }: ButlerChatProps) {
           line-height: 1;
         }
         .butlerMessages {
-          height: 180px;
+          height: 190px;
           overflow-y: auto;
           background: #f3f4f6;
           border-radius: 8px;
@@ -163,8 +235,34 @@ export default function ButlerChat({ isOpen, onClose }: ButlerChatProps) {
           color: #4b5563;
           font-size: 12px;
         }
-        .butlerMessage {
-          padding: 3px 0;
+        .butlerMessageBlock {
+          padding: 4px 0;
+        }
+        .butlerResults {
+          margin-top: 4px;
+          display: flex;
+          flex-direction: column;
+          gap: 4px;
+        }
+        .butlerResultCard {
+          display: block;
+          border-radius: 8px;
+          background: #111827;
+          padding: 8px;
+          text-decoration: none;
+          color: #e5e7eb;
+        }
+        .butlerResultTitle {
+          font-size: 13px;
+        }
+        .butlerResultPrice {
+          font-size: 12px;
+          margin-top: 2px;
+        }
+        .butlerResultLink {
+          font-size: 12px;
+          margin-top: 4px;
+          opacity: 0.85;
         }
         .butlerInputRow {
           display: flex;
@@ -198,7 +296,6 @@ export default function ButlerChat({ isOpen, onClose }: ButlerChatProps) {
           background: #ef4444;
           color: #fff;
         }
-
         @media (max-width: 480px) {
           .butlerChatPanel {
             right: 8px;
@@ -207,6 +304,6 @@ export default function ButlerChat({ isOpen, onClose }: ButlerChatProps) {
           }
         }
       `}</style>
-    </>
+    </div>
   );
 }
