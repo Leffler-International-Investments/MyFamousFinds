@@ -1,6 +1,4 @@
 // FILE: /pages/api/butler.ts
-// This is the NEW file that makes the chat respond.
-// Please CREATE this file.
 
 import type { NextApiRequest, NextApiResponse } from "next";
 
@@ -12,20 +10,28 @@ export default function handler(
   req: NextApiRequest,
   res: NextApiResponse<ResponseData>
 ) {
+  // Only allow POST
   if (req.method !== "POST") {
-    return res.status(405).json({ answer: "I can only accept POST requests." });
+    return res
+      .status(405)
+      .json({ answer: "I can only accept POST requests, please." });
   }
 
-  const { query } = req.body;
+  const { query } = req.body as { query?: string };
 
-  if (!query) {
-    return res.status(400).json({ answer: "Pardon me, you didn't say anything." });
+  if (!query || typeof query !== "string") {
+    return res
+      .status(400)
+      .json({ answer: "Pardon me, you didn’t actually ask me anything." });
   }
 
-  // A simple canned response for demonstration.
-  // This can be replaced with a real AI call later.
-  const cannedResponse = `Ah, an excellent query regarding "${query}". While I search our exclusive catalogue for that, please feel free to browse our new arrivals.`;
+  // Simple canned response for now – replace later with real AI call
+  const cleaned = query.trim();
+  const cannedResponse =
+    `Ah, an excellent query regarding "${cleaned}". ` +
+    "Right now I’m a demo concierge, so I can’t search live stock yet, " +
+    "but I would normally look through the Famous Finds catalogue for you " +
+    "and suggest matching bags, watches, jewelry or other pieces.";
 
-  // Send the response back
-  res.status(200).json({ answer: cannedResponse });
+  return res.status(200).json({ answer: cannedResponse });
 }
