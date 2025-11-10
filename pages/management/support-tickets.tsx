@@ -21,76 +21,56 @@ type Props = {
 
 export default function ManagementSupportTickets({ tickets }: Props) {
   const { loading } = useRequireAdmin();
-  if (loading) return null;
+  if (loading) return <div className="dashboard-page" />; // Light theme skeleton
 
   return (
     <>
       <Head>
         <title>Support Tickets — Admin</title>
       </Head>
-      <div className="min-h-screen bg-gray-50 text-gray-900">
+      {/* Use light theme classes from globals.css */}
+      <div className="dashboard-page">
         <Header />
 
-        <main className="mx-auto max-w-6xl px-4 pb-16 pt-6">
-          <div className="mb-6 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+        <main className="dashboard-main">
+          {/* Use light theme classes from globals.css */}
+          <div className="dashboard-header">
             <div>
-              <h1 className="text-2xl font-semibold text-gray-900">
-                Support Tickets
-              </h1>
-              <p className="mt-1 text-sm text-gray-600">
+              <h1>Support Tickets</h1>
+              <p>
                 View and respond to customer support requests submitted to
                 Famous-Finds.
               </p>
             </div>
-            <Link
-              href="/management/dashboard"
-              className="text-sm text-gray-600 hover:text-gray-900"
-            >
+            <Link href="/management/dashboard">
               ← Back to Management Dashboard
             </Link>
           </div>
 
-          <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white shadow-sm">
-            <table className="min-w-full divide-y divide-gray-200 text-sm">
-              <thead className="bg-gray-50">
+          <div className="table-wrapper">
+            <table className="data-table">
+              <thead>
                 <tr>
-                  <th className="px-4 py-2 text-left font-medium text-gray-700">
-                    Ticket ID
-                  </th>
-                  <th className="px-4 py-2 text-left font-medium text-gray-700">
-                    Subject
-                  </th>
-                  <th className="px-4 py-2 text-left font-medium text-gray-700">
-                    From
-                  </th>
-                  <th className="px-4 py-2 text-left font-medium text-gray-700">
-                    Status
-                  </th>
-                  <th className="px-4 py-2 text-left font-medium text-gray-700">
-                    Created
-                  </th>
+                  <th>Ticket ID</th>
+                  <th>Subject</th>
+                  <th>From</th>
+                  <th>Status</th>
+                  <th>Created</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
+              <tbody>
                 {tickets.map((t) => (
                   <tr key={t.id}>
-                    <td className="px-4 py-2 text-gray-900">{t.id}</td>
-                    <td className="px-4 py-2 text-gray-700">{t.subject}</td>
-                    <td className="px-4 py-2 text-gray-700">
-                      {t.fromEmail}
-                    </td>
-                    <td className="px-4 py-2 text-gray-700">{t.status}</td>
-                    <td className="px-4 py-2 text-gray-700">
-                      {t.createdAt}
-                    </td>
+                    <td>{t.id}</td>
+                    <td>{t.subject}</td>
+                    <td>{t.fromEmail}</td>
+                    <td>{t.status}</td>
+                    <td>{t.createdAt}</td>
                   </tr>
                 ))}
                 {tickets.length === 0 && (
                   <tr>
-                    <td
-                      colSpan={5}
-                      className="px-4 py-6 text-center text-sm text-gray-500"
-                    >
+                    <td colSpan={5} className="table-message">
                       No support tickets yet.
                     </td>
                   </tr>
@@ -102,6 +82,49 @@ export default function ManagementSupportTickets({ tickets }: Props) {
 
         <Footer />
       </div>
+
+      {/* Styles for the light theme table */}
+      <style jsx>{`
+        .table-wrapper {
+          overflow-x: auto;
+          border-radius: 8px;
+          border: 1px solid #e5e7eb; /* gray-200 */
+          background: #ffffff;
+          box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+        }
+        .data-table {
+          min-width: 100%;
+          border-collapse: collapse;
+          font-size: 14px;
+        }
+        .data-table thead {
+          background: #f9fafb; /* gray-50 */
+        }
+        .data-table th {
+          padding: 8px 12px;
+          text-align: left;
+          font-weight: 500;
+          color: #374151; /* gray-700 */
+        }
+        .data-table tbody tr {
+          border-bottom: 1px solid #f3f4f6; /* gray-100 */
+        }
+        .data-table tbody tr:last-child {
+          border-bottom: none;
+        }
+        .data-table td {
+          padding: 8px 12px;
+          color: #111827; /* gray-900 */
+        }
+        .data-table td:first-child {
+          font-weight: 500;
+        }
+        .table-message {
+          padding: 24px;
+          text-align: center;
+          color: #6b7280; /* gray-500 */
+        }
+      `}</style>
     </>
   );
 }
