@@ -9,10 +9,10 @@ export default function Header() {
         {/* Brand */}
         <Link href="/" className="brand">
           <Image
-            src="/Famous-Finds-Logo.png"
+            src="/Famous-Finds-Logo.jpg"
             alt="Famous Finds Logo"
-            width={160}
-            height={40}
+            width={46}
+            height={50}
             priority
           />
         </Link>
