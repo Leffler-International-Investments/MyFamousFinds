@@ -1,5 +1,4 @@
 // FILE: /pages/api/auth/club-register.ts
-// --- Provided "as-is" but with the CRITICAL { merge: true } fix ---
 import type { NextApiRequest, NextApiResponse } from "next";
 import { adminDb, adminAuth, FieldValue } from "../../../utils/firebaseAdmin";
 
@@ -32,19 +31,18 @@ export default async function handler(
       uid: uid,
       email: email,
       name: name || "",
-      role: "customer", // Differentiate from 'seller' or 'management'
+      // role: "customer", // We DON'T set role, to avoid overwriting "admin" or "seller"
       vipTier: "Bronze", // Starting tier
       points: 0,
       createdAt: FieldValue.serverTimestamp(),
     };
 
-    // --- SAFETY FIX APPLIED ---
-    // Using { merge: true } prevents this from overwriting an existing
-    // Seller or Management user who is also signing up for the VIP club.
-    // This is necessary because your stripe.ts webhook confirms
-    // that Sellers are in this same 'users' collection.
+    // --- THIS IS THE CRITICAL FIX FOR YOU ---
+    // Using { merge: true } ensures that if an Admin or Seller
+    // registers, it ADDS the VIP fields without deleting
+    // their existing admin/seller permissions.
     await userRef.set(newUserProfile, { merge: true });
-    // --------------------------
+    // ------------------------------------------
 
     res.status(201).json({ ok: true, uid: uid });
   } catch (err: any) {
