@@ -20,37 +20,33 @@ export default async function handler(
   res: NextApiResponse<ButlerResponse>
 ) {
   if (req.method !== "POST") {
-    return res
-      .status(405)
-      .json({ answer: "I can only accept POST requests, my friend." });
+    return res.status(405).json({
+      answer: "I can only accept POST requests at the moment.",
+    });
   }
 
   const { query } = req.body as { query?: string };
-
   if (!query || !query.trim()) {
     return res.status(400).json({
       answer:
-        "Pardon me, I didn’t quite catch that. Please tell me what you’re looking for.",
+        "Pardon me, I didn’t quite catch that. Tell me what you’re looking for in the catalogue.",
+      results: [],
     });
   }
 
   const q = query.trim().toLowerCase();
 
   try {
-    // 1. Fetch listings (you can adjust filters as needed)
     const snap = await adminDb
       .collection("listings")
       .orderBy("createdAt", "desc")
+      .limit(200)
       .get();
 
-    const allListings: any[] = snap.docs.map((d) => ({
-      id: d.id,
-      ...(d.data() as any),
-    }));
+    const listings = snap.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
 
-    // 2. Very simple text match on title / brand / category
-    const matched: ButlerResult[] = allListings
-      .filter((item) => {
+    const matched: ButlerResult[] = listings
+      .filter((item: any) => {
         const title = (item.title || "").toLowerCase();
         const brand = (item.brand || "").toLowerCase();
         const category = (item.category || "").toLowerCase();
@@ -62,8 +58,8 @@ export default async function handler(
           q.includes(category)
         );
       })
-      .slice(0, 8) // show up to 8 matches
-      .map((item) => ({
+      .slice(0, 8)
+      .map((item: any) => ({
         id: item.slug || item.id,
         title: item.title || "Listing",
         brand: item.brand || "",
@@ -71,42 +67,33 @@ export default async function handler(
         currency: (item.currency || "USD").toUpperCase(),
       }));
 
-    if (matched.length === 0) {
+    if (!matched.length) {
       return res.status(200).json({
         answer:
-          `I’ve searched the Famous Finds catalogue but couldn’t find a good match for “${query}”. ` +
-          "You can also browse by category or try a different description, and I’ll gladly help again.",
+          `I checked the Famous Finds catalogue but couldn’t find a good match for “${query}”. ` +
+          "Try another brand, category or colour, and I’ll happily help again.",
         results: [],
       });
     }
 
-    // Build a nice conversational answer
     const intro =
       matched.length === 1
-        ? `Here’s what I found in the Famous Finds catalogue for “${query}”:`
-        : `Here’s what I found in the Famous Finds catalogue for “${query}”. Tap a result below to open the product:`;
+        ? `Here’s what I found for “${query}”:`
+        : `Here are some options I found for “${query}”:`;
 
-    const listText = matched
-      .map((m, idx) => {
-        const pricePart =
-          typeof m.price === "number"
-            ? ` (${m.currency} ${m.price.toLocaleString("en-US")})`
-            : "";
-        return `${idx + 1}. ${m.brand ? m.brand + " — " : ""}${m.title}${pricePart}`;
-      })
-      .join(" ");
-
-    const answer = `Ah, an excellent choice. ${intro} ${listText}`;
+    const answer =
+      `Wonderful taste. ${intro} Tap one of the listings below to open it.`;
 
     return res.status(200).json({
       answer,
       results: matched,
     });
   } catch (err: any) {
-    console.error("Butler search error:", err?.message || err);
+    console.error("Butler API error:", err?.message || err);
     return res.status(500).json({
       answer:
-        "My apologies, something went wrong while searching the catalogue. Please try again in a moment.",
+        "My apologies, I ran into a problem while searching the catalogue. Please try again shortly.",
+      results: [],
     });
   }
 }
