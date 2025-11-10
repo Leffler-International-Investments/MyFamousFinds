@@ -1,7 +1,4 @@
 // FILE: /components/HomepageButler.tsx
-// This is the NEW component that has the buttons and logic.
-// Please CREATE this file.
-
 import { useState } from "react";
 import Link from "next/link";
 import ButlerChat from "./ButlerChat";
@@ -33,26 +30,15 @@ export default function HomepageButler() {
           </div>
         </div>
         <div className="heroActions">
-          {/* Button 1: AI Butler (Linked) */}
-          <button
-            type="button"
-            onClick={openChat}
-            className="butlerBtn"
-          >
+          <button type="button" onClick={openChat} className="butlerBtn">
             AI Butler
           </button>
-
-          {/* Button 2: Browse Catalogue (Linked) */}
-          <Link
-            href="/catalogue" // <-- Links to the new public page
-            className="browseBtn"
-          >
+          <Link href="/catalogue" className="browseBtn">
             Browse the catalogue
           </Link>
         </div>
       </div>
 
-      {/* Floating Chat Icon (only shown if chat is closed) */}
       {!isChatOpen && (
         <button
           onClick={openChat}
@@ -63,10 +49,8 @@ export default function HomepageButler() {
         </button>
       )}
 
-      {/* The Chat Window (conditionally rendered) */}
       <ButlerChat isOpen={isChatOpen} onClose={closeChat} />
 
-      {/* Styles for this component */}
       <style jsx>{`
         .heroIntro {
           font-size: 13px;
