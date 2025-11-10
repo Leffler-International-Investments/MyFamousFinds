@@ -22,7 +22,7 @@ type Props = {
 };
 
 export default function ManagementSellers({ sellers }: Props) {
-  const { loading } } = useRequireAdmin();
+  const { loading } = useRequireAdmin();
   const [query, setQuery] = useState("");
 
   const visible = useMemo(() => {
