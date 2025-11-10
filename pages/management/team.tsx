@@ -36,6 +36,8 @@ export default function ManagementTeam() {
     const payload = {
       name: formData.get("name") as string,
       email: formData.get("email") as string,
+      // --- ADDED ROLE ---
+      role: formData.get("role") as string,
       phone: formData.get("phone") as string,
       permissions: {
         perm_sellers: formData.get("perm_sellers") === "on",
@@ -49,7 +51,7 @@ export default function ManagementTeam() {
       const res = await fetch("/api/management/team/add", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        body: JSON.stringify(payload), // Payload now includes the role
       });
 
       const json = await res.json();
@@ -62,11 +64,11 @@ export default function ManagementTeam() {
         id: json.uid,
         name: payload.name,
         email: payload.email,
-        role: "Admin",
+        role: payload.role, // Use the role from the form
       };
       setTeamMembers((currentTeam) => [...currentTeam, newUser]);
       e.currentTarget.reset();
-    } catch (err: any) {
+    } catch (err: any)
       console.error(err);
       setError(err.message);
     } finally {
@@ -109,6 +111,22 @@ export default function ManagementTeam() {
               <label htmlFor="email">Email</label>
               <input type="email" id="email" name="email" required />
             </div>
+            
+            {/* --- NEW DROPDOWN --- */}
+            <div className="form-field">
+              <label htmlFor="role">Role / Position</label>
+              <select id="role" name="role" required>
+                <option value="Admin">Admin</option>
+                <option value="Owner">Owner</option>
+                <option value="In-house Developer">In-house Developer</option>
+                <option value="MD (Managing Director)">MD (Managing Director)</option>
+                <option value="Financial Manager">Financial Manager</option>
+                <option value="Operations">Operations</option>
+                <option value="Support">Support</option>
+              </select>
+            </div>
+            {/* --- END NEW DROPDOWN --- */}
+
             <div className="form-field">
               <label htmlFor="phone">Mobile Number (for 2FA)</label>
               <input type="tel" id="phone" name="phone" placeholder="+14041234567" required />
@@ -211,12 +229,17 @@ export default function ManagementTeam() {
           color: #374151; /* gray-700 */
           margin-bottom: 4px;
         }
-        .form-field input {
+        /* --- UPDATED TO INCLUDE select --- */
+        .form-field input,
+        .form-field select {
           width: 100%;
           border-radius: 6px;
           border: 1px solid #d1d5db; /* gray-300 */
           padding: 8px 12px;
           font-size: 14px;
+        }
+        .form-field select {
+          background: #ffffff;
         }
         
         .form-fieldset {
