@@ -1,6 +1,5 @@
 // FILE: /pages/catalogue.tsx
-// This version has a FIXED data query
-// that will now find your listings.
+// Public marketplace catalogue with "View" action for each item.
 
 import Head from "next/head";
 import Link from "next/link";
@@ -8,7 +7,7 @@ import Header from "../components/Header";
 import Footer from "../components/Footer";
 import type { GetServerSideProps } from "next";
 import { adminDb } from "../utils/firebaseAdmin";
-import { ProductLike } from "../components/ProductCard"; // Re-using your type from index.tsx
+import { ProductLike } from "../components/ProductCard";
 
 type CatalogueProps = {
   items: ProductLike[];
@@ -46,12 +45,13 @@ export default function PublicCatalogue({ items }: CatalogueProps) {
                   <th>Title</th>
                   <th>Brand</th>
                   <th>Price</th>
+                  <th>View item</th>
                 </tr>
               </thead>
               <tbody>
                 {!hasItems && (
                   <tr>
-                    <td colSpan={3} className="table-message">
+                    <td colSpan={4} className="table-message">
                       No listings found.
                     </td>
                   </tr>
@@ -67,6 +67,11 @@ export default function PublicCatalogue({ items }: CatalogueProps) {
                       </td>
                       <td>{x.brand}</td>
                       <td>{x.price}</td>
+                      <td className="actions-cell">
+                        <Link href={x.href} className="btn-table-view">
+                          View
+                        </Link>
+                      </td>
                     </tr>
                   ))}
               </tbody>
@@ -128,30 +133,46 @@ export default function PublicCatalogue({ items }: CatalogueProps) {
           color: #e5e7eb;
           text-decoration: none;
         }
+        .actions-cell {
+          text-align: right;
+        }
+        .btn-table-view {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          padding: 4px 12px;
+          border-radius: 999px;
+          border: 1px solid #374151;
+          font-size: 12px;
+          font-weight: 500;
+          text-decoration: none;
+          color: #e5e7eb;
+          background: #1f2937;
+        }
+        .btn-table-view:hover {
+          border-color: #6b7280;
+        }
       `}</style>
     </div>
   );
 }
 
-// --- FIX: This data query now matches index.tsx ---
-// It fetches listings and THEN filters them in code,
-// which avoids the need for a special database index.
+// DATA QUERY
 export const getServerSideProps: GetServerSideProps<CatalogueProps> = async () => {
   try {
     const snap = await adminDb
       .collection("listings")
       .orderBy("createdAt", "desc")
-      .get(); // 1. Get all listings sorted by date
+      .get();
 
     const liveItems: ProductLike[] = [];
 
     snap.docs.forEach((doc) => {
       const d: any = doc.data() || {};
 
-      // 2. Filter in code, just like the homepage
       const allowedStatuses = ["Live", "Active", "Approved"];
       if (d.status && !allowedStatuses.includes(d.status)) {
-        return; // Skip non-live items
+        return;
       }
 
       const priceNumber = Number(d.price) || 0;
@@ -164,7 +185,7 @@ export const getServerSideProps: GetServerSideProps<CatalogueProps> = async () =
         title: d.title || "Untitled listing",
         brand: d.brand || "",
         price,
-        image: "", 
+        image: "",
         href: `/product/${doc.id}`,
       });
     });
