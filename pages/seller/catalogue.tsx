@@ -1,4 +1,5 @@
 // FILE: /pages/seller/catalogue.tsx
+
 import Head from "next/head";
 import Link from "next/link";
 import Header from "../../components/Header";
@@ -6,12 +7,16 @@ import Footer from "../../components/Footer";
 import { useEffect, useState } from "react";
 import { useRequireSeller } from "../../hooks/useRequireSeller";
 
+// NEW: use client Firestore to toggle allowOffers
+import { db } from "../../utils/firebaseClient";
+import { doc, updateDoc } from "firebase/firestore";
+
 type CatalogueItem = {
   id: string;
   title: string;
   price: number;
   status: string;
-  // NEW: whether "Make an offer" is enabled for this listing
+  // whether "Make an offer" is enabled for this listing
   allowOffers?: boolean;
 };
 
@@ -79,25 +84,19 @@ export default function SellerCatalogue() {
     }
   };
 
-  // NEW: toggle "Make an offer" on/off for a listing
+  // TOGGLE "MAKE AN OFFER" USING FIRESTORE DIRECTLY
   const handleToggleOffers = async (item: CatalogueItem) => {
     if (togglingId) return;
+
     const current = !!item.allowOffers;
     setTogglingId(item.id);
     setError(null);
+
     try {
-      const res = await fetch(`/api/seller/listings/${item.id}`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ allowOffers: !current }),
-      });
-      const json = await res.json();
-      if (!res.ok || json.error) {
-        throw new Error(json.error || "Failed to update offer setting");
-      }
-      // Update local state
+      const ref = doc(db, "listings", item.id);
+      await updateDoc(ref, { allowOffers: !current });
+
+      // update local UI state
       setItems((prev) =>
         prev.map((x) =>
           x.id === item.id ? { ...x, allowOffers: !current } : x
@@ -155,7 +154,6 @@ export default function SellerCatalogue() {
                   <th>Title</th>
                   <th>Price</th>
                   <th>Status</th>
-                  {/* NEW column */}
                   <th>Make an offer</th>
                   <th>Actions</th>
                 </tr>
@@ -191,7 +189,6 @@ export default function SellerCatalogue() {
                           })}
                         </td>
                         <td>{x.status}</td>
-                        {/* NEW cell with toggle */}
                         <td>
                           <button
                             className={`btn-offer-toggle ${
@@ -341,7 +338,6 @@ export default function SellerCatalogue() {
           opacity: 0.5;
         }
 
-        /* NEW: toggle button for Make an offer */
         .btn-offer-toggle {
           padding: 4px 10px;
           font-size: 12px;
