@@ -43,7 +43,6 @@ export default function ButlerChat({ isOpen, onClose }: ButlerChatProps) {
     };
     setMessages((m) => [...m, userMessage]);
 
-    // 🔹 Voice-style command: "open it" → open top result from last Butler reply
     const lower = text.toLowerCase();
     if (lower === "open it" || lower === "open" || lower === "buy it") {
       const lastWithResults = [...messages]
@@ -86,37 +85,51 @@ export default function ButlerChat({ isOpen, onClose }: ButlerChatProps) {
   }
 
   function handleVoice() {
+    // tap again to stop
     if (listening) {
       recognitionRef.current?.stop();
-      setListening(false);
       return;
     }
 
-    if (typeof window === "undefined" || !("webkitSpeechRecognition" in window)) {
+    if (
+      typeof window === "undefined" ||
+      !(window as any).webkitSpeechRecognition
+    ) {
       alert("Voice recognition not supported in this browser.");
       return;
     }
 
     const rec = new (window as any).webkitSpeechRecognition();
     recognitionRef.current = rec;
-    rec.lang = "en-US";
-    rec.continuous = true;
-    rec.interimResults = true;
 
-    rec.onstart = () => setListening(true);
+    // ✅ single, slower phrase – wait for final result
+    rec.lang = "en-US";
+    rec.continuous = false;
+    rec.interimResults = false;
+
+    rec.onstart = () => {
+      setListening(true);
+    };
+
     rec.onend = () => {
       setListening(false);
       recognitionRef.current = null;
     };
+
     rec.onerror = () => {
       setListening(false);
+      recognitionRef.current = null;
     };
+
     rec.onresult = (event: any) => {
+      // take the final text ONCE (no repetition)
       const transcript = Array.from(event.results)
         .map((r: any) => r[0].transcript)
-        .join("");
-      setInput(transcript);
+        .join(" ");
+
+      setInput((prev) => (prev ? `${prev} ${transcript}` : transcript));
     };
+
     rec.start();
   }
 
@@ -134,7 +147,8 @@ export default function ButlerChat({ isOpen, onClose }: ButlerChatProps) {
       <div className="butlerMessages">
         {messages.length === 0 && (
           <div className="butlerWelcome">
-            Ask me for something in the catalogue, e.g. “Prada bag” or “Rolex watch”.
+            Ask me for something in the catalogue, e.g. “Prada bag” or “Rolex
+            watch”.
           </div>
         )}
 
