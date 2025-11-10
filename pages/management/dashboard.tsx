@@ -195,7 +195,6 @@ export default function ManagementDashboard({ stats }: Props) {
             href="/management/seller-profiles"
             linkText="Edit Profiles"
             linkColor="gray"
-          }
           />
           <DashboardTile
             title="Management Team"
@@ -286,7 +285,6 @@ export default function ManagementDashboard({ stats }: Props) {
             description="API keys and integrations with external tools and services."
             href="/management/developer"
             linkText="View Integrations"
-Clickable
             linkColor="gray"
           />
         </DashboardSection>
