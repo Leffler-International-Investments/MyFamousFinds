@@ -11,7 +11,7 @@ const SMTP_FROM =
 
 if (!SMTP_HOST || !SMTP_USER || !SMTP_PASS) {
   console.warn(
-    "[email] SMTP environment variables are missing; emails will fail until you set SMTP_HOST, SMTP_USER, SMTP_PASS."
+    "[email] SMTP env vars missing; emails will fail until SMTP_HOST, SMTP_USER, SMTP_PASS are set."
   );
 }
 
@@ -28,9 +28,7 @@ const transporter = nodemailer.createTransport({
       : undefined,
 });
 
-// =========================
-//  Login code (existing behaviour)
-// =========================
+// ---------- Login code ----------
 
 export async function sendLoginCode(to: string, code: string) {
   if (!SMTP_HOST || !SMTP_USER || !SMTP_PASS) {
@@ -64,23 +62,21 @@ If you didn’t request this, you can safely ignore this email.
   });
 }
 
-// =========================
-//  Order confirmation email
-// =========================
+// ---------- Order confirmation email ----------
 
 export type OrderEmailItem = {
   name: string;
   brand?: string;
   category?: string;
   quantity: number;
-  price: number; // single unit price in major units (e.g. 1111 for US$1,111)
+  price: number; // single unit price in major units
 };
 
 export type OrderEmailPayload = {
   id: string;
   customerName?: string;
   customerEmail: string;
-  currency?: string; // e.g. "USD"
+  currency?: string;
   items: OrderEmailItem[];
   subtotal: number;
   shipping?: number;
