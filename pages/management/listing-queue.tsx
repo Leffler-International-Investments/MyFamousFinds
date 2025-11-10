@@ -32,7 +32,7 @@ export default function ManagementListingQueue({
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  if (loading) return <div className="min-h-screen bg-gray-50"></div>;
+  if (loading) return <div className="dashboard-page" />; // Light theme skeleton
 
   const handleAction = async (
     id: string,
@@ -81,101 +81,64 @@ export default function ManagementListingQueue({
       <Head>
         <title>Listing Review Queue — Admin</title>
       </Head>
-      <div className="min-h-screen bg-gray-50 text-gray-900">
+      {/* Use light theme classes from globals.css */}
+      <div className="dashboard-page">
         <Header />
-        <main className="mx-auto max-w-full px-4 pb-16 pt-6 lg:px-8">
-          <div className="mb-4 flex items-center justify-between gap-2">
+        <main className="dashboard-main" style={{maxWidth: "100%"}}>
+          {/* Use light theme classes from globals.css */}
+          <div className="dashboard-header">
             <div>
-              <h1 className="text-xl font-semibold tracking-tight">
-                Listing Review Queue
-              </h1>
-              <p className="text-sm text-gray-600">
+              <h1>Listing Review Queue</h1>
+              <p>
                 Pending submissions from all sellers. Check authenticity before
                 approval. Your Prada bag and LV sneakers both show here when
                 status is Pending.
               </p>
             </div>
-            <Link
-              href="/management/dashboard"
-              className="rounded-full bg-gray-900 px-4 py-2 text-xs font-medium text-white"
-            >
+            <Link href="/management/dashboard" className="btn-primary-dark">
               ← Back to admin home
             </Link>
           </div>
 
           {error && (
-            <div className="mb-4 rounded-md bg-red-100 p-3 text-sm text-red-700">
+            <div className="form-message error" style={{marginBottom: "16px"}}>
               <strong>Error:</strong> {error}
             </div>
           )}
 
-          <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white shadow-sm">
-            <table className="min-w-full divide-y divide-gray-200 text-sm">
-              <thead className="bg-gray-50">
+          <div className="table-wrapper">
+            <table className="data-table">
+              <thead>
                 <tr>
-                  <th className="px-4 py-2 text-left font-medium text-gray-700">
-                    Listing
-                  </th>
-                  <th className="px-4 py-2 text-left font-medium text-gray-700">
-                    Seller
-                  </th>
-                  <th className="px-4 py-2 text-left font-medium text-gray-700">
-                    Price
-                  </th>
-                  <th className="px-4 py-2 text-left font-medium text-gray-700">
-                    Category
-                  </th>
-                  <th className="px-4 py-2 text-left font-medium text-gray-700">
-                    Purchased From
-                  </th>
-                  <th className="px-4 py-2 text-left font-medium text-gray-700">
-                    Proof
-                  </th>
-                  <th className="px-4 py-2 text-left font-medium text-gray-700">
-                    Serial #
-                  </th>
-                  <th className="px-4 py-2 text-left font-medium text-gray-700">
-                    Proof Docs
-                  </th>
-                  <th className="px-4 py-2 text-left font-medium text-gray-700">
-                    Submitted
-                  </th>
-                  <th className="px-4 py-2 text-left font-medium text-gray-700">
-                    Status
-                  </th>
-                  <th className="px-4 py-2 text-left font-medium text-gray-700">
-                    Actions
-                  </th>
+                  <th>Listing</th>
+                  <th>Seller</th>
+                  <th>Price</th>
+                  <th>Category</th>
+                  <th>Purchased From</th>
+                  <th>Proof</th>
+                  <th>Serial #</th>
+                  <th>Proof Docs</th>
+                  <th>Submitted</th>
+                  <th>Status</th>
+                  <th>Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
+              <tbody>
                 {hasAny ? (
                   items.map((item) => (
                     <tr key={item.id}>
-                      <td className="px-4 py-2 text-gray-900">
-                        {item.title}
-                      </td>
-                      <td className="px-4 py-2 text-gray-700">
-                        {item.seller}
-                      </td>
-                      <td className="px-4 py-2 text-gray-700">
+                      <td>{item.title}</td>
+                      <td>{item.seller}</td>
+                      <td>
                         {item.price
                           ? `US$${item.price.toLocaleString("en-US")}`
                           : "—"}
                       </td>
-                      <td className="px-4 py-2 text-gray-700">
-                        {item.category || "—"}
-                      </td>
-                      <td className="px-4 py-2 text-gray-700">
-                        {item.purchase_source || "—"}
-                      </td>
-                      <td className="px-4 py-2 text-gray-700">
-                        {item.purchase_proof || "—"}
-                      </td>
-                      <td className="px-4 py-2 text-gray-700">
-                        {item.serial_number || "—"}
-                      </td>
-                      <td className="px-4 py-2 text-gray-700">
+                      <td>{item.category || "—"}</td>
+                      <td>{item.purchase_source || "—"}</td>
+                      <td>{item.purchase_proof || "—"}</td>
+                      <td>{item.serial_number || "—"}</td>
+                      <td>
                         {item.auth_photos && item.auth_photos.length > 0 ? (
                           <span>
                             {item.auth_photos.length} photo
@@ -185,14 +148,10 @@ export default function ManagementListingQueue({
                           "—"
                         )}
                       </td>
-                      <td className="px-4 py-2 text-gray-700">
-                        {item.submittedAt || "—"}
-                      </td>
-                      <td className="px-4 py-2 text-gray-700">
-                        {item.status}
-                      </td>
-                      <td className="px-4 py-2">
-                        <div className="flex flex-wrap gap-2">
+                      <td>{item.submittedAt || "—"}</td>
+                      <td>{item.status}</td>
+                      <td>
+                        <div className="actions-cell">
                           <button
                             onClick={() =>
                               handleAction(item.id, "approve")
@@ -201,7 +160,7 @@ export default function ManagementListingQueue({
                               actionLoading === item.id ||
                               item.status === "Live"
                             }
-                            className="rounded-full bg-green-600 px-3 py-1 text-xs font-semibold text-white disabled:opacity-50"
+                            className="btn-table btn-approve"
                           >
                             Approve
                           </button>
@@ -213,7 +172,7 @@ export default function ManagementListingQueue({
                               actionLoading === item.id ||
                               item.status === "Rejected"
                             }
-                            className="rounded-full bg-red-600 px-3 py-1 text-xs font-semibold text-white disabled:opacity-50"
+                            className="btn-table btn-reject"
                           >
                             Reject
                           </button>
@@ -222,7 +181,7 @@ export default function ManagementListingQueue({
                               handleAction(item.id, "request-proof")
                             }
                             disabled={actionLoading === item.id}
-                            className="rounded-full bg-yellow-500 px-3 py-1 text-xs font-semibold text-black disabled:opacity-50"
+                            className="btn-table btn-request"
                           >
                             Request proof
                           </button>
@@ -232,10 +191,7 @@ export default function ManagementListingQueue({
                   ))
                 ) : (
                   <tr>
-                    <td
-                      colSpan={11}
-                      className="px-4 py-6 text-center text-sm text-gray-500"
-                    >
+                    <td colSpan={11} className="table-message">
                       No listings are currently pending review.
                     </td>
                   </tr>
@@ -246,6 +202,102 @@ export default function ManagementListingQueue({
         </main>
         <Footer />
       </div>
+
+      {/* Styles for the light theme table and forms */}
+      <style jsx>{`
+        .btn-primary-dark {
+          border-radius: 999px;
+          background: #111827; /* gray-900 */
+          padding: 8px 16px;
+          font-size: 12px;
+          font-weight: 500;
+          color: #ffffff;
+          text-decoration: none;
+          border: none;
+          flex-shrink: 0;
+        }
+        
+        .form-message {
+          font-size: 14px;
+          padding: 8px 12px;
+          border-radius: 6px;
+        }
+        .form-message.error {
+          background: #fee2e2; /* red-100 */
+          color: #b91c1c; /* red-700 */
+        }
+
+        .table-wrapper {
+          overflow-x: auto;
+          border-radius: 8px;
+          border: 1px solid #e5e7eb; /* gray-200 */
+          background: #ffffff;
+          box-shadow: 0 1px 2px 0 rgba(0,0,0,0.05);
+        }
+        .data-table {
+          min-width: 100%;
+          border-collapse: collapse;
+          font-size: 14px;
+        }
+        .data-table thead {
+          background: #f9fafb; /* gray-50 */
+        }
+        .data-table th {
+          padding: 8px 12px;
+          text-align: left;
+          font-weight: 500;
+          color: #374151; /* gray-700 */
+        }
+        .data-table tbody tr {
+          border-bottom: 1px solid #f3f4f6; /* gray-100 */
+        }
+        .data-table tbody tr:last-child {
+          border-bottom: none;
+        }
+        .data-table td {
+          padding: 8px 12px;
+          color: #111827; /* gray-900 */
+          white-space: nowrap;
+        }
+        .data-table td:first-child {
+          font-weight: 500;
+        }
+        .table-message {
+          padding: 24px;
+          text-align: center;
+          color: #6b7280; /* gray-500 */
+        }
+
+        .actions-cell {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 8px;
+        }
+        .btn-table {
+          border-radius: 999px;
+          padding: 4px 12px;
+          font-size: 12px;
+          font-weight: 600;
+          border: none;
+          cursor: pointer;
+          white-space: nowrap;
+        }
+        .btn-table:disabled {
+          opacity: 0.5;
+        }
+        .btn-approve {
+          background: #059669; /* green-600 */
+          color: white;
+        }
+        .btn-reject {
+          background: #dc2626; /* red-600 */
+          color: white;
+        }
+        .btn-request {
+          background: #f59e0b; /* yellow-500 */
+          color: black;
+        }
+      `}</style>
     </>
   );
 }
