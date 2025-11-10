@@ -2,7 +2,7 @@
 // This component is NOW CONTROLLED by a prop.
 // It no longer manages its own "isOpen" state.
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 
 type ButlerChatProps = {
   isOpen: boolean;
@@ -14,6 +14,15 @@ export default function ButlerChat({ isOpen, onClose }: ButlerChatProps) {
   const [messages, setMessages] = useState<string[]>([]);
   const [listening, setListening] = useState(false);
   const recognitionRef = useRef<any>(null);
+
+  // Add a welcome message when the chat opens
+  useEffect(() => {
+    if (isOpen && messages.length === 0) {
+      setMessages([
+        "🤵 Butler: Welcome! Ask me to find products, e.g., 'Show me red Gucci bags.'",
+      ]);
+    }
+  }, [isOpen, messages.length]);
 
   async function handleSend() {
     if (!input.trim()) return;
@@ -99,11 +108,6 @@ export default function ButlerChat({ isOpen, onClose }: ButlerChatProps) {
 
       {/* Chat messages */}
       <div className="h-48 overflow-y-auto bg-gray-100 rounded-md p-2 mb-2 text-black">
-        {messages.length === 0 && (
-          <div className="text-gray-600 p-1">
-            Welcome! Ask me to find products, e.g., "Show me red Gucci bags."
-          </div>
-        )}
         {messages.map((m, i) => (
           <div key={i} className="py-1 px-1">
             {m}
