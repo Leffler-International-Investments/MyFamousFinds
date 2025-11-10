@@ -28,7 +28,6 @@ export default function OrderSuccessPage({
   const formattedTotal = new Intl.NumberFormat("en-US", {
     style: "currency",
     currency,
-    maximumFractionDigits: 2,
   }).format(amountTotal);
 
   return (
@@ -61,9 +60,9 @@ export default function OrderSuccessPage({
         </div>
 
         <p className="authDisclaimer">
-          Note: Famous Finds acts solely as a marketplace platform connecting buyers
-          and independent sellers. Authenticity of items is the sole responsibility
-          of the seller.
+          Famous Finds acts solely as a marketplace platform connecting buyers and
+          independent sellers. Authenticity of items is the sole responsibility of
+          the seller.
         </p>
 
         <Link href="/" className="back">
@@ -71,7 +70,6 @@ export default function OrderSuccessPage({
         </Link>
       </main>
 
-      {/* Post-purchase Butler: voice congratulations + cross-sell + VIP */}
       <PostPurchaseButler
         brand={brand}
         itemTitle={productTitle}
