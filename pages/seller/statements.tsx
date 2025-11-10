@@ -40,7 +40,7 @@ function buildPeriods(): PeriodOption[] {
     const pad = (n: number) => String(n).padStart(2, "0");
     const startStr = `${year}-${pad(month + 1)}-${pad(1)}`;
     const endStr = `${year}-${pad(month + 1)}-${pad(end.getDate())}`;
-    const label = start.toLocaleDateString("en-US", { // Switched to en-US
+    const label = start.toLocaleDateString("en-US", {
       month: "long",
       year: "numeric",
     });
@@ -59,7 +59,7 @@ function buildPeriods(): PeriodOption[] {
 export default function SellerStatements() {
   // --- 2. ADD THE SECURITY HOOK ---
   const { loading: authLoading } = useRequireSeller();
-  
+
   const periods = useMemo(() => buildPeriods(), []);
   const [selectedId, setSelectedId] = useState(periods[0]?.id);
   const [data, setData] = useState<ApiResponse | null>(null);
@@ -71,7 +71,7 @@ export default function SellerStatements() {
   useEffect(() => {
     // --- 3. WAIT FOR AUTH CHECK ---
     if (authLoading || !currentPeriod) return;
-    
+
     let cancelled = false;
 
     async function load() {
@@ -112,39 +112,33 @@ export default function SellerStatements() {
   };
 
   // --- 5. RENDER NOTHING WHILE CHECKING AUTH ---
-  // This is what fixes the build error
   if (authLoading) {
-    return <div className="min-h-screen bg-black"></div>;
+    return <div className="dark-theme-page"></div>;
   }
 
   return (
-    <div className="min-h-screen bg-black text-gray-100">
+    <div className="dark-theme-page">
       <Head>
         <title>Seller — Statements | Famous Finds</title>
       </Head>
       <Header />
 
-      <main className="mx-auto max-w-5xl px-4 pb-16 pt-6 text-sm">
-        <Link
-          href="/seller/dashboard"
-          className="text-xs text-gray-400 hover:text-gray-200"
-        >
-          ← Back to seller dashboard
-        </Link>
+      <main className="section">
+        <div className="back-link">
+          <Link href="/seller/dashboard">← Back to seller dashboard</Link>
+        </div>
 
-        <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+        <div className="page-header">
           <div>
-            <h1 className="text-2xl font-semibold text-white">
-              Payout statements
-            </h1>
-            <p className="mt-1 text-xs text-gray-400">
+            <h1>Payout statements</h1>
+            <p className="subtitle">
               Export-ready view of orders, fees and refunds for your
               accountant or bookkeeper.
             </p>
           </div>
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="header-actions">
             <select
-              className="rounded-full border border-neutral-700 bg-neutral-950 px-3 py-1 text-xs outline-none hover:border-neutral-500"
+              className="select-filter"
               value={selectedId}
               onChange={(e) => setSelectedId(e.target.value)}
             >
@@ -157,78 +151,68 @@ export default function SellerStatements() {
             <button
               type="button"
               onClick={handleDownloadCsv}
-              className="rounded-full border border-neutral-700 px-3 py-1 text-xs hover:border-neutral-500"
+              className="btn-secondary"
             >
               Download CSV
             </button>
           </div>
         </div>
 
-        <section className="mt-6 rounded-xl border border-neutral-800 bg-neutral-950 p-5">
-          {loading && (
-            <p className="text-xs text-gray-400">Loading statement…</p>
-          )}
+        <section className="card">
+          {loading && <p className="card-message">Loading statement…</p>}
 
           {!loading && data && !data.ok && (
-            <p className="text-xs text-red-400">
+            <p className="card-message error">
               {data.error || "We couldn&apos;t load this statement."}
               <br />
               <br />
-              (If you see a DECODER error, your Vercel private key is formatted incorrectly. You must re-paste it and **wrap it in double quotes**.)
+              (If you see a DECODER error, your Vercel private key is formatted
+              incorrectly. You must re-paste it and{" "}
+              <strong>wrap it in double quotes</strong>.)
             </p>
           )}
 
           {!loading && data?.ok && summary && (
             <>
-              <div className="grid gap-4 md:grid-cols-4">
-                <div>
-                  <p className="text-[11px] uppercase tracking-wide text-gray-400">
-                    Period
-                  </p>
-                  <p className="mt-1 text-sm font-medium text-white">
+              <div className="summary-grid">
+                <div className="summary-item">
+                  <p className="summary-label">Period</p>
+                  <p className="summary-value">
                     {summary.period.start} – {summary.period.end}
                   </p>
                 </div>
-                <div>
-                  <p className="text-[11px] uppercase tracking-wide text-gray-400">
-                    Orders
-                  </p>
-                  <p className="mt-1 text-sm font-medium text-white">
-                    {summary.totals.sold}
-                  </p>
-                  <p className="text-[11px] text-gray-400">
+                <div className="summary-item">
+                  <p className="summary-label">Orders</p>
+                  <p className="summary-value">{summary.totals.sold}</p>
+                  <p className="summary-note">
                     {summary.totals.refunded} refunded
                   </p>
                 </div>
-                <div>
-                  <p className="text-[11px] uppercase tracking-wide text-gray-400">
-                    Gross sales
-                  </p>
-                  <p className="mt-1 text-sm font-medium text-white">
+                <div className="summary-item">
+                  <p className="summary-label">Gross sales</p>
+                  <p className="summary-value">
                     $
                     {summary.money.gross.toLocaleString("en-US", {
                       maximumFractionDigits: 2,
                     })}
                   </p>
-                  <p className="text-[11px] text-gray-400">
+                  <p className="summary-note">
                     Fees $
                     {summary.money.fees.toLocaleString("en-US", {
                       maximumFractionDigits: 2,
                     })}
                   </p>
                 </div>
-                <div>
-                  <p className="text-[11px] uppercase tracking-wide text-gray-400">
-                    Net payout
-                  </p>
-                  <p className="mt-1 text-lg font-semibold text-emerald-300">
+                <div className="summary-item">
+                  <p className="summary-label">Net payout</p>
+                  <p className="summary-value net">
                     $
                     {summary.money.net.toLocaleString("en-US", {
                       maximumFractionDigits: 2,
                     })}
                   </p>
                   {summary.money.refunds > 0 && (
-                    <p className="text-[11px] text-gray-400">
+                    <p className="summary-note">
                       Includes refunds of $
                       {summary.money.refunds.toLocaleString("en-US", {
                         maximumFractionDigits: 2,
@@ -238,16 +222,16 @@ export default function SellerStatements() {
                 </div>
               </div>
 
-              <p className="mt-5 text-[11px] text-gray-500">
+              <p className="footer-note">
                 Use the CSV export for your own accounting or to reconcile
                 payouts in Stripe or your bank account. For a PDF-friendly
                 layout, use the “Print-friendly statement” link.
               </p>
 
-              <div className="mt-6">
+              <div className="footer-link">
                 <Link
                   href={`/seller/statement-print?start=${summary.period.start}&end=${summary.period.end}`}
-                  className="text-[11px] text-gray-300 underline-offset-2 hover:underline"
+                  className="table-link"
                 >
                   Open print-friendly statement
                 </Link>
@@ -258,6 +242,136 @@ export default function SellerStatements() {
       </main>
 
       <Footer />
+
+      <style jsx>{`
+        .back-link a {
+          font-size: 12px;
+          color: #9ca3af; /* gray-400 */
+        }
+        .back-link a:hover {
+          color: #e5e7eb; /* gray-200 */
+        }
+
+        .page-header {
+          margin-top: 16px;
+          display: flex;
+          flex-wrap: wrap;
+          align-items: center;
+          justify-content: space-between;
+          gap: 12px;
+        }
+        h1 {
+          font-size: 24px;
+          font-weight: 600;
+          color: white;
+        }
+        .subtitle {
+          margin-top: 4px;
+          font-size: 12px;
+          color: #9ca3af; /* gray-400 */
+        }
+        
+        .header-actions {
+          display: flex;
+          flex-wrap: wrap;
+          align-items: center;
+          gap: 8px;
+        }
+        .select-filter {
+          border-radius: 999px;
+          border: 1px solid #374151; /* neutral-700 */
+          background: #030712; /* neutral-950 */
+          padding: 4px 12px;
+          font-size: 12px;
+          color: #e5e7eb;
+          outline: none;
+        }
+        .select-filter:hover {
+          border-color: #6b7280; /* neutral-500 */
+        }
+        
+        .btn-secondary {
+          border-radius: 999px;
+          border: 1px solid #374151; /* neutral-700 */
+          padding: 4px 12px;
+          font-size: 12px;
+          color: #e5e7eb;
+          text-decoration: none;
+          background: transparent;
+        }
+        .btn-secondary:hover {
+          border-color: #6b7280; /* neutral-500 */
+        }
+        
+        .card {
+          margin-top: 24px;
+          border-radius: 12px;
+          border: 1px solid #1f2937; /* neutral-800 */
+          background: #030712; /* neutral-950 */
+          padding: 20px;
+        }
+        
+        .card-message {
+          font-size: 12px;
+          color: #9ca3af; /* gray-400 */
+        }
+        .card-message.error {
+          color: #f87171; /* red-400 */
+          line-height: 1.5;
+        }
+        
+        .summary-grid {
+          display: grid;
+          gap: 16px;
+        }
+        @media (min-width: 768px) {
+          .summary-grid {
+            grid-template-columns: repeat(4, 1fr);
+          }
+        }
+        
+        .summary-label {
+          font-size: 11px;
+          text-transform: uppercase;
+          letter-spacing: 0.05em;
+          color: #9ca3af; /* gray-400 */
+        }
+        .summary-value {
+          margin-top: 4px;
+          font-size: 14px;
+          font-weight: 500;
+          color: white;
+        }
+        .summary-value.net {
+          font-size: 18px;
+          font-weight: 600;
+          color: #6ee7b7; /* emerald-300 */
+        }
+        .summary-note {
+          font-size: 11px;
+          color: #9ca3af; /* gray-400 */
+        }
+        
+        .footer-note {
+          margin-top: 20px;
+          padding-top: 20px;
+          border-top: 1px solid #1f2937; /* neutral-800 */
+          font-size: 11px;
+          color: #6b7280; /* gray-500 */
+        }
+        .footer-link {
+          margin-top: 24px;
+        }
+        .table-link {
+          font-size: 11px;
+          color: #d1d5db; /* gray-300 */
+          text-decoration: underline;
+          text-underline-offset: 2px;
+        }
+        .table-link:hover {
+          text-decoration: none;
+        }
+      `}</style>
     </div>
   );
 }
