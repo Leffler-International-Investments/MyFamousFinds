@@ -1,5 +1,6 @@
 // FILE: /components/HomepageButler.tsx
-// This component links to the new, safe /catalogue page.
+// This is the NEW component that has the buttons and logic.
+// Please CREATE this file.
 
 import { useState } from "react";
 import Link from "next/link";
@@ -51,6 +52,7 @@ export default function HomepageButler() {
         </div>
       </div>
 
+      {/* Floating Chat Icon (only shown if chat is closed) */}
       {!isChatOpen && (
         <button
           onClick={openChat}
@@ -61,8 +63,10 @@ export default function HomepageButler() {
         </button>
       )}
 
+      {/* The Chat Window (conditionally rendered) */}
       <ButlerChat isOpen={isChatOpen} onClose={closeChat} />
 
+      {/* Styles for this component */}
       <style jsx>{`
         .heroIntro {
           font-size: 13px;
