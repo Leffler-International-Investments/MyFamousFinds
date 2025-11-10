@@ -4,6 +4,8 @@ import Link from "next/link";
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
 import { useEffect, useState } from "react";
+// Import the same security hook as your dashboard
+import { useRequireSeller } from "../../hooks/useRequireSeller"; 
 
 type CatalogueItem = {
   id: string;
@@ -12,22 +14,20 @@ type CatalogueItem = {
   status: string;
 };
 
-export default function Catalogue() {
+export default function SellerCatalogue() {
+  const { loading: authLoading } = useRequireSeller();
+
   const [items, setItems] = useState<CatalogueItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
-  // --- ADDED: State for delete button ---
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
-
     async function load() {
       setLoading(true);
       setError(null);
       try {
-        // --- THIS NOW CALLS THE CORRECT API PATH ---
         const res = await fetch("/api/seller/listings");
         const json = await res.json();
         if (!json.ok) {
@@ -51,30 +51,23 @@ export default function Catalogue() {
     };
   }, []);
 
-  // --- ADDED: Handle Delete Function ---
   const handleDelete = async (id: string) => {
-    if (deletingId) return; // Prevent multiple deletes
-
+    if (deletingId) return;
     if (
       !window.confirm("Are you sure you want to permanently delete this listing?")
     ) {
       return;
     }
-
     setDeletingId(id);
     setError(null);
     try {
-      // --- THIS NOW CALLS THE CORRECT API PATH ---
       const res = await fetch(`/api/seller/listings/${id}`, {
         method: "DELETE",
       });
       const json = await res.json();
-
       if (!res.ok) {
         throw new Error(json.error || "Failed to delete item");
       }
-
-      // Success: Remove item from the local list
       setItems((prevItems) => prevItems.filter((item) => item.id !== id));
     } catch (err: any) {
       console.error(err);
@@ -84,82 +77,71 @@ export default function Catalogue() {
     }
   };
 
+  if (authLoading) {
+    // Use the dashboard-page class to prevent style flashing
+    return <div className="dashboard-page"></div>;
+  }
+
   return (
-    <div className="min-h-screen bg-black text-gray-100">
+    <>
       <Head>
-        <title>Seller — Catalogue | Famous Finds</title>
+        <title>My Catalogue - Seller Console</title>
       </Head>
+      {/*
+        This page uses the "dashboard-page" class from globals.css
+        to match the style of your Seller Dashboard
+      */}
+      <div className="dashboard-page">
+        <Header />
+        <main className="dashboard-main">
+          {/* Page header (styles from globals.css) */}
+          <div className="dashboard-header">
+            <div>
+              <h1>My catalogue</h1>
+              <p>Live view of all listings under your seller account.</p>
+            </div>
+            <Link href="/seller/dashboard">← Back to Dashboard</Link>
+          </div>
 
-      <Header />
+          {/* Action buttons (styles from globals.css) */}
+          <div className="catalogue-actions-bar">
+            <Link
+              href="/seller/bulk-upload"
+              className="catalogue-button-secondary"
+            >
+              Bulk upload CSV
+            </Link>
+            <Link href="/sell" className="catalogue-button">
+              Add single item
+            </Link>
+          </div>
 
-      <main className="mx-auto max-w-5xl px-4 pb-16 pt-6 text-sm">
-        <Link
-          href="/seller/dashboard"
-          className="text-xs text-gray-400 hover:text-gray-200"
-        >
-          ← Back to Dashboard
-        </Link>
-        <h1 className="mt-4 text-2xl font-semibold text-white">
-          My catalogue
-        </h1>
-        <p className="mt-1 text-sm text-gray-400">
-          Live view of all listings under your seller account.
-        </p>
-        <div className="mt-4 flex flex-wrap gap-2">
-          <Link
-            href="/seller/bulk-upload"
-            className="rounded-full bg-white px-3 py-1.5 text-xs font-medium text-black hover:bg-gray-100"
-          >
-            Bulk upload CSV
-          </Link>
-          <Link
-            href="/sell"
-            className="rounded-full border border-neutral-700 px-3 py-1.5 text-xs hover:border-neutral-500"
-          >
-            Add single item
-          </Link>
-        </div>
+          {/* Render error message if any */}
+          {error && <div className="auth-error" style={{marginBottom: 16}}>{error}</div>}
 
-        <section className="mt-6 rounded-xl border border-neutral-800 bg-neutral-950 p-4">
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[560px] text-xs">
-              <thead className="border-b border-neutral-800 text-[11px] uppercase tracking-wide text-gray-400">
+          {/* Catalogue Table (styles from globals.css) */}
+          <div className="catalogue-table-wrapper">
+            <table className="catalogue-table">
+              <thead>
                 <tr>
-                  <th className="py-2 pr-3 text-left">Title</th>
-                  <th className="px-3 py-2 text-left">Price</th>
-                  <th className="px-3 py-2 text-left">Status</th>
-                  <th className="px-3 py-2 text-right">Actions</th>
+                  <th>Title</th>
+                  <th>Price</th>
+                  <th>Status</th>
+                  <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {loading && (
                   <tr>
-                    <td
-                      className="py-4 text-center text-xs text-gray-400"
-                      colSpan={4}
-                    >
+                    <td colSpan={4} style={{ textAlign: "center", padding: 16 }}>
                       Loading your listings…
-                    </td>
-                  </tr>
-                )}
-
-                {!loading && error && (
-                  <tr>
-                    <td
-                      className="py-4 text-center text-xs text-red-400"
-                      colSpan={4}
-                    >
-                      {error}
                     </td>
                   </tr>
                 )}
 
                 {!loading && !error && items.length === 0 && (
                   <tr>
-                    <td
-                      className="py-4 text-center text-xs text-gray-400"
-                      colSpan={4}
-                    >
+                    <td colSpan={4} style={{ textAlign: "center", padding: 16 }}>
                       You don&apos;t have any listings yet.
                     </td>
                   </tr>
@@ -168,40 +150,27 @@ export default function Catalogue() {
                 {!loading &&
                   !error &&
                   items.map((x) => (
-                    <tr
-                      key={x.id}
-                      className="border-b border-neutral-900 last:border-0"
-                    >
-                      <td className="py-2 pr-3">{x.title}</td>
-                      <td className="px-3 py-2">
-                        {/* --- UPDATED: Currency to USD --- */}
+                    <tr key={x.id}>
+                      <td>{x.title}</td>
+                      <td>
                         US$
                         {x.price.toLocaleString("en-US", {
                           maximumFractionDigits: 0,
                         })}
                       </td>
-                      <td className="px-3 py-2">{x.status}</td>
-                      <td
-                        className="px-3 py-2 text-right"
-                        style={{
-                          display: "flex",
-                          justifyContent: "flex-end",
-                          gap: "8px",
-                        }}
-                      >
-                        {/* --- THIS IS THE FIX --- */}
+                      <td>{x.status}</td>
+                      <td className="catalogue-table-actions">
                         <Link
-                          href={`/product/${x.id}`} // <-- Changed from /listing/ to /product/
-                          className="rounded-full border border-neutral-700 px-3 py-1 text-[11px] hover:border-neutral-500"
+                          href={`/product/${x.id}`}
+                          className="catalogue-table-button"
                         >
                           View
                         </Link>
-                        {/* ------------------------ */}
-
                         <button
+                          type="button"
+                          className="catalogue-table-button delete"
                           onClick={() => handleDelete(x.id)}
                           disabled={deletingId === x.id}
-                          className="rounded-full border border-red-900/80 bg-red-500/10 px-3 py-1 text-[11px] text-red-400 hover:border-red-700 disabled:opacity-50"
                         >
                           {deletingId === x.id ? "Deleting..." : "Delete"}
                         </button>
@@ -211,10 +180,9 @@ export default function Catalogue() {
               </tbody>
             </table>
           </div>
-        </section>
-      </main>
-
-      <Footer />
-    </div>
+        </main>
+        <Footer />
+      </div>
+    </>
   );
 }
