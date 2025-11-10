@@ -1,9 +1,12 @@
 // FILE: /pages/management/dashboard.tsx
 // This version uses the custom CSS classes from globals.css
+// and includes the fix for the ButlerChat component.
+
 import Head from "next/head";
 import Link from "next/link";
 import type { GetServerSideProps } from "next";
 import type React from "react";
+import { useState } from "react"; // <-- FIX: Import useState
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
 import ButlerChat from "../../components/ButlerChat";
@@ -48,27 +51,29 @@ const DashboardTile = ({
   title,
   description,
   href,
-  linkText = "View", // Default link text
-  linkColor = "blue", // Default color
+  linkText,
+  linkColor = "blue",
 }: {
   title: string;
   description: string;
   href: string;
   linkText?: string;
-  linkColor?: "blue" | "green" | "gray" | "gold";
+  linkColor?: "blue" | "green" | "gray" | "gold"; // Added gold option
 }) => (
   <Link href={href} className="dashboard-tile">
     <p className="dashboard-tile-title">{title}</p>
     <p className="dashboard-tile-description">{description}</p>
-    {/* ADDED link text and color logic */}
     <p className={`dashboard-tile-link dashboard-tile-link-${linkColor}`}>
-      {linkText} &rarr;
+      {linkText || "Go →"}
     </p>
   </Link>
 );
 
 export default function ManagementDashboard({ stats }: Props) {
   const { loading } = useRequireAdmin();
+  // --- FIX: Add state for ButlerChat ---
+  const [isChatOpen, setIsChatOpen] = useState(false);
+  // ------------------------------------
 
   if (loading) return null;
 
@@ -138,23 +143,38 @@ export default function ManagementDashboard({ stats }: Props) {
             description="Review and approve new product listings (Prada bag, LV sneakers, etc.) before they go live."
             href="/management/listing-queue"
             linkText="Review Listings"
-            linkColor="blue"
+            linkColor="green"
           />
           <DashboardTile
             title="Seller Vetting Queue"
             description="Approve or deny new seller applications. Only approved sellers can list products."
             href="/management/vetting-queue"
             linkText="Review Sellers"
-            linkColor="blue"
+            linkColor="green"
           />
           <DashboardTile
             title="All Listings"
             description="View and moderate all products across the marketplace (Live, Pending, Rejected)."
             href="/management/listings"
-            linkText="Manage Listings"
+            linkText="View All"
             linkColor="gray"
           />
         </DashboardSection>
+
+        {/* --- ADDED: VIP Club Management Section --- */}
+        <DashboardSection
+          title="VIP Club Management"
+          subtitle="Manage 'Front Row' VIP members, points, and reward tiers."
+        >
+          <DashboardTile
+            title="VIP Member Directory"
+            description="View all VIP members, search by email, and see their points and tier status."
+            href="/management/vip-members"
+            linkText="Manage Members"
+            linkColor="gold"
+          />
+        </DashboardSection>
+        {/* ----------------------------------------- */}
 
         {/* 2. Product & Content Control */}
         <DashboardSection
@@ -165,14 +185,14 @@ export default function ManagementDashboard({ stats }: Props) {
             title="Categories & Attributes"
             description="Manage product categories, attributes, and how items are grouped (bags, shoes, jewelry, etc.)."
             href="/management/categories"
-            linkText="Manage Categories"
-            linkColor="gray"
+            linkText="Edit Categories"
+            linkColor="blue"
           />
           <DashboardTile
             title="System Settings"
             description="Configure global settings like regions, default currency (USD), and feature flags."
             href="/management/system-settings"
-            linkText="Configure Settings"
+            linkText="Configure"
             linkColor="gray"
           />
         </DashboardSection>
@@ -187,7 +207,7 @@ export default function ManagementDashboard({ stats }: Props) {
             description="View and manage all active sellers, including their total listings and activity."
             href="/management/sellers"
             linkText="View Directory"
-            linkColor="gray"
+            linkColor="blue"
           />
           <DashboardTile
             title="Seller Profiles / Controls"
@@ -214,36 +234,37 @@ export default function ManagementDashboard({ stats }: Props) {
             title="Orders Overview"
             description="Search and manage all platform orders from checkout to completion or refund."
             href="/management/orders"
-            linkText="Manage Orders"
+            linkText="View Orders"
             linkColor="blue"
           />
           <DashboardTile
             title="Returns & Disputes"
             description="Handle returns, chargebacks, and buyer-seller disputes."
             href="/management/disputes"
-            linkText="Handle Disputes"
+            linkText="Manage Disputes"
             linkColor="gray"
           />
           <DashboardTile
             title="Payouts & Finance"
             description="Monitor seller payouts, platform fees, and payment status (USD)."
             href="/management/payouts"
-            linkText="View Finance"
-            linkColor="green"
+            linkText="View Payouts"
+            linkColor="gray"
           />
+This
           <DashboardTile
             title="Tax & Compliance (US)"
             description="View annual US-dollar sales per seller and track whether tax forms are issued."
             href="/management/tax"
             linkText="View Tax Info"
-            linkColor="green"
+            linkColor="gray"
           />
           <DashboardTile
             title="Stripe & Payment Settings"
             description="Configure Stripe keys and payment-related settings."
             href="/management/stripe-settings"
             linkText="Configure Stripe"
-            linkColor="green"
+            linkColor="gray"
           />
         </DashboardSection>
 
@@ -256,8 +277,8 @@ export default function ManagementDashboard({ stats }: Props) {
             title="Analytics & Reports"
             description="High-level sales and traffic insights across Famous Finds."
             href="/management/analytics"
-            linkText="View Analytics"
-            linkColor="gray"
+            linkText="View Reports"
+            linkColor="blue"
           />
           <DashboardTile
             title="Support Tickets"
@@ -288,22 +309,21 @@ export default function ManagementDashboard({ stats }: Props) {
             linkColor="gray"
           />
         </DashboardSection>
-
-        {/* --- 6. NEW VIP CLUB MANAGEMENT SECTION --- */}
-        <DashboardSection
-          title="VIP Club Management"
-          subtitle="Manage 'Front Row' members, points, and tiers."
-        >
-          <DashboardTile
-            title="VIP Member Directory"
-            description="View all VIP members, search by tier, and adjust loyalty points."
-            href="/management/vip-members"
-            linkText="Manage Members"
-            linkColor="gold"
-          />
-        </DashboardSection>
       </main>
-      <ButlerChat />
+
+      {/* --- FIX: Add floating icon button --- */}
+      {!isChatOpen && (
+        <button
+          onClick={() => setIsChatOpen(true)}
+          className="fixed bottom-4 right-4 z-50 bg-black text-white w-16 h-16 rounded-full shadow-lg flex items-center justify-center text-3xl hover:bg-gray-800 transition-all"
+          aria-label="Open AI Butler"
+        >
+          🤵
+        </button>
+      )}
+      {/* --- FIX: Pass correct props to ButlerChat --- */}
+      <ButlerChat isOpen={isChatOpen} onClose={() => setIsChatOpen(false)} />
+
       <Footer />
     </div>
   );
@@ -319,13 +339,8 @@ export const getServerSideProps: GetServerSideProps<Props> = async () => {
       ordersSnap,
       pendingOrdersSnap,
     ] = await Promise.all([
-      // Note: Switched to 'users' collection for sellers
-      adminDb.collection("users").where("role", "==", "seller").get(),
-      adminDb
-        .collection("users")
-        .where("role", "==", "seller")
-        .where("status", "==", "Pending")
-        .get(),
+      adminDb.collection("sellers").get(),
+      adminDb.collection("sellers").where("status", "==", "Pending").get(),
       adminDb.collection("listings").get(),
       adminDb
         .collection("listings")
@@ -335,7 +350,7 @@ export const getServerSideProps: GetServerSideProps<Props> = async () => {
       adminDb.collection("orders").get(),
       adminDb
         .collection("orders")
-        .where("status", "in", ["Pending", "Processing", "Paid"])
+        .where("status","in", ["Pending", "Processing", "Paid"])
         .get(),
     ]);
 
