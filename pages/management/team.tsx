@@ -68,7 +68,7 @@ export default function ManagementTeam() {
       };
       setTeamMembers((currentTeam) => [...currentTeam, newUser]);
       e.currentTarget.reset();
-    } catch (err: any)
+    } catch (err: any) { // <-- THIS IS THE FIX (added '{')
       console.error(err);
       setError(err.message);
     } finally {
