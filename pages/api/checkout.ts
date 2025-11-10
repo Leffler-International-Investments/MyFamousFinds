@@ -3,8 +3,8 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { stripe } from "../../lib/stripe"; // Assuming this path is correct
 import { auth } from "../../utils/firebaseClient"; // <-- Import auth
-import { getAuth } from "firebase-admin/auth"; // <-- Import admin auth
-import { admin } from "../../utils/firebaseAdmin"; // <-- Import admin
+// --- FIX: Remove getAuth, import adminAuth ---
+import { adminAuth } from "../../utils/firebaseAdmin"; // <-- Import adminAuth
 
 export default async function handler(
   req: NextApiRequest,
@@ -30,7 +30,8 @@ export default async function handler(
     if (token) {
       try {
         // We use admin auth here to verify the token sent from the client
-        const decodedToken = await getAuth(admin).verifyIdToken(token);
+        // --- FIX: Use adminAuth directly ---
+        const decodedToken = await adminAuth.verifyIdToken(token);
         userId = decodedToken.uid;
       } catch (authError) {
         console.warn("Invalid auth token provided to checkout:", authError);
