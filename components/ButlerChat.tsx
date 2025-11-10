@@ -1,16 +1,18 @@
 // FILE: /components/ButlerChat.tsx
+// This component is NOW CONTROLLED by a prop.
+// It no longer manages its own "isOpen" state.
+
 import { useState, useRef } from "react";
 
-export default function ButlerChat() {
+type ButlerChatProps = {
+  isOpen: boolean;
+  onClose: () => void;
+};
+
+export default function ButlerChat({ isOpen, onClose }: ButlerChatProps) {
   const [input, setInput] = useState("");
   const [messages, setMessages] = useState<string[]>([]);
   const [listening, setListening] = useState(false);
-  
-  // FIX 1: Add state to manage if the chat window is open or closed
-  // It now starts closed by default.
-  const [isOpen, setIsOpen] = useState(false);
-  
-  // FIX 2: Use a ref to hold the voice recognition object
   const recognitionRef = useRef<any>(null);
 
   async function handleSend() {
@@ -31,10 +33,8 @@ export default function ButlerChat() {
     }
   }
 
-  // FIX 2: handleVoice is now a toggle and shows live results
   function handleVoice() {
     if (listening) {
-      // If already listening, stop it
       if (recognitionRef.current) {
         recognitionRef.current.stop();
       }
@@ -46,55 +46,40 @@ export default function ButlerChat() {
       alert("Voice recognition not supported in this browser.");
       return;
     }
-    
+
     const rec = new (window as any).webkitSpeechRecognition();
-    recognitionRef.current = rec; // Store the instance
-    
+    recognitionRef.current = rec;
     rec.lang = "en-US";
-    rec.continuous = true; // Keep listening
-    rec.interimResults = true; // Show results as they come in
-    
+    rec.continuous = true;
+    rec.interimResults = true;
+
     rec.onstart = () => {
       setListening(true);
     };
-    
     rec.onend = () => {
       setListening(false);
       recognitionRef.current = null;
     };
-    
     rec.onerror = (event: any) => {
       console.error("Speech recognition error:", event.error);
       setListening(false);
     };
-    
     rec.onresult = (event: any) => {
-      // This creates the live, "fluent" transcript
       const transcript = Array.from(event.results)
-        .map((result: any) => result[0])
-        .map((result: any) => result.transcript)
-        .join('');
-      
-      setInput(transcript); // Update input field live
+        // @ts-ignore
+        .map((result) => result[0])
+        // @ts-ignore
+        .map((result) => result.transcript)
+        .join("");
+      setInput(transcript);
     };
-    
     rec.start();
   }
-  
-  // Helper function to toggle the chat window
-  const toggleChat = () => setIsOpen(!isOpen);
 
-  // --- FIX 1: Show only the icon if chat is closed ---
+  // If not open, render nothing. The parent component
+  // will render the icon button instead.
   if (!isOpen) {
-    return (
-      <button
-        onClick={toggleChat}
-        className="fixed bottom-4 right-4 z-50 bg-black text-white w-16 h-16 rounded-full shadow-lg flex items-center justify-center text-3xl hover:bg-gray-800 transition-all"
-        aria-label="Open AI Butler"
-      >
-        🤵
-      </button>
-    );
+    return null;
   }
 
   // --- Show the full chat window if it IS open ---
@@ -103,28 +88,29 @@ export default function ButlerChat() {
       {/* Header with Close Button */}
       <div className="flex justify-between items-center mb-2">
         <div className="font-semibold text-gray-900">🤵 AI Butler</div>
-        <button 
-          onClick={toggleChat} 
+        <button
+          onClick={onClose} // Use the prop to close
           className="text-gray-500 hover:text-gray-900 text-2xl font-light"
           aria-label="Close chat"
         >
           &times;
         </button>
       </div>
-      
+
       {/* Chat messages */}
       <div className="h-48 overflow-y-auto bg-gray-100 rounded-md p-2 mb-2 text-black">
-        {/* Add a default welcome message if empty */}
         {messages.length === 0 && (
-           <div className="text-gray-600 p-1">
-             Welcome! Ask me to find products, e.g., "Show me red Gucci bags."
-           </div>
+          <div className="text-gray-600 p-1">
+            Welcome! Ask me to find products, e.g., "Show me red Gucci bags."
+          </div>
         )}
         {messages.map((m, i) => (
-          <div key={i} className="py-1 px-1">{m}</div>
+          <div key={i} className="py-1 px-1">
+            {m}
+          </div>
         ))}
       </div>
-      
+
       {/* Input area */}
       <div className="flex gap-2">
         <input
