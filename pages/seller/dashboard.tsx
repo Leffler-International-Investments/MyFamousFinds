@@ -1,15 +1,14 @@
 // FILE: /pages/seller/dashboard.tsx
-// This version uses the custom CSS classes from globals.css
+// UPDATED to link onboarding + finance to new Banking page
+
 import Head from "next/head";
 import Link from "next/link";
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
 import type { ReactNode } from "react";
-// --- 1. ADDED IMPORTS ---
 import SellerDashboardTutorial from "../../components/SellerDashboardTutorial";
 import { useRequireSeller } from "../../hooks/useRequireSeller";
 
-// Helper component for dashboard sections
 const DashboardSection = ({
   title,
   children,
@@ -25,7 +24,6 @@ const DashboardSection = ({
   </section>
 );
 
-// Helper component for dashboard links
 const DashboardLink = ({
   href,
   title,
@@ -37,7 +35,6 @@ const DashboardLink = ({
   description: string;
   accentColor?: "blue" | "green" | "gray";
 }) => {
-  // We can use the accentColor to pick the right class
   const linkColorClass =
     accentColor === "green"
       ? "dashboard-tile-link-green"
@@ -57,7 +54,6 @@ const DashboardLink = ({
 };
 
 export default function SellerDashboard() {
-  //--- 2. ADDED SECURITY HOOK ---
   const { loading: authLoading } = useRequireSeller();
 
   if (authLoading) {
@@ -80,27 +76,25 @@ export default function SellerDashboard() {
             <Link href="/">Back to Storefront</Link>
           </div>
 
-          {/* --- 3. ADDED TUTORIAL COMPONENT --- */}
           <SellerDashboardTutorial />
 
-          {/* Onboarding banner */}
+          {/* Onboarding banner now focuses on banking details */}
           <section className="dashboard-welcome-banner">
             <h2>Welcome to Famous Finds!</h2>
             <p>
-              Your application is approved. Please complete your profile to
-              start selling.
+              Your application is approved. Please complete your banking details
+              to start receiving payouts.
             </p>
             <div>
               <Link
-                href="/seller/profile"
+                href="/seller/banking"
                 className="dashboard-welcome-banner-button"
               >
-                Complete Your Profile →
+                Set up banking & payouts →
               </Link>
             </div>
           </section>
 
-          {/* Manage Listings */}
           <DashboardSection title="Manage Listings">
             <DashboardLink
               href="/sell"
@@ -122,7 +116,6 @@ export default function SellerDashboard() {
             />
           </DashboardSection>
 
-          {/* Orders & Performance */}
           <DashboardSection title="Orders & Performance">
             <DashboardLink
               href="/seller/orders"
@@ -138,8 +131,13 @@ export default function SellerDashboard() {
             />
           </DashboardSection>
 
-          {/* Finance & Account */}
           <DashboardSection title="Finance & Account">
+            <DashboardLink
+              href="/seller/banking"
+              title="Banking & Payouts"
+              description="Connect Stripe and control payout schedule."
+              accentColor="gray"
+            />
             <DashboardLink
               href="/seller/wallet"
               title="Wallet & Payouts"
@@ -155,7 +153,7 @@ export default function SellerDashboard() {
             <DashboardLink
               href="/seller/profile"
               title="Seller Profile"
-              description="Update your business details and bank information."
+              description="Update your business details and public shop info."
               accentColor="gray"
             />
           </DashboardSection>
