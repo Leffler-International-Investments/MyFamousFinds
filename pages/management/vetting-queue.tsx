@@ -41,10 +41,30 @@ export default function ManagementVettingQueue({ items }: Props) {
     action: "approve" | "reject"
   ) => {
     if (actionLoading) return;
+
+    let reason: string | undefined;
+    if (action === "reject") {
+      const input = window.prompt(
+        "Add a short note for the seller explaining why the application was rejected (optional):",
+        ""
+      );
+      if (input === null) {
+        // User cancelled the dialog; don't change anything
+        return;
+      }
+      reason = input.trim() || undefined;
+    }
+
     setActionLoading(id);
     try {
       const res = await fetch(`/api/admin/${action}-seller/${id}`, {
         method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          reason: action === "reject" ? reason : undefined,
+        }),
       });
       const json = await res.json().catch(() => ({} as any));
       if (!res.ok || json.error) {
@@ -63,8 +83,16 @@ export default function ManagementVettingQueue({ items }: Props) {
       );
 
       if (action === "approve" && json.registerUrl) {
+        const emailNote =
+          json.emailSent === false
+            ? "\n\n⚠ We could not send the email automatically. Please copy this link and email it to the seller:"
+            : "\n\nThe seller has been emailed this registration link:";
         alert(
-          `Seller approved. An invitation email has been triggered.\n\nRegistration link:\n${json.registerUrl}`
+          `Seller approved.${emailNote}\n\n${json.registerUrl}`
+        );
+      } else if (action === "reject") {
+        alert(
+          "Seller marked as Rejected. A notification email will be sent if an email address is on file."
         );
       }
     } catch (err: any) {
@@ -84,214 +112,130 @@ export default function ManagementVettingQueue({ items }: Props) {
       <div className="dashboard-page">
         <Header />
         <main className="dashboard-main">
-          <div className="dashboard-header">
-            <div>
-              <h1>Seller Vetting Queue</h1>
-              <p>
-                One row per seller application. Once a seller is approved, they
-                receive an email invitation to register their Seller Admin
-                login.
-              </p>
+          <div className="dashboard-main-inner">
+            <div className="page-header">
+              <div>
+                <button
+                  onClick={() => history.back()}
+                  className="back-link inline-block mb-2"
+                >
+                  ← Back to Management Dashboard
+                </button>
+                <h1>Seller Vetting Queue</h1>
+                <p className="page-subtitle">
+                  Review and approve new seller applications before they get
+                  access to the seller console.
+                </p>
+              </div>
             </div>
-            <Link href="/management/dashboard" className="btn-primary-dark">
-              ← Back to admin home
-            </Link>
-          </div>
 
-          <div className="filters-bar">
-            <input
-              type="text"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search by business, email, or ID…"
-              className="form-input"
-            />
-          </div>
+            <div className="card">
+              <div className="card-header">
+                <div className="card-title">Applications</div>
+                <input
+                  type="text"
+                  placeholder="Search by name, email or ID…"
+                  className="search-input"
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                />
+              </div>
+              <div className="table-wrapper">
+                <table className="table">
+                  <thead>
+                    <tr>
+                      <th>Business</th>
+                      <th>Email</th>
+                      <th>Submitted</th>
+                      <th>Status</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {visible.map((s) => (
+                      <tr key={s.id}>
+                        <td>{s.businessName || "—"}</td>
+                        <td>{s.contactEmail || "—"}</td>
+                        <td>{s.submittedAt || "—"}</td>
+                        <td>{s.status}</td>
+                        <td>
+                          <div className="actions-cell">
+                            <button
+                              disabled={
+                                actionLoading === s.id || s.status === "Approved"
+                              }
+                              className="btn-small btn-primary"
+                              onClick={() => handleAction(s.id, "approve")}
+                            >
+                              {actionLoading === s.id &&
+                              s.status !== "Approved"
+                                ? "Approving…"
+                                : "Approve"}
+                            </button>
+                            <button
+                              disabled={
+                                actionLoading === s.id || s.status === "Rejected"
+                              }
+                              className="btn-small btn-outline"
+                              onClick={() => handleAction(s.id, "reject")}
+                            >
+                              {actionLoading === s.id &&
+                              s.status !== "Rejected"
+                                ? "Rejecting…"
+                                : "Reject"}
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                    {visible.length === 0 && (
+                      <tr>
+                        <td colSpan={5} className="empty-state">
+                          No applications found.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
 
-          <div className="table-wrapper">
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>Business</th>
-                  <th>Contact email</th>
-                  <th>Submitted</th>
-                  <th>Status</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {visible.map((s) => (
-                  <tr key={s.id}>
-                    <td>{s.businessName || "—"}</td>
-                    <td>{s.contactEmail || "—"}</td>
-                    <td>{s.submittedAt || "—"}</td>
-                    <td>{s.status}</td>
-                    <td>
-                      <div className="actions-cell">
-                        <button
-                          onClick={() => handleAction(s.id, "approve")}
-                          disabled={
-                            actionLoading === s.id || s.status === "Approved"
-                          }
-                          className="btn-table btn-approve"
-                        >
-                          Approve
-                        </button>
-                        <button
-                          onClick={() => handleAction(s.id, "reject")}
-                          disabled={
-                            actionLoading === s.id || s.status === "Rejected"
-                          }
-                          className="btn-table btn-reject"
-                        >
-                          Reject
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-                {visible.length === 0 && (
-                  <tr>
-                    <td colSpan={5} className="table-message">
-                      No seller applications pending review.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
+            <div className="mt-8">
+              <Link href="/management/sellers" className="link">
+                View Seller Directory →
+              </Link>
+            </div>
           </div>
         </main>
         <Footer />
       </div>
-
-      <style jsx>{`
-        .filters-bar {
-          margin-bottom: 16px;
-          display: flex;
-          gap: 12px;
-        }
-        .form-input {
-          width: 100%;
-          max-width: 320px;
-          border-radius: 6px;
-          border: 1px solid #d1d5db;
-          padding: 8px 12px;
-          font-size: 14px;
-        }
-        .form-input:focus {
-          border-color: #111827;
-          outline: none;
-        }
-
-        .btn-primary-dark {
-          border-radius: 999px;
-          background: #111827;
-          padding: 8px 16px;
-          font-size: 12px;
-          font-weight: 500;
-          color: #ffffff;
-          text-decoration: none;
-        }
-        .btn-primary-dark:hover {
-          background: #000;
-        }
-
-        .table-wrapper {
-          overflow-x: auto;
-          border-radius: 8px;
-          border: 1px solid #e5e7eb;
-          background: #ffffff;
-          box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-        }
-        .data-table {
-          min-width: 100%;
-          border-collapse: collapse;
-          font-size: 14px;
-        }
-        .data-table thead {
-          background: #f9fafb;
-        }
-        .data-table th {
-          padding: 8px 12px;
-          text-align: left;
-          font-weight: 500;
-          color: #374151;
-        }
-        .data-table tbody tr {
-          border-bottom: 1px solid #f3f4f6;
-        }
-        .data-table tbody tr:last-child {
-          border-bottom: none;
-        }
-        .data-table td {
-          padding: 8px 12px;
-          color: #111827;
-        }
-        .data-table td:first-child {
-          font-weight: 500;
-        }
-        .table-message {
-          padding: 24px;
-          text-align: center;
-          color: #6b7280;
-        }
-
-        .actions-cell {
-          display: flex;
-          flex-wrap: wrap;
-          gap: 8px;
-        }
-        .btn-table {
-          border-radius: 999px;
-          padding: 4px 12px;
-          font-size: 12px;
-          font-weight: 600;
-          border: none;
-          cursor: pointer;
-        }
-        .btn-table:disabled {
-          opacity: 0.5;
-        }
-        .btn-approve {
-          background: #059669;
-          color: white;
-        }
-        .btn-reject {
-          background: #dc2626;
-          color: white;
-        }
-      `}</style>
     </>
   );
 }
 
 export const getServerSideProps: GetServerSideProps<Props> = async () => {
-  try {
-    const snap = await adminDb
-      .collection("sellers")
-      .orderBy("createdAt", "desc")
-      .limit(200)
-      .get();
+  const snapshot = await adminDb
+    .collection("sellers")
+    .orderBy("submittedAt", "desc")
+    .limit(200)
+    .get();
 
-    const items: SellerApplication[] = snap.docs.map((doc) => {
-      const d: any = doc.data() || {};
-      const rawStatus = String(d.status || "Pending");
-      let status: SellerApplication["status"] = "Pending";
-      if (/approve/i.test(rawStatus)) status = "Approved";
-      else if (/reject/i.test(rawStatus)) status = "Rejected";
+  const items: SellerApplication[] = snapshot.docs.map((doc) => {
+    const data = doc.data() as any;
+    return {
+      id: doc.id,
+      businessName: data.businessName || "",
+      contactEmail: data.contactEmail || data.email || "",
+      submittedAt: data.submittedAt
+        ? new Date(data.submittedAt.toDate()).toLocaleString()
+        : "",
+      status: (data.status as any) || "Pending",
+    };
+  });
 
-      return {
-        id: doc.id,
-        businessName: d.businessName || d.name || "Seller",
-        contactEmail: d.email || d.contactEmail || "",
-        submittedAt: d.createdAt?.toDate?.().toLocaleString("en-US") || "",
-        status,
-      };
-    });
-
-    return { props: { items } };
-  } catch (err) {
-    console.error("Error loading vetting queue", err);
-    return { props: { items: [] } };
-  }
+  return {
+    props: {
+      items,
+    },
+  };
 };
