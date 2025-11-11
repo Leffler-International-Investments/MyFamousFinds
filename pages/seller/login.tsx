@@ -1,5 +1,6 @@
 // FILE: /pages/seller/login.tsx
-// This version uses the custom CSS classes from globals.css
+// Seller login with link to start seller application (profile)
+
 import Head from "next/head";
 import Link from "next/link";
 import { useRouter } from "next/router";
@@ -22,19 +23,11 @@ type Start2faSuccess = {
   via: "sms" | "email";
   devCode?: string;
 };
-type Start2faError = {
-  ok: false;
-  message?: string;
-};
+type Start2faError = { ok: false; message?: string };
 type Start2faResponse = Start2faSuccess | Start2faError;
 
-type Verify2faSuccess = {
-  ok: true;
-};
-type Verify2faError = {
-  ok: false;
-  message?: string;
-};
+type Verify2faSuccess = { ok: true };
+type Verify2faError = { ok: false; message?: string };
 type Verify2faResponse = Verify2faSuccess | Verify2faError;
 
 type TwoFactorStep = "credentials" | "verify";
@@ -63,6 +56,7 @@ export default function SellerLoginPage() {
       setError("Please enter your email and password.");
       return;
     }
+
     setLoading(true);
     try {
       const res = await fetch("/api/seller/login", {
@@ -75,6 +69,7 @@ export default function SellerLoginPage() {
 
       if (!json.ok) {
         const errJson = json as LoginError;
+
         if (errJson.code === "apply_first") {
           setError("");
           setInfo(
@@ -83,6 +78,7 @@ export default function SellerLoginPage() {
           router.push("/seller/profile");
           return;
         }
+
         if (errJson.code === "pending") {
           setError("");
           setInfo(
@@ -90,10 +86,12 @@ export default function SellerLoginPage() {
           );
           return;
         }
+
         if (errJson.code === "bad_credentials") {
           setError("Incorrect email or password. Please try again.");
           return;
         }
+
         setError(
           errJson.message ||
             "We couldn't sign you in. Please check your details and try again."
@@ -141,6 +139,7 @@ export default function SellerLoginPage() {
   async function handleVerifySubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError(null);
+
     if (!challengeId) {
       setError("Your verification session has expired. Please log in again.");
       return;
@@ -149,6 +148,7 @@ export default function SellerLoginPage() {
       setError("Please enter the verification code.");
       return;
     }
+
     setLoading(true);
     try {
       const res = await fetch("/api/auth/verify-2fa", {
@@ -239,7 +239,7 @@ export default function SellerLoginPage() {
                   </button>
                   <p className="auth-secondary-link-inline">
                     <Link href="/seller/profile">
-                      New here? Complete your seller profile
+                      New here? Complete your seller profile and apply
                     </Link>
                   </p>
                 </div>
@@ -291,7 +291,7 @@ export default function SellerLoginPage() {
             )}
 
             <p className="auth-secondary-link">
-              <Link href="/"> Back to storefront</Link>
+              <Link href="/">Back to storefront</Link>
             </p>
             <p className="auth-secondary-link">
               <Link href="/seller/forgot-password">Forgot password?</Link>
