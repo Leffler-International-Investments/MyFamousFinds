@@ -3,6 +3,13 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { adminDb } from "../../../utils/firebaseAdmin";
 
+// ✅ Restrict to only Ariel (owner) and Dan (developer)
+const ALLOWED_EMAILS = [
+  "ariel@famousfinds.com",
+  "leffleryd@gmail.com",
+  "danyaffa@famousfinds.com"
+];
+
 type Ok = { ok: true; prefs?: any };
 type Err = { error: string };
 type Data = Ok | Err;
@@ -23,6 +30,14 @@ export default async function handler(
     return res.status(400).json({ error: "Missing admin email" });
   }
 
+  // 🚫 Restrict access to authorized emails only
+  if (!ALLOWED_EMAILS.includes(email)) {
+    console.warn("Unauthorized attempt to access management payouts:", email);
+    return res
+      .status(403)
+      .json({ error: "Unauthorized access to team payout settings." });
+  }
+
   const docRef = adminDb.collection("managementPayoutPrefs").doc(email);
 
   try {
@@ -35,45 +50,14 @@ export default async function handler(
     }
 
     if (req.method === "POST") {
-      const {
-        legalName,
-        roleTitle,
-        employmentType,
-        dateOfBirth,
-        addressLine1,
-        addressLine2,
-        city,
-        state,
-        postalCode,
-        country,
-        phone,
-        pauseSalary,
-        amountUsd,
-        frequency,
-        startDate,
-        notes,
-        confirmAccuracy,
-        consentElectronic,
-      } = req.body || {};
+      const { legalName, roleTitle, amountUsd, frequency, startDate, notes } =
+        req.body || {};
 
       await docRef.set(
         {
           email,
           legalName: legalName || "",
           roleTitle: roleTitle || "",
-          employmentType:
-            employmentType === "contractor"
-              ? "contractor"
-              : ("employee" as const),
-          dateOfBirth: dateOfBirth || "",
-          addressLine1: addressLine1 || "",
-          addressLine2: addressLine2 || "",
-          city: city || "",
-          state: state || "",
-          postalCode: postalCode || "",
-          country: country || "",
-          phone: phone || "",
-          pauseSalary: Boolean(pauseSalary),
           amountUsd:
             typeof amountUsd === "number" && !Number.isNaN(amountUsd)
               ? amountUsd
@@ -81,8 +65,6 @@ export default async function handler(
           frequency: frequency || "Monthly",
           startDate: startDate || "",
           notes: notes || "",
-          confirmAccuracy: Boolean(confirmAccuracy),
-          consentElectronic: Boolean(consentElectronic),
           updatedAt: new Date(),
         },
         { merge: true }
