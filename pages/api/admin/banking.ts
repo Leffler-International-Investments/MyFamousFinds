@@ -1,7 +1,7 @@
 // FILE: /pages/api/admin/banking.ts
 
 import type { NextApiRequest, NextApiResponse } from "next";
-import { adminDb } from "../../../../utils/firebaseAdmin";
+import { adminDb } from "../../../utils/firebaseAdmin";
 
 type Ok = { ok: true; prefs?: any };
 type Err = { error: string };
