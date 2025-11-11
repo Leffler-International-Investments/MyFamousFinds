@@ -1,10 +1,11 @@
 // FILE: /pages/seller/profile.tsx
+
 import Head from "next/head";
 import Link from "next/link";
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
 import { FormEvent, useState } from "react";
-import { useRequireSeller } from "../../hooks/useRequireSeller"; // Import seller security
+import { useRequireSeller } from "../../hooks/useRequireSeller";
 
 // Public env-based URLs so you can control behaviour without code changes
 const STRIPE_CONNECT_URL =
@@ -12,7 +13,6 @@ const STRIPE_CONNECT_URL =
 const TAX_W9_URL = process.env.NEXT_PUBLIC_TAX_W9_URL || "";
 
 export default function SellerProfile() {
-  // Enforce seller-only access
   const { loading: authLoading } = useRequireSeller();
 
   const [saving, setSaving] = useState(false);
@@ -39,7 +39,6 @@ export default function SellerProfile() {
     setStripeError(null);
 
     if (!STRIPE_CONNECT_URL) {
-      // No URL configured – at least tell the user clearly
       alert(
         "Stripe Connect is not configured yet. Please contact support to set up your payout details."
       );
@@ -75,7 +74,6 @@ export default function SellerProfile() {
     }
   }
 
-  // While checking auth, keep screen blank
   if (authLoading) {
     return <div className="dashboard-page"></div>;
   }
@@ -93,13 +91,13 @@ export default function SellerProfile() {
           <Link href="/seller/dashboard">← Back to Seller Dashboard</Link>
         </div>
 
-        {/* --- Main Form --- */}
         <form onSubmit={handleSubmit} className="form-container">
-          {/* Section 1: Business Details */}
+          {/* Section 1: Business & contact details */}
           <section className="form-card">
             <h2>Business Details</h2>
             <p className="form-subtitle">
-              This information will be shown on your public seller profile.
+              This information will be shown on your public seller profile and
+              used by our team to vet your account.
             </p>
             <div className="form-grid">
               <div className="form-field">
@@ -120,7 +118,26 @@ export default function SellerProfile() {
                   className="form-input"
                 />
               </div>
+              <div className="form-field">
+                <label>Mobile number</label>
+                <input
+                  type="tel"
+                  name="mobile"
+                  placeholder="+1 555 000 0000"
+                  className="form-input"
+                />
+              </div>
+              <div className="form-field">
+                <label>Country / Region</label>
+                <input
+                  type="text"
+                  name="country"
+                  placeholder="United States"
+                  className="form-input"
+                />
+              </div>
             </div>
+
             <div className="form-field">
               <label>Public Bio</label>
               <textarea
@@ -130,14 +147,45 @@ export default function SellerProfile() {
                 className="form-input"
               />
             </div>
+
+            <div className="form-grid">
+              <div className="form-field">
+                <label>Website or Instagram</label>
+                <input
+                  type="text"
+                  name="website"
+                  placeholder="https://yourboutique.com or @yourhandle"
+                  className="form-input"
+                />
+              </div>
+              <div className="form-field">
+                <label>Other marketplaces you sell on</label>
+                <input
+                  type="text"
+                  name="otherPlatforms"
+                  placeholder="e.g. Famous Finds Shopify, other resale sites"
+                  className="form-input"
+                />
+              </div>
+            </div>
+
+            <div className="form-field">
+              <label>Additional notes for vetting (optional)</label>
+              <textarea
+                name="vettingNotes"
+                rows={2}
+                placeholder="Anything that helps us verify you (store history, references, social links, etc.)."
+                className="form-input"
+              />
+            </div>
           </section>
 
           {/* Section 2: Payouts (Stripe) */}
           <section className="form-card">
             <h2>Bank & Payout Details</h2>
             <p className="form-subtitle">
-              Your bank details are managed securely by Stripe. We do not
-              store this information.
+              Your bank details are managed securely by Stripe. We do not store
+              this information.
             </p>
             <div className="form-field">
               <button
@@ -160,7 +208,7 @@ export default function SellerProfile() {
             </div>
           </section>
 
-          {/* Section 3: Tax (Avalara/Tax1099) */}
+          {/* Section 3: Tax (W-9) */}
           <section className="form-card">
             <h2>Tax Information (W-9)</h2>
             <p className="form-subtitle">
@@ -204,25 +252,25 @@ export default function SellerProfile() {
           flex-direction: column;
           gap: 32px;
         }
-        
+
         .form-card {
           border-radius: 8px;
-          border: 1px solid #e5e7eb; /* gray-200 */
+          border: 1px solid #e5e7eb;
           background: #ffffff;
           padding: 24px;
-          box-shadow: 0 1px 2px 0 rgba(0,0,0,0.05);
+          box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
         }
         .form-card h2 {
           font-size: 18px;
           font-weight: 600;
-          color: #111827; /* gray-900 */
+          color: #111827;
         }
         .form-subtitle {
           margin-top: 4px;
           font-size: 14px;
-          color: #4b5563; /* gray-600 */
+          color: #4b5563;
         }
-        
+
         .form-grid {
           margin-top: 16px;
           display: grid;
@@ -234,7 +282,7 @@ export default function SellerProfile() {
             grid-template-columns: 1fr 1fr;
           }
         }
-        
+
         .form-field {
           margin-top: 16px;
         }
@@ -242,32 +290,34 @@ export default function SellerProfile() {
           display: block;
           font-size: 12px;
           font-weight: 500;
-          color: #374151; /* gray-700 */
+          color: #374151;
         }
-        .form-input,
-        .form-input[type="textarea"] {
+        .form-input {
           margin-top: 4px;
           width: 100%;
           border-radius: 6px;
-          border: 1px solid #d1d5db; /* gray-300 */
+          border: 1px solid #d1d5db;
           padding: 8px 12px;
           font-size: 14px;
-          box-shadow: 0 1px 2px 0 rgba(0,0,0,0.05);
+          box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
         }
         .form-input:focus {
-          border-color: #111827; /* gray-900 */
+          border-color: #111827;
           outline: none;
         }
-        
+        .form-input[type="textarea"] {
+          resize: vertical;
+        }
+
         .form-note {
           margin-top: 8px;
           font-size: 12px;
-          color: #6b7280; /* gray-500 */
+          color: #6b7280;
         }
-        
+
         .btn-primary-dark {
           border-radius: 6px;
-          background: #111827; /* gray-900 */
+          background: #111827;
           padding: 8px 16px;
           font-size: 14px;
           font-weight: 500;
@@ -281,31 +331,31 @@ export default function SellerProfile() {
         .btn-primary-dark:disabled {
           opacity: 0.6;
         }
-        
+
         .btn-secondary {
           border-radius: 6px;
-          border: 1px solid #d1d5db; /* gray-300 */
+          border: 1px solid #d1d5db;
           padding: 8px 16px;
           font-size: 14px;
-          color: #374151; /* gray-700 */
+          color: #374151;
           cursor: pointer;
         }
         .btn-secondary:hover {
-          background: #f9fafb; /* gray-50 */
+          background: #f9fafb;
         }
         .btn-secondary:disabled {
           opacity: 0.6;
         }
-        
+
         .form-save-bar {
           display: flex;
           align-items: center;
           gap: 16px;
         }
-        
+
         .btn-submit-blue {
           border-radius: 6px;
-          background: #2563eb; /* blue-600 */
+          background: #2563eb;
           padding: 8px 20px;
           font-size: 14px;
           font-weight: 500;
@@ -314,21 +364,21 @@ export default function SellerProfile() {
           cursor: pointer;
         }
         .btn-submit-blue:hover {
-          background: #1d4ed8; /* blue-700 */
+          background: #1d4ed8;
         }
         .btn-submit-blue:disabled {
           opacity: 0.6;
         }
-        
+
         .form-message {
           font-size: 14px;
         }
         .form-message.success {
-          color: #059669; /* green-600 */
+          color: #059669;
         }
         .form-message.error {
           font-size: 12px;
-          color: #dc2626; /* red-600 */
+          color: #dc2626;
         }
       `}</style>
     </div>
