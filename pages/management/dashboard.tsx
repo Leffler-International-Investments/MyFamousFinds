@@ -1,12 +1,11 @@
 // FILE: /pages/management/dashboard.tsx
-// This version uses the custom CSS classes from globals.css
-// and includes the fix for the ButlerChat component.
+// UPDATED to surface Management Banking page at the top
 
 import Head from "next/head";
 import Link from "next/link";
 import type { GetServerSideProps } from "next";
 import type React from "react";
-import { useState } from "react"; // <-- FIX: Import useState
+import { useState } from "react";
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
 import ButlerChat from "../../components/ButlerChat";
@@ -27,7 +26,6 @@ type Props = {
   stats: MgmtStats;
 };
 
-// Helper component for dashboard sections
 const DashboardSection = ({
   title,
   subtitle,
@@ -46,7 +44,6 @@ const DashboardSection = ({
   </section>
 );
 
-// Helper component for dashboard tiles
 const DashboardTile = ({
   title,
   description,
@@ -58,7 +55,7 @@ const DashboardTile = ({
   description: string;
   href: string;
   linkText?: string;
-  linkColor?: "blue" | "green" | "gray" | "gold"; // Added gold option
+  linkColor?: "blue" | "green" | "gray" | "gold";
 }) => (
   <Link href={href} className="dashboard-tile">
     <p className="dashboard-tile-title">{title}</p>
@@ -71,9 +68,7 @@ const DashboardTile = ({
 
 export default function ManagementDashboard({ stats }: Props) {
   const { loading } = useRequireAdmin();
-  // --- FIX: Add state for ButlerChat ---
   const [isChatOpen, setIsChatOpen] = useState(false);
-  // ------------------------------------
 
   if (loading) return null;
 
@@ -84,7 +79,6 @@ export default function ManagementDashboard({ stats }: Props) {
       </Head>
       <Header />
       <main className="dashboard-main">
-        {/* Page heading */}
         <div className="dashboard-header">
           <div>
             <h1>Management dashboard</h1>
@@ -98,11 +92,26 @@ export default function ManagementDashboard({ stats }: Props) {
 
         <ManagementDashboardTutorial />
 
-        {/* Live summary tiles */}
+        {/* NEW: management onboarding banner for banking */}
+        <section className="dashboard-welcome-banner">
+          <h2>Team payouts setup</h2>
+          <p>
+            Before paying salaries or fees to the management team, connect your
+            payout account and set your payout preferences.
+          </p>
+          <div>
+            <Link
+              href="/management/banking"
+              className="dashboard-welcome-banner-button"
+            >
+              Configure management banking →
+            </Link>
+          </div>
+        </section>
+
         <section className="dashboard-summary-section">
           <h2>Live Summary</h2>
           <div className="dashboard-summary-grid">
-            {/* Sellers tile */}
             <Link
               href="/management/sellers"
               className="dashboard-summary-tile"
@@ -113,7 +122,6 @@ export default function ManagementDashboard({ stats }: Props) {
                 {stats.pendingSellers} pending vetting
               </p>
             </Link>
-            {/* Listings tile */}
             <Link
               href="/management/listings"
               className="dashboard-summary-tile"
@@ -124,7 +132,6 @@ export default function ManagementDashboard({ stats }: Props) {
                 {stats.pendingListings} awaiting review
               </p>
             </Link>
-            {/* Orders tile */}
             <Link href="/management/orders" className="dashboard-summary-tile">
               <p className="label">Orders</p>
               <p className="stat">{stats.orders.toLocaleString("en-US")}</p>
@@ -133,14 +140,13 @@ export default function ManagementDashboard({ stats }: Props) {
           </div>
         </section>
 
-        {/* 1. Product Approval Process */}
         <DashboardSection
           title="Product Approval Process"
           subtitle="From new seller listing review → live products. Start here to control what appears on the site."
         >
           <DashboardTile
             title="Listing Review Queue"
-            description="Review and approve new product listings (Prada bag, LV sneakers, etc.) before they go live."
+            description="Review and approve new product listings before they go live."
             href="/management/listing-queue"
             linkText="Review Listings"
             linkColor="green"
@@ -154,14 +160,13 @@ export default function ManagementDashboard({ stats }: Props) {
           />
           <DashboardTile
             title="All Listings"
-            description="View and moderate all products across the marketplace (Live, Pending, Rejected)."
+            description="View and moderate all products across the marketplace."
             href="/management/listings"
             linkText="View All"
             linkColor="gray"
           />
         </DashboardSection>
 
-        {/* --- ADDED: VIP Club Management Section --- */}
         <DashboardSection
           title="VIP Club Management"
           subtitle="Manage 'Front Row' VIP members, points, and reward tiers."
@@ -174,30 +179,7 @@ export default function ManagementDashboard({ stats }: Props) {
             linkColor="gold"
           />
         </DashboardSection>
-        {/* ----------------------------------------- */}
 
-        {/* 2. Product & Content Control */}
-        <DashboardSection
-          title="Product & Content Control"
-          subtitle="Structure how products are organised and how the marketplace appears to buyers."
-        >
-          <DashboardTile
-            title="Categories & Attributes"
-            description="Manage product categories, attributes, and how items are grouped (bags, shoes, jewelry, etc.)."
-            href="/management/categories"
-            linkText="Edit Categories"
-            linkColor="blue"
-          />
-          <DashboardTile
-            title="System Settings"
-            description="Configure global settings like regions, default currency (USD), and feature flags."
-            href="/management/system-settings"
-            linkText="Configure"
-            linkColor="gray"
-          />
-        </DashboardSection>
-
-        {/* 3. Seller Management Control */}
         <DashboardSection
           title="Seller Management Control"
           subtitle="Keep track of who is selling on Famous Finds and adjust their permissions."
@@ -225,7 +207,6 @@ export default function ManagementDashboard({ stats }: Props) {
           />
         </DashboardSection>
 
-        {/* 4. Operations, Finance & Sales */}
         <DashboardSection
           title="Operations, Finance & Sales"
           subtitle="Track orders, returns, payouts, and tax in one place."
@@ -251,7 +232,6 @@ export default function ManagementDashboard({ stats }: Props) {
             linkText="View Payouts"
             linkColor="gray"
           />
-This
           <DashboardTile
             title="Tax & Compliance (US)"
             description="View annual US-dollar sales per seller and track whether tax forms are issued."
@@ -266,9 +246,15 @@ This
             linkText="Configure Stripe"
             linkColor="gray"
           />
+          <DashboardTile
+            title="Management Banking"
+            description="Set salary / fee payout rules for the management team."
+            href="/management/banking"
+            linkText="Configure Banking"
+            linkColor="gray"
+          />
         </DashboardSection>
 
-        {/* 5. Platform, Support & Analytics */}
         <DashboardSection
           title="Platform, Support & Analytics"
           subtitle="Support customers, track performance, and manage internal access."
@@ -296,7 +282,7 @@ This
           />
           <DashboardTile
             title="User & Role Management"
-            description="Manage admin accounts and their roles (operations, finance, support, etc.)."
+            description="Manage admin accounts and their roles."
             href="/management/users"
             linkText="Manage Users"
             linkColor="gray"
@@ -311,7 +297,6 @@ This
         </DashboardSection>
       </main>
 
-      {/* --- FIX: Add floating icon button --- */}
       {!isChatOpen && (
         <button
           onClick={() => setIsChatOpen(true)}
@@ -321,9 +306,7 @@ This
           🤵
         </button>
       )}
-      {/* --- FIX: Pass correct props to ButlerChat --- */}
       <ButlerChat isOpen={isChatOpen} onClose={() => setIsChatOpen(false)} />
-
       <Footer />
     </div>
   );
@@ -344,13 +327,12 @@ export const getServerSideProps: GetServerSideProps<Props> = async () => {
       adminDb.collection("listings").get(),
       adminDb
         .collection("listings")
-        // count both modern and older "PendingReview" statuses
         .where("status", "in", ["Pending", "Pending Review"])
         .get(),
       adminDb.collection("orders").get(),
       adminDb
         .collection("orders")
-        .where("status","in", ["Pending", "Processing", "Paid"])
+        .where("status", "in", ["Pending", "Processing", "Paid"])
         .get(),
     ]);
 
@@ -362,6 +344,7 @@ export const getServerSideProps: GetServerSideProps<Props> = async () => {
       orders: ordersSnap.size,
       pendingOrders: pendingOrdersSnap.size,
     };
+
     return { props: { stats } };
   } catch (err) {
     console.error("Error loading management stats", err);
