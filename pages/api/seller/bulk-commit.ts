@@ -1,131 +1,53 @@
 // FILE: /pages/api/seller/bulk-commit.ts
 import type { NextApiRequest, NextApiResponse } from "next";
-import { adminDb, FieldValue } from "../../../utils/firebaseAdmin";
-import { getSellerId } from "../../../utils/authServer";
+import formidable from "formidable";
+import { adminDb } from "../../../utils/firebaseAdmin";
+import { getStorage } from "firebase-admin/storage";
+import { v4 as uuidv4 } from "uuid";
 
-type IncomingRow = {
-  id?: string;
-  title?: string;
-  brand?: string;
-  category?: string;
-  price?: string | number;
-  imageUrls?: string[];
-  // Authenticity fields
-  purchase_source?: string;
-  purchase_proof?: string;
-  serial_number?: string;
-  auth_photos?: string[];
-  authenticity_confirmed?: boolean | string;
-};
+// Disable default body parser to handle form-data
+export const config = { api: { bodyParser: false } };
 
-type BulkCommitResponse =
-  | { ok: true; created: number }
-  | { ok: false; error: string };
-
-export default async function handler(
-  req: NextApiRequest,
-  res: NextApiResponse<BulkCommitResponse>
-) {
-  if (req.method !== "POST") {
-    return res
-      .status(405)
-      .json({ ok: false, error: "method_not_allowed" });
-  }
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
 
   try {
-    const sellerId = getSellerId(req);
-    if (!sellerId) {
-      return res
-        .status(401)
-        .json({ ok: false, error: "unauthorized" });
+    const form = formidable({ multiples: false });
+    const [fields, files] = await form.parse(req);
+
+    const sellerId = fields.sellerId?.[0];
+    const category = fields.category?.[0];
+    const price = parseFloat(fields.price?.[0] || "0");
+    const imageFile = files.image?.[0];
+
+    if (!sellerId || !imageFile) {
+      return res.status(400).json({ error: "Missing sellerId or image file" });
     }
 
-    const rows = (req.body?.rows || []) as IncomingRow[];
-    if (!Array.isArray(rows) || !rows.length) {
-      return res
-        .status(400)
-        .json({ ok: false, error: "no_rows" });
-    }
+    const bucket = getStorage().bucket();
+    const fileId = uuidv4();
+    const destPath = `uploads/${sellerId}/${fileId}_${imageFile.originalFilename}`;
+    await bucket.upload(imageFile.filepath, {
+      destination: destPath,
+      metadata: { metadata: { firebaseStorageDownloadTokens: uuidv4() } },
+    });
 
-    const batch = adminDb.batch();
-    let created = 0;
-    let skipped = 0;
+    const publicUrl = `https://firebasestorage.googleapis.com/v0/b/${bucket.name}/o/${encodeURIComponent(
+      destPath
+    )}?alt=media`;
 
-    for (const r of rows) {
-      if (!r || !r.title) {
-        skipped++;
-        continue;
-      }
+    await adminDb.collection("listings").add({
+      sellerId,
+      category,
+      price,
+      image: publicUrl,
+      createdAt: new Date(),
+      status: "pending",
+    });
 
-      const confirmed =
-        r.authenticity_confirmed === true ||
-        String(r.authenticity_confirmed).toUpperCase() === "YES";
-
-      if (
-        !r.purchase_source ||
-        !r.purchase_proof ||
-        !r.serial_number ||
-        !confirmed
-      ) {
-        skipped++;
-        continue;
-      }
-
-      const priceRaw =
-        typeof r.price === "number" ? r.price : Number(r.price);
-      const numericPrice = isFinite(priceRaw) ? Number(priceRaw) : 0;
-      if (!numericPrice) {
-        skipped++;
-        continue;
-      }
-
-      const col = adminDb.collection("listings");
-      const docRef = r.id ? col.doc(String(r.id)) : col.doc();
-
-      batch.set(docRef, {
-        sellerId,
-        title: String(r.title),
-        brand: r.brand ? String(r.brand) : "",
-        category: r.category ? String(r.category).toLowerCase() : "",
-        price: numericPrice,
-        currency: "USD",
-        // ✅ unified status
-        status: "Pending", // all bulk uploads go to review queue
-        imageUrls: Array.isArray(r.imageUrls) ? r.imageUrls : [],
-        description: "",
-        createdAt: FieldValue.serverTimestamp(),
-        updatedAt: FieldValue.serverTimestamp(),
-        purchase_source: String(r.purchase_source),
-        purchase_proof: String(r.purchase_proof),
-        serial_number: String(r.serial_number),
-        auth_photos: Array.isArray(r.auth_photos)
-          ? r.auth_photos
-          : [],
-        authenticity_confirmed: true,
-      });
-
-      created += 1;
-    }
-
-    if (!created && skipped > 0) {
-      return res.status(400).json({
-        ok: false,
-        error: `No listings created. ${skipped} row(s) were skipped due to missing price, purchase_source, purchase_proof, serial_number, or authenticity_confirmed.`,
-      });
-    }
-
-    if (!created) {
-      return res
-        .status(400)
-        .json({ ok: false, error: "No valid rows provided." });
-    }
-
-    await batch.commit();
-    return res.status(200).json({ ok: true, created });
-  } catch (err: any) {
-    console.error("bulk_commit_error", err);
-    return res
-      .status(500)
-      .json({ ok: false, error: err?.message || "server_error" });
+    return res.status(200).json({ success: true, imageUrl: publicUrl });
+  } catch (error: any) {
+    console.error("Bulk commit failed:", error);
+    return res.status(500).json({ error: "Internal server error" });
   }
 }
