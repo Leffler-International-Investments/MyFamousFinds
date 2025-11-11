@@ -17,6 +17,7 @@ export default function SellerProfile() {
 
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   const [stripeBusy, setStripeBusy] = useState(false);
   const [stripeError, setStripeError] = useState<string | null>(null);
@@ -27,12 +28,41 @@ export default function SellerProfile() {
     e.preventDefault();
     setSaving(true);
     setMessage(null);
+    setError(null);
 
-    // TODO: replace this with a real API call when you have a backend route.
-    await new Promise((res) => setTimeout(res, 1000)); // Simulate save
+    const formData = new FormData(e.currentTarget);
+    const payload = {
+      businessName: String(formData.get("businessName") || ""),
+      email: String(formData.get("email") || ""),
+      mobile: String(formData.get("mobile") || ""),
+      country: String(formData.get("country") || ""),
+      bio: String(formData.get("bio") || ""),
+      website: String(formData.get("website") || ""),
+      otherPlatforms: String(formData.get("otherPlatforms") || ""),
+      vettingNotes: String(formData.get("vettingNotes") || ""),
+    };
 
-    setMessage("Profile updated successfully.");
-    setSaving(false);
+    try {
+      const res = await fetch("/api/seller/profile", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      const json = await res.json();
+      if (!res.ok || json.error) {
+        throw new Error(json.error || "Unable to save profile.");
+      }
+
+      setMessage(
+        "Your seller profile has been submitted for review. Our management team will email you once you are approved."
+      );
+    } catch (err: any) {
+      console.error("seller_profile_save_error", err);
+      setError(err?.message || "Unable to save profile right now.");
+    } finally {
+      setSaving(false);
+    }
   }
 
   function handleStripeClick() {
@@ -91,6 +121,9 @@ export default function SellerProfile() {
           <Link href="/seller/dashboard">← Back to Seller Dashboard</Link>
         </div>
 
+        {error && <p className="form-message error">{error}</p>}
+        {message && <p className="form-message success">{message}</p>}
+
         <form onSubmit={handleSubmit} className="form-container">
           {/* Section 1: Business & contact details */}
           <section className="form-card">
@@ -107,6 +140,7 @@ export default function SellerProfile() {
                   name="businessName"
                   defaultValue="VintageLux Boutique"
                   className="form-input"
+                  required
                 />
               </div>
               <div className="form-field">
@@ -116,6 +150,7 @@ export default function SellerProfile() {
                   name="email"
                   defaultValue="hello@vintagelux.com"
                   className="form-input"
+                  required
                 />
               </div>
               <div className="form-field">
@@ -125,6 +160,7 @@ export default function SellerProfile() {
                   name="mobile"
                   placeholder="+1 555 000 0000"
                   className="form-input"
+                  required
                 />
               </div>
               <div className="form-field">
@@ -134,6 +170,7 @@ export default function SellerProfile() {
                   name="country"
                   placeholder="United States"
                   className="form-input"
+                  required
                 />
               </div>
             </div>
@@ -236,11 +273,8 @@ export default function SellerProfile() {
               disabled={saving}
               className="btn-submit-blue"
             >
-              {saving ? "Saving..." : "Save Profile"}
+              {saving ? "Submitting..." : "Submit profile for review"}
             </button>
-            {message && (
-              <p className="form-message success">{message}</p>
-            )}
           </div>
         </form>
       </main>
@@ -304,9 +338,6 @@ export default function SellerProfile() {
         .form-input:focus {
           border-color: #111827;
           outline: none;
-        }
-        .form-input[type="textarea"] {
-          resize: vertical;
         }
 
         .form-note {
@@ -372,12 +403,12 @@ export default function SellerProfile() {
 
         .form-message {
           font-size: 14px;
+          margin-bottom: 8px;
         }
         .form-message.success {
           color: #059669;
         }
         .form-message.error {
-          font-size: 12px;
           color: #dc2626;
         }
       `}</style>
