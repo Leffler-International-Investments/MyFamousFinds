@@ -78,9 +78,9 @@ export default function SellerLoginPage() {
         if (errJson.code === "apply_first") {
           setError("");
           setInfo(
-            "You need to apply and be approved as a seller before you can log in."
+            "You need to complete your seller profile and be approved before you can access the Seller Console."
           );
-          router.push("/seller/apply");
+          router.push("/seller/profile");
           return;
         }
         if (errJson.code === "pending") {
@@ -238,8 +238,8 @@ export default function SellerLoginPage() {
                     {loading ? "Checking..." : "Send code & continue"}
                   </button>
                   <p className="auth-secondary-link-inline">
-                    <Link href="/seller/apply">
-                      New here? Apply to become a seller
+                    <Link href="/seller/profile">
+                      New here? Complete your seller profile
                     </Link>
                   </p>
                 </div>
