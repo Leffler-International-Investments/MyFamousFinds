@@ -70,12 +70,12 @@ export default function SellerLoginPage() {
       if (!json.ok) {
         const errJson = json as LoginError;
 
+        // NEW: do NOT auto-redirect to /seller/profile here.
         if (errJson.code === "apply_first") {
           setError("");
           setInfo(
-            "You need to complete your seller profile and be approved before you can access the Seller Console."
+            "We couldn't find a completed seller application for this email. If you're a new seller, please complete your seller profile and apply using the link below."
           );
-          router.push("/seller/profile");
           return;
         }
 
@@ -176,6 +176,7 @@ export default function SellerLoginPage() {
       if (from) {
         router.push(from);
       } else {
+        // After successful login, ALWAYS go to Seller Admin Dashboard
         router.push("/seller/dashboard");
       }
     } catch (err) {
@@ -199,7 +200,8 @@ export default function SellerLoginPage() {
           <div className="auth-card">
             <h1>Seller Login</h1>
             <p className="auth-subtitle">
-              Only vetted and approved sellers can access this console.
+              Approved sellers can access the Seller Admin Platform from here.
+              New sellers can apply using the link below.
             </p>
 
             {error && <div className="auth-error">{error}</div>}
