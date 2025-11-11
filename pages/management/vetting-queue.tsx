@@ -46,10 +46,11 @@ export default function ManagementVettingQueue({ items }: Props) {
       const res = await fetch(`/api/admin/${action}-seller/${id}`, {
         method: "POST",
       });
-      if (!res.ok) {
-        const json = await res.json().catch(() => ({}));
+      const json = await res.json().catch(() => ({} as any));
+      if (!res.ok || json.error) {
         throw new Error(json.error || "Failed to update seller");
       }
+
       setLocalItems((prev) =>
         prev.map((s) =>
           s.id === id
@@ -60,6 +61,12 @@ export default function ManagementVettingQueue({ items }: Props) {
             : s
         )
       );
+
+      if (action === "approve" && json.registerUrl) {
+        alert(
+          `Seller approved. An invitation email has been triggered.\n\nRegistration link:\n${json.registerUrl}`
+        );
+      }
     } catch (err: any) {
       alert(err?.message || "Error updating seller status.");
     } finally {
@@ -67,25 +74,23 @@ export default function ManagementVettingQueue({ items }: Props) {
     }
   };
 
-  if (loading) return <div className="dashboard-page" />; // Use light theme skeleton
+  if (loading) return <div className="dashboard-page" />;
 
   return (
     <>
       <Head>
         <title>Seller Vetting Queue — Admin</title>
       </Head>
-      {/* Use light theme classes from globals.css */}
       <div className="dashboard-page">
         <Header />
         <main className="dashboard-main">
-          {/* Use light theme classes from globals.css */}
           <div className="dashboard-header">
             <div>
               <h1>Seller Vetting Queue</h1>
               <p>
-                One row per seller application. Once a seller is approved,
-                new products go to{" "}
-                <strong>Listing Review Queue</strong>, not this page.
+                One row per seller application. Once a seller is approved, they
+                receive an email invitation to register their Seller Admin
+                login.
               </p>
             </div>
             <Link href="/management/dashboard" className="btn-primary-dark">
@@ -159,7 +164,6 @@ export default function ManagementVettingQueue({ items }: Props) {
         <Footer />
       </div>
 
-      {/* Styles for the light theme table and forms */}
       <style jsx>{`
         .filters-bar {
           margin-bottom: 16px;
@@ -170,18 +174,18 @@ export default function ManagementVettingQueue({ items }: Props) {
           width: 100%;
           max-width: 320px;
           border-radius: 6px;
-          border: 1px solid #d1d5db; /* gray-300 */
+          border: 1px solid #d1d5db;
           padding: 8px 12px;
           font-size: 14px;
         }
         .form-input:focus {
-          border-color: #111827; /* gray-900 */
+          border-color: #111827;
           outline: none;
         }
 
         .btn-primary-dark {
           border-radius: 999px;
-          background: #111827; /* gray-900 */
+          background: #111827;
           padding: 8px 16px;
           font-size: 12px;
           font-weight: 500;
@@ -191,13 +195,13 @@ export default function ManagementVettingQueue({ items }: Props) {
         .btn-primary-dark:hover {
           background: #000;
         }
-        
+
         .table-wrapper {
           overflow-x: auto;
           border-radius: 8px;
-          border: 1px solid #e5e7eb; /* gray-200 */
+          border: 1px solid #e5e7eb;
           background: #ffffff;
-          box-shadow: 0 1px 2px 0 rgba(0,0,0,0.05);
+          box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
         }
         .data-table {
           min-width: 100%;
@@ -205,23 +209,23 @@ export default function ManagementVettingQueue({ items }: Props) {
           font-size: 14px;
         }
         .data-table thead {
-          background: #f9fafb; /* gray-50 */
+          background: #f9fafb;
         }
         .data-table th {
           padding: 8px 12px;
           text-align: left;
           font-weight: 500;
-          color: #374151; /* gray-700 */
+          color: #374151;
         }
         .data-table tbody tr {
-          border-bottom: 1px solid #f3f4f6; /* gray-100 */
+          border-bottom: 1px solid #f3f4f6;
         }
         .data-table tbody tr:last-child {
           border-bottom: none;
         }
         .data-table td {
           padding: 8px 12px;
-          color: #111827; /* gray-900 */
+          color: #111827;
         }
         .data-table td:first-child {
           font-weight: 500;
@@ -229,7 +233,7 @@ export default function ManagementVettingQueue({ items }: Props) {
         .table-message {
           padding: 24px;
           text-align: center;
-          color: #6b7280; /* gray-500 */
+          color: #6b7280;
         }
 
         .actions-cell {
@@ -249,11 +253,11 @@ export default function ManagementVettingQueue({ items }: Props) {
           opacity: 0.5;
         }
         .btn-approve {
-          background: #059669; /* green-600 */
+          background: #059669;
           color: white;
         }
         .btn-reject {
-          background: #dc2626; /* red-600 */
+          background: #dc2626;
           color: white;
         }
       `}</style>
