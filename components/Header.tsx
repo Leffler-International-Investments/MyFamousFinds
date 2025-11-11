@@ -1,11 +1,11 @@
 // FILE: /components/Header.tsx
-// --- UPDATED to link to the new /vip-welcome page ---
+// Header with VIP Front Row + FF Shopping Bag (My Orders) link
 
 import Link from "next/link";
 import Image from "next/image";
 import { useEffect, useState } from "react";
 import { onAuthStateChanged, User } from "firebase/auth";
-import { auth } from "../utils/firebaseClient"; // Assuming this path is correct
+import { auth } from "../utils/firebaseClient";
 
 export default function Header() {
   const [vipUser, setVipUser] = useState<User | null>(null);
@@ -31,20 +31,24 @@ export default function Header() {
           />
         </Link>
 
-        {/* --- MOVED AND RESTYLED VIP BUTTON (per new request) --- */}
+        {/* VIP button */}
         <div className="vip-link-area">
           <Link
-            // --- THIS IS THE KEY CHANGE ---
-            // If logged in, go to profile.
-            // If logged OUT, go to the new WELCOME page.
             href={vipUser ? "/club-profile" : "/vip-welcome"}
             className="admin-button vip"
           >
-            {/* Updated text to be more inviting */}
             {vipUser ? "My VIP Profile" : "VIP Front Row"}
           </Link>
         </div>
-        {/* --------------------------------------------------- */}
+
+        {/* FF Shopping Bag (My Orders) – only when logged in */}
+        {vipUser && (
+          <div className="bag-link-area">
+            <Link href="/my-orders" className="shopping-bag-link">
+              🛍 FF Shopping Bag
+            </Link>
+          </div>
+        )}
 
         {/* Navigation */}
         <nav className="main-nav">
@@ -62,7 +66,7 @@ export default function Header() {
           </Link>
         </nav>
 
-        {/* Admin portals - Classes remain, styles are now in globals.css */}
+        {/* Admin portals */}
         <div className="admin-portals">
           <Link href="/management/login" className="admin-button management">
             Management Admin Login
@@ -74,62 +78,63 @@ export default function Header() {
       </div>
 
       <style jsx>{`
-        /* Reset any potential global spacing on these elements */
         .site-header,
         .inner-container,
         .brand-logo,
         .main-nav,
         .nav-link-item,
         .admin-portals,
-        .vip-link-area {
+        .vip-link-area,
+        .bag-link-area {
           margin: 0;
           padding: 0;
-          box-sizing: border-box; /* Crucial for consistent sizing */
+          box-sizing: border-box;
         }
 
         .site-header {
           background: #000;
           border-bottom: 1px solid #111;
           color: #f9fafb;
-          width: 100%; /* Ensure header takes full width */
+          width: 100%;
         }
 
         .inner-container {
           max-width: 1280px;
           margin: 0 auto;
-          padding: 10px 18px; /* Consistent padding for header content */
+          padding: 10px 18px;
           display: flex;
           align-items: center;
           justify-content: space-between;
-          flex-wrap: wrap; /* Allow items to wrap when necessary */
-          gap: 20px; /* Default gap for spacing between main elements on wider screens */
+          flex-wrap: wrap;
+          gap: 20px;
         }
 
         .brand-logo {
           display: inline-flex;
           align-items: center;
           text-decoration: none;
-          flex-shrink: 0; /* Prevents logo from shrinking */
+          flex-shrink: 0;
         }
 
-        .vip-link-area {
-          flex-shrink: 0; /* Prevents button from shrinking */
+        .vip-link-area,
+        .bag-link-area {
+          flex-shrink: 0;
         }
 
         .main-nav {
           display: flex;
           align-items: center;
-          gap: 18px; /* Space between individual nav links on wider screens */
+          gap: 18px;
           font-size: 13px;
           flex-wrap: wrap;
-          flex-grow: 1; /* Allow nav to take available horizontal space */
+          flex-grow: 1;
           justify-content: flex-start;
         }
 
         .nav-link-item {
           color: #e5e7eb;
           text-decoration: none;
-          white-space: nowrap; /* Keep links on one line */
+          white-space: nowrap;
         }
         .nav-link-item:hover {
           color: #fff;
@@ -138,62 +143,75 @@ export default function Header() {
         .admin-portals {
           display: flex;
           align-items: center;
-          gap: 10px; /* Space between admin buttons on wider screens */
+          gap: 10px;
           flex-wrap: wrap;
-          justify-content: flex-end; /* Align buttons to the right on wider screens */
-          flex-shrink: 0; /* Prevents button block from shrinking too much */
+          justify-content: flex-end;
+          flex-shrink: 0;
         }
 
-        /* --- STYLES FOR .admin-button, .management, .seller REMOVED --- */
-        /* --- They are now correctly placed in globals.css --- */
+        /* Local style for shopping bag button */
+        .shopping-bag-link {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          padding: 8px 14px;
+          border-radius: 999px;
+          border: 1px solid #4b5563;
+          background: #111827;
+          color: #f9fafb;
+          font-size: 12px;
+          font-weight: 600;
+          text-decoration: none;
+          white-space: nowrap;
+        }
+        .shopping-bag-link:hover {
+          background: #f9fafb;
+          color: #111827;
+          border-color: #f9fafb;
+        }
 
-        /* --- Mobile Layout (max-width: 850px) --- */
         @media (max-width: 850px) {
           .inner-container {
-            flex-direction: column; /* Stack logo, nav, and admin vertically */
-            align-items: flex-start; /* Align all stacked items to the left */
-            padding: 8px 18px; /* Reduced vertical padding for the overall header */
-            gap: 5px; /* <--- THIS IS THE PRIMARY VERTICAL GAP BETWEEN SECTIONS ON MOBILE */
+            flex-direction: column;
+            align-items: flex-start;
+            padding: 8px 18px;
+            gap: 5px;
           }
 
           .brand-logo,
+          .vip-link-area,
+          .bag-link-area,
           .main-nav,
-          .admin-portals,
-          .vip-link-area {
-            /* <-- Added .vip-link-area */
-            width: 100%; /* All main sections take full width on mobile */
+          .admin-portals {
+            width: 100%;
             margin-bottom: 0 !important;
           }
 
           .brand-logo {
-            margin-bottom: 5px !important; /* Small space below logo */
+            margin-bottom: 5px !important;
           }
 
-          .vip-link-area {
-            /* <-- Added this block */
+          .vip-link-area,
+          .bag-link-area {
             margin-top: 5px !important;
           }
 
           .main-nav {
-            gap: 8px; /* <--- HORIZONTAL GAP BETWEEN NAV LINKS ON MOBILE */
-            margin-top: 5px !important; /* Small space above nav section */
+            gap: 8px;
+            margin-top: 5px !important;
           }
 
           .admin-portals {
-            gap: 6px; /* <--- HORIZONTAL GAP BETWEEN ADMIN BUTTONS ON MOBILE */
-            margin-top: 5px !important; /* Small space above admin section */
+            gap: 6px;
+            margin-top: 5px !important;
           }
         }
 
-        /* --- Very Small Mobile Layout (max-width: 480px) --- */
         @media (max-width: 480px) {
           .main-nav {
-            gap: 6px; /* Even smaller gap for nav on very small screens */
-            font-size: 12px; /* Slightly smaller font size for nav links */
+            gap: 6px;
+            font-size: 12px;
           }
-
-          /* The .admin-button styles for mobile were also removed */
-          /* as they are now handled globally in globals.css */
         }
       `}</style>
     </header>
