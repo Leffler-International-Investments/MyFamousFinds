@@ -1,5 +1,4 @@
 // FILE: /components/Header.tsx
-// Header with VIP Front Row + FF Shopping Bag (My Orders) link
 
 import Link from "next/link";
 import Image from "next/image";
@@ -20,7 +19,7 @@ export default function Header() {
   return (
     <header className="site-header">
       <div className="inner-container">
-        {/* Brand */}
+        {/* Brand logo */}
         <Link href="/" className="brand-logo">
           <Image
             src="/Famous-Finds-Logo.png"
@@ -41,16 +40,14 @@ export default function Header() {
           </Link>
         </div>
 
-        {/* FF Shopping Bag (My Orders) – only when logged in */}
-        {vipUser && (
-          <div className="bag-link-area">
-            <Link href="/my-orders" className="shopping-bag-link">
-              🛍 FF Shopping Bag
-            </Link>
-          </div>
-        )}
+        {/* FF Shopping Bag – always visible, links to customer orders */}
+        <div className="bag-link-area">
+          <Link href="/my-orders" className="shopping-bag-link">
+            🛍 FF Shopping Bag
+          </Link>
+        </div>
 
-        {/* Navigation */}
+        {/* Main nav */}
         <nav className="main-nav">
           <Link href="/" className="nav-link-item">
             Dashboard
@@ -149,7 +146,6 @@ export default function Header() {
           flex-shrink: 0;
         }
 
-        /* Local style for shopping bag button */
         .shopping-bag-link {
           display: inline-flex;
           align-items: center;
