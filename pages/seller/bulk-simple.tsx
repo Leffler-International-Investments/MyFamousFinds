@@ -6,21 +6,10 @@ import Header from "../../components/Header";
 import Footer from "../../components/Footer";
 import { useRequireSeller } from "../../hooks/useRequireSeller";
 
-// Firebase client (auth + db only)
+// Firebase client (auth + db only; your firebaseClient initializes on the client)
 import { auth, db } from "../../utils/firebaseClient";
-import {
-  collection,
-  getDocs,
-  query,
-  orderBy,
-  limit as qLimit,
-} from "firebase/firestore";
-import {
-  getStorage,
-  ref as storageRef,
-  uploadBytes,
-  getDownloadURL,
-} from "firebase/storage";
+import { collection, getDocs, query, orderBy, limit as qLimit } from "firebase/firestore";
+import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from "firebase/storage";
 
 type Designer = { id: string; name: string; slug?: string };
 
@@ -45,14 +34,16 @@ type ItemForm = {
 const CATEGORIES = ["bags", "shoes", "accessories", "watches", "jewelry", "apparel"];
 const CONDITIONS = ["New", "Like New", "Excellent", "Very Good", "Good", "Fair"];
 const PURCHASE_SOURCES = [
-  "Neiman Marcus","Saks","Nordstrom","Selfridges","Harrods","Official Boutique","Private","Other",
+  "Neiman Marcus",
+  "Saks",
+  "Nordstrom",
+  "Selfridges",
+  "Harrods",
+  "Official Boutique",
+  "Private",
+  "Other",
 ];
-const PURCHASE_PROOFS = [
-  "Original receipt","PDF invoice","Boutique stamp","Certificate","No proof",
-];
-
-// ✅ use app’s default storage (your firebaseClient initializes the app)
-const storage = getStorage();
+const PURCHASE_PROOFS = ["Original receipt", "PDF invoice", "Boutique stamp", "Certificate", "No proof"];
 
 export default function SellerBulkSimple() {
   const { loading } = useRequireSeller();
@@ -63,6 +54,7 @@ export default function SellerBulkSimple() {
   const [banner, setBanner] = useState<{ type: "ok" | "err"; msg: string }>();
 
   useEffect(() => {
+    // run client-side only
     (async () => {
       try {
         const q = query(collection(db, "designers"), orderBy("name", "asc"), qLimit(1000));
@@ -76,10 +68,7 @@ export default function SellerBulkSimple() {
     })();
   }, []);
 
-  const validCount = useMemo(
-    () => items.filter((it) => validate(it).ok).length,
-    [items]
-  );
+  const validCount = useMemo(() => items.filter((it) => validate(it).ok).length, [items]);
 
   if (loading) return <div className="dark-theme-page" />;
 
@@ -136,6 +125,10 @@ export default function SellerBulkSimple() {
   }
 
   async function uploadImagesForRow(idx: number): Promise<string[]> {
+    // ✅ initialize Storage only on the client, when actually needed
+    if (typeof window === "undefined") throw new Error("Images can only be uploaded in the browser");
+    const storage = getStorage();
+
     const row = items[idx];
     const user = auth.currentUser;
     if (!user) throw new Error("Not authenticated");
@@ -178,7 +171,7 @@ export default function SellerBulkSimple() {
 
         rowsReady.push({
           title: it.title.trim(),
-          brand: it.brand.trim(),
+          brand: it.brand.trim(), // server validates designer/brand
           category: it.category,
           condition: it.condition,
           size: it.size,
@@ -197,9 +190,7 @@ export default function SellerBulkSimple() {
         body: JSON.stringify({ rows: rowsReady }),
       });
       const json = await res.json();
-      if (!res.ok || !json?.ok) {
-        throw new Error(json?.error || "Commit failed");
-      }
+      if (!res.ok || !json?.ok) throw new Error(json?.error || "Commit failed");
 
       setBanner({ type: "ok", msg: `Created ${json.created} listing(s). Skipped ${json.skipped}.` });
       setItems([mkEmptyItem()]);
@@ -264,7 +255,9 @@ export default function SellerBulkSimple() {
                     <select value={it.designerId || ""} onChange={(e) => onDesignerChange(idx, e.target.value)}>
                       <option value="">— Pick a designer —</option>
                       {designers.map((d) => (
-                        <option key={d.id} value={d.id}>{d.name}</option>
+                        <option key={d.id} value={d.id}>
+                          {d.name}
+                        </option>
                       ))}
                     </select>
                   </label>
@@ -284,7 +277,9 @@ export default function SellerBulkSimple() {
                     <select value={it.category} onChange={(e) => update(idx, { category: e.target.value })}>
                       <option value="">— Pick a category —</option>
                       {CATEGORIES.map((c) => (
-                        <option key={c} value={c}>{c}</option>
+                        <option key={c} value={c}>
+                          {c}
+                        </option>
                       ))}
                     </select>
                   </label>
@@ -294,7 +289,9 @@ export default function SellerBulkSimple() {
                     <select value={it.condition} onChange={(e) => update(idx, { condition: e.target.value })}>
                       <option value="">— Pick a condition —</option>
                       {CONDITIONS.map((c) => (
-                        <option key={c} value={c}>{c}</option>
+                        <option key={c} value={c}>
+                          {c}
+                        </option>
                       ))}
                     </select>
                   </label>
@@ -340,7 +337,9 @@ export default function SellerBulkSimple() {
                     >
                       <option value="">— Select —</option>
                       {PURCHASE_SOURCES.map((s) => (
-                        <option key={s} value={s}>{s}</option>
+                        <option key={s} value={s}>
+                          {s}
+                        </option>
                       ))}
                     </select>
                   </label>
@@ -353,7 +352,9 @@ export default function SellerBulkSimple() {
                     >
                       <option value="">— Select —</option>
                       {PURCHASE_PROOFS.map((p) => (
-                        <option key={p} value={p}>{p}</option>
+                        <option key={p} value={p}>
+                          {p}
+                        </option>
                       ))}
                     </select>
                   </label>
