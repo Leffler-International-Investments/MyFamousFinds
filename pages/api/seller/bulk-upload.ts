@@ -1,11 +1,10 @@
-// FILE: /pages/api/seller/bulk-upload.ts
+// FILE: /pages/api/seller/bulk-upload.tsx
 
 import type { NextApiRequest, NextApiResponse } from "next";
 
 type BulkUploadResponse = {
   success: boolean;
   message: string;
-  // keep room for future data without breaking callers
   data?: any;
 };
 
@@ -19,7 +18,7 @@ type BulkUploadResponse = {
  * If you later want real logic (saving the file, etc.),
  * we can extend this handler without touching the page.
  */
-export default async function handler(
+export default function handler(
   req: NextApiRequest,
   res: NextApiResponse<BulkUploadResponse>
 ) {
@@ -31,8 +30,6 @@ export default async function handler(
     });
   }
 
-  // We don’t parse the file here yet – this is just a safe placeholder
-  // so your app builds and any accidental calls still get a clean response.
   return res.status(200).json({
     success: true,
     message:
