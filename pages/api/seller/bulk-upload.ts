@@ -36,3 +36,4 @@ export default function handler(
       "Bulk-upload placeholder endpoint. Your UI page /seller/bulk-upload.tsx remains unchanged.",
   });
 }
+
