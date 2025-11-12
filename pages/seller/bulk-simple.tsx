@@ -6,9 +6,8 @@ import Header from "../../components/Header";
 import Footer from "../../components/Footer";
 import { useRequireSeller } from "../../hooks/useRequireSeller";
 
-// Firebase client (auth + db only; your firebaseClient initializes on the client)
-import { auth, db } from "../../utils/firebaseClient";
-import { collection, getDocs, query, orderBy, limit as qLimit } from "firebase/firestore";
+// Firebase client (auth only on client)
+import { auth } from "../../utils/firebaseClient";
 import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from "firebase/storage";
 
 type Designer = { id: string; name: string; slug?: string };
@@ -28,21 +27,11 @@ type ItemForm = {
   images: File[];
   imageUrls?: string[];
   status?: "idle" | "uploading" | "ready" | "error";
-  errorMsg?: string;
 };
 
 const CATEGORIES = ["bags", "shoes", "accessories", "watches", "jewelry", "apparel"];
 const CONDITIONS = ["New", "Like New", "Excellent", "Very Good", "Good", "Fair"];
-const PURCHASE_SOURCES = [
-  "Neiman Marcus",
-  "Saks",
-  "Nordstrom",
-  "Selfridges",
-  "Harrods",
-  "Official Boutique",
-  "Private",
-  "Other",
-];
+const PURCHASE_SOURCES = ["Neiman Marcus", "Saks", "Nordstrom", "Selfridges", "Harrods", "Official Boutique", "Private", "Other"];
 const PURCHASE_PROOFS = ["Original receipt", "PDF invoice", "Boutique stamp", "Certificate", "No proof"];
 
 export default function SellerBulkSimple() {
@@ -52,20 +41,23 @@ export default function SellerBulkSimple() {
   const [items, setItems] = useState<ItemForm[]>([mkEmptyItem()]);
   const [submitting, setSubmitting] = useState(false);
   const [banner, setBanner] = useState<{ type: "ok" | "err"; msg: string }>();
+  const [showErrors, setShowErrors] = useState(false); // ← only show hints after first submit click
 
+  // Load designers via API (admin-backed, no client Firestore needed)
   useEffect(() => {
-    // run client-side only
+    let alive = true;
     (async () => {
       try {
-        const q = query(collection(db, "designers"), orderBy("name", "asc"), qLimit(1000));
-        const snap = await getDocs(q);
-        const list: Designer[] = [];
-        snap.forEach((d) => list.push({ id: d.id, ...(d.data() as any) } as Designer));
-        setDesigners(list);
+        const res = await fetch("/api/public/designers");
+        const json = await res.json();
+        if (alive && json?.ok) setDesigners(json.designers as Designer[]);
       } catch (e) {
         console.error(e);
       }
     })();
+    return () => {
+      alive = false;
+    };
   }, []);
 
   const validCount = useMemo(() => items.filter((it) => validate(it).ok).length, [items]);
@@ -102,15 +94,14 @@ export default function SellerBulkSimple() {
     setItems((prev) => prev.filter((_, i) => i !== idx));
   }
 
-  function onDesignerChange(idx: number, value: string) {
-    const d = designers.find((x) => x.id === value);
-    update(idx, { designerId: value || undefined, brand: d?.name || "" });
+  function onDesignerChange(idx: number, designerId: string) {
+    const d = designers.find((x) => x.id === designerId);
+    update(idx, { designerId: designerId || undefined, brand: d?.name || "" });
   }
 
   function onFiles(idx: number, files: FileList | null) {
     if (!files?.length) return;
-    const asArr = Array.from(files).slice(0, 8);
-    update(idx, { images: asArr });
+    update(idx, { images: Array.from(files).slice(0, 8) });
   }
 
   function validate(row: ItemForm): { ok: boolean; msg?: string } {
@@ -118,14 +109,12 @@ export default function SellerBulkSimple() {
     if (!row.brand?.trim()) return { ok: false, msg: "Pick a designer" };
     if (!row.category) return { ok: false, msg: "Pick a category" };
     if (!row.condition) return { ok: false, msg: "Pick a condition" };
-    if (!row.price || !isFinite(Number(row.price)) || Number(row.price) <= 0)
-      return { ok: false, msg: "Invalid price" };
+    if (!row.price || !isFinite(Number(row.price)) || Number(row.price) <= 0) return { ok: false, msg: "Invalid price" };
     if (!row.images?.length) return { ok: false, msg: "Add at least one image" };
     return { ok: true };
   }
 
   async function uploadImagesForRow(idx: number): Promise<string[]> {
-    // ✅ initialize Storage only on the client, when actually needed
     if (typeof window === "undefined") throw new Error("Images can only be uploaded in the browser");
     const storage = getStorage();
 
@@ -133,26 +122,26 @@ export default function SellerBulkSimple() {
     const user = auth.currentUser;
     if (!user) throw new Error("Not authenticated");
 
-    update(idx, { status: "uploading", errorMsg: undefined });
+    update(idx, { status: "uploading" });
 
     const urls: string[] = [];
     for (const file of row.images) {
       const path = `uploads/sellers/${user.uid}/${Date.now()}_${file.name}`;
       const ref = storageRef(storage, path);
       await uploadBytes(ref, file);
-      const url = await getDownloadURL(ref);
-      urls.push(url);
+      urls.push(await getDownloadURL(ref));
     }
-
     update(idx, { status: "ready", imageUrls: urls });
     return urls;
   }
 
   async function handleSubmit() {
+    setShowErrors(true); // ← start showing field hints
     setBanner(undefined);
     setSubmitting(true);
 
     try {
+      // validate first
       const problems: string[] = [];
       items.forEach((it, i) => {
         const v = validate(it);
@@ -164,14 +153,14 @@ export default function SellerBulkSimple() {
         return;
       }
 
+      // upload + commit
       const rowsReady: any[] = [];
       for (let i = 0; i < items.length; i++) {
         const it = items[i];
         const urls = it.imageUrls?.length ? it.imageUrls : await uploadImagesForRow(i);
-
         rowsReady.push({
           title: it.title.trim(),
-          brand: it.brand.trim(), // server validates designer/brand
+          brand: it.brand.trim(),
           category: it.category,
           condition: it.condition,
           size: it.size,
@@ -194,6 +183,7 @@ export default function SellerBulkSimple() {
 
       setBanner({ type: "ok", msg: `Created ${json.created} listing(s). Skipped ${json.skipped}.` });
       setItems([mkEmptyItem()]);
+      setShowErrors(false);
     } catch (e: any) {
       console.error(e);
       setBanner({ type: "err", msg: e?.message || "Something went wrong." });
@@ -204,30 +194,21 @@ export default function SellerBulkSimple() {
 
   return (
     <div className="dark-theme-page">
-      <Head>
-        <title>Seller — Quick Add (Form) | Famous Finds</title>
-      </Head>
-
+      <Head><title>Seller — Quick Add (Form) | Famous Finds</title></Head>
       <Header />
 
       <main className="section">
-        <div className="back-link">
-          <Link href="/seller/dashboard">← Back to Dashboard</Link>
-        </div>
+        <div className="back-link"><Link href="/seller/dashboard">← Back to Dashboard</Link></div>
 
         <div className="page-header">
           <div>
             <h1>Quick Add — Multi-Item Form</h1>
             <p className="subtitle">Add several listings at once with dropdowns and image uploads.</p>
           </div>
-          <Link className="link-alt" href="/seller/bulk-upload">
-            Prefer CSV-style paste? Use Bulk Upload →
-          </Link>
+          <Link className="link-alt" href="/seller/bulk-upload">Prefer CSV-style paste? Use Bulk Upload →</Link>
         </div>
 
-        {banner && (
-          <p className={`banner ${banner.type === "ok" ? "success" : "error"}`}>{banner.msg}</p>
-        )}
+        {banner && <p className={`banner ${banner.type === "ok" ? "success" : "error"}`}>{banner.msg}</p>}
 
         <div className="rows">
           {items.map((it, idx) => {
@@ -236,18 +217,11 @@ export default function SellerBulkSimple() {
               <section className="card" key={idx}>
                 <div className="row-header">
                   <h2>Item #{idx + 1}</h2>
-                  <button
-                    className="chip danger"
-                    onClick={() => removeRow(idx)}
-                    disabled={items.length === 1 || submitting}
-                    aria-label={`Remove row ${idx + 1}`}
-                  >
-                    Remove
-                  </button>
+                  <button className="chip danger" onClick={() => removeRow(idx)} disabled={items.length === 1 || submitting}>Remove</button>
                 </div>
 
-                {!v.ok && <p className="hint error">⚠ {v.msg}</p>}
-                {it.status === "uploading" && <p className="hint">Uploading images…</p>}
+                {/* show field hint only after first submit attempt */}
+                {!v.ok && showErrors && <p className="hint error">⚠ {v.msg}</p>}
 
                 <div className="grid">
                   <label>
@@ -255,32 +229,21 @@ export default function SellerBulkSimple() {
                     <select value={it.designerId || ""} onChange={(e) => onDesignerChange(idx, e.target.value)}>
                       <option value="">— Pick a designer —</option>
                       {designers.map((d) => (
-                        <option key={d.id} value={d.id}>
-                          {d.name}
-                        </option>
+                        <option key={d.id} value={d.id}>{d.name}</option>
                       ))}
                     </select>
                   </label>
 
                   <label>
                     <span>Title</span>
-                    <input
-                      type="text"
-                      value={it.title}
-                      onChange={(e) => update(idx, { title: e.target.value })}
-                      placeholder="e.g., Classic Flap Bag"
-                    />
+                    <input type="text" value={it.title} onChange={(e) => update(idx, { title: e.target.value })} placeholder="e.g., Classic Flap Bag" />
                   </label>
 
                   <label>
                     <span>Category</span>
                     <select value={it.category} onChange={(e) => update(idx, { category: e.target.value })}>
                       <option value="">— Pick a category —</option>
-                      {CATEGORIES.map((c) => (
-                        <option key={c} value={c}>
-                          {c}
-                        </option>
-                      ))}
+                      {CATEGORIES.map((c) => (<option key={c} value={c}>{c}</option>))}
                     </select>
                   </label>
 
@@ -288,93 +251,50 @@ export default function SellerBulkSimple() {
                     <span>Condition</span>
                     <select value={it.condition} onChange={(e) => update(idx, { condition: e.target.value })}>
                       <option value="">— Pick a condition —</option>
-                      {CONDITIONS.map((c) => (
-                        <option key={c} value={c}>
-                          {c}
-                        </option>
-                      ))}
+                      {CONDITIONS.map((c) => (<option key={c} value={c}>{c}</option>))}
                     </select>
                   </label>
 
                   <label>
                     <span>Size</span>
-                    <input
-                      type="text"
-                      value={it.size}
-                      onChange={(e) => update(idx, { size: e.target.value })}
-                      placeholder="e.g., M / 38 / 95 cm"
-                    />
+                    <input type="text" value={it.size} onChange={(e) => update(idx, { size: e.target.value })} placeholder="e.g., M / 38 / 95 cm" />
                   </label>
 
                   <label>
                     <span>Color</span>
-                    <input
-                      type="text"
-                      value={it.color}
-                      onChange={(e) => update(idx, { color: e.target.value })}
-                      placeholder="e.g., Black"
-                    />
+                    <input type="text" value={it.color} onChange={(e) => update(idx, { color: e.target.value })} placeholder="e.g., Black" />
                   </label>
 
                   <label>
                     <span>Price (USD)</span>
-                    <input
-                      type="number"
-                      inputMode="decimal"
-                      min="0"
-                      step="0.01"
-                      value={it.price}
-                      onChange={(e) => update(idx, { price: e.target.value })}
-                      placeholder="e.g., 5200"
-                    />
+                    <input type="number" inputMode="decimal" min="0" step="0.01" value={it.price} onChange={(e) => update(idx, { price: e.target.value })} placeholder="e.g., 5200" />
                   </label>
 
                   <label>
                     <span>Purchase source</span>
-                    <select
-                      value={it.purchase_source}
-                      onChange={(e) => update(idx, { purchase_source: e.target.value })}
-                    >
+                    <select value={it.purchase_source} onChange={(e) => update(idx, { purchase_source: e.target.value })}>
                       <option value="">— Select —</option>
-                      {PURCHASE_SOURCES.map((s) => (
-                        <option key={s} value={s}>
-                          {s}
-                        </option>
-                      ))}
+                      {PURCHASE_SOURCES.map((s) => (<option key={s} value={s}>{s}</option>))}
                     </select>
                   </label>
 
                   <label>
                     <span>Purchase proof</span>
-                    <select
-                      value={it.purchase_proof}
-                      onChange={(e) => update(idx, { purchase_proof: e.target.value })}
-                    >
+                    <select value={it.purchase_proof} onChange={(e) => update(idx, { purchase_proof: e.target.value })}>
                       <option value="">— Select —</option>
-                      {PURCHASE_PROOFS.map((p) => (
-                        <option key={p} value={p}>
-                          {p}
-                        </option>
-                      ))}
+                      {PURCHASE_PROOFS.map((p) => (<option key={p} value={p}>{p}</option>))}
                     </select>
                   </label>
 
                   <label>
                     <span>Serial / Reference</span>
-                    <input
-                      type="text"
-                      value={it.serial_number}
-                      onChange={(e) => update(idx, { serial_number: e.target.value })}
-                      placeholder="e.g., 12345-ABCD"
-                    />
+                    <input type="text" value={it.serial_number} onChange={(e) => update(idx, { serial_number: e.target.value })} placeholder="e.g., 12345-ABCD" />
                   </label>
 
                   <div className="uploader">
                     <span>Images (drag & drop or select — up to 8)</span>
                     <input type="file" accept="image/*" multiple onChange={(e) => onFiles(idx, e.target.files)} />
-                    {!!it.images.length && (
-                      <p className="hint">Selected: {it.images.map((f) => f.name).join(", ")}</p>
-                    )}
+                    {!!it.images.length && <p className="hint">Selected: {it.images.map((f) => f.name).join(", ")}</p>}
                   </div>
                 </div>
               </section>
@@ -383,15 +303,8 @@ export default function SellerBulkSimple() {
         </div>
 
         <div className="actions">
-          <button className="btn-secondary" onClick={addRow} disabled={submitting}>
-            + Add another item
-          </button>
-          <button
-            className="btn-primary"
-            onClick={handleSubmit}
-            disabled={submitting || !validCount}
-            title={!validCount ? "Fill required fields first" : ""}
-          >
+          <button className="btn-secondary" onClick={addRow} disabled={submitting}>+ Add another item</button>
+          <button className="btn-primary" onClick={handleSubmit} disabled={submitting || !items.length}>
             {submitting ? "Submitting…" : `Create ${validCount} listing(s)`}
           </button>
         </div>
