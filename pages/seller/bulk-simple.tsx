@@ -6,8 +6,8 @@ import Header from "../../components/Header";
 import Footer from "../../components/Footer";
 import { useRequireSeller } from "../../hooks/useRequireSeller";
 
-// Firebase client (must export auth, db, storage)
-import { auth, db, storage } from "../../utils/firebaseClient";
+// Firebase client (auth + db only)
+import { auth, db } from "../../utils/firebaseClient";
 import {
   collection,
   getDocs,
@@ -16,6 +16,7 @@ import {
   limit as qLimit,
 } from "firebase/firestore";
 import {
+  getStorage,
   ref as storageRef,
   uploadBytes,
   getDownloadURL,
@@ -25,13 +26,13 @@ type Designer = { id: string; name: string; slug?: string };
 
 type ItemForm = {
   title: string;
-  brand: string; // will be set from designer dropdown
+  brand: string;
   designerId?: string;
   category: string;
   condition: string;
   size: string;
   color: string;
-  price: string; // typed as string in inputs, converted to number before submit
+  price: string;
   purchase_source: string;
   purchase_proof: string;
   serial_number: string;
@@ -41,67 +42,33 @@ type ItemForm = {
   errorMsg?: string;
 };
 
-const CATEGORIES = [
-  "bags",
-  "shoes",
-  "accessories",
-  "watches",
-  "jewelry",
-  "apparel",
-];
-
-const CONDITIONS = [
-  "New",
-  "Like New",
-  "Excellent",
-  "Very Good",
-  "Good",
-  "Fair",
-];
-
+const CATEGORIES = ["bags", "shoes", "accessories", "watches", "jewelry", "apparel"];
+const CONDITIONS = ["New", "Like New", "Excellent", "Very Good", "Good", "Fair"];
 const PURCHASE_SOURCES = [
-  "Neiman Marcus",
-  "Saks",
-  "Nordstrom",
-  "Selfridges",
-  "Harrods",
-  "Official Boutique",
-  "Private",
-  "Other",
+  "Neiman Marcus","Saks","Nordstrom","Selfridges","Harrods","Official Boutique","Private","Other",
+];
+const PURCHASE_PROOFS = [
+  "Original receipt","PDF invoice","Boutique stamp","Certificate","No proof",
 ];
 
-const PURCHASE_PROOFS = [
-  "Original receipt",
-  "PDF invoice",
-  "Boutique stamp",
-  "Certificate",
-  "No proof",
-];
+// ✅ use app’s default storage (your firebaseClient initializes the app)
+const storage = getStorage();
 
 export default function SellerBulkSimple() {
   const { loading } = useRequireSeller();
 
   const [designers, setDesigners] = useState<Designer[]>([]);
-  const [items, setItems] = useState<ItemForm[]>([
-    mkEmptyItem(), // start with a single row
-  ]);
+  const [items, setItems] = useState<ItemForm[]>([mkEmptyItem()]);
   const [submitting, setSubmitting] = useState(false);
   const [banner, setBanner] = useState<{ type: "ok" | "err"; msg: string }>();
 
   useEffect(() => {
-    // Load approved designers for dropdown (ordered A→Z; limit large enough for your catalogue)
     (async () => {
       try {
-        const q = query(
-          collection(db, "designers"),
-          orderBy("name", "asc"),
-          qLimit(1000)
-        );
+        const q = query(collection(db, "designers"), orderBy("name", "asc"), qLimit(1000));
         const snap = await getDocs(q);
         const list: Designer[] = [];
-        snap.forEach((d) =>
-          list.push({ id: d.id, ...(d.data() as any) } as Designer)
-        );
+        snap.forEach((d) => list.push({ id: d.id, ...(d.data() as any) } as Designer));
         setDesigners(list);
       } catch (e) {
         console.error(e);
@@ -147,17 +114,13 @@ export default function SellerBulkSimple() {
   }
 
   function onDesignerChange(idx: number, value: string) {
-    // value is designerId; map to brand name for row
     const d = designers.find((x) => x.id === value);
-    update(idx, {
-      designerId: value || undefined,
-      brand: d?.name || "",
-    });
+    update(idx, { designerId: value || undefined, brand: d?.name || "" });
   }
 
   function onFiles(idx: number, files: FileList | null) {
     if (!files?.length) return;
-    const asArr = Array.from(files).slice(0, 8); // safety cap
+    const asArr = Array.from(files).slice(0, 8);
     update(idx, { images: asArr });
   }
 
@@ -168,7 +131,6 @@ export default function SellerBulkSimple() {
     if (!row.condition) return { ok: false, msg: "Pick a condition" };
     if (!row.price || !isFinite(Number(row.price)) || Number(row.price) <= 0)
       return { ok: false, msg: "Invalid price" };
-    // optional: require at least 1 image
     if (!row.images?.length) return { ok: false, msg: "Add at least one image" };
     return { ok: true };
   }
@@ -198,7 +160,6 @@ export default function SellerBulkSimple() {
     setSubmitting(true);
 
     try {
-      // 1) Validate all rows
       const problems: string[] = [];
       items.forEach((it, i) => {
         const v = validate(it);
@@ -210,16 +171,14 @@ export default function SellerBulkSimple() {
         return;
       }
 
-      // 2) Upload images (sequentially for simplicity & avoiding abuse)
       const rowsReady: any[] = [];
       for (let i = 0; i < items.length; i++) {
         const it = items[i];
         const urls = it.imageUrls?.length ? it.imageUrls : await uploadImagesForRow(i);
 
         rowsReady.push({
-          // match the server contract you already have:
           title: it.title.trim(),
-          brand: it.brand.trim(), // API will validate brand in designers collection
+          brand: it.brand.trim(),
           category: it.category,
           condition: it.condition,
           size: it.size,
@@ -232,7 +191,6 @@ export default function SellerBulkSimple() {
         });
       }
 
-      // 3) Commit via existing endpoint
       const res = await fetch("/api/seller/bulk-commit", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -243,12 +201,7 @@ export default function SellerBulkSimple() {
         throw new Error(json?.error || "Commit failed");
       }
 
-      setBanner({
-        type: "ok",
-        msg: `Created ${json.created} listing(s). Skipped ${json.skipped}.`,
-      });
-
-      // 4) Reset the form on success
+      setBanner({ type: "ok", msg: `Created ${json.created} listing(s). Skipped ${json.skipped}.` });
       setItems([mkEmptyItem()]);
     } catch (e: any) {
       console.error(e);
@@ -274,9 +227,7 @@ export default function SellerBulkSimple() {
         <div className="page-header">
           <div>
             <h1>Quick Add — Multi-Item Form</h1>
-            <p className="subtitle">
-              Add several listings at once with dropdowns and image uploads.
-            </p>
+            <p className="subtitle">Add several listings at once with dropdowns and image uploads.</p>
           </div>
           <Link className="link-alt" href="/seller/bulk-upload">
             Prefer CSV-style paste? Use Bulk Upload →
@@ -284,13 +235,7 @@ export default function SellerBulkSimple() {
         </div>
 
         {banner && (
-          <p
-            className={`banner ${
-              banner.type === "ok" ? "success" : "error"
-            }`}
-          >
-            {banner.msg}
-          </p>
+          <p className={`banner ${banner.type === "ok" ? "success" : "error"}`}>{banner.msg}</p>
         )}
 
         <div className="rows">
@@ -311,22 +256,15 @@ export default function SellerBulkSimple() {
                 </div>
 
                 {!v.ok && <p className="hint error">⚠ {v.msg}</p>}
-                {it.status === "uploading" && (
-                  <p className="hint">Uploading images…</p>
-                )}
+                {it.status === "uploading" && <p className="hint">Uploading images…</p>}
 
                 <div className="grid">
                   <label>
                     <span>Designer</span>
-                    <select
-                      value={it.designerId || ""}
-                      onChange={(e) => onDesignerChange(idx, e.target.value)}
-                    >
+                    <select value={it.designerId || ""} onChange={(e) => onDesignerChange(idx, e.target.value)}>
                       <option value="">— Pick a designer —</option>
                       {designers.map((d) => (
-                        <option key={d.id} value={d.id}>
-                          {d.name}
-                        </option>
+                        <option key={d.id} value={d.id}>{d.name}</option>
                       ))}
                     </select>
                   </label>
@@ -343,32 +281,20 @@ export default function SellerBulkSimple() {
 
                   <label>
                     <span>Category</span>
-                    <select
-                      value={it.category}
-                      onChange={(e) => update(idx, { category: e.target.value })}
-                    >
+                    <select value={it.category} onChange={(e) => update(idx, { category: e.target.value })}>
                       <option value="">— Pick a category —</option>
                       {CATEGORIES.map((c) => (
-                        <option key={c} value={c}>
-                          {c}
-                        </option>
+                        <option key={c} value={c}>{c}</option>
                       ))}
                     </select>
                   </label>
 
                   <label>
                     <span>Condition</span>
-                    <select
-                      value={it.condition}
-                      onChange={(e) =>
-                        update(idx, { condition: e.target.value })
-                      }
-                    >
+                    <select value={it.condition} onChange={(e) => update(idx, { condition: e.target.value })}>
                       <option value="">— Pick a condition —</option>
                       {CONDITIONS.map((c) => (
-                        <option key={c} value={c}>
-                          {c}
-                        </option>
+                        <option key={c} value={c}>{c}</option>
                       ))}
                     </select>
                   </label>
@@ -410,15 +336,11 @@ export default function SellerBulkSimple() {
                     <span>Purchase source</span>
                     <select
                       value={it.purchase_source}
-                      onChange={(e) =>
-                        update(idx, { purchase_source: e.target.value })
-                      }
+                      onChange={(e) => update(idx, { purchase_source: e.target.value })}
                     >
                       <option value="">— Select —</option>
                       {PURCHASE_SOURCES.map((s) => (
-                        <option key={s} value={s}>
-                          {s}
-                        </option>
+                        <option key={s} value={s}>{s}</option>
                       ))}
                     </select>
                   </label>
@@ -427,15 +349,11 @@ export default function SellerBulkSimple() {
                     <span>Purchase proof</span>
                     <select
                       value={it.purchase_proof}
-                      onChange={(e) =>
-                        update(idx, { purchase_proof: e.target.value })
-                      }
+                      onChange={(e) => update(idx, { purchase_proof: e.target.value })}
                     >
                       <option value="">— Select —</option>
                       {PURCHASE_PROOFS.map((p) => (
-                        <option key={p} value={p}>
-                          {p}
-                        </option>
+                        <option key={p} value={p}>{p}</option>
                       ))}
                     </select>
                   </label>
@@ -445,25 +363,16 @@ export default function SellerBulkSimple() {
                     <input
                       type="text"
                       value={it.serial_number}
-                      onChange={(e) =>
-                        update(idx, { serial_number: e.target.value })
-                      }
+                      onChange={(e) => update(idx, { serial_number: e.target.value })}
                       placeholder="e.g., 12345-ABCD"
                     />
                   </label>
 
                   <div className="uploader">
                     <span>Images (drag & drop or select — up to 8)</span>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      multiple
-                      onChange={(e) => onFiles(idx, e.target.files)}
-                    />
+                    <input type="file" accept="image/*" multiple onChange={(e) => onFiles(idx, e.target.files)} />
                     {!!it.images.length && (
-                      <p className="hint">
-                        Selected: {it.images.map((f) => f.name).join(", ")}
-                      </p>
+                      <p className="hint">Selected: {it.images.map((f) => f.name).join(", ")}</p>
                     )}
                   </div>
                 </div>
@@ -490,62 +399,32 @@ export default function SellerBulkSimple() {
       <Footer />
 
       <style jsx>{`
-        .back-link a {
-          font-size: 12px;
-          color: #9ca3af;
-        }
+        .back-link a { font-size: 12px; color: #9ca3af; }
         .back-link a:hover { color: #e5e7eb; }
-        .page-header {
-          margin-top: 16px;
-          display: flex; align-items: center; justify-content: space-between;
-        }
+        .page-header { margin-top: 16px; display: flex; align-items: center; justify-content: space-between; }
         h1 { font-size: 20px; font-weight: 600; color: #fff; }
         .subtitle { margin-top: 4px; font-size: 12px; color: #9ca3af; }
-        .link-alt {
-          font-size: 12px; color: #93c5fd; text-decoration: underline;
-        }
+        .link-alt { font-size: 12px; color: #93c5fd; text-decoration: underline; }
         .banner { margin: 12px 0; font-weight: 600; }
         .banner.success { color: #6ee7b7; }
         .banner.error { color: #f87171; }
         .rows { display: grid; gap: 16px; margin-top: 12px; }
-        .card {
-          border-radius: 16px; border: 1px solid #ffffff1a;
-          background: #ffffff0d; padding: 16px; font-size: 12px;
-        }
+        .card { border-radius: 16px; border: 1px solid #ffffff1a; background: #ffffff0d; padding: 16px; font-size: 12px; }
         .row-header { display: flex; justify-content: space-between; align-items: center; }
         .row-header h2 { font-size: 14px; color: #fff; }
-        .chip {
-          border-radius: 999px; padding: 6px 10px; font-size: 11px; font-weight: 600;
-          background: #111827; color: #e5e7eb; border: 1px solid #374151; cursor: pointer;
-        }
+        .chip { border-radius: 999px; padding: 6px 10px; font-size: 11px; font-weight: 600; background: #111827; color: #e5e7eb; border: 1px solid #374151; cursor: pointer; }
         .chip.danger { background: #7f1d1d; border-color: #fecaca; color: #fecaca; }
         .hint { margin-top: 6px; color: #d1d5db; }
         .hint.error { color: #fca5a5; }
-        .grid {
-          display: grid; gap: 12px; margin-top: 12px;
-        }
-        @media (min-width: 768px) {
-          .grid {
-            grid-template-columns: repeat(3, minmax(0, 1fr));
-          }
-        }
+        .grid { display: grid; gap: 12px; margin-top: 12px; }
+        @media (min-width: 768px) { .grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
         label { display: flex; flex-direction: column; gap: 6px; }
         label span { color: #9ca3af; font-size: 11px; letter-spacing: .02em; text-transform: uppercase; }
-        input, select {
-          background: #00000066; color: #fff; border: 1px solid #ffffff1a;
-          border-radius: 6px; padding: 10px; font-size: 12px;
-        }
+        input, select { background: #00000066; color: #fff; border: 1px solid #ffffff1a; border-radius: 6px; padding: 10px; font-size: 12px; }
         input:focus, select:focus { outline: none; border-color: #fff; }
-        .uploader input[type="file"] {
-          background: transparent; border: 0; padding: 0; color: #d1d5db;
-        }
-        .actions {
-          margin-top: 16px; display: flex; gap: 10px; align-items: center;
-        }
-        .btn-primary, .btn-secondary {
-          border-radius: 999px; padding: 10px 16px; font-size: 12px; font-weight: 700;
-          border: none; cursor: pointer;
-        }
+        .uploader input[type="file"] { background: transparent; border: 0; padding: 0; color: #d1d5db; }
+        .actions { margin-top: 16px; display: flex; gap: 10px; align-items: center; }
+        .btn-primary, .btn-secondary { border-radius: 999px; padding: 10px 16px; font-size: 12px; font-weight: 700; border: none; cursor: pointer; }
         .btn-primary { background: #fff; color: #000; }
         .btn-primary:disabled { opacity: .6; cursor: not-allowed; }
         .btn-secondary { background: #111827; color: #e5e7eb; border: 1px solid #374151; }
