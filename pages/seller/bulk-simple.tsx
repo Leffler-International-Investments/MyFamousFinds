@@ -1,7 +1,8 @@
 // /pages/seller/bulk-simple.tsx
 // Quick Add — Multi-Item Form (Seller)
 // NOTE: This version keeps your existing layout/flow and ONLY changes
-// how the Designers <select> is populated. It now loads directly from
+// how the Designers <select> is populated.
+// It now loads directly from
 // Firestore on the client (same approach as /sell), with a safe fallback.
 // No server /api call and no composite index required.
 
@@ -10,7 +11,6 @@ import Head from "next/head";
 import Link from "next/link";
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
-
 // ✅ Client Firestore (same as /sell page uses)
 import { db } from "../../utils/firebaseClient";
 import {
@@ -46,7 +46,6 @@ const CONDITIONS = [
   "Good",
   "Fair",
 ];
-
 const CATEGORIES = [
   "Bags",
   "Shoes",
@@ -55,12 +54,11 @@ const CATEGORIES = [
   "Clothing",
   "Accessories",
 ];
-
 const SOURCES = ["Boutique / Brand", "Department Store", "Resale", "Gift", "Other"];
 const PROOFS = ["Receipt", "Bank statement", "Certificate", "Other"];
 
 export default function BulkSimple() {
-  const [items, setItems] = useState<Item[]>([{ }]);
+  const [items, setItems] = useState<Item[]>([{}]);
   const [designers, setDesigners] = useState<Designer[]>([]);
   const [loadingDesigners, setLoadingDesigners] = useState(false);
   const [designerError, setDesignerError] = useState<string | null>(null);
@@ -73,10 +71,11 @@ export default function BulkSimple() {
       setLoadingDesigners(true);
       setDesignerError(null);
       try {
-        // First try: approved + ordered (will work if an index exists; if not, we catch and fallback)
+        // First try: active + ordered (will work if an index exists; if not, we catch and fallback)
         const q = query(
           collection(db, "designers"),
-          where("approved", "==", true),
+          // 1. CHANGED THIS LINE
+          where("active", "==", true),
           orderBy("name", "asc")
         );
         const snap = await getDocs(q);
@@ -85,22 +84,25 @@ export default function BulkSimple() {
           name: String((d.data() as DocumentData).name ?? d.id),
         }));
         if (!cancelled) setDesigners(list);
+
       } catch (err) {
-        // Fallback: get all docs, sort on client, then filter by approved (or no field)
+        // Fallback: get all docs, sort on client, then filter by active (or no field)
         try {
           const snap = await getDocs(collection(db, "designers"));
           const list = snap.docs
             .map(d => {
               const data = d.data() as DocumentData;
+              // 2. CHANGED THIS BLOCK
               return {
                 id: d.id,
                 name: String(data?.name ?? d.id),
-                approved: Boolean(data?.approved ?? true),
+                active: Boolean(data?.active ?? true),
               };
             })
-            .filter(d => d.approved)
+            .filter(d => d.active)
             .sort((a, b) => a.name.localeCompare(b.name))
             .map(({ id, name }) => ({ id, name }));
+            
           if (!cancelled) setDesigners(list);
         } catch (e) {
           if (!cancelled) {
@@ -118,10 +120,8 @@ export default function BulkSimple() {
 
   // ---------- Handlers ----------
   const addItem = () => setItems(prev => [...prev, {}]);
-
   const removeItem = (idx: number) =>
     setItems(prev => prev.filter((_, i) => i !== idx));
-
   const update = (idx: number, patch: Partial<Item>) =>
     setItems(prev => prev.map((it, i) => (i === idx ? { ...it, ...patch } : it)));
 
@@ -358,12 +358,14 @@ export default function BulkSimple() {
         @media(min-width:920px){ .grid { grid-template-columns: repeat(3, 1fr); } .full { grid-column: 1 / -1; } }
         label span { display:block; font-size:12px; color:#9ca3af; margin: 4px 0; }
         input, select {
-          background:#00000066; color:#fff; border:1px solid #ffffff1a;
+          background:#00000066;
+          color:#fff; border:1px solid #ffffff1a;
           border-radius:6px; padding:10px; font-size:12px; width:100%;
         }
         .actions { display:flex; gap:10px; margin:16px 0 32px; }
         .btn-dark, .btn-primary {
-          border:none; border-radius:999px; padding:10px 16px; font-size:12px; font-weight:700; cursor:pointer;
+          border:none;
+          border-radius:999px; padding:10px 16px; font-size:12px; font-weight:700; cursor:pointer;
         }
         .btn-dark { background:#111827; color:#e5e7eb; border:1px solid #374151; }
         .btn-primary { background:#fff; color:#000; }
