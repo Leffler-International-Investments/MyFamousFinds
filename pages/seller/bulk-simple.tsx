@@ -12,8 +12,8 @@ type Designer = { id: string; name: string; slug?: string };
 
 type ItemForm = {
   title: string;
-  brand: string;            // free-text fallback if no designers loaded
-  designerId?: string;      // set when user picks a designer
+  designerId?: string;
+  brand: string; // derived from chosen designer (kept for API compatibility)
   category: string;
   condition: string;
   size: string;
@@ -27,8 +27,8 @@ type ItemForm = {
   status?: "idle" | "uploading" | "ready" | "error";
 };
 
-const CATEGORIES = ["bags", "shoes", "accessories", "watches", "jewelry", "apparel"];
-const CONDITIONS = ["New", "Like New", "Excellent", "Very Good", "Good", "Fair"];
+const CATEGORIES = ["bags","shoes","accessories","watches","jewelry","apparel"];
+const CONDITIONS = ["New","Like New","Excellent","Very Good","Good","Fair"];
 const PURCHASE_SOURCES = ["Neiman Marcus","Saks","Nordstrom","Selfridges","Harrods","Official Boutique","Private","Other"];
 const PURCHASE_PROOFS = ["Original receipt","PDF invoice","Boutique stamp","Certificate","No proof"];
 
@@ -36,57 +36,45 @@ export default function SellerBulkSimple() {
   const { loading } = useRequireSeller();
 
   const [designers, setDesigners] = useState<Designer[]>([]);
+  const [loadingDesigners, setLoadingDesigners] = useState(true);
+  const [apiFailed, setApiFailed] = useState(false);
+
   const [items, setItems] = useState<ItemForm[]>([mkEmptyItem()]);
   const [submitting, setSubmitting] = useState(false);
   const [banner, setBanner] = useState<{ type: "ok" | "err"; msg: string }>();
   const [showErrors, setShowErrors] = useState(false);
-  const designersEmpty = designers.length === 0;
 
-  // 1) Try server API (Admin SDK). 2) Fallback to client Firestore if empty.
   useEffect(() => {
     let alive = true;
-
     (async () => {
       try {
+        setLoadingDesigners(true);
         const res = await fetch("/api/public/designers?approved=true");
         const json = await res.json();
-        if (alive && json?.ok && Array.isArray(json.designers) && json.designers.length) {
-          setDesigners(json.designers as Designer[]);
-          return;
-        }
+        if (!res.ok || !json?.ok) throw new Error(json?.error || "failed");
+        if (alive) setDesigners(json.designers || []);
       } catch (e) {
-        console.warn("Designers API not available, falling back:", e);
-      }
-
-      // Fallback: dynamic import to avoid SSR touching firebase client
-      try {
-        const { db } = await import("../../utils/firebaseClient");
-        const { collection, getDocs, query, orderBy, limit } = await import("firebase/firestore");
-        const q = query(collection(db, "designers"), orderBy("name", "asc"), limit(2000));
-        const snap = await getDocs(q);
-        const list: Designer[] = [];
-        snap.forEach((d) => {
-          const data = d.data() as any;
-          list.push({ id: d.id, name: String(data?.name ?? d.id), slug: data?.slug });
-        });
-        if (alive) setDesigners(list);
-      } catch (e) {
-        console.error("Client Firestore fallback failed:", e);
+        console.error(e);
+        if (alive) setApiFailed(true);
+      } finally {
+        if (alive) setLoadingDesigners(false);
       }
     })();
-
     return () => { alive = false; };
   }, []);
 
-  const validCount = useMemo(() => items.filter((it) => validate(it, designersEmpty).ok).length, [items, designersEmpty]);
+  const validCount = useMemo(
+    () => items.filter((it) => validate(it).ok).length,
+    [items]
+  );
 
   if (loading) return <div className="dark-theme-page" />;
 
   function mkEmptyItem(): ItemForm {
     return {
       title: "",
-      brand: "",
       designerId: undefined,
+      brand: "",
       category: "",
       condition: "",
       size: "",
@@ -103,13 +91,15 @@ export default function SellerBulkSimple() {
   function update(idx: number, patch: Partial<ItemForm>) {
     setItems((prev) => prev.map((it, i) => (i === idx ? { ...it, ...patch } : it)));
   }
-
   function addRow() { setItems((prev) => [...prev, mkEmptyItem()]); }
   function removeRow(idx: number) { setItems((prev) => prev.filter((_, i) => i !== idx)); }
 
   function onDesignerChange(idx: number, designerId: string) {
     const d = designers.find((x) => x.id === designerId);
-    update(idx, { designerId: designerId || undefined, brand: d?.name || "" });
+    update(idx, {
+      designerId: designerId || undefined,
+      brand: d?.name || "",
+    });
   }
 
   function onFiles(idx: number, files: FileList | null) {
@@ -117,28 +107,24 @@ export default function SellerBulkSimple() {
     update(idx, { images: Array.from(files).slice(0, 8) });
   }
 
-  function validate(row: ItemForm, noDesigners: boolean): { ok: boolean; msg?: string } {
+  function validate(row: ItemForm): { ok: boolean; msg?: string } {
     if (!row.title?.trim()) return { ok: false, msg: "Missing title" };
-    // If designers list exists, force picking one; otherwise allow free-text brand
-    if (!noDesigners && !row.designerId) return { ok: false, msg: "Pick a designer" };
-    if (noDesigners && !row.brand?.trim()) return { ok: false, msg: "Enter brand" };
+    if (!row.designerId) return { ok: false, msg: "Pick a designer" };
     if (!row.category) return { ok: false, msg: "Pick a category" };
     if (!row.condition) return { ok: false, msg: "Pick a condition" };
-    if (!row.price || !isFinite(Number(row.price)) || Number(row.price) <= 0) return { ok: false, msg: "Invalid price" };
+    if (!row.price || !isFinite(Number(row.price)) || Number(row.price) <= 0)
+      return { ok: false, msg: "Invalid price" };
     if (!row.images?.length) return { ok: false, msg: "Add at least one image" };
     return { ok: true };
   }
 
   async function uploadImagesForRow(idx: number): Promise<string[]> {
-    if (typeof window === "undefined") throw new Error("Images can only be uploaded in the browser");
     const storage = getStorage();
-
     const row = items[idx];
     const user = auth.currentUser;
     if (!user) throw new Error("Not authenticated");
 
     update(idx, { status: "uploading" });
-
     const urls: string[] = [];
     for (const file of row.images) {
       const path = `uploads/sellers/${user.uid}/${Date.now()}_${file.name}`;
@@ -154,11 +140,10 @@ export default function SellerBulkSimple() {
     setShowErrors(true);
     setBanner(undefined);
     setSubmitting(true);
-
     try {
       const problems: string[] = [];
       items.forEach((it, i) => {
-        const v = validate(it, designersEmpty);
+        const v = validate(it);
         if (!v.ok) problems.push(`Row ${i + 1}: ${v.msg}`);
       });
       if (problems.length) {
@@ -171,10 +156,9 @@ export default function SellerBulkSimple() {
       for (let i = 0; i < items.length; i++) {
         const it = items[i];
         const urls = it.imageUrls?.length ? it.imageUrls : await uploadImagesForRow(i);
-
         rowsReady.push({
           title: it.title.trim(),
-          brand: (it.brand || "").trim(),       // server will still validate brand against designers
+          brand: it.brand.trim(),
           category: it.category,
           condition: it.condition,
           size: it.size,
@@ -206,6 +190,8 @@ export default function SellerBulkSimple() {
     }
   }
 
+  const designersEmpty = !loadingDesigners && designers.length === 0;
+
   return (
     <div className="dark-theme-page">
       <Head><title>Seller — Quick Add (Form) | Famous Finds</title></Head>
@@ -221,18 +207,16 @@ export default function SellerBulkSimple() {
           <Link className="link-alt" href="/seller/bulk-upload">Prefer CSV-style paste? Use Bulk Upload →</Link>
         </div>
 
-        {/* If no designers available, show a small notice + free-text brand */}
-        {designersEmpty && (
-          <p className="banner error">
-            Couldn’t load designers list. You can still type the brand manually; the server will validate it.
-          </p>
+        {/* Only show this if the API failed (not just empty) */}
+        {apiFailed && (
+          <p className="banner error">Couldn’t load designers list from server.</p>
         )}
 
         {banner && <p className={`banner ${banner.type === "ok" ? "success" : "error"}`}>{banner.msg}</p>}
 
         <div className="rows">
           {items.map((it, idx) => {
-            const v = validate(it, designersEmpty);
+            const v = validate(it);
             return (
               <section className="card" key={idx}>
                 <div className="row-header">
@@ -243,22 +227,25 @@ export default function SellerBulkSimple() {
                 {!v.ok && showErrors && <p className="hint error">⚠ {v.msg}</p>}
 
                 <div className="grid">
-                  {!designersEmpty ? (
-                    <label>
-                      <span>Designer</span>
-                      <select value={it.designerId || ""} onChange={(e) => onDesignerChange(idx, e.target.value)}>
-                        <option value="">— Pick a designer —</option>
-                        {designers.map((d) => (
-                          <option key={d.id} value={d.id}>{d.name}</option>
-                        ))}
-                      </select>
-                    </label>
-                  ) : (
-                    <label>
-                      <span>Brand (type manually)</span>
-                      <input type="text" value={it.brand} onChange={(e) => update(idx, { brand: e.target.value })} placeholder="e.g., Chanel" />
-                    </label>
-                  )}
+                  <label>
+                    <span>Designer</span>
+                    <select
+                      value={it.designerId || ""}
+                      onChange={(e) => onDesignerChange(idx, e.target.value)}
+                      disabled={loadingDesigners || designersEmpty}
+                    >
+                      {loadingDesigners && <option value="">Loading…</option>}
+                      {!loadingDesigners && designersEmpty && <option value="">No designers configured</option>}
+                      {!loadingDesigners && !designersEmpty && (
+                        <>
+                          <option value="">— Pick a designer —</option>
+                          {designers.map((d) => (
+                            <option key={d.id} value={d.id}>{d.name}</option>
+                          ))}
+                        </>
+                      )}
+                    </select>
+                  </label>
 
                   <label>
                     <span>Title</span>
@@ -335,7 +322,6 @@ export default function SellerBulkSimple() {
           </button>
         </div>
       </main>
-
       <Footer />
 
       <style jsx>{`
