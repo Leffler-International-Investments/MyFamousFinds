@@ -1,5 +1,7 @@
+// FILE: /pages/api/seller/bulk-commit.ts
 import type { NextApiRequest, NextApiResponse } from "next";
 import { adminDb } from "../../../utils/firebaseAdmin";
+import { FieldValue } from "firebase-admin/firestore";
 
 // ---------- Types ----------
 type IncomingRow = {
@@ -9,18 +11,28 @@ type IncomingRow = {
   condition?: string;
   size?: string;
   color?: string;
-  price?: number;
+  price?: number | string;
   purchase_source?: string;
   purchase_proof?: string;
   serial_number?: string;
 };
 
-type CleanRow = Required<IncomingRow> & {
+// No timestamp fields here (we add them at write time to avoid type issues)
+type CleanRow = Required<{
+  title: string;
+  brand: string;
+  category: string;
+  condition: string;
+  size: string;
+  color: string;
+  price: number;
+  purchase_source: string;
+  purchase_proof: string;
+  serial_number: string;
+}> & {
   _source?: "bulk";
   currency: "USD";
   status: "pending_review";
-  createdAt: FirebaseFirestore.FieldValue;
-  updatedAt: FirebaseFirestore.FieldValue;
 };
 
 type ApiOk = { ok: true; created: number; skipped: number };
@@ -36,6 +48,15 @@ function toStr(v: unknown): string {
   return String(v).trim();
 }
 
+function coercePrice(v: unknown): number | null {
+  if (typeof v === "number") return isFinitePositiveNumber(v) ? v : null;
+  if (typeof v === "string") {
+    const n = Number(v.replace(/[^0-9.]/g, ""));
+    return isFinitePositiveNumber(n) ? n : null;
+  }
+  return null;
+}
+
 function cleanRow(r: IncomingRow): CleanRow | null {
   const title = toStr(r.title);
   const brand = toStr(r.brand);
@@ -46,8 +67,7 @@ function cleanRow(r: IncomingRow): CleanRow | null {
   const purchase_source = toStr(r.purchase_source);
   const purchase_proof = toStr(r.purchase_proof);
   const serial_number = toStr(r.serial_number);
-
-  const price = typeof r.price === "string" ? Number(r.price) : r.price;
+  const price = coercePrice(r.price);
 
   if (
     !title ||
@@ -59,7 +79,7 @@ function cleanRow(r: IncomingRow): CleanRow | null {
     !purchase_source ||
     !purchase_proof ||
     !serial_number ||
-    !isFinitePositiveNumber(price)
+    price == null
   ) {
     return null;
   }
@@ -78,15 +98,14 @@ function cleanRow(r: IncomingRow): CleanRow | null {
     _source: "bulk",
     currency: "USD",
     status: "pending_review",
-    createdAt: adminDb.fieldValue.serverTimestamp(),
-    updatedAt: adminDb.fieldValue.serverTimestamp(),
-  } as unknown as CleanRow;
+  };
 }
 
 // ---------- Designers Directory Cache ----------
 async function getApprovedDesigners(): Promise<Set<string>> {
   const snap = await adminDb.collection("designers").get();
   const set = new Set<string>();
+  if (snap.empty) return set; // empty set => allow all (handled below)
   snap.forEach((d) => {
     const data = d.data() as any;
     if (data && data.name && data.active !== false) {
@@ -113,14 +132,15 @@ export default async function handler(
         .json({ ok: false, error: "Body must include array 'rows'" });
     }
 
-    // Optional: seller identity (if you pass it via header/cookie/session, attach it here)
+    // Optional seller identity (hook up to your auth later if you want)
     // const sellerId = req.headers["x-ff-seller-id"];
-    // if (!sellerId) return res.status(401).json({ ok:false, error:"Missing seller identity" });
 
     // Load designers directory once
     const approvedDesigners = await getApprovedDesigners();
+    const enforceDesigners = approvedDesigners.size > 0;
 
-    const MAX_PER_REQUEST = 500; // Firestore batch limit is 500 operations
+    // Firestore batch limit (500 ops)
+    const MAX_PER_REQUEST = 500;
     const slice = rows.slice(0, MAX_PER_REQUEST);
 
     let created = 0;
@@ -135,22 +155,30 @@ export default async function handler(
         continue;
       }
 
-      // Designers Directory enforcement
-      const brandKey = cleaned.brand.toLowerCase();
-      if (approvedDesigners.size > 0 && !approvedDesigners.has(brandKey)) {
-        skipped++;
-        continue;
+      // Designers Directory enforcement (if directory exists)
+      if (enforceDesigners) {
+        const brandKey = cleaned.brand.toLowerCase();
+        if (!approvedDesigners.has(brandKey)) {
+          skipped++;
+          continue;
+        }
       }
 
-      // Create doc
       const ref = adminDb.collection("listings").doc();
       batch.set(ref, {
         ...cleaned,
         // sellerId: sellerId || null,
-        vetting: { stage: "intake", by: "bulk-upload", at: adminDb.fieldValue.serverTimestamp() },
         pricing: { amount: cleaned.price, currency: "USD" },
         visibility: { public: false, searchable: false },
+        vetting: {
+          stage: "intake",
+          by: "bulk-upload",
+          at: FieldValue.serverTimestamp(),
+        },
+        createdAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
       });
+
       created++;
     }
 
