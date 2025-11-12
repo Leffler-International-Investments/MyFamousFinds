@@ -8,16 +8,6 @@ type BulkUploadResponse = {
   data?: any;
 };
 
-/**
- * Seller bulk-upload placeholder API.
- *
- * This endpoint is only here so the project compiles.
- * It does NOT change your existing UI logic on
- * /pages/seller/bulk-upload.tsx.
- *
- * If you later want real logic (saving the file, etc.),
- * we can extend this handler without touching the page.
- */
 export default function handler(
   req: NextApiRequest,
   res: NextApiResponse<BulkUploadResponse>
@@ -36,4 +26,3 @@ export default function handler(
       "Bulk-upload placeholder endpoint. Your UI page /seller/bulk-upload.tsx remains unchanged.",
   });
 }
-
