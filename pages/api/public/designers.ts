@@ -1,27 +1,32 @@
 // FILE: /pages/api/public/designers.ts
-// Returns approved designers for public dropdowns.
-// Uses the Firebase Admin SDK so it works regardless of client rules.
+// Returns designers list using Firebase Admin. Works even if client rules are strict.
 
 import type { NextApiRequest, NextApiResponse } from "next";
-import { adminDb } from "../../../utils/firebaseAdmin";
+import { adminDb } from "../../../utils/firebaseAdmin"; // <-- path fixed for /pages/api/public/*
 
-type ApiOk = { ok: true; designers: { id: string; name: string; slug?: string }[] };
+type D = { id: string; name: string; slug?: string };
+type ApiOk = { ok: true; designers: D[] };
 type ApiErr = { ok: false; error: string };
 
 export default async function handler(
-  _req: NextApiRequest,
+  req: NextApiRequest,
   res: NextApiResponse<ApiOk | ApiErr>
 ) {
   try {
-    const snap = await adminDb
-      .collection("designers")
-      .orderBy("name", "asc")
-      .limit(1000)
-      .get();
+    // Optional switch: ?approved=true to only return approved designers
+    const onlyApproved = String(req.query.approved || "").toLowerCase() === "true";
 
-    const designers = snap.docs.map((d) => {
+    let ref = adminDb.collection("designers");
+    if (onlyApproved) ref = ref.where("approved", "==", true);
+    const snap = await ref.orderBy("name", "asc").limit(2000).get();
+
+    const designers: D[] = snap.docs.map((d) => {
       const data = d.data() as any;
-      return { id: d.id, name: String(data.name || d.id), slug: data.slug || undefined };
+      return {
+        id: d.id,
+        name: String(data?.name ?? d.id),
+        slug: data?.slug || undefined,
+      };
     });
 
     res.status(200).json({ ok: true, designers });
