@@ -5,7 +5,6 @@ import Head from "next/head";
 import Link from "next/link";
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
-import { useRequireManagement } from "../../hooks/useRequireManagement";
 import firebaseApp from "../../utils/firebaseClient";
 import {
   getFirestore,
@@ -32,7 +31,7 @@ type Designer = {
 };
 
 export default function ManagementDesignersPage() {
-  const { loading } = useRequireManagement();
+  // 🔹 removed useRequireManagement; page just renders
   const [designers, setDesigners] = useState<Designer[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -70,8 +69,6 @@ export default function ManagementDesignersPage() {
     );
     return () => unsub();
   }, []);
-
-  if (loading) return <div className="dark-theme-page" />;
 
   const handleAddDesigner = async (e: FormEvent) => {
     e.preventDefault();
