@@ -1,4 +1,4 @@
-// FILE: /pages/seller/bulk-upload.tsx
+// pages/seller/bulk-upload.tsx
 
 import { useState, useRef, useMemo, useEffect } from "react";
 import Head from "next/head";
@@ -7,28 +7,21 @@ import Header from "../../components/Header";
 import Footer from "../../components/Footer";
 import { useRequireSeller } from "../../hooks/useRequireSeller";
 import firebaseApp from "../../utils/firebaseClient";
-import {
-  getFirestore,
-  collection,
-  getDocs,
-} from "firebase/firestore";
+import { getFirestore, collection, getDocs } from "firebase/firestore";
 
 const db = getFirestore(firebaseApp);
 
 type RawRow = {
-  id?: string;
   title?: string;
   brand?: string;
   category?: string;
   condition?: string;
   size?: string;
   color?: string;
-  price?: string | number;
+  price?: number;
   purchase_source?: string;
   purchase_proof?: string;
   serial_number?: string;
-  authenticity_confirmed?: string | boolean;
-  imageUrls?: string[];
 };
 
 type ParsedRow = RawRow & {
@@ -46,6 +39,7 @@ type ApiResult = {
 
 export default function SellerBulkUpload() {
   const { loading } = useRequireSeller();
+
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [rawText, setRawText] = useState("");
   const [rows, setRows] = useState<ParsedRow[]>([]);
@@ -53,133 +47,170 @@ export default function SellerBulkUpload() {
   const [committing, setCommitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<ApiResult | null>(null);
+
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 
   const [designerNames, setDesignerNames] = useState<string[]>([]);
   const [designersLoaded, setDesignersLoaded] = useState(false);
   const [designerError, setDesignerError] = useState<string | null>(null);
 
-  const okRows = useMemo(
-    () => rows.filter((r) => r._status === "ok"),
-    [rows]
-  );
-
+  // Load approved designers from Designers Directory (Firestore)
   useEffect(() => {
-    const fetchDesigners = async () => {
+    let cancelled = false;
+
+    const loadDesigners = async () => {
       try {
         const snap = await getDocs(collection(db, "designers"));
+        if (cancelled) return;
+
         const names: string[] = [];
         snap.forEach((docSnap) => {
           const data = docSnap.data() as any;
           if (!data) return;
           if (data.active === false) return;
           if (data.name) {
-            names.push(data.name.toString());
+            names.push(String(data.name));
           }
         });
+
         setDesignerNames(names);
       } catch (err) {
-        console.error(err);
+        console.error("Failed to load designers", err);
         setDesignerError(
-          "Could not load approved designers. Brand checks are disabled for this upload."
+          "Could not load the approved Designers Directory. Brand checks may be limited for this upload."
         );
       } finally {
-        setDesignersLoaded(true);
+        if (!cancelled) {
+          setDesignersLoaded(true);
+        }
       }
     };
-    fetchDesigners();
+
+    loadDesigners();
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
-  if (loading) return <div className="dark-theme-page"></div>;
+  const okRows = useMemo(
+    () => rows.filter((r) => r._status === "ok"),
+    [rows]
+  );
+
+  const counts = useMemo(
+    () => ({
+      total: rows.length,
+      ok: rows.filter((r) => r._status === "ok").length,
+      missing: rows.filter((r) => r._status === "missing_field").length,
+      invalidPrice: rows.filter((r) => r._status === "invalid_price").length,
+      authMissing: rows.filter((r) => r._status === "auth_missing").length,
+    }),
+    [rows]
+  );
+
+  const hasBlockingAuthIssues = counts.authMissing > 0;
 
   const handleParse = () => {
     setError(null);
     setResult(null);
+    setBusy(true);
 
-    const trimmed = rawText.trim();
-    if (!trimmed) {
-      setRows([]);
-      setStep(2);
-      return;
-    }
-
-    const lines = trimmed
-      .split(/\r?\n/)
-      .map((l) => l.trim())
-      .filter(Boolean);
-
-    const parsed: ParsedRow[] = [];
-    const approvedSet =
-      designerNames.length > 0
-        ? new Set(designerNames.map((n) => n.toLowerCase()))
-        : null;
-
-    lines.forEach((line, idx) => {
-      const parts = line.split(",").map((p) => p.trim());
-      if (parts.length < 10) {
-        parsed.push({
-          _row: idx + 1,
-          _status: "missing_field",
-          _reason:
-            "Expected 10 fields: title,brand,category,condition,size,color,price,purchase_source,purchase_proof,serial_number",
-        });
+    try {
+      const trimmed = rawText.trim();
+      if (!trimmed) {
+        setRows([]);
+        setStep(2);
         return;
       }
 
-      const [
-        title,
-        brand,
-        category,
-        condition,
-        size,
-        color,
-        price,
-        purchase_source,
-        purchase_proof,
-        serial_number,
-      ] = parts;
+      const lines = trimmed
+        .split(/\r?\n/)
+        .map((l) => l.trim())
+        .filter(Boolean);
 
-      const priceNum = Number(price);
-      if (!price || !isFinite(priceNum) || priceNum <= 0) {
-        parsed.push({
-          _row: idx + 1,
-          _status: "invalid_price",
-          _reason: "Price must be a positive number in USD.",
-        });
-        return;
-      }
+      const parsed: ParsedRow[] = [];
 
-      let status: ParsedRow["_status"] = "ok";
-      let reason: string | undefined;
+      const approvedSet =
+        designersLoaded && designerNames.length
+          ? new Set(
+              designerNames.map((n) =>
+                n.toString().trim().toLowerCase()
+              )
+            )
+          : null;
 
-      if (designersLoaded && approvedSet && approvedSet.size > 0) {
-        const brandName = (brand || "").toString().trim().toLowerCase();
-        if (!brandName || !approvedSet.has(brandName)) {
-          status = "auth_missing";
-          reason =
-            "Brand/designer is not in the approved Designers Directory. Contact management or request this designer before bulk uploading.";
+      lines.forEach((line, idx) => {
+        const parts = line.split(",").map((p) => p.trim());
+
+        if (parts.length !== 10) {
+          parsed.push({
+            _row: idx + 1,
+            _status: "missing_field",
+            _reason:
+              "Expected 10 fields: title,brand,category,condition,size,color,price,purchase_source,purchase_proof,serial_number",
+          });
+          return;
         }
-      }
 
-      parsed.push({
-        _row: idx + 1,
-        _status: status,
-        _reason: reason,
-        title,
-        brand,
-        category,
-        condition,
-        size,
-        color,
-        price: priceNum,
-        purchase_source,
-        purchase_proof,
-        serial_number,
+        const [
+          title,
+          brand,
+          category,
+          condition,
+          size,
+          color,
+          price,
+          purchase_source,
+          purchase_proof,
+          serial_number,
+        ] = parts;
+
+        const priceNum = Number(price);
+        if (!price || !isFinite(priceNum) || priceNum <= 0) {
+          parsed.push({
+            _row: idx + 1,
+            _status: "invalid_price",
+            _reason: "Price must be a positive number in USD.",
+          });
+          return;
+        }
+
+        let status: ParsedRow["_status"] = "ok";
+        let reason: string | undefined;
+
+        // Designers Directory check
+        if (designersLoaded && approvedSet && approvedSet.size > 0) {
+          const brandName = (brand || "").toString().trim().toLowerCase();
+          if (!brandName || !approvedSet.has(brandName)) {
+            status = "auth_missing";
+            reason =
+              "Brand/designer is not in the approved Designers Directory. Please contact management or request this designer before bulk uploading.";
+          }
+        }
+
+        parsed.push({
+          _row: idx + 1,
+          _status: status,
+          _reason: reason,
+          title,
+          brand,
+          category,
+          condition,
+          size,
+          color,
+          price: priceNum,
+          purchase_source,
+          purchase_proof,
+          serial_number,
+        });
       });
-    });
 
-    setRows(parsed);
-    setStep(2);
+      setRows(parsed);
+      setStep(2);
+    } finally {
+      setBusy(false);
+    }
   };
 
   const handleCommit = async () => {
@@ -193,10 +224,13 @@ export default function SellerBulkUpload() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ rows: okRows }),
       });
+
       const json: ApiResult = await res.json();
+
       if (!res.ok || !json.ok) {
         throw new Error(json.error || "Unable to create listings.");
       }
+
       setResult(json);
       setStep(3);
     } catch (err: any) {
@@ -211,6 +245,10 @@ export default function SellerBulkUpload() {
     "Chanel Classic Flap Bag,Chanel,bags,Like New,M,Black,5200,Neiman Marcus,Original receipt,12345-ABCD",
     "Gucci Marmont Belt,Gucci,accessories,Good,M,Black,480,Saks,PDF invoice,GG-778899",
   ];
+
+  if (loading) {
+    return null;
+  }
 
   return (
     <div className="dark-theme-page">
@@ -237,346 +275,486 @@ export default function SellerBulkUpload() {
               blocked until management reviews them.
             </p>
             {designerError && (
-              <p className="subtitle" style={{ color: "#fbbf24" }}>
-                {designerError}
-              </p>
+              <p className="subtitle warning">{designerError}</p>
             )}
           </div>
         </div>
 
         <ol className="steps-grid">
           <li className={step >= 1 ? "step-active" : ""}>
-            1. Paste your items
+            <span className="step-label">1. Paste your items</span>
+            <p>One item per line, with 10 comma-separated fields.</p>
           </li>
           <li className={step >= 2 ? "step-active" : ""}>
-            2. Review and fix issues
+            <span className="step-label">
+              2. Check for errors &amp; designers
+            </span>
+            <p>Fix any missing fields or brands not in the directory.</p>
           </li>
           <li className={step >= 3 ? "step-active" : ""}>
-            3. Confirm and submit
+            <span className="step-label">3. Confirm &amp; submit</span>
+            <p>Create listings only for validated items.</p>
           </li>
         </ol>
 
-        <section className="card">
-          <h2>1. Paste your items (USD)</h2>
-          <p className="card-subtitle">
-            One item per line, fields separated by commas:
-          </p>
-          <p className="card-subtitle">
-            <code>
-              title, brand, category, condition, size, color, price (USD),
-              purchase_source, purchase_proof, serial_number
-            </code>
-          </p>
-
-          <div className="example-box">
-            <p>Example (copy/paste):</p>
-            {exampleLines.map((line) => (
-              <p key={line} className="example-mono">
-                {line}
-              </p>
-            ))}
-          </div>
-
-          <textarea
-            ref={textareaRef}
-            className="form-textarea"
-            placeholder="Paste your items here…"
-            value={rawText}
-            onChange={(e) => setRawText(e.target.value)}
-          />
-
-          <div className="button-row">
-            <button
-              onClick={handleParse}
-              disabled={busy}
-              className="btn-primary"
-            >
-              Parse items
-            </button>
-          </div>
-        </section>
-
-        <section className="card">
-          <h2>2. Review parsed items</h2>
-
-          {!rows.length ? (
-            <p className="card-subtitle">
-              Nothing parsed yet. Paste your items above and click{" "}
-              <strong>Parse items</strong>.
+        <div className="grid">
+          {/* STEP 1 - INPUT */}
+          <section className="card">
+            <h2>Step 1 — Paste your items</h2>
+            <p className="helper">
+              Each line represents one item, in this exact order:
             </p>
-          ) : (
-            <>
-              <p className="card-subtitle">
-                Parsed <strong>{rows.length}</strong> lines. Valid rows in USD:{" "}
-                <strong className="text-ok">{okRows.length}</strong>.
-              </p>
+            <ul className="field-list">
+              <li>title</li>
+              <li>brand (must match Designers Directory)</li>
+              <li>category</li>
+              <li>condition</li>
+              <li>size</li>
+              <li>color</li>
+              <li>price (USD)</li>
+              <li>purchase_source</li>
+              <li>purchase_proof</li>
+              <li>serial_number</li>
+            </ul>
 
-              <div className="table-wrapper">
-                <table className="data-table">
-                  <thead>
-                    <tr>
-                      <th>Row</th>
-                      <th>Title</th>
-                      <th>Brand</th>
-                      <th>Category</th>
-                      <th>Price (USD)</th>
-                      <th>Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {rows.map((row) => (
-                      <tr key={row._row}>
-                        <td>{row._row}</td>
-                        <td>{row.title || "—"}</td>
-                        <td>{row.brand || "—"}</td>
-                        <td>{row.category || "—"}</td>
-                        <td>
-                          {typeof row.price === "number"
-                            ? `$${row.price.toLocaleString("en-US", {
-                                maximumFractionDigits: 2,
-                              })}`
-                            : "—"}
-                        </td>
-                        <td>
-                          {row._status === "ok" ? (
-                            <span className="status-badge status-ok">
-                              OK
-                            </span>
-                          ) : (
-                            <span className="status-badge status-error">
-                              {row._reason || row._status}
-                            </span>
-                          )}
-                        </td>
+            <p className="helper">
+              Example (you can copy/paste and adapt):
+            </p>
+            <pre className="example">
+              {exampleLines.join("\n")}
+            </pre>
+
+            <textarea
+              ref={textareaRef}
+              className="bulk-textarea"
+              rows={14}
+              placeholder="Paste one item per line, fields separated by commas…"
+              value={rawText}
+              onChange={(e) => setRawText(e.target.value)}
+            />
+
+            <div className="actions">
+              <button
+                type="button"
+                onClick={handleParse}
+                disabled={busy}
+                className="btn primary"
+              >
+                {busy ? "Parsing…" : "Step 2 — Validate items"}
+              </button>
+              <span className="hint">
+                You can always edit and re-parse until everything is correct.
+              </span>
+            </div>
+          </section>
+
+          {/* STEP 2 - PREVIEW & ERRORS */}
+          <section className="card">
+            <h2>Step 2 — Validation & preview</h2>
+
+            {rows.length === 0 ? (
+              <p className="helper">
+                No rows parsed yet. Paste your items on the left and click{" "}
+                <strong>Validate items</strong>.
+              </p>
+            ) : (
+              <>
+                <div className="summary">
+                  <p>
+                    <strong>Total rows:</strong> {counts.total}
+                  </p>
+                  <p>
+                    <span className="badge ok">OK: {counts.ok}</span>
+                    <span className="badge warn">
+                      Missing fields: {counts.missing}
+                    </span>
+                    <span className="badge warn">
+                      Invalid price: {counts.invalidPrice}
+                    </span>
+                    <span className="badge error">
+                      Designer not approved: {counts.authMissing}
+                    </span>
+                  </p>
+                  {hasBlockingAuthIssues && (
+                    <p className="warning">
+                      Items with designers not in the{" "}
+                      <strong>Designers Directory</strong> cannot be created.
+                      Please contact management or request the designer to be
+                      added.
+                    </p>
+                  )}
+                </div>
+
+                <div className="table-wrapper">
+                  <table className="preview-table">
+                    <thead>
+                      <tr>
+                        <th>#</th>
+                        <th>Status</th>
+                        <th>Reason</th>
+                        <th>Title</th>
+                        <th>Brand</th>
+                        <th>Category</th>
+                        <th>Condition</th>
+                        <th>Size</th>
+                        <th>Color</th>
+                        <th>Price (USD)</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </>
-          )}
-        </section>
+                    </thead>
+                    <tbody>
+                      {rows.map((row) => (
+                        <tr key={row._row} className={`row-${row._status}`}>
+                          <td>{row._row}</td>
+                          <td>{row._status}</td>
+                          <td>{row._reason || "—"}</td>
+                          <td>{row.title}</td>
+                          <td>{row.brand}</td>
+                          <td>{row.category}</td>
+                          <td>{row.condition}</td>
+                          <td>{row.size}</td>
+                          <td>{row.color}</td>
+                          <td>
+                            {row.price != null
+                              ? `$${row.price.toFixed(2)}`
+                              : "—"}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </>
+            )}
+          </section>
+        </div>
 
-        <section className="card">
-          <h2>3. Confirm and submit</h2>
-          <p className="card-subtitle">
-            When you confirm, we will create listings for all{" "}
-            <strong className="text-ok">valid rows in USD</strong> and send
-            them to the vetting queue. Rows with{" "}
-            <strong>unknown designers</strong> must be fixed first.
-          </p>
-          {error && <p className="banner error">{error}</p>}
+        {/* STEP 3 - COMMIT */}
+        <section className="card final-card">
+          <h2>Step 3 — Confirm & submit</h2>
+
+          {error && <p className="error-message">{error}</p>}
           {result && (
-            <p className="banner success">
-              Created {result.created} listings. Skipped {result.skipped} rows.
+            <p className="success-message">
+              Created {result.created} listings. Skipped {result.skipped}.
             </p>
           )}
 
-          <div className="button-row">
-            <button
-              onClick={handleCommit}
-              disabled={committing || !okRows.length}
-              className="btn-primary"
-            >
-              {committing ? "Submitting…" : "Create listings in USD"}
-            </button>
-          </div>
+          <p className="helper">
+            Only rows with status <strong>ok</strong> will be submitted.
+            Designers that are not in the directory will be skipped until
+            management approves them.
+          </p>
+
+          <button
+            type="button"
+            onClick={handleCommit}
+            className="btn primary"
+            disabled={committing || okRows.length === 0}
+          >
+            {committing
+              ? "Submitting…"
+              : `Step 3 — Create ${okRows.length} listing${
+                  okRows.length === 1 ? "" : "s"
+                }`}
+          </button>
         </section>
       </main>
 
       <Footer />
 
       <style jsx>{`
-        .back-link a {
-          font-size: 12px;
-          color: #9ca3af;
+        .dark-theme-page {
+          min-height: 100vh;
+          background: radial-gradient(circle at top, #1f2937 0, #020617 55%);
+          color: #f9fafb;
+          display: flex;
+          flex-direction: column;
         }
-        .back-link a:hover {
+
+        .section {
+          max-width: 1200px;
+          margin: 0 auto;
+          padding: 2rem 1.5rem 4rem;
+        }
+
+        .back-link {
+          margin-bottom: 1rem;
+          font-size: 0.9rem;
+        }
+
+        .back-link :global(a) {
+          color: #9ca3af;
+          text-decoration: none;
+        }
+
+        .back-link :global(a:hover) {
           color: #e5e7eb;
         }
 
         .page-header {
-          margin-top: 16px;
           display: flex;
-          align-items: center;
           justify-content: space-between;
+          align-items: flex-end;
+          gap: 1.5rem;
+          margin-bottom: 2rem;
         }
+
         h1 {
-          font-size: 20px;
-          font-weight: 600;
-          color: white;
+          font-size: 1.9rem;
+          margin: 0 0 0.35rem;
         }
+
         .subtitle {
-          margin-top: 4px;
-          font-size: 12px;
+          margin: 0.15rem 0;
           color: #9ca3af;
+          font-size: 0.95rem;
         }
-        .subtitle strong {
-          font-weight: 600;
-          color: #e5e7eb;
+
+        .warning {
+          color: #fbbf24;
         }
 
         .steps-grid {
-          margin-top: 24px;
           display: grid;
-          gap: 12px;
-          font-size: 12px;
-          color: #d1d5db;
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+          gap: 1rem;
+          list-style: none;
+          padding: 0;
+          margin: 0 0 1.75rem;
         }
-        @media (min-width: 768px) {
-          .steps-grid {
-            grid-template-columns: repeat(3, 1fr);
-          }
+
+        .steps-grid li {
+          border-radius: 0.75rem;
+          border: 1px solid #374151;
+          padding: 0.85rem 0.9rem;
+          font-size: 0.85rem;
+          background: rgba(17, 24, 39, 0.75);
+          color: #9ca3af;
         }
-        .step-active {
+
+        .steps-grid li.step-active {
+          border-color: #4b5563;
+          background: radial-gradient(circle at top, #0f172a, #020617);
+          color: #e5e7eb;
+        }
+
+        .step-label {
+          display: block;
           font-weight: 600;
-          color: white;
+          margin-bottom: 0.25rem;
+        }
+
+        .grid {
+          display: grid;
+          grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+          gap: 1.5rem;
+          margin-bottom: 1.5rem;
         }
 
         .card {
-          margin-top: 24px;
-          border-radius: 16px;
-          border: 1px solid #ffffff1a;
-          background: #ffffff0d;
-          padding: 16px;
-          font-size: 12px;
-        }
-        .card h2 {
-          font-size: 11px;
-          font-weight: 600;
-          text-transform: uppercase;
-          letter-spacing: 0.16em;
-          color: #9ca3af;
-        }
-        .card-subtitle {
-          margin-top: 8px;
-          color: #d1d5db;
-        }
-        .card-subtitle code {
-          font-family: monospace;
-        }
-        .card-subtitle strong {
-          font-weight: 600;
-          color: white;
-        }
-        .card-subtitle .text-ok {
-          color: #6ee7b7;
+          background: rgba(15, 23, 42, 0.95);
+          border-radius: 1rem;
+          border: 1px solid #111827;
+          padding: 1.25rem 1.4rem;
+          box-shadow: 0 18px 40px rgba(0, 0, 0, 0.55);
         }
 
-        .example-box {
-          margin-top: 12px;
-          border-radius: 6px;
-          background: #00000066;
-          padding: 12px;
-          font-size: 11px;
+        .final-card {
+          margin-top: 0.5rem;
+        }
+
+        h2 {
+          font-size: 1.05rem;
+          margin: 0 0 0.75rem;
+        }
+
+        .helper {
+          font-size: 0.9rem;
           color: #9ca3af;
+          margin: 0.25rem 0 0.75rem;
+        }
+
+        .field-list {
           display: flex;
-          flex-direction: column;
-          gap: 8px;
-        }
-        .example-box p {
-          font-weight: 600;
-          color: #d1d5db;
-        }
-        .example-box .example-mono {
-          font-family: monospace;
-          font-weight: 400;
+          flex-wrap: wrap;
+          gap: 0.4rem;
+          padding: 0;
+          margin: 0 0 0.75rem;
+          list-style: none;
         }
 
-        .form-textarea {
-          margin-top: 16px;
-          height: 192px;
-          width: 100%;
-          border-radius: 6px;
-          border: 1px solid #ffffff1a;
-          background: #00000066;
-          padding: 12px;
-          font-size: 12px;
-          color: white;
+        .field-list li {
+          font-size: 0.8rem;
+          border-radius: 999px;
+          border: 1px dashed #374151;
+          padding: 0.2rem 0.55rem;
+          color: #9ca3af;
         }
-        .form-textarea:focus {
-          border-color: white;
+
+        .example {
+          background: #020617;
+          border-radius: 0.75rem;
+          border: 1px solid #111827;
+          padding: 0.6rem 0.7rem;
+          font-size: 0.78rem;
+          color: #9ca3af;
+          overflow-x: auto;
+          margin-bottom: 0.75rem;
+        }
+
+        .bulk-textarea {
+          width: 100%;
+          border-radius: 0.75rem;
+          border: 1px solid #1f2937;
+          background: #020617;
+          color: #e5e7eb;
+          padding: 0.75rem 0.8rem;
+          font-size: 0.85rem;
+          resize: vertical;
           outline: none;
         }
 
-        .button-row {
-          margin-top: 12px;
-          display: flex;
-          gap: 8px;
+        .bulk-textarea:focus {
+          border-color: #4b5563;
+          box-shadow: 0 0 0 1px #4b5563;
         }
-        .btn-primary {
+
+        .actions {
+          display: flex;
+          align-items: center;
+          gap: 0.75rem;
+          margin-top: 0.8rem;
+        }
+
+        .hint {
+          font-size: 0.8rem;
+          color: #6b7280;
+        }
+
+        .btn {
           border-radius: 999px;
-          background: white;
-          padding: 8px 16px;
-          font-size: 12px;
-          font-weight: 600;
-          color: black;
+          padding: 0.55rem 1.4rem;
+          font-size: 0.85rem;
           border: none;
           cursor: pointer;
+          font-weight: 500;
         }
-        .btn-primary:hover {
-          background: #e5e7eb;
+
+        .btn.primary {
+          background: linear-gradient(to right, #10b981, #22c55e);
+          color: #022c22;
         }
-        .btn-primary:disabled {
+
+        .btn[disabled] {
           opacity: 0.6;
-          cursor: not-allowed;
+          cursor: default;
+        }
+
+        .summary {
+          margin-bottom: 0.75rem;
+          font-size: 0.9rem;
+        }
+
+        .badge {
+          display: inline-block;
+          padding: 0.12rem 0.5rem;
+          border-radius: 999px;
+          font-size: 0.75rem;
+          margin-right: 0.3rem;
+        }
+
+        .badge.ok {
+          background: rgba(16, 185, 129, 0.12);
+          color: #6ee7b7;
+        }
+
+        .badge.warn {
+          background: rgba(234, 179, 8, 0.12);
+          color: #fbbf24;
+        }
+
+        .badge.error {
+          background: rgba(239, 68, 68, 0.15);
+          color: #fecaca;
         }
 
         .table-wrapper {
-          margin-top: 12px;
-          overflow-x: auto;
-          border-radius: 6px;
-          border: 1px solid #ffffff1a;
+          max-height: 420px;
+          overflow: auto;
+          border-radius: 0.75rem;
+          border: 1px solid #111827;
         }
-        .data-table {
-          min-width: 100%;
+
+        .preview-table {
+          width: 100%;
+          border-collapse: collapse;
+          font-size: 0.78rem;
+        }
+
+        .preview-table th,
+        .preview-table td {
+          padding: 0.45rem 0.55rem;
+          border-bottom: 1px solid #0b1120;
+          white-space: nowrap;
+        }
+
+        .preview-table th {
+          position: sticky;
+          top: 0;
+          background: #020617;
+          z-index: 1;
           text-align: left;
-          font-size: 11px;
-          color: #f3f4f6;
-        }
-        .data-table thead {
-          background: #ffffff0d;
-          font-size: 10px;
-          text-transform: uppercase;
-          letter-spacing: 0.16em;
+          font-weight: 500;
           color: #9ca3af;
         }
-        .data-table th,
-        .data-table td {
-          padding: 8px 12px;
-        }
-        .data-table tr {
-          border-bottom: 1px solid #ffffff1a;
-        }
-        .data-table tr:last-child {
-          border-bottom: 0;
+
+        .row-ok {
+          background: rgba(15, 118, 110, 0.15);
         }
 
-        .status-badge {
-          display: inline-flex;
-          border-radius: 999px;
-          padding: 4px 8px;
-          font-size: 10px;
-          font-weight: 600;
-        }
-        .status-ok {
-          background: #065f46;
-          color: #6ee7b7;
-        }
-        .status-error {
-          background: #991b1b;
-          color: #fca5a5;
+        .row-missing_field {
+          background: rgba(234, 179, 8, 0.04);
         }
 
-        .banner {
-          margin-top: 8px;
-          font-weight: 600;
+        .row-invalid_price {
+          background: rgba(239, 68, 68, 0.04);
         }
-        .banner.error {
-          color: #f87171;
+
+        .row-auth_missing {
+          background: rgba(153, 27, 27, 0.08);
         }
-        .banner.success {
-          color: #6ee7b7;
+
+        .error-message {
+          color: #fecaca;
+          background: rgba(127, 29, 29, 0.4);
+          border-radius: 0.75rem;
+          padding: 0.6rem 0.8rem;
+          font-size: 0.85rem;
+          margin-bottom: 0.5rem;
+        }
+
+        .success-message {
+          color: #bbf7d0;
+          background: rgba(6, 95, 70, 0.4);
+          border-radius: 0.75rem;
+          padding: 0.6rem 0.8rem;
+          font-size: 0.85rem;
+          margin-bottom: 0.5rem;
+        }
+
+        @media (max-width: 900px) {
+          .grid {
+            grid-template-columns: minmax(0, 1fr);
+          }
+
+          .steps-grid {
+            grid-template-columns: minmax(0, 1fr);
+          }
+
+          .page-header {
+            flex-direction: column;
+            align-items: flex-start;
+          }
         }
       `}</style>
     </div>
