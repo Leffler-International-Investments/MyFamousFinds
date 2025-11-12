@@ -1,10 +1,10 @@
-// /pages/seller/bulk-simple.tsx
+// FILE: /pages/seller/bulk-simple.tsx
 // Quick Add — Multi-Item Form (Seller)
 // NOTE: This version keeps your existing layout/flow and ONLY changes
-// how the Designers <select> is populated.
-// It now loads directly from
-// Firestore on the client (same approach as /sell), with a safe fallback.
-// No server /api call and no composite index required.
+// how the Designers <select> is populated and how items are submitted.
+// It now loads designers from Firestore on the client (same as /sell)
+// and sends items to /api/seller/bulk-commit so they appear in the
+// management listing-queue.
 
 import { useEffect, useMemo, useState } from "react";
 import Head from "next/head";
@@ -38,6 +38,19 @@ type Item = {
   images?: File[];
 };
 
+type BulkCommitOk = {
+  ok: true;
+  created: number;
+  skipped: number;
+};
+
+type BulkCommitErr = {
+  ok: false;
+  error: string;
+};
+
+type BulkCommitResult = BulkCommitOk | BulkCommitErr;
+
 const CONDITIONS = [
   "New with tags",
   "New (never used)",
@@ -62,6 +75,9 @@ export default function BulkSimple() {
   const [designers, setDesigners] = useState<Designer[]>([]);
   const [loadingDesigners, setLoadingDesigners] = useState(false);
   const [designerError, setDesignerError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [submitMessage, setSubmitMessage] = useState<string | null>(null);
 
   // ---------- LOAD DESIGNERS (same logic as /sell, with fallback) ----------
   useEffect(() => {
@@ -74,35 +90,32 @@ export default function BulkSimple() {
         // First try: active + ordered (will work if an index exists; if not, we catch and fallback)
         const q = query(
           collection(db, "designers"),
-          // 1. CHANGED THIS LINE
           where("active", "==", true),
           orderBy("name", "asc")
         );
         const snap = await getDocs(q);
-        const list = snap.docs.map(d => ({
+        const list = snap.docs.map((d) => ({
           id: d.id,
           name: String((d.data() as DocumentData).name ?? d.id),
         }));
         if (!cancelled) setDesigners(list);
-
       } catch (err) {
         // Fallback: get all docs, sort on client, then filter by active (or no field)
         try {
           const snap = await getDocs(collection(db, "designers"));
           const list = snap.docs
-            .map(d => {
+            .map((d) => {
               const data = d.data() as DocumentData;
-              // 2. CHANGED THIS BLOCK
               return {
                 id: d.id,
                 name: String(data?.name ?? d.id),
                 active: Boolean(data?.active ?? true),
               };
             })
-            .filter(d => d.active)
+            .filter((d) => d.active)
             .sort((a, b) => a.name.localeCompare(b.name))
             .map(({ id, name }) => ({ id, name }));
-            
+
           if (!cancelled) setDesigners(list);
         } catch (e) {
           if (!cancelled) {
@@ -115,33 +128,143 @@ export default function BulkSimple() {
     };
 
     load();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   // ---------- Handlers ----------
-  const addItem = () => setItems(prev => [...prev, {}]);
+  const addItem = () => setItems((prev) => [...prev, {}]);
   const removeItem = (idx: number) =>
-    setItems(prev => prev.filter((_, i) => i !== idx));
+    setItems((prev) => prev.filter((_, i) => i !== idx));
   const update = (idx: number, patch: Partial<Item>) =>
-    setItems(prev => prev.map((it, i) => (i === idx ? { ...it, ...patch } : it)));
+    setItems((prev) => prev.map((it, i) => (i === idx ? { ...it, ...patch } : it)));
 
   const totalReady = useMemo(
     () =>
       items.filter(
-        it => it.designerId && it.title && it.category && it.condition && it.priceUSD
+        (it) =>
+          it.designerId &&
+          it.title &&
+          it.category &&
+          it.condition &&
+          it.priceUSD
       ).length,
     [items]
   );
 
-  // (Your existing create handler can stay the same; omitted here for brevity)
   const onCreate = async () => {
-    // TODO: hook into your existing single/bulk create logic
-    alert("Create clicked — connect to your existing submit handler.");
+    setSubmitError(null);
+    setSubmitMessage(null);
+
+    // Only send items that have the required fields filled in
+    const readyItems = items.filter(
+      (it) =>
+        it.designerId &&
+        it.title &&
+        it.category &&
+        it.condition &&
+        it.priceUSD
+    );
+
+    if (!readyItems.length) {
+      setSubmitError("Please fill in at least one complete item before submitting.");
+      return;
+    }
+
+    // Map form items -> API rows (same shape as /seller/bulk-upload)
+    const rows = readyItems
+      .map((it) => {
+        const designer = designers.find((d) => d.id === it.designerId);
+        const brand = designer?.name?.trim() || "";
+
+        const numericPrice = Number(
+          String(it.priceUSD).replace(/[^0-9.]/g, "")
+        );
+
+        if (!brand || !Number.isFinite(numericPrice) || numericPrice <= 0) {
+          return null;
+        }
+
+        return {
+          title: it.title?.trim() || "",
+          brand,
+          category: it.category || "",
+          condition: it.condition || "",
+          size: it.size || "",
+          color: it.color || "",
+          price: numericPrice,
+          purchase_source: it.purchaseSource || "",
+          purchase_proof: it.purchaseProof || "",
+          serial_number: it.serial || "",
+        };
+      })
+      .filter(Boolean) as {
+      title: string;
+      brand: string;
+      category: string;
+      condition: string;
+      size?: string;
+      color?: string;
+      price: number;
+      purchase_source?: string;
+      purchase_proof?: string;
+      serial_number?: string;
+    }[];
+
+    if (!rows.length) {
+      setSubmitError(
+        "None of the items were valid. Please check brand and price fields."
+      );
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      const res = await fetch("/api/seller/bulk-commit", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ rows }),
+      });
+
+      const json: BulkCommitResult = await res
+        .json()
+        .catch(
+          () =>
+            ({
+              ok: false,
+              error: "Invalid server response",
+            } as BulkCommitErr)
+        );
+
+      if (!res.ok || !json.ok) {
+        const message =
+          "error" in json && json.error
+            ? json.error
+            : "Unable to create listings.";
+        throw new Error(message);
+      }
+
+      setSubmitMessage(
+        `Created ${json.created} listing(s)${
+          json.skipped ? `, skipped ${json.skipped}.` : "."
+        }`
+      );
+      // Reset the form to a single blank item after success
+      setItems([{}]);
+    } catch (err: any) {
+      console.error(err);
+      setSubmitError(err?.message || "Unable to create listings.");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
     <div className="dark-theme-page">
-      <Head><title>Quick Add — Multi-Item Form | Famous Finds</title></Head>
+      <Head>
+        <title>Quick Add — Multi-Item Form | Famous Finds</title>
+      </Head>
       <Header />
 
       <main className="section">
@@ -155,11 +278,16 @@ export default function BulkSimple() {
             Prefer CSV-style paste? Use Bulk Upload →
           </Link>
         </div>
-        <p className="hint">Add several listings at once with dropdowns and image uploads.</p>
+        <p className="hint">
+          Add several listings at once with dropdowns and image uploads.
+        </p>
 
-        {designerError && (
-          <p className="banner error">⚠️ {designerError}</p>
+        {submitError && <p className="banner error">⚠️ {submitError}</p>}
+        {submitMessage && !submitError && (
+          <p className="banner">✅ {submitMessage}</p>
         )}
+
+        {designerError && <p className="banner error">⚠️ {designerError}</p>}
         {!designerError && loadingDesigners && (
           <p className="banner">Loading designers…</p>
         )}
@@ -187,16 +315,22 @@ export default function BulkSimple() {
                 <span>Designer</span>
                 <select
                   value={it.designerId || ""}
-                  onChange={e => update(idx, { designerId: e.target.value })}
-                  disabled={loadingDesigners || !!designerError || designers.length === 0}
+                  onChange={(e) => update(idx, { designerId: e.target.value })}
+                  disabled={
+                    loadingDesigners || !!designerError || designers.length === 0
+                  }
                 >
                   <option value="">
                     {designerError
                       ? "Couldn't load designers"
-                      : designers.length ? "— Select designer —" : "No designers configured"}
+                      : designers.length
+                      ? "— Select designer —"
+                      : "No designers configured"}
                   </option>
-                  {designers.map(d => (
-                    <option key={d.id} value={d.id}>{d.name}</option>
+                  {designers.map((d) => (
+                    <option key={d.id} value={d.id}>
+                      {d.name}
+                    </option>
                   ))}
                 </select>
               </label>
@@ -206,7 +340,7 @@ export default function BulkSimple() {
                 <span>Title</span>
                 <input
                   value={it.title || ""}
-                  onChange={e => update(idx, { title: e.target.value })}
+                  onChange={(e) => update(idx, { title: e.target.value })}
                   placeholder="e.g., Classic Flap Bag"
                 />
               </label>
@@ -216,11 +350,13 @@ export default function BulkSimple() {
                 <span>Category</span>
                 <select
                   value={it.category || ""}
-                  onChange={e => update(idx, { category: e.target.value })}
+                  onChange={(e) => update(idx, { category: e.target.value })}
                 >
                   <option value="">— Pick a category —</option>
-                  {CATEGORIES.map(c => (
-                    <option key={c} value={c}>{c}</option>
+                  {CATEGORIES.map((c) => (
+                    <option key={c} value={c}>
+                      {c}
+                    </option>
                   ))}
                 </select>
               </label>
@@ -230,11 +366,13 @@ export default function BulkSimple() {
                 <span>Condition</span>
                 <select
                   value={it.condition || ""}
-                  onChange={e => update(idx, { condition: e.target.value })}
+                  onChange={(e) => update(idx, { condition: e.target.value })}
                 >
                   <option value="">— Pick a condition —</option>
-                  {CONDITIONS.map(c => (
-                    <option key={c} value={c}>{c}</option>
+                  {CONDITIONS.map((c) => (
+                    <option key={c} value={c}>
+                      {c}
+                    </option>
                   ))}
                 </select>
               </label>
@@ -244,7 +382,7 @@ export default function BulkSimple() {
                 <span>Size</span>
                 <input
                   value={it.size || ""}
-                  onChange={e => update(idx, { size: e.target.value })}
+                  onChange={(e) => update(idx, { size: e.target.value })}
                   placeholder="e.g., M / 38 / 95 cm"
                 />
               </label>
@@ -254,7 +392,7 @@ export default function BulkSimple() {
                 <span>Color</span>
                 <input
                   value={it.color || ""}
-                  onChange={e => update(idx, { color: e.target.value })}
+                  onChange={(e) => update(idx, { color: e.target.value })}
                   placeholder="e.g., Black"
                 />
               </label>
@@ -265,7 +403,7 @@ export default function BulkSimple() {
                 <input
                   inputMode="numeric"
                   value={it.priceUSD || ""}
-                  onChange={e => update(idx, { priceUSD: e.target.value })}
+                  onChange={(e) => update(idx, { priceUSD: e.target.value })}
                   placeholder="e.g., 5200"
                 />
               </label>
@@ -275,7 +413,7 @@ export default function BulkSimple() {
                 <span>Serial / Reference</span>
                 <input
                   value={it.serial || ""}
-                  onChange={e => update(idx, { serial: e.target.value })}
+                  onChange={(e) => update(idx, { serial: e.target.value })}
                   placeholder="e.g., 12345-ABCD"
                 />
               </label>
@@ -285,11 +423,15 @@ export default function BulkSimple() {
                 <span>Purchase Source</span>
                 <select
                   value={it.purchaseSource || ""}
-                  onChange={e => update(idx, { purchaseSource: e.target.value })}
+                  onChange={(e) =>
+                    update(idx, { purchaseSource: e.target.value })
+                  }
                 >
                   <option value="">— Select —</option>
-                  {SOURCES.map(s => (
-                    <option key={s} value={s}>{s}</option>
+                  {SOURCES.map((s) => (
+                    <option key={s} value={s}>
+                      {s}
+                    </option>
                   ))}
                 </select>
               </label>
@@ -299,11 +441,15 @@ export default function BulkSimple() {
                 <span>Purchase Proof</span>
                 <select
                   value={it.purchaseProof || ""}
-                  onChange={e => update(idx, { purchaseProof: e.target.value })}
+                  onChange={(e) =>
+                    update(idx, { purchaseProof: e.target.value })
+                  }
                 >
                   <option value="">— Select —</option>
-                  {PROOFS.map(p => (
-                    <option key={p} value={p}>{p}</option>
+                  {PROOFS.map((p) => (
+                    <option key={p} value={p}>
+                      {p}
+                    </option>
                   ))}
                 </select>
               </label>
@@ -315,7 +461,7 @@ export default function BulkSimple() {
                   type="file"
                   accept="image/*"
                   multiple
-                  onChange={e => {
+                  onChange={(e) => {
                     const files = Array.from(e.target.files || []).slice(0, 8);
                     update(idx, { images: files });
                   }}
@@ -333,10 +479,16 @@ export default function BulkSimple() {
             type="button"
             className="btn-primary"
             onClick={onCreate}
-            disabled={totalReady === 0}
-            title={totalReady === 0 ? "Fill required fields to enable" : ""}
+            disabled={totalReady === 0 || submitting}
+            title={
+              totalReady === 0
+                ? "Fill required fields to enable"
+                : submitting
+                ? "Submitting listings…"
+                : ""
+            }
           >
-            Create {totalReady} listing(s)
+            {submitting ? "Submitting…" : `Create ${totalReady} listing(s)`}
           </button>
         </div>
       </main>
@@ -344,32 +496,120 @@ export default function BulkSimple() {
       <Footer />
 
       <style jsx>{`
-        h1 { color: #fff; font-size: 20px; margin: 8px 0; }
-        .hint { color:#9ca3af; font-size:12px; margin-bottom:8px; }
-        .header-row { display:flex; align-items:center; justify-content:space-between; gap:12px; }
-        .alt-link { color:#9ca3af; font-size:12px; text-decoration:underline; }
-        .banner { margin: 10px 0; padding:10px 12px; border-radius:8px; background:#0b0b0b; color:#e5e7eb; }
-        .banner.error { border:1px solid #7f1d1d; color:#fecaca; background:#190c0c; }
-        .card { margin-top:16px; border:1px solid #ffffff1a; border-radius:12px; padding:12px; background:#0a0a0a; }
-        .row.head { display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; }
-        .item-title { color:#e5e7eb; font-weight:700; }
-        .remove { background:#3b0b0b; color:#fca5a5; border:1px solid #7f1d1d; border-radius:999px; padding:6px 10px; cursor:pointer; }
-        .grid { display:grid; gap:10px; grid-template-columns: 1fr; }
-        @media(min-width:920px){ .grid { grid-template-columns: repeat(3, 1fr); } .full { grid-column: 1 / -1; } }
-        label span { display:block; font-size:12px; color:#9ca3af; margin: 4px 0; }
-        input, select {
-          background:#00000066;
-          color:#fff; border:1px solid #ffffff1a;
-          border-radius:6px; padding:10px; font-size:12px; width:100%;
+        h1 {
+          color: #fff;
+          font-size: 20px;
+          margin: 8px 0;
         }
-        .actions { display:flex; gap:10px; margin:16px 0 32px; }
-        .btn-dark, .btn-primary {
-          border:none;
-          border-radius:999px; padding:10px 16px; font-size:12px; font-weight:700; cursor:pointer;
+        .hint {
+          color: #9ca3af;
+          font-size: 12px;
+          margin-bottom: 8px;
         }
-        .btn-dark { background:#111827; color:#e5e7eb; border:1px solid #374151; }
-        .btn-primary { background:#fff; color:#000; }
-        .back-link a { color:#9ca3af; font-size:12px; }
+        .header-row {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 12px;
+        }
+        .alt-link {
+          color: #9ca3af;
+          font-size: 12px;
+          text-decoration: underline;
+        }
+        .banner {
+          margin: 10px 0;
+          padding: 10px 12px;
+          border-radius: 8px;
+          background: #0b0b0b;
+          color: #e5e7eb;
+        }
+        .banner.error {
+          border: 1px solid #7f1d1d;
+          color: #fecaca;
+          background: #190c0c;
+        }
+        .card {
+          margin-top: 16px;
+          border: 1px solid #ffffff1a;
+          border-radius: 12px;
+          padding: 12px;
+          background: #0a0a0a;
+        }
+        .row.head {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 8px;
+        }
+        .item-title {
+          color: #e5e7eb;
+          font-weight: 700;
+        }
+        .remove {
+          background: #3b0b0b;
+          color: #fca5a5;
+          border: 1px solid #7f1d1d;
+          border-radius: 999px;
+          padding: 6px 10px;
+          cursor: pointer;
+        }
+        .grid {
+          display: grid;
+          gap: 10px;
+          grid-template-columns: 1fr;
+        }
+        @media (min-width: 920px) {
+          .grid {
+            grid-template-columns: repeat(3, 1fr);
+          }
+          .full {
+            grid-column: 1 / -1;
+          }
+        }
+        label span {
+          display: block;
+          font-size: 12px;
+          color: #9ca3af;
+          margin: 4px 0;
+        }
+        input,
+        select {
+          background: #00000066;
+          color: #fff;
+          border: 1px solid #ffffff1a;
+          border-radius: 6px;
+          padding: 10px;
+          font-size: 12px;
+          width: 100%;
+        }
+        .actions {
+          display: flex;
+          gap: 10px;
+          margin: 16px 0 32px;
+        }
+        .btn-dark,
+        .btn-primary {
+          border: none;
+          border-radius: 999px;
+          padding: 10px 16px;
+          font-size: 12px;
+          font-weight: 700;
+          cursor: pointer;
+        }
+        .btn-dark {
+          background: #111827;
+          color: #e5e7eb;
+          border: 1px solid #374151;
+        }
+        .btn-primary {
+          background: #fff;
+          color: #000;
+        }
+        .back-link a {
+          color: #9ca3af;
+          font-size: 12px;
+        }
       `}</style>
     </div>
   );
