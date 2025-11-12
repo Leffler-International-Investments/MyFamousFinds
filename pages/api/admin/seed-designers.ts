@@ -1,9 +1,10 @@
 // FILE: /pages/api/admin/seed-designers.ts
-// One-time seeder for the "designers" collection.
-// Protect with a simple header key: process.env.ADMIN_SEED_KEY
+// One-time seeder for "designers" collection.
+// Protect via header: x-admin-key == process.env.ADMIN_SEED_KEY
 
 import type { NextApiRequest, NextApiResponse } from "next";
-import { adminDb, admin } from "../../../utils/firebaseAdmin";
+import { adminDb } from "../../../utils/firebaseAdmin";
+import { FieldValue } from "firebase-admin/firestore";
 
 type Resp = { ok: true; upserted: number } | { ok: false; error: string };
 
@@ -29,7 +30,10 @@ const DEFAULT_DESIGNERS = [
   "Cartier",
 ];
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse<Resp>) {
+export default async function handler(
+  req: NextApiRequest,
+  res: NextApiResponse<Resp>
+) {
   try {
     const key = req.headers["x-admin-key"];
     if (!process.env.ADMIN_SEED_KEY || key !== process.env.ADMIN_SEED_KEY) {
@@ -37,7 +41,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
     }
 
     const input: string[] =
-      (Array.isArray(req.body?.designers) ? req.body.designers : null) || DEFAULT_DESIGNERS;
+      (Array.isArray(req.body?.designers) ? req.body.designers : null) ||
+      DEFAULT_DESIGNERS;
 
     const batch = adminDb.batch();
     let count = 0;
@@ -55,14 +60,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
           name,
           slug,
           approved: true,
-          createdAt: admin.firestore.FieldValue.serverTimestamp(),
+          createdAt: FieldValue.serverTimestamp(),
         },
         { merge: true }
       );
       count++;
     }
 
-    if (count === 0) return res.status(400).json({ ok: false, error: "no designers provided" });
+    if (count === 0)
+      return res.status(400).json({ ok: false, error: "no designers provided" });
 
     await batch.commit();
     return res.status(200).json({ ok: true, upserted: count });
