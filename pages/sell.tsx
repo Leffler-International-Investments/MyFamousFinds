@@ -32,42 +32,37 @@ export default function Sell() {
   const [loadingDesigners, setLoadingDesigners] = useState(true);
   const [designerError, setDesignerError] = useState<string | null>(null);
 
+  // This useEffect is the updated version from your instruction #3
   useEffect(() => {
-    const fetchDesigners = async () => {
+    let isMounted = true;
+    (async () => {
       try {
         const snap = await getDocs(collection(db, "designers"));
-        const list: Designer[] = [];
-        snap.forEach((docSnap) => {
-          const data = docSnap.data() as any;
-          if (!data) return;
-          // Only show active designers
-          if (data.active === false) return;
-          list.push({
-            id: docSnap.id,
-            name: data.name || "",
-            isTop: !!data.isTop,
-            isUpcoming: !!data.isUpcoming,
-            active: data.active !== false,
+        const list: Designer[] = snap.docs
+          .map((d) => ({ id: d.id, ...(d.data() as any) }))
+          .filter((d) => d?.name && d?.active !== false)
+          .map((d) => ({
+            id: d.id,
+            name: d.name,
+            isTop: !!d.isTop,
+            isUpcoming: !!d.isUpcoming,
+            active: d.active !== false,
+          }))
+          .sort((a, b) => {
+            if (a.isTop && !b.isTop) return -1;
+            if (!a.isTop && b.isTop) return 1;
+            return a.name.localeCompare(b.name);
           });
-        });
-        // Sort: top first, then alphabetical
-        list.sort((a, b) => {
-          if (a.isTop && !b.isTop) return -1;
-          if (!a.isTop && b.isTop) return 1;
-          return a.name.localeCompare(b.name);
-        });
-        setDesigners(list);
-      } catch (err) {
-        console.error(err);
-        setDesignerError(
+        if (isMounted) setDesigners(list);
+      } catch (e) {
+        if (isMounted) setDesignerError(
           "Unable to load approved designers. You can still request a new designer below."
         );
       } finally {
-        setLoadingDesigners(false);
+        if (isMounted) setLoadingDesigners(false);
       }
-    };
-
-    fetchDesigners();
+    })();
+    return () => { isMounted = false; };
   }, []);
 
   async function uploadImageIfNeeded(
