@@ -1,10 +1,19 @@
 // FILE: /pages/seller/bulk-upload.tsx
-import { useState, useRef, useMemo } from "react";
+
+import { useState, useRef, useMemo, useEffect } from "react";
 import Head from "next/head";
 import Link from "next/link";
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
 import { useRequireSeller } from "../../hooks/useRequireSeller";
+import firebaseApp from "../../utils/firebaseClient";
+import {
+  getFirestore,
+  collection,
+  getDocs,
+} from "firebase/firestore";
+
+const db = getFirestore(firebaseApp);
 
 type RawRow = {
   id?: string;
@@ -46,10 +55,40 @@ export default function SellerBulkUpload() {
   const [result, setResult] = useState<ApiResult | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 
+  const [designerNames, setDesignerNames] = useState<string[]>([]);
+  const [designersLoaded, setDesignersLoaded] = useState(false);
+  const [designerError, setDesignerError] = useState<string | null>(null);
+
   const okRows = useMemo(
     () => rows.filter((r) => r._status === "ok"),
     [rows]
   );
+
+  useEffect(() => {
+    const fetchDesigners = async () => {
+      try {
+        const snap = await getDocs(collection(db, "designers"));
+        const names: string[] = [];
+        snap.forEach((docSnap) => {
+          const data = docSnap.data() as any;
+          if (!data) return;
+          if (data.active === false) return;
+          if (data.name) {
+            names.push(data.name.toString());
+          }
+        });
+        setDesignerNames(names);
+      } catch (err) {
+        console.error(err);
+        setDesignerError(
+          "Could not load approved designers. Brand checks are disabled for this upload."
+        );
+      } finally {
+        setDesignersLoaded(true);
+      }
+    };
+    fetchDesigners();
+  }, []);
 
   if (loading) return <div className="dark-theme-page"></div>;
 
@@ -70,6 +109,11 @@ export default function SellerBulkUpload() {
       .filter(Boolean);
 
     const parsed: ParsedRow[] = [];
+    const approvedSet =
+      designerNames.length > 0
+        ? new Set(designerNames.map((n) => n.toLowerCase()))
+        : null;
+
     lines.forEach((line, idx) => {
       const parts = line.split(",").map((p) => p.trim());
       if (parts.length < 10) {
@@ -105,9 +149,22 @@ export default function SellerBulkUpload() {
         return;
       }
 
+      let status: ParsedRow["_status"] = "ok";
+      let reason: string | undefined;
+
+      if (designersLoaded && approvedSet && approvedSet.size > 0) {
+        const brandName = (brand || "").toString().trim().toLowerCase();
+        if (!brandName || !approvedSet.has(brandName)) {
+          status = "auth_missing";
+          reason =
+            "Brand/designer is not in the approved Designers Directory. Contact management or request this designer before bulk uploading.";
+        }
+      }
+
       parsed.push({
         _row: idx + 1,
-        _status: "ok",
+        _status: status,
+        _reason: reason,
         title,
         brand,
         category,
@@ -174,6 +231,16 @@ export default function SellerBulkUpload() {
             <p className="subtitle">
               Paste multiple items in one go. All prices are treated as USD.
             </p>
+            <p className="subtitle">
+              Brands must match the approved{" "}
+              <strong>Designers Directory</strong>. Unknown designers will be
+              blocked until management reviews them.
+            </p>
+            {designerError && (
+              <p className="subtitle" style={{ color: "#fbbf24" }}>
+                {designerError}
+              </p>
+            )}
           </div>
         </div>
 
@@ -240,8 +307,8 @@ export default function SellerBulkUpload() {
           ) : (
             <>
               <p className="card-subtitle">
-                Parsed <strong>{rows.length}</strong> lines. Valid rows in
-                USD: <strong className="text-ok">{okRows.length}</strong>.
+                Parsed <strong>{rows.length}</strong> lines. Valid rows in USD:{" "}
+                <strong className="text-ok">{okRows.length}</strong>.
               </p>
 
               <div className="table-wrapper">
@@ -295,7 +362,8 @@ export default function SellerBulkUpload() {
           <p className="card-subtitle">
             When you confirm, we will create listings for all{" "}
             <strong className="text-ok">valid rows in USD</strong> and send
-            them to the vetting queue.
+            them to the vetting queue. Rows with{" "}
+            <strong>unknown designers</strong> must be fixed first.
           </p>
           {error && <p className="banner error">{error}</p>}
           {result && (
@@ -321,12 +389,12 @@ export default function SellerBulkUpload() {
       <style jsx>{`
         .back-link a {
           font-size: 12px;
-          color: #9ca3af; /* gray-400 */
+          color: #9ca3af;
         }
         .back-link a:hover {
-          color: #e5e7eb; /* gray-200 */
+          color: #e5e7eb;
         }
-        
+
         .page-header {
           margin-top: 16px;
           display: flex;
@@ -341,15 +409,19 @@ export default function SellerBulkUpload() {
         .subtitle {
           margin-top: 4px;
           font-size: 12px;
-          color: #9ca3af; /* gray-400 */
+          color: #9ca3af;
         }
-        
+        .subtitle strong {
+          font-weight: 600;
+          color: #e5e7eb;
+        }
+
         .steps-grid {
           margin-top: 24px;
           display: grid;
           gap: 12px;
           font-size: 12px;
-          color: #d1d5db; /* gray-300 */
+          color: #d1d5db;
         }
         @media (min-width: 768px) {
           .steps-grid {
@@ -360,12 +432,12 @@ export default function SellerBulkUpload() {
           font-weight: 600;
           color: white;
         }
-        
+
         .card {
           margin-top: 24px;
           border-radius: 16px;
-          border: 1px solid #ffffff1a; /* white/10 */
-          background: #ffffff0d; /* white/5 */
+          border: 1px solid #ffffff1a;
+          background: #ffffff0d;
           padding: 16px;
           font-size: 12px;
         }
@@ -374,11 +446,11 @@ export default function SellerBulkUpload() {
           font-weight: 600;
           text-transform: uppercase;
           letter-spacing: 0.16em;
-          color: #9ca3af; /* gray-400 */
+          color: #9ca3af;
         }
         .card-subtitle {
           margin-top: 8px;
-          color: #d1d5db; /* gray-300 */
+          color: #d1d5db;
         }
         .card-subtitle code {
           font-family: monospace;
@@ -388,36 +460,36 @@ export default function SellerBulkUpload() {
           color: white;
         }
         .card-subtitle .text-ok {
-          color: #6ee7b7; /* emerald-300 */
+          color: #6ee7b7;
         }
-        
+
         .example-box {
           margin-top: 12px;
           border-radius: 6px;
-          background: #00000066; /* black/40 */
+          background: #00000066;
           padding: 12px;
           font-size: 11px;
-          color: #9ca3af; /* gray-400 */
+          color: #9ca3af;
           display: flex;
           flex-direction: column;
           gap: 8px;
         }
         .example-box p {
           font-weight: 600;
-          color: #d1d5db; /* gray-200 */
+          color: #d1d5db;
         }
         .example-box .example-mono {
           font-family: monospace;
           font-weight: 400;
         }
-        
+
         .form-textarea {
           margin-top: 16px;
           height: 192px;
           width: 100%;
           border-radius: 6px;
-          border: 1px solid #ffffff1a; /* white/10 */
-          background: #00000066; /* black/40 */
+          border: 1px solid #ffffff1a;
+          background: #00000066;
           padding: 12px;
           font-size: 12px;
           color: white;
@@ -426,7 +498,7 @@ export default function SellerBulkUpload() {
           border-color: white;
           outline: none;
         }
-        
+
         .button-row {
           margin-top: 12px;
           display: flex;
@@ -443,42 +515,43 @@ export default function SellerBulkUpload() {
           cursor: pointer;
         }
         .btn-primary:hover {
-          background: #e5e7eb; /* gray-200 */
+          background: #e5e7eb;
         }
         .btn-primary:disabled {
           opacity: 0.6;
           cursor: not-allowed;
         }
-        
+
         .table-wrapper {
           margin-top: 12px;
           overflow-x: auto;
           border-radius: 6px;
-          border: 1px solid #ffffff1a; /* white/10 */
+          border: 1px solid #ffffff1a;
         }
         .data-table {
           min-width: 100%;
           text-align: left;
           font-size: 11px;
-          color: #f3f4f6; /* gray-100 */
+          color: #f3f4f6;
         }
         .data-table thead {
-          background: #ffffff0d; /* white/5 */
+          background: #ffffff0d;
           font-size: 10px;
           text-transform: uppercase;
           letter-spacing: 0.16em;
-          color: #9ca3af; /* gray-400 */
+          color: #9ca3af;
         }
-        .data-table th, .data-table td {
+        .data-table th,
+        .data-table td {
           padding: 8px 12px;
         }
         .data-table tr {
-          border-bottom: 1px solid #ffffff1a; /* white/10 */
+          border-bottom: 1px solid #ffffff1a;
         }
         .data-table tr:last-child {
           border-bottom: 0;
         }
-        
+
         .status-badge {
           display: inline-flex;
           border-radius: 999px;
@@ -487,23 +560,23 @@ export default function SellerBulkUpload() {
           font-weight: 600;
         }
         .status-ok {
-          background: #065f46; /* green-900 */
-          color: #6ee7b7; /* emerald-300 */
+          background: #065f46;
+          color: #6ee7b7;
         }
         .status-error {
-          background: #991b1b; /* red-900 */
-          color: #fca5a5; /* red-300 */
+          background: #991b1b;
+          color: #fca5a5;
         }
-        
+
         .banner {
           margin-top: 8px;
           font-weight: 600;
         }
         .banner.error {
-          color: #f87171; /* red-400 */
+          color: #f87171;
         }
         .banner.success {
-          color: #6ee7b7; /* emerald-300 */
+          color: #6ee7b7;
         }
       `}</style>
     </div>
