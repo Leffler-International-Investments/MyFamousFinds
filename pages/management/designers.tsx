@@ -207,7 +207,8 @@ export default function ManagementDesigners() {
 
       <main className="section">
         <div className="back-link">
-          <Link href="/management">← Back to Management Dashboard</Link>
+          {/* ----- THIS LINK IS NOW CORRECTED ----- */}
+          <Link href="/management/dashboard">← Back to Management Dashboard</Link>
         </div>
 
         <h1 className="page-title">Designers Directory</h1>
