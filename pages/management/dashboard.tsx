@@ -1,5 +1,5 @@
 // FILE: /pages/management/dashboard.tsx
-// UPDATED to surface Management Banking page at the top
+// UPDATED to add Designers Directory tile
 
 import Head from "next/head";
 import Link from "next/link";
@@ -203,6 +203,14 @@ export default function ManagementDashboard({ stats }: Props) {
             description="Add or remove internal admins and decide who can access finance, vetting, or support."
             href="/management/team"
             linkText="Manage Team"
+            linkColor="gray"
+          />
+          {/* --- NEW TILE ADDED HERE --- */}
+          <DashboardTile
+            title="Designers Directory"
+            description="Manage the list of approved designers for seller drop-downs and bulk uploads."
+            href="/management/designers"
+            linkText="Manage Directory"
             linkColor="gray"
           />
         </DashboardSection>
