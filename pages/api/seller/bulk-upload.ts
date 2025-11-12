@@ -1,4 +1,4 @@
-// FILE: /pages/api/seller/bulk-upload.tsx
+// FILE: /pages/api/seller/bulk-upload.ts
 
 import type { NextApiRequest, NextApiResponse } from "next";
 
