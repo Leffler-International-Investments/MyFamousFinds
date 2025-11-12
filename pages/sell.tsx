@@ -1,16 +1,74 @@
 // FILE: /pages/sell.tsx
+
 import Head from "next/head";
 import Link from "next/link";
 import Header from "../components/Header";
 import Footer from "../components/Footer";
-import { FormEvent, useState } from "react";
+import { FormEvent, useState, useEffect } from "react";
 import firebaseApp from "../utils/firebaseClient";
+import {
+  getFirestore,
+  collection,
+  getDocs,
+} from "firebase/firestore";
+
+const db = getFirestore(firebaseApp);
+
+type Designer = {
+  id: string;
+  name: string;
+  isTop?: boolean;
+  isUpcoming?: boolean;
+  active?: boolean;
+};
 
 export default function Sell() {
   const [submitted, setSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+
+  const [designers, setDesigners] = useState<Designer[]>([]);
+  const [loadingDesigners, setLoadingDesigners] = useState(true);
+  const [designerError, setDesignerError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchDesigners = async () => {
+      try {
+        const snap = await getDocs(collection(db, "designers"));
+        const list: Designer[] = [];
+        snap.forEach((docSnap) => {
+          const data = docSnap.data() as any;
+          if (!data) return;
+          // Only show active designers
+          if (data.active === false) return;
+          list.push({
+            id: docSnap.id,
+            name: data.name || "",
+            isTop: !!data.isTop,
+            isUpcoming: !!data.isUpcoming,
+            active: data.active !== false,
+          });
+        });
+        // Sort: top first, then alphabetical
+        list.sort((a, b) => {
+          if (a.isTop && !b.isTop) return -1;
+          if (!a.isTop && b.isTop) return 1;
+          return a.name.localeCompare(b.name);
+        });
+        setDesigners(list);
+      } catch (err) {
+        console.error(err);
+        setDesignerError(
+          "Unable to load approved designers. You can still request a new designer below."
+        );
+      } finally {
+        setLoadingDesigners(false);
+      }
+    };
+
+    fetchDesigners();
+  }, []);
 
   async function uploadImageIfNeeded(
     formData: FormData
@@ -49,6 +107,45 @@ export default function Sell() {
 
     const form = e.currentTarget;
     const formData = new FormData(form);
+
+    // --- BRAND / DESIGNER LOGIC ---
+    const selectedDesignerId = (formData.get("brand_select") || "")
+      .toString()
+      .trim();
+    const requestedDesigner = (formData.get("brand_request") || "")
+      .toString()
+      .trim();
+
+    if (!selectedDesignerId && !requestedDesigner) {
+      alert(
+        "Please select an approved designer from the list or request a new designer."
+      );
+      return;
+    }
+
+    let brandName = requestedDesigner;
+    if (selectedDesignerId) {
+      const match = designers.find((d) => d.id === selectedDesignerId);
+      brandName = match?.name || brandName;
+      formData.set("designer_id", selectedDesignerId);
+      if (match?.isTop) {
+        formData.set("designer_is_top", "true");
+      }
+    }
+
+    formData.set("brand", brandName || "");
+
+    if (requestedDesigner) {
+      formData.set("designer_request", requestedDesigner);
+      const requestReason = (formData.get("designer_request_reason") || "")
+        .toString()
+        .trim();
+      if (requestReason) {
+        formData.set("designer_request_reason", requestReason);
+      }
+    }
+    // --- END BRAND / DESIGNER LOGIC ---
+
     setSubmitting(true);
 
     try {
@@ -56,9 +153,6 @@ export default function Sell() {
       if (imageUrl) {
         formData.set("image_url", imageUrl);
       }
-      
-      // The new fields (serial_number, purchase_proof) are
-      // automatically included here thanks to new FormData()
 
       const res = await fetch("/api/sell", {
         method: "POST",
@@ -151,15 +245,57 @@ export default function Sell() {
                 />
               </label>
 
+              {/* BRAND / DESIGNER DROPDOWN */}
               <label>
-                Brand
+                Brand / Designer
+                {loadingDesigners ? (
+                  <div className="dropdown-help">
+                    Loading approved designers…
+                  </div>
+                ) : (
+                  <select name="brand_select" defaultValue="">
+                    <option value="">
+                      Select an approved designer from the directory…
+                    </option>
+                    {designers.map((d) => (
+                      <option key={d.id} value={d.id}>
+                        {d.name}
+                        {d.isTop ? " (Top)" : d.isUpcoming ? " (Upcoming)" : ""}
+                      </option>
+                    ))}
+                  </select>
+                )}
+                {designerError && (
+                  <div className="field-warning">{designerError}</div>
+                )}
+                <div className="dropdown-help">
+                  Famous-Finds only accepts approved designers. Select from the
+                  list or request a new designer below.
+                </div>
+              </label>
+
+              <label>
+                Request a new designer (if not listed)
                 <input
-                  name="brand"
+                  name="brand_request"
                   type="text"
-                  placeholder="e.g. Chanel, Louis Vuitton, Rolex"
-                  required
+                  placeholder="e.g. Dan Trousers"
+                />
+                <span className="file-help">
+                  If your designer is not in the list, type the name here and
+                  our management team will review it.
+                </span>
+              </label>
+
+              <label>
+                Notes to management about this designer (optional)
+                <textarea
+                  name="designer_request_reason"
+                  rows={3}
+                  placeholder="Tell us why this designer should be accepted (reputation, where it sells, price level, etc.)"
                 />
               </label>
+              {/* END DESIGNER BLOCK */}
 
               <label>
                 Item name / model
@@ -209,7 +345,6 @@ export default function Sell() {
                 />
               </label>
 
-              {/* --- ADDED: Serial Number --- */}
               <label>
                 Serial Number (if applicable)
                 <input
@@ -232,8 +367,7 @@ export default function Sell() {
                   Optional, but strongly recommended. JPEG or PNG.
                 </span>
               </label>
-              
-              {/* --- ADDED: Proof of Purchase --- */}
+
               <label className="file-label">
                 <span>Proof of Purchase (Optional)</span>
                 <input
@@ -245,7 +379,6 @@ export default function Sell() {
                   Helps speed up authentication.
                 </span>
               </label>
-
 
               {imagePreview && (
                 <div className="image-preview">
@@ -263,7 +396,6 @@ export default function Sell() {
                 />
               </label>
 
-              {/* --- ADDED: Seller Responsibility Warning --- */}
               <div className="seller-responsibility">
                 <strong>Seller's Responsibility</strong>
                 <p>
@@ -294,10 +426,7 @@ export default function Sell() {
                 </p>
               )}
             </form>
-            
-            {/* This original note is good, but the box above is more explicit.
-              We can keep it as a final confirmation.
-            */}
+
             <p className="note">
               By submitting, you confirm that the item is authentic and that you
               agree to Famous Finds&apos; terms.
@@ -379,7 +508,8 @@ export default function Sell() {
           font-size: 13px;
         }
         input,
-        textarea {
+        textarea,
+        select {
           background: #020617;
           border-radius: 8px;
           border: 1px solid #374151;
@@ -394,12 +524,25 @@ export default function Sell() {
         textarea {
           resize: vertical;
         }
+        select {
+          cursor: pointer;
+        }
         .file-label {
           margin-top: 4px;
         }
         .file-help {
           font-size: 12px;
           color: #9ca3af;
+        }
+        .dropdown-help {
+          font-size: 12px;
+          color: #9ca3af;
+          margin-top: 2px;
+        }
+        .field-warning {
+          margin-top: 4px;
+          font-size: 12px;
+          color: #fbbf24;
         }
         .image-preview {
           margin-top: 8px;
@@ -459,20 +602,18 @@ export default function Sell() {
           font-size: 12px;
           color: #9ca3af;
         }
-
-        /* --- ADDED FOR SELLER WARNING --- */
         .seller-responsibility {
           margin-top: 12px;
           padding: 12px;
           border-radius: 8px;
-          border: 1px solid #ca8a04; /* yellow-600 */
-          background: #422006; /* Dark yellow/brown */
+          border: 1px solid #ca8a04;
+          background: #422006;
           font-size: 12px;
-          color: #fef08a; /* yellow-200 */
+          color: #fef08a;
           line-height: 1.5;
         }
         .seller-responsibility strong {
-          color: #fef9c3; /* yellow-100 */
+          color: #fef9c3;
           display: block;
           margin-bottom: 4px;
         }
@@ -483,7 +624,6 @@ export default function Sell() {
         .seller-responsibility p:last-child {
           margin-bottom: 0;
         }
-        /* --- END OF ADDED STYLES --- */
       `}</style>
     </div>
   );
