@@ -1,5 +1,5 @@
 // FILE: /pages/seller/dashboard.tsx
-// UPDATED to link onboarding + finance to new Banking page
+// UPDATED: adds "Quick Add (Form)" next to legacy Bulk Upload
 
 import Head from "next/head";
 import Link from "next/link";
@@ -108,10 +108,18 @@ export default function SellerDashboard() {
               description="Edit prices, quantity, and details for your active listings."
               accentColor="blue"
             />
+            {/* NEW: simple multi-item form */}
+            <DashboardLink
+              href="/seller/bulk-simple"
+              title="Quick Add (Form)"
+              description="Add several items with dropdowns and image uploads."
+              accentColor="blue"
+            />
+            {/* Keep legacy CSV/paste tool for power users */}
             <DashboardLink
               href="/seller/bulk-upload"
-              title="Bulk Upload"
-              description="Upload many items at once using our CSV template."
+              title="Bulk Upload (CSV/Paste)"
+              description="Paste many items at once using the template."
               accentColor="blue"
             />
           </DashboardSection>
