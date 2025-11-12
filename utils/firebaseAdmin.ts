@@ -53,3 +53,6 @@ export const adminAuth = getAuth();
 
 // ✅ Firestore FieldValue utility
 export { FieldValue };
+
+// ✅ Added for backward compatibility with old imports
+export const FieldValueCompat = FieldValue;
