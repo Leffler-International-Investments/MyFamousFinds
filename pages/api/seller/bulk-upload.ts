@@ -1,6 +1,7 @@
 // FILE: /pages/api/seller/bulk-upload.tsx
 
-export default function handler(req: any, res: any) {
+import type { NextApiRequest, NextApiResponse } from "next";
+
+export default function handler(req: NextApiRequest, res: NextApiResponse) {
   res.status(200).json({ ok: true });
 }
-
