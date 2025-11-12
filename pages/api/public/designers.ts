@@ -1,4 +1,6 @@
 // FILE: /pages/api/public/designers.ts
+// Admin-backed list of designers for dropdowns.
+
 import type { NextApiRequest, NextApiResponse } from "next";
 import { adminDb } from "../../../utils/firebaseAdmin";
 import type { Query } from "firebase-admin/firestore";
@@ -16,7 +18,7 @@ export default async function handler(
       String(req.query.approved || "").toLowerCase() === "true";
 
     const col = adminDb.collection("designers");
-    let q: Query = col; // start as a Query to satisfy TS when chaining
+    let q: Query = col;
     if (onlyApproved) q = q.where("approved", "==", true);
     q = q.orderBy("name", "asc").limit(2000);
 
