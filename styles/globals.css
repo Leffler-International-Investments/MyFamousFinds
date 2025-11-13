@@ -746,3 +746,26 @@ like your homepage.
 .dashboard-tile:hover .dashboard-tile-link-gold {
   color: #b45309; /* amber-700 */
 }
+
+/* --- ADDED FOR ORANGE SELLER APPLY BUTTON --- */
+.auth-apply-button-wrapper {
+  margin-top: 18px;
+}
+
+.auth-apply-button {
+  display: block;
+  width: 100%;
+  text-align: center;
+  padding: 12px 16px;
+  border-radius: 9999px;
+  font-size: 14px;
+  font-weight: 700;
+  background: #f97316; /* orange-500 */
+  color: #111827;
+  text-decoration: none;
+  box-shadow: 0 8px 18px rgba(249, 115, 22, 0.4);
+}
+
+.auth-apply-button:hover {
+  background: #ea580c; /* orange-600 */
+}
