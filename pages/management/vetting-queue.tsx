@@ -1,241 +1,330 @@
-// FILE: /pages/management/vetting-queue.tsx
-import { useMemo, useState } from "react";
-import type { GetServerSideProps } from "next";
+// FILE: /pages/seller/login.tsx
+// Seller login with link to start seller application (profile)
+
 import Head from "next/head";
 import Link from "next/link";
+import { useRouter } from "next/router";
+import { FormEvent, useState } from "react";
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
-import { useRequireAdmin } from "../../hooks/useRequireAdmin";
-import { adminDb } from "../../utils/firebaseAdmin";
+import PasswordInput from "../../components/PasswordInput";
 
-type SellerApplication = {
-  id: string;
-  businessName: string;
-  contactEmail: string;
-  submittedAt: string;
-  status: "Pending" | "Approved" | "Rejected";
+type LoginSuccess = { ok: true; sellerId: string };
+type LoginError = {
+  ok: false;
+  code: "apply_first" | "pending" | "bad_credentials" | string;
+  message: string;
 };
+type LoginResponse = LoginSuccess | LoginError;
 
-type Props = { items: SellerApplication[] };
+type Start2faSuccess = {
+  ok: true;
+  challengeId: string;
+  via: "sms" | "email";
+  devCode?: string;
+};
+type Start2faError = { ok: false; message?: string };
+type Start2faResponse = Start2faSuccess | Start2faError;
 
-export default function ManagementVettingQueue({ items }: Props) {
-  const { loading } = useRequireAdmin();
-  const [query, setQuery] = useState("");
-  const [localItems, setLocalItems] = useState(items);
-  const [actionLoading, setActionLoading] = useState<string | null>(null);
+type Verify2faSuccess = { ok: true };
+type Verify2faError = { ok: false; message?: string };
+type Verify2faResponse = Verify2faSuccess | Verify2faError;
 
-  const visible = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    if (!q) return localItems;
-    return localItems.filter((s) => {
-      return (
-        s.businessName.toLowerCase().includes(q) ||
-        s.contactEmail.toLowerCase().includes(q) ||
-        s.id.toLowerCase().includes(q)
-      );
-    });
-  }, [localItems, query]);
+type TwoFactorStep = "credentials" | "verify";
 
-  const handleAction = async (
-    id: string,
-    action: "approve" | "reject"
-  ) => {
-    if (actionLoading) return;
+export default function SellerLoginPage() {
+  const router = useRouter();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [code, setCode] = useState("");
+  const [step, setStep] = useState<TwoFactorStep>("credentials");
+  const [challengeId, setChallengeId] = useState<string | null>(null);
+  const [info, setInfo] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-    let reason: string | undefined;
-    if (action === "reject") {
-      const input = window.prompt(
-        "Add a short note for the seller explaining why the application was rejected (optional):",
-        ""
-      );
-      if (input === null) {
-        // User cancelled the dialog; don't change anything
+  const from =
+    typeof router.query.from === "string" ? router.query.from : null;
+
+  async function handleCredentialsSubmit(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setError(null);
+    setInfo(null);
+    const trimmedEmail = email.trim().toLowerCase();
+
+    if (!trimmedEmail || !password) {
+      setError("Please enter your email and password.");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const res = await fetch("/api/seller/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: trimmedEmail, password }),
+      });
+
+      const json = (await res.json()) as LoginResponse;
+
+      if (!json.ok) {
+        const errJson = json as LoginError;
+
+        // If seller has no vetted profile yet
+        if (errJson.code === "apply_first") {
+          setError("");
+          setInfo(
+            "We couldn't find a completed seller application for this email. If you're a new seller, please start your application using the button below."
+          );
+          return;
+        }
+
+        if (errJson.code === "pending") {
+          setError("");
+          setInfo(
+            "Your seller application is still under review. We'll email you as soon as it's approved."
+          );
+          return;
+        }
+
+        if (errJson.code === "bad_credentials") {
+          setError("Incorrect email or password. Please try again.");
+          return;
+        }
+
+        setError(
+          errJson.message ||
+            "We couldn't sign you in. Please check your details and try again."
+        );
         return;
       }
-      reason = input.trim() || undefined;
-    }
 
-    setActionLoading(id);
-    try {
-      const res = await fetch(`/api/admin/${action}-seller/${id}`, {
+      // Start 2FA
+      const twofaRes = await fetch("/api/auth/start-2fa", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          reason: action === "reject" ? reason : undefined,
+          email: trimmedEmail,
+          role: "seller",
+          method: "email",
         }),
       });
-      const json = await res.json().catch(() => ({} as any));
-      if (!res.ok || json.error) {
-        throw new Error(json.error || "Failed to update seller");
+
+      const twofaJson = (await twofaRes.json()) as Start2faResponse;
+
+      if (!twofaJson.ok) {
+        const errJson = twofaJson as Start2faError;
+        setError(
+          errJson.message ||
+            "We couldn't start the verification process. Please try again."
+        );
+        return;
       }
 
-      setLocalItems((prev) =>
-        prev.map((s) =>
-          s.id === id
-            ? {
-                ...s,
-                status: action === "approve" ? "Approved" : "Rejected",
-              }
-            : s
-        )
-      );
-
-      if (action === "approve" && json.registerUrl) {
-        const emailNote =
-          json.emailSent === false
-            ? "\n\n⚠ We could not send the email automatically. Please copy this link and email it to the seller:"
-            : "\n\nThe seller has been emailed this registration link:";
-        alert(
-          `Seller approved.${emailNote}\n\n${json.registerUrl}`
-        );
-      } else if (action === "reject") {
-        alert(
-          "Seller marked as Rejected. A notification email will be sent if an email address is on file."
-        );
+      setChallengeId(twofaJson.challengeId);
+      setStep("verify");
+      let message = "We've sent a 6-digit code to your email address.";
+      if ((twofaJson as Start2faSuccess).devCode) {
+        message += ` (Dev code: ${(twofaJson as Start2faSuccess).devCode})`;
       }
-    } catch (err: any) {
-      alert(err?.message || "Error updating seller status.");
+      setInfo(message);
+    } catch (err) {
+      console.error("seller_login_error", err);
+      setError("Unexpected error. Please try again.");
     } finally {
-      setActionLoading(null);
+      setLoading(false);
     }
-  };
+  }
 
-  if (loading) return <div className="dashboard-page" />;
+  async function handleVerifySubmit(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setError(null);
+
+    if (!challengeId) {
+      setError("Your verification session has expired. Please log in again.");
+      return;
+    }
+    if (!code.trim()) {
+      setError("Please enter the verification code.");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const res = await fetch("/api/auth/verify-2fa", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          challengeId,
+          code: code.trim(),
+        }),
+      });
+
+      const json = (await res.json()) as Verify2faResponse;
+
+      if (!json.ok) {
+        const errJson = json as Verify2faError;
+        setError(errJson.message || "Incorrect or expired code.");
+        return;
+      }
+
+      if (typeof window !== "undefined") {
+        window.localStorage.setItem("ff-role", "seller");
+        window.localStorage.setItem("ff-email", email.toLowerCase().trim());
+      }
+
+      if (from) {
+        router.push(from);
+      } else {
+        // After successful login, ALWAYS go to Seller Admin Dashboard
+        router.push("/seller/dashboard");
+      }
+    } catch (err) {
+      console.error("seller_verify_2fa_error", err);
+      setError("Unable to verify the code. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  const disabled = loading;
 
   return (
     <>
       <Head>
-        <title>Seller Vetting Queue — Admin</title>
+        <title>Seller Login - Famous Finds</title>
       </Head>
-      <div className="dashboard-page">
+      <div className="auth-page">
         <Header />
-        <main className="dashboard-main">
-          <div className="dashboard-main-inner">
-            <div className="page-header">
-              <div>
-                <button
-                  onClick={() => history.back()}
-                  className="back-link inline-block mb-2"
-                >
-                  ← Back to Management Dashboard
-                </button>
-                <h1>Seller Vetting Queue</h1>
-                <p className="page-subtitle">
-                  Review and approve new seller applications before they get
-                  access to the seller console.
+        <main className="auth-main">
+          <div className="auth-card">
+            <h1>Seller Login</h1>
+            <p className="auth-subtitle">
+              Approved sellers can access the Seller Admin Platform from here.
+              New sellers can apply using the button below.
+            </p>
+
+            {error && <div className="auth-error">{error}</div>}
+            {info && <div className="auth-info">{info}</div>}
+
+            {step === "credentials" ? (
+              <form onSubmit={handleCredentialsSubmit}>
+                <div className="auth-fields">
+                  <div className="auth-field">
+                    <label htmlFor="email">Email</label>
+                    <input
+                      id="email"
+                      type="email"
+                      required
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      className="auth-input"
+                      placeholder="you@example.com"
+                      disabled={disabled}
+                    />
+                  </div>
+                  <PasswordInput
+                    label="Password"
+                    value={password}
+                    onChange={setPassword}
+                    name="password"
+                    required
+                    showStrength
+                    placeholder="Enter your seller password"
+                  />
+                  <button
+                    type="submit"
+                    disabled={disabled}
+                    className="auth-button-primary"
+                  >
+                    {loading ? "Checking..." : "Send code & continue"}
+                  </button>
+
+                  {/* BIG, VISIBLE apply CTA */}
+                  <p className="auth-apply-link">
+                    <Link href="/seller/register-vetting">
+                      New here? Complete your seller profile and apply →
+                    </Link>
+                  </p>
+                </div>
+              </form>
+            ) : (
+              <form onSubmit={handleVerifySubmit}>
+                <p className="auth-secondary-link-inline">
+                  Enter the 6-digit code we sent to your email address to finish
+                  signing in.
                 </p>
-              </div>
-            </div>
+                <div className="auth-fields">
+                  <div className="auth-field">
+                    <label htmlFor="code">Verification code</label>
+                    <input
+                      id="code"
+                      type="text"
+                      inputMode="numeric"
+                      autoComplete="one-time-code"
+                      maxLength={6}
+                      value={code}
+                      onChange={(e) => setCode(e.target.value)}
+                      className="auth-input auth-code-input"
+                      disabled={disabled}
+                    />
+                  </div>
+                  <button
+                    type="submit"
+                    disabled={disabled}
+                    className="auth-button-primary"
+                  >
+                    {loading ? "Verifying..." : "Confirm & continue"}
+                  </button>
+                </div>
+                <p className="auth-secondary-link-inline">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (disabled) return;
+                      setStep("credentials");
+                      setCode("");
+                      setInfo(null);
+                      setError(null);
+                    }}
+                  >
+                    Use a different email
+                  </button>
+                </p>
+              </form>
+            )}
 
-            <div className="card">
-              <div className="card-header">
-                <div className="card-title">Applications</div>
-                <input
-                  type="text"
-                  placeholder="Search by name, email or ID…"
-                  className="search-input"
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                />
-              </div>
-              <div className="table-wrapper">
-                <table className="table">
-                  <thead>
-                    <tr>
-                      <th>Business</th>
-                      <th>Email</th>
-                      <th>Submitted</th>
-                      <th>Status</th>
-                      <th>Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {visible.map((s) => (
-                      <tr key={s.id}>
-                        <td>{s.businessName || "—"}</td>
-                        <td>{s.contactEmail || "—"}</td>
-                        <td>{s.submittedAt || "—"}</td>
-                        <td>{s.status}</td>
-                        <td>
-                          <div className="actions-cell">
-                            <button
-                              disabled={
-                                actionLoading === s.id || s.status === "Approved"
-                              }
-                              className="btn-small btn-primary"
-                              onClick={() => handleAction(s.id, "approve")}
-                            >
-                              {actionLoading === s.id &&
-                              s.status !== "Approved"
-                                ? "Approving…"
-                                : "Approve"}
-                            </button>
-                            <button
-                              disabled={
-                                actionLoading === s.id || s.status === "Rejected"
-                              }
-                              className="btn-small btn-outline"
-                              onClick={() => handleAction(s.id, "reject")}
-                            >
-                              {actionLoading === s.id &&
-                              s.status !== "Rejected"
-                                ? "Rejecting…"
-                                : "Reject"}
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                    {visible.length === 0 && (
-                      <tr>
-                        <td colSpan={5} className="empty-state">
-                          No applications found.
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-            <div className="mt-8">
-              <Link href="/management/sellers" className="link">
-                View Seller Directory →
-              </Link>
-            </div>
+            <p className="auth-secondary-link">
+              <Link href="/">Back to storefront</Link>
+            </p>
+            <p className="auth-secondary-link">
+              <Link href="/seller/forgot-password">Forgot password?</Link>
+            </p>
           </div>
         </main>
         <Footer />
       </div>
+
+      {/* Extra styling just for the big Apply button/link */}
+      <style jsx>{`
+        .auth-apply-link {
+          margin-top: 16px;
+          text-align: center;
+        }
+        .auth-apply-link a {
+          display: inline-block;
+          padding: 10px 18px;
+          border-radius: 999px;
+          font-size: 14px;
+          font-weight: 600;
+          text-decoration: none;
+          background: #facc15; /* amber-400 */
+          color: #111827; /* gray-900 */
+        }
+        .auth-apply-link a:hover {
+          background: #fbbf24; /* amber-300/500-ish */
+        }
+      `}</style>
     </>
   );
 }
-
-export const getServerSideProps: GetServerSideProps<Props> = async () => {
-  const snapshot = await adminDb
-    .collection("sellers")
-    .orderBy("submittedAt", "desc")
-    .limit(200)
-    .get();
-
-  const items: SellerApplication[] = snapshot.docs.map((doc) => {
-    const data = doc.data() as any;
-    return {
-      id: doc.id,
-      businessName: data.businessName || "",
-      contactEmail: data.contactEmail || data.email || "",
-      submittedAt: data.submittedAt
-        ? new Date(data.submittedAt.toDate()).toLocaleString()
-        : "",
-      status: (data.status as any) || "Pending",
-    };
-  });
-
-  return {
-    props: {
-      items,
-    },
-  };
-};
