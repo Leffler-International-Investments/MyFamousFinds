@@ -241,8 +241,11 @@ export default function SellerLoginPage() {
 
                   {/* BIG ORANGE PILL for new sellers */}
                   <p className="auth-apply-link">
-                    <Link href="/seller/register-vetting">
-                      New here? Complete your seller profile & apply
+                    <Link
+                      href="/seller/register-vetting"
+                      className="auth-apply-pill"
+                    >
+                      New here? Complete your seller profile &amp; apply
                     </Link>
                   </p>
                 </div>
@@ -309,7 +312,7 @@ export default function SellerLoginPage() {
           min-height: 100vh;
           display: flex;
           flex-direction: column;
-          background: #020617; /* dark slate */
+          background: #020617;
           color: #f9fafb;
         }
 
@@ -324,7 +327,7 @@ export default function SellerLoginPage() {
         .auth-card {
           width: 100%;
           max-width: 420px;
-          background: #020617; /* match app theme */
+          background: #020617;
           border-radius: 16px;
           border: 1px solid rgba(148, 163, 184, 0.4);
           padding: 24px 20px 20px;
@@ -436,13 +439,12 @@ export default function SellerLoginPage() {
           cursor: pointer;
         }
 
-        /* >>> NEW ORANGE PILL STYLE <<< */
         .auth-apply-link {
           margin-top: 18px;
           text-align: center;
         }
 
-        .auth-apply-link a {
+        .auth-apply-pill {
           display: inline-block;
           padding: 10px 20px;
           border-radius: 999px;
@@ -454,7 +456,7 @@ export default function SellerLoginPage() {
           box-shadow: 0 8px 18px rgba(249, 115, 22, 0.4);
         }
 
-        .auth-apply-link a:hover {
+        .auth-apply-pill:hover {
           background: #ea580c; /* orange-600 */
         }
       `}</style>
