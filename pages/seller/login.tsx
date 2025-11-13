@@ -439,15 +439,13 @@ export default function SellerLoginPage() {
           cursor: pointer;
         }
         
-        /* --- 1. THIS CLASS IS UPDATED --- */
+        /* --- THIS IS THE UPDATED WRAPPER --- */
         .auth-apply-link {
           margin-top: 18px;
-          /* text-align: center; (Removed as it's no longer needed) */
         }
 
-        /* --- 2. THIS CLASS IS UPDATED TO BE FULL-WIDTH --- */
+        /* --- THIS IS THE UPDATED BUTTON STYLE (FULL-WIDTH) --- */
         .auth-apply-pill {
-          /* Style to match the primary button */
           display: block;
           width: 100%;
           padding: 10px 12px; /* Matches .auth-button-primary */
