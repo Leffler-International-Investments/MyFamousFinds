@@ -1,13 +1,11 @@
 // FILE: /pages/seller/register-vetting.tsx
-// Become a Seller – dark themed card form wired to Firestore
+// Become a Seller – dark themed card form, posts to /api/seller/apply
 
 import Head from "next/head";
 import { FormEvent, useState } from "react";
 import Link from "next/link";
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
-import { db } from "../../utils/firebaseClient";
-import { doc, setDoc, serverTimestamp } from "firebase/firestore";
 
 export default function SellerVetting() {
   const [businessName, setBusinessName] = useState("");
@@ -44,35 +42,35 @@ export default function SellerVetting() {
 
     setSubmitting(true);
     try {
-      const docRef = doc(db, "sellers", trimmedEmail);
-
-      await setDoc(
-        docRef,
-        {
-          businessName: trimmedBusiness,
-          contactName: contactName.trim() || "",
-          contactEmail: trimmedEmail,
+      const res = await fetch("/api/seller/apply", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          businessName,
+          contactName,
           email: trimmedEmail,
-          phone: phone.trim() || "",
-          website: website.trim() || "",
-          social: social.trim() || "",
-          inventory: inventory.trim() || "",
-          experience: experience.trim() || "",
-          notes: notes.trim() || "",
-          status: "Pending", // <-- shows in Seller Vetting Queue
-          source: "public_vetting_form",
-          submittedAt: serverTimestamp(),
-          createdAt: serverTimestamp(),
-        },
-        { merge: true }
-      );
+          phone,
+          website,
+          social,
+          inventory,
+          experience,
+          notes,
+        }),
+      });
+
+      const json = (await res.json()) as { ok: boolean; error?: string };
+
+      if (!json.ok) {
+        setError(json.error || "We couldn't submit your application.");
+        setSubmitting(false);
+        return;
+      }
 
       setSuccess(
         "Thank you! Your application has been submitted successfully. Our team will review it and contact you by email."
       );
       setSubmitting(false);
 
-      // reset form
       setBusinessName("");
       setContactName("");
       setEmail("");
