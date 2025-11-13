@@ -438,19 +438,26 @@ export default function SellerLoginPage() {
           font-size: 12px;
           cursor: pointer;
         }
-
+        
+        /* --- 1. THIS CLASS IS UPDATED --- */
         .auth-apply-link {
           margin-top: 18px;
-          text-align: center;
+          /* text-align: center; (Removed as it's no longer needed) */
         }
 
+        /* --- 2. THIS CLASS IS UPDATED TO BE FULL-WIDTH --- */
         .auth-apply-pill {
-          display: inline-block;
-          padding: 10px 20px;
+          /* Style to match the primary button */
+          display: block;
+          width: 100%;
+          padding: 10px 12px; /* Matches .auth-button-primary */
           border-radius: 999px;
-          font-size: 13px;
-          font-weight: 700;
+          font-size: 13px;  /* Matches .auth-button-primary */
+          font-weight: 600; /* Matches .auth-button-primary */
           text-decoration: none;
+          text-align: center;
+          
+          /* Orange colors */
           background: #f97316; /* orange-500 */
           color: #111827;
           box-shadow: 0 8px 18px rgba(249, 115, 22, 0.4);
