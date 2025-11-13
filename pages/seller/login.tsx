@@ -239,15 +239,15 @@ export default function SellerLoginPage() {
                     {loading ? "Checking..." : "Send code & continue"}
                   </button>
 
-                  {/* BIG ORANGE PILL for new sellers */}
-                  <p className="auth-apply-link">
+                  {/* ----- 1. THIS HTML BLOCK IS NOW UPDATED ----- */}
+                  <div className="auth-apply-button-wrapper">
                     <Link
                       href="/seller/register-vetting"
-                      className="auth-apply-pill"
+                      className="auth-apply-button"
                     >
                       New here? Complete your seller profile &amp; apply
                     </Link>
-                  </p>
+                  </div>
                 </div>
               </form>
             ) : (
@@ -439,31 +439,7 @@ export default function SellerLoginPage() {
           cursor: pointer;
         }
         
-        /* --- THIS IS THE UPDATED WRAPPER --- */
-        .auth-apply-link {
-          margin-top: 18px;
-        }
-
-        /* --- THIS IS THE UPDATED BUTTON STYLE (FULL-WIDTH) --- */
-        .auth-apply-pill {
-          display: block;
-          width: 100%;
-          padding: 10px 12px; /* Matches .auth-button-primary */
-          border-radius: 999px;
-          font-size: 13px;  /* Matches .auth-button-primary */
-          font-weight: 600; /* Matches .auth-button-primary */
-          text-decoration: none;
-          text-align: center;
-          
-          /* Orange colors */
-          background: #f97316; /* orange-500 */
-          color: #111827;
-          box-shadow: 0 8px 18px rgba(249, 115, 22, 0.4);
-        }
-
-        .auth-apply-pill:hover {
-          background: #ea580c; /* orange-600 */
-        }
+        /* ----- 2. THE OLD .auth-apply-link and .auth-apply-pill STYLES HAVE BEEN DELETED FROM HERE ----- */
       `}</style>
     </>
   );
