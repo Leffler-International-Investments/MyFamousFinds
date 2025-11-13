@@ -1,5 +1,5 @@
 // FILE: /pages/seller/login.tsx
-// Seller login with link to start seller application (profile)
+// Seller login with clear orange pill CTA for new sellers
 
 import Head from "next/head";
 import Link from "next/link";
@@ -70,11 +70,10 @@ export default function SellerLoginPage() {
       if (!json.ok) {
         const errJson = json as LoginError;
 
-        // NEW: do NOT auto-redirect to /seller/profile here.
         if (errJson.code === "apply_first") {
           setError("");
           setInfo(
-            "We couldn't find a completed seller application for this email. If you're a new seller, please complete your seller profile and apply using the link below."
+            "We couldn't find a completed seller application for this email. Please apply as a seller first using the orange button below."
           );
           return;
         }
@@ -99,7 +98,6 @@ export default function SellerLoginPage() {
         return;
       }
 
-      // Start 2FA
       const twofaRes = await fetch("/api/auth/start-2fa", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -176,7 +174,6 @@ export default function SellerLoginPage() {
       if (from) {
         router.push(from);
       } else {
-        // After successful login, ALWAYS go to Seller Admin Dashboard
         router.push("/seller/dashboard");
       }
     } catch (err) {
@@ -200,8 +197,10 @@ export default function SellerLoginPage() {
           <div className="auth-card">
             <h1>Seller Login</h1>
             <p className="auth-subtitle">
-              Approved sellers can access the Seller Admin Platform from here.
-              New sellers can apply using the link below.
+              Only <strong>approved sellers</strong> can log in here.
+              <br />
+              If you are new, please first complete your seller profile and
+              application.
             </p>
 
             {error && <div className="auth-error">{error}</div>}
@@ -239,9 +238,11 @@ export default function SellerLoginPage() {
                   >
                     {loading ? "Checking..." : "Send code & continue"}
                   </button>
-                  <p className="auth-secondary-link-inline">
-                    <Link href="/seller/profile">
-                      New here? Complete your seller profile and apply
+
+                  {/* BIG ORANGE PILL for new sellers */}
+                  <p className="auth-apply-link">
+                    <Link href="/seller/register-vetting">
+                      New here? Complete your seller profile & apply
                     </Link>
                   </p>
                 </div>
@@ -302,6 +303,161 @@ export default function SellerLoginPage() {
         </main>
         <Footer />
       </div>
+
+      <style jsx>{`
+        .auth-page {
+          min-height: 100vh;
+          display: flex;
+          flex-direction: column;
+          background: #020617; /* dark slate */
+          color: #f9fafb;
+        }
+
+        .auth-main {
+          flex: 1;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          padding: 24px 16px 40px;
+        }
+
+        .auth-card {
+          width: 100%;
+          max-width: 420px;
+          background: #020617; /* match app theme */
+          border-radius: 16px;
+          border: 1px solid rgba(148, 163, 184, 0.4);
+          padding: 24px 20px 20px;
+          box-shadow: 0 18px 45px rgba(15, 23, 42, 0.7);
+        }
+
+        h1 {
+          font-size: 20px;
+          margin: 0 0 8px;
+        }
+
+        .auth-subtitle {
+          margin: 0 0 16px;
+          font-size: 12px;
+          color: #9ca3af;
+          line-height: 1.5;
+        }
+
+        .auth-error {
+          background: #7f1d1d;
+          color: #fee2e2;
+          border-radius: 8px;
+          padding: 8px 10px;
+          font-size: 12px;
+          margin-bottom: 10px;
+        }
+
+        .auth-info {
+          background: #0f172a;
+          color: #e5e7eb;
+          border-radius: 8px;
+          padding: 8px 10px;
+          font-size: 12px;
+          margin-bottom: 10px;
+          border: 1px solid rgba(148, 163, 184, 0.5);
+        }
+
+        .auth-fields {
+          display: flex;
+          flex-direction: column;
+          gap: 10px;
+        }
+
+        .auth-field label {
+          font-size: 12px;
+          color: #e5e7eb;
+          display: block;
+          margin-bottom: 4px;
+        }
+
+        .auth-input {
+          width: 100%;
+          border-radius: 999px;
+          border: 1px solid rgba(148, 163, 184, 0.7);
+          background: rgba(15, 23, 42, 0.85);
+          padding: 10px 12px;
+          font-size: 13px;
+          color: #f9fafb;
+        }
+
+        .auth-input::placeholder {
+          color: #6b7280;
+        }
+
+        .auth-button-primary {
+          margin-top: 4px;
+          width: 100%;
+          border-radius: 999px;
+          border: none;
+          padding: 10px 12px;
+          font-size: 13px;
+          font-weight: 600;
+          cursor: pointer;
+          background: #f9fafb;
+          color: #020617;
+        }
+
+        .auth-button-primary:disabled {
+          opacity: 0.7;
+          cursor: default;
+        }
+
+        .auth-code-input {
+          letter-spacing: 0.2em;
+          text-align: center;
+        }
+
+        .auth-secondary-link,
+        .auth-secondary-link-inline {
+          margin-top: 12px;
+          font-size: 12px;
+          color: #9ca3af;
+          text-align: center;
+        }
+
+        .auth-secondary-link a {
+          color: #e5e7eb;
+          text-decoration: underline;
+          text-underline-offset: 2px;
+        }
+
+        .auth-secondary-link-inline button {
+          border: none;
+          background: transparent;
+          color: #e5e7eb;
+          text-decoration: underline;
+          text-underline-offset: 2px;
+          font-size: 12px;
+          cursor: pointer;
+        }
+
+        /* >>> NEW ORANGE PILL STYLE <<< */
+        .auth-apply-link {
+          margin-top: 18px;
+          text-align: center;
+        }
+
+        .auth-apply-link a {
+          display: inline-block;
+          padding: 10px 20px;
+          border-radius: 999px;
+          font-size: 13px;
+          font-weight: 700;
+          text-decoration: none;
+          background: #f97316; /* orange-500 */
+          color: #111827;
+          box-shadow: 0 8px 18px rgba(249, 115, 22, 0.4);
+        }
+
+        .auth-apply-link a:hover {
+          background: #ea580c; /* orange-600 */
+        }
+      `}</style>
     </>
   );
 }
