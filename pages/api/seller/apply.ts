@@ -1,7 +1,8 @@
 // FILE: /pages/api/seller/apply.ts
 
 import type { NextApiRequest, NextApiResponse } from "next";
-import { adminDb, admin } from "../../../utils/firebaseAdmin";
+import { adminDb } from "../../../utils/firebaseAdmin";
+import { FieldValue } from "firebase-admin/firestore";
 
 type Ok = { ok: true };
 type Err = { ok: false; error: string };
@@ -55,8 +56,8 @@ export default async function handler(
         notes: (notes || "").toString().trim(),
         status: "Pending",
         source: "public_vetting_form",
-        submittedAt: admin.firestore.FieldValue.serverTimestamp(),
-        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        submittedAt: FieldValue.serverTimestamp(),
+        createdAt: FieldValue.serverTimestamp(),
       },
       { merge: true }
     );
