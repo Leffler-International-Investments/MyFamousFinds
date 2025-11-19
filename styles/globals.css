@@ -22,22 +22,14 @@ a {
 }
 
 /*
-This class is for pages that NEED a dark theme,
-like your homepage.
+This class is for pages that use the main site background.
+NOW SET TO LIGHT THEME.
 */
 .dark-theme-page {
-  background: #0b0b0b;
-  color: #eee;
+  background: #f9fafb; /* light grey / almost white */
+  color: #111827;      /* dark text */
   min-height: 100vh;
 }
-
-/* ===== CONFLICTING HOMEPAGE CSS REMOVED ===== 
-  The old styles for .hero, .hero-inner, h1, p, 
-  and .cta were removed from this section to 
-  allow the local styles in /pages/index.tsx 
-  to work correctly.
-  ============================================ 
-*/
 
 .section {
   max-width: 1200px;
@@ -58,10 +50,9 @@ like your homepage.
   letter-spacing: 0.02em;
 }
 
-/* --- ADDED: Global Header Button Styles --- */
-/* These styles are for the "pill" buttons in the header */
+/* --- Global Header Button Styles --- */
 .admin-button {
-  font-size: 12px !important; /* Added !important to fight Tailwind */
+  font-size: 12px !important;
   border-radius: 20px !important;
   padding: 6px 12px !important;
   font-weight: 600 !important;
@@ -77,18 +68,16 @@ like your homepage.
   background: linear-gradient(90deg, #facc15, #f59e0b) !important;
   color: #000 !important;
 }
-/* --- THIS IS THE NEW STYLE FOR THE GOLD VIP BUTTON --- */
 .admin-button.vip {
   background: linear-gradient(90deg, #facc15, #f59e0b) !important;
   color: #000 !important;
 }
-/* --------------------------------------------------- */
 .admin-button:hover {
   transform: translateY(-1px);
   opacity: 0.9;
 }
-/* --- End of Added Styles --- */
 
+/* Product + category grids (still fine on white) */
 .grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -131,14 +120,15 @@ like your homepage.
 }
 
 .grid-prods .prod {
-  border: 1px solid #1f1f1f;
+  border: 1px solid #e5e7eb; /* lighter border on white */
   border-radius: 12px;
   overflow: hidden;
+  background: #ffffff;
 }
 
 .grid-prods .img {
   position: relative;
-  background: #111;
+  background: #f3f4f6;
   aspect-ratio: 1/1;
 }
 
@@ -155,8 +145,8 @@ like your homepage.
   top: 8px;
   font-size: 11px;
   padding: 4px 8px;
-  background: #ffffff14;
-  border: 1px solid #ffffff2a;
+  background: #ffffffd9;
+  border: 1px solid #e5e7eb;
   border-radius: 999px;
 }
 
@@ -202,14 +192,11 @@ like your homepage.
   padding: 20px 16px;
   opacity: 0.7;
   font-size: 12px;
-  border-top: 1px solid #1b1b1b;
+  border-top: 1px solid #e5e7eb; /* lighter */
 }
 
-/* ====================================================================
-   START: CUSTOM CSS FOR AUTH & DASHBOARD PAGES (The "Working" Solution)
-   ==================================================================== */
+/* === AUTH & DASHBOARD (unchanged, already light where needed) === */
 
-/*-- Auth Page Layout --- */
 .auth-page {
   min-height: 100vh;
   background: #000;
@@ -230,10 +217,8 @@ like your homepage.
   width: 100%;
   max-width: 420px;
   background: #111827;
-  /* gray-900 */
   border-radius: 16px;
   border: 1px solid #1f2937;
-  /* gray-800 */
   padding: 24px 24px 28px;
   box-shadow: 0 20px 40px rgba(0, 0, 0, 0.7);
 }
@@ -250,7 +235,6 @@ like your homepage.
   font-size: 12px;
   text-align: center;
   color: #9ca3af;
-  /* gray-400 */
 }
 
 .auth-fields {
@@ -266,7 +250,6 @@ like your homepage.
   font-size: 11px;
   font-weight: 500;
   color: #e5e7eb;
-  /* gray-200 */
   margin-bottom: 4px;
 }
 
@@ -274,24 +257,19 @@ like your homepage.
   width: 100%;
   border-radius: 8px;
   border: 1px solid #374151;
-  /* gray-700 */
   background: #020617;
-  /* blue-950*/
   padding: 8px 10px;
   font-size: 14px;
   color: #e5e7eb;
-  /* gray-200 */
 }
 
 .auth-input::placeholder {
   color: #6b7280;
-  /* gray-500 */
 }
 
 .auth-input:focus {
   outline: none;
   border-color: #f9fafb;
-  /* gray-50 */
   box-shadow: 0 0 0 1px rgba(249, 250, 251, 0.2);
 }
 
@@ -302,7 +280,6 @@ like your homepage.
   border-radius: 999px;
   border: none;
   background: #f9fafb;
-  /* gray-50 */
   color: #000;
   font-size: 12px;
   font-weight: 600;
@@ -319,7 +296,6 @@ like your homepage.
   margin-top: 10px;
   font-size: 11px;
   color: #9ca3af;
-  /* gray-400 */
   text-align: center;
 }
 
@@ -327,7 +303,6 @@ like your homepage.
 .auth-secondary-link-inline a,
 .auth-secondary-link-inline button {
   color: #e5e7eb;
-  /* gray-200 */
   text-decoration: none;
 }
 
@@ -336,8 +311,8 @@ like your homepage.
   background: transparent;
   cursor: pointer;
   padding: 0;
-  font-size: 11px; /* Inherit font properties */
-  color: #e5e7eb; /* Inherit font properties */
+  font-size: 11px;
+  color: #e5e7eb;
 }
 
 .auth-secondary-link a:hover,
@@ -351,11 +326,8 @@ like your homepage.
   padding: 6px 8px;
   border-radius: 6px;
   border: 1px solid #f97373;
-  /* red-400 */
   background: #7f1d1d;
-  /* red-900 */
   color: #fee2e2;
-  /* red-100 */
   font-size: 12px;
 }
 
@@ -364,11 +336,8 @@ like your homepage.
   padding: 6px 8px;
   border-radius: 6px;
   border: 1px solid #047857;
-  /* green-700 */
   background: #064e3b;
-  /* green-900 */
   color: #bbf7d0;
-  /* green-200 */
   font-size: 12px;
 }
 
@@ -377,15 +346,12 @@ like your homepage.
   text-align: center;
 }
 
-/*-- Password Input Layout --- */
 .password-input-row {
   display: flex;
   align-items: center;
   border-radius: 8px;
   border: 1px solid #374151;
-  /* gray-700 */
   background: #020617;
-  /* blue-950 */
   overflow: hidden;
 }
 
@@ -406,7 +372,6 @@ like your homepage.
   font-size: 11px;
   font-weight: 500;
   color: #e5e7eb;
-  /* gray-200 */
   background: transparent;
   border: none;
   cursor: pointer;
@@ -424,36 +389,25 @@ like your homepage.
 .password-strength-weak {
   color: #f97373;
 }
-
-/* red-400 */
 .password-strength-ok {
   color: #facc15;
 }
-
-/* yellow-400*/
 .password-strength-strong {
   color: #4ade80;
 }
-
-/* green-400 */
 .password-strength-very-strong {
   color: #22c55e;
 }
 
-/* green-500 */
-
-/*-- Dashboard Page Layout --- */
+/* Dashboard (unchanged) */
 .dashboard-page {
   min-height: 100vh;
   background: #f9fafb;
-  /* gray-50 */
   color: #111827;
-  /* gray-900 */
 }
 
 .dashboard-main {
   max-width: 1152px;
-  /* max-w-6xl */
   margin-left: auto;
   margin-right: auto;
   padding: 24px 16px 64px;
@@ -478,35 +432,29 @@ like your homepage.
   font-size: 24px;
   font-weight: 600;
   color: #111827;
-  /* gray-900 */
 }
 
 .dashboard-header p {
   margin-top: 4px;
   font-size: 14px;
   color: #4b5563;
-  /* gray-600 */
 }
 
 .dashboard-header a {
   font-size: 14px;
   color: #4b5563;
-  /* gray-600 */
   transition-property: color;
   transition-duration: 150ms;
 }
 
 .dashboard-header a:hover {
   color: #111827;
-  /* gray-900 */
 }
 
-/*-- Dashboard Welcome Banner --- */
 .dashboard-welcome-banner {
   margin-bottom: 32px;
   border-radius: 8px;
   border: 2px solid #3b82f6;
-  /* blue-500 */
   background: #ffffff;
   padding: 20px;
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px 2px rgba(0, 0, 0, 0.1);
@@ -517,21 +465,18 @@ like your homepage.
   font-size: 18px;
   font-weight: 600;
   color: #111827;
-  /* gray-900 */
 }
 
 .dashboard-welcome-banner p {
   margin-bottom: 16px;
   font-size: 14px;
   color: #4b5563;
-  /* gray-600 */
 }
 
 .dashboard-welcome-banner-button {
   display: inline-block;
   border-radius: 6px;
   background: #2563eb;
-  /* blue-600 */
   padding: 8px 16px;
   font-size: 14px;
   font-weight: 500;
@@ -541,15 +486,12 @@ like your homepage.
 
 .dashboard-welcome-banner-button:hover {
   background: #1d4ed8;
-  /* blue-700*/
 }
 
-/*-- Dashboard Summary Tiles (Management) --- */
 .dashboard-summary-section {
   margin-bottom: 32px;
   border-radius: 12px;
   border: 1px solid #e5e7eb;
-  /* gray-200 */
   background: #ffffff;
   padding: 20px;
   box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
@@ -559,7 +501,6 @@ like your homepage.
   font-size: 18px;
   font-weight: 600;
   color: #111827;
-  /* gray-900 */
 }
 
 .dashboard-summary-grid {
@@ -578,20 +519,16 @@ like your homepage.
   display: block;
   border-radius: 8px;
   border: 1px solid #e5e7eb;
-  /* gray-200 */
   background: #f9fafb;
-  /* gray-50 */
   padding: 16px;
   font-size: 14px;
   color: #374151;
-  /* gray-700 */
   transition-property: all;
   transition-duration: 150ms;
 }
 
 .dashboard-summary-tile:hover {
   border-color: #3b82f6;
-  /* blue-500 */
   background: #ffffff;
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px 2px rgba(0, 0, 0, 0.1);
 }
@@ -600,7 +537,6 @@ like your homepage.
   font-size: 12px;
   text-transform: uppercase;
   color: #6b7280;
-  /* gray-500 */
 }
 
 .dashboard-summary-tile .stat {
@@ -608,21 +544,17 @@ like your homepage.
   font-size: 18px;
   font-weight: 600;
   color: #111827;
-  /* gray-900 */
 }
 
 .dashboard-summary-tile .sub-stat {
   font-size: 12px;
   color: #6b7280;
-  /* gray-500 */
 }
 
-/* --- Dashboard Section (For holding tiles) --- */
 .dashboard-section {
   margin-bottom: 32px;
   border-radius: 8px;
   border: 1px solid #e5e7eb;
-  /* gray-200 */
   background: #ffffff;
   padding: 20px;
   box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
@@ -636,14 +568,12 @@ like your homepage.
   font-size: 18px;
   font-weight: 600;
   color: #111827;
-  /* gray-900 */
 }
 
 .dashboard-section-subtitle {
   margin-top: 4px;
   font-size: 14px;
   color: #4b5563;
-  /* gray-600 */
 }
 
 .dashboard-grid {
@@ -663,18 +593,14 @@ like your homepage.
   }
 }
 
-/* --- Dashboard Tile (Clickable links) --- */
 .dashboard-tile {
   display: block;
   border-radius: 8px;
   border: 1px solid #e5e7eb;
-  /* gray-200 */
   background: #f9fafb;
-  /* gray-50 */
   padding: 16px;
   font-size: 14px;
   color: #374151;
-  /* gray-700 */
   text-align: left;
   transition-property: all;
   transition-duration: 150ms;
@@ -682,7 +608,6 @@ like your homepage.
 
 .dashboard-tile:hover {
   border-color: #3b82f6;
-  /* blue-500 */
   background: #ffffff;
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px 2px rgba(0, 0, 0, 0.1);
 }
@@ -690,14 +615,12 @@ like your homepage.
 .dashboard-tile-title {
   font-weight: 600;
   color: #111827;
-  /* gray-900 */
 }
 
 .dashboard-tile-description {
   margin-top: 4px;
   font-size: 12px;
   color: #4b5563;
-  /* gray-600 */
 }
 
 .dashboard-tile-link {
@@ -709,45 +632,30 @@ like your homepage.
 .dashboard-tile-link-blue {
   color: #2563eb;
 }
-
-/* blue-600 */
 .dashboard-tile-link-green {
   color: #059669;
 }
-
-/* green-600 */
 .dashboard-tile-link-gray {
   color: #4b5563;
 }
-
-/* gray-600 */
-
-/* --- ADDED FOR VIP MANAGEMENT TILE --- */
 .dashboard-tile-link-gold {
-  color: #d97706; /* amber-600 */
+  color: #d97706;
 }
-/* ----------------------------------- */
 
 .dashboard-tile:hover .dashboard-tile-link-blue {
   color: #1d4ed8;
 }
-
-/* blue-700 */
-.dashboard-tile:hover .dashboard-tile-link-green {
+dashboard-tile:hover .dashboard-tile-link-green {
   color: #047857;
 }
-
-/* green-700 */
 .dashboard-tile:hover .dashboard-tile-link-gray {
   color: #1f2937;
 }
-
-/* gray-800 */
 .dashboard-tile:hover .dashboard-tile-link-gold {
-  color: #b45309; /* amber-700 */
+  color: #b45309;
 }
 
-/* --- ADDED FOR ORANGE SELLER APPLY BUTTON --- */
+/* Orange seller apply button */
 .auth-apply-button-wrapper {
   margin-top: 18px;
 }
@@ -760,12 +668,12 @@ like your homepage.
   border-radius: 9999px;
   font-size: 14px;
   font-weight: 700;
-  background: #f97316; /* orange-500 */
+  background: #f97316;
   color: #111827;
   text-decoration: none;
   box-shadow: 0 8px 18px rgba(249, 115, 22, 0.4);
 }
 
 .auth-apply-button:hover {
-  background: #ea580c; /* orange-600 */
+  background: #ea580c;
 }
