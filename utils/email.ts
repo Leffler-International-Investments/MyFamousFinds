@@ -1,24 +1,28 @@
 // FILE: /utils/email.ts
 import nodemailer from "nodemailer";
 
+// --- Configuration from Environment Variables ---
 const SMTP_HOST = process.env.SMTP_HOST;
 const SMTP_PORT = Number(process.env.SMTP_PORT || "587");
 const SMTP_USER = process.env.SMTP_USER;
 const SMTP_PASS = process.env.SMTP_PASS;
+// Default 'from' address uses the SMTP_USER if available, otherwise a default no-reply
 const SMTP_FROM =
   process.env.SMTP_FROM ||
   (SMTP_USER ? `Famous Finds <${SMTP_USER}>` : "Famous Finds <no-reply@famous-finds.com>");
 
+// --- Environment Check & Warning ---
 if (!SMTP_HOST || !SMTP_USER || !SMTP_PASS) {
   console.warn(
     "[email] SMTP env vars missing; emails will fail until SMTP_HOST, SMTP_USER, SMTP_PASS are set."
   );
 }
 
+// --- Nodemailer Transporter Setup ---
 const transporter = nodemailer.createTransport({
   host: SMTP_HOST,
   port: SMTP_PORT,
-  secure: SMTP_PORT === 465,
+  secure: SMTP_PORT === 465, // Use SSL/TLS if port is 465
   auth:
     SMTP_USER && SMTP_PASS
       ? {
@@ -28,15 +32,19 @@ const transporter = nodemailer.createTransport({
       : undefined,
 });
 
-// ---------- Login code (2FA) ----------
+// -------------------------------------------------------------------
+// ---------- Login code (2FA) ---------------------------------------
+// -------------------------------------------------------------------
 
 export async function sendLoginCode(to: string, code: string) {
+  // Guard clause: Fail fast if SMTP is not configured
   if (!SMTP_HOST || !SMTP_USER || !SMTP_PASS) {
     throw new Error("SMTP is not configured");
   }
 
   const subject = "Your Famous Finds sign-in code";
 
+  // Plain text email content
   const text = `
 Use this code to sign in to Famous Finds:
 
@@ -45,6 +53,7 @@ ${code}
 If you didn’t request this, you can safely ignore this email.
 `.trim();
 
+  // HTML email content for better formatting
   const html = `
   <p>Use this code to sign in to <strong>Famous Finds</strong>:</p>
   <p style="font-size:24px;font-weight:700;letter-spacing:4px;margin:16px 0;">
@@ -64,7 +73,9 @@ If you didn’t request this, you can safely ignore this email.
   });
 }
 
-// ---------- Order confirmation ----------
+// -------------------------------------------------------------------
+// ---------- Order confirmation types -------------------------------
+// -------------------------------------------------------------------
 
 export type OrderEmailItem = {
   name: string;
@@ -85,7 +96,12 @@ export type OrderEmailPayload = {
   total: number;
 };
 
+// -------------------------------------------------------------------
+// ---------- Order confirmation email -------------------------------
+// -------------------------------------------------------------------
+
 export async function sendOrderConfirmationEmail(order: OrderEmailPayload) {
+  // Guard clause: Fail fast if SMTP is not configured
   if (!SMTP_HOST || !SMTP_USER || !SMTP_PASS) {
     throw new Error("SMTP is not configured");
   }
@@ -101,11 +117,13 @@ export async function sendOrderConfirmationEmail(order: OrderEmailPayload) {
     total,
   } = order;
 
+  // Determine a friendly greeting name
   const greetingName =
     (customerName && customerName.trim()) ||
     (customerEmail && customerEmail.split("@")[0]) ||
     "there";
 
+  // Utility function for formatting currency
   const money = (value: number) =>
     new Intl.NumberFormat("en-US", {
       style: "currency",
@@ -115,6 +133,7 @@ export async function sendOrderConfirmationEmail(order: OrderEmailPayload) {
 
   const subject = `Your Famous Finds order #${id}`;
 
+  // Build text version of items list
   const lines = items
     .map(
       (i) =>
@@ -124,6 +143,7 @@ export async function sendOrderConfirmationEmail(order: OrderEmailPayload) {
     )
     .join("\n");
 
+  // Plain text email content
   const text = `
 Dear ${greetingName},
 
@@ -143,6 +163,7 @@ Total: ${money(total)}
 Thank you for shopping with Famous Finds.
 `.trim();
 
+  // Build HTML table rows for items
   const rowsHtml = items
     .map((i) => {
       const lineTotal = i.price * i.quantity;
@@ -169,6 +190,7 @@ Thank you for shopping with Famous Finds.
     })
     .join("");
 
+  // Full HTML email content
   const html = `
   <div style="font-family:system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:14px;color:#111827;">
     <p>Dear ${greetingName},</p>
@@ -228,7 +250,9 @@ Thank you for shopping with Famous Finds.
   });
 }
 
-// ---------- Seller invite / rejection emails ----------
+// -------------------------------------------------------------------
+// ---------- Seller invite / rejection emails -----------------------
+// -------------------------------------------------------------------
 
 type SellerInviteEmailParams = {
   to: string;
@@ -241,6 +265,7 @@ export async function sendSellerInviteEmail({
   businessName,
   registerUrl,
 }: SellerInviteEmailParams) {
+  // Guard clause: Fail fast if SMTP is not configured
   if (!SMTP_HOST || !SMTP_USER || !SMTP_PASS) {
     throw new Error("SMTP is not configured");
   }
@@ -252,6 +277,7 @@ export async function sendSellerInviteEmail({
 
   const subject = "You’re approved to sell on Famous Finds";
 
+  // Plain text email content
   const text = `
 Hi ${name},
 
@@ -264,6 +290,7 @@ ${registerUrl}
 If you didn’t request this, you can safely ignore this email.
 `.trim();
 
+  // HTML email content
   const html = `
   <div style="font-family:system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:14px;color:#111827;">
     <p>Hi ${name},</p>
@@ -304,6 +331,7 @@ export async function sendSellerRejectionEmail({
   businessName,
   reason,
 }: SellerRejectionEmailParams) {
+  // Guard clause: Fail fast if SMTP is not configured
   if (!SMTP_HOST || !SMTP_USER || !SMTP_PASS) {
     throw new Error("SMTP is not configured");
   }
@@ -320,6 +348,7 @@ export async function sendSellerRejectionEmail({
       ? `\n\nReason: ${reason.trim()}`
       : "";
 
+  // Plain text email content
   const text = `
 Hi ${name},
 
@@ -335,6 +364,7 @@ You’re welcome to reply to this email if you believe this was in error or if y
       ? `<p><strong>Reason:</strong> ${reason.trim()}</p>`
       : "";
 
+  // HTML email content
   const html = `
   <div style="font-family:system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:14px;color:#111827;">
     <p>Hi ${name},</p>
