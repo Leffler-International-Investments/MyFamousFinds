@@ -1,6 +1,4 @@
 // FILE: /pages/index.tsx
-// This is your homepage, now updated to use the
-// functional <HomepageButler /> component.
 
 import Head from "next/head";
 import Link from "next/link";
@@ -10,8 +8,6 @@ import DemoGrid from "../components/DemoGrid";
 import { ProductLike } from "../components/ProductCard";
 import { adminDb } from "../utils/firebaseAdmin";
 import type { GetServerSideProps } from "next";
-
-// --- FIX: Import the new component ---
 import HomepageButler from "../components/HomepageButler";
 
 const categories = [
@@ -53,12 +49,7 @@ export default function Home({ trending, newArrivals }: HomeProps) {
             </p>
           </div>
           <div className="heroVisual">
-            
-            {/* --- FIX: Replaced the old static buttons --- */}
-            {/* ---    with the new functional component   --- */}
             <HomepageButler />
-            {/* ------------------------------------------- */}
-
           </div>
         </section>
 
@@ -101,11 +92,12 @@ export default function Home({ trending, newArrivals }: HomeProps) {
           margin-top: 4px;
           font-size: 32px;
           letter-spacing: 0.02em;
+          color: #111827;
         }
         .lead {
           margin-top: 10px;
           font-size: 15px;
-          color: #e5e7eb;
+          color: #4b5563; /* darker text for white background */
           line-height: 1.6;
         }
         .heroVisual {
@@ -113,10 +105,9 @@ export default function Home({ trending, newArrivals }: HomeProps) {
           padding: 18px 18px 20px;
           background: radial-gradient(circle at top, #334155, #020617);
           border: 1px solid rgba(148, 163, 184, 0.3);
+          color: #f9fafb;
         }
-        /* Removed styles for .heroIntro, .heroButlerRow, etc. */
-        /* as they are now inside the HomepageButler component */
-        
+
         .categories {
           display: flex;
           flex-wrap: wrap;
@@ -127,10 +118,16 @@ export default function Home({ trending, newArrivals }: HomeProps) {
           font-size: 13px;
           padding: 6px 12px;
           border-radius: 999px;
-          border: 1px solid #374151;
-          color: #e5e7eb;
+          border: 1px solid #d1d5db; /* light border */
+          color: #374151;            /* dark text */
+          background: #ffffff;
           text-decoration: none;
         }
+        .cat:hover {
+          border-color: #111827;
+          background: #f3f4f6;
+        }
+
         @media (max-width: 900px) {
           .hero {
             grid-template-columns: minmax(0, 1fr);
@@ -158,7 +155,7 @@ export const getServerSideProps: GetServerSideProps<HomeProps> = async () => {
       if (d.status && !allowedStatuses.includes(d.status)) {
         return;
       }
-      
+
       const priceNumber = Number(d.price) || 0;
       const price = priceNumber
         ? `US$${priceNumber.toLocaleString("en-US")}`
