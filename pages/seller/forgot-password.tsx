@@ -1,39 +1,20 @@
 // FILE: /pages/seller/forgot-password.tsx
 
+import { useState, FormEvent } from "react";
 import Head from "next/head";
 import Link from "next/link";
-import { FormEvent, useState } from "react";
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
 
-// Same public config that is already used in utils/firebaseClient.ts
-const firebaseConfig = {
-  apiKey: "AIzaSyDddxs7XqxDhkfzvFxZigUQlZJu0fZ7VJQ",
-  authDomain: "famous-finds.firebaseapp.com",
-  projectId: "famous-finds",
-  storageBucket: "famous-finds.firebasestorage.app",
-  messagingSenderId: "825808501537",
-  appId: "1:825808501537:web:a0516661171712bd2c9c60",
-  measurementId: "G-NHM648X2ZR",
-};
+type Step = "form" | "done";
 
-// Lazily load Firebase on the client only
-async function sendResetEmail(email: string) {
-  const { initializeApp, getApps, getApp } = await import("firebase/app");
-  const { getAuth, sendPasswordResetEmail } = await import("firebase/auth");
-
-  const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
-  const auth = getAuth(app);
-  await sendPasswordResetEmail(auth, email);
-}
-
-export default function SellerForgotPassword() {
+export default function SellerForgotPasswordPage() {
+  const [step, setStep] = useState<Step>("form");
   const [email, setEmail] = useState("");
-  const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [sent, setSent] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const handleSubmit = async (e: FormEvent) => {
+  async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError(null);
 
@@ -43,121 +24,140 @@ export default function SellerForgotPassword() {
       return;
     }
 
+    setLoading(true);
     try {
-      setLoading(true);
-      await sendResetEmail(trimmed);
-      setSent(true);
+      const res = await fetch("/api/seller/forgot-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: trimmed }),
+      });
+
+      if (!res.ok) {
+        let msg = "Unable to send reset link. Please try again.";
+        try {
+          const json = await res.json();
+          if (json?.error) msg = json.error;
+        } catch {
+          /* ignore */
+        }
+        setError(msg);
+        return;
+      }
+
+      setStep("done");
     } catch (err: any) {
-      console.error(err);
-      setError(
-        err?.message ||
-          "We couldn't send a reset link. Please check the email and try again."
-      );
+      console.error("seller_forgot_password_error", err);
+      setError(err?.message || "Something went wrong. Please try again.");
     } finally {
       setLoading(false);
     }
-  };
+  }
 
   return (
-    <>
+    <div className="dark-theme-page">
       <Head>
-        <title>Seller Forgot Password — Famous Finds</title>
+        <title>Reset seller password | Famous Finds</title>
       </Head>
 
-      <div className="min-h-screen bg-gray-50 text-gray-900">
-        <Header />
+      <Header />
 
-        <main className="mx-auto flex max-w-md flex-col px-4 pb-16 pt-10 text-sm">
+      <main className="min-h-[60vh]">
+        <div className="max-w-xl mx-auto px-4 py-10">
           <Link
             href="/seller/login"
-            className="mb-6 text-xs text-gray-500 hover:text-gray-700"
+            className="text-sm text-gray-500 hover:text-gray-800"
           >
             ← Back to Login
           </Link>
 
-          <div className="rounded-2xl border border-gray-200 bg-white px-5 py-6 shadow-sm">
-            {!sent ? (
-              <>
-                <h1 className="text-lg font-semibold">
-                  Reset your seller password
-                </h1>
-                <p className="mt-1 text-xs text-gray-500">
-                  Enter the email address associated with your seller account
-                  and we&apos;ll send you a password reset link.
-                </p>
+          {step === "form" && (
+            <div className="mt-6 bg-white border border-gray-200 rounded-xl shadow-sm px-6 py-8">
+              <h1 className="text-2xl font-semibold text-gray-900 mb-1">
+                Reset your seller password
+              </h1>
+              <p className="text-sm text-gray-600 mb-5">
+                Enter the email address associated with your seller account and
+                we&apos;ll send you a secure link to reset your password.
+              </p>
 
-                <form onSubmit={handleSubmit} className="mt-5 space-y-4">
-                  <div>
-                    <label
-                      htmlFor="email"
-                      className="block text-xs font-medium text-gray-700"
-                    >
-                      Email address
-                    </label>
-                    <input
-                      id="email"
-                      type="email"
-                      autoComplete="email"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-black focus:outline-none"
-                      placeholder="you@example.com"
-                    />
-                  </div>
-
-                  {error && (
-                    <p className="text-xs text-red-600" role="alert">
-                      {error}
-                    </p>
-                  )}
-
-                  <button
-                    type="submit"
-                    disabled={loading}
-                    className="inline-flex w-full items-center justify-center rounded-full bg-black px-4 py-2.5 text-xs font-semibold text-white hover:bg-gray-900 disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    {loading ? "Sending reset link…" : "Send reset link"}
-                  </button>
-                </form>
-              </>
-            ) : (
-              <>
-                <h1 className="text-lg font-semibold">Check your email</h1>
-                <p className="mt-2 text-xs text-gray-500">
-                  If an account exists for{" "}
-                  <span className="font-medium">{email}</span>, you&apos;ll
-                  receive an email with a link to reset your password.
-                </p>
-                <p className="mt-3 text-xs text-gray-500">
-                  The link may take a few minutes to arrive and could land in
-                  your spam or promotions folder.
-                </p>
-
-                <div className="mt-5 space-y-3">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSent(false);
-                      setEmail("");
-                    }}
-                    className="inline-flex w-full items-center justify-center rounded-full border border-gray-300 px-4 py-2.5 text-xs font-semibold text-gray-800 hover:bg-gray-50"
-                  >
-                    Send another reset link
-                  </button>
-                  <Link
-                    href="/seller/login"
-                    className="block text-center text-xs text-blue-600 hover:text-blue-700"
-                  >
-                    ← Back to Login
-                  </Link>
+              {error && (
+                <div className="mb-4 rounded-lg border border-red-400 bg-red-50 px-3 py-2 text-sm text-red-700">
+                  {error}
                 </div>
-              </>
-            )}
-          </div>
-        </main>
+              )}
 
-        <Footer />
-      </div>
-    </>
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <div>
+                  <label
+                    htmlFor="email"
+                    className="block text-sm font-medium text-gray-700 mb-1"
+                  >
+                    Email address
+                  </label>
+                  <input
+                    id="email"
+                    type="email"
+                    autoComplete="email"
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-black focus:border-black"
+                    placeholder="you@example.com"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    disabled={loading}
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full inline-flex items-center justify-center rounded-full bg-black text-white text-sm font-medium px-4 py-2.5 hover:bg-gray-900 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
+                >
+                  {loading ? "Sending reset link..." : "Send reset link"}
+                </button>
+              </form>
+            </div>
+          )}
+
+          {step === "done" && (
+            <div className="mt-6 bg-white border border-gray-200 rounded-xl shadow-sm px-6 py-8">
+              <h1 className="text-2xl font-semibold text-gray-900 mb-1">
+                Check your email
+              </h1>
+              <p className="text-sm text-gray-600 mb-4">
+                If an account exists for{" "}
+                <span className="font-medium">{email}</span>, you&apos;ll
+                receive an email with a link to reset your password. The email
+                may take a few minutes and can sometimes land in your spam or
+                promotions folder.
+              </p>
+
+              {error && (
+                <div className="mb-4 rounded-lg border border-red-400 bg-red-50 px-3 py-2 text-sm text-red-700">
+                  {error}
+                </div>
+              )}
+
+              <div className="flex flex-col gap-3">
+                <button
+                  type="button"
+                  onClick={() => setStep("form")}
+                  className="w-full inline-flex items-center justify-center rounded-full border border-gray-300 text-sm font-medium px-4 py-2.5 text-gray-800 hover:bg-gray-50"
+                >
+                  Send another reset link
+                </button>
+
+                <Link
+                  href="/seller/login"
+                  className="w-full text-center text-sm text-gray-600 hover:text-gray-900"
+                >
+                  ← Back to Login
+                </Link>
+              </div>
+            </div>
+          )}
+        </div>
+      </main>
+
+      <Footer />
+    </div>
   );
 }
