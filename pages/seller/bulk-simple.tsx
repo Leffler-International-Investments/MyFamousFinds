@@ -1,15 +1,10 @@
 // FILE: /pages/seller/bulk-simple.tsx
-// Quick Add — Multi-Item Form (Seller)
-// Loads designers from Firestore and sends rows to /api/seller/bulk-commit
-// so they appear in the management listing-queue for approval.
-// NOW: image box supports click + drag & drop + thumbnail preview.
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Head from "next/head";
 import Link from "next/link";
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
-// Client Firestore (same as /sell page)
 import { db } from "../../utils/firebaseClient";
 import {
   collection,
@@ -23,8 +18,8 @@ import {
 type Designer = { id: string; name: string };
 
 type Item = {
-  designerId?: string; // id from designers collection or "__other__"
-  otherDesignerName?: string; // manual designer name if not in list
+  designerId?: string;
+  otherDesignerName?: string;
   title?: string;
   category?: string;
   condition?: string;
@@ -87,10 +82,8 @@ export default function BulkSimple() {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitMessage, setSubmitMessage] = useState<string | null>(null);
 
-  // One hidden <input type="file"> per item, for click-to-open
   const fileInputsRef = useRef<(HTMLInputElement | null)[]>([]);
 
-  // ---------- LOAD DESIGNERS (same logic as /sell, with fallback) ----------
   useEffect(() => {
     let cancelled = false;
 
@@ -142,7 +135,6 @@ export default function BulkSimple() {
     };
   }, []);
 
-  // ---------- Handlers ----------
   const addItem = () => setItems((prev) => [...prev, {}]);
 
   const removeItem = (idx: number) =>
@@ -208,7 +200,6 @@ export default function BulkSimple() {
       return;
     }
 
-    // Map form items -> API rows
     const rows = readyItems
       .map((it) => {
         let brand = "";
@@ -351,7 +342,6 @@ export default function BulkSimple() {
             </div>
 
             <div className="grid">
-              {/* Designer select */}
               <label>
                 <span>Designer</span>
                 <select
@@ -359,7 +349,6 @@ export default function BulkSimple() {
                   onChange={(e) =>
                     update(idx, {
                       designerId: e.target.value,
-                      // if user changes away from "__other__", clear manual name
                       otherDesignerName:
                         e.target.value === "__other__"
                           ? it.otherDesignerName
@@ -386,7 +375,6 @@ export default function BulkSimple() {
                 </select>
               </label>
 
-              {/* Manual designer name when "Other" selected */}
               {it.designerId === "__other__" && (
                 <label>
                   <span>Designer name (not in list)</span>
@@ -400,7 +388,6 @@ export default function BulkSimple() {
                 </label>
               )}
 
-              {/* Title */}
               <label>
                 <span>Title</span>
                 <input
@@ -410,7 +397,6 @@ export default function BulkSimple() {
                 />
               </label>
 
-              {/* Category */}
               <label>
                 <span>Category</span>
                 <select
@@ -426,7 +412,6 @@ export default function BulkSimple() {
                 </select>
               </label>
 
-              {/* Condition */}
               <label>
                 <span>Condition</span>
                 <select
@@ -444,7 +429,6 @@ export default function BulkSimple() {
                 </select>
               </label>
 
-              {/* Size */}
               <label>
                 <span>Size</span>
                 <input
@@ -454,7 +438,6 @@ export default function BulkSimple() {
                 />
               </label>
 
-              {/* Color */}
               <label>
                 <span>Color</span>
                 <input
@@ -464,7 +447,6 @@ export default function BulkSimple() {
                 />
               </label>
 
-              {/* Price */}
               <label>
                 <span>Price (USD)</span>
                 <input
@@ -477,7 +459,6 @@ export default function BulkSimple() {
                 />
               </label>
 
-              {/* Serial */}
               <label>
                 <span>Serial / Reference</span>
                 <input
@@ -487,7 +468,6 @@ export default function BulkSimple() {
                 />
               </label>
 
-              {/* Purchase Source */}
               <label>
                 <span>Purchase Source</span>
                 <select
@@ -505,7 +485,6 @@ export default function BulkSimple() {
                 </select>
               </label>
 
-              {/* Purchase Proof */}
               <label>
                 <span>Purchase Proof</span>
                 <select
@@ -523,7 +502,7 @@ export default function BulkSimple() {
                 </select>
               </label>
 
-              {/* Images with drag & drop + click + preview */}
+              {/* Images box */}
               <label className="full">
                 <span>Images (drag & drop or select — up to 8)</span>
                 <div
@@ -541,7 +520,21 @@ export default function BulkSimple() {
                   <span className="dropzone-text">
                     Click to choose images or drop them here
                   </span>
+
+                  {it.images && it.images.length > 0 && (
+                    <div className="thumbs">
+                      {it.images.map((file, i) => (
+                        <div className="thumb" key={i}>
+                          <img
+                            src={URL.createObjectURL(file)}
+                            alt={`Image ${i + 1}`}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
+
                 <input
                   ref={(el) => {
                     fileInputsRef.current[idx] = el;
@@ -552,19 +545,6 @@ export default function BulkSimple() {
                   style={{ display: "none" }}
                   onChange={(e) => handleFilesChange(idx, e.target.files)}
                 />
-
-                {it.images && it.images.length > 0 && (
-                  <div className="thumbs">
-                    {it.images.map((file, i) => (
-                      <div className="thumb" key={i}>
-                        <img
-                          src={URL.createObjectURL(file)}
-                          alt={`Image ${i + 1}`}
-                        />
-                      </div>
-                    ))}
-                  </div>
-                )}
               </label>
             </div>
           </div>
@@ -579,13 +559,6 @@ export default function BulkSimple() {
             className="btn-primary"
             onClick={onCreate}
             disabled={totalReady === 0 || submitting}
-            title={
-              totalReady === 0
-                ? "Fill required fields to enable"
-                : submitting
-                ? "Submitting listings…"
-                : ""
-            }
           >
             {submitting
               ? "Submitting…"
@@ -687,9 +660,11 @@ export default function BulkSimple() {
         .dropzone {
           margin-top: 4px;
           border-radius: 10px;
-          border: 1px dashed #4b5563;
+          border: 1px dashed #2563eb; /* BLUE */
           padding: 10px;
           display: flex;
+          flex-direction: column;
+          gap: 8px;
           align-items: center;
           justify-content: center;
           cursor: pointer;
@@ -697,11 +672,10 @@ export default function BulkSimple() {
         }
         .dropzone-text {
           font-size: 11px;
-          color: #9ca3af;
+          color: #bfdbfe; /* light blue text */
           text-align: center;
         }
         .thumbs {
-          margin-top: 8px;
           display: flex;
           flex-wrap: wrap;
           gap: 6px;
@@ -711,7 +685,7 @@ export default function BulkSimple() {
           height: 52px;
           border-radius: 6px;
           overflow: hidden;
-          border: 1px solid #374151;
+          border: 1px solid #1d4ed8;
           background: #020617;
         }
         .thumb img {
