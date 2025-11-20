@@ -54,14 +54,14 @@ export default function SellerForgotPasswordPage() {
   }
 
   return (
-    <div className="dark-theme-page">
+    <div className="min-h-screen bg-gray-50 flex flex-col">
       <Head>
         <title>Reset seller password | Famous Finds</title>
       </Head>
 
       <Header />
 
-      <main className="min-h-[60vh]">
+      <main className="flex-1">
         <div className="max-w-xl mx-auto px-4 py-10">
           <Link
             href="/seller/login"
