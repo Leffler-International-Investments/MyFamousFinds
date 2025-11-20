@@ -36,7 +36,7 @@ type CleanRow = {
   price: number;
   _source?: "bulk";
   currency: "USD";
-  status: "pending_review";
+  status: "Pending";
 };
 
 type ApiOk = { ok: true; created: number; skipped: number };
@@ -61,13 +61,17 @@ function coercePrice(v: unknown): number | null {
   return null;
 }
 
-// IMPORTANT: only require title, brand, category, condition, price.
-// Everything else is optional and can be blank.
+// IMPORTANT: only require a valid price.
+// Everything else gets a safe default so rows don't get skipped.
 function cleanRow(r: IncomingRow): CleanRow | null {
-  const title = toStr(r.title);
-  const brand = toStr(r.brand);
-  const category = toStr(r.category);
-  const condition = toStr(r.condition);
+  const rawBrand = toStr(r.brand);
+  const brand = rawBrand || "Unknown designer";
+
+  const title =
+    toStr(r.title) || (brand ? `${brand} listing` : "Untitled listing");
+
+  const category = toStr(r.category); // can be empty
+  const condition = toStr(r.condition); // can be empty
   const size = toStr(r.size);
   const color = toStr(r.color);
   const purchase_source = toStr(r.purchase_source);
@@ -75,8 +79,8 @@ function cleanRow(r: IncomingRow): CleanRow | null {
   const serial_number = toStr(r.serial_number);
   const price = coercePrice(r.price);
 
-  if (!title || !brand || !category || !condition || price == null) {
-    // core fields missing => skip
+  // Only hard requirement: a valid price
+  if (price == null) {
     return null;
   }
 
@@ -93,7 +97,7 @@ function cleanRow(r: IncomingRow): CleanRow | null {
     price,
     _source: "bulk",
     currency: "USD",
-    status: "pending_review",
+    status: "Pending",
   };
 }
 
@@ -147,6 +151,7 @@ export default async function handler(
     for (const raw of slice as IncomingRow[]) {
       const cleaned = cleanRow(raw);
       if (!cleaned) {
+        // Only case: price missing / invalid
         skipped++;
         continue;
       }
