@@ -3,13 +3,11 @@ import type { NextApiRequest, NextApiResponse } from "next";
 import { adminDb, FieldValue } from "../../../utils/firebaseAdmin";
 import { sendLoginCode } from "../../../utils/email";
 
-// Request body
 type Start2faBody = {
   email?: string;
   role?: "seller" | "management";
 };
 
-// Response
 type Start2faResponse =
   | { ok: true; challengeId: string }
   | { ok: false; error: string; message?: string };
@@ -18,7 +16,7 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse<Start2faResponse>
 ) {
-  // Only POST
+  // 1. Method Check
   if (req.method !== "POST") {
     return res
       .status(405)
@@ -30,6 +28,7 @@ export default async function handler(
     const email = (body.email || "").trim().toLowerCase();
     const role = body.role || "management";
 
+    // 2. Input Validation
     if (!email) {
       return res.status(400).json({
         ok: false,
@@ -38,20 +37,11 @@ export default async function handler(
       });
     }
 
-    // Backdoor config (admin list + master code)
-    const adminEmailsEnv = process.env.NEXT_PUBLIC_ADMIN_EMAILS || "";
-    const adminEmails = adminEmailsEnv
-      .split(",")
-      .map((e) => e.trim().toLowerCase())
-      .filter(Boolean);
-    const adminBackdoorCode = process.env.ADMIN_BACKDOOR_CODE || "";
-    const isAdminEmail = adminEmails.includes(email);
-
-    // Generate 6-digit code
+    // 3. Generate Code and Expiration
     const code = Math.floor(100000 + Math.random() * 900000).toString();
-    const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 min
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
 
-    // Create challenge doc
+    // 4. Save Challenge in Firestore
     const docRef = await adminDb.collection("authChallenges").add({
       email,
       role,
@@ -61,35 +51,26 @@ export default async function handler(
       createdAt: FieldValue.serverTimestamp(),
     });
 
-    // Try to send the email
-    let emailError: any = null;
+    // 5. Try to send the email
+    let mailError: any = null;
     try {
       await sendLoginCode(email, code);
     } catch (err: any) {
-      console.error("sendLoginCode error", err);
-      emailError = err;
+      mailError = err;
+      console.error("sendLoginCode failed:", err?.message || err);
     }
 
-    // If email failed:
-    //  - Normal users: return error
-    //  - Admin email + backdoor code configured: allow login flow to continue
-    if (emailError) {
-      if (!isAdminEmail || !adminBackdoorCode) {
-        return res.status(500).json({
-          ok: false,
-          error: "email_failed",
-          message: "Unable to send verification code. Please try again later.",
-        });
-      }
-
-      // Mark that email failed (for your logs)
-      await docRef.update({
-        emailFailed: true,
-        emailError: String(emailError?.message || emailError),
+    // 6. If sending failed AND no backdoor is configured, return error
+    const backdoor = process.env.ADMIN_BACKDOOR_CODE;
+    if (mailError && !backdoor) {
+      return res.status(500).json({
+        ok: false,
+        error: "email_failed",
+        message: "Unable to send verification code. Please try again later.",
       });
     }
 
-    // Success – frontend will show the “enter 6-digit code” screen
+    // 7. Success: even if email failed, front-end can use backdoor code
     return res.status(200).json({
       ok: true,
       challengeId: docRef.id,
