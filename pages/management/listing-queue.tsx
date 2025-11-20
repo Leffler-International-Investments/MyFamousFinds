@@ -155,7 +155,7 @@ export default function ManagementListingQueue({ items: initialItems }: Props) {
                           {/* BLUE pill VIEW button → public product page */}
                           <Link
                             href={`/product/${item.id}`}
-                            className="btn-view"
+                            className="btn-table btn-view"
                             target="_blank"
                             rel="noreferrer"
                           >
@@ -283,23 +283,6 @@ export default function ManagementListingQueue({ items: initialItems }: Props) {
           gap: 8px;
         }
 
-        /* NEW blue pill VIEW button */
-        .btn-view {
-          border-radius: 999px;
-          padding: 4px 12px;
-          font-size: 12px;
-          font-weight: 600;
-          background: #2563eb; /* blue-600 */
-          color: #ffffff;
-          border: none;
-          text-decoration: none;
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-          cursor: pointer;
-          white-space: nowrap;
-        }
-
         .btn-table {
           border-radius: 999px;
           padding: 4px 12px;
@@ -312,6 +295,17 @@ export default function ManagementListingQueue({ items: initialItems }: Props) {
         .btn-table:disabled {
           opacity: 0.5;
         }
+
+        /* BLUE VIEW button */
+        .btn-table.btn-view {
+          background: #2563eb; /* blue-600 */
+          color: #ffffff;
+          text-decoration: none;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+        }
+
         .btn-approve {
           background: #059669;
           color: white;
