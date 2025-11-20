@@ -1,15 +1,14 @@
 // FILE: /pages/seller/bulk-simple.tsx
 // Quick Add — Multi-Item Form (Seller)
-// - Loads designers from Firestore (same as /sell).
-// - Sends items to /api/seller/bulk-commit (same payload as bulk-upload).
-// - Allows "Other designer" (free text).
-// - Adds real drag & drop image zone (click or drop).
+// Loads designers from Firestore and sends rows to /api/seller/bulk-commit
+// so they appear in the management listing-queue for approval.
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Head from "next/head";
 import Link from "next/link";
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
+// Client Firestore (same as /sell page)
 import { db } from "../../utils/firebaseClient";
 import {
   collection,
@@ -20,12 +19,11 @@ import {
   DocumentData,
 } from "firebase/firestore";
 
-// ---- Types ----
 type Designer = { id: string; name: string };
 
 type Item = {
-  designerId?: string;
-  otherDesigner?: string;
+  designerId?: string;            // id from designers collection or "__other__"
+  otherDesignerName?: string;     // manual designer name if not in list
   title?: string;
   category?: string;
   condition?: string;
@@ -70,9 +68,8 @@ const CATEGORIES = [
 ];
 
 const SOURCES = ["Boutique / Brand", "Department Store", "Resale", "Gift", "Other"];
-const PROOFS = ["Receipt", "Bank statement", "Certificate", "Other"];
 
-const OTHER_DESIGNER_ID = "__other";
+const PROOFS = ["Receipt", "Bank statement", "Certificate", "Other"];
 
 export default function BulkSimple() {
   const [items, setItems] = useState<Item[]>([{}]);
@@ -83,10 +80,7 @@ export default function BulkSimple() {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitMessage, setSubmitMessage] = useState<string | null>(null);
 
-  // one hidden file input per item for click + drag/drop
-  const fileInputsRef = useRef<(HTMLInputElement | null)[]>([]);
-
-  // ---------- LOAD DESIGNERS ----------
+  // ---------- LOAD DESIGNERS (same logic as /sell, with fallback) ----------
   useEffect(() => {
     let cancelled = false;
 
@@ -106,7 +100,6 @@ export default function BulkSimple() {
         }));
         if (!cancelled) setDesigners(list);
       } catch {
-        // fallback: all designers, filter active on client
         try {
           const snap = await getDocs(collection(db, "designers"));
           const list = snap.docs
@@ -121,6 +114,7 @@ export default function BulkSimple() {
             .filter((d) => d.active)
             .sort((a, b) => a.name.localeCompare(b.name))
             .map(({ id, name }) => ({ id, name }));
+
           if (!cancelled) setDesigners(list);
         } catch {
           if (!cancelled) {
@@ -138,7 +132,7 @@ export default function BulkSimple() {
     };
   }, []);
 
-  // ---------- Helpers ----------
+  // ---------- Handlers ----------
   const addItem = () => setItems((prev) => [...prev, {}]);
 
   const removeItem = (idx: number) =>
@@ -147,51 +141,55 @@ export default function BulkSimple() {
   const update = (idx: number, patch: Partial<Item>) =>
     setItems((prev) => prev.map((it, i) => (i === idx ? { ...it, ...patch } : it)));
 
-  const handleFiles = (idx: number, files: FileList | null) => {
-    const arr = Array.from(files || []).slice(0, 8);
-    update(idx, { images: arr });
-  };
-
-  const hasBrand = (it: Item) => {
-    if (!it.designerId) return false;
-    if (it.designerId === OTHER_DESIGNER_ID) {
-      return Boolean(it.otherDesigner && it.otherDesigner.trim());
-    }
-    return true;
-  };
-
   const totalReady = useMemo(
     () =>
-      items.filter(
-        (it) =>
-          hasBrand(it) && it.title && it.category && it.condition && it.priceUSD
-      ).length,
+      items.filter((it) => {
+        const hasDesigner =
+          (it.designerId && it.designerId !== "__other__") ||
+          (it.otherDesignerName && it.otherDesignerName.trim().length > 0);
+        return (
+          hasDesigner &&
+          it.title &&
+          it.category &&
+          it.condition &&
+          it.priceUSD
+        );
+      }).length,
     [items]
   );
 
-  // ---------- Submit ----------
   const onCreate = async () => {
     setSubmitError(null);
     setSubmitMessage(null);
 
-    const readyItems = items.filter(
-      (it) =>
-        hasBrand(it) && it.title && it.category && it.condition && it.priceUSD
-    );
+    const readyItems = items.filter((it) => {
+      const hasDesigner =
+        (it.designerId && it.designerId !== "__other__") ||
+        (it.otherDesignerName && it.otherDesignerName.trim().length > 0);
+      return (
+        hasDesigner &&
+        it.title &&
+        it.category &&
+        it.condition &&
+        it.priceUSD
+      );
+    });
 
     if (!readyItems.length) {
       setSubmitError("Please fill in at least one complete item before submitting.");
       return;
     }
 
+    // Map form items -> API rows
     const rows = readyItems
       .map((it) => {
         let brand = "";
-        if (it.designerId === OTHER_DESIGNER_ID) {
-          brand = (it.otherDesigner || "").trim();
-        } else {
+
+        if (it.designerId && it.designerId !== "__other__") {
           const designer = designers.find((d) => d.id === it.designerId);
           brand = designer?.name?.trim() || "";
+        } else if (it.otherDesignerName) {
+          brand = it.otherDesignerName.trim();
         }
 
         const numericPrice = Number(
@@ -230,7 +228,7 @@ export default function BulkSimple() {
 
     if (!rows.length) {
       setSubmitError(
-        "None of the items were valid. Please check brand and price fields."
+        "None of the items were valid. Please check designer/brand and price fields."
       );
       return;
     }
@@ -297,12 +295,12 @@ export default function BulkSimple() {
           Add several listings at once with dropdowns and image uploads.
         </p>
 
-        {submitError && <p className="banner error">⚠️ {submitError}</p>}
+        {submitError && <p className="banner error">⚠ {submitError}</p>}
         {submitMessage && !submitError && (
           <p className="banner">✅ {submitMessage}</p>
         )}
 
-        {designerError && <p className="banner error">⚠️ {designerError}</p>}
+        {designerError && <p className="banner error">⚠ {designerError}</p>}
         {!designerError && loadingDesigners && (
           <p className="banner">Loading designers…</p>
         )}
@@ -330,15 +328,16 @@ export default function BulkSimple() {
                 <span>Designer</span>
                 <select
                   value={it.designerId || ""}
-                  onChange={(e) => {
-                    const value = e.target.value;
-                    if (value === OTHER_DESIGNER_ID) {
-                      update(idx, { designerId: value });
-                    } else {
-                      // clear custom name when switching back to normal designer
-                      update(idx, { designerId: value, otherDesigner: "" });
-                    }
-                  }}
+                  onChange={(e) =>
+                    update(idx, {
+                      designerId: e.target.value,
+                      // if user changes away from "__other__", clear manual name
+                      otherDesignerName:
+                        e.target.value === "__other__"
+                          ? it.otherDesignerName
+                          : "",
+                    })
+                  }
                   disabled={
                     loadingDesigners || !!designerError || designers.length === 0
                   }
@@ -355,22 +354,20 @@ export default function BulkSimple() {
                       {d.name}
                     </option>
                   ))}
-                  <option value={OTHER_DESIGNER_ID}>
-                    Other designer (not listed)
-                  </option>
+                  <option value="__other__">Other designer (not listed)</option>
                 </select>
               </label>
 
-              {/* Custom designer name when "Other" selected */}
-              {it.designerId === OTHER_DESIGNER_ID && (
+              {/* Manual designer name when "Other" selected */}
+              {it.designerId === "__other__" && (
                 <label>
-                  <span>Designer name (other)</span>
+                  <span>Designer name (not in list)</span>
                   <input
-                    value={it.otherDesigner || ""}
+                    value={it.otherDesignerName || ""}
                     onChange={(e) =>
-                      update(idx, { otherDesigner: e.target.value })
+                      update(idx, { otherDesignerName: e.target.value })
                     }
-                    placeholder="Type designer / brand name"
+                    placeholder="e.g., New Designer Name"
                   />
                 </label>
               )}
@@ -390,7 +387,9 @@ export default function BulkSimple() {
                 <span>Category</span>
                 <select
                   value={it.category || ""}
-                  onChange={(e) => update(idx, { category: e.target.value })}
+                  onChange={(e) =>
+                    update(idx, { category: e.target.value })
+                  }
                 >
                   <option value="">— Pick a category —</option>
                   {CATEGORIES.map((c) => (
@@ -406,7 +405,9 @@ export default function BulkSimple() {
                 <span>Condition</span>
                 <select
                   value={it.condition || ""}
-                  onChange={(e) => update(idx, { condition: e.target.value })}
+                  onChange={(e) =>
+                    update(idx, { condition: e.target.value })
+                  }
                 >
                   <option value="">— Pick a condition —</option>
                   {CONDITIONS.map((c) => (
@@ -443,7 +444,9 @@ export default function BulkSimple() {
                 <input
                   inputMode="numeric"
                   value={it.priceUSD || ""}
-                  onChange={(e) => update(idx, { priceUSD: e.target.value })}
+                  onChange={(e) =>
+                    update(idx, { priceUSD: e.target.value })
+                  }
                   placeholder="e.g., 5200"
                 />
               </label>
@@ -494,7 +497,7 @@ export default function BulkSimple() {
                 </select>
               </label>
 
-              {/* Images drag & drop */}
+              {/* Images with drag & drop */}
               <label className="full">
                 <span>Images (drag & drop or select — up to 8)</span>
                 <div
@@ -506,31 +509,30 @@ export default function BulkSimple() {
                   onDrop={(e) => {
                     e.preventDefault();
                     e.stopPropagation();
-                    handleFiles(idx, e.dataTransfer.files);
-                  }}
-                  onClick={() => {
-                    const input = fileInputsRef.current[idx];
-                    if (input) input.click();
+                    const files = Array.from(e.dataTransfer.files || [])
+                      .filter((f) => f.type.startsWith("image/"))
+                      .slice(0, 8);
+                    if (files.length) {
+                      update(idx, { images: files });
+                    }
                   }}
                 >
-                  <p>
-                    {it.images?.length
-                      ? `${it.images.length} file${
-                          it.images.length > 1 ? "s" : ""
-                        } selected`
-                      : "Click or drop images here"}
-                  </p>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    onChange={(e) => {
+                      const files = Array.from(e.target.files || []).slice(
+                        0,
+                        8
+                      );
+                      update(idx, { images: files });
+                    }}
+                  />
+                  <span className="dropzone-text">
+                    Click to choose images or drop them here
+                  </span>
                 </div>
-                <input
-                  ref={(el) => {
-                    fileInputsRef.current[idx] = el;
-                  }}
-                  type="file"
-                  accept="image/*"
-                  multiple
-                  style={{ display: "none" }}
-                  onChange={(e) => handleFiles(idx, e.target.files)}
-                />
               </label>
             </div>
           </div>
@@ -553,7 +555,9 @@ export default function BulkSimple() {
                 : ""
             }
           >
-            {submitting ? "Submitting…" : `Create ${totalReady} listing(s)`}
+            {submitting
+              ? "Submitting…"
+              : `Create ${totalReady} listing(s)`}
           </button>
         </div>
       </main>
@@ -648,6 +652,31 @@ export default function BulkSimple() {
           font-size: 12px;
           width: 100%;
         }
+        .dropzone {
+          margin-top: 4px;
+          border-radius: 10px;
+          border: 1px dashed #4b5563;
+          padding: 10px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
+          background: #020617;
+          position: relative;
+          overflow: hidden;
+        }
+        .dropzone input[type="file"] {
+          position: absolute;
+          inset: 0;
+          opacity: 0;
+          cursor: pointer;
+        }
+        .dropzone-text {
+          font-size: 11px;
+          color: #9ca3af;
+          text-align: center;
+          pointer-events: none;
+        }
         .actions {
           display: flex;
           gap: 10px;
@@ -674,20 +703,6 @@ export default function BulkSimple() {
         .back-link a {
           color: #9ca3af;
           font-size: 12px;
-        }
-        .dropzone {
-          border: 1px dashed #4b5563;
-          border-radius: 8px;
-          padding: 16px;
-          text-align: center;
-          cursor: pointer;
-          font-size: 12px;
-          color: #9ca3af;
-          background: #020617;
-        }
-        .dropzone:hover {
-          border-color: #e5e7eb;
-          color: #e5e7eb;
         }
       `}</style>
     </div>
