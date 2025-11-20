@@ -22,18 +22,18 @@ type IncomingRow = {
   serial_number?: string;
 };
 
-type CleanRow = Required<{
+type CleanRow = {
   title: string;
   brand: string;
   category: string;
   condition: string;
+  // OPTIONAL FIELDS (can be empty strings)
   size: string;
   color: string;
-  price: number;
   purchase_source: string;
   purchase_proof: string;
   serial_number: string;
-}> & {
+  price: number;
   _source?: "bulk";
   currency: "USD";
   status: "pending_review";
@@ -61,6 +61,8 @@ function coercePrice(v: unknown): number | null {
   return null;
 }
 
+// IMPORTANT: only require title, brand, category, condition, price.
+// Everything else is optional and can be blank.
 function cleanRow(r: IncomingRow): CleanRow | null {
   const title = toStr(r.title);
   const brand = toStr(r.brand);
@@ -73,18 +75,8 @@ function cleanRow(r: IncomingRow): CleanRow | null {
   const serial_number = toStr(r.serial_number);
   const price = coercePrice(r.price);
 
-  if (
-    !title ||
-    !brand ||
-    !category ||
-    !condition ||
-    !size ||
-    !color ||
-    !purchase_source ||
-    !purchase_proof ||
-    !serial_number ||
-    price == null
-  ) {
+  if (!title || !brand || !category || !condition || price == null) {
+    // core fields missing => skip
     return null;
   }
 
@@ -95,22 +87,21 @@ function cleanRow(r: IncomingRow): CleanRow | null {
     condition,
     size,
     color,
-    price,
     purchase_source,
     purchase_proof,
     serial_number,
+    price,
     _source: "bulk",
     currency: "USD",
     status: "pending_review",
   };
 }
 
-// Designers directory: used to know which brands are already configured.
-// NOTE: we NO LONGER block unknown designers; we just flag them.
+// Designers directory: used only to FLAG, not to block rows.
 async function getApprovedDesigners(): Promise<Set<string>> {
   const snap = await adminDb.collection("designers").get();
   const set = new Set<string>();
-  if (snap.empty) return set; // empty set => we won't enforce
+  if (snap.empty) return set;
 
   snap.forEach((d) => {
     const data = d.data() as any;
@@ -168,7 +159,6 @@ export default async function handler(
       const docData: any = {
         ...cleaned,
         sellerId,
-        // optional: surface brand approval status for management
         designerStatus: isApprovedDesigner ? "approved" : "unlisted",
         pricing: {
           amount: cleaned.price,
