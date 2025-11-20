@@ -1,7 +1,6 @@
 // FILE: /pages/index.tsx
 
 import Head from "next/head";
-import Link from "next/link";
 import Header from "../components/Header";
 import Footer from "../components/Footer";
 import DemoGrid from "../components/DemoGrid";
@@ -9,21 +8,6 @@ import { ProductLike } from "../components/ProductCard";
 import { adminDb } from "../utils/firebaseAdmin";
 import type { GetServerSideProps } from "next";
 import HomepageButler from "../components/HomepageButler";
-
-const categories = [
-  { name: "Bags", slug: "bags" },
-  { name: "Watches", slug: "watches" },
-  { name: "Kids", slug: "kids" },
-  { name: "Clothing", slug: "clothing" },
-  { name: "Jewelry", slug: "jewelry" },
-  { name: "Home", slug: "home" },
-  { name: "Shoes", slug: "shoes" },
-  { name: "Men", slug: "men" },
-  { name: "Beauty", slug: "beauty" },
-  { name: "Accessories", slug: "accessories" },
-  { name: "Women", slug: "women" },
-  { name: "Sale", slug: "sale" },
-];
 
 type HomeProps = {
   trending: ProductLike[];
@@ -51,14 +35,6 @@ export default function Home({ trending, newArrivals }: HomeProps) {
           <div className="heroVisual">
             <HomepageButler />
           </div>
-        </section>
-
-        <section className="categories">
-          {categories.map((c) => (
-            <Link key={c.slug} href={`/category/${c.slug}`} className="cat">
-              {c.name}
-            </Link>
-          ))}
         </section>
 
         <DemoGrid title="Now Trending" items={trending} />
@@ -97,7 +73,7 @@ export default function Home({ trending, newArrivals }: HomeProps) {
         .lead {
           margin-top: 10px;
           font-size: 15px;
-          color: #4b5563; /* darker text for white background */
+          color: #4b5563;
           line-height: 1.6;
         }
         .heroVisual {
@@ -106,26 +82,6 @@ export default function Home({ trending, newArrivals }: HomeProps) {
           background: radial-gradient(circle at top, #334155, #020617);
           border: 1px solid rgba(148, 163, 184, 0.3);
           color: #f9fafb;
-        }
-
-        .categories {
-          display: flex;
-          flex-wrap: wrap;
-          gap: 10px;
-          margin-bottom: 16px;
-        }
-        .cat {
-          font-size: 13px;
-          padding: 6px 12px;
-          border-radius: 999px;
-          border: 1px solid #d1d5db; /* light border */
-          color: #374151;            /* dark text */
-          background: #ffffff;
-          text-decoration: none;
-        }
-        .cat:hover {
-          border-color: #111827;
-          background: #f3f4f6;
         }
 
         @media (max-width: 900px) {
