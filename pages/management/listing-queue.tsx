@@ -24,7 +24,9 @@ type Listing = {
 
 type Props = { items: Listing[] };
 
-export default function ManagementListingQueue({ items: initialItems }: Props) {
+export default function ManagementListingQueue({
+  items: initialItems,
+}: Props) {
   const { loading } = useRequireAdmin();
   const [items, setItems] = useState(initialItems);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
@@ -83,7 +85,6 @@ export default function ManagementListingQueue({ items: initialItems }: Props) {
       <div className="dashboard-page">
         <Header />
         <main className="dashboard-main" style={{ maxWidth: "100%" }}>
-          {/* Use light theme classes from globals.css */}
           <div className="dashboard-header">
             <div>
               <h1>Listing Review Queue</h1>
@@ -153,9 +154,9 @@ export default function ManagementListingQueue({ items: initialItems }: Props) {
                       <td>{item.status}</td>
                       <td>
                         <div className="actions-cell">
-                          {/* NEW: View button */}
+                          {/* BLUE VIEW BUTTON → public product page */}
                           <Link
-                            href={`/management/listings/${item.id}`}
+                            href={`/product/${item.id}`}
                             className="btn-table btn-view"
                             target="_blank"
                             rel="noreferrer"
@@ -164,7 +165,9 @@ export default function ManagementListingQueue({ items: initialItems }: Props) {
                           </Link>
 
                           <button
-                            onClick={() => handleAction(item.id, "approve")}
+                            onClick={() =>
+                              handleAction(item.id, "approve")
+                            }
                             disabled={
                               actionLoading === item.id ||
                               item.status === "Live"
@@ -174,7 +177,9 @@ export default function ManagementListingQueue({ items: initialItems }: Props) {
                             Approve
                           </button>
                           <button
-                            onClick={() => handleAction(item.id, "reject")}
+                            onClick={() =>
+                              handleAction(item.id, "reject")
+                            }
                             disabled={
                               actionLoading === item.id ||
                               item.status === "Rejected"
@@ -293,8 +298,8 @@ export default function ManagementListingQueue({ items: initialItems }: Props) {
           opacity: 0.5;
         }
         .btn-view {
-          background: #e5e7eb; /* gray-200 */
-          color: #111827; /* gray-900 */
+          background: #2563eb; /* blue-600 */
+          color: #ffffff;
           text-decoration: none;
           display: inline-flex;
           align-items: center;
