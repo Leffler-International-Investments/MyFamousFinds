@@ -162,22 +162,55 @@ export default function Header() {
       {/* CATEGORY STRIP + HOVER DROPDOWNS */}
       <nav className="ff-category-nav">
         {categoryNav.map((item) => (
-          <div key={item.label} className="ff-cat-item">
+          // Added 'group' class here so group-hover works in the child
+          <div key={item.label} className="ff-cat-item group">
             <Link href={item.href} className="ff-cat-link">
               {item.label}
             </Link>
 
             {item.submenu && (
-              <div className="ff-megamenu">
-                {item.submenu.map((sub) => (
-                  <Link
-                    key={sub.label}
-                    href={sub.href}
-                    className="ff-megamenu-link"
-                  >
-                    {sub.label}
-                  </Link>
-                ))}
+              <div className="
+                pointer-events-none 
+                absolute 
+                left-0 
+                top-full 
+                z-30 
+                mt-2 
+                hidden 
+                min-w-[200px] 
+                rounded-xl 
+                border 
+                border-slate-200 
+                bg-white 
+                px-3 
+                py-2 
+                shadow-xl
+                group-hover:pointer-events-auto 
+                group-hover:block
+              ">
+                <ul className="flex flex-col gap-1">
+                  {item.submenu.map((sub) => (
+                    <li key={sub.label}>
+                      <Link
+                        href={sub.href}
+                        className="
+                          block 
+                          w-full 
+                          rounded-md 
+                          px-2 
+                          py-1.5 
+                          text-sm 
+                          text-slate-700 
+                          hover:bg-gray-100 
+                          hover:text-black
+                          transition
+                        "
+                      >
+                        {sub.label}
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
               </div>
             )}
           </div>
@@ -314,6 +347,9 @@ export default function Header() {
           border-bottom: 2px solid #111827;
         }
 
+        /* Note: The previous .ff-megamenu CSS is no longer used 
+           for the desktop menu as we switched to Tailwind, 
+           but leaving it doesn't hurt anything. */
         .ff-megamenu {
           position: absolute;
           top: 26px;
