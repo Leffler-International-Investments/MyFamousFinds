@@ -129,7 +129,6 @@ export default function Sell() {
     }
 
     formData.set("brand", brandName || "");
-
     if (requestedDesigner) {
       formData.set("designer_request", requestedDesigner);
       const requestReason = (formData.get("designer_request_reason") || "")
@@ -142,16 +141,29 @@ export default function Sell() {
     // --- END BRAND / DESIGNER LOGIC ---
 
     setSubmitting(true);
-
     try {
       const imageUrl = await uploadImageIfNeeded(formData);
       if (imageUrl) {
         formData.set("image_url", imageUrl);
       }
 
+      // Convert FormData to plain JSON for the /api/sell endpoint
+      const payload: Record<string, any> = {};
+      formData.forEach((value, key) => {
+        // Files are already handled via uploadImageIfNeeded (image_url),
+        // so we never send raw File objects to the API.
+        if (value instanceof File) {
+          return;
+        }
+        payload[key] = value;
+      });
+
       const res = await fetch("/api/sell", {
         method: "POST",
-        body: formData,
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
       });
 
       const json = await res.json();
