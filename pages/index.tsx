@@ -6,7 +6,7 @@ import Footer from "../components/Footer";
 import DemoGrid from "../components/DemoGrid";
 import { ProductLike } from "../components/ProductCard";
 import { adminDb } from "../utils/firebaseAdmin";
-import type { GetServerSideProps } from "next";
+import type { GetServerSideProps, NextPage } from "next";
 import HomepageButler from "../components/HomepageButler";
 
 type HomeProps = {
@@ -14,13 +14,15 @@ type HomeProps = {
   newArrivals: ProductLike[];
 };
 
-export default function Home({ trending, newArrivals }: HomeProps) {
+const Home: NextPage<HomeProps> = ({ trending, newArrivals }) => {
   return (
     <div className="dark-theme-page">
       <Head>
         <title>Famous Finds — US</title>
       </Head>
+
       <Header />
+
       <main className="wrap">
         <section className="hero">
           <div className="heroCopy">
@@ -40,6 +42,7 @@ export default function Home({ trending, newArrivals }: HomeProps) {
         <DemoGrid title="Now Trending" items={trending} />
         <DemoGrid title="New Arrivals" items={newArrivals} />
       </main>
+
       <Footer />
 
       <style jsx>{`
@@ -48,34 +51,43 @@ export default function Home({ trending, newArrivals }: HomeProps) {
           margin: 0 auto;
           padding: 16px 16px 80px;
         }
+
         .hero {
           display: grid;
           grid-template-columns: minmax(0, 1.1fr) minmax(0, 1.1fr);
           gap: 40px;
           margin-top: 16px;
           margin-bottom: 24px;
+          align-items: center;
         }
+
         .heroCopy {
           max-width: 520px;
         }
+
         .eyebrow {
           font-size: 11px;
+          font-weight: 600;
           text-transform: uppercase;
           letter-spacing: 0.12em;
-          color: #9ca3af;
+          color: #6b7280;
+          margin-bottom: 4px;
         }
+
         h1 {
           margin-top: 4px;
           font-size: 32px;
           letter-spacing: 0.02em;
           color: #111827;
         }
+
         .lead {
           margin-top: 10px;
           font-size: 15px;
           color: #4b5563;
           line-height: 1.6;
         }
+
         .heroVisual {
           border-radius: 16px;
           padding: 18px 18px 20px;
@@ -92,7 +104,7 @@ export default function Home({ trending, newArrivals }: HomeProps) {
       `}</style>
     </div>
   );
-}
+};
 
 export const getServerSideProps: GetServerSideProps<HomeProps> = async () => {
   try {
@@ -151,3 +163,5 @@ export const getServerSideProps: GetServerSideProps<HomeProps> = async () => {
     };
   }
 };
+
+export default Home;
