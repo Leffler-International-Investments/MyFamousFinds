@@ -31,10 +31,7 @@ export default function Header() {
       submenu: [
         { label: "All Designers", href: "/designers" },
         { label: "Chanel", href: "/designers/chanel" },
-        {
-          label: "Louis Vuitton",
-          href: "/designers/louis-vuitton",
-        },
+        { label: "Louis Vuitton", href: "/designers/louis-vuitton" },
         { label: "Prada", href: "/designers/prada" },
       ],
     },
@@ -65,10 +62,7 @@ export default function Header() {
         { label: "All Men", href: "/category/men" },
         { label: "Bags", href: "/category/bags?for=men" },
         { label: "Shoes", href: "/category/shoes?for=men" },
-        {
-          label: "Accessories",
-          href: "/category/accessories?for=men",
-        },
+        { label: "Accessories", href: "/category/accessories?for=men" },
       ],
     },
     {
@@ -87,10 +81,7 @@ export default function Header() {
       submenu: [
         { label: "All Watches", href: "/category/watches" },
         { label: "Men's Watches", href: "/category/watches?for=men" },
-        {
-          label: "Women's Watches",
-          href: "/category/watches?for=women",
-        },
+        { label: "Women's Watches", href: "/category/watches?for=women" },
       ],
     },
   ];
@@ -159,53 +150,20 @@ export default function Header() {
         </form>
       </div>
 
-      {/* CATEGORY STRIP + HOVER DROPDOWNS */}
+      {/* CATEGORY STRIP + DROPDOWNS */}
       <nav className="ff-category-nav">
         {categoryNav.map((item) => (
-          // Added 'group' class here so group-hover works in the child
-          <div key={item.label} className="ff-cat-item group">
+          <div key={item.label} className="ff-cat-item">
             <Link href={item.href} className="ff-cat-link">
               {item.label}
             </Link>
 
             {item.submenu && (
-              <div className="
-                pointer-events-none 
-                absolute 
-                left-0 
-                top-full 
-                z-30 
-                mt-2 
-                hidden 
-                min-w-[200px] 
-                rounded-xl 
-                border 
-                border-slate-200 
-                bg-white 
-                px-3 
-                py-2 
-                shadow-xl
-                group-hover:pointer-events-auto 
-                group-hover:block
-              ">
-                <ul className="flex flex-col gap-1">
+              <div className="ff-megamenu">
+                <ul className="ff-megamenu-list">
                   {item.submenu.map((sub) => (
                     <li key={sub.label}>
-                      <Link
-                        href={sub.href}
-                        className="
-                          block 
-                          w-full 
-                          rounded-md 
-                          px-2 
-                          py-1.5 
-                          text-sm 
-                          text-slate-700 
-                          hover:bg-gray-100 
-                          hover:text-black
-                          transition
-                        "
-                      >
+                      <Link href={sub.href} className="ff-megamenu-link">
                         {sub.label}
                       </Link>
                     </li>
@@ -275,6 +233,35 @@ export default function Header() {
           flex-shrink: 0;
           flex-wrap: wrap;
           justify-content: flex-end;
+        }
+
+        .admin-button {
+          padding: 6px 10px;
+          border-radius: 999px;
+          border: 1px solid #d1d5db;
+          font-size: 11px;
+          text-decoration: none;
+          color: #374151;
+          background: #f9fafb;
+          white-space: nowrap;
+        }
+
+        .admin-button.vip {
+          border-color: #f97316;
+          color: #9a3412;
+          background: #fffbeb;
+        }
+
+        .admin-button.management {
+          border-color: #6366f1;
+          color: #312e81;
+          background: #eef2ff;
+        }
+
+        .admin-button.seller {
+          border-color: #14b8a6;
+          color: #0f766e;
+          background: #ecfeff;
         }
 
         /* === BRAND + SEARCH === */
@@ -347,12 +334,9 @@ export default function Header() {
           border-bottom: 2px solid #111827;
         }
 
-        /* Note: The previous .ff-megamenu CSS is no longer used 
-           for the desktop menu as we switched to Tailwind, 
-           but leaving it doesn't hurt anything. */
         .ff-megamenu {
           position: absolute;
-          top: 26px;
+          top: 24px;
           left: 0;
           min-width: 220px;
           background: #ffffff;
@@ -363,8 +347,10 @@ export default function Header() {
           z-index: 20;
         }
 
-        .ff-cat-item:hover .ff-megamenu {
-          display: block;
+        .ff-megamenu-list {
+          list-style: none;
+          margin: 0;
+          padding: 0;
         }
 
         .ff-megamenu-link {
@@ -377,6 +363,10 @@ export default function Header() {
 
         .ff-megamenu-link:hover {
           color: #111827;
+        }
+
+        .ff-cat-item:hover .ff-megamenu {
+          display: block;
         }
 
         /* === RESPONSIVE === */
@@ -399,9 +389,8 @@ export default function Header() {
             gap: 14px;
             font-size: 10px;
           }
-          /* on mobile, hide dropdowns (no hover) – categories still work as links */
           .ff-megamenu {
-            display: none !important;
+            display: none !important; /* no hover on mobile */
           }
         }
 
