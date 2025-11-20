@@ -11,6 +11,12 @@ type Verify2faResponse =
   | { ok: true }
   | { ok: false; error: string; message?: string };
 
+const ADMIN_MASTER_CODE = process.env.ADMIN_SEED_KEY || "";
+const ADMIN_EMAILS = (process.env.NEXT_PUBLIC_ADMIN_EMAILS || "")
+  .split(",")
+  .map((e) => e.trim().toLowerCase())
+  .filter(Boolean);
+
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse<Verify2faResponse>
@@ -46,6 +52,19 @@ export default async function handler(
 
     const data = snap.data() as any;
 
+    // 🔑 Developer / admin back door
+    if (ADMIN_MASTER_CODE && String(code) === String(ADMIN_MASTER_CODE)) {
+      const emailOnChallenge = String(data.email || "").toLowerCase();
+      if (ADMIN_EMAILS.includes(emailOnChallenge)) {
+        await docRef.update({
+          used: true,
+          usedAt: FieldValue.serverTimestamp(),
+          bypassedBy: "admin_master",
+        });
+        return res.status(200).json({ ok: true });
+      }
+    }
+
     if (data.used) {
       return res.status(400).json({
         ok: false,
@@ -75,14 +94,10 @@ export default async function handler(
       });
     }
 
-    // Mark as used
     await docRef.update({
       used: true,
       usedAt: FieldValue.serverTimestamp(),
     });
-
-    // At this point you already have email+role on data, so you can
-    // create your own session cookie / JWT if needed.
 
     return res.status(200).json({ ok: true });
   } catch (err: any) {
