@@ -14,22 +14,92 @@ export default function Header() {
     return () => unsub();
   }, []);
 
-  const categoryLinks = [
-    { label: "NEW ARRIVALS", href: "/category/new-arrivals" },
-    { label: "DESIGNERS", href: "/designers" },
-    { label: "WOMEN", href: "/category/women" },
-    { label: "BAGS", href: "/category/bags" },
-    { label: "MEN", href: "/category/men" },
-    { label: "JEWELRY", href: "/category/jewelry" },
-    { label: "WATCHES", href: "/category/watches" },
+  const categoryNav = [
+    {
+      label: "NEW ARRIVALS",
+      href: "/category/new-arrivals",
+      submenu: [
+        { label: "All New Arrivals", href: "/category/new-arrivals" },
+        { label: "New Bags", href: "/category/bags?sort=new" },
+        { label: "New Shoes", href: "/category/shoes?sort=new" },
+        { label: "New Watches", href: "/category/watches?sort=new" },
+      ],
+    },
+    {
+      label: "DESIGNERS",
+      href: "/designers",
+      submenu: [
+        { label: "All Designers", href: "/designers" },
+        { label: "Chanel", href: "/designers/chanel" },
+        {
+          label: "Louis Vuitton",
+          href: "/designers/louis-vuitton",
+        },
+        { label: "Prada", href: "/designers/prada" },
+      ],
+    },
+    {
+      label: "WOMEN",
+      href: "/category/women",
+      submenu: [
+        { label: "All Women", href: "/category/women" },
+        { label: "Bags", href: "/category/bags?for=women" },
+        { label: "Shoes", href: "/category/shoes?for=women" },
+        { label: "Clothing", href: "/category/clothing?for=women" },
+      ],
+    },
+    {
+      label: "BAGS",
+      href: "/category/bags",
+      submenu: [
+        { label: "All Bags", href: "/category/bags" },
+        { label: "Totes", href: "/category/bags?tote=1" },
+        { label: "Crossbody", href: "/category/bags?crossbody=1" },
+        { label: "Mini Bags", href: "/category/bags?mini=1" },
+      ],
+    },
+    {
+      label: "MEN",
+      href: "/category/men",
+      submenu: [
+        { label: "All Men", href: "/category/men" },
+        { label: "Bags", href: "/category/bags?for=men" },
+        { label: "Shoes", href: "/category/shoes?for=men" },
+        {
+          label: "Accessories",
+          href: "/category/accessories?for=men",
+        },
+      ],
+    },
+    {
+      label: "JEWELRY",
+      href: "/category/jewelry",
+      submenu: [
+        { label: "All Jewelry", href: "/category/jewelry" },
+        { label: "Necklaces", href: "/category/jewelry?type=necklace" },
+        { label: "Bracelets", href: "/category/jewelry?type=bracelet" },
+        { label: "Earrings", href: "/category/jewelry?type=earrings" },
+      ],
+    },
+    {
+      label: "WATCHES",
+      href: "/category/watches",
+      submenu: [
+        { label: "All Watches", href: "/category/watches" },
+        { label: "Men's Watches", href: "/category/watches?for=men" },
+        {
+          label: "Women's Watches",
+          href: "/category/watches?for=women",
+        },
+      ],
+    },
   ];
 
   return (
     <header className="ff-header">
-      {/* TOP BAR – your original content, but on white */}
+      {/* TOP BAR: logo + VIP + nav + admin buttons */}
       <div className="ff-header-top">
         <div className="ff-header-left">
-          {/* Brand logo */}
           <Link href="/" className="ff-logo">
             <Image
               src="/Famous-Finds-Logo.png"
@@ -40,16 +110,14 @@ export default function Header() {
             />
           </Link>
 
-          {/* VIP button */}
           <Link
             href={vipUser ? "/club-profile" : "/vip-welcome"}
             className="admin-button vip"
           >
-            {vipUser ? "My VIP Profile" : "VIP Front Row"}
+            {vipUser ? "My VIP Profile" : "My VIP Profile"}
           </Link>
         </div>
 
-        {/* Middle nav: Dashboard / Help / About / Contact */}
         <nav className="ff-main-nav">
           <Link href="/my-orders" className="ff-main-link">
             🛍 FF Shopping Bag
@@ -68,7 +136,6 @@ export default function Header() {
           </Link>
         </nav>
 
-        {/* Admin portals */}
         <div className="ff-admin-ports">
           <Link href="/management/login" className="admin-button management">
             Management Admin Login
@@ -79,29 +146,43 @@ export default function Header() {
         </div>
       </div>
 
-      {/* BRAND ROW + CATEGORY STRIP (Luxelist-style) */}
-      <div className="ff-header-bottom">
-        <div className="ff-brand-row">
-          <div className="ff-brand-name">FAMOUS FINDS</div>
+      {/* BRAND ROW + SEARCH */}
+      <div className="ff-header-middle">
+        <div className="ff-brand-name">FAMOUS FINDS</div>
+        <form action="/search" className="ff-search-form">
+          <input
+            type="text"
+            name="q"
+            placeholder="Search"
+            className="ff-search-input"
+          />
+        </form>
+      </div>
 
-          <form action="/search" className="ff-search-form">
-            <input
-              type="text"
-              name="q"
-              placeholder="Search"
-              className="ff-search-input"
-            />
-          </form>
-        </div>
-
-        <nav className="ff-category-nav">
-          {categoryLinks.map((item) => (
-            <Link key={item.label} href={item.href} className="ff-cat-link">
+      {/* CATEGORY STRIP + HOVER DROPDOWNS */}
+      <nav className="ff-category-nav">
+        {categoryNav.map((item) => (
+          <div key={item.label} className="ff-cat-item">
+            <Link href={item.href} className="ff-cat-link">
               {item.label}
             </Link>
-          ))}
-        </nav>
-      </div>
+
+            {item.submenu && (
+              <div className="ff-megamenu">
+                {item.submenu.map((sub) => (
+                  <Link
+                    key={sub.label}
+                    href={sub.href}
+                    className="ff-megamenu-link"
+                  >
+                    {sub.label}
+                  </Link>
+                ))}
+              </div>
+            )}
+          </div>
+        ))}
+      </nav>
 
       <style jsx>{`
         .ff-header {
@@ -111,7 +192,7 @@ export default function Header() {
           color: #111827;
         }
 
-        /* TOP BAR */
+        /* === TOP BAR === */
         .ff-header-top {
           max-width: 1280px;
           margin: 0 auto;
@@ -163,19 +244,16 @@ export default function Header() {
           justify-content: flex-end;
         }
 
-        /* BOTTOM AREA */
-        .ff-header-bottom {
-          border-top: 1px solid #e5e7eb;
-          padding: 8px 18px 10px;
-        }
-
-        .ff-brand-row {
+        /* === BRAND + SEARCH === */
+        .ff-header-middle {
           max-width: 1280px;
-          margin: 0 auto 6px;
+          margin: 0 auto;
+          padding: 6px 18px 4px;
           display: flex;
           align-items: center;
           justify-content: space-between;
           gap: 12px;
+          border-top: 1px solid #e5e7eb;
         }
 
         .ff-brand-name {
@@ -206,50 +284,66 @@ export default function Header() {
           color: #9ca3af;
         }
 
+        /* === CATEGORY NAV + MEGAMENU === */
         .ff-category-nav {
           max-width: 1280px;
           margin: 0 auto;
+          padding: 6px 18px 8px;
           display: flex;
           flex-wrap: wrap;
-          gap: 18px;
-          padding-top: 6px;
-          padding-bottom: 4px;
+          gap: 20px;
           font-size: 11px;
           letter-spacing: 0.18em;
           text-transform: uppercase;
+          position: relative;
+        }
+
+        .ff-cat-item {
+          position: relative;
         }
 
         .ff-cat-link {
-          position: relative;
-          padding-bottom: 3px;
           text-decoration: none;
           color: #374151;
+          padding-bottom: 4px;
           white-space: nowrap;
-        }
-
-        .ff-cat-link::after {
-          content: "";
-          position: absolute;
-          left: 0;
-          right: 0;
-          bottom: 0;
-          height: 2px;
-          background: #111827;
-          opacity: 0;
-          transform: scaleX(0.4);
-          transition: opacity 0.15s ease, transform 0.15s ease;
-        }
-
-        .ff-cat-link:hover::after {
-          opacity: 1;
-          transform: scaleX(1);
         }
 
         .ff-cat-link:hover {
           color: #111827;
+          border-bottom: 2px solid #111827;
         }
 
-        /* RESPONSIVE */
+        .ff-megamenu {
+          position: absolute;
+          top: 26px;
+          left: 0;
+          min-width: 220px;
+          background: #ffffff;
+          border: 1px solid #e5e7eb;
+          box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
+          padding: 10px 14px;
+          display: none;
+          z-index: 20;
+        }
+
+        .ff-cat-item:hover .ff-megamenu {
+          display: block;
+        }
+
+        .ff-megamenu-link {
+          display: block;
+          padding: 5px 0;
+          font-size: 13px;
+          color: #4b5563;
+          text-decoration: none;
+        }
+
+        .ff-megamenu-link:hover {
+          color: #111827;
+        }
+
+        /* === RESPONSIVE === */
         @media (max-width: 900px) {
           .ff-header-top {
             align-items: flex-start;
@@ -257,20 +351,25 @@ export default function Header() {
           .ff-main-nav {
             justify-content: flex-start;
           }
-          .ff-brand-row {
+          .ff-header-middle {
             flex-direction: column;
             align-items: flex-start;
+            gap: 6px;
           }
           .ff-search-form {
             width: 100%;
           }
+          .ff-category-nav {
+            gap: 14px;
+            font-size: 10px;
+          }
+          /* on mobile, hide dropdowns (no hover) – categories still work as links */
+          .ff-megamenu {
+            display: none !important;
+          }
         }
 
         @media (max-width: 640px) {
-          .ff-category-nav {
-            gap: 12px;
-            font-size: 10px;
-          }
           .ff-brand-name {
             font-size: 14px;
           }
