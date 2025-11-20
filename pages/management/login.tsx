@@ -256,6 +256,10 @@ export default function ManagementLoginPage() {
             )}
 
             <p className="auth-secondary-link">
+              <Link href="/management/forgot-password">Forgot password?</Link>
+            </p>
+
+            <p className="auth-secondary-link">
               <Link href="/">Back to storefront</Link>
             </p>
           </div>
