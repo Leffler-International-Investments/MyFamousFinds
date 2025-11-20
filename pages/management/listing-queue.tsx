@@ -24,9 +24,7 @@ type Listing = {
 
 type Props = { items: Listing[] };
 
-export default function ManagementListingQueue({
-  items: initialItems,
-}: Props) {
+export default function ManagementListingQueue({ items: initialItems }: Props) {
   const { loading } = useRequireAdmin();
   const [items, setItems] = useState(initialItems);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
@@ -84,7 +82,7 @@ export default function ManagementListingQueue({
       {/* Use light theme classes from globals.css */}
       <div className="dashboard-page">
         <Header />
-        <main className="dashboard-main" style={{maxWidth: "100%"}}>
+        <main className="dashboard-main" style={{ maxWidth: "100%" }}>
           {/* Use light theme classes from globals.css */}
           <div className="dashboard-header">
             <div>
@@ -101,7 +99,10 @@ export default function ManagementListingQueue({
           </div>
 
           {error && (
-            <div className="form-message error" style={{marginBottom: "16px"}}>
+            <div
+              className="form-message error"
+              style={{ marginBottom: "16px" }}
+            >
               <strong>Error:</strong> {error}
             </div>
           )}
@@ -152,10 +153,18 @@ export default function ManagementListingQueue({
                       <td>{item.status}</td>
                       <td>
                         <div className="actions-cell">
+                          {/* NEW: View button */}
+                          <Link
+                            href={`/management/listings/${item.id}`}
+                            className="btn-table btn-view"
+                            target="_blank"
+                            rel="noreferrer"
+                          >
+                            View
+                          </Link>
+
                           <button
-                            onClick={() =>
-                              handleAction(item.id, "approve")
-                            }
+                            onClick={() => handleAction(item.id, "approve")}
                             disabled={
                               actionLoading === item.id ||
                               item.status === "Live"
@@ -165,9 +174,7 @@ export default function ManagementListingQueue({
                             Approve
                           </button>
                           <button
-                            onClick={() =>
-                              handleAction(item.id, "reject")
-                            }
+                            onClick={() => handleAction(item.id, "reject")}
                             disabled={
                               actionLoading === item.id ||
                               item.status === "Rejected"
@@ -216,7 +223,7 @@ export default function ManagementListingQueue({
           border: none;
           flex-shrink: 0;
         }
-        
+
         .form-message {
           font-size: 14px;
           padding: 8px 12px;
@@ -232,7 +239,7 @@ export default function ManagementListingQueue({
           border-radius: 8px;
           border: 1px solid #e5e7eb; /* gray-200 */
           background: #ffffff;
-          box-shadow: 0 1px 2px 0 rgba(0,0,0,0.05);
+          box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
         }
         .data-table {
           min-width: 100%;
@@ -284,6 +291,14 @@ export default function ManagementListingQueue({
         }
         .btn-table:disabled {
           opacity: 0.5;
+        }
+        .btn-view {
+          background: #e5e7eb; /* gray-200 */
+          color: #111827; /* gray-900 */
+          text-decoration: none;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
         }
         .btn-approve {
           background: #059669; /* green-600 */
