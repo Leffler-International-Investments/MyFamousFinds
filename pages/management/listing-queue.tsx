@@ -24,15 +24,13 @@ type Listing = {
 
 type Props = { items: Listing[] };
 
-export default function ManagementListingQueue({
-  items: initialItems,
-}: Props) {
+export default function ManagementListingQueue({ items: initialItems }: Props) {
   const { loading } = useRequireAdmin();
   const [items, setItems] = useState(initialItems);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  if (loading) return <div className="dashboard-page" />; // Light theme skeleton
+  if (loading) return <div className="dashboard-page" />;
 
   const handleAction = async (
     id: string,
@@ -81,7 +79,7 @@ export default function ManagementListingQueue({
       <Head>
         <title>Listing Review Queue — Admin</title>
       </Head>
-      {/* Use light theme classes from globals.css */}
+
       <div className="dashboard-page">
         <Header />
         <main className="dashboard-main" style={{ maxWidth: "100%" }}>
@@ -154,10 +152,10 @@ export default function ManagementListingQueue({
                       <td>{item.status}</td>
                       <td>
                         <div className="actions-cell">
-                          {/* BLUE VIEW BUTTON → public product page */}
+                          {/* BLUE pill VIEW button → public product page */}
                           <Link
                             href={`/product/${item.id}`}
-                            className="btn-table btn-view"
+                            className="btn-view"
                             target="_blank"
                             rel="noreferrer"
                           >
@@ -215,11 +213,10 @@ export default function ManagementListingQueue({
         <Footer />
       </div>
 
-      {/* Styles for the light theme table and forms */}
       <style jsx>{`
         .btn-primary-dark {
           border-radius: 999px;
-          background: #111827; /* gray-900 */
+          background: #111827;
           padding: 8px 16px;
           font-size: 12px;
           font-weight: 500;
@@ -235,14 +232,14 @@ export default function ManagementListingQueue({
           border-radius: 6px;
         }
         .form-message.error {
-          background: #fee2e2; /* red-100 */
-          color: #b91c1c; /* red-700 */
+          background: #fee2e2;
+          color: #b91c1c;
         }
 
         .table-wrapper {
           overflow-x: auto;
           border-radius: 8px;
-          border: 1px solid #e5e7eb; /* gray-200 */
+          border: 1px solid #e5e7eb;
           background: #ffffff;
           box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
         }
@@ -252,23 +249,23 @@ export default function ManagementListingQueue({
           font-size: 14px;
         }
         .data-table thead {
-          background: #f9fafb; /* gray-50 */
+          background: #f9fafb;
         }
         .data-table th {
           padding: 8px 12px;
           text-align: left;
           font-weight: 500;
-          color: #374151; /* gray-700 */
+          color: #374151;
         }
         .data-table tbody tr {
-          border-bottom: 1px solid #f3f4f6; /* gray-100 */
+          border-bottom: 1px solid #f3f4f6;
         }
         .data-table tbody tr:last-child {
           border-bottom: none;
         }
         .data-table td {
           padding: 8px 12px;
-          color: #111827; /* gray-900 */
+          color: #111827;
           white-space: nowrap;
         }
         .data-table td:first-child {
@@ -277,7 +274,7 @@ export default function ManagementListingQueue({
         .table-message {
           padding: 24px;
           text-align: center;
-          color: #6b7280; /* gray-500 */
+          color: #6b7280;
         }
 
         .actions-cell {
@@ -285,6 +282,24 @@ export default function ManagementListingQueue({
           flex-wrap: wrap;
           gap: 8px;
         }
+
+        /* NEW blue pill VIEW button */
+        .btn-view {
+          border-radius: 999px;
+          padding: 4px 12px;
+          font-size: 12px;
+          font-weight: 600;
+          background: #2563eb; /* blue-600 */
+          color: #ffffff;
+          border: none;
+          text-decoration: none;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
+          white-space: nowrap;
+        }
+
         .btn-table {
           border-radius: 999px;
           padding: 4px 12px;
@@ -297,24 +312,16 @@ export default function ManagementListingQueue({
         .btn-table:disabled {
           opacity: 0.5;
         }
-        .btn-view {
-          background: #2563eb; /* blue-600 */
-          color: #ffffff;
-          text-decoration: none;
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-        }
         .btn-approve {
-          background: #059669; /* green-600 */
+          background: #059669;
           color: white;
         }
         .btn-reject {
-          background: #dc2626; /* red-600 */
+          background: #dc2626;
           color: white;
         }
         .btn-request {
-          background: #f59e0b; /* yellow-500 */
+          background: #f59e0b;
           color: black;
         }
       `}</style>
