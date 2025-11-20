@@ -44,7 +44,7 @@ export default function ManagementForgotPassword() {
 
     try {
       setLoading(true);
-      await sendResetEmail(trimmed);
+      await sendResetEmail(trimmed.toLowerCase());
       setSent(true);
     } catch (err: any) {
       console.error(err);
@@ -57,104 +57,77 @@ export default function ManagementForgotPassword() {
     }
   };
 
+  const disabled = loading;
+
   return (
     <>
       <Head>
-        <title>Admin Forgot Password — Famous Finds</title>
+        <title>Management – Forgot Password | Famous Finds</title>
       </Head>
 
-      <div className="min-h-screen bg-gray-50 text-gray-900">
+      <div className="auth-page">
         <Header />
-
-        <main className="mx-auto flex max-w-md flex-col px-4 pb-16 pt-10 text-sm">
-          <Link
-            href="/management/login"
-            className="mb-6 text-xs text-gray-500 hover:text-gray-700"
-          >
-            ← Back to Admin Login
-          </Link>
-
-          <div className="rounded-2xl border border-gray-200 bg-white px-5 py-6 shadow-sm">
+        <main className="auth-main">
+          <div className="auth-card">
+            <h1>Reset your admin password</h1>
             {!sent ? (
               <>
-                <h1 className="text-lg font-semibold">
-                  Reset your admin password
-                </h1>
-                <p className="mt-1 text-xs text-gray-500">
+                <p className="auth-subtitle">
                   Enter the email address associated with your admin account and
                   we&apos;ll email you a secure password reset link.
                 </p>
 
-                <form onSubmit={handleSubmit} className="mt-5 space-y-4">
-                  <div>
-                    <label
-                      htmlFor="email"
-                      className="block text-xs font-medium text-gray-700"
+                {error && <div className="auth-error">{error}</div>}
+
+                <form onSubmit={handleSubmit}>
+                  <div className="auth-fields">
+                    <div className="auth-field">
+                      <label htmlFor="email">Admin email address</label>
+                      <input
+                        id="email"
+                        type="email"
+                        autoComplete="email"
+                        className="auth-input"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        disabled={disabled}
+                        placeholder="admin@example.com"
+                        required
+                      />
+                    </div>
+
+                    <button
+                      type="submit"
+                      className="auth-button-primary"
+                      disabled={disabled}
                     >
-                      Admin email address
-                    </label>
-                    <input
-                      id="email"
-                      type="email"
-                      autoComplete="email"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-black focus:outline-none"
-                      placeholder="admin@example.com"
-                    />
+                      {loading ? "Sending reset link…" : "Send reset link"}
+                    </button>
                   </div>
-
-                  {error && (
-                    <p className="text-xs text-red-600" role="alert">
-                      {error}
-                    </p>
-                  )}
-
-                  <button
-                    type="submit"
-                    disabled={loading}
-                    className="inline-flex w-full items-center justify-center rounded-full bg-black px-4 py-2.5 text-xs font-semibold text-white hover:bg-gray-900 disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    {loading ? "Sending reset link…" : "Send reset link"}
-                  </button>
                 </form>
+
+                <p className="auth-secondary-link">
+                  <Link href="/management/login">← Back to admin login</Link>
+                </p>
               </>
             ) : (
               <>
-                <h1 className="text-lg font-semibold">Check your email</h1>
-                <p className="mt-2 text-xs text-gray-500">
-                  If an admin account exists for{" "}
-                  <span className="font-medium">{email}</span>, you&apos;ll
-                  receive an email with a link to reset your password.
-                </p>
-                <p className="mt-3 text-xs text-gray-500">
-                  The link may take a few minutes to arrive and could land in
-                  your spam or promotions folder.
+                <p className="auth-info">
+                  If there&apos;s an account for{" "}
+                  <strong>{email.toLowerCase()}</strong>, we&apos;ve emailed a
+                  password reset link. Please check your inbox (and spam folder)
+                  and follow the instructions.
                 </p>
 
-                <div className="mt-5 space-y-3">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSent(false);
-                      setEmail("");
-                    }}
-                    className="inline-flex w-full items-center justify-center rounded-full border border-gray-300 px-4 py-2.5 text-xs font-semibold text-gray-800 hover:bg-gray-50"
-                  >
-                    Send another reset link
-                  </button>
-                  <Link
-                    href="/management/login"
-                    className="block text-center text-xs text-blue-600 hover:text-blue-700"
-                  >
-                    ← Back to Admin Login
+                <p className="auth-secondary-link">
+                  <Link href="/management/login">
+                    ← Return to admin login
                   </Link>
-                </div>
+                </p>
               </>
             )}
           </div>
         </main>
-
         <Footer />
       </div>
     </>
