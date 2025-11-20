@@ -1,5 +1,5 @@
 // FILE: /pages/management/login.tsx
-// This version uses the custom CSS classes from globals.css
+// Uses the custom auth layout classes from globals.css
 import Head from "next/head";
 import Link from "next/link";
 import { useRouter } from "next/router";
@@ -192,6 +192,7 @@ export default function ManagementLoginPage() {
                       disabled={disabled}
                     />
                   </div>
+
                   <PasswordInput
                     label="Password"
                     value={password}
@@ -200,6 +201,7 @@ export default function ManagementLoginPage() {
                     required
                     placeholder="Enter your admin password"
                   />
+
                   <button
                     type="submit"
                     disabled={disabled}
