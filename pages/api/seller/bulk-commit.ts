@@ -1,7 +1,12 @@
 // FILE: /pages/api/seller/bulk-commit.ts
+// Accepts rows from seller bulk upload / bulk-simple and creates
+// docs in the "listings" collection so they appear in the
+// management listing queue for approval.
+
 import type { NextApiRequest, NextApiResponse } from "next";
 import { adminDb } from "../../../utils/firebaseAdmin";
 import { FieldValue } from "firebase-admin/firestore";
+import { getSellerId } from "../../../utils/authServer";
 
 // ---------- Types ----------
 type IncomingRow = {
@@ -17,7 +22,6 @@ type IncomingRow = {
   serial_number?: string;
 };
 
-// No timestamp fields here (we add them at write time to avoid type issues)
 type CleanRow = Required<{
   title: string;
   brand: string;
@@ -101,11 +105,13 @@ function cleanRow(r: IncomingRow): CleanRow | null {
   };
 }
 
-// ---------- Designers Directory Cache ----------
+// Designers directory: used to know which brands are already configured.
+// NOTE: we NO LONGER block unknown designers; we just flag them.
 async function getApprovedDesigners(): Promise<Set<string>> {
   const snap = await adminDb.collection("designers").get();
   const set = new Set<string>();
-  if (snap.empty) return set; // empty set => allow all (handled below)
+  if (snap.empty) return set; // empty set => we won't enforce
+
   snap.forEach((d) => {
     const data = d.data() as any;
     if (data && data.name && data.active !== false) {
@@ -122,24 +128,23 @@ export default async function handler(
 ) {
   try {
     if (req.method !== "POST") {
-      return res.status(405).json({ ok: false, error: "Method not allowed" });
+      return res
+        .status(405)
+        .json({ ok: false, error: "Method not allowed" });
     }
 
-    const { rows } = req.body || {};
+    const { rows } = (req.body || {}) as { rows?: IncomingRow[] };
     if (!Array.isArray(rows)) {
       return res
         .status(400)
         .json({ ok: false, error: "Body must include array 'rows'" });
     }
 
-    // Optional seller identity (hook up to your auth later if you want)
-    // const sellerId = req.headers["x-ff-seller-id"];
+    const sellerId = getSellerId(req) || "seller-demo-001";
 
-    // Load designers directory once
     const approvedDesigners = await getApprovedDesigners();
     const enforceDesigners = approvedDesigners.size > 0;
 
-    // Firestore batch limit (500 ops)
     const MAX_PER_REQUEST = 500;
     const slice = rows.slice(0, MAX_PER_REQUEST);
 
@@ -155,21 +160,24 @@ export default async function handler(
         continue;
       }
 
-      // Designers Directory enforcement (if directory exists)
-      if (enforceDesigners) {
-        const brandKey = cleaned.brand.toLowerCase();
-        if (!approvedDesigners.has(brandKey)) {
-          skipped++;
-          continue;
-        }
-      }
+      const brandKey = cleaned.brand.toLowerCase();
+      const isApprovedDesigner =
+        enforceDesigners && approvedDesigners.has(brandKey);
 
       const ref = adminDb.collection("listings").doc();
-      batch.set(ref, {
+      const docData: any = {
         ...cleaned,
-        // sellerId: sellerId || null,
-        pricing: { amount: cleaned.price, currency: "USD" },
-        visibility: { public: false, searchable: false },
+        sellerId,
+        // optional: surface brand approval status for management
+        designerStatus: isApprovedDesigner ? "approved" : "unlisted",
+        pricing: {
+          amount: cleaned.price,
+          currency: "USD",
+        },
+        visibility: {
+          public: false,
+          searchable: false,
+        },
         vetting: {
           stage: "intake",
           by: "bulk-upload",
@@ -177,8 +185,9 @@ export default async function handler(
         },
         createdAt: FieldValue.serverTimestamp(),
         updatedAt: FieldValue.serverTimestamp(),
-      });
+      };
 
+      batch.set(ref, docData);
       created++;
     }
 
