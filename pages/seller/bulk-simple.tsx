@@ -1,17 +1,15 @@
 // FILE: /pages/seller/bulk-simple.tsx
 // Quick Add — Multi-Item Form (Seller)
-// NOTE: This version keeps your existing layout/flow and ONLY changes
-// how the Designers <select> is populated and how items are submitted.
-// It now loads designers from Firestore on the client (same as /sell)
-// and sends items to /api/seller/bulk-commit so they appear in the
-// management listing-queue.
+// - Loads designers from Firestore (same as /sell).
+// - Sends items to /api/seller/bulk-commit (same payload as bulk-upload).
+// - Allows "Other designer" (free text).
+// - Adds real drag & drop image zone (click or drop).
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Head from "next/head";
 import Link from "next/link";
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
-// ✅ Client Firestore (same as /sell page uses)
 import { db } from "../../utils/firebaseClient";
 import {
   collection,
@@ -22,10 +20,12 @@ import {
   DocumentData,
 } from "firebase/firestore";
 
-// ---- Types (trimmed to what this page actually uses) ----
+// ---- Types ----
 type Designer = { id: string; name: string };
+
 type Item = {
   designerId?: string;
+  otherDesigner?: string;
   title?: string;
   category?: string;
   condition?: string;
@@ -59,6 +59,7 @@ const CONDITIONS = [
   "Good",
   "Fair",
 ];
+
 const CATEGORIES = [
   "Bags",
   "Shoes",
@@ -67,8 +68,11 @@ const CATEGORIES = [
   "Clothing",
   "Accessories",
 ];
+
 const SOURCES = ["Boutique / Brand", "Department Store", "Resale", "Gift", "Other"];
 const PROOFS = ["Receipt", "Bank statement", "Certificate", "Other"];
+
+const OTHER_DESIGNER_ID = "__other";
 
 export default function BulkSimple() {
   const [items, setItems] = useState<Item[]>([{}]);
@@ -79,7 +83,10 @@ export default function BulkSimple() {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitMessage, setSubmitMessage] = useState<string | null>(null);
 
-  // ---------- LOAD DESIGNERS (same logic as /sell, with fallback) ----------
+  // one hidden file input per item for click + drag/drop
+  const fileInputsRef = useRef<(HTMLInputElement | null)[]>([]);
+
+  // ---------- LOAD DESIGNERS ----------
   useEffect(() => {
     let cancelled = false;
 
@@ -87,7 +94,6 @@ export default function BulkSimple() {
       setLoadingDesigners(true);
       setDesignerError(null);
       try {
-        // First try: active + ordered (will work if an index exists; if not, we catch and fallback)
         const q = query(
           collection(db, "designers"),
           where("active", "==", true),
@@ -99,8 +105,8 @@ export default function BulkSimple() {
           name: String((d.data() as DocumentData).name ?? d.id),
         }));
         if (!cancelled) setDesigners(list);
-      } catch (err) {
-        // Fallback: get all docs, sort on client, then filter by active (or no field)
+      } catch {
+        // fallback: all designers, filter active on client
         try {
           const snap = await getDocs(collection(db, "designers"));
           const list = snap.docs
@@ -115,9 +121,8 @@ export default function BulkSimple() {
             .filter((d) => d.active)
             .sort((a, b) => a.name.localeCompare(b.name))
             .map(({ id, name }) => ({ id, name }));
-
           if (!cancelled) setDesigners(list);
-        } catch (e) {
+        } catch {
           if (!cancelled) {
             setDesignerError("Couldn't load designers list from server.");
           }
@@ -133,38 +138,45 @@ export default function BulkSimple() {
     };
   }, []);
 
-  // ---------- Handlers ----------
+  // ---------- Helpers ----------
   const addItem = () => setItems((prev) => [...prev, {}]);
+
   const removeItem = (idx: number) =>
     setItems((prev) => prev.filter((_, i) => i !== idx));
+
   const update = (idx: number, patch: Partial<Item>) =>
     setItems((prev) => prev.map((it, i) => (i === idx ? { ...it, ...patch } : it)));
+
+  const handleFiles = (idx: number, files: FileList | null) => {
+    const arr = Array.from(files || []).slice(0, 8);
+    update(idx, { images: arr });
+  };
+
+  const hasBrand = (it: Item) => {
+    if (!it.designerId) return false;
+    if (it.designerId === OTHER_DESIGNER_ID) {
+      return Boolean(it.otherDesigner && it.otherDesigner.trim());
+    }
+    return true;
+  };
 
   const totalReady = useMemo(
     () =>
       items.filter(
         (it) =>
-          it.designerId &&
-          it.title &&
-          it.category &&
-          it.condition &&
-          it.priceUSD
+          hasBrand(it) && it.title && it.category && it.condition && it.priceUSD
       ).length,
     [items]
   );
 
+  // ---------- Submit ----------
   const onCreate = async () => {
     setSubmitError(null);
     setSubmitMessage(null);
 
-    // Only send items that have the required fields filled in
     const readyItems = items.filter(
       (it) =>
-        it.designerId &&
-        it.title &&
-        it.category &&
-        it.condition &&
-        it.priceUSD
+        hasBrand(it) && it.title && it.category && it.condition && it.priceUSD
     );
 
     if (!readyItems.length) {
@@ -172,11 +184,15 @@ export default function BulkSimple() {
       return;
     }
 
-    // Map form items -> API rows (same shape as /seller/bulk-upload)
     const rows = readyItems
       .map((it) => {
-        const designer = designers.find((d) => d.id === it.designerId);
-        const brand = designer?.name?.trim() || "";
+        let brand = "";
+        if (it.designerId === OTHER_DESIGNER_ID) {
+          brand = (it.otherDesigner || "").trim();
+        } else {
+          const designer = designers.find((d) => d.id === it.designerId);
+          brand = designer?.name?.trim() || "";
+        }
 
         const numericPrice = Number(
           String(it.priceUSD).replace(/[^0-9.]/g, "")
@@ -250,7 +266,6 @@ export default function BulkSimple() {
           json.skipped ? `, skipped ${json.skipped}.` : "."
         }`
       );
-      // Reset the form to a single blank item after success
       setItems([{}]);
     } catch (err: any) {
       console.error(err);
@@ -310,12 +325,20 @@ export default function BulkSimple() {
             </div>
 
             <div className="grid">
-              {/* Designer */}
+              {/* Designer select */}
               <label>
                 <span>Designer</span>
                 <select
                   value={it.designerId || ""}
-                  onChange={(e) => update(idx, { designerId: e.target.value })}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    if (value === OTHER_DESIGNER_ID) {
+                      update(idx, { designerId: value });
+                    } else {
+                      // clear custom name when switching back to normal designer
+                      update(idx, { designerId: value, otherDesigner: "" });
+                    }
+                  }}
                   disabled={
                     loadingDesigners || !!designerError || designers.length === 0
                   }
@@ -332,8 +355,25 @@ export default function BulkSimple() {
                       {d.name}
                     </option>
                   ))}
+                  <option value={OTHER_DESIGNER_ID}>
+                    Other designer (not listed)
+                  </option>
                 </select>
               </label>
+
+              {/* Custom designer name when "Other" selected */}
+              {it.designerId === OTHER_DESIGNER_ID && (
+                <label>
+                  <span>Designer name (other)</span>
+                  <input
+                    value={it.otherDesigner || ""}
+                    onChange={(e) =>
+                      update(idx, { otherDesigner: e.target.value })
+                    }
+                    placeholder="Type designer / brand name"
+                  />
+                </label>
+              )}
 
               {/* Title */}
               <label>
@@ -454,17 +494,42 @@ export default function BulkSimple() {
                 </select>
               </label>
 
-              {/* Images */}
+              {/* Images drag & drop */}
               <label className="full">
                 <span>Images (drag & drop or select — up to 8)</span>
+                <div
+                  className="dropzone"
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                  }}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    handleFiles(idx, e.dataTransfer.files);
+                  }}
+                  onClick={() => {
+                    const input = fileInputsRef.current[idx];
+                    if (input) input.click();
+                  }}
+                >
+                  <p>
+                    {it.images?.length
+                      ? `${it.images.length} file${
+                          it.images.length > 1 ? "s" : ""
+                        } selected`
+                      : "Click or drop images here"}
+                  </p>
+                </div>
                 <input
+                  ref={(el) => {
+                    fileInputsRef.current[idx] = el;
+                  }}
                   type="file"
                   accept="image/*"
                   multiple
-                  onChange={(e) => {
-                    const files = Array.from(e.target.files || []).slice(0, 8);
-                    update(idx, { images: files });
-                  }}
+                  style={{ display: "none" }}
+                  onChange={(e) => handleFiles(idx, e.target.files)}
                 />
               </label>
             </div>
@@ -609,6 +674,20 @@ export default function BulkSimple() {
         .back-link a {
           color: #9ca3af;
           font-size: 12px;
+        }
+        .dropzone {
+          border: 1px dashed #4b5563;
+          border-radius: 8px;
+          padding: 16px;
+          text-align: center;
+          cursor: pointer;
+          font-size: 12px;
+          color: #9ca3af;
+          background: #020617;
+        }
+        .dropzone:hover {
+          border-color: #e5e7eb;
+          color: #e5e7eb;
         }
       `}</style>
     </div>
