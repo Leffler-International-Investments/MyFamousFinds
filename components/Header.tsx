@@ -1,215 +1,243 @@
 // FILE: /components/Header.tsx
 
 import Link from "next/link";
-import Image from "next/image";
-import { useEffect, useState } from "react";
-import { onAuthStateChanged, User } from "firebase/auth";
-import { auth } from "../utils/firebaseClient";
+
+type MegaLink = {
+  label: string;
+  href: string;
+};
+
+type MegaSection = {
+  heading: string;
+  links: MegaLink[];
+};
+
+type MegaNavItem = {
+  label: string;
+  href: string;
+  sections?: MegaSection[];
+};
+
+const megaNav: MegaNavItem[] = [
+  {
+    label: "NEW ARRIVALS",
+    href: "/category/new-arrivals",
+    sections: [
+      {
+        heading: "Shop new in",
+        links: [
+          { label: "All new arrivals", href: "/category/new-arrivals" },
+          { label: "New bags", href: "/category/bags?sort=new" },
+          { label: "New shoes", href: "/category/shoes?sort=new" },
+          { label: "New watches", href: "/category/watches?sort=new" },
+        ],
+      },
+    ],
+  },
+  {
+    label: "DESIGNERS",
+    href: "/designers",
+    sections: [
+      {
+        heading: "Browse by designer",
+        links: [
+          { label: "All designers", href: "/designers" },
+          { label: "Chanel", href: "/designers/chanel" },
+          { label: "Louis Vuitton", href: "/designers/louis-vuitton" },
+          { label: "Prada", href: "/designers/prada" },
+        ],
+      },
+    ],
+  },
+  {
+    label: "WOMEN",
+    href: "/category/women",
+    sections: [
+      {
+        heading: "Categories",
+        links: [
+          { label: "All women", href: "/category/women" },
+          { label: "Bags", href: "/category/bags?for=women" },
+          { label: "Shoes", href: "/category/shoes?for=women" },
+          { label: "Clothing", href: "/category/clothing?for=women" },
+        ],
+      },
+    ],
+  },
+  {
+    label: "BAGS",
+    href: "/category/bags",
+    sections: [
+      {
+        heading: "Bag styles",
+        links: [
+          { label: "All bags", href: "/category/bags" },
+          { label: "Totes", href: "/category/bags?tote=1" },
+          { label: "Crossbody", href: "/category/bags?crossbody=1" },
+          { label: "Mini bags", href: "/category/bags?mini=1" },
+        ],
+      },
+    ],
+  },
+  {
+    label: "MEN",
+    href: "/category/men",
+    sections: [
+      {
+        heading: "Categories",
+        links: [
+          { label: "All men", href: "/category/men" },
+          { label: "Bags", href: "/category/bags?for=men" },
+          { label: "Shoes", href: "/category/shoes?for=men" },
+          { label: "Accessories", href: "/category/accessories?for=men" },
+        ],
+      },
+    ],
+  },
+  {
+    label: "JEWELRY",
+    href: "/category/jewelry",
+    sections: [
+      {
+        heading: "Jewelry",
+        links: [
+          { label: "All jewelry", href: "/category/jewelry" },
+          { label: "Necklaces", href: "/category/jewelry?type=necklace" },
+          { label: "Bracelets", href: "/category/jewelry?type=bracelet" },
+          { label: "Earrings", href: "/category/jewelry?type=earrings" },
+        ],
+      },
+    ],
+  },
+  {
+    label: "WATCHES",
+    href: "/category/watches",
+    sections: [
+      {
+        heading: "Watches",
+        links: [
+          { label: "All watches", href: "/category/watches" },
+          { label: "Women’s watches", href: "/category/watches?for=women" },
+          { label: "Men’s watches", href: "/category/watches?for=men" },
+        ],
+      },
+    ],
+  },
+];
 
 export default function Header() {
-  const [vipUser, setVipUser] = useState<User | null>(null);
-
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      setVipUser(user);
-    });
-    return () => unsubscribe();
-  }, []);
-
   return (
-    <header className="site-header">
-      <div className="inner-container">
-        {/* Brand logo */}
-        <Link href="/" className="brand-logo">
-          <Image
-            src="/Famous-Finds-Logo.png"
-            alt="Famous Finds Logo"
-            width={95}
-            height={80}
-            priority
-          />
-        </Link>
-
-        {/* VIP button */}
-        <div className="vip-link-area">
+    <header className="border-b border-gray-200 bg-white">
+      {/* Top utility bar – keep your existing links */}
+      <div className="max-w-6xl mx-auto flex items-center justify-between px-4 py-2 text-xs text-gray-600">
+        <div className="flex items-center gap-3">
           <Link
-            href={vipUser ? "/club-profile" : "/vip-welcome"}
-            className="admin-button vip"
+            href="/vip"
+            className="inline-flex items-center rounded-full bg-black text-white px-3 py-1 font-medium"
           >
-            {vipUser ? "My VIP Profile" : "VIP Front Row"}
+            VIP Front Row
           </Link>
         </div>
-
-        {/* FF Shopping Bag – always visible, links to customer orders */}
-        <div className="bag-link-area">
-          <Link href="/my-orders" className="shopping-bag-link">
-            🛍 FF Shopping Bag
+        <div className="flex items-center gap-4">
+          <Link href="/shopping-bag" className="font-medium">
+            FF Shopping Bag
           </Link>
-        </div>
-
-        {/* Main nav */}
-        <nav className="main-nav">
-          <Link href="/" className="nav-link-item">
-            Dashboard
-          </Link>
-          <Link href="/help" className="nav-link-item">
-            Help
-          </Link>
-          <Link href="/about" className="nav-link-item">
-            About
-          </Link>
-          <Link href="/contact" className="nav-link-item">
-            Contact
-          </Link>
-        </nav>
-
-        {/* Admin portals */}
-        <div className="admin-portals">
-          <Link href="/management/login" className="admin-button management">
+          <Link href="/dashboard">Dashboard</Link>
+          <Link href="/help">Help</Link>
+          <Link href="/about">About</Link>
+          <Link href="/contact">Contact</Link>
+          <Link
+            href="/admin/login"
+            className="admin-button management hidden sm:inline-block"
+          >
             Management Admin Login
           </Link>
-          <Link href="/seller/login" className="admin-button seller">
+          <Link
+            href="/seller/login"
+            className="admin-button seller hidden sm:inline-block"
+          >
             Seller Admin Login
           </Link>
         </div>
       </div>
 
-      <style jsx>{`
-        .site-header,
-        .inner-container,
-        .brand-logo,
-        .main-nav,
-        .nav-link-item,
-        .admin-portals,
-        .vip-link-area,
-        .bag-link-area {
-          margin: 0;
-          padding: 0;
-          box-sizing: border-box;
-        }
+      {/* Brand + main nav (Luxelist style) */}
+      <div className="border-t border-gray-200">
+        <div className="max-w-6xl mx-auto px-4">
+          <div className="flex items-center justify-between py-4">
+            <Link href="/" className="text-xl tracking-[0.25em] font-semibold">
+              FAMOUS FINDS
+            </Link>
 
-        .site-header {
-          background: #000;
-          border-bottom: 1px solid #111;
-          color: #f9fafb;
-          width: 100%;
-        }
+            <div className="hidden sm:flex items-center gap-5 text-gray-600">
+              <Link href="/account" aria-label="Account">
+                <span className="text-sm">Account</span>
+              </Link>
+              <Link href="/wishlist" aria-label="Wishlist">
+                <span className="text-sm">Wishlist</span>
+              </Link>
+              <Link href="/shopping-bag" aria-label="Bag">
+                <span className="text-sm">Bag</span>
+              </Link>
+            </div>
+          </div>
 
-        .inner-container {
-          max-width: 1280px;
-          margin: 0 auto;
-          padding: 10px 18px;
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          flex-wrap: wrap;
-          gap: 20px;
-        }
+          {/* Category bar with hover mega menus */}
+          <nav className="flex items-stretch gap-6 text-xs tracking-[0.18em] text-gray-800 pb-3">
+            {megaNav.map((item) => (
+              <div key={item.label} className="relative group">
+                <Link
+                  href={item.href}
+                  className="inline-flex items-center py-1 border-b-2 border-transparent group-hover:border-gray-900"
+                >
+                  {item.label}
+                </Link>
 
-        .brand-logo {
-          display: inline-flex;
-          align-items: center;
-          text-decoration: none;
-          flex-shrink: 0;
-        }
+                {item.sections && item.sections.length > 0 && (
+                  <div className="absolute left-1/2 -translate-x-1/2 mt-2 hidden group-hover:block z-30">
+                    <div className="w-[420px] rounded-xl border border-gray-200 bg-white shadow-xl p-4 grid grid-cols-1 gap-4">
+                      {item.sections.map((section) => (
+                        <div key={section.heading}>
+                          <div className="text-[11px] font-semibold text-gray-500 mb-2 uppercase">
+                            {section.heading}
+                          </div>
+                          <ul className="space-y-1 text-[13px] text-gray-800">
+                            {section.links.map((link) => (
+                              <li key={link.label}>
+                                <Link
+                                  href={link.href}
+                                  className="hover:text-gray-900 hover:underline"
+                                >
+                                  {link.label}
+                                </Link>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            ))}
 
-        .vip-link-area,
-        .bag-link-area {
-          flex-shrink: 0;
-        }
-
-        .main-nav {
-          display: flex;
-          align-items: center;
-          gap: 18px;
-          font-size: 13px;
-          flex-wrap: wrap;
-          flex-grow: 1;
-          justify-content: flex-start;
-        }
-
-        .nav-link-item {
-          color: #e5e7eb;
-          text-decoration: none;
-          white-space: nowrap;
-        }
-        .nav-link-item:hover {
-          color: #fff;
-        }
-
-        .admin-portals {
-          display: flex;
-          align-items: center;
-          gap: 10px;
-          flex-wrap: wrap;
-          justify-content: flex-end;
-          flex-shrink: 0;
-        }
-
-        .shopping-bag-link {
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-          padding: 8px 14px;
-          border-radius: 999px;
-          border: 1px solid #4b5563;
-          background: #111827;
-          color: #f9fafb;
-          font-size: 12px;
-          font-weight: 600;
-          text-decoration: none;
-          white-space: nowrap;
-        }
-        .shopping-bag-link:hover {
-          background: #f9fafb;
-          color: #111827;
-          border-color: #f9fafb;
-        }
-
-        @media (max-width: 850px) {
-          .inner-container {
-            flex-direction: column;
-            align-items: flex-start;
-            padding: 8px 18px;
-            gap: 5px;
-          }
-
-          .brand-logo,
-          .vip-link-area,
-          .bag-link-area,
-          .main-nav,
-          .admin-portals {
-            width: 100%;
-            margin-bottom: 0 !important;
-          }
-
-          .brand-logo {
-            margin-bottom: 5px !important;
-          }
-
-          .vip-link-area,
-          .bag-link-area {
-            margin-top: 5px !important;
-          }
-
-          .main-nav {
-            gap: 8px;
-            margin-top: 5px !important;
-          }
-
-          .admin-portals {
-            gap: 6px;
-            margin-top: 5px !important;
-          }
-        }
-
-        @media (max-width: 480px) {
-          .main-nav {
-            gap: 6px;
-            font-size: 12px;
-          }
-        }
-      `}</style>
+            {/* Simple search box on the right */}
+            <div className="ml-auto hidden md:block">
+              <form
+                action="/search"
+                className="flex items-center border border-gray-300 rounded-md px-2 py-[3px] bg-white text-[13px]"
+              >
+                <input
+                  type="text"
+                  name="q"
+                  placeholder="Search"
+                  className="bg-transparent outline-none text-gray-800 placeholder-gray-400 w-32"
+                />
+              </form>
+            </div>
+          </nav>
+        </div>
+      </div>
     </header>
   );
 }
