@@ -2,8 +2,9 @@
 // Quick Add — Multi-Item Form (Seller)
 // Loads designers from Firestore and sends rows to /api/seller/bulk-commit
 // so they appear in the management listing-queue for approval.
+// NOW: image box supports click + drag & drop + thumbnail preview.
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Head from "next/head";
 import Link from "next/link";
 import Header from "../../components/Header";
@@ -22,8 +23,8 @@ import {
 type Designer = { id: string; name: string };
 
 type Item = {
-  designerId?: string;            // id from designers collection or "__other__"
-  otherDesignerName?: string;     // manual designer name if not in list
+  designerId?: string; // id from designers collection or "__other__"
+  otherDesignerName?: string; // manual designer name if not in list
   title?: string;
   category?: string;
   condition?: string;
@@ -67,7 +68,13 @@ const CATEGORIES = [
   "Accessories",
 ];
 
-const SOURCES = ["Boutique / Brand", "Department Store", "Resale", "Gift", "Other"];
+const SOURCES = [
+  "Boutique / Brand",
+  "Department Store",
+  "Resale",
+  "Gift",
+  "Other",
+];
 
 const PROOFS = ["Receipt", "Bank statement", "Certificate", "Other"];
 
@@ -79,6 +86,9 @@ export default function BulkSimple() {
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitMessage, setSubmitMessage] = useState<string | null>(null);
+
+  // One hidden <input type="file"> per item, for click-to-open
+  const fileInputsRef = useRef<(HTMLInputElement | null)[]>([]);
 
   // ---------- LOAD DESIGNERS (same logic as /sell, with fallback) ----------
   useEffect(() => {
@@ -157,6 +167,24 @@ export default function BulkSimple() {
       }).length,
     [items]
   );
+
+  const handleFilesChange = (idx: number, fileList: FileList | null) => {
+    const files = Array.from(fileList || [])
+      .filter((f) => f.type.startsWith("image/"))
+      .slice(0, 8);
+    update(idx, { images: files });
+  };
+
+  const handleDrop = (idx: number, e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const files = Array.from(e.dataTransfer.files || [])
+      .filter((f) => f.type.startsWith("image/"))
+      .slice(0, 8);
+    if (files.length) {
+      update(idx, { images: files });
+    }
+  };
 
   const onCreate = async () => {
     setSubmitError(null);
@@ -387,9 +415,7 @@ export default function BulkSimple() {
                 <span>Category</span>
                 <select
                   value={it.category || ""}
-                  onChange={(e) =>
-                    update(idx, { category: e.target.value })
-                  }
+                  onChange={(e) => update(idx, { category: e.target.value })}
                 >
                   <option value="">— Pick a category —</option>
                   {CATEGORIES.map((c) => (
@@ -497,7 +523,7 @@ export default function BulkSimple() {
                 </select>
               </label>
 
-              {/* Images with drag & drop */}
+              {/* Images with drag & drop + click + preview */}
               <label className="full">
                 <span>Images (drag & drop or select — up to 8)</span>
                 <div
@@ -506,33 +532,39 @@ export default function BulkSimple() {
                     e.preventDefault();
                     e.stopPropagation();
                   }}
-                  onDrop={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    const files = Array.from(e.dataTransfer.files || [])
-                      .filter((f) => f.type.startsWith("image/"))
-                      .slice(0, 8);
-                    if (files.length) {
-                      update(idx, { images: files });
-                    }
+                  onDrop={(e) => handleDrop(idx, e)}
+                  onClick={() => {
+                    const input = fileInputsRef.current[idx];
+                    if (input) input.click();
                   }}
                 >
-                  <input
-                    type="file"
-                    accept="image/*"
-                    multiple
-                    onChange={(e) => {
-                      const files = Array.from(e.target.files || []).slice(
-                        0,
-                        8
-                      );
-                      update(idx, { images: files });
-                    }}
-                  />
                   <span className="dropzone-text">
                     Click to choose images or drop them here
                   </span>
                 </div>
+                <input
+                  ref={(el) => {
+                    fileInputsRef.current[idx] = el;
+                  }}
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  style={{ display: "none" }}
+                  onChange={(e) => handleFilesChange(idx, e.target.files)}
+                />
+
+                {it.images && it.images.length > 0 && (
+                  <div className="thumbs">
+                    {it.images.map((file, i) => (
+                      <div className="thumb" key={i}>
+                        <img
+                          src={URL.createObjectURL(file)}
+                          alt={`Image ${i + 1}`}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                )}
               </label>
             </div>
           </div>
@@ -662,20 +694,31 @@ export default function BulkSimple() {
           justify-content: center;
           cursor: pointer;
           background: #020617;
-          position: relative;
-          overflow: hidden;
-        }
-        .dropzone input[type="file"] {
-          position: absolute;
-          inset: 0;
-          opacity: 0;
-          cursor: pointer;
         }
         .dropzone-text {
           font-size: 11px;
           color: #9ca3af;
           text-align: center;
-          pointer-events: none;
+        }
+        .thumbs {
+          margin-top: 8px;
+          display: flex;
+          flex-wrap: wrap;
+          gap: 6px;
+        }
+        .thumb {
+          width: 52px;
+          height: 52px;
+          border-radius: 6px;
+          overflow: hidden;
+          border: 1px solid #374151;
+          background: #020617;
+        }
+        .thumb img {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+          display: block;
         }
         .actions {
           display: flex;
