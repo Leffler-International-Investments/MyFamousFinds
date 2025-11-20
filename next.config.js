@@ -1,13 +1,10 @@
-const path = require("path");
+// FILE: /next.config.js
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // ❌ STOP using Turbopack
-  turbopack: false,
-
-  // Or for older versions:
+  // Force Webpack instead of Turbopack
   experimental: {
-    turbo: false,
+    turbo: false
   },
 
   images: {
@@ -16,11 +13,6 @@ const nextConfig = {
       { protocol: "https", hostname: "cdn.shopify.com" },
       { protocol: "https", hostname: "firebasestorage.googleapis.com" },
     ],
-  },
-
-  webpack: (config) => {
-    config.resolve.alias["@"] = path.resolve(__dirname);
-    return config;
   },
 };
 
