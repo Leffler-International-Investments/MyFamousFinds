@@ -1,4 +1,3 @@
-// FILE: /pages/index.tsx
 import Head from "next/head";
 import Header from "../components/Header";
 import Footer from "../components/Footer";
@@ -15,7 +14,6 @@ type HomeProps = {
 
 const Home: NextPage<HomeProps> = ({ trending, newArrivals }) => {
   return (
-    // REMOVED "dark-theme-page" class here. Now it's just a standard container.
     <div className="home-wrapper">
       <Head>
         <title>Famous Finds — US</title>
@@ -34,6 +32,7 @@ const Home: NextPage<HomeProps> = ({ trending, newArrivals }) => {
               colours and all stories.
             </p>
           </div>
+
           <div className="heroVisual">
             <HomepageButler />
           </div>
@@ -46,7 +45,6 @@ const Home: NextPage<HomeProps> = ({ trending, newArrivals }) => {
       <Footer />
 
       <style jsx>{`
-        /* Added a specific white background to the wrapper just to be safe */
         .home-wrapper {
           background-color: #ffffff;
           min-height: 100vh;
@@ -74,41 +72,41 @@ const Home: NextPage<HomeProps> = ({ trending, newArrivals }) => {
 
         .eyebrow {
           font-size: 11px;
-          font-weight: 700;
+          font-weight: 800;
           text-transform: uppercase;
-          letter-spacing: 0.12em;
-          color: #111827; /* Dark text */
-          margin-bottom: 4px;
+          letter-spacing: 0.14em;
+          color: #000000;
+          margin-bottom: 6px;
         }
 
         h1 {
           margin-top: 4px;
-          font-size: 32px;
-          letter-spacing: 0.02em;
-          color: #000000; /* Pure black */
+          font-size: 34px;
+          font-weight: 800;
+          color: #000000;
         }
 
         .lead {
-          margin-top: 10px;
-          font-size: 15px;
-          color: #111827; /* Dark text */
-          line-height: 1.6;
-          font-weight: 500;
+          margin-top: 12px;
+          font-size: 16px;
+          font-weight: 600;
+          color: #111111;
+          line-height: 1.65;
         }
 
-        /* Ensure the Butler box is White with a border */
+        /* Butler box – HIGH VISIBILITY */
         .heroVisual {
-          border-radius: 16px;
-          padding: 18px 18px 20px;
-          background: #ffffff;
-          border: 1px solid #e5e7eb;
+          border-radius: 18px;
+          padding: 22px 22px 26px;
+          background: #ffffff; 
+          border: 2px solid #d0d0d0;
           color: #000000;
-          box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px 2px rgba(0, 0, 0, 0.05);
+          box-shadow: 0 6px 14px rgba(0, 0, 0, 0.12);
         }
 
         @media (max-width: 900px) {
           .hero {
-            grid-template-columns: minmax(0, 1fr);
+            grid-template-columns: 1fr;
           }
         }
       `}</style>
@@ -130,9 +128,7 @@ export const getServerSideProps: GetServerSideProps<HomeProps> = async () => {
       const d: any = doc.data() || {};
 
       const allowedStatuses = ["Live", "Active", "Approved"];
-      if (d.status && !allowedStatuses.includes(d.status)) {
-        return;
-      }
+      if (d.status && !allowedStatuses.includes(d.status)) return;
 
       const priceNumber = Number(d.price) || 0;
       const price = priceNumber
