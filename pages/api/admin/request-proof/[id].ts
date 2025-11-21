@@ -37,3 +37,4 @@ export default async function handler(
       .json({ error: err?.message || "Failed to request proof" });
   }
 }
+
