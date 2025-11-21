@@ -298,8 +298,8 @@ export default function ManagementListingQueue({ items: initialItems }: Props) {
 
         /* BLUE VIEW button */
         .btn-table.btn-view {
-          background: #2563eb; /* blue-600 */
-          color: #ffffff !important;
+          background: #2563eb;
+          color: #ffffff;
           text-decoration: none;
           display: inline-flex;
           align-items: center;
@@ -361,3 +361,30 @@ export const getServerSideProps: GetServerSideProps<Props> = async () => {
     return { props: { items: [] } };
   }
 };
+``` :contentReference[oaicite:0]{index=0}  
+
+“View” will now be a blue pill button, same row as Approve/Reject/Request proof.
+
+---
+
+## 2️⃣ `/pages/seller/bulk-simple.tsx`  
+**Change only the top-level wrapper class** so this page can stay dark while the rest of the site is light.
+
+Replace the first `<div>` so it looks like this (rest of file stays exactly as you have it):
+
+```tsx
+// FILE: /pages/seller/bulk-simple.tsx
+// ...imports stay the same...
+
+export default function BulkSimple() {
+  // state & logic unchanged ...
+
+  return (
+    <div className="bulk-simple-page">
+      <Head>
+        <title>Quick Add — Multi-Item Form | Famous Finds</title>
+      </Head>
+      <Header />
+
+      {/* rest of the component is IDENTICAL to what you have now */}
+      {/* (form, cards, dropzone, thumbnails, buttons, styles, etc.) */}
