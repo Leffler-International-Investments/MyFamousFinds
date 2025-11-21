@@ -66,10 +66,10 @@ const Home: NextPage<HomeProps> = ({ trending, newArrivals }) => {
 
         .eyebrow {
           font-size: 11px;
-          font-weight: 600;
+          font-weight: 700; /* Bolder */
           text-transform: uppercase;
           letter-spacing: 0.12em;
-          color: #6b7280;
+          color: #111827; /* Darker (was light gray) */
           margin-bottom: 4px;
         }
 
@@ -77,22 +77,25 @@ const Home: NextPage<HomeProps> = ({ trending, newArrivals }) => {
           margin-top: 4px;
           font-size: 32px;
           letter-spacing: 0.02em;
-          color: #111827;
+          color: #000000; /* Pure black */
         }
 
         .lead {
           margin-top: 10px;
           font-size: 15px;
-          color: #4b5563;
+          color: #111827; /* Darker (was medium gray) */
           line-height: 1.6;
+          font-weight: 500; /* Slightly bolder */
         }
 
+        /* The Butler Box - Now White */
         .heroVisual {
           border-radius: 16px;
           padding: 18px 18px 20px;
-          background: radial-gradient(circle at top, #334155, #020617);
-          border: 1px solid rgba(148, 163, 184, 0.3);
-          color: #f9fafb;
+          background: #ffffff; /* White background */
+          border: 1px solid #e5e7eb; /* Light gray border */
+          color: #000000; /* Dark text inside */
+          box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px 2px rgba(0, 0, 0, 0.05);
         }
 
         @media (max-width: 900px) {
