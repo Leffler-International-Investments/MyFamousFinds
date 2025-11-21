@@ -20,6 +20,9 @@ type IncomingRow = {
   purchase_source?: string;
   purchase_proof?: string;
   serial_number?: string;
+
+  // >>> ADDED SAFELY <<<
+  imageDataUrl?: string | null;
 };
 
 type CleanRow = {
@@ -27,7 +30,6 @@ type CleanRow = {
   brand: string;
   category: string;
   condition: string;
-  // OPTIONAL FIELDS (can be empty strings)
   size: string;
   color: string;
   purchase_source: string;
@@ -37,6 +39,9 @@ type CleanRow = {
   _source?: "bulk";
   currency: "USD";
   status: "Pending";
+
+  // >>> ADDED SAFELY <<<
+  image_url?: string | null;
 };
 
 type ApiOk = { ok: true; created: number; skipped: number };
@@ -61,8 +66,7 @@ function coercePrice(v: unknown): number | null {
   return null;
 }
 
-// IMPORTANT: only require a valid price.
-// Everything else gets a safe default so rows don't get skipped.
+// ---------- CLEAN ROW ----------
 function cleanRow(r: IncomingRow): CleanRow | null {
   const rawBrand = toStr(r.brand);
   const brand = rawBrand || "Unknown designer";
@@ -70,8 +74,8 @@ function cleanRow(r: IncomingRow): CleanRow | null {
   const title =
     toStr(r.title) || (brand ? `${brand} listing` : "Untitled listing");
 
-  const category = toStr(r.category); // can be empty
-  const condition = toStr(r.condition); // can be empty
+  const category = toStr(r.category);
+  const condition = toStr(r.condition);
   const size = toStr(r.size);
   const color = toStr(r.color);
   const purchase_source = toStr(r.purchase_source);
@@ -79,10 +83,10 @@ function cleanRow(r: IncomingRow): CleanRow | null {
   const serial_number = toStr(r.serial_number);
   const price = coercePrice(r.price);
 
-  // Only hard requirement: a valid price
-  if (price == null) {
-    return null;
-  }
+  if (price == null) return null;
+
+  // >>> ADDED SAFELY <<<
+  const image_url = r.imageDataUrl || null;
 
   return {
     title,
@@ -98,21 +102,26 @@ function cleanRow(r: IncomingRow): CleanRow | null {
     _source: "bulk",
     currency: "USD",
     status: "Pending",
+
+    // >>> ADDED SAFELY <<<
+    image_url,
   };
 }
 
-// Designers directory: used only to FLAG, not to block rows.
+// ---------- Approved Designers (flag only) ----------
 async function getApprovedDesigners(): Promise<Set<string>> {
   const snap = await adminDb.collection("designers").get();
   const set = new Set<string>();
   if (snap.empty) return set;
 
-  snap.forEach((d) => {
-    const data = d.data() as any;
+  snap.forEach((doc) => {
+    const data = doc.data() as any;
     if (data && data.name && data.active !== false) {
       set.add(String(data.name).trim().toLowerCase());
     }
+    return;
   });
+
   return set;
 }
 
@@ -151,7 +160,6 @@ export default async function handler(
     for (const raw of slice as IncomingRow[]) {
       const cleaned = cleanRow(raw);
       if (!cleaned) {
-        // Only case: price missing / invalid
         skipped++;
         continue;
       }
@@ -161,6 +169,7 @@ export default async function handler(
         enforceDesigners && approvedDesigners.has(brandKey);
 
       const ref = adminDb.collection("listings").doc();
+
       const docData: any = {
         ...cleaned,
         sellerId,
@@ -169,6 +178,10 @@ export default async function handler(
           amount: cleaned.price,
           currency: "USD",
         },
+
+        // >>> ADDED SAFELY <<<
+        image_url: cleaned.image_url || null,
+
         visibility: {
           public: false,
           searchable: false,
