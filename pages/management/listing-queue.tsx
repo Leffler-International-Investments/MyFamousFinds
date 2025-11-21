@@ -1,7 +1,7 @@
 // FILE: /pages/management/listing-queue.tsx
 import Head from "next/head";
 import Link from "next/link";
-import { GetServerSideProps } from "next";
+import type { GetServerSideProps } from "next";
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
 import { adminDb } from "../../utils/firebaseAdmin";
@@ -50,6 +50,7 @@ function ManagementListingQueue({ items: initialItems }: Props) {
       }
 
       if (action === "request-proof") {
+        // Only update the proof column
         setItems((prev) =>
           prev.map((x) =>
             x.id === id ? { ...x, purchase_proof: "Requested" } : x
@@ -139,54 +140,40 @@ function ManagementListingQueue({ items: initialItems }: Props) {
                       <td>{item.purchase_proof || "—"}</td>
                       <td>{item.serial_number || "—"}</td>
                       <td>
-                        {item.auth_photos && item.auth_photos.length > 0 ? (
-                          <span>
-                            {item.auth_photos.length} photo
-                            {item.auth_photos.length > 1 ? "s" : ""}
-                          </span>
-                        ) : (
-                          "—"
-                        )}
+                        {item.auth_photos && item.auth_photos.length > 0
+                          ? `${item.auth_photos.length} photo${
+                              item.auth_photos.length > 1 ? "s" : ""
+                            }`
+                          : "—"}
                       </td>
                       <td>{item.submittedAt || "—"}</td>
                       <td>{item.status}</td>
                       <td>
-                        <div className="actions-cell">
-                          {/* BLUE VIEW button */}
+                        <div className="table-actions">
                           <Link
                             href={`/product/${item.id}`}
                             className="btn-table btn-view"
-                            target="_blank"
-                            rel="noreferrer"
                           >
                             View
                           </Link>
-
                           <button
-                            onClick={() =>
-                              handleAction(item.id, "approve")
-                            }
-                            disabled={
-                              actionLoading === item.id ||
-                              item.status === "Live"
-                            }
+                            type="button"
+                            onClick={() => handleAction(item.id, "approve")}
+                            disabled={actionLoading === item.id}
                             className="btn-table btn-approve"
                           >
                             Approve
                           </button>
                           <button
-                            onClick={() =>
-                              handleAction(item.id, "reject")
-                            }
-                            disabled={
-                              actionLoading === item.id ||
-                              item.status === "Rejected"
-                            }
+                            type="button"
+                            onClick={() => handleAction(item.id, "reject")}
+                            disabled={actionLoading === item.id}
                             className="btn-table btn-reject"
                           >
                             Reject
                           </button>
                           <button
+                            type="button"
                             onClick={() =>
                               handleAction(item.id, "request-proof")
                             }
@@ -202,7 +189,7 @@ function ManagementListingQueue({ items: initialItems }: Props) {
                 ) : (
                   <tr>
                     <td colSpan={11} className="table-message">
-                      No listings are currently pending review.
+                      No pending listings – go enjoy a coffee ☕
                     </td>
                   </tr>
                 )}
@@ -210,103 +197,58 @@ function ManagementListingQueue({ items: initialItems }: Props) {
             </table>
           </div>
         </main>
+
         <Footer />
       </div>
 
       <style jsx>{`
-        .btn-primary-dark {
-          border-radius: 999px;
-          background: #111827;
-          padding: 8px 16px;
-          font-size: 12px;
-          font-weight: 500;
-          color: #ffffff;
-          text-decoration: none;
-          border: none;
-          flex-shrink: 0;
-        }
-
-        .form-message {
-          font-size: 14px;
-          padding: 8px 12px;
-          border-radius: 6px;
-        }
-        .form-message.error {
-          background: #fee2e2;
-          color: #b91c1c;
-        }
-
         .table-wrapper {
+          margin-top: 24px;
           overflow-x: auto;
-          border-radius: 8px;
-          border: 1px solid #e5e7eb;
-          background: #ffffff;
-          box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
         }
         .data-table {
-          min-width: 100%;
+          width: 100%;
           border-collapse: collapse;
           font-size: 14px;
         }
-        .data-table thead {
+        .data-table th,
+        .data-table td {
+          padding: 10px 12px;
+          border-bottom: 1px solid #e5e7eb;
+          text-align: left;
+        }
+        .data-table thead th {
+          font-size: 12px;
+          text-transform: uppercase;
+          letter-spacing: 0.04em;
+          color: #6b7280;
           background: #f9fafb;
         }
-        .data-table th {
-          padding: 8px 12px;
-          text-align: left;
-          font-weight: 500;
-          color: #374151;
-        }
-        .data-table tbody tr {
-          border-bottom: 1px solid #f3f4f6;
-        }
-        .data-table tbody tr:last-child {
-          border-bottom: none;
-        }
-        .data-table td {
-          padding: 8px 12px;
-          color: #111827;
-          white-space: nowrap;
-        }
-        .data-table td:first-child {
-          font-weight: 500;
-        }
         .table-message {
-          padding: 24px;
           text-align: center;
+          padding: 24px;
           color: #6b7280;
         }
-
-        .actions-cell {
+        .table-actions {
           display: flex;
           flex-wrap: wrap;
-          gap: 8px;
+          gap: 6px;
         }
-
         .btn-table {
           border-radius: 999px;
-          padding: 4px 12px;
-          font-size: 12px;
-          font-weight: 600;
+          padding: 4px 10px;
           border: none;
+          font-size: 12px;
           cursor: pointer;
           white-space: nowrap;
         }
-        .btn-table:disabled {
-          opacity: 0.5;
-        }
-
-        .btn-table.btn-view {
-          background: #2563eb; /* blue */
+        .btn-view {
+          background: #111827;
           color: #ffffff;
           text-decoration: none;
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
         }
-
         .btn-approve {
-          background: #059669;
+          background: #16a34a;
           color: white;
         }
         .btn-reject {
