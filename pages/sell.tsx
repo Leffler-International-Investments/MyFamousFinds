@@ -32,7 +32,6 @@ export default function Sell() {
   const [loadingDesigners, setLoadingDesigners] = useState(true);
   const [designerError, setDesignerError] = useState<string | null>(null);
 
-  // This useEffect is the updated version from your instruction #3
   useEffect(() => {
     let isMounted = true;
     (async () => {
@@ -147,11 +146,8 @@ export default function Sell() {
         formData.set("image_url", imageUrl);
       }
 
-      // Convert FormData to plain JSON for the /api/sell endpoint
       const payload: Record<string, any> = {};
       formData.forEach((value, key) => {
-        // Files are already handled via uploadImageIfNeeded (image_url),
-        // so we never send raw File objects to the API.
         if (value instanceof File) {
           return;
         }
@@ -202,7 +198,7 @@ export default function Sell() {
   }
 
   return (
-    <div className="dark-theme-page">
+    <div className="page-container">
       <Head>
         <title>Sell on Famous Finds</title>
       </Head>
@@ -213,7 +209,7 @@ export default function Sell() {
         <div className="section-header">
           <div>
             <h1>Sell your luxury items</h1>
-            <p style={{ opacity: 0.8, marginTop: 4 }}>
+            <p className="page-subtitle">
               Submit a high–level description. A member of our team will follow
               up to help you create a full listing.
             </p>
@@ -441,7 +437,7 @@ export default function Sell() {
           </section>
 
           <aside className="sell-aside">
-            <div className="sell-card">
+            <div className="sell-card info-card">
               <h3>How it works</h3>
               <ol>
                 <li>Tell us about your item and upload a photo.</li>
@@ -456,7 +452,7 @@ export default function Sell() {
               </ol>
             </div>
 
-            <div className="sell-card">
+            <div className="sell-card info-card">
               <h3>What sells best</h3>
               <ul>
                 <li>Current–season or iconic handbags</li>
@@ -472,10 +468,30 @@ export default function Sell() {
       <Footer />
 
       <style jsx>{`
+        .page-container {
+          background-color: #f9fafb;
+          color: #111827;
+          min-height: 100vh;
+        }
+        .page-subtitle {
+          opacity: 0.8;
+          margin-top: 4px;
+          color: #4b5563;
+        }
+        .cta {
+          font-size: 13px;
+          color: #4b5563;
+          text-decoration: none;
+          font-weight: 500;
+        }
+        .cta:hover {
+          color: #111827;
+        }
         .sell-grid {
           display: grid;
           grid-template-columns: minmax(0, 2fr) minmax(0, 1.3fr);
           gap: 24px;
+          margin-top: 20px;
         }
         @media (max-width: 900px) {
           .sell-grid {
@@ -483,50 +499,59 @@ export default function Sell() {
           }
         }
         .sell-card {
-          background: #111827;
+          background: #ffffff;
           border-radius: 16px;
-          padding: 18px 18px 20px;
-          border: 1px solid #1f2937;
+          padding: 24px;
+          border: 1px solid #e5e7eb;
+          box-shadow: 0 1px 3px rgba(0,0,0,0.05);
         }
         .sell-card h2,
         .sell-card h3 {
-          margin: 0 0 6px;
-          font-size: 18px;
-        }
-        .sell-card p {
           margin: 0 0 8px;
-          font-size: 14px;
-          line-height: 1.4;
+          font-size: 18px;
+          font-weight: 600;
+          color: #111827;
         }
         .muted {
-          color: #9ca3af;
-          font-size: 13px;
+          color: #6b7280;
+          font-size: 14px;
+          margin-bottom: 16px;
+          line-height: 1.5;
         }
         .sell-form {
-          margin-top: 14px;
+          margin-top: 20px;
           display: flex;
           flex-direction: column;
-          gap: 10px;
+          gap: 16px;
         }
         label {
           display: flex;
           flex-direction: column;
-          gap: 4px;
+          gap: 6px;
           font-size: 13px;
+          font-weight: 600;
+          color: #374151;
         }
         input,
         textarea,
         select {
-          background: #020617;
+          background: #ffffff;
           border-radius: 8px;
-          border: 1px solid #374151;
-          padding: 8px 10px;
-          color: #e5e7eb;
+          border: 1px solid #d1d5db;
+          padding: 10px 12px;
+          color: #111827;
           font-size: 14px;
+        }
+        input:focus,
+        textarea:focus,
+        select:focus {
+          outline: none;
+          border-color: #111827;
+          box-shadow: 0 0 0 1px #111827;
         }
         input::placeholder,
         textarea::placeholder {
-          color: #6b7280;
+          color: #9ca3af;
         }
         textarea {
           resize: vertical;
@@ -539,94 +564,117 @@ export default function Sell() {
         }
         .file-help {
           font-size: 12px;
-          color: #9ca3af;
+          color: #6b7280;
+          font-weight: 400;
         }
         .dropdown-help {
           font-size: 12px;
-          color: #9ca3af;
+          color: #6b7280;
+          font-weight: 400;
           margin-top: 2px;
         }
         .field-warning {
           margin-top: 4px;
           font-size: 12px;
-          color: #fbbf24;
+          color: #d97706;
         }
         .image-preview {
           margin-top: 8px;
-          border: 1px dashed #374151;
-          padding: 8px;
+          border: 1px dashed #d1d5db;
+          padding: 12px;
           border-radius: 8px;
+          background: #f9fafb;
           font-size: 12px;
-          color: #d1d5db;
+          color: #4b5563;
         }
         .image-preview span {
           display: block;
-          margin-bottom: 4px;
+          margin-bottom: 6px;
+          font-weight: 600;
         }
         .image-preview img {
           max-width: 200px;
-          border-radius: 8px;
-          border: 1px solid #374151;
+          border-radius: 6px;
+          border: 1px solid #e5e7eb;
+          display: block;
         }
         button {
-          margin-top: 10px;
-          background: white;
-          color: black;
+          margin-top: 12px;
+          background: #111827;
+          color: white;
           border: none;
-          padding: 10px 16px;
-          border-radius: 8px;
+          padding: 12px 20px;
+          border-radius: 99px;
           font-weight: 600;
           cursor: pointer;
+          font-size: 14px;
+          transition: opacity 0.2s;
+        }
+        button:hover {
+          opacity: 0.9;
         }
         button[disabled] {
-          opacity: 0.7;
-          cursor: default;
+          background: #9ca3af;
+          cursor: not-allowed;
         }
         .sell-aside {
           display: flex;
           flex-direction: column;
-          gap: 16px;
+          gap: 20px;
+        }
+        .info-card {
+          background: #f9fafb;
+          border: 1px solid #e5e7eb;
         }
         .sell-aside ol,
         .sell-aside ul {
-          padding-left: 18px;
-          margin: 6px 0 0;
+          padding-left: 20px;
+          margin: 8px 0 0;
           font-size: 13px;
-          color: #e5e7eb;
+          color: #4b5563;
+          line-height: 1.5;
+        }
+        .sell-aside li {
+          margin-bottom: 6px;
         }
         .banner {
-          margin-top: 12px;
-          padding: 8px 10px;
-          border-radius: 6px;
+          margin-top: 16px;
+          padding: 12px;
+          border-radius: 8px;
           font-size: 13px;
+          font-weight: 500;
         }
         .success {
-          background: #065f46;
-          color: #d1fae5;
+          background: #ecfdf5;
+          color: #065f46;
+          border: 1px solid #a7f3d0;
         }
         .note {
           margin-top: 16px;
           font-size: 12px;
-          color: #9ca3af;
+          color: #6b7280;
+          text-align: center;
         }
         .seller-responsibility {
-          margin-top: 12px;
-          padding: 12px;
+          margin-top: 16px;
+          padding: 16px;
           border-radius: 8px;
-          border: 1px solid #ca8a04;
-          background: #422006;
+          border: 1px solid #fed7aa;
+          background: #fff7ed;
           font-size: 12px;
-          color: #fef08a;
+          color: #9a3412;
           line-height: 1.5;
         }
         .seller-responsibility strong {
-          color: #fef9c3;
+          color: #9a3412;
           display: block;
-          margin-bottom: 4px;
+          margin-bottom: 6px;
+          font-size: 13px;
         }
         .seller-responsibility p {
           font-size: 12px;
           margin-bottom: 8px;
+          color: #7c2d12;
         }
         .seller-responsibility p:last-child {
           margin-bottom: 0;
