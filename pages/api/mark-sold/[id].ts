@@ -13,31 +13,43 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse<ApiResponse>
 ) {
+  // Only allow POST
   if (req.method !== "POST") {
     res.setHeader("Allow", ["POST"]);
-    return res.status(405).json({ ok: false, error: "Method not allowed" });
-  }
-
-  const { id } = req.query;
-  if (!id || typeof id !== "string") {
-    return res.status(400).json({ ok: false, error: "Missing listing id" });
+    return res
+      .status(405)
+      .json({ ok: false, error: "Method not allowed" });
   }
 
   try {
-    const ref = adminDb.collection("listings").doc(id);
-    const snap = await ref.get();
-    if (!snap.exists) {
-      return res.status(404).json({ ok: false, error: "Listing not found" });
+    // ID can come from the dynamic route or from the body
+    const { id: queryId } = req.query;
+    const { id: bodyId } = req.body || {};
+
+    const id = (queryId || bodyId) as string | string[] | undefined;
+
+    if (!id) {
+      return res
+        .status(400)
+        .json({ ok: false, error: "Missing listing ID" });
     }
 
-    await ref.set(
+    const listingId = Array.isArray(id) ? id[0] : id;
+
+    const docRef = adminDb.collection("listings").doc(listingId);
+    const snap = await docRef.get();
+
+    if (!snap.exists) {
+      return res
+        .status(404)
+        .json({ ok: false, error: "Listing not found" });
+    }
+
+    // Update status to Sold and set timestamps
+    await docRef.set(
       {
         status: "Sold",
         soldAt: FieldValue.serverTimestamp(),
-        visibility: {
-          public: false,
-          searchable: false,
-        },
         updatedAt: FieldValue.serverTimestamp(),
       },
       { merge: true }
@@ -45,9 +57,10 @@ export default async function handler(
 
     return res.status(200).json({ ok: true });
   } catch (err: any) {
-    console.error("mark-sold error", err);
-    return res
-      .status(500)
-      .json({ ok: false, error: err?.message || "Failed to mark as sold" });
+    console.error("mark-sold error:", err);
+    return res.status(500).json({
+      ok: false,
+      error: err?.message || "Internal error",
+    });
   }
 }
