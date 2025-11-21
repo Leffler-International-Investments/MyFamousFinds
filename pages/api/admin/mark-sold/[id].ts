@@ -1,7 +1,7 @@
-// FILE: /pages/api/admin/mark-sold/[id].ts
+// FILE: /pages/api/mark-sold/[id].ts
 
 import type { NextApiRequest, NextApiResponse } from "next";
-import { adminDb } from "../../../../utils/firebaseAdmin"; // 4 levels up
+import { adminDb } from "../../../utils/firebaseAdmin"; // <-- 3 x "../"
 import { FieldValue } from "firebase-admin/firestore";
 
 type ApiResponse = { ok: boolean; error?: string };
@@ -10,7 +10,6 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse<ApiResponse>
 ) {
-  // POST only
   if (req.method !== "POST") {
     res.setHeader("Allow", ["POST"]);
     return res.status(405).json({ ok: false, error: "Method not allowed" });
@@ -29,7 +28,6 @@ export default async function handler(
       return res.status(404).json({ ok: false, error: "Listing not found" });
     }
 
-    // Mark as sold + hide everywhere
     await ref.set(
       {
         status: "Sold",
