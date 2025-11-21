@@ -88,9 +88,10 @@ export default function MasterCategoryLibraryPage() {
           };
         });
         setCategories(list);
-      } catch (err) {
+      } catch (err: any) {
         console.error("Error loading menu categories", err);
-        setError("Could not load menu categories.");
+        // UPDATED: Display the actual error message from Firebase to help debugging
+        setError(`Error: ${err.message || "Could not load menu categories."}`);
       } finally {
         setInitialLoading(false);
       }
