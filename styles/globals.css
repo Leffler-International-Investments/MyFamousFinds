@@ -31,26 +31,6 @@ NOW SET TO LIGHT THEME.
   min-height: 100vh;
 }
 
-/* Make text readable on any .dark-theme-page (product detail etc.) */
-.dark-theme-page h1,
-.dark-theme-page h2,
-.dark-theme-page h3,
-.dark-theme-page h4,
-.dark-theme-page p,
-.dark-theme-page span,
-.dark-theme-page li {
-  color: #111827;
-}
-
-/* Dedicated dark page just for seller bulk-simple */
-.bulk-simple-page {
-  background: #020617; /* near-black */
-  color: #f9fafb;
-  min-height: 100vh;
-}
-
-/* ---------- existing styles below this line stay the same ---------- */
-
 .section {
   max-width: 1200px;
   margin: 28px auto;
@@ -243,4 +223,457 @@ NOW SET TO LIGHT THEME.
   box-shadow: 0 20px 40px rgba(0, 0, 0, 0.7);
 }
 
-/* … rest of your globals.css stays exactly as it is now … */
+.auth-card h1 {
+  margin: 0 0 4px;
+  font-size: 22px;
+  font-weight: 600;
+  text-align: center;
+}
+
+.auth-card p.auth-subtitle {
+  margin: 0 0 12px;
+  font-size: 12px;
+  text-align: center;
+  color: #9ca3af;
+}
+
+.auth-fields {
+  margin-top: 12px;
+}
+
+.auth-field {
+  margin-bottom: 10px;
+}
+
+.auth-field label {
+  display: block;
+  font-size: 11px;
+  font-weight: 500;
+  color: #e5e7eb;
+  margin-bottom: 4px;
+}
+
+.auth-input {
+  width: 100%;
+  border-radius: 8px;
+  border: 1px solid #374151;
+  background: #020617;
+  padding: 8px 10px;
+  font-size: 14px;
+  color: #e5e7eb;
+}
+
+.auth-input::placeholder {
+  color: #6b7280;
+}
+
+.auth-input:focus {
+  outline: none;
+  border-color: #f9fafb;
+  box-shadow: 0 0 0 1px rgba(249, 250, 251, 0.2);
+}
+
+.auth-button-primary {
+  width: 100%;
+  margin-top: 8px;
+  padding: 9px 12px;
+  border-radius: 999px;
+  border: none;
+  background: #f9fafb;
+  color: #000;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.auth-button-primary:disabled {
+  opacity: 0.7;
+  cursor: default;
+}
+
+.auth-secondary-link,
+.auth-secondary-link-inline {
+  margin-top: 10px;
+  font-size: 11px;
+  color: #9ca3af;
+  text-align: center;
+}
+
+.auth-secondary-link a,
+.auth-secondary-link-inline a,
+.auth-secondary-link-inline button {
+  color: #e5e7eb;
+  text-decoration: none;
+}
+
+.auth-secondary-link-inline button {
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  padding: 0;
+  font-size: 11px;
+  color: #e5e7eb;
+}
+
+.auth-secondary-link a:hover,
+.auth-secondary-link-inline a:hover,
+.auth-secondary-link-inline button:hover {
+  text-decoration: underline;
+}
+
+.auth-error {
+  margin-top: 10px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  border: 1px solid #f97373;
+  background: #7f1d1d;
+  color: #fee2e2;
+  font-size: 12px;
+}
+
+.auth-info {
+  margin-top: 10px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  border: 1px solid #047857;
+  background: #064e3b;
+  color: #bbf7d0;
+  font-size: 12px;
+}
+
+.auth-code-input {
+  letter-spacing: 0.35em;
+  text-align: center;
+}
+
+.password-input-row {
+  display: flex;
+  align-items: center;
+  border-radius: 8px;
+  border: 1px solid #374151;
+  background: #020617;
+  overflow: hidden;
+}
+
+.password-input-row .auth-input {
+  border: none;
+  border-radius: 0;
+  flex: 1;
+  padding-right: 0;
+}
+
+.password-input-row .auth-input:focus {
+  box-shadow: none;
+  border-color: transparent;
+}
+
+.password-toggle {
+  padding: 0 10px;
+  font-size: 11px;
+  font-weight: 500;
+  color: #e5e7eb;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+}
+
+.password-toggle:hover {
+  color: #ffffff;
+}
+
+.password-strength {
+  margin-top: 6px;
+  font-size: 11px;
+}
+
+.password-strength-weak {
+  color: #f97373;
+}
+.password-strength-ok {
+  color: #facc15;
+}
+.password-strength-strong {
+  color: #4ade80;
+}
+.password-strength-very-strong {
+  color: #22c55e;
+}
+
+/* Dashboard (unchanged) */
+.dashboard-page {
+  min-height: 100vh;
+  background: #f9fafb;
+  color: #111827;
+}
+
+.dashboard-main {
+  max-width: 1152px;
+  margin-left: auto;
+  margin-right: auto;
+  padding: 24px 16px 64px;
+}
+
+.dashboard-header {
+  margin-bottom: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+@media (min-width: 768px) {
+  .dashboard-header {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+  }
+}
+
+.dashboard-header h1 {
+  font-size: 24px;
+  font-weight: 600;
+  color: #111827;
+}
+
+.dashboard-header p {
+  margin-top: 4px;
+  font-size: 14px;
+  color: #4b5563;
+}
+
+.dashboard-header a {
+  font-size: 14px;
+  color: #4b5563;
+  transition-property: color;
+  transition-duration: 150ms;
+}
+
+.dashboard-header a:hover {
+  color: #111827;
+}
+
+.dashboard-welcome-banner {
+  margin-bottom: 32px;
+  border-radius: 8px;
+  border: 2px solid #3b82f6;
+  background: #ffffff;
+  padding: 20px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px 2px rgba(0, 0, 0, 0.1);
+}
+
+.dashboard-welcome-banner h2 {
+  margin-bottom: 8px;
+  font-size: 18px;
+  font-weight: 600;
+  color: #111827;
+}
+
+.dashboard-welcome-banner p {
+  margin-bottom: 16px;
+  font-size: 14px;
+  color: #4b5563;
+}
+
+.dashboard-welcome-banner-button {
+  display: inline-block;
+  border-radius: 6px;
+  background: #2563eb;
+  padding: 8px 16px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #ffffff;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+}
+
+.dashboard-welcome-banner-button:hover {
+  background: #1d4ed8;
+}
+
+.dashboard-summary-section {
+  margin-bottom: 32px;
+  border-radius: 12px;
+  border: 1px solid #e5e7eb;
+  background: #ffffff;
+  padding: 20px;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+}
+
+.dashboard-summary-section h2 {
+  font-size: 18px;
+  font-weight: 600;
+  color: #111827;
+}
+
+.dashboard-summary-grid {
+  margin-top: 16px;
+  display: grid;
+  gap: 16px;
+}
+
+@media (min-width: 768px) {
+  .dashboard-summary-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+.dashboard-summary-tile {
+  display: block;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+  background: #f9fafb;
+  padding: 16px;
+  font-size: 14px;
+  color: #374151;
+  transition-property: all;
+  transition-duration: 150ms;
+}
+
+.dashboard-summary-tile:hover {
+  border-color: #3b82f6;
+  background: #ffffff;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px 2px rgba(0, 0, 0, 0.1);
+}
+
+.dashboard-summary-tile .label {
+  font-size: 12px;
+  text-transform: uppercase;
+  color: #6b7280;
+}
+
+.dashboard-summary-tile .stat {
+  margin-top: 4px;
+  font-size: 18px;
+  font-weight: 600;
+  color: #111827;
+}
+
+.dashboard-summary-tile .sub-stat {
+  font-size: 12px;
+  color: #6b7280;
+}
+
+.dashboard-section {
+  margin-bottom: 32px;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+  background: #ffffff;
+  padding: 20px;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+}
+
+.dashboard-section-header {
+  margin-bottom: 16px;
+}
+
+.dashboard-section-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #111827;
+}
+
+.dashboard-section-subtitle {
+  margin-top: 4px;
+  font-size: 14px;
+  color: #4b5563;
+}
+
+.dashboard-grid {
+  display: grid;
+  gap: 16px;
+}
+
+@media (min-width: 640px) {
+  .dashboard-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 768px) {
+  .dashboard-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+.dashboard-tile {
+  display: block;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+  background: #f9fafb;
+  padding: 16px;
+  font-size: 14px;
+  color: #374151;
+  text-align: left;
+  transition-property: all;
+  transition-duration: 150ms;
+}
+
+.dashboard-tile:hover {
+  border-color: #3b82f6;
+  background: #ffffff;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px 2px rgba(0, 0, 0, 0.1);
+}
+
+.dashboard-tile-title {
+  font-weight: 600;
+  color: #111827;
+}
+
+.dashboard-tile-description {
+  margin-top: 4px;
+  font-size: 12px;
+  color: #4b5563;
+}
+
+.dashboard-tile-link {
+  margin-top: 12px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.dashboard-tile-link-blue {
+  color: #2563eb;
+}
+.dashboard-tile-link-green {
+  color: #059669;
+}
+.dashboard-tile-link-gray {
+  color: #4b5563;
+}
+.dashboard-tile-link-gold {
+  color: #d97706;
+}
+
+.dashboard-tile:hover .dashboard-tile-link-blue {
+  color: #1d4ed8;
+}
+dashboard-tile:hover .dashboard-tile-link-green {
+  color: #047857;
+}
+.dashboard-tile:hover .dashboard-tile-link-gray {
+  color: #1f2937;
+}
+.dashboard-tile:hover .dashboard-tile-link-gold {
+  color: #b45309;
+}
+
+/* Orange seller apply button */
+.auth-apply-button-wrapper {
+  margin-top: 18px;
+}
+
+.auth-apply-button {
+  display: block;
+  width: 100%;
+  text-align: center;
+  padding: 12px 16px;
+  border-radius: 9999px;
+  font-size: 14px;
+  font-weight: 700;
+  background: #f97316;
+  color: #111827;
+  text-decoration: none;
+  box-shadow: 0 8px 18px rgba(249, 115, 22, 0.4);
+}
+
+.auth-apply-button:hover {
+  background: #ea580c;
+}
