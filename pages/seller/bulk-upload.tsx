@@ -51,7 +51,7 @@ export default function SellerBulkUpload() {
     [rows]
   );
 
-  if (loading) return <div className="dark-theme-page"></div>;
+  if (loading) return <div className="page-loading"></div>;
 
   const handleParse = () => {
     setError(null);
@@ -71,13 +71,16 @@ export default function SellerBulkUpload() {
 
     const parsed: ParsedRow[] = [];
     lines.forEach((line, idx) => {
+      // Note: content cannot contain commas
       const parts = line.split(",").map((p) => p.trim());
+      
+      // We need exactly 10 fields based on the instruction
       if (parts.length < 10) {
         parsed.push({
           _row: idx + 1,
           _status: "missing_field",
           _reason:
-            "Expected 10 fields: title,brand,category,condition,size,color,price,purchase_source,purchase_proof,serial_number",
+            "Expected 10 fields. Do not use commas inside titles or names.",
         });
         return;
       }
@@ -100,7 +103,7 @@ export default function SellerBulkUpload() {
         parsed.push({
           _row: idx + 1,
           _status: "invalid_price",
-          _reason: "Price must be a positive number in USD.",
+          _reason: "Price must be a positive number.",
         });
         return;
       }
@@ -151,12 +154,12 @@ export default function SellerBulkUpload() {
   };
 
   const exampleLines = [
-    "Chanel Classic Flap Bag,Chanel,bags,Like New,M,Black,5200,Neiman Marcus,Original receipt,12345-ABCD",
+    "Chanel Classic Flap,Chanel,bags,Like New,M,Black,5200,Neiman Marcus,Original receipt,12345-ABCD",
     "Gucci Marmont Belt,Gucci,accessories,Good,M,Black,480,Saks,PDF invoice,GG-778899",
   ];
 
   return (
-    <div className="dark-theme-page">
+    <div className="page-container">
       <Head>
         <title>Seller — Bulk Upload | Famous Finds</title>
       </Head>
@@ -170,7 +173,7 @@ export default function SellerBulkUpload() {
 
         <div className="page-header">
           <div>
-            <h1>Bulk upload listings</h1>
+            <h1>Bulk Upload Listings</h1>
             <p className="subtitle">
               Paste multiple items in one go. All prices are treated as USD.
             </p>
@@ -179,41 +182,42 @@ export default function SellerBulkUpload() {
 
         <ol className="steps-grid">
           <li className={step >= 1 ? "step-active" : ""}>
-            1. Paste your items
+            <span className="step-num">1</span> Paste your items
           </li>
           <li className={step >= 2 ? "step-active" : ""}>
-            2. Review and fix issues
+            <span className="step-num">2</span> Review and fix
           </li>
           <li className={step >= 3 ? "step-active" : ""}>
-            3. Confirm and submit
+            <span className="step-num">3</span> Confirm
           </li>
         </ol>
 
         <section className="card">
           <h2>1. Paste your items (USD)</h2>
           <p className="card-subtitle">
-            One item per line, fields separated by commas:
+            One item per line, fields separated by commas. <strong>Do not use commas inside the product title or brand name.</strong>
           </p>
           <p className="card-subtitle">
+            Format:<br/>
             <code>
-              title, brand, category, condition, size, color, price (USD),
-              purchase_source, purchase_proof, serial_number
+              title, brand, category, condition, size, color, price,
+              source, proof, serial
             </code>
           </p>
 
           <div className="example-box">
-            <p>Example (copy/paste):</p>
+            <p>Example (Copy & Paste):</p>
             {exampleLines.map((line) => (
-              <p key={line} className="example-mono">
+              <div key={line} className="example-mono">
                 {line}
-              </p>
+              </div>
             ))}
           </div>
 
           <textarea
             ref={textareaRef}
             className="form-textarea"
-            placeholder="Paste your items here…"
+            placeholder="Paste your CSV data here..."
             value={rawText}
             onChange={(e) => setRawText(e.target.value)}
           />
@@ -224,7 +228,7 @@ export default function SellerBulkUpload() {
               disabled={busy}
               className="btn-primary"
             >
-              Parse items
+              Parse Items
             </button>
           </div>
         </section>
@@ -233,15 +237,15 @@ export default function SellerBulkUpload() {
           <h2>2. Review parsed items</h2>
 
           {!rows.length ? (
-            <p className="card-subtitle">
+            <p className="muted-text">
               Nothing parsed yet. Paste your items above and click{" "}
-              <strong>Parse items</strong>.
+              <strong>Parse Items</strong>.
             </p>
           ) : (
             <>
               <p className="card-subtitle">
-                Parsed <strong>{rows.length}</strong> lines. Valid rows in
-                USD: <strong className="text-ok">{okRows.length}</strong>.
+                Parsed <strong>{rows.length}</strong> lines. Valid rows:{" "}
+                <strong className="text-ok">{okRows.length}</strong>.
               </p>
 
               <div className="table-wrapper">
@@ -252,7 +256,7 @@ export default function SellerBulkUpload() {
                       <th>Title</th>
                       <th>Brand</th>
                       <th>Category</th>
-                      <th>Price (USD)</th>
+                      <th>Price</th>
                       <th>Status</th>
                     </tr>
                   </thead>
@@ -294,13 +298,13 @@ export default function SellerBulkUpload() {
           <h2>3. Confirm and submit</h2>
           <p className="card-subtitle">
             When you confirm, we will create listings for all{" "}
-            <strong className="text-ok">valid rows in USD</strong> and send
+            <strong className="text-ok">valid rows</strong> and send
             them to the vetting queue.
           </p>
           {error && <p className="banner error">{error}</p>}
           {result && (
             <p className="banner success">
-              Created {result.created} listings. Skipped {result.skipped} rows.
+              Success! Created {result.created} listings.
             </p>
           )}
 
@@ -310,7 +314,7 @@ export default function SellerBulkUpload() {
               disabled={committing || !okRows.length}
               className="btn-primary"
             >
-              {committing ? "Submitting…" : "Create listings in USD"}
+              {committing ? "Submitting..." : "Create Listings"}
             </button>
           </div>
         </section>
@@ -319,191 +323,242 @@ export default function SellerBulkUpload() {
       <Footer />
 
       <style jsx>{`
+        .page-container {
+          background-color: #f9fafb;
+          color: #111827;
+          min-height: 100vh;
+        }
         .back-link a {
-          font-size: 12px;
-          color: #9ca3af; /* gray-400 */
+          font-size: 13px;
+          color: #4b5563;
+          text-decoration: none;
+          font-weight: 500;
         }
         .back-link a:hover {
-          color: #e5e7eb; /* gray-200 */
+          color: #111827;
         }
         
         .page-header {
-          margin-top: 16px;
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
+          margin-top: 20px;
+          margin-bottom: 24px;
         }
         h1 {
-          font-size: 20px;
-          font-weight: 600;
-          color: white;
+          font-size: 24px;
+          font-weight: 700;
+          color: #111827;
+          margin: 0;
         }
         .subtitle {
-          margin-top: 4px;
-          font-size: 12px;
-          color: #9ca3af; /* gray-400 */
+          margin-top: 6px;
+          font-size: 14px;
+          color: #6b7280;
         }
         
         .steps-grid {
-          margin-top: 24px;
           display: grid;
           gap: 12px;
-          font-size: 12px;
-          color: #d1d5db; /* gray-300 */
+          margin-bottom: 24px;
+          padding: 0;
+          list-style: none;
         }
         @media (min-width: 768px) {
           .steps-grid {
             grid-template-columns: repeat(3, 1fr);
           }
         }
-        .step-active {
+        .steps-grid li {
+          background: #ffffff;
+          border: 1px solid #e5e7eb;
+          border-radius: 8px;
+          padding: 10px 12px;
+          font-size: 13px;
+          color: #9ca3af;
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        }
+        .steps-grid li.step-active {
+          border-color: #111827;
+          color: #111827;
           font-weight: 600;
-          color: white;
+          box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+        .step-num {
+          background: #f3f4f6;
+          width: 20px;
+          height: 20px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          border-radius: 50%;
+          font-size: 11px;
+          font-weight: 700;
+        }
+        .step-active .step-num {
+          background: #111827;
+          color: #fff;
         }
         
         .card {
-          margin-top: 24px;
-          border-radius: 16px;
-          border: 1px solid #ffffff1a; /* white/10 */
-          background: #ffffff0d; /* white/5 */
-          padding: 16px;
-          font-size: 12px;
+          background: #ffffff;
+          border: 1px solid #e5e7eb;
+          border-radius: 12px;
+          padding: 24px;
+          margin-bottom: 24px;
+          box-shadow: 0 1px 3px rgba(0,0,0,0.05);
         }
         .card h2 {
-          font-size: 11px;
-          font-weight: 600;
+          font-size: 16px;
+          font-weight: 700;
+          color: #111827;
+          margin: 0 0 12px 0;
           text-transform: uppercase;
-          letter-spacing: 0.16em;
-          color: #9ca3af; /* gray-400 */
+          letter-spacing: 0.05em;
         }
         .card-subtitle {
-          margin-top: 8px;
-          color: #d1d5db; /* gray-300 */
+          font-size: 14px;
+          color: #4b5563;
+          margin-bottom: 12px;
+          line-height: 1.5;
         }
         .card-subtitle code {
+          background: #f3f4f6;
+          padding: 2px 6px;
+          border-radius: 4px;
           font-family: monospace;
+          font-size: 12px;
+          color: #db2777;
         }
-        .card-subtitle strong {
-          font-weight: 600;
-          color: white;
+        .text-ok {
+          color: #059669;
         }
-        .card-subtitle .text-ok {
-          color: #6ee7b7; /* emerald-300 */
+        .muted-text {
+          color: #9ca3af;
+          font-style: italic;
         }
         
         .example-box {
-          margin-top: 12px;
-          border-radius: 6px;
-          background: #00000066; /* black/40 */
+          background: #f8fafc;
+          border: 1px solid #e2e8f0;
+          border-radius: 8px;
           padding: 12px;
-          font-size: 11px;
-          color: #9ca3af; /* gray-400 */
-          display: flex;
-          flex-direction: column;
-          gap: 8px;
+          margin-bottom: 16px;
         }
         .example-box p {
+          font-size: 12px;
           font-weight: 600;
-          color: #d1d5db; /* gray-200 */
+          color: #64748b;
+          margin: 0 0 8px 0;
         }
-        .example-box .example-mono {
+        .example-mono {
           font-family: monospace;
-          font-weight: 400;
+          font-size: 12px;
+          color: #334155;
+          margin-bottom: 4px;
+          white-space: pre-wrap;
+          word-break: break-all;
         }
         
         .form-textarea {
-          margin-top: 16px;
-          height: 192px;
           width: 100%;
-          border-radius: 6px;
-          border: 1px solid #ffffff1a; /* white/10 */
-          background: #00000066; /* black/40 */
+          height: 200px;
           padding: 12px;
-          font-size: 12px;
-          color: white;
+          border: 1px solid #d1d5db;
+          border-radius: 8px;
+          font-family: monospace;
+          font-size: 13px;
+          color: #111827;
+          background: #ffffff;
         }
         .form-textarea:focus {
-          border-color: white;
           outline: none;
+          border-color: #000;
+          box-shadow: 0 0 0 1px #000;
         }
         
         .button-row {
-          margin-top: 12px;
-          display: flex;
-          gap: 8px;
+          margin-top: 16px;
         }
         .btn-primary {
-          border-radius: 999px;
-          background: white;
-          padding: 8px 16px;
-          font-size: 12px;
-          font-weight: 600;
-          color: black;
+          background: #111827;
+          color: #ffffff;
           border: none;
+          border-radius: 99px;
+          padding: 10px 24px;
+          font-size: 14px;
+          font-weight: 600;
           cursor: pointer;
+          transition: opacity 0.2s;
         }
         .btn-primary:hover {
-          background: #e5e7eb; /* gray-200 */
+          opacity: 0.9;
         }
         .btn-primary:disabled {
-          opacity: 0.6;
+          background: #9ca3af;
           cursor: not-allowed;
         }
         
         .table-wrapper {
-          margin-top: 12px;
           overflow-x: auto;
-          border-radius: 6px;
-          border: 1px solid #ffffff1a; /* white/10 */
+          border: 1px solid #e5e7eb;
+          border-radius: 8px;
+          margin-top: 16px;
         }
         .data-table {
-          min-width: 100%;
+          width: 100%;
+          border-collapse: collapse;
+          font-size: 13px;
           text-align: left;
-          font-size: 11px;
-          color: #f3f4f6; /* gray-100 */
         }
-        .data-table thead {
-          background: #ffffff0d; /* white/5 */
-          font-size: 10px;
-          text-transform: uppercase;
-          letter-spacing: 0.16em;
-          color: #9ca3af; /* gray-400 */
+        .data-table th {
+          background: #f9fafb;
+          padding: 10px 12px;
+          font-weight: 600;
+          color: #374151;
+          border-bottom: 1px solid #e5e7eb;
         }
-        .data-table th, .data-table td {
-          padding: 8px 12px;
+        .data-table td {
+          padding: 10px 12px;
+          border-bottom: 1px solid #e5e7eb;
+          color: #111827;
         }
-        .data-table tr {
-          border-bottom: 1px solid #ffffff1a; /* white/10 */
-        }
-        .data-table tr:last-child {
-          border-bottom: 0;
+        .data-table tr:last-child td {
+          border-bottom: none;
         }
         
         .status-badge {
-          display: inline-flex;
-          border-radius: 999px;
-          padding: 4px 8px;
-          font-size: 10px;
+          display: inline-block;
+          padding: 2px 8px;
+          border-radius: 99px;
+          font-size: 11px;
           font-weight: 600;
+          text-transform: uppercase;
         }
         .status-ok {
-          background: #065f46; /* green-900 */
-          color: #6ee7b7; /* emerald-300 */
+          background: #d1fae5;
+          color: #065f46;
         }
         .status-error {
-          background: #991b1b; /* red-900 */
-          color: #fca5a5; /* red-300 */
+          background: #fee2e2;
+          color: #991b1b;
         }
         
         .banner {
-          margin-top: 8px;
-          font-weight: 600;
+          padding: 12px;
+          border-radius: 8px;
+          font-size: 14px;
+          font-weight: 500;
+          margin-top: 12px;
         }
         .banner.error {
-          color: #f87171; /* red-400 */
+          background: #fee2e2;
+          color: #b91c1c;
+          border: 1px solid #fca5a5;
         }
         .banner.success {
-          color: #6ee7b7; /* emerald-300 */
+          background: #dcfce7;
+          color: #166534;
+          border: 1px solid #86efac;
         }
       `}</style>
     </div>
