@@ -126,8 +126,7 @@ export const getServerSideProps: GetServerSideProps<CategoryProps> = async (
   try {
     const snap = await adminDb
       .collection("listings")
-      .where("status", "==", "Active") // This will show "Active" items
-      // .where("status", "==", "Live") // Use this if you want to show "Live" items
+      .where("status", "==", "Active")
       .where("category", "==", normalized)
       .orderBy("createdAt", "desc")
       .limit(60)
@@ -136,18 +135,17 @@ export const getServerSideProps: GetServerSideProps<CategoryProps> = async (
     const items: ProductLike[] = snap.docs.map((doc) => {
       const d: any = doc.data() || {};
       const priceNumber = Number(d.price) || 0;
-      
-      // --- THIS IS YOUR FIX ---
+
       const price = priceNumber
         ? `US$${priceNumber.toLocaleString("en-US")}`
         : "";
-      // ------------------------
 
       const image: string =
+        d.image_url ||
         d.imageUrl ||
-        d.image || // Added fallback
-        (Array.isArray(d.imageUrls) && d.imageUrls[0]) || // Added fallback
-        "https://images.unsplash.com/photo-1550009158-9ebf69173e03?auto-format&fit=crop&w=800&q=80";
+        d.image ||
+        (Array.isArray(d.imageUrls) && d.imageUrls[0]) ||
+        "";
 
       return {
         id: doc.id,
