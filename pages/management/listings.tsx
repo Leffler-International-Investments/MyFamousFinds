@@ -22,13 +22,17 @@ type Props = {
 
 export default function ManagementListings({ items }: Props) {
   const { loading } = useRequireAdmin();
+
+  // Local copy so we can remove rows after delete
+  const [rows, setRows] = useState<Listing[]>(items);
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] =
     useState<"All" | "Live" | "Pending" | "Rejected">("All");
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const visible = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return items.filter((l) => {
+    return rows.filter((l) => {
       if (statusFilter !== "All" && l.status !== statusFilter) return false;
       if (!q) return true;
       return (
@@ -37,7 +41,34 @@ export default function ManagementListings({ items }: Props) {
         l.id.toLowerCase().includes(q)
       );
     });
-  }, [items, query, statusFilter]);
+  }, [rows, query, statusFilter]);
+
+  async function handleDelete(id: string, title: string) {
+    if (deletingId) return;
+    const ok = window.confirm(
+      `Delete listing "${title}" permanently? It will disappear from the homepage and catalogue.`
+    );
+    if (!ok) return;
+
+    try {
+      setDeletingId(id);
+      const res = await fetch(`/api/admin/delete/${id}`, {
+        method: "POST",
+      });
+      const json = await res.json();
+      if (!res.ok || !json?.ok) {
+        throw new Error(json?.error || "Failed to delete listing");
+      }
+
+      // Remove from local table
+      setRows((prev) => prev.filter((l) => l.id !== id));
+    } catch (err: any) {
+      console.error("Delete listing error", err);
+      alert(err?.message || "Unable to delete listing");
+    } finally {
+      setDeletingId(null);
+    }
+  }
 
   if (loading) return <div className="dashboard-page" />; // Light theme skeleton
 
@@ -55,9 +86,7 @@ export default function ManagementListings({ items }: Props) {
           <div className="dashboard-header">
             <div>
               <h1>All Listings</h1>
-              <p>
-                Search, review, and moderate every item on Famous-Finds.
-              </p>
+              <p>Search, review, and moderate every item on Famous-Finds.</p>
             </div>
             <Link href="/management/dashboard">
               ← Back to Management Dashboard
@@ -78,7 +107,7 @@ export default function ManagementListings({ items }: Props) {
                 setStatusFilter(e.target.value as any)
               }
               className="form-input"
-              style={{maxWidth: "200px"}}
+              style={{ maxWidth: "200px" }}
             >
               <option value="All">All statuses</option>
               <option value="Live">Live</option>
@@ -132,6 +161,14 @@ export default function ManagementListings({ items }: Props) {
                       >
                         View
                       </Link>
+                      <button
+                        type="button"
+                        className="btn-table-delete"
+                        onClick={() => handleDelete(l.id, l.title)}
+                        disabled={deletingId === l.id}
+                      >
+                        {deletingId === l.id ? "Deleting…" : "Delete"}
+                      </button>
                     </td>
                   </tr>
                 ))}
@@ -169,13 +206,13 @@ export default function ManagementListings({ items }: Props) {
           border-color: #111827; /* gray-900 */
           outline: none;
         }
-        
+
         .table-wrapper {
           overflow-x: auto;
           border-radius: 8px;
           border: 1px solid #e5e7eb; /* gray-200 */
           background: #ffffff;
-          box-shadow: 0 1px 2px 0 rgba(0,0,0,0.05);
+          box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
         }
         .data-table {
           min-width: 100%;
@@ -209,7 +246,7 @@ export default function ManagementListings({ items }: Props) {
           text-align: center;
           color: #6b7280; /* gray-500 */
         }
-        
+
         .status-badge {
           display: inline-flex;
           border-radius: 999px;
@@ -229,15 +266,34 @@ export default function ManagementListings({ items }: Props) {
           background: #fee2e2; /* red-100 */
           color: #991b1b; /* red-800 */
         }
-        
+
         .btn-table-view {
           font-size: 12px;
           font-weight: 500;
           color: #2563eb; /* blue-600 */
           text-decoration: none;
+          margin-right: 12px;
         }
         .btn-table-view:hover {
           color: #1d4ed8; /* blue-700 */
+        }
+
+        .btn-table-delete {
+          font-size: 12px;
+          font-weight: 500;
+          border-radius: 999px;
+          padding: 4px 10px;
+          border: 1px solid #dc2626; /* red-600 */
+          background: #fee2e2; /* red-100 */
+          color: #b91c1c; /* red-700 */
+          cursor: pointer;
+        }
+        .btn-table-delete:disabled {
+          opacity: 0.7;
+          cursor: default;
+        }
+        .btn-table-delete:hover:not(:disabled) {
+          background: #fecaca; /* red-200 */
         }
       `}</style>
     </>
