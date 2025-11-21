@@ -6,7 +6,7 @@ export type ProductLike = {
   title: string;
   brand?: string;
   price?: string;
-  image: string;   // now always whatever we pass from index/product
+  image: string;   // always the actual listing image
   href: string;
   badge?: string;
   details?: string;
@@ -16,7 +16,6 @@ export default function ProductCard(p: ProductLike) {
   return (
     <Link href={p.href} className="card">
       <div className="thumb">
-        {/* Plain <img> so all URLs (including data: URLs) work */}
         {p.image ? (
           <img src={p.image} alt={p.title} />
         ) : (
@@ -42,24 +41,32 @@ export default function ProductCard(p: ProductLike) {
           background: #ffffff;
           min-height: 260px;
         }
+
+        /* 🔥 FIXED: Perfect square thumbnail container */
         .thumb {
           position: relative;
-          aspect-ratio: 1 / 1;
+          aspect-ratio: 1 / 1;      /* Forces perfect square */
           background: #f3f4f6;
           display: flex;
           align-items: center;
           justify-content: center;
+          overflow: hidden;         /* Prevent overflow of tall images */
         }
+
+        /* 🔥 FIXED: All images auto-crop to perfect square */
         .thumb img {
           width: 100%;
           height: 100%;
-          object-fit: cover;
+          object-fit: cover;        /* auto-crop */
+          object-position: center;  /* center crop */
           display: block;
         }
+
         .no-image {
           font-size: 12px;
           color: #6b7280;
         }
+
         .badge {
           position: absolute;
           left: 8px;
@@ -70,6 +77,7 @@ export default function ProductCard(p: ProductLike) {
           padding: 4px 8px;
           border-radius: 10px;
         }
+
         .meta {
           padding: 10px 12px;
         }
@@ -92,4 +100,3 @@ export default function ProductCard(p: ProductLike) {
     </Link>
   );
 }
-
