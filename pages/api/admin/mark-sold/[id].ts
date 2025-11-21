@@ -1,10 +1,19 @@
-// FILE: /pages/api/mark-sold/[id].ts
+// FILE: /pages/api/admin/mark-sold/[id].ts
 
 import type { NextApiRequest, NextApiResponse } from "next";
-import { adminDb } from "../../../utils/firebaseAdmin"; // <-- 3 x "../"
+
+// ⬇️ COPY THIS EXACT PATH FROM YOUR WORKING delete/[id].ts
+// If delete/[id].ts uses "../../../utils/firebaseAdmin", keep it.
+// If it uses "../../../../utils/firebaseAdmin", keep that.
+// USE THE SAME PATH EXACTLY.
+import { adminDb } from "../../../../utils/firebaseAdmin";
+
 import { FieldValue } from "firebase-admin/firestore";
 
-type ApiResponse = { ok: boolean; error?: string };
+type ApiResponse = {
+  ok: boolean;
+  error?: string;
+};
 
 export default async function handler(
   req: NextApiRequest,
@@ -16,24 +25,29 @@ export default async function handler(
   }
 
   const { id } = req.query;
+
   if (!id || typeof id !== "string") {
     return res.status(400).json({ ok: false, error: "Missing listing id" });
   }
 
   try {
+    // 1. Reference the listing
     const ref = adminDb.collection("listings").doc(id);
     const snap = await ref.get();
 
     if (!snap.exists) {
-      return res.status(404).json({ ok: false, error: "Listing not found" });
+      return res
+        .status(404)
+        .json({ ok: false, error: "Listing not found" });
     }
 
+    // 2. Mark it SOLD and hide from public instantly
     await ref.set(
       {
         status: "Sold",
         soldAt: FieldValue.serverTimestamp(),
         visibility: {
-          public: false,
+          public: false, // ← will remove from index automatically
           searchable: false,
         },
         updatedAt: FieldValue.serverTimestamp(),
@@ -43,9 +57,10 @@ export default async function handler(
 
     return res.status(200).json({ ok: true });
   } catch (err: any) {
-    console.error("mark-sold error", err);
-    return res
-      .status(500)
-      .json({ ok: false, error: err?.message || "Internal error" });
+    console.error("mark-sold error:", err);
+    return res.status(500).json({
+      ok: false,
+      error: err?.message || "Internal error",
+    });
   }
 }
