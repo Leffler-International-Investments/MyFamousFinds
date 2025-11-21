@@ -143,6 +143,7 @@ export default function ProductPage(props: ProductPageProps) {
         </nav>
 
         <div className="product-grid">
+          {/* Product image */}
           <div className="image-column">
             <div className="image-wrapper">
               {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -154,6 +155,7 @@ export default function ProductPage(props: ProductPageProps) {
             </p>
           </div>
 
+          {/* Product details */}
           <div className="details-column">
             <div>
               <p className="eyebrow">Famous-Finds</p>
@@ -243,6 +245,7 @@ export default function ProductPage(props: ProductPageProps) {
           </div>
         </div>
 
+        {/* Offer form – only when allowed */}
         {allowOffers && (
           <section id="offer-form" className="offer-section">
             <h2 className="offer-heading">Make an offer</h2>
@@ -309,8 +312,274 @@ export default function ProductPage(props: ProductPageProps) {
 
       <Footer />
 
-      {/* styles unchanged */}
-      <style jsx>{`/* (same CSS as your current file) */`}</style>
+      <style jsx>{`
+        .product-wrap {
+          max-width: 1152px;
+          margin: 0 auto;
+          padding: 24px 16px 64px;
+        }
+
+        .breadcrumb {
+          margin-bottom: 16px;
+          font-size: 12px;
+          color: #9ca3af;
+        }
+        .breadcrumb-active {
+          color: #e5e7eb;
+        }
+
+        .product-grid {
+          display: grid;
+          gap: 40px;
+        }
+        @media (min-width: 768px) {
+          .product-grid {
+            grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+          }
+        }
+
+        .image-column {
+          display: flex;
+          flex-direction: column;
+          gap: 16px;
+        }
+        .image-wrapper {
+          position: relative;
+          overflow: hidden;
+          border-radius: 16px;
+          border: 1px solid #ffffff1a;
+          background: #ffffff0d;
+        }
+        .product-image {
+          aspect-ratio: 4 / 5;
+          width: 100%;
+          object-fit: cover;
+        }
+        .image-note {
+          font-size: 12px;
+          color: #9ca3af;
+        }
+
+        .details-column {
+          display: flex;
+          flex-direction: column;
+          gap: 24px;
+        }
+
+        .eyebrow {
+          font-size: 12px;
+          font-weight: 600;
+          text-transform: uppercase;
+          letter-spacing: 0.2em;
+          color: #6ee7b7;
+        }
+        h1 {
+          margin-top: 4px;
+          font-size: 24px;
+          font-weight: 600;
+          color: white;
+        }
+        .seller-note {
+          margin-top: 4px;
+          font-size: 14px;
+          color: #9ca3af;
+        }
+
+        .price-box {
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
+        }
+        .price-label {
+          font-size: 24px;
+          font-weight: 600;
+          color: white;
+        }
+        .price-note {
+          font-size: 12px;
+          color: #9ca3af;
+        }
+
+        .details-grid {
+          display: grid;
+          grid-template-columns: repeat(2, 1fr);
+          gap: 16px;
+          font-size: 12px;
+          color: #d1d5db;
+        }
+        .detail-item dt {
+          color: #6b7280;
+        }
+        .detail-item dd {
+          font-weight: 500;
+          color: #f9fafb;
+        }
+
+        .description-heading {
+          margin-bottom: 4px;
+          font-size: 12px;
+          font-weight: 600;
+          text-transform: uppercase;
+          letter-spacing: 0.2em;
+          color: #9ca3af;
+        }
+        .description-body {
+          font-size: 14px;
+          line-height: 1.6;
+          color: #e5e7eb;
+        }
+
+        .button-row {
+          display: flex;
+          flex-direction: column;
+          gap: 12px;
+        }
+        @media (min-width: 640px) {
+          .button-row {
+            flex-direction: row;
+          }
+        }
+
+        .btn-buy,
+        .btn-offer {
+          display: inline-flex;
+          flex: 1;
+          align-items: center;
+          justify-content: center;
+          border-radius: 999px;
+          padding: 12px 24px;
+          font-size: 14px;
+          font-weight: 600;
+          transition: all 150ms;
+          cursor: pointer;
+        }
+        .btn-buy {
+          background: white;
+          color: black;
+          border: none;
+        }
+        .btn-buy:hover {
+          background: #e5e7eb;
+        }
+        .btn-buy:disabled {
+          cursor: not-allowed;
+          opacity: 0.6;
+        }
+
+        .btn-offer {
+          border: 1px solid #ffffff33;
+          color: white;
+          background: transparent;
+        }
+        .btn-offer:hover {
+          border-color: #ffffff99;
+          background: #ffffff0d;
+        }
+
+        .protection-box {
+          border-radius: 16px;
+          border: 1px solid #ffffff1a;
+          background: #ffffff0d;
+          padding: 16px;
+          font-size: 12px;
+          color: #e5e7eb;
+        }
+        .protection-title {
+          font-weight: 600;
+          color: white;
+        }
+        .protection-list {
+          margin-top: 8px;
+          list-style-type: disc;
+          display: flex;
+          flex-direction: column;
+          gap: 4px;
+          padding-left: 16px;
+        }
+
+        .offer-section {
+          margin-top: 48px;
+          max-width: 640px;
+          display: flex;
+          flex-direction: column;
+          gap: 16px;
+        }
+        .offer-heading {
+          font-size: 14px;
+          font-weight: 600;
+          text-transform: uppercase;
+          letter-spacing: 0.2em;
+          color: #9ca3af;
+        }
+        .offer-subtitle {
+          font-size: 12px;
+          color: #d1d5db;
+        }
+
+        .offer-form {
+          display: flex;
+          flex-direction: column;
+          gap: 16px;
+          border-radius: 16px;
+          border: 1px solid #ffffff1a;
+          background: #ffffff0d;
+          padding: 16px;
+          font-size: 12px;
+        }
+
+        .form-label {
+          display: block;
+          font-size: 11px;
+          font-weight: 500;
+          text-transform: uppercase;
+          letter-spacing: 0.16em;
+          color: #9ca3af;
+        }
+        .form-input,
+        .form-textarea {
+          margin-top: 4px;
+          width: 100%;
+          border-radius: 6px;
+          border: 1px solid #ffffff1a;
+          background: #00000066;
+          padding: 8px 12px;
+          font-size: 12px;
+          color: white;
+        }
+        .form-input:focus,
+        .form-textarea:focus {
+          border-color: white;
+          outline: none;
+        }
+
+        .form-error {
+          font-size: 12px;
+          color: #f87171;
+        }
+
+        .btn-submit-offer {
+          display: inline-flex;
+          width: 100%;
+          align-items: center;
+          justify-content: center;
+          border-radius: 999px;
+          background: white;
+          padding: 10px 24px;
+          font-size: 12px;
+          font-weight: 600;
+          color: black;
+          transition: all 150ms;
+          border: none;
+          cursor: pointer;
+        }
+        .btn-submit-offer:hover {
+          background: #e5e7eb;
+        }
+        .btn-submit-offer:disabled {
+          cursor: not-allowed;
+          opacity: 0.6;
+        }
+      `}</style>
     </div>
   );
 }
@@ -330,7 +599,7 @@ export const getServerSideProps: GetServerSideProps<ProductPageProps> = async (
       return { notFound: true };
     }
 
-    const d: any = doc.data() || {};
+    const d = doc.data() || {};
     const priceNumber = Number(d.price) || 0;
     const currency = d.currency || "USD";
     const priceLabel = priceNumber
@@ -344,6 +613,7 @@ export const getServerSideProps: GetServerSideProps<ProductPageProps> = async (
     const sellerName =
       d.sellerName || d.sellerDisplayName || "Independent seller";
 
+    // 🔧 FIX: no Unsplash fallback, only real listing images (or empty)
     const imageUrl =
       d.image_url ||
       d.imageUrl ||
