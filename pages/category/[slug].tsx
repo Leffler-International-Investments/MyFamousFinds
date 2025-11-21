@@ -19,15 +19,16 @@ export default function CategoryPage({ slug, label, items }: CategoryProps) {
       <Head>
         <title>{label} – Famous Finds</title>
       </Head>
+
       <Header />
 
       <main className="wrap">
-        <div className="topRow">
+        <header className="heading">
           <Link href="/" className="back">
             ← Home
           </Link>
           <h1>{label}</h1>
-        </div>
+        </header>
 
         <p className="hint">
           {items.length
@@ -36,13 +37,14 @@ export default function CategoryPage({ slug, label, items }: CategoryProps) {
         </p>
 
         <section className="grid">
-          {items.map((p) => (
-            <ProductCard key={p.id} {...p} />
-          ))}
-          {!items.length && (
-            <p className="empty">
-              Check back soon or browse other categories from the home page.
-            </p>
+          {items.length > 0 ? (
+            items.map((p) => <ProductCard key={p.id} {...p} />)
+          ) : (
+            <div className="empty">
+              <p>
+                Check back soon or browse other categories from the home page.
+              </p>
+            </div>
           )}
         </section>
       </main>
@@ -50,63 +52,69 @@ export default function CategoryPage({ slug, label, items }: CategoryProps) {
       <Footer />
 
       <style jsx>{`
+        .dark-theme-page {
+          background-color: #ffffff;
+          color: #111827;
+          min-height: 100vh;
+        }
         .wrap {
           max-width: 1200px;
           margin: 0 auto;
-          padding: 24px 16px 80px;
+          padding: 16px 16px 80px;
         }
-        .topRow {
+        .heading {
           display: flex;
           align-items: baseline;
           justify-content: space-between;
-          gap: 18px;
-          margin-bottom: 6px;
-        }
-        h1 {
-          letter-spacing: 0.14em;
-          text-transform: uppercase;
-          font-size: 18px;
+          gap: 12px;
+          margin-top: 16px;
+          margin-bottom: 4px;
         }
         .back {
           font-size: 13px;
-          color: #9ca3af;
           text-decoration: none;
+          color: #4b5563;
         }
         .back:hover {
-          color: #e5e5e5;
+          color: #111827;
+        }
+        h1 {
+          font-size: 22px;
+          letter-spacing: 0.18em;
+          text-transform: uppercase;
         }
         .hint {
           font-size: 13px;
-          color: #9ca3af;
+          color: #6b7280;
           margin-bottom: 16px;
         }
         .grid {
           display: grid;
-          gap: 12px;
-          grid-template-columns: repeat(5, minmax(0, 1fr));
+          grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+          gap: 18px;
         }
         .empty {
           grid-column: 1 / -1;
-          font-size: 13px;
-          color: #9ca3af;
-          padding: 16px;
+          padding: 24px;
           border-radius: 12px;
-          border: 1px dashed #374151;
+          border: 1px dashed #d1d5db;
           text-align: center;
-        }
-        @media (max-width: 1100px) {
-          .grid {
-            grid-template-columns: repeat(4, minmax(0, 1fr));
-          }
-        }
-        @media (max-width: 900px) {
-          .grid {
-            grid-template-columns: repeat(3, minmax(0, 1fr));
-          }
+          color: #6b7280;
+          background: #f9fafb;
         }
         @media (max-width: 640px) {
+          .wrap {
+            padding-bottom: 40px;
+          }
+          .heading {
+            flex-direction: column;
+            align-items: flex-start;
+          }
+          h1 {
+            font-size: 18px;
+          }
           .grid {
-            grid-template-columns: repeat(2, minmax(0, 1fr));
+            grid-template-columns: repeat(2, 1fr);
           }
         }
       `}</style>
@@ -124,18 +132,26 @@ export const getServerSideProps: GetServerSideProps<CategoryProps> = async (
   const normalized = slug.toLowerCase();
 
   try {
+    // Query listings that match this category slug
     const snap = await adminDb
       .collection("listings")
-      .where("status", "==", "Active")
       .where("category", "==", normalized)
       .orderBy("createdAt", "desc")
-      .limit(60)
+      .limit(50)
       .get();
 
-    const items: ProductLike[] = snap.docs.map((doc) => {
-      const d: any = doc.data() || {};
-      const priceNumber = Number(d.price) || 0;
+    const items: ProductLike[] = [];
 
+    snap.docs.forEach((doc) => {
+      const d: any = doc.data() || {};
+
+      // Only show Live/Active listings
+      const allowedStatuses = ["Live", "Active", "Approved"];
+      if (d.status && !allowedStatuses.includes(d.status)) {
+        return; 
+      }
+
+      const priceNumber = Number(d.price) || 0;
       const price = priceNumber
         ? `US$${priceNumber.toLocaleString("en-US")}`
         : "";
@@ -147,7 +163,7 @@ export const getServerSideProps: GetServerSideProps<CategoryProps> = async (
         (Array.isArray(d.imageUrls) && d.imageUrls[0]) ||
         "";
 
-      return {
+      items.push({
         id: doc.id,
         title: d.title || "Untitled listing",
         brand: d.brand || "",
@@ -155,17 +171,23 @@ export const getServerSideProps: GetServerSideProps<CategoryProps> = async (
         image,
         href: `/product/${doc.id}`,
         badge: d.badge || undefined,
-      };
+      });
     });
 
-    const label =
-      normalized.charAt(0).toUpperCase() +
-      normalized.slice(1).replace(/-/g, " ");
+    const labelMap: Record<string, string> = {
+      bags: "BAGS",
+      men: "MEN",
+      women: "WOMEN",
+      "new-arrivals": "NEW ARRIVALS",
+      designers: "DESIGNERS",
+      jewelry: "JEWELRY",
+      watches: "WATCHES",
+    };
 
     return {
       props: {
         slug: normalized,
-        label,
+        label: labelMap[normalized] || normalized.toUpperCase(),
         items,
       },
     };
@@ -174,7 +196,7 @@ export const getServerSideProps: GetServerSideProps<CategoryProps> = async (
     return {
       props: {
         slug: normalized,
-        label: normalized,
+        label: normalized.toUpperCase(),
         items: [],
       },
     };
