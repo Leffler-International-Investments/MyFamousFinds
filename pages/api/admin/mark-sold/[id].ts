@@ -1,16 +1,16 @@
 // FILE: /pages/api/admin/mark-sold/[id].ts
+
 import type { NextApiRequest, NextApiResponse } from "next";
-import { adminDb } from "../../../../../utils/firebaseAdmin"; // ✔ FIXED (5 levels up)
+import { adminDb } from "../../../../utils/firebaseAdmin"; // 4 levels up
 import { FieldValue } from "firebase-admin/firestore";
 
-type ApiResponse =
-  | { ok: true }
-  | { ok: false; error: string };
+type ApiResponse = { ok: boolean; error?: string };
 
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse<ApiResponse>
 ) {
+  // POST only
   if (req.method !== "POST") {
     res.setHeader("Allow", ["POST"]);
     return res.status(405).json({ ok: false, error: "Method not allowed" });
@@ -29,6 +29,7 @@ export default async function handler(
       return res.status(404).json({ ok: false, error: "Listing not found" });
     }
 
+    // Mark as sold + hide everywhere
     await ref.set(
       {
         status: "Sold",
@@ -45,9 +46,8 @@ export default async function handler(
     return res.status(200).json({ ok: true });
   } catch (err: any) {
     console.error("mark-sold error", err);
-    return res.status(500).json({
-      ok: false,
-      error: err?.message || "Failed to mark as sold",
-    });
+    return res
+      .status(500)
+      .json({ ok: false, error: err?.message || "Internal error" });
   }
 }
