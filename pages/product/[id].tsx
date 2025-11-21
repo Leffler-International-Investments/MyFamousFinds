@@ -614,10 +614,12 @@ export const getServerSideProps: GetServerSideProps<ProductPageProps> = async (
       d.sellerName || d.sellerDisplayName || "Independent seller";
 
     const imageUrl =
-      d.image_url ||
-      d.imageUrl ||
-      d.imageUrls?.[0] ||
-      "/images/placeholders/product-placeholder.jpg";
+      d.image_url || // single URL used by some flows
+      d.imageUrl ||  // camelCase variant
+      d.image ||     // generic field used on grids
+      (Array.isArray(d.imageUrls) && d.imageUrls[0]) || // array of product images
+      (Array.isArray(d.auth_photos) && d.auth_photos[0]) || // photos from auth / quick-add, if present
+      "https://images.unsplash.com/photo-1550009158-9ebf69173e03?auto=format&fit=crop&w=800&q=80";
 
     return {
       props: {
