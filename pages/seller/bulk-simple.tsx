@@ -30,6 +30,8 @@ type Item = {
   purchaseSource?: string;
   purchaseProof?: string;
   images?: File[];
+  // NEW: first image as data URL, sent to API -> Firestore.image_url
+  imageDataUrl?: string;
 };
 
 type BulkCommitOk = {
@@ -164,18 +166,28 @@ export default function BulkSimple() {
     const files = Array.from(fileList || [])
       .filter((f) => f.type.startsWith("image/"))
       .slice(0, 8);
-    update(idx, { images: files });
+
+    if (!files.length) {
+      // Clear images + data URL if user removed them
+      update(idx, { images: [], imageDataUrl: undefined });
+      return;
+    }
+
+    // Keep previews as before, and ALSO store first image as data URL
+    const first = files[0];
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const dataUrl =
+        typeof reader.result === "string" ? reader.result : undefined;
+      update(idx, { images: files, imageDataUrl: dataUrl });
+    };
+    reader.readAsDataURL(first);
   };
 
   const handleDrop = (idx: number, e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     e.stopPropagation();
-    const files = Array.from(e.dataTransfer.files || [])
-      .filter((f) => f.type.startsWith("image/"))
-      .slice(0, 8);
-    if (files.length) {
-      update(idx, { images: files });
-    }
+    handleFilesChange(idx, e.dataTransfer.files);
   };
 
   const onCreate = async () => {
@@ -230,6 +242,8 @@ export default function BulkSimple() {
           purchase_source: it.purchaseSource || "",
           purchase_proof: it.purchaseProof || "",
           serial_number: it.serial || "",
+          // NEW: send first image data URL to API
+          imageDataUrl: it.imageDataUrl || null,
         };
       })
       .filter(Boolean) as {
@@ -243,6 +257,7 @@ export default function BulkSimple() {
       purchase_source?: string;
       purchase_proof?: string;
       serial_number?: string;
+      imageDataUrl?: string | null;
     }[];
 
     if (!rows.length) {
