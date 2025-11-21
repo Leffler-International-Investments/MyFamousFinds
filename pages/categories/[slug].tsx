@@ -151,7 +151,7 @@ export const getServerSideProps: GetServerSideProps<CategoryProps> = async (
         d.imageUrl ||
         d.image ||
         (Array.isArray(d.imageUrls) && d.imageUrls[0]) ||
-        "https://images.unsplash.com/photo-1550009158-9ebf69173e03?auto-format&fit=crop&w=800&q=80";
+        "";
 
       items.push({
         id: doc.id,
