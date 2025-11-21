@@ -4,21 +4,25 @@ import Link from "next/link";
 import type { GetServerSideProps } from "next";
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
-import ProductCard, { ProductLike } from "../../components/ProductCard";
 import { adminDb } from "../../utils/firebaseAdmin";
 
-type DesignersPageProps = {
-  items: ProductLike[];
+type Designer = {
+  id: string;
+  name: string;
+  slug: string;
+  itemTypes?: string;
+  notes?: string;
 };
 
-export default function DesignersPage({ items }: DesignersPageProps) {
-  const slug = "designers";
-  const label = "DESIGNERS";
+type DesignersPageProps = {
+  designers: Designer[];
+};
 
+export default function DesignersIndexPage({ designers }: DesignersPageProps) {
   return (
-    <div className="dark-theme-page">
+    <div className="designers-page">
       <Head>
-        <title>{label} – Famous Finds</title>
+        <title>Designers – Famous Finds</title>
       </Head>
 
       <Header />
@@ -28,25 +32,34 @@ export default function DesignersPage({ items }: DesignersPageProps) {
           <Link href="/" className="back">
             ← Home
           </Link>
-          <h1>{label}</h1>
+          <h1>DESIGNERS</h1>
         </header>
 
         <p className="hint">
-          {items.length
-            ? `Live listings from approved designers.`
-            : `No live listings yet in the "${slug}" section.`}
+          Browse all designers that are currently active in Famous Finds. Click
+          a name to view items for that designer as listings go live.
         </p>
 
         <section className="grid">
-          {items.length > 0 ? (
-            items.map((p) => <ProductCard key={p.id} {...p} />)
-          ) : (
+          {designers.length === 0 ? (
             <div className="empty">
               <p>
-                Once your team approves listings from vetted designers, they
-                will appear here.
+                No designers are active yet. Once you add them in the Management
+                Designers directory they will be listed here.
               </p>
             </div>
+          ) : (
+            designers.map((d) => (
+              <Link
+                key={d.id}
+                href={`/designers/${d.slug || d.id}`}
+                className="designer-card"
+              >
+                <h2>{d.name}</h2>
+                {d.itemTypes && <p className="types">{d.itemTypes}</p>}
+                {d.notes && <p className="note">{d.notes}</p>}
+              </Link>
+            ))
           )}
         </section>
       </main>
@@ -54,46 +67,96 @@ export default function DesignersPage({ items }: DesignersPageProps) {
       <Footer />
 
       <style jsx>{`
+        .designers-page {
+          background: #ffffff;
+          color: #111827;
+        }
+
         .wrap {
           max-width: 1200px;
           margin: 0 auto;
           padding: 16px 16px 80px;
         }
+
         .heading {
           display: flex;
           align-items: baseline;
           gap: 12px;
           margin-bottom: 8px;
         }
+
         .back {
           font-size: 13px;
           color: #6b7280;
           text-decoration: none;
         }
+
         .back:hover {
           color: #111827;
         }
+
         h1 {
           font-size: 22px;
           letter-spacing: 0.18em;
           text-transform: uppercase;
         }
+
         .hint {
           font-size: 13px;
-          color: #6b7280;
+          color: #4b5563;
           margin-bottom: 16px;
         }
+
         .grid {
           display: grid;
           grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-          gap: 18px;
+          gap: 16px;
         }
+
+        .designer-card {
+          border-radius: 10px;
+          border: 1px solid #e5e7eb;
+          padding: 14px 14px 12px;
+          text-decoration: none;
+          background: #ffffff;
+          box-shadow: 0 4px 10px rgba(15, 23, 42, 0.03);
+        }
+
+        .designer-card h2 {
+          font-size: 14px;
+          font-weight: 600;
+          margin: 0 0 4px;
+        }
+
+        .types {
+          font-size: 12px;
+          color: #6b7280;
+        }
+
+        .note {
+          font-size: 12px;
+          color: #111827;
+          margin-top: 4px;
+        }
+
+        .designer-card:hover {
+          border-color: #111827;
+          box-shadow: 0 6px 16px rgba(15, 23, 42, 0.05);
+        }
+
         .empty {
           border-radius: 8px;
           border: 1px dashed #d1d5db;
           padding: 24px 18px;
           font-size: 14px;
           color: #4b5563;
+        }
+
+        @media (max-width: 640px) {
+          h1 {
+            font-size: 20px;
+            letter-spacing: 0.14em;
+          }
         }
       `}</style>
     </div>
@@ -105,54 +168,32 @@ export const getServerSideProps: GetServerSideProps<
 > = async () => {
   try {
     const snap = await adminDb
-      .collection("listings")
-      .where("status", "==", "Live")
-      .orderBy("brand")
-      .limit(60)
+      .collection("designers")
+      .where("active", "==", true)
+      .orderBy("name")
       .get();
 
-    const items: ProductLike[] = [];
-
-    snap.forEach((doc) => {
-      const d: any = doc.data();
-
-      const priceNumber =
-        typeof d.price_usd === "number"
-          ? d.price_usd
-          : parseFloat(d.price_usd || d.price || "0");
-
-      const price = priceNumber
-        ? `US$${priceNumber.toLocaleString("en-US")}`
-        : "";
-
-      const image: string =
-        d.image_url ||
-        d.imageUrl ||
-        d.image ||
-        (Array.isArray(d.imageUrls) && d.imageUrls[0]) ||
-        "";
-
-      items.push({
+    const designers: Designer[] = snap.docs.map((doc) => {
+      const data = doc.data() as any;
+      return {
         id: doc.id,
-        title: d.title || "Untitled listing",
-        brand: d.brand || "",
-        price,
-        image,
-        href: `/product/${doc.id}`,
-        badge: d.badge || undefined,
-      });
+        name: data.name || doc.id,
+        slug: data.slug || doc.id,
+        itemTypes: data.itemTypes || data.item_types || "",
+        notes: data.notes || "",
+      };
     });
 
     return {
       props: {
-        items,
+        designers,
       },
     };
   } catch (err) {
-    console.error("Error loading designers page", err);
+    console.error("Error loading designers index", err);
     return {
       props: {
-        items: [],
+        designers: [],
       },
     };
   }
