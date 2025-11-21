@@ -12,7 +12,7 @@ type Listing = {
   id: string;
   title: string;
   seller: string;
-  status: "Live" | "Pending" | "Rejected";
+  status: "Live" | "Pending" | "Rejected" | "Sold";
   price: number;
 };
 
@@ -23,12 +23,12 @@ type Props = {
 export default function ManagementListings({ items }: Props) {
   const { loading } = useRequireAdmin();
 
-  // Local copy so we can remove rows after delete
   const [rows, setRows] = useState<Listing[]>(items);
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] =
-    useState<"All" | "Live" | "Pending" | "Rejected">("All");
+    useState<"All" | "Live" | "Pending" | "Rejected" | "Sold">("All");
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [sellingId, setSellingId] = useState<string | null>(null);
 
   const visible = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -60,7 +60,6 @@ export default function ManagementListings({ items }: Props) {
         throw new Error(json?.error || "Failed to delete listing");
       }
 
-      // Remove from local table
       setRows((prev) => prev.filter((l) => l.id !== id));
     } catch (err: any) {
       console.error("Delete listing error", err);
@@ -70,19 +69,54 @@ export default function ManagementListings({ items }: Props) {
     }
   }
 
-  if (loading) return <div className="dashboard-page" />; // Light theme skeleton
+  async function handleMarkSold(id: string, title: string) {
+    if (sellingId) return;
+    const ok = window.confirm(
+      `Mark listing "${title}" as SOLD and hide it from the homepage?`
+    );
+    if (!ok) return;
+
+    try {
+      setSellingId(id);
+      const res = await fetch(`/api/admin/mark-sold/${id}`, {
+        method: "POST",
+      });
+      const json = await res.json();
+      if (!res.ok || !json?.ok) {
+        throw new Error(json?.error || "Failed to mark listing as sold");
+      }
+
+      // Update status locally so admin sees change immediately
+      setRows((prev) =>
+        prev.map((l) =>
+          l.id === id
+            ? {
+                ...l,
+                status: "Sold",
+              }
+            : l
+        )
+      );
+    } catch (err: any) {
+      console.error("Mark sold error", err);
+      alert(err?.message || "Unable to mark listing as sold");
+    } finally {
+      setSellingId(null);
+    }
+  }
+
+  if (loading) return <div className="dashboard-page" />;
 
   return (
     <>
       <Head>
         <title>All Listings — Admin</title>
       </Head>
-      {/* Use light theme classes from globals.css */}
+
       <div className="dashboard-page">
         <Header />
 
         <main className="dashboard-main">
-          {/* Use light theme classes from globals.css */}
           <div className="dashboard-header">
             <div>
               <h1>All Listings</h1>
@@ -107,12 +141,13 @@ export default function ManagementListings({ items }: Props) {
                 setStatusFilter(e.target.value as any)
               }
               className="form-input"
-              style={{ maxWidth: "200px" }}
+              style={{ maxWidth: "220px" }}
             >
               <option value="All">All statuses</option>
               <option value="Live">Live</option>
               <option value="Pending">Pending</option>
               <option value="Rejected">Rejected</option>
+              <option value="Sold">Sold</option>
             </select>
           </div>
 
@@ -148,7 +183,9 @@ export default function ManagementListings({ items }: Props) {
                             ? "status-active"
                             : l.status === "Pending"
                             ? "status-pending"
-                            : "status-rejected")
+                            : l.status === "Rejected"
+                            ? "status-rejected"
+                            : "status-sold")
                         }
                       >
                         {l.status}
@@ -161,6 +198,20 @@ export default function ManagementListings({ items }: Props) {
                       >
                         View
                       </Link>
+
+                      {/* Mark sold (hide from homepage) */}
+                      {l.status !== "Sold" && (
+                        <button
+                          type="button"
+                          className="btn-table-sold"
+                          onClick={() => handleMarkSold(l.id, l.title)}
+                          disabled={sellingId === l.id}
+                        >
+                          {sellingId === l.id ? "Marking…" : "Mark sold"}
+                        </button>
+                      )}
+
+                      {/* Delete permanently */}
                       <button
                         type="button"
                         className="btn-table-delete"
@@ -187,7 +238,6 @@ export default function ManagementListings({ items }: Props) {
         <Footer />
       </div>
 
-      {/* Styles for the light theme table and forms */}
       <style jsx>{`
         .filters-bar {
           margin-bottom: 16px;
@@ -198,19 +248,19 @@ export default function ManagementListings({ items }: Props) {
         .form-input {
           max-width: 320px;
           border-radius: 6px;
-          border: 1px solid #d1d5db; /* gray-300 */
+          border: 1px solid #d1d5db;
           padding: 8px 12px;
           font-size: 14px;
         }
         .form-input:focus {
-          border-color: #111827; /* gray-900 */
+          border-color: #111827;
           outline: none;
         }
 
         .table-wrapper {
           overflow-x: auto;
           border-radius: 8px;
-          border: 1px solid #e5e7eb; /* gray-200 */
+          border: 1px solid #e5e7eb;
           background: #ffffff;
           box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
         }
@@ -220,23 +270,23 @@ export default function ManagementListings({ items }: Props) {
           font-size: 14px;
         }
         .data-table thead {
-          background: #f9fafb; /* gray-50 */
+          background: #f9fafb;
         }
         .data-table th {
           padding: 8px 12px;
           text-align: left;
           font-weight: 500;
-          color: #374151; /* gray-700 */
+          color: #374151;
         }
         .data-table tbody tr {
-          border-bottom: 1px solid #f3f4f6; /* gray-100 */
+          border-bottom: 1px solid #f3f4f6;
         }
         .data-table tbody tr:last-child {
           border-bottom: none;
         }
         .data-table td {
           padding: 8px 12px;
-          color: #111827; /* gray-900 */
+          color: #111827;
         }
         .data-table td:first-child {
           font-weight: 500;
@@ -244,7 +294,7 @@ export default function ManagementListings({ items }: Props) {
         .table-message {
           padding: 24px;
           text-align: center;
-          color: #6b7280; /* gray-500 */
+          color: #6b7280;
         }
 
         .status-badge {
@@ -255,27 +305,50 @@ export default function ManagementListings({ items }: Props) {
           font-weight: 500;
         }
         .status-active {
-          background: #d1fae5; /* green-100 */
-          color: #065f46; /* green-800 */
+          background: #d1fae5;
+          color: #065f46;
         }
         .status-pending {
-          background: #fef3c7; /* yellow-100 */
-          color: #92400e; /* yellow-800 */
+          background: #fef3c7;
+          color: #92400e;
         }
         .status-rejected {
-          background: #fee2e2; /* red-100 */
-          color: #991b1b; /* red-800 */
+          background: #fee2e2;
+          color: #991b1b;
+        }
+        .status-sold {
+          background: #e5e7eb;
+          color: #4b5563;
         }
 
         .btn-table-view {
           font-size: 12px;
           font-weight: 500;
-          color: #2563eb; /* blue-600 */
+          color: #2563eb;
           text-decoration: none;
-          margin-right: 12px;
+          margin-right: 8px;
         }
         .btn-table-view:hover {
-          color: #1d4ed8; /* blue-700 */
+          color: #1d4ed8;
+        }
+
+        .btn-table-sold {
+          font-size: 12px;
+          font-weight: 500;
+          border-radius: 999px;
+          padding: 4px 10px;
+          border: 1px solid #047857;
+          background: #ecfdf5;
+          color: #047857;
+          cursor: pointer;
+          margin-right: 8px;
+        }
+        .btn-table-sold:disabled {
+          opacity: 0.7;
+          cursor: default;
+        }
+        .btn-table-sold:hover:not(:disabled) {
+          background: #d1fae5;
         }
 
         .btn-table-delete {
@@ -283,9 +356,9 @@ export default function ManagementListings({ items }: Props) {
           font-weight: 500;
           border-radius: 999px;
           padding: 4px 10px;
-          border: 1px solid #dc2626; /* red-600 */
-          background: #fee2e2; /* red-100 */
-          color: #b91c1c; /* red-700 */
+          border: 1px solid #dc2626;
+          background: #fee2e2;
+          color: #b91c1c;
           cursor: pointer;
         }
         .btn-table-delete:disabled {
@@ -293,7 +366,7 @@ export default function ManagementListings({ items }: Props) {
           cursor: default;
         }
         .btn-table-delete:hover:not(:disabled) {
-          background: #fecaca; /* red-200 */
+          background: #fecaca;
         }
       `}</style>
     </>
@@ -308,8 +381,10 @@ export const getServerSideProps: GetServerSideProps<Props> = async () => {
       const d: any = doc.data() || {};
       const rawStatus = (d.status || "").toString();
       let status: Listing["status"] = "Live";
+
       if (/pending/i.test(rawStatus)) status = "Pending";
       else if (/reject/i.test(rawStatus)) status = "Rejected";
+      else if (/sold/i.test(rawStatus)) status = "Sold";
 
       return {
         id: doc.id,
