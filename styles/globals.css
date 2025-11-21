@@ -31,6 +31,24 @@ NOW SET TO LIGHT THEME.
   min-height: 100vh;
 }
 
+/* Make text readable on product pages that use dark-theme-page */
+.dark-theme-page h1,
+.dark-theme-page h2,
+.dark-theme-page h3,
+.dark-theme-page h4,
+.dark-theme-page p,
+.dark-theme-page span,
+.dark-theme-page li {
+  color: #111827;
+}
+
+/* Dedicated dark page just for seller bulk-simple */
+.bulk-simple-page {
+  background: #020617; /* near-black */
+  color: #f9fafb;
+  min-height: 100vh;
+}
+
 .section {
   max-width: 1200px;
   margin: 28px auto;
