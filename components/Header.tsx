@@ -337,8 +337,8 @@ export default function Header() {
 
         .ff-megamenu {
           position: absolute;
-          top: 100%; /* directly under the category label */
-          margin-top: 4px;
+          top: calc(100% - 4px); /* <— only change: overlap label slightly */
+          margin-top: 0;         /* <— remove gap that caused flicker    */
           left: 0;
           min-width: 220px;
           background: #ffffff;
