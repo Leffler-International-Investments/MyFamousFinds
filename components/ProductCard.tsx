@@ -1,5 +1,4 @@
 // FILE: /components/ProductCard.tsx
-import Image from "next/image";
 import Link from "next/link";
 
 export type ProductLike = {
@@ -7,8 +6,8 @@ export type ProductLike = {
   title: string;
   brand?: string;
   price?: string;
-  image: string;   // e.g. "/demo/gucci-bag-1.jpg"
-  href: string;    // e.g. "/product/g1"
+  image: string;   // now always whatever we pass from index/product
+  href: string;
   badge?: string;
   details?: string;
 };
@@ -17,8 +16,12 @@ export default function ProductCard(p: ProductLike) {
   return (
     <Link href={p.href} className="card">
       <div className="thumb">
-        {/* Ensures image shows and fills the card neatly */}
-        <Image src={p.image} alt={p.title} fill sizes="(max-width: 640px) 50vw, 20vw" />
+        {/* Plain <img> so all URLs (including data: URLs) work */}
+        {p.image ? (
+          <img src={p.image} alt={p.title} />
+        ) : (
+          <div className="no-image">No image</div>
+        )}
         {p.badge && <span className="badge">{p.badge}</span>}
       </div>
 
@@ -29,20 +32,64 @@ export default function ProductCard(p: ProductLike) {
       </div>
 
       <style jsx>{`
-        .card{
-          display:flex; flex-direction:column; gap:8px; border:1px solid #1a1a1a;
-          border-radius:14px; overflow:hidden; background:#0f0f0f; min-height:260px;
+        .card {
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
+          border: 1px solid #e5e7eb;
+          border-radius: 14px;
+          overflow: hidden;
+          background: #ffffff;
+          min-height: 260px;
         }
-        .thumb{ position:relative; aspect-ratio: 1 / 1; background:#111; }
-        .badge{
-          position:absolute; left:8px; top:8px; background:#e11d48; color:white;
-          font-size:12px; padding:4px 8px; border-radius:10px;
+        .thumb {
+          position: relative;
+          aspect-ratio: 1 / 1;
+          background: #f3f4f6;
+          display: flex;
+          align-items: center;
+          justify-content: center;
         }
-        .meta{ padding:10px 12px; }
-        .brand{ color:#9ca3af; font-size:12px; letter-spacing:.08em; }
-        .title{ font-size:14px; line-height:1.25; margin-top:2px; min-height:34px; }
-        .price{ margin-top:6px; font-weight:600; }
+        .thumb img {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+          display: block;
+        }
+        .no-image {
+          font-size: 12px;
+          color: #6b7280;
+        }
+        .badge {
+          position: absolute;
+          left: 8px;
+          top: 8px;
+          background: #e11d48;
+          color: white;
+          font-size: 12px;
+          padding: 4px 8px;
+          border-radius: 10px;
+        }
+        .meta {
+          padding: 10px 12px;
+        }
+        .brand {
+          color: #6b7280;
+          font-size: 12px;
+          letter-spacing: 0.08em;
+        }
+        .title {
+          font-size: 14px;
+          line-height: 1.25;
+          margin-top: 2px;
+          min-height: 34px;
+        }
+        .price {
+          margin-top: 6px;
+          font-weight: 600;
+        }
       `}</style>
     </Link>
   );
 }
+
