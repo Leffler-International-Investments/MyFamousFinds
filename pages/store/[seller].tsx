@@ -157,10 +157,11 @@ export async function getServerSideProps(ctx: any) {
       title: d.title || "Listing",
       price: typeof d.price === "number" ? d.price : 0,
       imageUrl:
+        d.image_url ||
         d.imageUrl ||
         d.image ||
         (Array.isArray(d.imageUrls) && d.imageUrls[0]) ||
-        "https://images.unsplash.com/photo-1550009158-9ebf69173e03?auto-format&fit=crop&w=800&q=80",
+        "",
     };
   });
 
