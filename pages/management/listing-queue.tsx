@@ -34,7 +34,7 @@ function ManagementListingQueue({ items: initialItems }: Props) {
 
   const handleAction = async (
     id: string,
-    action: "approve" | "reject" | "request-proof"
+    action: "approve" | "reject" | "request-proof" | "delete"
   ) => {
     if (actionLoading) return;
     setActionLoading(id);
@@ -56,6 +56,9 @@ function ManagementListingQueue({ items: initialItems }: Props) {
             x.id === id ? { ...x, purchase_proof: "Requested" } : x
           )
         );
+      } else if (action === "delete") {
+        // Remove from table completely
+        setItems((prev) => prev.filter((x) => x.id !== id));
       } else {
         const nextStatus: Listing["status"] =
           action === "approve" ? "Live" : "Rejected";
@@ -182,6 +185,22 @@ function ManagementListingQueue({ items: initialItems }: Props) {
                           >
                             Request proof
                           </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (
+                                window.confirm(
+                                  "Delete this listing permanently?"
+                                )
+                              ) {
+                                handleAction(item.id, "delete");
+                              }
+                            }}
+                            disabled={actionLoading === item.id}
+                            className="btn-table btn-delete"
+                          >
+                            Delete
+                          </button>
                         </div>
                       </td>
                     </tr>
@@ -258,6 +277,10 @@ function ManagementListingQueue({ items: initialItems }: Props) {
         .btn-request {
           background: #f59e0b;
           color: black;
+        }
+        .btn-delete {
+          background: #4b5563;
+          color: #f9fafb;
         }
       `}</style>
     </>
