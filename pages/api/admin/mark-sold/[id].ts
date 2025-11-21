@@ -1,6 +1,6 @@
 // FILE: /pages/api/admin/mark-sold/[id].ts
 import type { NextApiRequest, NextApiResponse } from "next";
-import { adminDb } from "../../../utils/firebaseAdmin";  // FIXED PATH
+import { adminDb } from "../../../../../utils/firebaseAdmin"; // ✔ FIXED (5 levels up)
 import { FieldValue } from "firebase-admin/firestore";
 
 type ApiResponse =
