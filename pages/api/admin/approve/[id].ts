@@ -19,6 +19,7 @@ export default async function handler(
   try {
     const ref = adminDb.collection("listings").doc(id);
     const snap = await ref.get();
+
     if (!snap.exists) {
       return res.status(404).json({ error: "Listing not found" });
     }
