@@ -37,7 +37,7 @@ export default function DesignersIndexPage({ designers }: DesignersPageProps) {
 
         <p className="hint">
           Browse all designers that are currently active in Famous Finds. Click
-          a name to view items for that designer as listings go live.
+          a card to view items for that designer as listings go live.
         </p>
 
         <section className="grid">
@@ -110,22 +110,28 @@ export default function DesignersIndexPage({ designers }: DesignersPageProps) {
         .grid {
           display: grid;
           grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-          gap: 16px;
+          gap: 20px;
         }
 
         .designer-card {
-          border-radius: 10px;
+          border-radius: 999px;
           border: 1px solid #e5e7eb;
-          padding: 14px 14px 12px;
+          padding: 14px 20px;
           text-decoration: none;
-          background: #ffffff;
+          background: #f9fafb;
           box-shadow: 0 4px 10px rgba(15, 23, 42, 0.03);
+          display: flex;
+          flex-direction: column;
+          justify-content: center;
+          min-height: 70px;
+          transition: all 0.15s ease-out;
+          cursor: pointer;
         }
 
         .designer-card h2 {
-          font-size: 14px;
+          font-size: 15px;
           font-weight: 600;
-          margin: 0 0 4px;
+          margin: 0 0 2px;
         }
 
         .types {
@@ -141,7 +147,15 @@ export default function DesignersIndexPage({ designers }: DesignersPageProps) {
 
         .designer-card:hover {
           border-color: #111827;
-          box-shadow: 0 6px 16px rgba(15, 23, 42, 0.05);
+          background: #111827;
+          color: #ffffff;
+          box-shadow: 0 6px 16px rgba(15, 23, 42, 0.12);
+          transform: translateY(-1px);
+        }
+
+        .designer-card:hover .types,
+        .designer-card:hover .note {
+          color: #e5e7eb;
         }
 
         .empty {
@@ -157,6 +171,10 @@ export default function DesignersIndexPage({ designers }: DesignersPageProps) {
             font-size: 20px;
             letter-spacing: 0.14em;
           }
+
+          .designer-card {
+            border-radius: 16px;
+          }
         }
       `}</style>
     </div>
@@ -167,7 +185,6 @@ export const getServerSideProps: GetServerSideProps<
   DesignersPageProps
 > = async () => {
   try {
-    // FIX: REMOVE WRONG FILTER
     const snap = await adminDb.collection("designers").get();
 
     const designers: Designer[] = snap.docs
