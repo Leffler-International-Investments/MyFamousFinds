@@ -1,4 +1,4 @@
-// FILE: /pages/categories/[slug].tsx
+// FILE: /pages/designers/index.tsx
 import Head from "next/head";
 import Link from "next/link";
 import type { GetServerSideProps } from "next";
@@ -7,13 +7,14 @@ import Footer from "../../components/Footer";
 import ProductCard, { ProductLike } from "../../components/ProductCard";
 import { adminDb } from "../../utils/firebaseAdmin";
 
-type CategoryProps = {
-  slug: string;
-  label: string;
+type DesignersPageProps = {
   items: ProductLike[];
 };
 
-export default function CategoriesPage({ slug, label, items }: CategoryProps) {
+export default function DesignersPage({ items }: DesignersPageProps) {
+  const slug = "designers";
+  const label = "DESIGNERS";
+
   return (
     <div className="dark-theme-page">
       <Head>
@@ -32,8 +33,8 @@ export default function CategoriesPage({ slug, label, items }: CategoryProps) {
 
         <p className="hint">
           {items.length
-            ? `Live listings in the "${slug}" category.`
-            : `No live listings yet in the "${slug}" category.`}
+            ? `Live listings from approved designers.`
+            : `No live listings yet in the "${slug}" section.`}
         </p>
 
         <section className="grid">
@@ -42,7 +43,8 @@ export default function CategoriesPage({ slug, label, items }: CategoryProps) {
           ) : (
             <div className="empty">
               <p>
-                Check back soon or browse other categories from the home page.
+                Once your team approves listings from vetted designers, they
+                will appear here.
               </p>
             </div>
           )}
@@ -60,15 +62,13 @@ export default function CategoriesPage({ slug, label, items }: CategoryProps) {
         .heading {
           display: flex;
           align-items: baseline;
-          justify-content: space-between;
           gap: 12px;
-          margin-top: 16px;
-          margin-bottom: 4px;
+          margin-bottom: 8px;
         }
         .back {
           font-size: 13px;
+          color: #6b7280;
           text-decoration: none;
-          color: #4b5563;
         }
         .back:hover {
           color: #111827;
@@ -85,63 +85,42 @@ export default function CategoriesPage({ slug, label, items }: CategoryProps) {
         }
         .grid {
           display: grid;
-          grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+          grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
           gap: 18px;
         }
         .empty {
-          grid-column: 1 / -1;
-          padding: 24px;
-          border-radius: 12px;
+          border-radius: 8px;
           border: 1px dashed #d1d5db;
-          text-align: center;
-          color: #6b7280;
-          background: #f9fafb;
-        }
-        @media (max-width: 640px) {
-          .wrap {
-            padding-bottom: 40px;
-          }
-          .heading {
-            flex-direction: column;
-            align-items: flex-start;
-          }
-          h1 {
-            font-size: 18px;
-          }
+          padding: 24px 18px;
+          font-size: 14px;
+          color: #4b5563;
         }
       `}</style>
     </div>
   );
 }
 
-export const getServerSideProps: GetServerSideProps<CategoryProps> = async (
-  ctx
-) => {
-  const raw = ctx.params?.slug;
-  const slug = (Array.isArray(raw) ? raw[0] : raw) || "";
-  if (!slug) return { notFound: true };
-
-  const normalized = slug.toLowerCase();
-
+export const getServerSideProps: GetServerSideProps<
+  DesignersPageProps
+> = async () => {
   try {
     const snap = await adminDb
       .collection("listings")
-      .where("category", "==", normalized)
-      .orderBy("createdAt", "desc")
-      .limit(50)
+      .where("status", "==", "Live")
+      .orderBy("brand")
+      .limit(60)
       .get();
 
     const items: ProductLike[] = [];
 
-    snap.docs.forEach((doc) => {
-      const d: any = doc.data() || {};
+    snap.forEach((doc) => {
+      const d: any = doc.data();
 
-      const allowedStatuses = ["Live", "Active", "Approved"];
-      if (d.status && !allowedStatuses.includes(d.status)) {
-        return;
-      }
+      const priceNumber =
+        typeof d.price_usd === "number"
+          ? d.price_usd
+          : parseFloat(d.price_usd || d.price || "0");
 
-      const priceNumber = Number(d.price) || 0;
       const price = priceNumber
         ? `US$${priceNumber.toLocaleString("en-US")}`
         : "";
@@ -164,29 +143,15 @@ export const getServerSideProps: GetServerSideProps<CategoryProps> = async (
       });
     });
 
-    const labelMap: Record<string, string> = {
-      bags: "BAGS",
-      men: "MEN",
-      women: "WOMEN",
-      "new-arrivals": "NEW ARRIVALS",
-      designers: "DESIGNERS",
-      jewelry: "JEWELRY",
-      watches: "WATCHES",
-    };
-
     return {
       props: {
-        slug: normalized,
-        label: labelMap[normalized] || normalized.toUpperCase(),
         items,
       },
     };
   } catch (err) {
-    console.error("Error loading category page", err);
+    console.error("Error loading designers page", err);
     return {
       props: {
-        slug: normalized,
-        label: normalized.toUpperCase(),
         items: [],
       },
     };
