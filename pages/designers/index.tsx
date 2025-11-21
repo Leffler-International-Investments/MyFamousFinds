@@ -170,19 +170,20 @@ export const getServerSideProps: GetServerSideProps<
     const snap = await adminDb
       .collection("designers")
       .where("active", "==", true)
-      .orderBy("name")
       .get();
 
-    const designers: Designer[] = snap.docs.map((doc) => {
-      const data = doc.data() as any;
-      return {
-        id: doc.id,
-        name: data.name || doc.id,
-        slug: data.slug || doc.id,
-        itemTypes: data.itemTypes || data.item_types || "",
-        notes: data.notes || "",
-      };
-    });
+    const designers: Designer[] = snap.docs
+      .map((doc) => {
+        const data = doc.data() as any;
+        return {
+          id: doc.id,
+          name: data.name || doc.id,
+          slug: data.slug || doc.id,
+          itemTypes: data.itemTypes || data.item_types || "",
+          notes: data.notes || "",
+        };
+      })
+      .sort((a, b) => a.name.localeCompare(b.name));
 
     return {
       props: {
