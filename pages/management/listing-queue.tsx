@@ -299,7 +299,7 @@ export default function ManagementListingQueue({ items: initialItems }: Props) {
         /* BLUE VIEW button */
         .btn-table.btn-view {
           background: #2563eb; /* blue-600 */
-          color: #ffffff;
+          color: #ffffff !important;
           text-decoration: none;
           display: inline-flex;
           align-items: center;
