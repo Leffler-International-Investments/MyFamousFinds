@@ -15,7 +15,8 @@ type HomeProps = {
 
 const Home: NextPage<HomeProps> = ({ trending, newArrivals }) => {
   return (
-    <div className="dark-theme-page">
+    // REMOVED "dark-theme-page" class here. Now it's just a standard container.
+    <div className="home-wrapper">
       <Head>
         <title>Famous Finds — US</title>
       </Head>
@@ -45,6 +46,13 @@ const Home: NextPage<HomeProps> = ({ trending, newArrivals }) => {
       <Footer />
 
       <style jsx>{`
+        /* Added a specific white background to the wrapper just to be safe */
+        .home-wrapper {
+          background-color: #ffffff;
+          min-height: 100vh;
+          color: #000000;
+        }
+
         .wrap {
           max-width: 1200px;
           margin: 0 auto;
@@ -66,10 +74,10 @@ const Home: NextPage<HomeProps> = ({ trending, newArrivals }) => {
 
         .eyebrow {
           font-size: 11px;
-          font-weight: 700; /* Bolder */
+          font-weight: 700;
           text-transform: uppercase;
           letter-spacing: 0.12em;
-          color: #111827; /* Darker (was light gray) */
+          color: #111827; /* Dark text */
           margin-bottom: 4px;
         }
 
@@ -83,18 +91,18 @@ const Home: NextPage<HomeProps> = ({ trending, newArrivals }) => {
         .lead {
           margin-top: 10px;
           font-size: 15px;
-          color: #111827; /* Darker (was medium gray) */
+          color: #111827; /* Dark text */
           line-height: 1.6;
-          font-weight: 500; /* Slightly bolder */
+          font-weight: 500;
         }
 
-        /* The Butler Box - Now White */
+        /* Ensure the Butler box is White with a border */
         .heroVisual {
           border-radius: 16px;
           padding: 18px 18px 20px;
-          background: #ffffff; /* White background */
-          border: 1px solid #e5e7eb; /* Light gray border */
-          color: #000000; /* Dark text inside */
+          background: #ffffff;
+          border: 1px solid #e5e7eb;
+          color: #000000;
           box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px 2px rgba(0, 0, 0, 0.05);
         }
 
