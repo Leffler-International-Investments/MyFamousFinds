@@ -1,5 +1,5 @@
 // FILE: /pages/management/dashboard.tsx
-// UPDATED to add Designers Directory tile
+// SAME AS YOUR CURRENT FILE, ONLY ONE EXTRA TILE ADDED FOR MASTER CATEGORY LIBRARY
 
 import Head from "next/head";
 import Link from "next/link";
@@ -205,13 +205,20 @@ export default function ManagementDashboard({ stats }: Props) {
             linkText="Manage Team"
             linkColor="gray"
           />
-          {/* --- NEW TILE ADDED HERE --- */}
           <DashboardTile
             title="Designers Directory"
             description="Manage the list of approved designers for seller drop-downs and bulk uploads."
             href="/management/designers"
             linkText="Manage Directory"
             linkColor="gray"
+          />
+          {/* NEW: Master Category Library tile */}
+          <DashboardTile
+            title="Master Category Library"
+            description="Control top-level categories and sub-menu items shown in the marketplace header."
+            href="/management/menu"
+            linkText="Edit Categories"
+            linkColor="blue"
           />
         </DashboardSection>
 
