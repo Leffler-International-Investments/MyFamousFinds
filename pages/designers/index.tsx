@@ -20,7 +20,7 @@ type DesignersPageProps = {
 
 export default function DesignersIndexPage({ designers }: DesignersPageProps) {
   return (
-    <div className="designers-page">
+    <div className="page">
       <Head>
         <title>Designers – Famous Finds</title>
       </Head>
@@ -28,46 +28,41 @@ export default function DesignersIndexPage({ designers }: DesignersPageProps) {
       <Header />
 
       <main className="wrap">
-        <header className="heading">
+        <div className="heading">
           <Link href="/" className="back">
             ← Home
           </Link>
           <h1>DESIGNERS</h1>
-        </header>
+        </div>
 
         <p className="hint">
-          Browse all designers that are currently active in Famous Finds. Click
-          a card to view items for that designer as listings go live.
+          Browse all designers that are currently active in Famous Finds. Click a
+          button to view items for that designer as listings go live.
         </p>
 
-        <section className="grid">
-          {designers.length === 0 ? (
-            <div className="empty">
-              <p>
-                No designers are active yet. Once you add them in the Management
-                Designers directory they will be listed here.
-              </p>
-            </div>
-          ) : (
-            designers.map((d) => (
+        {designers.length === 0 ? (
+          <p className="empty">
+            No designers are active yet. Seed them from the management tools.
+          </p>
+        ) : (
+          <section className="grid">
+            {designers.map((d) => (
               <Link
                 key={d.id}
                 href={`/designers/${d.slug || d.id}`}
-                className="designer-card"
+                className="designer-pill"
               >
-                <h2>{d.name}</h2>
-                {d.itemTypes && <p className="types">{d.itemTypes}</p>}
-                {d.notes && <p className="note">{d.notes}</p>}
+                <span className="designer-name">{d.name}</span>
               </Link>
-            ))
-          )}
-        </section>
+            ))}
+          </section>
+        )}
       </main>
 
       <Footer />
 
       <style jsx>{`
-        .designers-page {
+        .page {
           background: #ffffff;
           color: #111827;
         }
@@ -104,66 +99,46 @@ export default function DesignersIndexPage({ designers }: DesignersPageProps) {
         .hint {
           font-size: 13px;
           color: #4b5563;
-          margin-bottom: 16px;
+          margin-bottom: 18px;
+        }
+
+        .empty {
+          font-size: 14px;
+          color: #6b7280;
+          margin-top: 12px;
         }
 
         .grid {
           display: grid;
-          grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-          gap: 20px;
+          grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+          gap: 18px;
         }
 
-        .designer-card {
+        .designer-pill {
           border-radius: 999px;
-          border: 1px solid #e5e7eb;
-          padding: 14px 20px;
-          text-decoration: none;
+          padding: 14px 22px;
+          border: 1px solid #111827;
           background: #f9fafb;
-          box-shadow: 0 4px 10px rgba(15, 23, 42, 0.03);
+          text-decoration: none;
           display: flex;
-          flex-direction: column;
+          align-items: center;
           justify-content: center;
-          min-height: 70px;
+          box-shadow: 0 4px 12px rgba(15, 23, 42, 0.06);
           transition: all 0.15s ease-out;
           cursor: pointer;
         }
 
-        .designer-card h2 {
+        .designer-name {
           font-size: 15px;
           font-weight: 600;
-          margin: 0 0 2px;
+          letter-spacing: 0.04em;
         }
 
-        .types {
-          font-size: 12px;
-          color: #6b7280;
-        }
-
-        .note {
-          font-size: 12px;
-          color: #111827;
-          margin-top: 4px;
-        }
-
-        .designer-card:hover {
-          border-color: #111827;
+        .designer-pill:hover {
           background: #111827;
           color: #ffffff;
-          box-shadow: 0 6px 16px rgba(15, 23, 42, 0.12);
           transform: translateY(-1px);
-        }
-
-        .designer-card:hover .types,
-        .designer-card:hover .note {
-          color: #e5e7eb;
-        }
-
-        .empty {
-          border-radius: 8px;
-          border: 1px dashed #d1d5db;
-          padding: 24px 18px;
-          font-size: 14px;
-          color: #4b5563;
+          box-shadow: 0 8px 20px rgba(15, 23, 42, 0.22);
         }
 
         @media (max-width: 640px) {
@@ -172,8 +147,8 @@ export default function DesignersIndexPage({ designers }: DesignersPageProps) {
             letter-spacing: 0.14em;
           }
 
-          .designer-card {
-            border-radius: 16px;
+          .grid {
+            gap: 14px;
           }
         }
       `}</style>
@@ -200,17 +175,9 @@ export const getServerSideProps: GetServerSideProps<
       })
       .sort((a, b) => a.name.localeCompare(b.name));
 
-    return {
-      props: {
-        designers,
-      },
-    };
+    return { props: { designers } };
   } catch (err) {
     console.error("Error loading designers index", err);
-    return {
-      props: {
-        designers: [],
-      },
-    };
+    return { props: { designers: [] } };
   }
 };
