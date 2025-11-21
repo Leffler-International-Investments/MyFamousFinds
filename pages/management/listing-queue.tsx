@@ -24,7 +24,7 @@ type Listing = {
 
 type Props = { items: Listing[] };
 
-export default function ManagementListingQueue({ items: initialItems }: Props) {
+function ManagementListingQueue({ items: initialItems }: Props) {
   const { loading } = useRequireAdmin();
   const [items, setItems] = useState(initialItems);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
@@ -152,7 +152,7 @@ export default function ManagementListingQueue({ items: initialItems }: Props) {
                       <td>{item.status}</td>
                       <td>
                         <div className="actions-cell">
-                          {/* BLUE pill VIEW button → public product page */}
+                          {/* BLUE VIEW button */}
                           <Link
                             href={`/product/${item.id}`}
                             className="btn-table btn-view"
@@ -296,9 +296,8 @@ export default function ManagementListingQueue({ items: initialItems }: Props) {
           opacity: 0.5;
         }
 
-        /* BLUE VIEW button */
         .btn-table.btn-view {
-          background: #2563eb;
+          background: #2563eb; /* blue */
           color: #ffffff;
           text-decoration: none;
           display: inline-flex;
@@ -322,6 +321,8 @@ export default function ManagementListingQueue({ items: initialItems }: Props) {
     </>
   );
 }
+
+export default ManagementListingQueue;
 
 export const getServerSideProps: GetServerSideProps<Props> = async () => {
   try {
@@ -361,30 +362,3 @@ export const getServerSideProps: GetServerSideProps<Props> = async () => {
     return { props: { items: [] } };
   }
 };
-``` :contentReference[oaicite:0]{index=0}  
-
-“View” will now be a blue pill button, same row as Approve/Reject/Request proof.
-
----
-
-## 2️⃣ `/pages/seller/bulk-simple.tsx`  
-**Change only the top-level wrapper class** so this page can stay dark while the rest of the site is light.
-
-Replace the first `<div>` so it looks like this (rest of file stays exactly as you have it):
-
-```tsx
-// FILE: /pages/seller/bulk-simple.tsx
-// ...imports stay the same...
-
-export default function BulkSimple() {
-  // state & logic unchanged ...
-
-  return (
-    <div className="bulk-simple-page">
-      <Head>
-        <title>Quick Add — Multi-Item Form | Famous Finds</title>
-      </Head>
-      <Header />
-
-      {/* rest of the component is IDENTICAL to what you have now */}
-      {/* (form, cards, dropzone, thumbnails, buttons, styles, etc.) */}
