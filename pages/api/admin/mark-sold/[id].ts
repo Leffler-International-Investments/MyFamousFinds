@@ -1,8 +1,6 @@
 // FILE: /pages/api/admin/mark-sold/[id].ts
-// Mark a listing as SOLD and hide it from public views.
-
 import type { NextApiRequest, NextApiResponse } from "next";
-import { adminDb } from "../../../../utils/firebaseAdmin";
+import { adminDb } from "../../../utils/firebaseAdmin";  // FIXED PATH
 import { FieldValue } from "firebase-admin/firestore";
 
 type ApiResponse =
@@ -26,6 +24,7 @@ export default async function handler(
   try {
     const ref = adminDb.collection("listings").doc(id);
     const snap = await ref.get();
+
     if (!snap.exists) {
       return res.status(404).json({ ok: false, error: "Listing not found" });
     }
@@ -46,8 +45,9 @@ export default async function handler(
     return res.status(200).json({ ok: true });
   } catch (err: any) {
     console.error("mark-sold error", err);
-    return res
-      .status(500)
-      .json({ ok: false, error: err?.message || "Failed to mark as sold" });
+    return res.status(500).json({
+      ok: false,
+      error: err?.message || "Failed to mark as sold",
+    });
   }
 }
