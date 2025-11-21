@@ -2,18 +2,23 @@
 import Head from "next/head";
 import Header from "../components/Header";
 import Footer from "../components/Footer";
-import DemoGrid from "../components/DemoGrid";
-import { ProductLike } from "../components/ProductCard";
 import { adminDb } from "../utils/firebaseAdmin";
 import type { GetServerSideProps, NextPage } from "next";
-import HomepageButler from "../components/HomepageButler";
 
-type HomeProps = {
-  trending: ProductLike[];
-  newArrivals: ProductLike[];
+type Product = {
+  id: string;
+  title: string;
+  brand: string;
+  price: string;
+  image: string;
+  href: string;
 };
 
-const Home: NextPage<HomeProps> = ({ trending, newArrivals }) => {
+type HomeProps = {
+  items: Product[];
+};
+
+const Home: NextPage<HomeProps> = ({ items }) => {
   return (
     <div className="home-wrapper">
       <Head>
@@ -23,123 +28,74 @@ const Home: NextPage<HomeProps> = ({ trending, newArrivals }) => {
       <Header />
 
       <main className="wrap">
-        <section className="hero">
-          <div className="heroCopy">
-            <p className="eyebrow">WELCOME TO OUR WORLD OF LUXURY</p>
-            <h1>Famous Finds for every shade of style.</h1>
-            <p className="lead">
-              Curated, authenticated designer pieces — loved once and ready to
-              be loved again. A marketplace where every customer belongs, in all
-              colours and all stories.
-            </p>
-          </div>
 
-          <div className="heroVisual">
-            <HomepageButler />
-          </div>
-        </section>
+        <h2 className="section-header">New Arrivals</h2>
 
-        <DemoGrid title="Now Trending" items={trending} />
-        <DemoGrid title="New Arrivals" items={newArrivals} />
+        <div className="grid">
+          {items.map((p) => (
+            <a href={p.href} key={p.id} className="card">
+              <img src={p.image} alt={p.title} className="card-img" />
+              <div className="card-body">
+                <div className="card-title">{p.title}</div>
+                {p.brand && <div className="card-brand">{p.brand}</div>}
+                <div className="card-price">{p.price}</div>
+              </div>
+            </a>
+          ))}
+        </div>
+
       </main>
 
       <Footer />
 
       <style jsx>{`
         .home-wrapper {
-          background-color: #ffffff;
+          background: #ffffff;
           min-height: 100vh;
-          color: #000000;
         }
-
         .wrap {
           max-width: 1200px;
           margin: 0 auto;
-          padding: 16px 16px 80px;
+          padding: 24px;
         }
-
-        .hero {
-          display: grid;
-          grid-template-columns: minmax(0, 1.1fr) minmax(0, 1.1fr);
-          gap: 40px;
-          margin-top: 16px;
-          margin-bottom: 24px;
-          align-items: center;
-        }
-
-        .heroCopy {
-          max-width: 520px;
-        }
-
-        .eyebrow {
-          font-size: 11px;
-          font-weight: 800;
-          text-transform: uppercase;
-          letter-spacing: 0.14em;
-          color: #000000;
-          margin-bottom: 6px;
-        }
-
-        h1 {
-          margin-top: 4px;
-          font-size: 34px;
-          font-weight: 800;
-          color: #000000;
-        }
-
-        .lead {
-          margin-top: 12px;
-          font-size: 16px;
-          font-weight: 600;
-          color: #111111;
-          line-height: 1.65;
-        }
-
-        /* BUTLER BOX – DARK PREMIUM CARD */
-        .heroVisual {
-          border-radius: 24px;
-          padding: 22px 24px 26px;
-          background: radial-gradient(circle at top left, #1f2937, #020617);
-          box-shadow: 0 20px 45px rgba(15, 23, 42, 0.6);
-          border: 0;
-          color: #f9fafb;
-          position: relative;
-          overflow: hidden;
-        }
-
-        /* Force the content inside to stay light on dark */
-        .heroVisual * {
-          color: #f9fafb !important;
-        }
-
-        /* Make the Butler buttons pop on the dark card if they are “light” buttons */
-        .heroVisual button {
-          background-color: #ffffff !important;
-          color: #111827 !important;
-          border-radius: 999px !important;
-          font-weight: 600 !important;
-        }
-
-        .heroVisual button:hover {
-          opacity: 0.9;
-        }
-
-        /* Headings for Now Trending / New Arrivals on this page */
-        .home-wrapper .section-header h2 {
-          color: #000000 !important;
+        .section-header {
+          font-size: 22px;
           font-weight: 700;
-          font-size: 20px;
-          letter-spacing: 0.04em;
+          margin-bottom: 20px;
         }
-
-        @media (max-width: 900px) {
-          .hero {
-            grid-template-columns: 1fr;
-          }
-
-          .heroVisual {
-            margin-top: 8px;
-          }
+        .grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+          gap: 24px;
+        }
+        .card {
+          border-radius: 14px;
+          overflow: hidden;
+          background: #fafafa;
+          text-decoration: none;
+          color: inherit;
+          border: 1px solid #e5e7eb;
+        }
+        .card-img {
+          width: 100%;
+          height: 260px;
+          object-fit: cover;
+          background: #000;
+        }
+        .card-body {
+          padding: 12px;
+        }
+        .card-title {
+          font-size: 15px;
+          font-weight: 600;
+        }
+        .card-brand {
+          font-size: 13px;
+          color: #6b7280;
+        }
+        .card-price {
+          margin-top: 4px;
+          font-weight: 700;
         }
       `}</style>
     </div>
@@ -151,56 +107,40 @@ export const getServerSideProps: GetServerSideProps<HomeProps> = async () => {
     const snap = await adminDb
       .collection("listings")
       .orderBy("createdAt", "desc")
-      .limit(50)
+      .limit(60)
       .get();
 
-    const liveItems: ProductLike[] = [];
+    const items: Product[] = [];
 
     snap.docs.forEach((doc) => {
       const d: any = doc.data() || {};
 
       const allowedStatuses = ["Live", "Active", "Approved"];
-      if (d.status && !allowedStatuses.includes(d.status)) {
-        return;
-      }
+      if (!allowedStatuses.includes(d.status)) return;
 
-      const priceNumber = Number(d.price) || 0;
-      const price = priceNumber
-        ? `US$${priceNumber.toLocaleString("en-US")}`
-        : "";
+      const priceNum = Number(d.price) || 0;
 
-      const image: string =
+      const image =
         d.image_url ||
         d.imageUrl ||
         d.image ||
         (Array.isArray(d.imageUrls) && d.imageUrls[0]) ||
-        "https://images.unsplash.com/photo-1550009158-9ebf69173e03?auto-format&fit=crop&w=800&q=80";
+        "";
 
-      liveItems.push({
+      items.push({
         id: doc.id,
-        title: d.title || "Untitled listing",
+        title: d.title || "Untitled",
         brand: d.brand || "",
-        price,
+        price: priceNum ? `US$${priceNum.toLocaleString()}` : "",
         image,
         href: `/product/${doc.id}`,
-        badge: d.badge || undefined,
       });
     });
 
-    return {
-      props: {
-        trending: liveItems.slice(0, 12),
-        newArrivals: liveItems.slice(12, 24),
-      },
-    };
+    return { props: { items } };
   } catch (err) {
-    console.error("Error loading home listings", err);
-    return {
-      props: {
-        trending: [],
-        newArrivals: [],
-      },
-    };
+    console.error("index load error:", err);
+    return { props: { items: [] } };
   }
 };
 
