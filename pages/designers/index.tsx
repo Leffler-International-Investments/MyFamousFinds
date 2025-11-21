@@ -167,10 +167,8 @@ export const getServerSideProps: GetServerSideProps<
   DesignersPageProps
 > = async () => {
   try {
-    const snap = await adminDb
-      .collection("designers")
-      .where("active", "==", true)
-      .get();
+    // FIX: REMOVE WRONG FILTER
+    const snap = await adminDb.collection("designers").get();
 
     const designers: Designer[] = snap.docs
       .map((doc) => {
