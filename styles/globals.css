@@ -14,7 +14,7 @@ body {
   margin: 0;
   padding: 0;
   font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
-  /* GLOBAL LIGHT THEME SETTINGS */
+  /* FORCE GLOBAL LIGHT THEME */
   background: #ffffff;
   color: #000000;
 }
@@ -24,13 +24,50 @@ a {
   text-decoration: none;
 }
 
-/* REDEFINED: Originally for dark pages, now forced to WHITE 
-  per your request to make ALL pages white.
-*/
+/* --- GLOBAL INPUT STYLES (Fixes "Make an Offer" & others) --- */
+input,
+textarea,
+select {
+  background-color: #ffffff !important;
+  color: #000000 !important;
+  border: 1px solid #d1d5db !important; /* Light Gray Border */
+  border-radius: 6px;
+  padding: 10px;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: #6b7280 !important; /* Darker gray for readability */
+  opacity: 1;
+}
+
+/* For pages that were previously dark, force them to Light Mode */
 .dark-theme-page {
-  background: #ffffff;
-  color: #111827; /* dark gray/black text */
+  background: #ffffff !important;
+  color: #000000 !important;
   min-height: 100vh;
+}
+
+/* Ensure all text inside these pages is dark/black */
+.dark-theme-page h1,
+.dark-theme-page h2,
+.dark-theme-page h3,
+.dark-theme-page h4,
+.dark-theme-page p,
+.dark-theme-page span,
+.dark-theme-page li,
+.dark-theme-page label,
+.dark-theme-page div {
+  color: #000000;
+}
+
+/* Exceptions for lighter text (metadata, hints) - make them Dark Gray, not light gray */
+.dark-theme-page .meta,
+.dark-theme-page .hint,
+.dark-theme-page .cond,
+.dark-theme-page .loc,
+.dark-theme-page .brand {
+  color: #4b5563 !important; /* Dark Gray */
 }
 
 .section {
@@ -105,7 +142,6 @@ a {
   overflow: hidden;
 }
 
-/* Keep overlay so white text is readable on images */
 .grid-cats .cat::after {
   content: "";
   position: absolute;
@@ -122,17 +158,16 @@ a {
   color: #fff;
 }
 
-/* Product Grid - Light Theme Updates */
 .grid-prods .prod {
-  border: 1px solid #e5e7eb; /* light gray border */
+  border: 1px solid #e5e7eb;
   border-radius: 12px;
   overflow: hidden;
-  background: #fff;
+  background: #ffffff;
 }
 
 .grid-prods .img {
   position: relative;
-  background: #f3f4f6; /* light gray placeholder */
+  background: #f3f4f6;
   aspect-ratio: 1/1;
 }
 
@@ -202,15 +237,11 @@ a {
   padding: 20px 16px;
   opacity: 0.7;
   font-size: 12px;
-  border-top: 1px solid #e5e7eb; /* light border */
+  border-top: 1px solid #e5e7eb;
   color: #374151;
 }
 
-/* ====================================================================
-   START: CUSTOM CSS FOR AUTH & DASHBOARD PAGES (CONVERTED TO WHITE)
-   ==================================================================== */
-
-/*-- Auth Page Layout (Light Theme) --- */
+/* === AUTH PAGES (Login/Register) === */
 .auth-page {
   min-height: 100vh;
   background: #ffffff;
@@ -232,9 +263,9 @@ a {
   max-width: 420px;
   background: #ffffff;
   border-radius: 16px;
-  border: 1px solid #e5e7eb; /* light gray */
+  border: 1px solid #e5e7eb;
   padding: 24px 24px 28px;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05); /* soft shadow */
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05);
 }
 
 .auth-card h1 {
@@ -249,7 +280,7 @@ a {
   margin: 0 0 12px;
   font-size: 12px;
   text-align: center;
-  color: #6b7280; /* gray-500 */
+  color: #6b7280;
 }
 
 .auth-fields {
@@ -264,27 +295,28 @@ a {
   display: block;
   font-size: 11px;
   font-weight: 600;
-  color: #374151; /* gray-700 */
+  color: #374151;
   margin-bottom: 4px;
 }
 
+/* Specific Auth Input Override */
 .auth-input {
   width: 100%;
   border-radius: 8px;
-  border: 1px solid #d1d5db; /* gray-300 */
+  border: 1px solid #d1d5db;
   background: #ffffff;
   padding: 8px 10px;
   font-size: 14px;
-  color: #111827; /* dark text */
+  color: #111827;
 }
 
 .auth-input::placeholder {
-  color: #9ca3af; /* gray-400 */
+  color: #9ca3af;
 }
 
 .auth-input:focus {
   outline: none;
-  border-color: #2563eb; /* blue-600 */
+  border-color: #2563eb;
   box-shadow: 0 0 0 1px rgba(37, 99, 235, 0.2);
 }
 
@@ -294,7 +326,7 @@ a {
   padding: 9px 12px;
   border-radius: 999px;
   border: none;
-  background: #000000; /* Black button on white */
+  background: #000000;
   color: #ffffff;
   font-size: 12px;
   font-weight: 600;
@@ -310,14 +342,14 @@ a {
 .auth-secondary-link-inline {
   margin-top: 10px;
   font-size: 11px;
-  color: #6b7280; /* gray-500 */
+  color: #6b7280;
   text-align: center;
 }
 
 .auth-secondary-link a,
 .auth-secondary-link-inline a,
 .auth-secondary-link-inline button {
-  color: #374151; /* gray-700 */
+  color: #374151;
   text-decoration: none;
 }
 
@@ -361,7 +393,6 @@ a {
   text-align: center;
 }
 
-/*-- Password Input Layout (Light Theme) --- */
 .password-input-row {
   display: flex;
   align-items: center;
@@ -387,7 +418,7 @@ a {
   padding: 0 10px;
   font-size: 11px;
   font-weight: 500;
-  color: #4b5563; /* dark gray */
+  color: #4b5563;
   background: transparent;
   border: none;
   cursor: pointer;
@@ -407,11 +438,10 @@ a {
 .password-strength-strong { color: #22c55e; }
 .password-strength-very-strong { color: #15803d; }
 
-
-/*-- Dashboard Page Layout (Already Light, but ensuring compliance) --- */
+/* === DASHBOARD === */
 .dashboard-page {
   min-height: 100vh;
-  background: #f9fafb; /* Very light gray for dashboard background */
+  background: #f9fafb;
   color: #111827;
 }
 
@@ -460,7 +490,6 @@ a {
   color: #111827;
 }
 
-/*-- Dashboard Welcome Banner --- */
 .dashboard-welcome-banner {
   margin-bottom: 32px;
   border-radius: 8px;
@@ -498,7 +527,6 @@ a {
   background: #1d4ed8;
 }
 
-/*-- Dashboard Summary Tiles --- */
 .dashboard-summary-section {
   margin-bottom: 32px;
   border-radius: 12px;
@@ -562,7 +590,6 @@ a {
   color: #6b7280;
 }
 
-/* --- Dashboard Section --- */
 .dashboard-section {
   margin-bottom: 32px;
   border-radius: 8px;
@@ -605,7 +632,6 @@ a {
   }
 }
 
-/* --- Dashboard Tile --- */
 .dashboard-tile {
   display: block;
   border-radius: 8px;
@@ -652,7 +678,6 @@ a {
 .dashboard-tile:hover .dashboard-tile-link-gray { color: #1f2937; }
 .dashboard-tile:hover .dashboard-tile-link-gold { color: #b45309; }
 
-/* --- Orange seller apply button --- */
 .auth-apply-button-wrapper {
   margin-top: 18px;
 }
