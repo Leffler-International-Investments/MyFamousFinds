@@ -64,6 +64,7 @@ export default function MasterCategoryLibraryPage() {
       try {
         setInitialLoading(true);
         setError(null);
+        // Note: Ensure you have an index for "position" in Firestore if needed
         const qRef = query(collection(db, "menuCategories"), orderBy("position"));
         const snap = await getDocs(qRef);
         const list: Category[] = snap.docs.map((d) => {
@@ -90,7 +91,6 @@ export default function MasterCategoryLibraryPage() {
         setCategories(list);
       } catch (err: any) {
         console.error("Error loading menu categories", err);
-        // UPDATED: Display the actual error message from Firebase to help debugging
         setError(`Error: ${err.message || "Could not load menu categories."}`);
       } finally {
         setInitialLoading(false);
@@ -450,9 +450,9 @@ export default function MasterCategoryLibraryPage() {
         };
       });
       setCategories(list);
-    } catch (err) {
+    } catch (err: any) {
       console.error("Error seeding menu defaults", err);
-      setError("Could not seed defaults.");
+      setError(`Error: ${err.message || "Could not seed defaults."}`);
     } finally {
       setSeeding(false);
     }
