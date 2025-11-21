@@ -322,10 +322,10 @@ export default function ProductPage(props: ProductPageProps) {
         .breadcrumb {
           margin-bottom: 16px;
           font-size: 12px;
-          color: #9ca3af;
+          color: #6b7280;
         }
         .breadcrumb-active {
-          color: #e5e7eb;
+          color: #111827;
         }
 
         .product-grid {
@@ -347,8 +347,8 @@ export default function ProductPage(props: ProductPageProps) {
           position: relative;
           overflow: hidden;
           border-radius: 16px;
-          border: 1px solid #ffffff1a;
-          background: #ffffff0d;
+          border: 1px solid #e5e7eb;
+          background: #f9fafb;
         }
         .product-image {
           aspect-ratio: 4 / 5;
@@ -357,7 +357,7 @@ export default function ProductPage(props: ProductPageProps) {
         }
         .image-note {
           font-size: 12px;
-          color: #9ca3af;
+          color: #4b5563;
         }
 
         .details-column {
@@ -371,18 +371,18 @@ export default function ProductPage(props: ProductPageProps) {
           font-weight: 600;
           text-transform: uppercase;
           letter-spacing: 0.2em;
-          color: #6ee7b7;
+          color: #047857;
         }
         h1 {
           margin-top: 4px;
           font-size: 24px;
           font-weight: 600;
-          color: white;
+          color: #111827;
         }
         .seller-note {
           margin-top: 4px;
           font-size: 14px;
-          color: #9ca3af;
+          color: #4b5563;
         }
 
         .price-box {
@@ -392,12 +392,12 @@ export default function ProductPage(props: ProductPageProps) {
         }
         .price-label {
           font-size: 24px;
-          font-weight: 600;
-          color: white;
+          font-weight: 700;
+          color: #111827;
         }
         .price-note {
           font-size: 12px;
-          color: #9ca3af;
+          color: #4b5563;
         }
 
         .details-grid {
@@ -405,14 +405,14 @@ export default function ProductPage(props: ProductPageProps) {
           grid-template-columns: repeat(2, 1fr);
           gap: 16px;
           font-size: 12px;
-          color: #d1d5db;
+          color: #111827;
         }
         .detail-item dt {
           color: #6b7280;
         }
         .detail-item dd {
-          font-weight: 500;
-          color: #f9fafb;
+          font-weight: 600;
+          color: #111827;
         }
 
         .description-heading {
@@ -421,12 +421,12 @@ export default function ProductPage(props: ProductPageProps) {
           font-weight: 600;
           text-transform: uppercase;
           letter-spacing: 0.2em;
-          color: #9ca3af;
+          color: #374151;
         }
         .description-body {
           font-size: 14px;
           line-height: 1.6;
-          color: #e5e7eb;
+          color: #111827;
         }
 
         .button-row {
@@ -454,39 +454,38 @@ export default function ProductPage(props: ProductPageProps) {
           cursor: pointer;
         }
         .btn-buy {
-          background: white;
-          color: black;
+          background: #111827;
+          color: #ffffff;
           border: none;
         }
         .btn-buy:hover {
-          background: #e5e7eb;
+          background: #000000;
         }
         .btn-buy:disabled {
           cursor: not-allowed;
-          opacity: 0.6;
+          opacity: 0.7;
         }
 
         .btn-offer {
-          border: 1px solid #ffffff33;
-          color: white;
-          background: transparent;
+          border: 1px solid #111827;
+          color: #111827;
+          background: #ffffff;
         }
         .btn-offer:hover {
-          border-color: #ffffff99;
-          background: #ffffff0d;
+          background: #f3f4f6;
         }
 
         .protection-box {
           border-radius: 16px;
-          border: 1px solid #ffffff1a;
-          background: #ffffff0d;
+          border: 1px solid #e5e7eb;
+          background: #f3f4f6;
           padding: 16px;
           font-size: 12px;
-          color: #e5e7eb;
+          color: #111827;
         }
         .protection-title {
           font-weight: 600;
-          color: white;
+          color: #111827;
         }
         .protection-list {
           margin-top: 8px;
@@ -509,11 +508,11 @@ export default function ProductPage(props: ProductPageProps) {
           font-weight: 600;
           text-transform: uppercase;
           letter-spacing: 0.2em;
-          color: #9ca3af;
+          color: #374151;
         }
         .offer-subtitle {
           font-size: 12px;
-          color: #d1d5db;
+          color: #4b5563;
         }
 
         .offer-form {
@@ -521,8 +520,8 @@ export default function ProductPage(props: ProductPageProps) {
           flex-direction: column;
           gap: 16px;
           border-radius: 16px;
-          border: 1px solid #ffffff1a;
-          background: #ffffff0d;
+          border: 1px solid #e5e7eb;
+          background: #ffffff;
           padding: 16px;
           font-size: 12px;
         }
@@ -533,28 +532,28 @@ export default function ProductPage(props: ProductPageProps) {
           font-weight: 500;
           text-transform: uppercase;
           letter-spacing: 0.16em;
-          color: #9ca3af;
+          color: #4b5563;
         }
         .form-input,
         .form-textarea {
           margin-top: 4px;
           width: 100%;
           border-radius: 6px;
-          border: 1px solid #ffffff1a;
-          background: #00000066;
+          border: 1px solid #d1d5db;
+          background: #ffffff;
           padding: 8px 12px;
           font-size: 12px;
-          color: white;
+          color: #111827;
         }
         .form-input:focus,
         .form-textarea:focus {
-          border-color: white;
+          border-color: #111827;
           outline: none;
         }
 
         .form-error {
           font-size: 12px;
-          color: #f87171;
+          color: #b91c1c;
         }
 
         .btn-submit-offer {
@@ -563,21 +562,21 @@ export default function ProductPage(props: ProductPageProps) {
           align-items: center;
           justify-content: center;
           border-radius: 999px;
-          background: white;
+          background: #111827;
           padding: 10px 24px;
           font-size: 12px;
           font-weight: 600;
-          color: black;
+          color: #ffffff;
           transition: all 150ms;
           border: none;
           cursor: pointer;
         }
         .btn-submit-offer:hover {
-          background: #e5e7eb;
+          background: #000000;
         }
         .btn-submit-offer:disabled {
           cursor: not-allowed;
-          opacity: 0.6;
+          opacity: 0.7;
         }
       `}</style>
     </div>
@@ -613,7 +612,6 @@ export const getServerSideProps: GetServerSideProps<ProductPageProps> = async (
     const sellerName =
       d.sellerName || d.sellerDisplayName || "Independent seller";
 
-    // 🔧 FIX: no Unsplash fallback, only real listing images (or empty)
     const imageUrl =
       d.image_url ||
       d.imageUrl ||
