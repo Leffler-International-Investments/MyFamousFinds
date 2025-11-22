@@ -30,7 +30,6 @@ type Item = {
   purchaseSource?: string;
   purchaseProof?: string;
   images?: File[];
-  // NEW: first image as data URL, sent to API -> Firestore.image_url
   imageDataUrl?: string;
 };
 
@@ -168,12 +167,10 @@ export default function BulkSimple() {
       .slice(0, 8);
 
     if (!files.length) {
-      // Clear images + data URL if user removed them
       update(idx, { images: [], imageDataUrl: undefined });
       return;
     }
 
-    // Keep previews as before, and ALSO store first image as data URL
     const first = files[0];
     const reader = new FileReader();
     reader.onloadend = () => {
@@ -242,7 +239,6 @@ export default function BulkSimple() {
           purchase_source: it.purchaseSource || "",
           purchase_proof: it.purchaseProof || "",
           serial_number: it.serial || "",
-          // NEW: send first image data URL to API
           imageDataUrl: it.imageDataUrl || null,
         };
       })
@@ -308,7 +304,7 @@ export default function BulkSimple() {
   };
 
   return (
-    <div className="dark-theme-page">
+    <div className="page-container">
       <Head>
         <title>Quick Add — Multi-Item Form | Famous Finds</title>
       </Head>
@@ -320,18 +316,20 @@ export default function BulkSimple() {
         </div>
 
         <div className="header-row">
-          <h1>Quick Add — Multi-Item Form</h1>
+          <div>
+            <h1>Quick Add — Multi-Item Form</h1>
+            <p className="hint">
+              Add several listings at once. Prices are in USD.
+            </p>
+          </div>
           <Link href="/seller/bulk-upload" className="alt-link">
-            Prefer CSV-style paste? Use Bulk Upload →
+            Prefer CSV Paste? Use Bulk Upload →
           </Link>
         </div>
-        <p className="hint">
-          Add several listings at once with dropdowns and image uploads.
-        </p>
 
         {submitError && <p className="banner error">⚠ {submitError}</p>}
         {submitMessage && !submitError && (
-          <p className="banner">✅ {submitMessage}</p>
+          <p className="banner success">✅ {submitMessage}</p>
         )}
 
         {designerError && <p className="banner error">⚠ {designerError}</p>}
@@ -585,70 +583,101 @@ export default function BulkSimple() {
       <Footer />
 
       <style jsx>{`
+        .page-container {
+          background-color: #f9fafb;
+          color: #111827;
+          min-height: 100vh;
+        }
+        .section {
+          max-width: 1200px;
+          margin: 0 auto;
+          padding: 24px 16px 80px;
+        }
         h1 {
-          color: #fff;
-          font-size: 20px;
-          margin: 8px 0;
+          color: #111827;
+          font-size: 24px;
+          font-weight: 700;
+          margin: 0;
         }
         .hint {
-          color: #9ca3af;
-          font-size: 12px;
-          margin-bottom: 8px;
+          color: #4b5563;
+          font-size: 14px;
+          margin-top: 4px;
         }
         .header-row {
+          margin-top: 16px;
+          margin-bottom: 24px;
           display: flex;
-          align-items: center;
+          align-items: flex-end;
           justify-content: space-between;
-          gap: 12px;
+          flex-wrap: wrap;
+          gap: 16px;
         }
         .alt-link {
-          color: #9ca3af;
-          font-size: 12px;
+          color: #2563eb;
+          font-size: 14px;
+          text-decoration: none;
+          font-weight: 500;
+        }
+        .alt-link:hover {
           text-decoration: underline;
         }
         .banner {
-          margin: 10px 0;
-          padding: 10px 12px;
+          margin: 16px 0;
+          padding: 12px;
           border-radius: 8px;
-          background: #0b0b0b;
-          color: #e5e7eb;
+          font-size: 14px;
+          font-weight: 500;
         }
         .banner.error {
-          border: 1px solid #7f1d1d;
-          color: #fecaca;
-          background: #190c0c;
+          background: #fee2e2;
+          color: #991b1b;
+          border: 1px solid #fca5a5;
         }
+        .banner.success {
+          background: #dcfce7;
+          color: #166534;
+          border: 1px solid #86efac;
+        }
+        
         .card {
-          margin-top: 16px;
-          border: 1px solid #ffffff1a;
+          margin-bottom: 24px;
+          border: 1px solid #e5e7eb;
           border-radius: 12px;
-          padding: 12px;
-          background: #0a0a0a;
+          padding: 20px;
+          background: #ffffff;
+          box-shadow: 0 1px 3px rgba(0,0,0,0.05);
         }
         .row.head {
           display: flex;
           justify-content: space-between;
           align-items: center;
-          margin-bottom: 8px;
+          margin-bottom: 16px;
         }
         .item-title {
-          color: #e5e7eb;
+          color: #111827;
           font-weight: 700;
+          font-size: 16px;
         }
         .remove {
-          background: #3b0b0b;
-          color: #fca5a5;
-          border: 1px solid #7f1d1d;
+          background: #ffffff;
+          color: #b91c1c;
+          border: 1px solid #fca5a5;
           border-radius: 999px;
-          padding: 6px 10px;
+          padding: 6px 12px;
+          font-size: 12px;
+          font-weight: 600;
           cursor: pointer;
+        }
+        .remove:hover {
+          background: #fef2f2;
         }
         .grid {
           display: grid;
-          gap: 10px;
+          gap: 16px;
           grid-template-columns: 1fr;
         }
-        @media (min-width: 920px) {
+        @media (min-width: 768px) {
           .grid {
             grid-template-columns: repeat(3, 1fr);
           }
@@ -658,50 +687,62 @@ export default function BulkSimple() {
         }
         label span {
           display: block;
-          font-size: 12px;
-          color: #9ca3af;
-          margin: 4px 0;
+          font-size: 13px;
+          font-weight: 500;
+          color: #374151;
+          margin-bottom: 6px;
         }
         input,
         select {
-          background: #00000066;
-          color: #fff;
-          border: 1px solid #ffffff1a;
-          border-radius: 6px;
+          background: #ffffff;
+          color: #111827;
+          border: 1px solid #d1d5db;
+          border-radius: 8px;
           padding: 10px;
-          font-size: 12px;
+          font-size: 14px;
           width: 100%;
         }
+        input:focus,
+        select:focus {
+          outline: none;
+          border-color: #000;
+          box-shadow: 0 0 0 1px #000;
+        }
+        
         .dropzone {
-          margin-top: 4px;
-          border-radius: 10px;
-          border: 1px dashed #2563eb; /* BLUE */
-          padding: 10px;
+          border-radius: 8px;
+          border: 1px dashed #d1d5db;
+          padding: 16px;
           display: flex;
           flex-direction: column;
-          gap: 8px;
+          gap: 12px;
           align-items: center;
           justify-content: center;
           cursor: pointer;
-          background: #020617;
+          background: #f9fafb;
+          transition: border-color 0.2s;
+        }
+        .dropzone:hover {
+          border-color: #2563eb;
         }
         .dropzone-text {
-          font-size: 11px;
-          color: #bfdbfe; /* light blue text */
+          font-size: 13px;
+          color: #6b7280;
+          font-weight: 500;
           text-align: center;
         }
         .thumbs {
           display: flex;
           flex-wrap: wrap;
-          gap: 6px;
+          gap: 8px;
         }
         .thumb {
-          width: 52px;
-          height: 52px;
+          width: 64px;
+          height: 64px;
           border-radius: 6px;
           overflow: hidden;
-          border: 1px solid #1d4ed8;
-          background: #020617;
+          border: 1px solid #e5e7eb;
+          background: #ffffff;
         }
         .thumb img {
           width: 100%;
@@ -709,32 +750,49 @@ export default function BulkSimple() {
           object-fit: cover;
           display: block;
         }
+        
         .actions {
           display: flex;
-          gap: 10px;
-          margin: 16px 0 32px;
-        }
-        .btn-dark,
-        .btn-primary {
-          border: none;
-          border-radius: 999px;
-          padding: 10px 16px;
-          font-size: 12px;
-          font-weight: 700;
-          cursor: pointer;
+          gap: 12px;
+          margin: 24px 0 40px;
         }
         .btn-dark {
-          background: #111827;
-          color: #e5e7eb;
-          border: 1px solid #374151;
+          background: #ffffff;
+          color: #111827;
+          border: 1px solid #d1d5db;
+          border-radius: 99px;
+          padding: 10px 20px;
+          font-size: 14px;
+          font-weight: 600;
+          cursor: pointer;
+        }
+        .btn-dark:hover {
+          background: #f3f4f6;
         }
         .btn-primary {
-          background: #fff;
-          color: #000;
+          background: #111827;
+          color: #ffffff;
+          border: none;
+          border-radius: 99px;
+          padding: 10px 24px;
+          font-size: 14px;
+          font-weight: 600;
+          cursor: pointer;
+        }
+        .btn-primary:hover {
+          opacity: 0.9;
+        }
+        .btn-primary:disabled {
+          background: #9ca3af;
+          cursor: not-allowed;
         }
         .back-link a {
-          color: #9ca3af;
-          font-size: 12px;
+          color: #4b5563;
+          font-size: 13px;
+          text-decoration: none;
+        }
+        .back-link a:hover {
+          color: #111827;
         }
       `}</style>
     </div>
