@@ -1849,3 +1849,50 @@ h6 {
 html {
   scroll-behavior: smooth;
 }
+
+/* === FINAL WHITE THEME OVERRIDES – FAMOUS FINDS 2025 === */
+
+/* Whole app background */
+html,
+body,
+.page-wrapper,
+.dark-theme-page {
+  background: #ffffff !important;
+  color: #111827 !important;
+}
+
+/* All “cards” and panels on Help, About, Shipping, Returns, Selling, Buying, etc. */
+.card,
+.sell-card,
+.table-overflow-wrapper,
+.catalogue-table,
+.catalogue-table th,
+.catalogue-table td {
+  background: #ffffff !important;
+  color: #111827 !important;
+  border-color: #e5e7eb !important;
+}
+
+/* Help / legal layouts */
+.help-layout,
+.help-layout main,
+.legal-page,
+.orders-page {
+  background: #ffffff !important;
+  color: #111827 !important;
+}
+
+/* Auth / login pages – remove dark background */
+.auth-page,
+.auth-main,
+.auth-card {
+  background: #ffffff !important;
+  color: #111827 !important;
+  box-shadow: none !important;
+}
+
+/* Remove any leftover dark gradients */
+.auth-page::before,
+.auth-page::after {
+  background: none !important;
+}
