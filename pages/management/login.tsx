@@ -198,6 +198,7 @@ export default function ManagementLoginPage() {
                     onChange={setPassword}
                     name="password"
                     required
+                    showStrength={true} /* Added Strength Meter */
                     placeholder="Enter password"
                   />
 
