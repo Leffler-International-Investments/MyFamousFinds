@@ -1,4 +1,4 @@
-// FILE: /utils/email.ts
+// utils/email.ts
 import nodemailer from "nodemailer";
 
 const host = process.env.SMTP_HOST;
@@ -50,17 +50,30 @@ Enter this code in the login screen to continue.`;
 
 /**
  * Seller invite email used when an admin approves a seller
- * (called from pages/api/admin/approve-seller/[id].ts)
+ * Matches call style:
+ *   await sendSellerInviteEmail({
+ *     to: email,
+ *     businessName,
+ *     registerUrl,
+ *     ...
+ *   });
  */
-export async function sendSellerInviteEmail(to: string, inviteUrl: string) {
+export async function sendSellerInviteEmail(args: {
+  to: string;
+  businessName?: string;
+  registerUrl?: string;
+  [key: string]: any;
+}) {
+  const { to, businessName, registerUrl } = args;
+
   const subject = "You’ve been approved as a seller on Famous Finds";
-  const text = `Hi,
+  const text = `Hi${businessName ? " " + businessName : ""},
 
 Your seller account has been approved on Famous Finds.
 
 Click the link below to complete your setup and create your password:
 
-${inviteUrl}
+${registerUrl ?? ""}
 
 If you weren’t expecting this email, you can ignore it.`;
 
