@@ -1,5 +1,4 @@
 // FILE: /pages/management/login.tsx
-// Uses the custom auth layout classes from globals.css
 import Head from "next/head";
 import Link from "next/link";
 import { useRouter } from "next/router";
@@ -9,27 +8,6 @@ import Footer from "../../components/Footer";
 import PasswordInput from "../../components/PasswordInput";
 import { getAuth, signInWithEmailAndPassword } from "firebase/auth";
 import firebaseApp from "../../utils/firebaseClient";
-
-type Start2faSuccess = {
-  ok: true;
-  challengeId: string;
-  via: "sms" | "email";
-  devCode?: string;
-};
-type Start2faError = {
-  ok: false;
-  message?: string;
-};
-type Start2faResponse = Start2faSuccess | Start2faError;
-
-type Verify2faSuccess = {
-  ok: true;
-};
-type Verify2faError = {
-  ok: false;
-  message?: string;
-};
-type Verify2faResponse = Verify2faSuccess | Verify2faError;
 
 type TwoFactorStep = "credentials" | "verify";
 
@@ -74,12 +52,11 @@ export default function ManagementLoginPage() {
         }),
       });
 
-      const json = (await res.json()) as Start2faResponse;
+      const json = await res.json();
 
       if (!json.ok) {
-        const errJson = json as Start2faError;
         setError(
-          errJson.message ||
+          json.message ||
             "We couldn't start the verification process. Please try again."
         );
         setLoading(false);
@@ -89,8 +66,8 @@ export default function ManagementLoginPage() {
       setChallengeId(json.challengeId);
       setStep("verify");
       let message = "We've sent a 6-digit code to your email address.";
-      if ((json as Start2faSuccess).devCode) {
-        message += ` (Dev code: ${(json as Start2faSuccess).devCode})`;
+      if (json.devCode) {
+        message += ` (Dev code: ${json.devCode})`;
       }
       setInfo(message);
     } catch (err: any) {
@@ -132,11 +109,10 @@ export default function ManagementLoginPage() {
         }),
       });
 
-      const json = (await res.json()) as Verify2faResponse;
+      const json = await res.json();
 
       if (!json.ok) {
-        const errJson = json as Verify2faError;
-        setError(errJson.message || "Incorrect or expired code.");
+        setError(json.message || "Incorrect or expired code.");
         setLoading(false);
         return;
       }
@@ -167,9 +143,7 @@ export default function ManagementLoginPage() {
         <main className="auth-main">
           <div className="auth-card">
             <h1>Management Login</h1>
-            <p className="auth-subtitle">
-              Secure admin access.
-            </p>
+            <p className="auth-subtitle">Secure admin access.</p>
 
             {error && <div className="auth-error">{error}</div>}
             {info && <div className="auth-info">{info}</div>}
@@ -198,7 +172,7 @@ export default function ManagementLoginPage() {
                     onChange={setPassword}
                     name="password"
                     required
-                    showStrength={true} /* Added Strength Meter */
+                    showStrength={true}
                     placeholder="Enter password"
                   />
 
@@ -264,7 +238,6 @@ export default function ManagementLoginPage() {
         <Footer />
       </div>
 
-      {/* LOCAL LUXURY STYLE OVERRIDES */}
       <style jsx>{`
         .auth-page {
           min-height: 100vh;
@@ -303,6 +276,7 @@ export default function ManagementLoginPage() {
           font-size: 14px;
           color: #6b7280;
           text-align: center;
+          line-height: 1.5;
         }
         .auth-fields {
           display: flex;
@@ -316,7 +290,6 @@ export default function ManagementLoginPage() {
           font-weight: 500;
           color: #374151;
         }
-        /* Luxury Input Style */
         :global(.auth-input) {
           width: 100%;
           border-radius: 14px !important;
