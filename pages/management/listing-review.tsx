@@ -1,4 +1,5 @@
-// FILE: /pages/management/listing-review.tsx
+// pages/management/listing-review.tsx
+// This page exists ONLY to redirect all logic to listing-queue.
+// Prevents 404 errors when management clicks "Listing Review".
 
-// Re-use the listing queue implementation so the dashboard link does not 404.
 export { default } from "./listing-queue";
