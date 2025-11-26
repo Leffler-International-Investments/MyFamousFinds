@@ -109,3 +109,65 @@ You’re welcome to contact us or reapply in the future.`;
 
   await sendMail(to, subject, text);
 }
+
+/**
+ * Order confirmation email payload type
+ * Imported as `OrderEmailPayload` from utils/email in pages/api/stripe.ts
+ */
+export type OrderEmailPayload = {
+  to: string;
+  subject?: string;
+  text?: string;
+  orderId?: string;
+  total?: number;
+  currency?: string;
+  items?: { name: string; quantity: number; price?: number }[];
+  [key: string]: any;
+};
+
+/**
+ * Order confirmation email used from Stripe webhook / API
+ * Matches call style:
+ *   await sendOrderConfirmationEmail(payload)
+ */
+export async function sendOrderConfirmationEmail(
+  payload: OrderEmailPayload
+): Promise<void> {
+  const {
+    to,
+    subject,
+    text,
+    orderId,
+    total,
+    currency,
+    items,
+  } = payload;
+
+  const finalSubject =
+    subject || "Your Famous Finds order confirmation";
+
+  const itemsText =
+    items && items.length
+      ? "\n\nItems:\n" +
+        items
+          .map(
+            (it) =>
+              `- ${it.name} x ${it.quantity}${
+                it.price ? ` (${it.price} ${currency ?? ""})` : ""
+              }`
+          )
+          .join("\n")
+      : "";
+
+  const finalText =
+    text ||
+    `Thank you for your order on Famous Finds.${
+      orderId ? `\n\nOrder ID: ${orderId}` : ""
+    }${
+      typeof total === "number"
+        ? `\nTotal: ${total} ${currency ?? ""}`
+        : ""
+    }${itemsText}\n\nIf you have any questions, reply to this email.`;
+
+  await sendMail(to, finalSubject, finalText);
+}
