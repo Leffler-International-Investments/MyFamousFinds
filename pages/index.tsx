@@ -1,4 +1,5 @@
 // FILE: /pages/index.tsx
+
 import Head from "next/head";
 import Header from "../components/Header";
 import Footer from "../components/Footer";
@@ -33,10 +34,6 @@ const Home: NextPage<HomeProps> = ({ trending, newArrivals }) => {
               colours and all stories.
             </p>
           </div>
-
-          <div className="heroVisual">
-            <HomepageButler />
-          </div>
         </section>
 
         <DemoGrid title="Now Trending" items={trending} />
@@ -44,6 +41,9 @@ const Home: NextPage<HomeProps> = ({ trending, newArrivals }) => {
       </main>
 
       <Footer />
+
+      {/* Corner Butler only */}
+      <HomepageButler />
 
       <style jsx>{`
         .home-wrapper {
@@ -59,12 +59,8 @@ const Home: NextPage<HomeProps> = ({ trending, newArrivals }) => {
         }
 
         .hero {
-          display: grid;
-          grid-template-columns: minmax(0, 1.1fr) minmax(0, 1.1fr);
-          gap: 40px;
           margin-top: 16px;
           margin-bottom: 24px;
-          align-items: center;
         }
 
         .heroCopy {
@@ -95,32 +91,6 @@ const Home: NextPage<HomeProps> = ({ trending, newArrivals }) => {
           line-height: 1.65;
         }
 
-        .heroVisual {
-          border-radius: 24px;
-          padding: 22px 24px 26px;
-          background: radial-gradient(circle at top left, #1f2937, #020617);
-          box-shadow: 0 20px 45px rgba(15, 23, 42, 0.6);
-          border: 0;
-          color: #f9fafb;
-          position: relative;
-          overflow: hidden;
-        }
-
-        .heroVisual * {
-          color: #f9fafb !important;
-        }
-
-        .heroVisual button {
-          background-color: #ffffff !important;
-          color: #111827 !important;
-          border-radius: 999px !important;
-          font-weight: 600 !important;
-        }
-
-        .heroVisual button:hover {
-          opacity: 0.9;
-        }
-
         .home-wrapper .section-header h2 {
           color: #000000 !important;
           font-weight: 700;
@@ -130,10 +100,6 @@ const Home: NextPage<HomeProps> = ({ trending, newArrivals }) => {
 
         @media (max-width: 900px) {
           .hero {
-            grid-template-columns: 1fr;
-          }
-
-          .heroVisual {
             margin-top: 8px;
           }
         }
@@ -170,7 +136,7 @@ export const getServerSideProps: GetServerSideProps<HomeProps> = async () => {
         d.imageUrl ||
         d.image ||
         (Array.isArray(d.imageUrls) && d.imageUrls[0]) ||
-        ""; // <-- NO MORE HEADPHONE FALLBACK
+        "";
 
       liveItems.push({
         id: doc.id,
