@@ -46,7 +46,7 @@ export default function ButlerChat({ isOpen, onClose }: ButlerChatProps) {
 
     const lower = text.toLowerCase();
 
-    // Voice shortcut: "open it" / "open" / "buy it" → open first result
+    // "open it" / "open" / "buy it" → open first result
     if (lower === "open it" || lower === "open" || lower === "buy it") {
       const lastWithResults = [...messages]
         .reverse()
@@ -93,7 +93,6 @@ export default function ButlerChat({ isOpen, onClose }: ButlerChatProps) {
   }
 
   function handleVoice() {
-    // tap again to stop
     if (listening) {
       recognitionRef.current?.stop();
       return;
@@ -110,20 +109,15 @@ export default function ButlerChat({ isOpen, onClose }: ButlerChatProps) {
     const rec = new (window as any).webkitSpeechRecognition();
     recognitionRef.current = rec;
 
-    // single, slower phrase – wait for final result
     rec.lang = "en-US";
     rec.continuous = false;
     rec.interimResults = false;
 
-    rec.onstart = () => {
-      setListening(true);
-    };
-
+    rec.onstart = () => setListening(true);
     rec.onend = () => {
       setListening(false);
       recognitionRef.current = null;
     };
-
     rec.onerror = () => {
       setListening(false);
       recognitionRef.current = null;
