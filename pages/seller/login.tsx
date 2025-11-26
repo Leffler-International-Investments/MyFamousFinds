@@ -190,12 +190,9 @@ export default function SellerLoginPage() {
         <Header />
         <main className="auth-main">
           <div className="auth-card">
-            <h1>Seller Login</h1>
+            <h1>Seller Portal</h1>
             <p className="auth-subtitle">
-              Only <strong>approved sellers</strong> can log in here.
-              <br />
-              If you are new, please first complete your seller profile and
-              application.
+              Log in to manage your listings and orders.
             </p>
 
             {error && <div className="auth-error">{error}</div>}
@@ -213,7 +210,7 @@ export default function SellerLoginPage() {
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       className="auth-input"
-                      placeholder="you@example.com"
+                      placeholder="name@example.com"
                       disabled={disabled}
                     />
                   </div>
@@ -224,14 +221,14 @@ export default function SellerLoginPage() {
                     name="password"
                     required
                     showStrength
-                    placeholder="Enter your seller password"
+                    placeholder="Enter password"
                   />
                   <button
                     type="submit"
                     disabled={disabled}
                     className="auth-button-primary"
                   >
-                    {loading ? "Checking..." : "Send code & continue"}
+                    {loading ? "Checking..." : "Continue"}
                   </button>
 
                   <div className="auth-apply-button-wrapper">
@@ -239,7 +236,7 @@ export default function SellerLoginPage() {
                       href="/seller/register-vetting"
                       className="auth-apply-button"
                     >
-                      New here? Complete your seller profile &amp; apply
+                      New here? <strong>Apply to Sell</strong>
                     </Link>
                   </div>
                 </div>
@@ -247,12 +244,11 @@ export default function SellerLoginPage() {
             ) : (
               <form onSubmit={handleVerifySubmit}>
                 <p className="auth-secondary-link-inline">
-                  Enter the 6-digit code we sent to your email address to finish
-                  signing in.
+                  Enter the 6-digit code sent to your email.
                 </p>
                 <div className="auth-fields">
                   <div className="auth-field">
-                    <label htmlFor="code">Verification code</label>
+                    <label htmlFor="code">Verification Code</label>
                     <input
                       id="code"
                       type="text"
@@ -270,7 +266,7 @@ export default function SellerLoginPage() {
                     disabled={disabled}
                     className="auth-button-primary"
                   >
-                    {loading ? "Verifying..." : "Confirm & continue"}
+                    {loading ? "Verifying..." : "Confirm Login"}
                   </button>
                 </div>
                 <p className="auth-secondary-link-inline">
@@ -291,7 +287,7 @@ export default function SellerLoginPage() {
             )}
 
             <p className="auth-secondary-link">
-              <Link href="/">Back to storefront</Link>
+              <Link href="/">Back to Storefront</Link>
             </p>
             <p className="auth-secondary-link">
               <Link href="/seller/forgot-password">Forgot password?</Link>
@@ -307,145 +303,101 @@ export default function SellerLoginPage() {
           display: flex;
           flex-direction: column;
           background: #ffffff;
-          color: #111827;
+          color: #111;
         }
-
         .auth-main {
           flex: 1;
           display: flex;
           align-items: flex-start;
           justify-content: center;
-          padding: 32px 16px 40px;
+          padding: 60px 16px 40px;
         }
-
         .auth-card {
-          max-width: 420px;
-          margin: 0 auto;
+          width: 100%;
+          max-width: 400px;
           background: #ffffff;
-          border-radius: 16px;
-          border: 1px solid rgba(226, 232, 240, 1);
-          padding: 24px 22px 22px;
-          box-shadow: 0 18px 45px rgba(15, 23, 42, 0.08);
+          border-radius: 22px;
+          border: 1px solid #e5e7eb;
+          padding: 32px 28px;
+          box-shadow: 0 12px 35px rgba(0,0,0,0.06);
         }
-
         h1 {
-          font-size: 22px;
+          font-family: ui-serif, "Times New Roman", serif;
+          font-size: 26px;
+          font-weight: 700;
           margin: 0 0 8px;
+          letter-spacing: -0.02em;
+          color: #111;
+          text-align: center;
         }
-
         .auth-subtitle {
-          margin: 0 0 14px;
-          font-size: 12px;
+          margin: 0 0 24px;
+          font-size: 14px;
+          color: #6b7280;
+          text-align: center;
           line-height: 1.5;
-          color: #6b7280;
         }
-
-        .auth-instruction {
-          margin: 0 0 10px;
-          font-size: 12px;
-          color: #6b7280;
-        }
-
         .auth-fields {
           display: flex;
           flex-direction: column;
-          gap: 10px;
+          gap: 16px;
         }
-
         .auth-field label {
           display: block;
-          margin-bottom: 4px;
-          font-size: 12px;
+          margin-bottom: 6px;
+          font-size: 13px;
           font-weight: 500;
-          color: #4b5563;
+          color: #374151;
         }
-
-        .auth-input {
+        /* Luxury Input Style */
+        :global(.auth-input) {
+          width: 100%;
+          border-radius: 14px !important;
+          border: 1px solid #d1d5db !important;
+          background: #fafafa !important;
+          padding: 10px 14px !important;
+          font-size: 14px !important;
+          color: #111 !important;
+          transition: all 0.2s ease;
+        }
+        :global(.auth-input:focus) {
+          outline: none;
+          border-color: #111 !important;
+          background: #fff !important;
+          box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+        .auth-button-primary {
+          margin-top: 8px;
           width: 100%;
           border-radius: 999px;
-          padding: 8px 12px;
-          border: 1px solid #e5e7eb;
-          font-size: 13px;
-          color: #111827;
-          background: #f9fafb;
-        }
-
-        .auth-input:focus {
-          outline: none;
-          border-color: #f97316;
-          box-shadow: 0 0 0 1px rgba(249, 115, 22, 0.3);
-        }
-
-        .auth-meta-row {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          margin-top: 4px;
-          margin-bottom: 10px;
-        }
-
-        .auth-secondary-link-inline {
-          font-size: 12px;
-          color: #6b7280;
-          margin-bottom: 12px;
-        }
-
-        .auth-secondary-link-inline a {
-          color: #111827;
-          font-weight: 500;
-          text-decoration: underline;
-          text-underline-offset: 2px;
-        }
-
-        .auth-secondary-link {
-          margin: 4px 0;
-          font-size: 12px;
-        }
-
-        .auth-secondary-link a {
-          color: #4b5563;
-          text-decoration: underline;
-          text-underline-offset: 2px;
-        }
-
-        .auth-status {
-          margin-bottom: 10px;
-          font-size: 12px;
-          color: #4b5563;
-        }
-
-        .auth-status strong {
+          padding: 12px;
+          border: none;
+          font-size: 14px;
           font-weight: 600;
+          background: #111;
+          color: #fff;
+          cursor: pointer;
+          transition: transform 0.1s ease, opacity 0.2s;
         }
-
-        .auth-error,
-        .auth-info,
-        .auth-success {
+        .auth-button-primary:hover {
+          opacity: 0.9;
+        }
+        .auth-button-primary:disabled {
+          opacity: 0.5;
+          cursor: default;
+        }
+        .auth-error, .auth-info {
           border-radius: 12px;
-          padding: 8px 10px;
-          font-size: 12px;
-          margin-bottom: 10px;
+          padding: 10px;
+          font-size: 13px;
+          margin-bottom: 16px;
+          text-align: center;
         }
-
-        .auth-error {
-          background: #fef2f2;
-          color: #b91c1c;
-        }
-
-        .auth-info {
-          background: #eff6ff;
-          color: #1d4ed8;
-        }
-
-        .auth-success {
-          background: #ecfdf3;
-          color: #166534;
-        }
-
-        .auth-apply-button-wrapper {
-          margin-top: 14px;
-        }
-
+        .auth-error { background: #fef2f2; color: #b91c1c; }
+        .auth-info { background: #eff6ff; color: #1d4ed8; }
+        .auth-code-input { text-align: center; letter-spacing: 0.2em; font-weight: 600; }
+        
+        .auth-apply-button-wrapper { margin-top: 20px; }
         .auth-apply-button {
           display: block;
           width: 100%;
@@ -453,38 +405,23 @@ export default function SellerLoginPage() {
           border-radius: 999px;
           padding: 10px 14px;
           font-size: 13px;
-          font-weight: 600;
-          background: #fb923c;
-          color: #111827;
+          font-weight: 500;
+          background: #fff;
+          color: #111;
+          border: 1px solid #e5e7eb;
           text-decoration: none;
+          transition: all 0.2s;
         }
-
         .auth-apply-button:hover {
-          background: #f97316;
+          border-color: #111;
+          background: #fafafa;
         }
-
-        .auth-footer-note {
-          margin-top: 12px;
-          font-size: 11px;
-          color: #9ca3af;
-        }
-
-        .auth-button-primary {
-          width: 100%;
-          border-radius: 999px;
-          padding: 9px 14px;
-          border: none;
-          font-size: 13px;
-          font-weight: 600;
-          background: #111827;
-          color: #f9fafb;
-          cursor: pointer;
-        }
-
-        .auth-button-primary:disabled {
-          opacity: 0.7;
-          cursor: default;
-        }
+        
+        .auth-secondary-link { margin-top: 12px; text-align: center; font-size: 13px; }
+        .auth-secondary-link a { color: #6b7280; text-decoration: underline; }
+        .auth-secondary-link a:hover { color: #111; }
+        .auth-secondary-link-inline { text-align: center; font-size: 13px; color: #666; margin-bottom: 16px; }
+        .auth-secondary-link-inline button { border:none; background:none; text-decoration:underline; cursor:pointer; color:#111; }
       `}</style>
     </>
   );
