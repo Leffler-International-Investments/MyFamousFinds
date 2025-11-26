@@ -1,11 +1,12 @@
 // FILE: /pages/index.tsx
+
 import Head from "next/head";
+import type { GetServerSideProps, NextPage } from "next";
 import Header from "../components/Header";
 import Footer from "../components/Footer";
 import DemoGrid from "../components/DemoGrid";
 import { ProductLike } from "../components/ProductCard";
 import { adminDb } from "../utils/firebaseAdmin";
-import type { GetServerSideProps, NextPage } from "next";
 import HomepageButler from "../components/HomepageButler";
 
 type HomeProps = {
@@ -13,191 +14,215 @@ type HomeProps = {
   newArrivals: ProductLike[];
 };
 
-const Home: NextPage<HomeProps> = ({ trending, newArrivals }) => {
+const Home: NextPage<HomeProps> = ({
+  trending = [],
+  newArrivals = [],
+}) => {
+  const totalItems = (trending.length || 0) + (newArrivals.length || 0);
+
   return (
-    <div className="home-wrapper">
+    <div className="page-wrapper bg-white">
       <Head>
         <title>Famous Finds — US</title>
       </Head>
 
       <Header />
 
-      <main className="wrap">
-        <section className="hero">
-          <div className="heroCopy">
-            <p className="eyebrow">WELCOME TO OUR WORLD OF LUXURY</p>
-            <h1>Famous Finds for every shade of style.</h1>
-            <p className="lead">
-              Curated, authenticated designer pieces — loved once and ready to
-              be loved again. A marketplace where every customer belongs, in all
-              colours and all stories.
-            </p>
-          </div>
+      <main className="page-content">
+        <div className="wrap space-y-10">
+          {/* HERO */}
+          <section className="rounded-3xl bg-gradient-to-br from-slate-900 via-slate-800 to-black text-slate-50 px-6 py-7 md:px-10 md:py-9 shadow-xl">
+            <div className="grid gap-8 md:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)] items-center">
+              {/* Left: copy */}
+              <div className="space-y-4">
+                <div className="inline-flex items-center gap-2 rounded-full bg-slate-800/80 px-3 py-1 text-xs font-semibold tracking-wide uppercase text-slate-300 border border-slate-700">
+                  <span className="inline-block h-2 w-2 rounded-full bg-emerald-400 shadow-[0_0_0_4px_rgba(16,185,129,0.35)]" />
+                  Curated pre-loved luxury
+                </div>
 
-          <div className="heroVisual">
-            <HomepageButler />
-          </div>
-        </section>
+                <h1 className="hero-main-title text-slate-50 leading-tight">
+                  Find the{" "}
+                  <span className="bg-gradient-to-r from-amber-300 via-amber-200 to-amber-400 bg-clip-text text-transparent">
+                    one-of-a-kind
+                  </span>{" "}
+                  pieces everyone else missed.
+                </h1>
 
-        <DemoGrid title="Now Trending" items={trending} />
-        <DemoGrid title="New Arrivals" items={newArrivals} />
+                <p className="hero-tagline max-w-xl text-sm md:text-base text-slate-300">
+                  Hand-picked designer fashion, authenticated and ready to
+                  re-wear. New treasures dropping, iconic pieces trending —
+                  all in one place.
+                </p>
+
+                {/* Quick stats */}
+                <div className="flex flex-wrap gap-3 pt-1">
+                  <div className="flex items-center gap-2 rounded-full bg-slate-800/80 px-3 py-2 text-xs text-slate-200 border border-slate-700">
+                    <span className="number-badge bg-emerald-400 text-slate-900">
+                      {totalItems || "20+"}
+                    </span>
+                    <span>
+                      Live listings •{" "}
+                      <span className="font-semibold">
+                        Trending &amp; fresh drops
+                      </span>
+                    </span>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <span className="pill bg-slate-800/70 text-xs text-slate-200 border border-slate-700">
+                      Bags &amp; Accessories
+                    </span>
+                    <span className="pill bg-slate-800/70 text-xs text-slate-200 border border-slate-700">
+                      Ready-to-wear
+                    </span>
+                    <span className="pill bg-slate-800/70 text-xs text-slate-200 border border-slate-700">
+                      Collectible pieces
+                    </span>
+                  </div>
+                </div>
+
+                {/* CTAs */}
+                <div className="flex flex-wrap items-center gap-3 pt-2">
+                  <a
+                    href="#trending"
+                    className="global-cta-button bg-amber-300 text-slate-900 hover:brightness-105 shadow-md"
+                  >
+                    Start with trending
+                    <span>↗</span>
+                  </a>
+
+                  <a
+                    href="#new-arrivals"
+                    className="inline-flex items-center gap-2 rounded-full border border-slate-600 bg-slate-900/40 px-3 py-2 text-xs font-medium text-slate-200 hover:bg-slate-900/70 transition-colors"
+                  >
+                    View fresh arrivals
+                  </a>
+                </div>
+              </div>
+
+              {/* Right: animated panel */}
+              <div className="hidden md:block">
+                <div className="relative h-full">
+                  <div className="absolute inset-0 rounded-3xl bg-slate-950/40 blur-3xl" />
+                  <div className="relative rounded-3xl border border-slate-700/70 bg-slate-900/80 px-4 py-4 shadow-[0_18px_60px_rgba(15,23,42,0.9)]">
+                    <div className="flex items-center justify-between mb-3">
+                      <div>
+                        <p className="text-xs text-slate-300">
+                          Today&apos;s edit
+                        </p>
+                        <p className="text-sm font-semibold text-slate-50">
+                          Curated by Famous Finds
+                        </p>
+                      </div>
+                      <span className="ai-helper-pill-avatar text-xs">FF</span>
+                    </div>
+
+                    <div className="space-y-3 text-xs text-slate-200">
+                      <div className="flex items-center justify-between">
+                        <span>Iconic statement pieces</span>
+                        <span className="status-pill live text-[10px] px-2 py-1">
+                          Live now
+                        </span>
+                      </div>
+                      <div className="progress-row">
+                        <div className="progress-bar">
+                          <div
+                            className="progress-bar-inner"
+                            style={{ width: "78%" }}
+                          />
+                        </div>
+                        <span className="progress-label text-[11px]">
+                          78% curated
+                        </span>
+                      </div>
+                      <ul className="ai-checklist text-[11px]">
+                        <li>
+                          <span className="ai-checklist-icon">✔</span>
+                          <span>Authenticated luxury, ready to ship</span>
+                        </li>
+                        <li>
+                          <span className="ai-checklist-icon">★</span>
+                          <span>Only the best condition pieces</span>
+                        </li>
+                        <li>
+                          <span className="ai-checklist-icon">➜</span>
+                          <span>New edits landing weekly</span>
+                        </li>
+                      </ul>
+                    </div>
+
+                    <div className="mt-3 flex items-center justify-between text-[11px] text-slate-400">
+                      <span>Scroll to explore collections ↓</span>
+                      <span className="inline-flex items-center gap-1">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                        Live
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          {/* TRENDING */}
+          <section id="trending">
+            <DemoGrid title="Trending right now" items={trending} />
+          </section>
+
+          {/* NEW ARRIVALS */}
+          <section id="new-arrivals">
+            <DemoGrid title="Fresh arrivals" items={newArrivals} />
+          </section>
+        </div>
       </main>
 
+      {/* SINGLE Butler */}
+      <HomepageButler />
+
       <Footer />
-
-      <style jsx>{`
-        .home-wrapper {
-          background-color: #ffffff;
-          min-height: 100vh;
-          color: #000000;
-        }
-
-        .wrap {
-          max-width: 1200px;
-          margin: 0 auto;
-          padding: 16px 16px 80px;
-        }
-
-        .hero {
-          display: grid;
-          grid-template-columns: minmax(0, 1.1fr) minmax(0, 1.1fr);
-          gap: 40px;
-          margin-top: 16px;
-          margin-bottom: 24px;
-          align-items: center;
-        }
-
-        .heroCopy {
-          max-width: 520px;
-        }
-
-        .eyebrow {
-          font-size: 11px;
-          font-weight: 800;
-          text-transform: uppercase;
-          letter-spacing: 0.14em;
-          color: #000000;
-          margin-bottom: 6px;
-        }
-
-        h1 {
-          margin-top: 4px;
-          font-size: 34px;
-          font-weight: 800;
-          color: #000000;
-        }
-
-        .lead {
-          margin-top: 12px;
-          font-size: 16px;
-          font-weight: 600;
-          color: #111111;
-          line-height: 1.65;
-        }
-
-        .heroVisual {
-          border-radius: 24px;
-          padding: 22px 24px 26px;
-          background: radial-gradient(circle at top left, #1f2937, #020617);
-          box-shadow: 0 20px 45px rgba(15, 23, 42, 0.6);
-          border: 0;
-          color: #f9fafb;
-          position: relative;
-          overflow: hidden;
-        }
-
-        .heroVisual * {
-          color: #f9fafb !important;
-        }
-
-        .heroVisual button {
-          background-color: #ffffff !important;
-          color: #111827 !important;
-          border-radius: 999px !important;
-          font-weight: 600 !important;
-        }
-
-        .heroVisual button:hover {
-          opacity: 0.9;
-        }
-
-        .home-wrapper .section-header h2 {
-          color: #000000 !important;
-          font-weight: 700;
-          font-size: 20px;
-          letter-spacing: 0.04em;
-        }
-
-        @media (max-width: 900px) {
-          .hero {
-            grid-template-columns: 1fr;
-          }
-
-          .heroVisual {
-            margin-top: 8px;
-          }
-        }
-      `}</style>
     </div>
   );
 };
 
 export const getServerSideProps: GetServerSideProps<HomeProps> = async () => {
+  let trending: ProductLike[] = [];
+  let newArrivals: ProductLike[] = [];
+
   try {
-    const snap = await adminDb
-      .collection("listings")
-      .orderBy("createdAt", "desc")
-      .limit(50)
-      .get();
+    if (adminDb) {
+      // Trending (flag)
+      const trendingSnap = await adminDb
+        .collection("products")
+        .where("isTrending", "==", true)
+        .limit(8)
+        .get();
 
-    const liveItems: ProductLike[] = [];
-
-    snap.docs.forEach((doc) => {
-      const d: any = doc.data() || {};
-
-      const allowedStatuses = ["Live", "Active", "Approved"];
-      if (d.status && !allowedStatuses.includes(d.status)) {
-        return;
-      }
-
-      const priceNumber = Number(d.price) || 0;
-      const price = priceNumber
-        ? `US$${priceNumber.toLocaleString("en-US")}`
-        : "";
-
-      const image: string =
-        d.image_url ||
-        d.imageUrl ||
-        d.image ||
-        (Array.isArray(d.imageUrls) && d.imageUrls[0]) ||
-        ""; // <-- NO MORE HEADPHONE FALLBACK
-
-      liveItems.push({
+      trending = trendingSnap.docs.map((doc) => ({
         id: doc.id,
-        title: d.title || "Untitled listing",
-        brand: d.brand || "",
-        price,
-        image,
-        href: `/product/${doc.id}`,
-        badge: d.badge || undefined,
-      });
-    });
+        ...(doc.data() as Omit<ProductLike, "id">),
+      }));
 
-    return {
-      props: {
-        trending: liveItems.slice(0, 12),
-        newArrivals: liveItems.slice(12, 24),
-      },
-    };
-  } catch (err) {
-    console.error("Error loading home listings", err);
-    return {
-      props: {
-        trending: [],
-        newArrivals: [],
-      },
-    };
+      // New arrivals (by createdAt desc)
+      const newArrivalsSnap = await adminDb
+        .collection("products")
+        .orderBy("createdAt", "desc")
+        .limit(12)
+        .get();
+
+      newArrivals = newArrivalsSnap.docs.map((doc) => ({
+        id: doc.id,
+        ...(doc.data() as Omit<ProductLike, "id">),
+      }));
+    }
+  } catch (error) {
+    console.error("Error loading homepage products:", error);
   }
+
+  return {
+    props: {
+      trending,
+      newArrivals,
+    },
+  };
 };
 
 export default Home;
