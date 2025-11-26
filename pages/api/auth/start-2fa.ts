@@ -1,64 +1,78 @@
-// pages/api/auth/start-2fa.ts
+// FILE: /pages/api/auth/start-2fa.ts
 import type { NextApiRequest, NextApiResponse } from "next";
 import { adminDb, FieldValue } from "../../../utils/firebaseAdmin";
-import nodemailer from "nodemailer";
+import { sendLoginCode } from "../../../utils/email";
+
+type Start2faBody = {
+  email?: string;
+  role?: "seller" | "management";
+};
+
+type Start2faResponse =
+  | { ok: true; challengeId: string }
+  | { ok: false; error: string; message?: string };
 
 export default async function handler(
   req: NextApiRequest,
-  res: NextApiResponse
+  res: NextApiResponse<Start2faResponse>
 ) {
   if (req.method !== "POST") {
-    return res.status(405).json({ ok: false, message: "Method not allowed" });
+    return res
+      .status(405)
+      .json({ ok: false, error: "method_not_allowed", message: "POST only" });
   }
 
-  const { email, role } = req.body as { email: string; role: string };
+  const { email, role } = (req.body || {}) as Start2faBody;
+
+  if (!email) {
+    return res
+      .status(400)
+      .json({ ok: false, error: "missing_email", message: "Email required" });
+  }
+
+  const normalizedRole: "seller" | "management" =
+    role === "seller" ? "seller" : "management";
 
   // 6-digit code
   const code = Math.floor(100000 + Math.random() * 900000).toString();
-  const challengeId = `${Date.now()}-${Math.random()
-    .toString(36)
-    .slice(2, 8)}`;
+
+  // Fallback challenge id
+  let challengeId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
   try {
-    // 🗄 Try to store challenge if Firestore Admin works
+    // 1) Store challenge in Firestore if adminDb is available
     if (adminDb) {
-      await adminDb.collection("loginChallenges").doc(challengeId).set({
+      const docRef = await adminDb.collection("loginChallenges").add({
         email,
-        role,
+        role: normalizedRole,
         code,
         createdAt: FieldValue.serverTimestamp(),
+        used: false,
       });
+      challengeId = docRef.id;
+    } else {
+      console.warn(
+        "[start-2fa] adminDb not available – skipping Firestore challenge store"
+      );
     }
 
-    // 📧 Send email with the code (uses your SMTP_* env vars)
-    const transporter = nodemailer.createTransport({
-      host: process.env.SMTP_HOST,
-      port: Number(process.env.SMTP_PORT || 587),
-      secure: false,
-      auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASS,
-      },
-    });
+    // 2) Send email with login code (will throw if SMTP not configured)
+    try {
+      await sendLoginCode(email, code);
+    } catch (emailErr) {
+      console.error("[start-2fa] sendLoginCode failed:", emailErr);
+      // We still allow flow to continue; the UI can show generic error if needed
+    }
 
-    await transporter.sendMail({
-      from: process.env.SMTP_FROM,
-      to: email,
-      subject: "Your Famous Finds admin login code",
-      text: `Your login code is: ${code}`,
-    });
-
-    return res.status(200).json({
-      ok: true,
-      challengeId,
-    });
+    // 3) Always respond ok so the front-end can continue
+    return res.status(200).json({ ok: true, challengeId });
   } catch (err: any) {
     console.error("start-2fa error", err);
 
-    // 🔁 Fallback: DO NOT break login – ignore 2FA backend problem
+    // FINAL FALLBACK: do not break login completely
     return res.status(200).json({
       ok: true,
-      challengeId: "no-db-fallback",
+      challengeId,
     });
   }
 }
