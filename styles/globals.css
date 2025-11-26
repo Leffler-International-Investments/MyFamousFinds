@@ -1893,6 +1893,12 @@ body,
 
 /* Remove any leftover dark gradients */
 .auth-page::before,
-.auth-page::after {
+.auth-page::after 
+{
   background: none !important;
+  /* Light hero shell for homepage */
+.home-hero {
+  background: #ffffff;
+  color: #111827;
 }
+
