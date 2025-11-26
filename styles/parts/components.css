@@ -1,0 +1,330 @@
+/* FILE: styles/parts/components.css */
+
+/* --- Pills & Badges --- */
+.tag-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 9999px;
+  background-color: #f3f4f6;
+  color: #4b5563;
+  font-size: 12px;
+}
+
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 999px;
+  padding: 3px 8px;
+  font-size: 11px;
+  font-weight: 600;
+}
+.status-pill.live { background: #ecfdf3; color: #166534; }
+.status-pill.draft { background: #eff6ff; color: #1d4ed8; }
+.status-pill.paused { background: #fef9c3; color: #92400e; }
+
+.badge-new {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #f97316;
+  color: #111827;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.beta-pill,
+.account-type-pill,
+.tap-to-copy-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 999px;
+  padding: 3px 8px;
+  font-size: 11px;
+}
+.beta-pill { background: #eff6ff; color: #1d4ed8; }
+.account-type-pill { background: #ecfeff; color: #0f766e; }
+.tap-to-copy-pill { background: #f3f4f6; color: #374151; }
+
+/* --- Global Header Buttons --- */
+.admin-button {
+  font-size: 12px !important;
+  border-radius: 20px !important;
+  padding: 6px 12px !important;
+  font-weight: 600 !important;
+  text-decoration: none !important;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+.admin-button.management {
+  background: linear-gradient(90deg, #d1d5db, #9ca3af) !important;
+  color: #000000 !important;
+}
+.admin-button.seller {
+  background: #111827 !important;
+  color: #ffffff !important;
+}
+.admin-button:hover {
+  filter: brightness(1.05);
+  transform: translateY(-1px);
+}
+
+/* --- Primary CTA --- */
+.global-cta-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 999px;
+  padding: 10px 18px;
+  background: #111827;
+  color: #f9fafb;
+  font-size: 14px;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+}
+.global-cta-button:hover { filter: brightness(1.08); }
+
+/* --- Inputs --- */
+input,
+textarea,
+select {
+  background-color: #ffffff !important;
+  color: #000000 !important;
+  border: 1px solid #d1d5db !important;
+  border-radius: 14px !important;
+  padding: 8px 12px !important;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: #6b7280 !important;
+  opacity: 1;
+}
+
+/* --- Simple Tables --- */
+.simple-table,
+.keyword-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.simple-table thead,
+.keyword-table thead {
+  background-color: #f9fafb;
+}
+
+.simple-table th,
+.simple-table td,
+.keyword-table th,
+.keyword-table td {
+  padding: 8px 10px;
+  border-bottom: 1px solid #e5e7eb;
+  text-align: left;
+}
+
+.simple-table th,
+.keyword-table th {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #6b7280;
+}
+
+.simple-table tbody tr:hover {
+  background-color: #f9fafb;
+}
+
+/* --- FLOATING BUTLER --- */
+.butler-floating {
+  position: fixed;
+  bottom: 22px;
+  right: 22px;
+  z-index: 9999;
+  width: 70px;
+  height: 70px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+@media (max-width: 640px) {
+  .butler-floating {
+    width: 62px;
+    height: 62px;
+    bottom: 18px;
+    right: 18px;
+  }
+}
+.butler-floating > * {
+  pointer-events: auto !important;
+  transform: scale(1);
+}
+
+/* --- Password Strength Meter --- */
+.password-input-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+.password-toggle {
+  position: absolute;
+  right: 12px;
+  background: transparent;
+  border: none;
+  font-size: 12px;
+  font-weight: 600;
+  color: #6b7280;
+  cursor: pointer;
+}
+.password-toggle:hover { color: #111; }
+
+.pw-strength {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 4px;
+  margin-top: 6px;
+}
+.pw-strength .bar {
+  flex: 1;
+  height: 4px;
+  background: #e5e7eb;
+  border-radius: 2px;
+  transition: background-color 0.3s ease;
+}
+.pw-strength .bar.on:nth-child(1) { background: #f87171; }
+.pw-strength .bar.on:nth-child(2) { background: #facc15; }
+.pw-strength .bar.on:nth-child(3) { background: #4ade80; }
+.pw-strength .bar.on:nth-child(4) { background: #16a34a; }
+
+.password-strength-text {
+  font-size: 11px;
+  font-weight: 500;
+  color: #6b7280;
+  text-align: right;
+}
+
+/* --------------------------------------------------------
+   FAMOUS FINDS MARKETPLACE GRID & PRODUCT CARDS
+   (this is what brings back your old homepage look)
+---------------------------------------------------------*/
+
+/* Category/Product grids */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+@media (min-width: 720px) {
+  .grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+/* Category tiles */
+.grid-cats .cat {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  height: 120px;
+  background-size: cover;
+  background-position: center;
+  border-radius: 12px;
+  overflow: hidden;
+}
+.grid-cats .cat::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, #000000 0%, #00000040 50%, #000000 100%);
+  opacity: 0.5;
+}
+.grid-cats .cat span {
+  position: relative;
+  z-index: 1;
+  font-weight: 600;
+  font-size: 15px;
+  color: #fff;
+}
+
+/* Product cards */
+.grid-prods .prod {
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #ffffff;
+}
+
+.grid-prods .img {
+  position: relative;
+  background: #f3f4f6;
+  aspect-ratio: 1/1;
+}
+
+.grid-prods .img img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.badge {
+  position: absolute;
+  left: 8px;
+  top: 8px;
+  font-size: 11px;
+  padding: 4px 8px;
+  background: #ffffffcc;
+  border: 1px solid #e5e7eb;
+  border-radius: 999px;
+  color: #000;
+}
+
+.meta {
+  padding: 10px;
+}
+
+.brand {
+  font-size: 12px;
+  opacity: 0.8;
+  color: #374151;
+}
+
+.title {
+  font-size: 13px;
+  margin: 2px 0 8px;
+  color: #111827;
+}
+
+.row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.price {
+  font-weight: 700;
+  color: #000;
+}
+
+.cond {
+  font-size: 11px;
+  opacity: 0.75;
+  color: #4b5563;
+}
+
+.loc {
+  margin-top: 6px;
+  font-size: 11px;
+  opacity: 0.7;
+  color: #6b7280;
+}
