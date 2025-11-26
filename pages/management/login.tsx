@@ -166,10 +166,9 @@ export default function ManagementLoginPage() {
         <Header />
         <main className="auth-main">
           <div className="auth-card">
-            <h1>Management Admin Login</h1>
+            <h1>Management Login</h1>
             <p className="auth-subtitle">
-              Sign in with your admin email and password, then confirm with a
-              one-time code.
+              Secure admin access.
             </p>
 
             {error && <div className="auth-error">{error}</div>}
@@ -179,7 +178,7 @@ export default function ManagementLoginPage() {
               <form onSubmit={handleCredentialsSubmit}>
                 <div className="auth-fields">
                   <div className="auth-field">
-                    <label htmlFor="email">Admin email</label>
+                    <label htmlFor="email">Admin Email</label>
                     <input
                       id="email"
                       type="email"
@@ -188,7 +187,7 @@ export default function ManagementLoginPage() {
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       className="auth-input"
-                      placeholder="you@example.com"
+                      placeholder="name@famousfinds.com"
                       disabled={disabled}
                     />
                   </div>
@@ -199,7 +198,7 @@ export default function ManagementLoginPage() {
                     onChange={setPassword}
                     name="password"
                     required
-                    placeholder="Enter your admin password"
+                    placeholder="Enter password"
                   />
 
                   <button
@@ -207,19 +206,18 @@ export default function ManagementLoginPage() {
                     disabled={disabled}
                     className="auth-button-primary"
                   >
-                    {loading ? "Checking..." : "Send code & continue"}
+                    {loading ? "Processing..." : "Sign In"}
                   </button>
                 </div>
               </form>
             ) : (
               <form onSubmit={handleVerifySubmit}>
                 <p className="auth-secondary-link-inline">
-                  Enter the 6-digit code we sent to your email address to finish
-                  signing in.
+                  Enter the 6-digit code sent to your email.
                 </p>
                 <div className="auth-fields">
                   <div className="auth-field">
-                    <label htmlFor="code">Verification code</label>
+                    <label htmlFor="code">Verification Code</label>
                     <input
                       id="code"
                       type="text"
@@ -237,7 +235,7 @@ export default function ManagementLoginPage() {
                     disabled={disabled}
                     className="auth-button-primary"
                   >
-                    {loading ? "Verifying..." : "Confirm & continue"}
+                    {loading ? "Verifying..." : "Confirm"}
                   </button>
                 </div>
                 <p className="auth-secondary-link-inline">
@@ -251,23 +249,125 @@ export default function ManagementLoginPage() {
                       setError(null);
                     }}
                   >
-                    Use a different email
+                    Back to login
                   </button>
                 </p>
               </form>
             )}
 
             <p className="auth-secondary-link">
-              <Link href="/management/forgot-password">Forgot password?</Link>
-            </p>
-
-            <p className="auth-secondary-link">
-              <Link href="/">Back to storefront</Link>
+              <Link href="/">Return to Store</Link>
             </p>
           </div>
         </main>
         <Footer />
       </div>
+
+      {/* LOCAL LUXURY STYLE OVERRIDES */}
+      <style jsx>{`
+        .auth-page {
+          min-height: 100vh;
+          display: flex;
+          flex-direction: column;
+          background: #ffffff;
+          color: #111;
+        }
+        .auth-main {
+          flex: 1;
+          display: flex;
+          align-items: flex-start;
+          justify-content: center;
+          padding: 60px 16px 40px;
+        }
+        .auth-card {
+          width: 100%;
+          max-width: 400px;
+          background: #ffffff;
+          border-radius: 22px;
+          border: 1px solid #e5e7eb;
+          padding: 32px 28px;
+          box-shadow: 0 12px 35px rgba(0,0,0,0.06);
+        }
+        h1 {
+          font-family: ui-serif, "Times New Roman", serif;
+          font-size: 26px;
+          font-weight: 700;
+          margin: 0 0 8px;
+          letter-spacing: -0.02em;
+          color: #111;
+          text-align: center;
+        }
+        .auth-subtitle {
+          margin: 0 0 24px;
+          font-size: 14px;
+          color: #6b7280;
+          text-align: center;
+        }
+        .auth-fields {
+          display: flex;
+          flex-direction: column;
+          gap: 16px;
+        }
+        .auth-field label {
+          display: block;
+          margin-bottom: 6px;
+          font-size: 13px;
+          font-weight: 500;
+          color: #374151;
+        }
+        /* Luxury Input Style */
+        :global(.auth-input) {
+          width: 100%;
+          border-radius: 14px !important;
+          border: 1px solid #d1d5db !important;
+          background: #fafafa !important;
+          padding: 10px 14px !important;
+          font-size: 14px !important;
+          color: #111 !important;
+          transition: all 0.2s ease;
+        }
+        :global(.auth-input:focus) {
+          outline: none;
+          border-color: #111 !important;
+          background: #fff !important;
+          box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+        .auth-button-primary {
+          margin-top: 8px;
+          width: 100%;
+          border-radius: 999px;
+          padding: 12px;
+          border: none;
+          font-size: 14px;
+          font-weight: 600;
+          background: #111;
+          color: #fff;
+          cursor: pointer;
+          transition: transform 0.1s ease, opacity 0.2s;
+        }
+        .auth-button-primary:hover {
+          opacity: 0.9;
+        }
+        .auth-button-primary:disabled {
+          opacity: 0.5;
+          cursor: default;
+        }
+        .auth-error, .auth-info {
+          border-radius: 12px;
+          padding: 10px;
+          font-size: 13px;
+          margin-bottom: 16px;
+          text-align: center;
+        }
+        .auth-error { background: #fef2f2; color: #b91c1c; }
+        .auth-info { background: #eff6ff; color: #1d4ed8; }
+        .auth-code-input { text-align: center; letter-spacing: 0.2em; font-weight: 600; }
+        .auth-secondary-link { margin-top: 20px; text-align: center; font-size: 13px; }
+        .auth-secondary-link a { color: #6b7280; text-decoration: underline; }
+        .auth-secondary-link a:hover { color: #111; }
+        .auth-secondary-link-inline { text-align: center; font-size: 13px; color: #666; margin-bottom: 16px; }
+        .auth-secondary-link-inline button { border:none; background:none; text-decoration:underline; cursor:pointer; color:#111; }
+      `}</style>
     </>
   );
 }
