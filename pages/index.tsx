@@ -120,10 +120,7 @@ const Home: NextPage<HomeProps> = ({
               </p>
             </div>
 
-            <DemoGrid
-              items={trending}
-              emptyLabel="Trending picks will appear here as soon as we start receiving listings."
-            />
+            <DemoGrid items={trending} />
           </section>
 
           {/* NEW ARRIVALS SECTION */}
@@ -135,10 +132,7 @@ const Home: NextPage<HomeProps> = ({
               </p>
             </div>
 
-            <DemoGrid
-              items={newArrivals}
-              emptyLabel="As new designer pieces land, they’ll show here first."
-            />
+            <DemoGrid items={newArrivals} />
           </section>
 
           {/* HOW IT WORKS / VALUE PROP SECTION */}
