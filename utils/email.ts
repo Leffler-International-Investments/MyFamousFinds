@@ -7,35 +7,62 @@ const user = process.env.SMTP_USER;
 const pass = process.env.SMTP_PASS;
 const from = process.env.SMTP_FROM || user;
 
+// Warn if missing envs (will show in Vercel logs)
 if (!host || !user || !pass) {
-  console.warn(
-    "[email] Missing SMTP configuration. Emails will NOT be sent.",
-    { host, user }
-  );
+  console.warn("[email] Missing SMTP configuration. Emails will NOT be sent.", {
+    host,
+    user,
+  });
 }
 
 const transporter = nodemailer.createTransport({
   host,
   port,
-  secure: port === 465, // 465 = SSL, 587 = STARTTLS
-  auth: user && pass ? { user, pass } : undefined,
+  secure: port === 465, // Gmail: 587 = STARTTLS, 465 = SSL
+  auth: { user, pass },
 });
 
-/**
- * Send the 6-digit login code to an admin/seller email.
- */
-export async function sendLoginCode(to: string, code: string) {
+// Generic helper
+async function sendMail(to: string, subject: string, text: string) {
   if (!host || !user || !pass) {
-    console.warn("[email] sendLoginCode skipped – SMTP not configured");
+    console.warn("[email] SMTP not configured – skipping send");
     return;
   }
 
-  const mailOptions = {
+  await transporter.sendMail({
     from,
     to,
-    subject: "Your Famous Finds verification code",
-    text: `Your login verification code is: ${code}\n\nIf you did not request this, you can ignore this email.`,
-  };
+    subject,
+    text,
+  });
+}
 
-  await transporter.sendMail(mailOptions);
+/**
+ * 2FA login code email for admins/sellers
+ */
+export async function sendLoginCode(to: string, code: string) {
+  const subject = "Your Famous Finds Verification Code";
+  const text = `Your login verification code is: ${code}
+
+Enter this code in the login screen to continue.`;
+  await sendMail(to, subject, text);
+}
+
+/**
+ * Seller invite email used when an admin approves a seller
+ * (called from pages/api/admin/approve-seller/[id].ts)
+ */
+export async function sendSellerInviteEmail(to: string, inviteUrl: string) {
+  const subject = "You’ve been approved as a seller on Famous Finds";
+  const text = `Hi,
+
+Your seller account has been approved on Famous Finds.
+
+Click the link below to complete your setup and create your password:
+
+${inviteUrl}
+
+If you weren’t expecting this email, you can ignore it.`;
+
+  await sendMail(to, subject, text);
 }
