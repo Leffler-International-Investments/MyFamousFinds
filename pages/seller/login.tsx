@@ -220,7 +220,7 @@ export default function SellerLoginPage() {
                     onChange={setPassword}
                     name="password"
                     required
-                    showStrength
+                    showStrength={true} /* Strength Meter Enabled */
                     placeholder="Enter password"
                   />
                   <button
