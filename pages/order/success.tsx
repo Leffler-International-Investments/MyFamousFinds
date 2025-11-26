@@ -1,4 +1,4 @@
-// FILE: pages/order/success.tsx
+// FILE: /pages/order/success.tsx
 import Head from "next/head";
 import Link from "next/link";
 import type { GetServerSideProps } from "next";
@@ -38,21 +38,34 @@ export default function OrderSuccessPage({
       <Header />
 
       <main className="wrap">
-        <h1>Thank you for your purchase</h1>
+        <h1>Thank you, your order is confirmed.</h1>
         <p className="lead">
-          Your payment was successful and your order has been placed with the seller.
-          A detailed receipt has been emailed to you.
+          We&apos;ve emailed your receipt and will notify you as soon as your
+          seller ships your item.
         </p>
 
         <div className="summary">
           <h2>Order summary</h2>
+
           <p className="row">
             <span className="label">Item</span>
-            <span className="value">
-              {brand && <strong>{brand} — </strong>}
-              {productTitle}
-            </span>
+            <span className="value">{productTitle}</span>
           </p>
+
+          {brand && (
+            <p className="row">
+              <span className="label">Brand</span>
+              <span className="value">{brand}</span>
+            </p>
+          )}
+
+          {category && (
+            <p className="row">
+              <span className="label">Category</span>
+              <span className="value">{category}</span>
+            </p>
+          )}
+
           <p className="row">
             <span className="label">Total paid</span>
             <span className="value">{formattedTotal}</span>
@@ -60,9 +73,9 @@ export default function OrderSuccessPage({
         </div>
 
         <p className="authDisclaimer">
-          Famous Finds acts solely as a marketplace platform connecting buyers and
-          independent sellers. Authenticity of items is the sole responsibility of
-          the seller.
+          Famous Finds acts solely as a marketplace platform connecting buyers
+          and independent sellers. Authenticity of items is the sole
+          responsibility of the seller.
         </p>
 
         <Link href="/" className="back">
@@ -122,6 +135,7 @@ export default function OrderSuccessPage({
           color: #9ca3af;
         }
         .value {
+          color: #f9fafb;
           font-weight: 500;
           text-align: right;
         }
@@ -154,6 +168,11 @@ export const getServerSideProps: GetServerSideProps<SuccessProps> = async (
     return { notFound: true };
   }
 
+  if (!stripe) {
+    console.error("Stripe not configured – skipping order success SSR.");
+    return { notFound: true };
+  }
+
   try {
     const session = await stripe.checkout.sessions.retrieve(sessionId);
 
@@ -164,17 +183,31 @@ export const getServerSideProps: GetServerSideProps<SuccessProps> = async (
     let brand = "";
     let category = "";
 
-    const listingId =
-      (session.metadata && (session.metadata as any).listingId) || null;
-
-    if (listingId) {
-      const snap = await adminDb.collection("listings").doc(listingId).get();
-      if (snap.exists) {
-        const data = snap.data() || {};
-        productTitle = data.title || productTitle;
-        brand = data.brand || "";
-        category = data.category || "";
+    if (session.metadata) {
+      if (session.metadata.productTitle) {
+        productTitle = session.metadata.productTitle;
       }
+      if (session.metadata.brand) {
+        brand = session.metadata.brand;
+      }
+      if (session.metadata.category) {
+        category = session.metadata.category;
+      }
+    }
+
+    // Optional: persist a basic order record for internal analytics
+    if (adminDb) {
+      const coll = adminDb.collection("orders");
+      await coll.add({
+        createdAt: new Date(),
+        amountTotal,
+        currency,
+        brand,
+        category,
+        productTitle,
+        sessionId,
+        stripeStatus: session.payment_status || "unknown",
+      });
     }
 
     const vipUrl =
