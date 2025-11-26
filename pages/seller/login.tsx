@@ -51,7 +51,6 @@ export default function SellerLoginPage() {
     setError(null);
     setInfo(null);
     const trimmedEmail = email.trim().toLowerCase();
-
     if (!trimmedEmail || !password) {
       setError("Please enter your email and password.");
       return;
@@ -64,12 +63,10 @@ export default function SellerLoginPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: trimmedEmail, password }),
       });
-
       const json = (await res.json()) as LoginResponse;
 
       if (!json.ok) {
         const errJson = json as LoginError;
-
         if (errJson.code === "apply_first") {
           setError("");
           setInfo(
@@ -107,7 +104,6 @@ export default function SellerLoginPage() {
           method: "email",
         }),
       });
-
       const twofaJson = (await twofaRes.json()) as Start2faResponse;
 
       if (!twofaJson.ok) {
@@ -157,7 +153,6 @@ export default function SellerLoginPage() {
           code: code.trim(),
         }),
       });
-
       const json = (await res.json()) as Verify2faResponse;
 
       if (!json.ok) {
@@ -239,7 +234,6 @@ export default function SellerLoginPage() {
                     {loading ? "Checking..." : "Send code & continue"}
                   </button>
 
-                  {/* ----- 1. THIS HTML BLOCK IS NOW UPDATED ----- */}
                   <div className="auth-apply-button-wrapper">
                     <Link
                       href="/seller/register-vetting"
@@ -312,57 +306,44 @@ export default function SellerLoginPage() {
           min-height: 100vh;
           display: flex;
           flex-direction: column;
-          background: #020617;
-          color: #f9fafb;
+          background: #ffffff;
+          color: #111827;
         }
 
         .auth-main {
           flex: 1;
           display: flex;
-          align-items: center;
+          align-items: flex-start;
           justify-content: center;
-          padding: 24px 16px 40px;
+          padding: 32px 16px 40px;
         }
 
         .auth-card {
-          width: 100%;
           max-width: 420px;
-          background: #020617;
+          margin: 0 auto;
+          background: #ffffff;
           border-radius: 16px;
-          border: 1px solid rgba(148, 163, 184, 0.4);
-          padding: 24px 20px 20px;
-          box-shadow: 0 18px 45px rgba(15, 23, 42, 0.7);
+          border: 1px solid rgba(226, 232, 240, 1);
+          padding: 24px 22px 22px;
+          box-shadow: 0 18px 45px rgba(15, 23, 42, 0.08);
         }
 
         h1 {
-          font-size: 20px;
+          font-size: 22px;
           margin: 0 0 8px;
         }
 
         .auth-subtitle {
-          margin: 0 0 16px;
+          margin: 0 0 14px;
           font-size: 12px;
-          color: #9ca3af;
           line-height: 1.5;
+          color: #6b7280;
         }
 
-        .auth-error {
-          background: #7f1d1d;
-          color: #fee2e2;
-          border-radius: 8px;
-          padding: 8px 10px;
+        .auth-instruction {
+          margin: 0 0 10px;
           font-size: 12px;
-          margin-bottom: 10px;
-        }
-
-        .auth-info {
-          background: #0f172a;
-          color: #e5e7eb;
-          border-radius: 8px;
-          padding: 8px 10px;
-          font-size: 12px;
-          margin-bottom: 10px;
-          border: 1px solid rgba(148, 163, 184, 0.5);
+          color: #6b7280;
         }
 
         .auth-fields {
@@ -372,74 +353,138 @@ export default function SellerLoginPage() {
         }
 
         .auth-field label {
-          font-size: 12px;
-          color: #e5e7eb;
           display: block;
           margin-bottom: 4px;
+          font-size: 12px;
+          font-weight: 500;
+          color: #4b5563;
         }
 
         .auth-input {
           width: 100%;
           border-radius: 999px;
-          border: 1px solid rgba(148, 163, 184, 0.7);
-          background: rgba(15, 23, 42, 0.85);
-          padding: 10px 12px;
+          padding: 8px 12px;
+          border: 1px solid #e5e7eb;
           font-size: 13px;
-          color: #f9fafb;
+          color: #111827;
+          background: #f9fafb;
         }
 
-        .auth-input::placeholder {
+        .auth-input:focus {
+          outline: none;
+          border-color: #f97316;
+          box-shadow: 0 0 0 1px rgba(249, 115, 22, 0.3);
+        }
+
+        .auth-meta-row {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-top: 4px;
+          margin-bottom: 10px;
+        }
+
+        .auth-secondary-link-inline {
+          font-size: 12px;
           color: #6b7280;
+          margin-bottom: 12px;
+        }
+
+        .auth-secondary-link-inline a {
+          color: #111827;
+          font-weight: 500;
+          text-decoration: underline;
+          text-underline-offset: 2px;
+        }
+
+        .auth-secondary-link {
+          margin: 4px 0;
+          font-size: 12px;
+        }
+
+        .auth-secondary-link a {
+          color: #4b5563;
+          text-decoration: underline;
+          text-underline-offset: 2px;
+        }
+
+        .auth-status {
+          margin-bottom: 10px;
+          font-size: 12px;
+          color: #4b5563;
+        }
+
+        .auth-status strong {
+          font-weight: 600;
+        }
+
+        .auth-error,
+        .auth-info,
+        .auth-success {
+          border-radius: 12px;
+          padding: 8px 10px;
+          font-size: 12px;
+          margin-bottom: 10px;
+        }
+
+        .auth-error {
+          background: #fef2f2;
+          color: #b91c1c;
+        }
+
+        .auth-info {
+          background: #eff6ff;
+          color: #1d4ed8;
+        }
+
+        .auth-success {
+          background: #ecfdf3;
+          color: #166534;
+        }
+
+        .auth-apply-button-wrapper {
+          margin-top: 14px;
+        }
+
+        .auth-apply-button {
+          display: block;
+          width: 100%;
+          text-align: center;
+          border-radius: 999px;
+          padding: 10px 14px;
+          font-size: 13px;
+          font-weight: 600;
+          background: #fb923c;
+          color: #111827;
+          text-decoration: none;
+        }
+
+        .auth-apply-button:hover {
+          background: #f97316;
+        }
+
+        .auth-footer-note {
+          margin-top: 12px;
+          font-size: 11px;
+          color: #9ca3af;
         }
 
         .auth-button-primary {
-          margin-top: 4px;
           width: 100%;
           border-radius: 999px;
+          padding: 9px 14px;
           border: none;
-          padding: 10px 12px;
           font-size: 13px;
           font-weight: 600;
+          background: #111827;
+          color: #f9fafb;
           cursor: pointer;
-          background: #f9fafb;
-          color: #020617;
         }
 
         .auth-button-primary:disabled {
           opacity: 0.7;
           cursor: default;
         }
-
-        .auth-code-input {
-          letter-spacing: 0.2em;
-          text-align: center;
-        }
-
-        .auth-secondary-link,
-        .auth-secondary-link-inline {
-          margin-top: 12px;
-          font-size: 12px;
-          color: #9ca3af;
-          text-align: center;
-        }
-
-        .auth-secondary-link a {
-          color: #e5e7eb;
-          text-decoration: underline;
-          text-underline-offset: 2px;
-        }
-
-        .auth-secondary-link-inline button {
-          border: none;
-          background: transparent;
-          color: #e5e7eb;
-          text-decoration: underline;
-          text-underline-offset: 2px;
-          font-size: 12px;
-          cursor: pointer;
-        }
-        
-        /* ----- 2. THE OLD .auth-apply-link and .auth-apply-pill STYLES HAVE BEEN DELETED FROM HERE ----- */
       `}</style>
     </>
   );
