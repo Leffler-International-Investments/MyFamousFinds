@@ -16,16 +16,18 @@ body {
   font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
   /* FORCE GLOBAL LIGHT THEME */
   background: #ffffff;
-  color: #000000;
+  color: #111111;
 }
 
 a {
   color: inherit;
   text-decoration: none;
+  transition: all 0.2s ease;
 }
 
 button {
   font-family: inherit;
+  transition: all 0.2s ease;
 }
 
 /* Utility to hide scrollbar in WebKit-based browsers when needed */
@@ -2052,3 +2054,58 @@ footer {
   pointer-events: auto !important;
   transform: scale(1);
 }
+
+/* Password Input Row Layout */
+.password-input-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+/* "Show/Hide" Toggle Button */
+.password-toggle {
+  position: absolute;
+  right: 12px;
+  background: transparent;
+  border: none;
+  font-size: 12px;
+  font-weight: 600;
+  color: #6b7280;
+  cursor: pointer;
+}
+.password-toggle:hover {
+  color: #111;
+}
+
+/* Password Strength Meter */
+.pw-strength {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 4px;
+}
+
+.pw-strength .bar {
+  flex: 1;
+  height: 4px;
+  background: #e5e7eb;
+  border-radius: 2px;
+  transition: background-color 0.3s ease;
+}
+
+/* Strength Colors */
+.pw-strength .bar.on:nth-child(1) { background: #f87171; } /* Red */
+.pw-strength .bar.on:nth-child(2) { background: #facc15; } /* Yellow */
+.pw-strength .bar.on:nth-child(3) { background: #4ade80; } /* Green */
+.pw-strength .bar.on:nth-child(4) { background: #16a34a; } /* Dark Green */
+
+/* Strength Text Label */
+.password-strength-text {
+  font-size: 11px;
+  font-weight: 500;
+  color: #6b7280;
+  text-align: right;
+}
+.password-strength-text.weak { color: #ef4444; }
+.password-strength-text.ok { color: #eab308; }
+.password-strength-text.strong { color: #22c55e; }
+.password-strength-text.very-strong { color: #15803d; }
