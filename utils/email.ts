@@ -50,12 +50,6 @@ Enter this code in the login screen to continue.`;
 
 /**
  * Seller invite email used when an admin approves a seller
- * Matches call style:
- *   await sendSellerInviteEmail({
- *     to: email,
- *     businessName,
- *     registerUrl,
- *   });
  */
 export async function sendSellerInviteEmail(args: {
   to: string;
@@ -81,12 +75,6 @@ If you weren’t expecting this email, you can ignore it.`;
 
 /**
  * Seller rejection email used when an admin rejects a seller
- * Matches call style:
- *   await sendSellerRejectionEmail({
- *     to: email,
- *     businessName,
- *     reason,
- *   });
  */
 export async function sendSellerRejectionEmail(args: {
   to: string;
@@ -112,7 +100,6 @@ You’re welcome to contact us or reapply in the future.`;
 
 /**
  * Order confirmation email payload type
- * Imported as `OrderEmailPayload` from utils/email in pages/api/stripe.ts
  */
 export type OrderEmailPayload = {
   to: string;
@@ -121,27 +108,24 @@ export type OrderEmailPayload = {
   orderId?: string;
   total?: number;
   currency?: string;
-  items?: { name: string; quantity: number; price?: number }[];
+  items?: {
+    name: string;
+    quantity: number;
+    price?: number;
+    brand?: string;
+    category?: string;
+    [key: string]: any;
+  }[];
   [key: string]: any;
 };
 
 /**
  * Order confirmation email used from Stripe webhook / API
- * Matches call style:
- *   await sendOrderConfirmationEmail(payload)
  */
 export async function sendOrderConfirmationEmail(
   payload: OrderEmailPayload
 ): Promise<void> {
-  const {
-    to,
-    subject,
-    text,
-    orderId,
-    total,
-    currency,
-    items,
-  } = payload;
+  const { to, subject, text, orderId, total, currency, items } = payload;
 
   const finalSubject =
     subject || "Your Famous Finds order confirmation";
