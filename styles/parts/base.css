@@ -1,0 +1,158 @@
+/* FILE: styles/parts/base.css */
+
+/* Basic reset */
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+  background: #ffffff;
+  color: #111111;
+  scroll-behavior: smooth;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+  transition: all 0.2s ease;
+}
+
+button {
+  font-family: inherit;
+  transition: all 0.2s ease;
+}
+
+/* Utilities */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Page Wrappers */
+.page-wrapper {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.page-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.page-container {
+  width: 100%;
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 24px 16px 40px;
+}
+
+.page-container-wide {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 24px 16px 40px;
+}
+
+/* Typography & Colors */
+h1, h2, h3, h4, h5, h6 {
+  color: #111827;
+}
+
+:root {
+  --ff-primary: #111827;
+  --ff-primary-soft: #111827;
+}
+
+.text-muted {
+  color: #6b7280;
+}
+
+.text-disabled {
+  color: #9ca3af;
+}
+
+/* Sections */
+.section {
+  max-width: 1200px;
+  margin: 28px auto;
+  padding: 0 16px;
+  animation: ff-fade-up 0.35s ease-out;
+}
+
+.section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.section-header h2 {
+  margin: 0;
+  font-size: 20px;
+  letter-spacing: 0.02em;
+  color: #000;
+}
+
+/* Dark-theme pages that we force back to light */
+.dark-theme-page {
+  background: #ffffff !important;
+  color: #000000 !important;
+  min-height: 100vh;
+}
+
+.dark-theme-page h1,
+.dark-theme-page h2,
+.dark-theme-page h3,
+.dark-theme-page h4,
+.dark-theme-page p,
+.dark-theme-page span,
+.dark-theme-page li,
+.dark-theme-page label,
+.dark-theme-page div {
+  color: #000000;
+}
+
+.dark-theme-page .meta,
+.dark-theme-page .hint,
+.dark-theme-page .cond,
+.dark-theme-page .loc,
+.dark-theme-page .brand {
+  color: #4b5563 !important;
+}
+
+/* Footer spacing + classic Famous Finds footer block */
+footer {
+  margin-top: 60px;
+  padding-bottom: 40px;
+}
+
+.footer {
+  max-width: 1200px;
+  margin: 40px auto;
+  padding: 20px 16px;
+  opacity: 0.7;
+  font-size: 12px;
+  border-top: 1px solid #e5e7eb;
+  color: #374151;
+}
+
+/* Simple fade-up animation */
+@keyframes ff-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
