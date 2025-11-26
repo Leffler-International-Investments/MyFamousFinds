@@ -1,31 +1,44 @@
 // FILE: /components/Footer.tsx
 import Link from "next/link";
+import { useState } from "react";
 
 export default function Footer() {
-  return (
-    <footer className="mt-auto border-t border-neutral-100 bg-white pt-12 pb-8">
-      <div className="page-container">
-        <div className="flex flex-col md:flex-row justify-between gap-10">
-          
-          {/* Brand / Logo Area (Hidden on mobile to save space, visible on desktop) */}
-          <div className="hidden md:block max-w-xs">
-            <h4 className="font-serif text-lg font-bold text-neutral-900 mb-4">
-              Famous Finds
-            </h4>
-            <p className="text-sm text-neutral-500 leading-relaxed">
-              The premier destination for secure luxury resale. Authenticated, curated, and ready for you.
-            </p>
-          </div>
+  // State to track which section is currently open ('help', 'company', or null)
+  const [openSection, setOpenSection] = useState<string | null>(null);
 
-          {/* Links Section: Side-by-side on mobile (grid-cols-2) */}
-          <div className="grid grid-cols-2 gap-x-8 gap-y-8 w-full md:w-auto">
-            
-            {/* Column 1: HELP */}
-            <div>
-              <h4 className="font-serif text-xs font-bold uppercase tracking-widest text-neutral-900 mb-4">
-                Help
-              </h4>
-              <ul className="space-y-3 text-sm text-neutral-500">
+  const toggleSection = (section: string) => {
+    // If clicking the already open section, close it. Otherwise, open the new one.
+    setOpenSection(openSection === section ? null : section);
+  };
+
+  return (
+    <footer className="mt-auto border-t border-neutral-100 bg-white pt-12 pb-12">
+      <div className="page-container flex flex-col items-center justify-center text-center">
+        
+        {/* 1. Copyright (Moved to Top) */}
+        <div className="mb-10 text-xs text-neutral-400">
+          © {new Date().getFullYear()} Famous Finds
+        </div>
+
+        {/* 2. Interactive Sections Container */}
+        <div className="w-full max-w-xs space-y-8">
+          
+          {/* HELP SECTION */}
+          <div className="flex flex-col items-center">
+            <button
+              onClick={() => toggleSection("help")}
+              className="group flex items-center gap-2 font-serif text-sm font-bold uppercase tracking-widest text-neutral-900 hover:text-neutral-600 transition-colors"
+            >
+              <span>Help</span>
+              {/* Optional: Small indicator arrow */}
+              <span className={`text-[10px] transition-transform duration-300 ${openSection === "help" ? "rotate-180" : ""}`}>
+                ▼
+              </span>
+            </button>
+
+            {/* Sub-menu (Condition: only show if openSection === 'help') */}
+            {openSection === "help" && (
+              <ul className="mt-4 space-y-3 text-sm text-neutral-500 animate-in fade-in slide-in-from-top-2 duration-300">
                 <li>
                   <Link href="/help" className="hover:text-neutral-900 transition-colors">
                     Help Center
@@ -52,14 +65,24 @@ export default function Footer() {
                   </Link>
                 </li>
               </ul>
-            </div>
+            )}
+          </div>
 
-            {/* Column 2: COMPANY */}
-            <div>
-              <h4 className="font-serif text-xs font-bold uppercase tracking-widest text-neutral-900 mb-4">
-                Company
-              </h4>
-              <ul className="space-y-3 text-sm text-neutral-500">
+          {/* COMPANY SECTION */}
+          <div className="flex flex-col items-center">
+            <button
+              onClick={() => toggleSection("company")}
+              className="group flex items-center gap-2 font-serif text-sm font-bold uppercase tracking-widest text-neutral-900 hover:text-neutral-600 transition-colors"
+            >
+              <span>Company</span>
+              <span className={`text-[10px] transition-transform duration-300 ${openSection === "company" ? "rotate-180" : ""}`}>
+                ▼
+              </span>
+            </button>
+
+            {/* Sub-menu (Condition: only show if openSection === 'company') */}
+            {openSection === "company" && (
+              <ul className="mt-4 space-y-3 text-sm text-neutral-500 animate-in fade-in slide-in-from-top-2 duration-300">
                 <li>
                   <Link href="/about" className="hover:text-neutral-900 transition-colors">
                     About
@@ -81,20 +104,9 @@ export default function Footer() {
                   </Link>
                 </li>
               </ul>
-            </div>
+            )}
           </div>
-        </div>
 
-        {/* Legal Line */}
-        <div className="mt-12 border-t border-neutral-100 pt-8 flex flex-col md:flex-row items-center justify-between gap-4">
-          <p className="text-xs text-neutral-400">
-            © {new Date().getFullYear()} Famous Finds
-          </p>
-          
-          <div className="hidden md:flex gap-4 text-xs text-neutral-400">
-            <span>Terms</span>
-            <span>Sitemap</span>
-          </div>
         </div>
       </div>
     </footer>
