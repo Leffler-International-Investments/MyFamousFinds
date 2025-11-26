@@ -2,7 +2,6 @@
 
 import Head from "next/head";
 import type { GetServerSideProps, NextPage } from "next";
-import type { ComponentType } from "react";
 import Header from "../components/Header";
 import Footer from "../components/Footer";
 import DemoGrid from "../components/DemoGrid";
@@ -10,16 +9,16 @@ import { ProductLike } from "../components/ProductCard";
 import { adminDb } from "../utils/firebaseAdmin";
 import HomepageButler from "../components/HomepageButler";
 
-// Cast DemoGrid so TypeScript stops complaining about props
-const TypedDemoGrid = DemoGrid as ComponentType<any>;
-
 type HomeProps = {
   trending: ProductLike[];
   newArrivals: ProductLike[];
 };
 
-const Home: NextPage<HomeProps> = ({ trending, newArrivals }) => {
-  const totalItems = (trending?.length || 0) + (newArrivals?.length || 0);
+const Home: NextPage<HomeProps> = ({
+  trending = [],
+  newArrivals = [],
+}) => {
+  const totalItems = (trending.length || 0) + (newArrivals.length || 0);
 
   return (
     <div className="page-wrapper bg-white">
@@ -30,12 +29,11 @@ const Home: NextPage<HomeProps> = ({ trending, newArrivals }) => {
       <Header />
 
       <main className="page-content">
-        {/* MAIN CONTENT WRAPPER */}
         <div className="wrap space-y-10">
-          {/* HERO SECTION */}
+          {/* HERO */}
           <section className="rounded-3xl bg-gradient-to-br from-slate-900 via-slate-800 to-black text-slate-50 px-6 py-7 md:px-10 md:py-9 shadow-xl">
             <div className="grid gap-8 md:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)] items-center">
-              {/* Left side: text */}
+              {/* Left: copy */}
               <div className="space-y-4">
                 <div className="inline-flex items-center gap-2 rounded-full bg-slate-800/80 px-3 py-1 text-xs font-semibold tracking-wide uppercase text-slate-300 border border-slate-700">
                   <span className="inline-block h-2 w-2 rounded-full bg-emerald-400 shadow-[0_0_0_4px_rgba(16,185,129,0.35)]" />
@@ -56,7 +54,7 @@ const Home: NextPage<HomeProps> = ({ trending, newArrivals }) => {
                   all in one place.
                 </p>
 
-                {/* Quick stats / chips */}
+                {/* Quick stats */}
                 <div className="flex flex-wrap gap-3 pt-1">
                   <div className="flex items-center gap-2 rounded-full bg-slate-800/80 px-3 py-2 text-xs text-slate-200 border border-slate-700">
                     <span className="number-badge bg-emerald-400 text-slate-900">
@@ -82,7 +80,7 @@ const Home: NextPage<HomeProps> = ({ trending, newArrivals }) => {
                   </div>
                 </div>
 
-                {/* Hero CTAs */}
+                {/* CTAs */}
                 <div className="flex flex-wrap items-center gap-3 pt-2">
                   <a
                     href="#trending"
@@ -101,7 +99,7 @@ const Home: NextPage<HomeProps> = ({ trending, newArrivals }) => {
                 </div>
               </div>
 
-              {/* Right side: small animated panel */}
+              {/* Right: animated panel */}
               <div className="hidden md:block">
                 <div className="relative h-full">
                   <div className="absolute inset-0 rounded-3xl bg-slate-950/40 blur-3xl" />
@@ -115,9 +113,7 @@ const Home: NextPage<HomeProps> = ({ trending, newArrivals }) => {
                           Curated by Famous Finds
                         </p>
                       </div>
-                      <span className="ai-helper-pill-avatar text-xs">
-                        FF
-                      </span>
+                      <span className="ai-helper-pill-avatar text-xs">FF</span>
                     </div>
 
                     <div className="space-y-3 text-xs text-slate-200">
@@ -167,55 +163,19 @@ const Home: NextPage<HomeProps> = ({ trending, newArrivals }) => {
             </div>
           </section>
 
-          {/* TRENDING SECTION */}
-          <section id="trending" className="space-y-3">
-            <div className="section-header">
-              <h2 className="text-base md:text-lg font-semibold tracking-wide">
-                Trending right now
-              </h2>
-              <p className="text-xs md:text-sm text-muted">
-                Pieces with high demand and low supply — they won&apos;t stay
-                here for long.
-              </p>
-            </div>
-
-            <TypedDemoGrid products={trending} variant="trending" />
-
-            <div className="stat-line mt-1">
-              <span className="stat-pill">
-                🔥 Most viewed in the last 24h
-              </span>
-              <span className="note-text">
-                Tap into any item to see photos, details, and condition.
-              </span>
-            </div>
+          {/* TRENDING */}
+          <section id="trending">
+            <DemoGrid title="Trending right now" items={trending} />
           </section>
 
-          {/* NEW ARRIVALS SECTION */}
-          <section id="new-arrivals" className="space-y-3">
-            <div className="section-header">
-              <h2 className="text-base md:text-lg font-semibold tracking-wide">
-                Fresh arrivals
-              </h2>
-              <p className="text-xs md:text-sm text-muted">
-                Newly added pieces from trusted sellers — discover them before
-                everyone else.
-              </p>
-            </div>
-
-            <TypedDemoGrid products={newArrivals} variant="new" />
-
-            <div className="stat-line mt-1">
-              <span className="stat-pill">✨ Recently added</span>
-              <span className="note-text">
-                Check back often — drops are continuous and highly curated.
-              </span>
-            </div>
+          {/* NEW ARRIVALS */}
+          <section id="new-arrivals">
+            <DemoGrid title="Fresh arrivals" items={newArrivals} />
           </section>
         </div>
       </main>
 
-      {/* SINGLE Butler — no duplicates */}
+      {/* SINGLE Butler */}
       <HomepageButler />
 
       <Footer />
@@ -228,29 +188,31 @@ export const getServerSideProps: GetServerSideProps<HomeProps> = async () => {
   let newArrivals: ProductLike[] = [];
 
   try {
-    // Trending products (flag-based)
-    const trendingSnap = await adminDb
-      .collection("products")
-      .where("isTrending", "==", true)
-      .limit(8)
-      .get();
+    if (adminDb) {
+      // Trending (flag)
+      const trendingSnap = await adminDb
+        .collection("products")
+        .where("isTrending", "==", true)
+        .limit(8)
+        .get();
 
-    trending = trendingSnap.docs.map((doc) => ({
-      id: doc.id,
-      ...(doc.data() as Omit<ProductLike, "id">),
-    }));
+      trending = trendingSnap.docs.map((doc) => ({
+        id: doc.id,
+        ...(doc.data() as Omit<ProductLike, "id">),
+      }));
 
-    // New arrivals (by createdAt desc)
-    const newArrivalsSnap = await adminDb
-      .collection("products")
-      .orderBy("createdAt", "desc")
-      .limit(12)
-      .get();
+      // New arrivals (by createdAt desc)
+      const newArrivalsSnap = await adminDb
+        .collection("products")
+        .orderBy("createdAt", "desc")
+        .limit(12)
+        .get();
 
-    newArrivals = newArrivalsSnap.docs.map((doc) => ({
-      id: doc.id,
-      ...(doc.data() as Omit<ProductLike, "id">),
-    }));
+      newArrivals = newArrivalsSnap.docs.map((doc) => ({
+        id: doc.id,
+        ...(doc.data() as Omit<ProductLike, "id">),
+      }));
+    }
   } catch (error) {
     console.error("Error loading homepage products:", error);
   }
