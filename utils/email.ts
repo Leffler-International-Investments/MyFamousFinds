@@ -55,7 +55,6 @@ Enter this code in the login screen to continue.`;
  *     to: email,
  *     businessName,
  *     registerUrl,
- *     ...
  *   });
  */
 export async function sendSellerInviteEmail(args: {
@@ -76,6 +75,37 @@ Click the link below to complete your setup and create your password:
 ${registerUrl ?? ""}
 
 If you weren’t expecting this email, you can ignore it.`;
+
+  await sendMail(to, subject, text);
+}
+
+/**
+ * Seller rejection email used when an admin rejects a seller
+ * Matches call style:
+ *   await sendSellerRejectionEmail({
+ *     to: email,
+ *     businessName,
+ *     reason,
+ *   });
+ */
+export async function sendSellerRejectionEmail(args: {
+  to: string;
+  businessName?: string;
+  reason?: string;
+  [key: string]: any;
+}) {
+  const { to, businessName, reason } = args;
+
+  const subject = "Your seller application on Famous Finds";
+  const text = `Hi${businessName ? " " + businessName : ""},
+
+Thank you for applying to become a seller on Famous Finds.
+
+After reviewing your application, we’re unable to approve it at this time.${
+    reason ? "\n\nReason: " + reason : ""
+  }
+
+You’re welcome to contact us or reapply in the future.`;
 
   await sendMail(to, subject, text);
 }
