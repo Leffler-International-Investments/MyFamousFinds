@@ -1,14 +1,19 @@
 // utils/firebaseAdmin.ts
-import { getApps, initializeApp, cert, App } from "firebase-admin/app";
+import { App, cert, getApps, initializeApp } from "firebase-admin/app";
 import { getFirestore, FieldValue } from "firebase-admin/firestore";
 import { getAuth } from "firebase-admin/auth";
 
 const projectId = process.env.FB_PROJECT_ID;
 const clientEmail = process.env.FB_CLIENT_EMAIL;
 const rawPrivateKey = process.env.FB_PRIVATE_KEY;
-const privateKey = rawPrivateKey ? rawPrivateKey.replace(/\\n/g, "\n") : undefined;
 
-let app: App | undefined;
+// Convert "\n" to real newlines if needed
+const privateKey =
+  rawPrivateKey && rawPrivateKey.includes("\\n")
+    ? rawPrivateKey.replace(/\\n/g, "\n")
+    : rawPrivateKey || undefined;
+
+let app: App | null = null;
 
 try {
   if (!getApps().length && projectId && clientEmail && privateKey) {
@@ -21,13 +26,14 @@ try {
     });
   } else if (getApps().length) {
     app = getApps()[0]!;
-  } else {
-    console.warn("Firebase Admin disabled: missing FB_* env vars");
   }
-} catch (e) {
-  console.error("🔥 Firebase Admin init failed", e);
+} catch (err) {
+  // 👇 IMPORTANT: swallow the OpenSSL / decoder error
+  console.error("Firebase Admin init failed, running without admin:", err);
+  app = null;
 }
 
 export const adminDb = app ? getFirestore(app) : null;
 export const adminAuth = app ? getAuth(app) : null;
 export { FieldValue };
+
