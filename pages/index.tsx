@@ -88,10 +88,7 @@ const Home: NextPage<HomeProps> = ({
               </div>
             </div>
             
-            {/* Optional: Absolute Butler Widget positioned subtly if needed, or keep hidden/subtle */}
-            <div className="hidden md:block absolute right-10 bottom-10 opacity-80 scale-75 origin-bottom-right pointer-events-none">
-               <HomepageButler />
-            </div>
+            {/* --- OLD BUTLER BLOCK REMOVED FROM HERE --- */}
           </section>
 
           {/* TRENDING SECTION */}
@@ -167,6 +164,11 @@ const Home: NextPage<HomeProps> = ({
           </section>
         </div>
       </main>
+
+      {/* GLOBAL FLOATING BUTLER — Always bottom-right */}
+      <div className="butler-floating">
+        <HomepageButler />
+      </div>
 
       <Footer />
     </div>
