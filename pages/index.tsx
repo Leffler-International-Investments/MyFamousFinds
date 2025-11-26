@@ -42,7 +42,7 @@ const Home: NextPage<HomeProps> = ({ trending, newArrivals }) => {
 
       <Footer />
 
-      {/* Corner Butler only */}
+      {/* Floating Butler in the bottom-right corner */}
       <HomepageButler />
 
       <style jsx>{`
@@ -116,7 +116,7 @@ export const getServerSideProps: GetServerSideProps<HomeProps> = async () => {
       .limit(50)
       .get();
 
-    const liveItems: ProductLike[] = [];
+  const liveItems: ProductLike[] = [];
 
     snap.docs.forEach((doc) => {
       const d: any = doc.data() || {};
