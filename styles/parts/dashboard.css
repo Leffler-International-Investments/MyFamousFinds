@@ -1,0 +1,122 @@
+/* FILE: styles/parts/dashboard.css */
+
+.dashboard-page {
+  min-height: 100vh;
+  background: #f9fafb;
+  color: #111827;
+}
+
+.dashboard-main {
+  max-width: 1152px;
+  margin: 0 auto;
+  padding: 24px 16px 64px;
+}
+
+.dashboard-layout {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* Header row at top of dashboard */
+.dashboard-header {
+  margin-bottom: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+@media (min-width: 768px) {
+  .dashboard-header {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+  }
+}
+
+.dashboard-header h1 {
+  font-size: 24px;
+  font-weight: 600;
+  color: #111827;
+}
+
+.dashboard-header p {
+  margin-top: 4px;
+  font-size: 14px;
+  color: #4b5563;
+}
+
+/* Sections & tiles */
+.dashboard-section {
+  border-radius: 18px;
+  padding: 12px 14px;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+}
+
+.dashboard-section-header {
+  margin-bottom: 16px;
+}
+
+.dashboard-section-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #111827;
+}
+
+.dashboard-section-subtitle {
+  margin-top: 4px;
+  font-size: 14px;
+  color: #6b7280;
+}
+
+.dashboard-grid {
+  display: grid;
+  gap: 16px;
+}
+@media (min-width: 640px) {
+  .dashboard-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+@media (min-width: 1024px) {
+  .dashboard-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+.dashboard-tile {
+  display: block;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+  background: #f9fafb;
+  padding: 16px;
+  font-size: 14px;
+  color: #374151;
+  text-align: left;
+  transition: all 0.15s ease;
+}
+.dashboard-tile:hover {
+  border-color: #3b82f6;
+  background: #ffffff;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1),
+              0 2px 4px 2px rgba(0, 0, 0, 0.1);
+}
+
+.dashboard-tile-title {
+  font-weight: 600;
+  color: #111827;
+}
+.dashboard-tile-description {
+  margin-top: 4px;
+  font-size: 12px;
+  color: #4b5563;
+}
+.dashboard-tile-link {
+  margin-top: 12px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #1d4ed8;
+  text-decoration: underline;
+}
