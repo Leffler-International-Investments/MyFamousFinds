@@ -1,21 +1,38 @@
 // FILE: /lib/stripe.ts
 import Stripe from "stripe";
 
-// Ensure the secret key exists before initializing
-if (!process.env.STRIPE_SECRET_KEY) {
-  throw new Error("STRIPE_SECRET_KEY is not set");
+// Safely initialize Stripe so missing env vars do NOT break the build
+const secretKey = process.env.STRIPE_SECRET_KEY || "";
+
+let stripe: Stripe | null = null;
+
+if (secretKey) {
+  stripe = new Stripe(secretKey, {});
+} else {
+  // Do NOT throw here – just log. This keeps Vercel builds working
+  // even if Stripe is not configured yet.
+  console.warn("Stripe disabled: STRIPE_SECRET_KEY is not set");
 }
 
-// Initialize Stripe client using default compatible API config
-export const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {});
+export { stripe };
 
-// Optionally, you can export helpers for reuse
+// Helper wrappers that fail clearly at runtime if Stripe is not configured
 export async function createCheckoutSession(
   params: Stripe.Checkout.SessionCreateParams
 ) {
-  return await stripe.checkout.sessions.create(params);
+  if (!stripe) {
+    throw new Error(
+      "Stripe is not configured on the server. Set STRIPE_SECRET_KEY to enable payments."
+    );
+  }
+  return stripe.checkout.sessions.create(params);
 }
 
 export async function retrieveCheckoutSession(id: string) {
-  return await stripe.checkout.sessions.retrieve(id);
+  if (!stripe) {
+    throw new Error(
+      "Stripe is not configured on the server. Set STRIPE_SECRET_KEY to enable payments."
+    );
+  }
+  return stripe.checkout.sessions.retrieve(id);
 }
