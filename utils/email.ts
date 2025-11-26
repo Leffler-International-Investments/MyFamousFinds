@@ -102,7 +102,8 @@ You’re welcome to contact us or reapply in the future.`;
  * Order confirmation email payload type
  */
 export type OrderEmailPayload = {
-  to: string;
+  to?: string; // <-- now optional
+  customerEmail?: string;
   subject?: string;
   text?: string;
   orderId?: string;
@@ -125,7 +126,22 @@ export type OrderEmailPayload = {
 export async function sendOrderConfirmationEmail(
   payload: OrderEmailPayload
 ): Promise<void> {
-  const { to, subject, text, orderId, total, currency, items } = payload;
+  const {
+    to,
+    customerEmail,
+    subject,
+    text,
+    orderId,
+    total,
+    currency,
+    items,
+  } = payload;
+
+  const recipient = to || customerEmail;
+  if (!recipient) {
+    console.warn("[email] sendOrderConfirmationEmail: no recipient email");
+    return;
+  }
 
   const finalSubject =
     subject || "Your Famous Finds order confirmation";
@@ -153,5 +169,5 @@ export async function sendOrderConfirmationEmail(
         : ""
     }${itemsText}\n\nIf you have any questions, reply to this email.`;
 
-  await sendMail(to, finalSubject, finalText);
+  await sendMail(recipient, finalSubject, finalText);
 }
