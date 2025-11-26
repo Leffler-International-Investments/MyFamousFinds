@@ -2024,3 +2024,31 @@ footer {
   margin-top: 60px;
   padding-bottom: 40px;
 }
+
+/* Floating Butler button */
+.butler-floating {
+  position: fixed;
+  bottom: 22px;
+  right: 22px;
+  z-index: 9999;
+  width: 70px;
+  height: 70px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+@media (max-width: 640px) {
+  .butler-floating {
+    width: 62px;
+    height: 62px;
+    bottom: 18px;
+    right: 18px;
+  }
+}
+
+.butler-floating > * {
+  pointer-events: auto !important;
+  transform: scale(1);
+}
