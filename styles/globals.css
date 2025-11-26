@@ -24,89 +24,63 @@ a {
   text-decoration: none;
 }
 
-button {
-  font-family: inherit;
+/* --- GLOBAL INPUT STYLES (Fixes "Make an Offer" & others) --- */
+input,
+textarea,
+select {
+  background-color: #ffffff !important;
+  color: #000000 !important;
+  border: 1px solid #d1d5db !important; /* Light Gray Border */
+  border-radius: 6px;
+  padding: 10px;
 }
 
-/* Utility to hide scrollbar in WebKit-based browsers when needed */
-.no-scrollbar::-webkit-scrollbar {
-  display: none;
-}
-.no-scrollbar {
-  -ms-overflow-style: none;
-  scrollbar-width: none;
+input::placeholder,
+textarea::placeholder {
+  color: #6b7280 !important; /* Darker gray for readability */
+  opacity: 1;
 }
 
-/* --- Global page wrapper classes --- */
-
-.page-wrapper {
+/* For pages that were previously dark, force them to Light Mode */
+.dark-theme-page {
+  background: #ffffff !important;
+  color: #000000 !important;
   min-height: 100vh;
-  display: flex;
-  flex-direction: column;
 }
 
-/* Ensure footer sits at the bottom */
-.page-content {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
+/* Ensure all text inside these pages is dark/black */
+.dark-theme-page h1,
+.dark-theme-page h2,
+.dark-theme-page h3,
+.dark-theme-page h4,
+.dark-theme-page p,
+.dark-theme-page span,
+.dark-theme-page li,
+.dark-theme-page label,
+.dark-theme-page div {
+  color: #000000;
 }
 
-/* Global container used by many pages */
-.page-container {
-  width: 100%;
-  max-width: 1080px;
-  margin: 0 auto;
-  padding: 24px 16px 40px;
+/* Exceptions for lighter text (metadata, hints) - make them Dark Gray, not light gray */
+.dark-theme-page .meta,
+.dark-theme-page .hint,
+.dark-theme-page .cond,
+.dark-theme-page .loc,
+.dark-theme-page .brand {
+  color: #4b5563 !important; /* Dark Gray */
 }
 
-/* Slightly wider container for certain dashboards */
-.page-container-wide {
-  width: 100%;
+.section {
   max-width: 1200px;
-  margin: 0 auto;
-  padding: 24px 16px 40px;
+  margin: 28px auto;
+  padding: 0 16px;
 }
 
-/* --- Global typography --- */
-
-h1,
-h2,
-h3,
-h4,
-h5,
-h6 {
-  color: #111827;
-}
-
-/* Global brand primary color */
-:root {
-  --ff-primary: #111827;
-  --ff-primary-soft: #111827;
-}
-
-/* Utility for subtle text */
-.text-muted {
-  color: #6b7280;
-}
-
-/* Utility for showing a pill/tag */
-.tag-pill {
-  display: inline-flex;
-  align-items: center;
-  padding: 2px 8px;
-  border-radius: 9999px;
-  background-color: #f3f4f6;
-  color: #4b5563;
-  font-size: 12px;
-}
-
-/* Global section/header spacing used in dashboards */
 .section-header {
   display: flex;
+  align-items: center;
   justify-content: space-between;
-  align-items: baseline;
-  margin-bottom: 16px;
+  margin-bottom: 12px;
 }
 
 .section-header h2 {
@@ -128,1394 +102,500 @@ h6 {
 }
 .admin-button.management {
   background: linear-gradient(90deg, #d1d5db, #9ca3af) !important;
-  color: #000000 !important;
+  color: #000 !important;
 }
 .admin-button.seller {
-  background: #111827 !important;
-  color: #ffffff !important;
+  background: linear-gradient(90deg, #facc15, #f59e0b) !important;
+  color: #000 !important;
+}
+.admin-button.vip {
+  background: linear-gradient(90deg, #facc15, #f59e0b) !important;
+  color: #000 !important;
 }
 .admin-button:hover {
-  filter: brightness(1.05);
   transform: translateY(-1px);
+  opacity: 0.9;
 }
 
-/* --- Dark theme utility for legal/help pages --- */
-
-.dark-theme-page {
-  background: #ffffff !important;
-  color: #000000 !important;
-  min-height: 100vh;
-}
-
-/* Ensure all text inside these pages is dark/black */
-.dark-theme-page h1,
-.dark-theme-page h2,
-.dark-theme-page h3,
-.dark-theme-page h4,
-.dark-theme-page p,
-.dark-theme-page span,
-.dark-theme-page li,
-.dark-theme-page label,
-.dark-theme-page div {
-  color: #000000;
-}
-
-/* Exceptions for light subtitles, etc. */
-.dark-theme-page .muted,
-.dark-theme-page .meta,
-.dark-theme-page .note {
-  color: #4b5563;
-}
-
-/* Shared card styling for help/policy pages */
-.dark-theme-page .card {
-  background: #f9fafb;
-  border-radius: 24px;
-  padding: 20px 18px;
-  margin-bottom: 16px;
-  border: 1px solid #e5e7eb;
-}
-
-/* Header area inside legal/help pages */
-.dark-theme-page h1 {
-  font-size: 24px;
-  font-weight: 700;
-  margin: 0 0 8px;
-}
-
-.dark-theme-page h2 {
-  font-size: 18px;
-  font-weight: 600;
-  margin-bottom: 6px;
-}
-
-/* Slightly reduce intro text spacing */
-.dark-theme-page .intro {
-  font-size: 14px;
-  margin-bottom: 16px;
-  color: #374151;
-}
-
-/* Back link at top of help/legal pages */
-.dark-theme-page .back-link {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 12px;
-  color: #6b7280;
-  margin-bottom: 6px;
-  text-decoration: none;
-}
-
-.dark-theme-page .back-link:hover {
-  color: #111827;
-}
-
-/* List styling inside help/legal cards */
-.dark-theme-page ul {
-  padding-left: 18px;
-}
-
-.dark-theme-page li {
-  margin-bottom: 4px;
-  font-size: 14px;
-}
-
-/* --- Utility labels used by AI panels & badges --- */
-
-.ai-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 4px 8px;
-  border-radius: 9999px;
-  background: #ecfeff;
-  color: #0f766e;
-  font-size: 11px;
-  font-weight: 600;
-}
-
-.ai-badge-dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 9999px;
-  background: #22c55e;
-  box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.15);
-}
-
-/* Common label pill used for statuses */
-.status-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  border-radius: 999px;
-  padding: 3px 8px;
-  font-size: 11px;
-  font-weight: 600;
-}
-
-.status-pill.live {
-  background: #ecfdf3;
-  color: #166534;
-}
-
-.status-pill.draft {
-  background: #eff6ff;
-  color: #1d4ed8;
-}
-
-.status-pill.paused {
-  background: #fef9c3;
-  color: #92400e;
-}
-
-/* --- Simple badge used for "New" labels --- */
-.badge-new {
-  display: inline-flex;
-  align-items: center;
-  padding: 2px 8px;
-  border-radius: 999px;
-  background: #f97316;
-  color: #111827;
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-}
-
-/* --- Dashboard layout utilities --- */
-
-.dashboard-grid {
+.grid {
   display: grid;
-  grid-template-columns: minmax(0, 2fr) minmax(0, 1.2fr);
-  gap: 16px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
 }
 
-.dashboard-grid-full {
-  display: grid;
-  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1.2fr);
-  gap: 16px;
-}
-
-/* fallback for smaller screens */
-@media (max-width: 1024px) {
-  .dashboard-grid,
-  .dashboard-grid-full {
-    grid-template-columns: minmax(0, 1fr);
+@media (min-width: 720px) {
+  .grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 }
 
-/* Simple card block used in Dashboard Summary Cards */
-.dashboard-card {
-  border-radius: 20px;
-  padding: 16px 16px 14px;
-  background: #ffffff;
-  border: 1px solid #e5e7eb;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.04);
+.grid-cats .cat {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  height: 120px;
+  background-size: cover;
+  background-position: center;
+  border-radius: 12px;
+  overflow: hidden;
 }
 
-/* Emphasized gradient card (e.g., "Next actions") */
-.dashboard-card-emphasis {
-  border-radius: 20px;
-  padding: 18px 16px 14px;
-  background: linear-gradient(135deg, #111827, #020617);
-  color: #f9fafb;
-  box-shadow: 0 16px 40px rgba(15, 23, 42, 0.75);
+.grid-cats .cat::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, #000000 0%, #00000040 50%, #000000 100%);
+  opacity: 0.5;
 }
 
-/* Section heading inside dashboard cards */
-.dashboard-card-title {
+.grid-cats .cat span {
+  position: relative;
+  z-index: 1;
+  font-weight: 600;
   font-size: 15px;
-  font-weight: 600;
-  letter-spacing: 0.03em;
-  margin-bottom: 8px;
-  text-transform: uppercase;
+  color: #fff;
 }
 
-/* Subheading text */
-.dashboard-card-subtitle {
-  font-size: 12px;
-  margin-bottom: 12px;
-  color: #6b7280;
-}
-
-/* For primary numbers (e.g. "3 Profiles", "7 Keywords") */
-.dashboard-card-metric {
-  font-size: 26px;
-  font-weight: 700;
-  margin-bottom: 6px;
-}
-
-/* For small metric labels */
-.dashboard-card-metric-label {
-  font-size: 12px;
-  color: #6b7280;
-}
-
-/* Common row layout in dashboard cards */
-.dashboard-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-/* Simple text list in the right column (Next Steps) */
-.dashboard-list {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-}
-.dashboard-list li {
-  font-size: 13px;
-  margin-bottom: 6px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-/* Dot used in bullet points in Next Steps */
-.dashboard-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 999px;
-  background: #22c55e;
-}
-
-/* Action link in the Next Steps card */
-.dashboard-action-link {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 13px;
-  margin-top: 4px;
-  color: #22c55e;
-  text-decoration: none;
-}
-.dashboard-action-link:hover {
-  text-decoration: underline;
-}
-
-/* Small grey description text */
-.dashboard-description {
-  font-size: 13px;
-  color: #6b7280;
-}
-
-/* Simple "pills row" container */
-.pills-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 6px;
-}
-
-/* --- AI Coverage Grid Styles --- */
-
-.ai-coverage-grid {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 12px;
-}
-
-.ai-coverage-grid th,
-.ai-coverage-grid td {
-  border-bottom: 1px solid #e5e7eb;
-  padding: 6px 8px;
-}
-
-.ai-coverage-grid thead tr {
-  background-color: #f9fafb;
-}
-
-.ai-coverage-grid th {
-  text-align: left;
-  font-weight: 600;
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: #6b7280;
-}
-
-.ai-coverage-grid td.label-cell {
-  font-weight: 500;
-  color: #374151;
-}
-
-.ai-coverage-grid td.status-cell {
-  white-space: nowrap;
-}
-
-/* Tag representing a coverage status */
-.ai-coverage-tag {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 2px 8px;
-  border-radius: 999px;
-  font-size: 11px;
-  font-weight: 600;
-}
-
-.ai-coverage-tag.ok {
-  background-color: #ecfdf3;
-  color: #166534;
-}
-
-.ai-coverage-tag.missing {
-  background-color: #fef2f2;
-  color: #b91c1c;
-}
-
-.ai-coverage-tag.partial {
-  background-color: #fef9c3;
-  color: #92400e;
-}
-
-/* --- AI Discovery Checklist Styles --- */
-
-.ai-checklist {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-  font-size: 13px;
-}
-
-.ai-checklist li {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  padding: 6px 0;
-  border-bottom: 1px dashed #e5e7eb;
-}
-
-.ai-checklist li:last-child {
-  border-bottom: none;
-}
-
-.ai-checklist-icon {
-  margin-top: 3px;
-}
-
-/* --- Simple "chip" for each AI step --- */
-.ai-step-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 4px 10px;
-  border-radius: 999px;
-  background-color: #eff6ff;
-  color: #1d4ed8;
-  font-size: 11px;
-  font-weight: 600;
-}
-
-/* Secondary chip variant */
-.ai-step-chip-secondary {
-  background-color: #f3f4f6;
-  color: #111827;
-}
-
-/* --- AI Boost Panel --- */
-
-.boost-panel {
-  border-radius: 24px;
-  padding: 16px 16px 14px;
-  background: radial-gradient(circle at top left, #22c55e 0, #16a34a 26%, #052e16 100%);
-  color: #dcfce7;
-  box-shadow: 0 16px 40px rgba(22, 163, 74, 0.55);
-  position: relative;
+.grid-prods .prod {
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
   overflow: hidden;
-}
-
-.boost-panel::before {
-  content: "";
-  position: absolute;
-  top: -80px;
-  right: -80px;
-  width: 160px;
-  height: 160px;
-  border-radius: 999px;
-  background: radial-gradient(circle, rgba(220, 252, 231, 0.75), transparent);
-  opacity: 0.8;
-}
-
-/* Title inside AI Boost panel */
-.boost-panel-title {
-  font-size: 16px;
-  font-weight: 700;
-  margin-bottom: 6px;
-}
-
-/* Subtext in the AI Boost panel */
-.boost-panel-subtitle {
-  font-size: 13px;
-  margin-bottom: 10px;
-  color: #bbf7d0;
-}
-
-/* Small line used for text like "Next refresh in 27 days" */
-.boost-panel-meta {
-  font-size: 11px;
-  color: #bbf7d0;
-}
-
-/* Button row inside the panel */
-.boost-panel-actions {
-  margin-top: 12px;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-/* Primary button in AI Boost panel */
-.boost-button-primary {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
   background: #ffffff;
-  color: #166534;
-  border-radius: 999px;
-  padding: 6px 12px;
-  font-size: 13px;
-  font-weight: 700;
-  border: none;
-  cursor: pointer;
-  box-shadow: 0 10px 30px rgba(22, 163, 74, 0.6);
 }
 
-.boost-button-primary span {
-  font-size: 16px;
-}
-
-/* Secondary pill in AI Boost panel */
-.boost-button-secondary {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  border-radius: 999px;
-  padding: 5px 10px;
-  font-size: 11px;
-  border: 1px solid rgba(220, 252, 231, 0.6);
-  background: rgba(15, 23, 42, 0.7);
-  color: #ecfdf3;
-}
-
-/* --- AI Butler floating helper pill --- */
-
-.ai-helper-pill {
-  position: fixed;
-  bottom: 80px;
-  right: 16px;
-  z-index: 50;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 8px 12px;
-  border-radius: 999px;
-  background: #0f172a;
-  color: #e5e7eb;
-  font-size: 12px;
-  box-shadow: 0 16px 40px rgba(15, 23, 42, 0.8);
-  cursor: pointer;
-}
-
-.ai-helper-pill-avatar {
-  width: 24px;
-  height: 24px;
-  border-radius: 999px;
-  background: linear-gradient(135deg, #22c55e, #16a34a);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #f9fafb;
-  font-size: 13px;
-  font-weight: 700;
-}
-
-.ai-helper-pill-text {
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-}
-
-.ai-helper-pill-text-main {
-  font-weight: 600;
-}
-.ai-helper-pill-text-sub {
-  font-size: 11px;
-  color: #9ca3af;
-}
-
-/* On very small screens, move pill up above mobile navs */
-@media (max-width: 640px) {
-  .ai-helper-pill {
-    bottom: 100px;
-  }
-}
-
-/* --- Simple "step" layout for wizards --- */
-
-.step-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 6px;
-}
-
-.step-index {
-  width: 20px;
-  height: 20px;
-  border-radius: 999px;
-  border: 1px solid #9ca3af;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 11px;
-  font-weight: 600;
-  color: #374151;
-  background: #f9fafb;
-}
-
-.step-label {
-  font-size: 13px;
-  color: #374151;
-}
-
-/* Lighter label text */
-.step-meta {
-  font-size: 11px;
-  color: #9ca3af;
-}
-
-/* --- Simple table for "Profile List" etc. --- */
-
-.simple-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 13px;
-}
-
-.simple-table thead {
-  background-color: #f9fafb;
-}
-
-.simple-table th,
-.simple-table td {
-  padding: 8px 10px;
-  border-bottom: 1px solid #e5e7eb;
-  text-align: left;
-}
-
-.simple-table th {
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: #6b7280;
-}
-
-.simple-table tbody tr:hover {
-  background-color: #f9fafb;
-}
-
-/* Utility cell for small meta */
-.simple-table .meta-cell {
-  font-size: 12px;
-  color: #6b7280;
-}
-
-/* --- Profile badge + avatar row --- */
-
-.profile-row {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.profile-avatar {
-  width: 32px;
-  height: 32px;
-  border-radius: 999px;
-  background: linear-gradient(135deg, #111827, #020617);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #f9fafb;
-  font-size: 14px;
-}
-
-/* --- Footer note --- */
-.footer-note {
-  margin-top: 18px;
-  font-size: 11px;
-  color: #9ca3af;
-}
-
-/* --- Sticky footer wrapper (used in some wizards) --- */
-.sticky-footer {
-  position: sticky;
-  bottom: 0;
-  background: linear-gradient(to top, #f9fafb, rgba(249, 250, 251, 0.85), transparent);
-  padding-top: 8px;
-  margin-top: 20px;
-}
-
-/* Row inside sticky footer for buttons */
-.sticky-footer-row {
-  display: flex;
-  justify-content: flex-end;
-  gap: 10px;
-}
-
-/* --- AI Keyword "chip" used in some list UIs --- */
-.keyword-chip {
-  display: inline-flex;
-  align-items: center;
-  padding: 2px 8px;
-  border-radius: 999px;
-  font-size: 11px;
-  background-color: #eff6ff;
-  color: #1d4ed8;
-}
-
-/* --- Radio/button selections for AI options --- */
-.option-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  border-radius: 999px;
-  padding: 5px 10px;
-  border: 1px solid #d1d5db;
-  cursor: pointer;
-  font-size: 12px;
-  color: #374151;
-  background-color: #ffffff;
-}
-
-.option-pill input[type="radio"] {
-  accent-color: #111827;
-}
-
-/* Selected state */
-.option-pill.selected {
-  border-color: #111827;
-  background-color: #f9fafb;
-}
-
-/* --- Simple "inline help" text block --- */
-.inline-help {
-  font-size: 12px;
-  color: #6b7280;
-  margin-top: 4px;
-}
-
-/* --- Misc hero/banner tweaks for the homepage --- */
-.hero-tagline {
-  font-size: 14px;
-  color: #6b7280;
-}
-
-.hero-main-title {
-  font-size: 32px;
-  letter-spacing: 0.03em;
-}
-
-/* Adjust hero on smaller screens */
-@media (max-width: 640px) {
-  .hero-main-title {
-    font-size: 24px;
-  }
-}
-
-/* --- Safe area for mobile header/footer if needed --- */
-.safe-area-bottom {
-  padding-bottom: env(safe-area-inset-bottom);
-}
-
-/* Simple "info banner" used at top of the app sometimes */
-.info-banner {
-  border-radius: 999px;
-  padding: 6px 12px;
-  background: #eff6ff;
-  font-size: 12px;
-  color: #1d4ed8;
-}
-
-/* Simple highlight box */
-.highlight-box {
-  border-radius: 16px;
-  padding: 12px 14px;
-  background: #fefce8;
-  color: #854d0e;
-  font-size: 13px;
-}
-
-/* --- Profile JSON Viewer styles (read-only code area) --- */
-.profile-json-viewer {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
-    "Courier New", monospace;
-  font-size: 12px;
-  background: #020617;
-  color: #e5e7eb;
-  padding: 14px 16px;
-  border-radius: 16px;
-  border: 1px solid #1f2937;
-  overflow: auto;
-  max-height: 260px;
-}
-
-/* Scrollbar styling for JSON viewer */
-.profile-json-viewer::-webkit-scrollbar {
-  width: 4px;
-  height: 4px;
-}
-.profile-json-viewer::-webkit-scrollbar-track {
-  background: #020617;
-}
-.profile-json-viewer::-webkit-scrollbar-thumb {
-  background: #4b5563;
-  border-radius: 999px;
-}
-
-/* --- "Copy to clipboard" badge in JSON area --- */
-.copy-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  padding: 4px 8px;
-  border-radius: 999px;
-  background-color: rgba(15, 23, 42, 0.75);
-  color: #e5e7eb;
-  font-size: 11px;
-}
-
-/* --- Divider label used between sections --- */
-.divider-label {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: #9ca3af;
-}
-
-/* Horizontal rule part of divider */
-.divider-label::before,
-.divider-label::after {
-  content: "";
-  flex: 1;
-  height: 1px;
-  background: linear-gradient(to right, transparent, #e5e7eb);
-}
-
-/* --- Slider/steps row e.g. for "AI Discovery progress" --- */
-.progress-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.progress-bar {
+.grid-prods .img {
   position: relative;
-  flex: 1;
-  height: 6px;
-  border-radius: 999px;
-  background: #e5e7eb;
-  overflow: hidden;
+  background: #f3f4f6;
+  aspect-ratio: 1/1;
 }
 
-.progress-bar-inner {
+.grid-prods .img img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.badge {
   position: absolute;
-  top: 0;
-  bottom: 0;
-  left: 0;
-  border-radius: inherit;
-  background: linear-gradient(90deg, #22c55e, #16a34a);
-}
-
-/* Small progress label to the right */
-.progress-label {
-  font-size: 12px;
-  color: #4b5563;
-}
-
-/* --- AI-Ready JSON collapsed panel container --- */
-.collapsible-panel {
-  border-radius: 18px;
+  left: 8px;
+  top: 8px;
+  font-size: 11px;
+  padding: 4px 8px;
+  background: #ffffffcc;
   border: 1px solid #e5e7eb;
-  background: #f9fafb;
-  padding: 12px 14px;
+  border-radius: 999px;
+  color: #000;
 }
 
-/* Panel header row */
-.collapsible-panel-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  cursor: pointer;
-  gap: 10px;
+.meta {
+  padding: 10px;
 }
 
-/* Panel title text */
-.collapsible-panel-title {
+.brand {
+  font-size: 12px;
+  opacity: 0.8;
+  color: #374151;
+}
+
+.title {
   font-size: 13px;
-  font-weight: 600;
+  margin: 2px 0 8px;
   color: #111827;
 }
 
-/* Lock badge in panel header */
-.collapsible-lock-pill {
-  display: inline-flex;
+.row {
+  display: flex;
+  gap: 8px;
   align-items: center;
-  gap: 5px;
-  padding: 3px 7px;
-  border-radius: 999px;
-  background-color: rgba(15, 23, 42, 0.85);
-  color: #e5e7eb;
-  font-size: 10px;
-}
-
-/* Panel body area */
-.collapsible-panel-body {
-  margin-top: 10px;
-}
-
-/* Panel disclaimer text */
-.collapsible-panel-disclaimer {
-  font-size: 11px;
-  color: #6b7280;
-}
-
-/* --- Simple "chip list" for AI JSON meta info --- */
-.chip-list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-
-/* Individual chip style */
-.chip {
-  padding: 3px 7px;
-  border-radius: 999px;
-  background: #e5e7eb;
-  font-size: 11px;
-  color: #374151;
-}
-
-/* --- Simple header text above JSON block --- */
-.json-header-row {
-  display: flex;
   justify-content: space-between;
-  align-items: center;
-  margin-bottom: 6px;
 }
 
-.json-header-title {
-  font-size: 13px;
-  font-weight: 600;
+.price {
+  font-weight: 700;
+  color: #000;
 }
 
-/* --- Footer for JSON viewer (meta line) --- */
-.json-footer-meta {
+.cond {
   font-size: 11px;
-  color: #9ca3af;
+  opacity: 0.75;
+  color: #4b5563;
+}
+
+.loc {
   margin-top: 6px;
-}
-
-/* --- Global CTA button for "Boost" style actions --- */
-.global-cta-button {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  border-radius: 999px;
-  padding: 7px 14px;
-  background: #111827;
-  color: #f9fafb;
-  font-size: 13px;
-  font-weight: 600;
-  border: none;
-  cursor: pointer;
-}
-
-/* Hover state */
-.global-cta-button:hover {
-  filter: brightness(1.08);
-}
-
-/* --- Simple label above fields --- */
-.field-label {
-  display: block;
-  font-size: 12px;
-  font-weight: 500;
-  color: #374151;
-  margin-bottom: 4px;
-}
-
-/* --- Simple inline link for small actions (e.g. "Reset") --- */
-.inline-link {
-  font-size: 12px;
-  color: #1d4ed8;
-  text-decoration: underline;
-  cursor: pointer;
-}
-
-/* --- Panels used for "AI Platforms" column (right side) --- */
-.platform-card {
-  border-radius: 20px;
-  padding: 12px 14px;
-  background: #f9fafb;
-  border: 1px solid #e5e7eb;
-}
-
-.platform-card-title {
-  font-size: 13px;
-  font-weight: 600;
-  margin-bottom: 4px;
-}
-
-/* Extra small meta text */
-.platform-card-meta {
   font-size: 11px;
+  opacity: 0.7;
   color: #6b7280;
 }
 
-/* Row for platform + status pill */
-.platform-card-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-/* --- Generic box used in the app list column --- */
-.box {
-  border-radius: 16px;
-  padding: 10px 12px;
-  background: #f9fafb;
-  border: 1px solid #e5e7eb;
-}
-
-/* Header row inside a "box" */
-.box-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-/* Box title text */
-.box-title {
-  font-size: 13px;
-  font-weight: 600;
-}
-
-/* Box meta text */
-.box-meta {
-  font-size: 11px;
-  color: #6b7280;
-}
-
-/* --- Simple link style for "View details" actions --- */
-.view-link {
+.footer {
+  max-width: 1200px;
+  margin: 40px auto;
+  padding: 20px 16px;
+  opacity: 0.7;
   font-size: 12px;
-  color: #1d4ed8;
-  text-decoration: underline;
-}
-
-/* --- Table list for "keywords" etc. in Boost panel --- */
-.keyword-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 12px;
-}
-
-.keyword-table th,
-.keyword-table td {
-  padding: 6px 8px;
-  border-bottom: 1px solid #e5e7eb;
-}
-
-.keyword-table th {
-  text-align: left;
-  font-weight: 600;
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: #6b7280;
-}
-
-/* --- Small helper icons in various places --- */
-.helper-icon {
-  width: 16px;
-  height: 16px;
-  border-radius: 999px;
-  border: 1px solid #9ca3af;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 11px;
-  color: #6b7280;
-}
-
-/* --- Compact text block above small tables --- */
-.small-block-title {
-  font-size: 12px;
-  font-weight: 600;
-  margin-bottom: 4px;
-}
-
-/* --- Extra small description text used under block titles --- */
-.small-block-description {
-  font-size: 11px;
-  color: #6b7280;
-}
-
-/* --- Simple number badge used in "Top 3 moves" etc. --- */
-.number-badge {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 18px;
-  height: 18px;
-  border-radius: 999px;
-  background: #111827;
-  color: #f9fafb;
-  font-size: 11px;
-  font-weight: 600;
-}
-
-/* --- AI boost mini-popup / helper in some flows --- */
-.mini-helper {
-  border-radius: 14px;
-  padding: 8px 10px;
-  background: #f9fafb;
-  border: 1px solid #e5e7eb;
-  font-size: 12px;
+  border-top: 1px solid #e5e7eb;
   color: #374151;
 }
 
-/* --- Placeholder "coming soon" label --- */
-.coming-soon-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  padding: 3px 8px;
-  border-radius: 999px;
-  background: #f3f4f6;
-  color: #6b7280;
-  font-size: 11px;
-}
-
-/* --- Slightly larger hero text (e.g. Step 1/2/3 headings) --- */
-.hero-step-title {
-  font-size: 18px;
-  font-weight: 600;
-  margin-bottom: 4px;
-}
-
-/* --- CTA row for "Next" / "Back" buttons in wizards --- */
-.wizard-cta-row {
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
-}
-
-/* --- Pills used for "traffic lights" etc. --- */
-.traffic-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 3px 8px;
-  border-radius: 999px;
-  font-size: 11px;
-  font-weight: 600;
-}
-
-.traffic-pill.green {
-  background: #ecfdf3;
-  color: #15803d;
-}
-
-.traffic-pill.amber {
-  background: #fef3c7;
-  color: #92400e;
-}
-
-.traffic-pill.red {
-  background: #fee2e2;
-  color: #b91c1c;
-}
-
-/* Simple text used for e.g. "Last updated..." footers */
-.last-updated-text {
-  font-size: 11px;
-  color: #9ca3af;
-}
-
-/* --- Header logo alignment fix if needed --- */
-.header-logo {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-/* --- Simple vertical stack (used in sidebars etc.) --- */
-.stack {
+/* === AUTH PAGES (Login/Register) === */
+.auth-page {
+  min-height: 100vh;
+  background: #ffffff;
+  color: #111827;
   display: flex;
   flex-direction: column;
-  gap: 8px;
 }
 
-/* --- Simple horizontal stack --- */
-.hstack {
+.auth-main {
+  flex: 1;
   display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-/* --- Policy Gate / Warning Banner --- */
-.policy-gate-banner {
-  border-radius: 16px;
-  padding: 12px 14px;
-  background: #fef9c3;
-  border: 1px solid #facc15;
-  font-size: 13px;
-  color: #713f12;
-}
-
-/* --- Famous Finds footer legal line --- */
-.footer-legal {
-  font-size: 11px;
-  color: #9ca3af;
-  margin-top: 8px;
-}
-
-/* --- Global help-card style for small cards on dashboard --- */
-.help-card {
-  border-radius: 16px;
-  padding: 10px 12px;
-  background: #f9fafb;
-  border: 1px solid #e5e7eb;
-  font-size: 13px;
-  color: #374151;
-}
-
-/* --- Small icon circle used in help-card etc. --- */
-.icon-circle {
-  width: 22px;
-  height: 22px;
-  border-radius: 999px;
-  border: 1px solid #d1d5db;
-  display: inline-flex;
-  align-items: center;
   justify-content: center;
-  font-size: 14px;
+  align-items: center;
+  padding: 24px 16px;
 }
 
-/* --- AI & SEO Summary "stat line" row --- */
-.stat-line {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
+.auth-card {
+  width: 100%;
+  max-width: 420px;
+  background: #ffffff;
+  border-radius: 16px;
+  border: 1px solid #e5e7eb;
+  padding: 24px 24px 28px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05);
+}
+
+.auth-card h1 {
+  margin: 0 0 4px;
+  font-size: 22px;
+  font-weight: 600;
+  text-align: center;
+  color: #000;
+}
+
+.auth-card p.auth-subtitle {
+  margin: 0 0 12px;
   font-size: 12px;
+  text-align: center;
   color: #6b7280;
 }
 
-/* Simple icon pill for stat line */
-.stat-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 3px 8px;
-  border-radius: 999px;
-  background: #f3f4f6;
+.auth-fields {
+  margin-top: 12px;
 }
 
-/* --- Fix for tiny width on mobile forms --- */
-.mobile-form-wide {
-  max-width: 480px;
-  width: 100%;
-}
-
-/* Generic error text class */
-.form-error-text {
-  font-size: 12px;
-  color: #b91c1c;
-  margin-top: 4px;
-}
-
-/* --- Small dotted separator line --- */
-.dotted-separator {
-  border-top: 1px dotted #e5e7eb;
-  margin: 10px 0;
-}
-
-/* --- Simple "tip" box --- */
-.tip-box {
-  border-radius: 14px;
-  padding: 8px 10px;
-  background: #ecfeff;
-  color: #0f766e;
-  font-size: 12px;
-}
-
-/* --- Simple "warning" box --- */
-.warning-box {
-  border-radius: 14px;
-  padding: 8px 10px;
-  background: #fef2f2;
-  color: #b91c1c;
-  font-size: 12px;
-}
-
-/* --- Simple header nav link style fallback --- */
-.header-nav-link {
-  font-size: 13px;
-  color: #4b5563;
-  text-decoration: none;
-}
-
-.header-nav-link:hover {
-  color: #111827;
-}
-
-/* Simple left-right row for header nav + actions */
-.header-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-}
-
-/* On small screens, stack header content for safety */
-@media (max-width: 640px) {
-  .header-row {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 10px;
-  }
-}
-
-/* --- Simple "timeline" UI block --- */
-.timeline {
-  border-left: 1px solid #e5e7eb;
-  margin-left: 10px;
-  padding-left: 12px;
-}
-
-.timeline-item {
+.auth-field {
   margin-bottom: 10px;
 }
 
-.timeline-dot {
-  width: 8px;
-  height: 8px;
+.auth-field label {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  color: #374151;
+  margin-bottom: 4px;
+}
+
+/* Specific Auth Input Override */
+.auth-input {
+  width: 100%;
+  border-radius: 8px;
+  border: 1px solid #d1d5db;
+  background: #ffffff;
+  padding: 8px 10px;
+  font-size: 14px;
+  color: #111827;
+}
+
+.auth-input::placeholder {
+  color: #9ca3af;
+}
+
+.auth-input:focus {
+  outline: none;
+  border-color: #2563eb;
+  box-shadow: 0 0 0 1px rgba(37, 99, 235, 0.2);
+}
+
+.auth-button-primary {
+  width: 100%;
+  margin-top: 8px;
+  padding: 9px 12px;
   border-radius: 999px;
-  background: #22c55e;
-  position: relative;
-  left: -16px;
-  top: 4px;
+  border: none;
+  background: #000000;
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
 }
 
-/* --- Simple horizontal card row used for "Top priorities" --- */
-.horizontal-card-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
+.auth-button-primary:disabled {
+  opacity: 0.7;
+  cursor: default;
 }
 
-/* Card width */
-.horizontal-card {
-  flex: 1;
-  min-width: 180px;
-  border-radius: 16px;
-  padding: 10px 12px;
-  background: #f9fafb;
-  border: 1px solid #e5e7eb;
+.auth-secondary-link,
+.auth-secondary-link-inline {
+  margin-top: 10px;
+  font-size: 11px;
+  color: #6b7280;
+  text-align: center;
 }
 
-/* --- Footer CTA bar e.g. for "Need help?" --- */
-.footer-cta-bar {
-  border-radius: 18px;
-  padding: 10px 12px;
-  background: #020617;
-  color: #e5e7eb;
+.auth-secondary-link a,
+.auth-secondary-link-inline a,
+.auth-secondary-link-inline button {
+  color: #374151;
+  text-decoration: none;
+}
+
+.auth-secondary-link-inline button {
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  padding: 0;
+  font-size: 11px;
+  color: #374151;
+}
+
+.auth-secondary-link a:hover,
+.auth-secondary-link-inline a:hover,
+.auth-secondary-link-inline button:hover {
+  text-decoration: underline;
+}
+
+.auth-error {
+  margin-top: 10px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  border: 1px solid #fca5a5;
+  background: #fef2f2;
+  color: #991b1b;
+  font-size: 12px;
+}
+
+.auth-info {
+  margin-top: 10px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  border: 1px solid #86efac;
+  background: #f0fdf4;
+  color: #166534;
+  font-size: 12px;
+}
+
+.auth-code-input {
+  letter-spacing: 0.35em;
+  text-align: center;
+}
+
+.password-input-row {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  margin-top: 16px;
+  border-radius: 8px;
+  border: 1px solid #d1d5db;
+  background: #ffffff;
+  overflow: hidden;
 }
 
-/* CTA button inside footer bar */
-.footer-cta-bar button,
-.footer-cta-bar a {
-  border-radius: 999px;
-  padding: 6px 12px;
-  background: #f97316;
-  color: #111827;
-  font-size: 12px;
-  font-weight: 700;
-  text-decoration: none;
+.password-input-row .auth-input {
+  border: none;
+  border-radius: 0;
+  flex: 1;
+  padding-right: 0;
+}
+
+.password-input-row .auth-input:focus {
+  box-shadow: none;
+  border-color: transparent;
+}
+
+.password-toggle {
+  padding: 0 10px;
+  font-size: 11px;
+  font-weight: 500;
+  color: #4b5563;
+  background: transparent;
   border: none;
   cursor: pointer;
 }
 
-/* --- General "pill-row" for small inline filters --- */
-.pill-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
+.password-toggle:hover {
+  color: #000;
 }
 
-/* Individual pill inside pill-row */
-.pill {
-  border-radius: 999px;
-  padding: 4px 9px;
-  background: #f3f4f6;
-  font-size: 12px;
-  color: #374151;
-}
-
-/* --- General "note text" --- */
-.note-text {
-  font-size: 12px;
-  color: #6b7280;
-}
-
-/* --- Simple disabled text state --- */
-.text-disabled {
-  color: #9ca3af;
-}
-
-/* --- Minor spacing utilities (rarely used) --- */
-.mt-2px {
-  margin-top: 2px;
-}
-.mt-4px {
-  margin-top: 4px;
-}
-.mt-6px {
+.password-strength {
   margin-top: 6px;
+  font-size: 11px;
 }
 
-/* --- Global layout wrapper for dashboards --- */
-.dashboard-layout {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
+.password-strength-weak { color: #ef4444; }
+.password-strength-ok { color: #eab308; }
+.password-strength-strong { color: #22c55e; }
+.password-strength-very-strong { color: #15803d; }
+
+/* === DASHBOARD === */
+.dashboard-page {
+  min-height: 100vh;
+  background: #f9fafb;
+  color: #111827;
+}
+
+.dashboard-main {
+  max-width: 1152px;
+  margin-left: auto;
+  margin-right: auto;
+  padding: 24px 16px 64px;
 }
 
 .dashboard-header {
+  margin-bottom: 24px;
   display: flex;
-  justify-content: space-between;
-  align-items: center;
+  flex-direction: column;
+  gap: 12px;
+}
+
+@media (min-width: 768px) {
+  .dashboard-header {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+  }
+}
+
+.dashboard-header h1 {
+  font-size: 24px;
+  font-weight: 600;
+  color: #111827;
+}
+
+.dashboard-header p {
+  margin-top: 4px;
+  font-size: 14px;
+  color: #4b5563;
+}
+
+.dashboard-header a {
+  font-size: 14px;
+  color: #4b5563;
+  transition-property: color;
+  transition-duration: 150ms;
+}
+
+.dashboard-header a:hover {
+  color: #111827;
+}
+
+.dashboard-welcome-banner {
+  margin-bottom: 32px;
+  border-radius: 8px;
+  border: 2px solid #3b82f6;
+  background: #ffffff;
+  padding: 20px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px 2px rgba(0, 0, 0, 0.1);
+}
+
+.dashboard-welcome-banner h2 {
+  margin-bottom: 8px;
+  font-size: 18px;
+  font-weight: 600;
+  color: #111827;
+}
+
+.dashboard-welcome-banner p {
+  margin-bottom: 16px;
+  font-size: 14px;
+  color: #4b5563;
+}
+
+.dashboard-welcome-banner-button {
+  display: inline-block;
+  border-radius: 6px;
+  background: #2563eb;
+  padding: 8px 16px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #ffffff;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+}
+
+.dashboard-welcome-banner-button:hover {
+  background: #1d4ed8;
+}
+
+.dashboard-summary-section {
+  margin-bottom: 32px;
+  border-radius: 12px;
+  border: 1px solid #e5e7eb;
+  background: #ffffff;
+  padding: 20px;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+}
+
+.dashboard-summary-section h2 {
+  font-size: 18px;
+  font-weight: 600;
+  color: #111827;
+}
+
+.dashboard-summary-grid {
+  margin-top: 16px;
+  display: grid;
+  gap: 16px;
+}
+
+@media (min-width: 768px) {
+  .dashboard-summary-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+.dashboard-summary-tile {
+  display: block;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+  background: #f9fafb;
+  padding: 16px;
+  font-size: 14px;
+  color: #374151;
+  transition-property: all;
+  transition-duration: 150ms;
+}
+
+.dashboard-summary-tile:hover {
+  border-color: #3b82f6;
+  background: #ffffff;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px 2px rgba(0, 0, 0, 0.1);
+}
+
+.dashboard-summary-tile .label {
+  font-size: 12px;
+  text-transform: uppercase;
+  color: #6b7280;
+}
+
+.dashboard-summary-tile .stat {
+  margin-top: 4px;
+  font-size: 18px;
+  font-weight: 600;
+  color: #111827;
+}
+
+.dashboard-summary-tile .sub-stat {
+  font-size: 12px;
+  color: #6b7280;
 }
 
 .dashboard-section {
-  border-radius: 18px;
-  padding: 12px 14px;
-  background: #f9fafb;
+  margin-bottom: 32px;
+  border-radius: 8px;
   border: 1px solid #e5e7eb;
+  background: #ffffff;
+  padding: 20px;
   box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
 }
 
@@ -1532,279 +612,79 @@ h6 {
 .dashboard-section-subtitle {
   margin-top: 4px;
   font-size: 14px;
-  color: #6b7280;
+  color: #4b5563;
 }
 
-/* --- Tiny pill used for "beta" labels etc. --- */
-.beta-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  border-radius: 999px;
-  padding: 3px 8px;
-  background: #eff6ff;
-  color: #1d4ed8;
-  font-size: 11px;
+.dashboard-grid {
+  display: grid;
+  gap: 16px;
 }
 
-/* --- Account type pill --- */
-.account-type-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  border-radius: 999px;
-  padding: 3px 8px;
-  background: #ecfeff;
-  color: #0f766e;
-  font-size: 11px;
+@media (min-width: 640px) {
+  .dashboard-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
 }
 
-/* --- Small inline stats row for header summary --- */
-.inline-stats-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  font-size: 11px;
-  color: #6b7280;
+@media (min-width: 768px) {
+  .dashboard-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
 }
 
-/* --- Primary callout card used on some pages --- */
-.callout-card {
-  border-radius: 18px;
-  padding: 12px 14px;
-  background: #fefce8;
-  border: 1px solid #facc15;
-  font-size: 13px;
-  color: #713f12;
-}
-
-/* --- "Tap to copy" pill used on some meta fields --- */
-.tap-to-copy-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  border-radius: 999px;
-  padding: 3px 8px;
-  background: #f3f4f6;
-  font-size: 11px;
+.dashboard-tile {
+  display: block;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+  background: #f9fafb;
+  padding: 16px;
+  font-size: 14px;
   color: #374151;
+  text-align: left;
+  transition-property: all;
+  transition-duration: 150ms;
 }
 
-/* --- Quick actions row (small buttons/pills) --- */
-.quick-actions-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
+.dashboard-tile:hover {
+  border-color: #3b82f6;
+  background: #ffffff;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px 2px rgba(0, 0, 0, 0.1);
 }
 
-/* Quick action pill */
-.quick-action-pill {
-  border-radius: 999px;
-  padding: 4px 9px;
-  background: #f3f4f6;
-  font-size: 12px;
+.dashboard-tile-title {
+  font-weight: 600;
   color: #111827;
 }
 
-/* --- GLOBAL AUTH PAGE STYLES (LOGIN / REGISTER) --- */
-
-.auth-page {
-  min-height: 100vh;
-  background: radial-gradient(circle at top, #020617 0, #020617 40%, #0b1120 100%);
-  color: #e5e7eb;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 24px 16px;
-}
-
-.auth-card {
-  width: 100%;
-  max-width: 420px;
-  border-radius: 24px;
-  background: rgba(15, 23, 42, 0.92);
-  border: 1px solid rgba(148, 163, 184, 0.4);
-  box-shadow: 0 24px 80px rgba(15, 23, 42, 0.9);
-  padding: 20px 18px 18px;
-}
-
-/* Auth header with logo & title */
-.auth-header {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-bottom: 12px;
-}
-
-/* Auth logo circle */
-.auth-logo-circle {
-  width: 36px;
-  height: 36px;
-  border-radius: 999px;
-  background: radial-gradient(circle at 30% 0, #f97316, #ea580c 40%, #7c2d12 100%);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #020617;
-  font-size: 18px;
-  font-weight: 900;
-}
-
-/* Auth title text */
-.auth-title {
-  font-size: 16px;
-  font-weight: 600;
-}
-
-/* Auth subtitle (small) */
-.auth-subtitle {
+.dashboard-tile-description {
+  margin-top: 4px;
   font-size: 12px;
-  color: #9ca3af;
+  color: #4b5563;
 }
 
-/* Auth form container */
-.auth-form {
+.dashboard-tile-link {
   margin-top: 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-/* Auth label text */
-.auth-label {
   font-size: 12px;
-  color: #e5e7eb;
-}
-
-/* Auth input */
-.auth-input {
-  width: 100%;
-  border-radius: 999px;
-  border: 1px solid rgba(148, 163, 184, 0.6);
-  background: rgba(15, 23, 42, 0.85);
-  padding: 7px 12px;
-  font-size: 13px;
-  color: #e5e7eb;
-}
-
-/* Placeholder color */
-.auth-input::placeholder {
-  color: #64748b;
-}
-
-/* Auth main button */
-.auth-button {
-  margin-top: 6px;
-  width: 100%;
-  border-radius: 999px;
-  padding: 7px 12px;
-  border: none;
-  font-size: 13px;
   font-weight: 600;
-  background: linear-gradient(90deg, #f97316, #ea580c);
-  color: #111827;
-  cursor: pointer;
 }
 
-/* Google auth button style */
-.auth-button-google {
-  margin-top: 4px;
-  width: 100%;
-  border-radius: 999px;
-  padding: 7px 12px;
-  border: 1px solid rgba(148, 163, 184, 0.6);
-  font-size: 13px;
-  font-weight: 500;
-  background: rgba(15, 23, 42, 0.9);
-  color: #e5e7eb;
-  cursor: pointer;
+.dashboard-tile-link-blue { color: #2563eb; }
+.dashboard-tile-link-green { color: #059669; }
+.dashboard-tile-link-gray { color: #4b5563; }
+.dashboard-tile-link-gold { color: #d97706; }
+
+.dashboard-tile:hover .dashboard-tile-link-blue { color: #1d4ed8; }
+.dashboard-tile:hover .dashboard-tile-link-green { color: #047857; }
+.dashboard-tile:hover .dashboard-tile-link-gray { color: #1f2937; }
+.dashboard-tile:hover .dashboard-tile-link-gold { color: #b45309; }
+
+.auth-apply-button-wrapper {
+  margin-top: 18px;
 }
 
-/* Faint "or" separator line */
-.auth-or {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin: 10px 0 6px;
-  font-size: 11px;
-  color: #64748b;
-}
-
-/* Lines around "OR" */
-.auth-or::before,
-.auth-or::after {
-  content: "";
-  flex: 1;
-  height: 1px;
-  background: linear-gradient(to right, transparent, rgba(148, 163, 184, 0.6));
-}
-
-/* Tiny footer under card */
-.auth-footer {
-  margin-top: 8px;
-  font-size: 11px;
-  color: #9ca3af;
-}
-
-/* Small link in auth footer */
-.auth-footer a {
-  color: #e5e7eb;
-  text-decoration: underline;
-}
-
-/* "Continue as guest" link */
-.auth-guest-link {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 11px;
-  margin-top: 8px;
-  color: #cbd5f5;
-  text-decoration: underline;
-  cursor: pointer;
-}
-
-/* --- Generic tag for "beta" on auth --- */
-.auth-beta-tag {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  margin-left: auto;
-  padding: 2px 7px;
-  border-radius: 999px;
-  background: rgba(15, 23, 42, 0.9);
-  font-size: 10px;
-  color: #e5e7eb;
-}
-
-/* Auth checkbox label row */
-.auth-checkbox-row {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 11px;
-  color: #e5e7eb;
-}
-
-/* Checkbox itself (browser default but we can style minimal) */
-.auth-checkbox-row input[type="checkbox"] {
-  accent-color: #f97316;
-}
-
-/* Tiny "apply" pill under the main button */
-.auth-apply-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  margin-top: 4px;
-  font-size: 11px;
-  color: #e5e7eb;
-}
-
-/* Additional orange CTA button */
 .auth-apply-button {
-  margin-top: 8px;
-  display: inline-block;
+  display: block;
+  width: 100%;
   text-align: center;
   padding: 12px 16px;
   border-radius: 9999px;
@@ -1818,34 +698,4 @@ h6 {
 
 .auth-apply-button:hover {
   background: #ea580c;
-}
-
-/* === Global Layout Wrapper === */
-.wrap {
-  max-width: 1120px;
-  margin: 0 auto;
-  padding: 24px 16px 56px;
-}
-
-/* Simple fade-in so pages feel active, not static */
-@keyframes ff-fade-up {
-  from {
-    opacity: 0;
-    transform: translateY(8px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-/* Apply animation to main content containers */
-.wrap,
-.section {
-  animation: ff-fade-up 0.35s ease-out;
-}
-
-/* Smooth scrolling for a more fluid feel */
-html {
-  scroll-behavior: smooth;
 }
