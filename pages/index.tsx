@@ -29,95 +29,81 @@ const Home: NextPage<HomeProps> = ({
       <Header />
 
       <main className="page-content">
-        <div className="wrap space-y-10">
-          {/* HERO */}
-          <section className="home-hero rounded-3xl bg-white border border-slate-200 px-6 py-7 md:px-10 md:py-9 shadow-sm">
-            <div className="grid gap-8 md:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)] items-center">
-              {/* Left: copy */}
-              <div className="space-y-4">
-                <div className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 text-[11px] font-semibold tracking-wide uppercase text-slate-600 border border-slate-200">
-                  <span className="inline-block h-2 w-2 rounded-full bg-emerald-400 shadow-[0_0_0_4px_rgba(16,185,129,0.35)]" />
-                  Curated pre-loved luxury
-                </div>
-
-                <h1 className="hero-main-title leading-tight text-slate-900">
-                  Find the{" "}
-                  <span className="bg-gradient-to-r from-amber-300 via-amber-200 to-amber-400 bg-clip-text text-transparent">
-                    one-of-a-kind
-                  </span>{" "}
-                  pieces everyone else missed.
-                </h1>
-
-                <p className="hero-tagline max-w-xl text-sm md:text-base text-slate-600">
-                  Hand-picked designer fashion, authenticated and ready to
-                  re-wear. New treasures dropping, iconic pieces trending — all
-                  in one place.
-                </p>
-
-                {/* Quick stats */}
-                <div className="flex flex-wrap gap-3 pt-1">
-                  <div className="flex items-center gap-2 rounded-full bg-slate-100 px-3 py-2 text-xs text-slate-700 border border-slate-200">
-                    <span className="number-badge bg-emerald-500 text-white">
-                      {totalItems || "20+"}
-                    </span>
-                    <span>
-                      Live listings •{" "}
-                      <span className="font-semibold">
-                        Trending &amp; fresh drops
-                      </span>
-                    </span>
-                  </div>
-
-                  <div className="flex items-center gap-2 rounded-full bg-slate-100 px-3 py-2 text-xs text-slate-700 border border-slate-200">
-                    <span className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-emerald-300">
-                      ✅
-                    </span>
-                    <span>Every piece authenticated by experts</span>
-                  </div>
-
-                  <div className="flex items-center gap-2 rounded-full bg-slate-100 px-3 py-2 text-xs text-slate-700 border border-slate-200">
-                    <span className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-amber-300">
-                      ✨
-                    </span>
-                    <span>VIP-style resale experience</span>
-                  </div>
-                </div>
-
-                {/* CTAs */}
-                <div className="flex flex-wrap items-center gap-3 pt-2">
-                  <a
-                    href="#trending"
-                    className="global-cta-button bg-amber-300 text-slate-900 hover:brightness-105 shadow-md"
-                  >
-                    Start with trending
-                    <span>↗</span>
-                  </a>
-
-                  <a
-                    href="#new-arrivals"
-                    className="inline-flex items-center gap-2 rounded-full border border-slate-300 px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-100 transition-colors"
-                  >
-                    View fresh arrivals
-                  </a>
+        <div className="wrap space-y-16 md:space-y-24">
+          {/* LUXURY HERO SECTION */}
+          <section className="home-hero relative overflow-hidden rounded-[32px] bg-[#F9F9F7] px-6 py-12 md:px-12 md:py-20 text-center">
+            <div className="mx-auto max-w-4xl space-y-8">
+              
+              {/* Top Badge */}
+              <div className="flex justify-center">
+                <div className="inline-flex items-center gap-2 rounded-full border border-neutral-200 bg-white px-4 py-1.5 text-[11px] font-bold uppercase tracking-widest text-neutral-500 shadow-sm">
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                  Curated Pre-loved Luxury
                 </div>
               </div>
 
-              {/* Right: animated panel */}
-              <div className="hidden md:block">
-                <div className="relative h-full">
-                  <HomepageButler />
+              {/* Headline */}
+              <h1 className="hero-main-title font-serif text-4xl md:text-6xl leading-[1.1] text-neutral-900 tracking-tight">
+                Find the{" "}
+                <span className="italic text-neutral-600">one-of-a-kind</span>{" "}
+                pieces everyone else missed.
+              </h1>
+
+              {/* Subheadline */}
+              <p className="mx-auto max-w-2xl text-base md:text-lg text-neutral-500 leading-relaxed font-light">
+                Hand-picked designer fashion, authenticated and ready to re-wear.
+                New treasures dropping, iconic pieces trending — all in one place.
+              </p>
+
+              {/* CTAs */}
+              <div className="flex flex-col md:flex-row items-center justify-center gap-4 pt-4">
+                <a
+                  href="#trending"
+                  className="global-cta-button min-w-[200px] bg-neutral-900 text-white hover:bg-neutral-800 hover:shadow-lg transition-all duration-300"
+                >
+                  Start with Trending
+                </a>
+
+                <a
+                  href="#new-arrivals"
+                  className="min-w-[200px] inline-flex items-center justify-center gap-2 rounded-full border border-neutral-300 px-6 py-3 text-sm font-medium text-neutral-900 hover:bg-white hover:border-neutral-400 transition-all"
+                >
+                  View Fresh Arrivals
+                </a>
+              </div>
+
+              {/* Trust Indicators / Stats - Minimalist Row */}
+              <div className="flex flex-wrap items-center justify-center gap-x-8 gap-y-3 pt-8 text-xs md:text-sm font-medium text-neutral-400 uppercase tracking-wide">
+                <div className="flex items-center gap-2">
+                  <span className="text-emerald-600">●</span> {totalItems || "20+"} Live Listings
+                </div>
+                <div className="hidden md:block w-px h-3 bg-neutral-300"></div>
+                <div className="flex items-center gap-2">
+                  <span>✓</span> 100% Authenticated
+                </div>
+                <div className="hidden md:block w-px h-3 bg-neutral-300"></div>
+                <div className="flex items-center gap-2">
+                  <span>★</span> VIP Experience
                 </div>
               </div>
+            </div>
+            
+            {/* Optional: Absolute Butler Widget positioned subtly if needed, or keep hidden/subtle */}
+            <div className="hidden md:block absolute right-10 bottom-10 opacity-80 scale-75 origin-bottom-right pointer-events-none">
+               <HomepageButler />
             </div>
           </section>
 
           {/* TRENDING SECTION */}
           <section id="trending" className="section">
-            <div className="section-header">
-              <h2>Trending right now</h2>
-              <p className="section-subtitle">
-                Most-loved pieces shoppers are viewing and saving today.
-              </p>
+            <div className="section-header flex flex-col md:flex-row md:items-end justify-between mb-8 gap-4">
+              <div>
+                <h2 className="font-serif text-3xl md:text-4xl text-neutral-900 mb-2">Trending Now</h2>
+                <p className="section-subtitle text-neutral-500 text-sm uppercase tracking-wide">
+                  Most-loved pieces shoppers are saving today
+                </p>
+              </div>
+              <div className="h-px flex-1 bg-neutral-100 mx-8 hidden md:block"></div>
             </div>
 
             <DemoGrid items={trending} />
@@ -125,47 +111,56 @@ const Home: NextPage<HomeProps> = ({
 
           {/* NEW ARRIVALS SECTION */}
           <section id="new-arrivals" className="section">
-            <div className="section-header">
-              <h2>Fresh arrivals</h2>
-              <p className="section-subtitle">
-                Just in — new drops from our vetted sellers.
-              </p>
+            <div className="section-header flex flex-col md:flex-row md:items-end justify-between mb-8 gap-4">
+              <div>
+                <h2 className="font-serif text-3xl md:text-4xl text-neutral-900 mb-2">Fresh Arrivals</h2>
+                <p className="section-subtitle text-neutral-500 text-sm uppercase tracking-wide">
+                  Just In — New Drops From Vetted Sellers
+                </p>
+              </div>
+               <div className="h-px flex-1 bg-neutral-100 mx-8 hidden md:block"></div>
             </div>
 
             <DemoGrid items={newArrivals} />
           </section>
 
-          {/* HOW IT WORKS / VALUE PROP SECTION */}
-          <section className="section">
-            <div className="section-header">
-              <h2>Why shop Famous Finds?</h2>
-              <p className="section-subtitle">
-                A smoother, safer way to buy and sell pre-loved luxury.
-              </p>
-            </div>
+          {/* WHY SHOP - 3 Column Grid */}
+          <section className="section py-12 border-t border-neutral-100">
+             <div className="text-center mb-12">
+                <h2 className="font-serif text-3xl md:text-4xl text-neutral-900 mb-3">Why Famous Finds?</h2>
+                <p className="text-neutral-500">The premier destination for secure luxury resale.</p>
+             </div>
 
-            <div className="info-grid">
-              <article className="info-card">
-                <h3>Authenticity first</h3>
-                <p>
+            <div className="grid md:grid-cols-3 gap-8 md:gap-12 px-4 md:px-0">
+              <article className="text-center space-y-3">
+                <div className="mx-auto w-12 h-12 flex items-center justify-center rounded-full bg-neutral-100 text-xl">
+                  🛡️
+                </div>
+                <h3 className="font-serif text-xl text-neutral-900">Authenticity First</h3>
+                <p className="text-sm text-neutral-500 leading-relaxed max-w-xs mx-auto">
                   Every item is reviewed and checked against brand-specific
-                  criteria, so you can shop with confidence.
+                  criteria, so you can shop with absolute confidence.
                 </p>
               </article>
 
-              <article className="info-card">
-                <h3>Curated selection</h3>
-                <p>
-                  We focus on quality, condition and desirability – the
+              <article className="text-center space-y-3">
+                 <div className="mx-auto w-12 h-12 flex items-center justify-center rounded-full bg-neutral-100 text-xl">
+                  💎
+                </div>
+                <h3 className="font-serif text-xl text-neutral-900">Curated Selection</h3>
+                <p className="text-sm text-neutral-500 leading-relaxed max-w-xs mx-auto">
+                  We focus on quality, condition and desirability – only the
                   pieces that genuinely deserve another life.
                 </p>
               </article>
 
-              <article className="info-card">
-                <h3>Smoother resale</h3>
-                <p>
-                  Simple tools for sellers, clear information for buyers, and a
-                  modern marketplace feel.
+              <article className="text-center space-y-3">
+                 <div className="mx-auto w-12 h-12 flex items-center justify-center rounded-full bg-neutral-100 text-xl">
+                  ✨
+                </div>
+                <h3 className="font-serif text-xl text-neutral-900">Seamless Experience</h3>
+                <p className="text-sm text-neutral-500 leading-relaxed max-w-xs mx-auto">
+                  Simple tools for sellers, transparent history for buyers, and a modern marketplace feel tailored to you.
                 </p>
               </article>
             </div>
@@ -188,7 +183,6 @@ export const getServerSideProps: GetServerSideProps<HomeProps> = async () => {
       .where("isTrending", "==", true)
       .limit(12)
       .get();
-
     trending = trendingSnap.docs.map((doc) => ({
       id: doc.id,
       ...(doc.data() as Omit<ProductLike, "id">),
@@ -199,7 +193,6 @@ export const getServerSideProps: GetServerSideProps<HomeProps> = async () => {
       .orderBy("createdAt", "desc")
       .limit(12)
       .get();
-
     newArrivals = arrivalsSnap.docs.map((doc) => ({
       id: doc.id,
       ...(doc.data() as Omit<ProductLike, "id">),
