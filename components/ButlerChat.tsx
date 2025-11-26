@@ -110,7 +110,7 @@ export default function ButlerChat({ isOpen, onClose }: ButlerChatProps) {
     const rec = new (window as any).webkitSpeechRecognition();
     recognitionRef.current = rec;
 
-    // ✅ single, slower phrase – wait for final result
+    // single, slower phrase – wait for final result
     rec.lang = "en-US";
     rec.continuous = false;
     rec.interimResults = false;
@@ -130,7 +130,6 @@ export default function ButlerChat({ isOpen, onClose }: ButlerChatProps) {
     };
 
     rec.onresult = (event: any) => {
-      // Take the final text ONCE (no repetition)
       const transcript = Array.from(event.results)
         .map((r: any) => r[0].transcript)
         .join(" ");
@@ -159,8 +158,8 @@ export default function ButlerChat({ isOpen, onClose }: ButlerChatProps) {
       <div className="butlerMessages">
         {messages.length === 0 && (
           <div className="butlerWelcome">
-            Ask me for something in the catalogue, e.g. “Prada bag” or “Rolex
-            watch”.
+            Ask me for something in the catalogue — I am your personal style
+            butler. Try “Prada bag” or “Rolex watch”.
           </div>
         )}
 
@@ -205,7 +204,7 @@ export default function ButlerChat({ isOpen, onClose }: ButlerChatProps) {
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && handleSend()}
-          placeholder="Ask the butler..."
+          placeholder="Ask the butler… I am your personal style butler"
           className="butlerInput"
         />
         <button onClick={handleSend} className="butlerSendBtn">
