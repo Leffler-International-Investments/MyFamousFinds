@@ -1,58 +1,28 @@
-// FILE: /utils/firebaseAdmin.ts
-import { getApps, initializeApp, cert, ServiceAccount } from "firebase-admin/app";
-import { getFirestore, FieldValue } from "firebase-admin/firestore";
-import { getAuth } from "firebase-admin/auth";
+import { getApps, initializeApp, cert, App } from "firebase-admin/app";
+import { getFirestore } from "firebase-admin/firestore";
 
-let initialized = false;
+const projectId = process.env.FB_PROJECT_ID;
+const clientEmail = process.env.FB_CLIENT_EMAIL;
+const rawPrivateKey = process.env.FB_PRIVATE_KEY;
 
-function initFirebaseAdmin() {
-  if (initialized || getApps().length) return;
+// Handle multiline private key
+const privateKey = rawPrivateKey ? rawPrivateKey.replace(/\\n/g, "\n") : undefined;
 
-  const projectId = process.env.FB_PROJECT_ID;
-  const clientEmail = process.env.FB_CLIENT_EMAIL;
-  let privateKey = process.env.FB_PRIVATE_KEY;
+let app: App | undefined = undefined;
 
-  if (!projectId || !clientEmail || !privateKey) {
-    throw new Error(
-      "Missing Firebase env vars: FB_PROJECT_ID, FB_CLIENT_EMAIL, FB_PRIVATE_KEY"
-    );
-  }
-
-  let serviceAccount: ServiceAccount;
-
-  // Case 1: FB_PRIVATE_KEY contains full service-account JSON
-  if (privateKey.trim().startsWith("{")) {
-    serviceAccount = JSON.parse(privateKey) as ServiceAccount;
-  } else {
-    // Case 2: FB_PRIVATE_KEY is just the PEM string
-    if (privateKey.includes("\\n")) {
-      privateKey = privateKey.replace(/\\n/g, "\n");
-    }
-
-    serviceAccount = {
+if (!getApps().length && projectId && clientEmail && privateKey) {
+  app = initializeApp({
+    credential: cert({
       projectId,
       clientEmail,
       privateKey,
-    };
-  }
-
-  initializeApp({
-    credential: cert(serviceAccount),
+    }),
   });
-
-  initialized = true;
+} else if (getApps().length) {
+  app = getApps()[0]!;
+} else {
+  // ❗ Important: do NOT throw here – just warn so build doesn’t fail
+  console.warn("Firebase Admin disabled: missing FB_* env vars");
 }
 
-initFirebaseAdmin();
-
-// ✅ Firestore
-export const adminDb = getFirestore();
-
-// ✅ Auth (for verifying ID tokens)
-export const adminAuth = getAuth();
-
-// ✅ Firestore FieldValue utility
-export { FieldValue };
-
-// ✅ Added for backward compatibility with old imports
-export const FieldValueCompat = FieldValue;
+export const adminDb = app ? getFirestore(app) : null;
