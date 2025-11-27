@@ -101,11 +101,12 @@ export default function Header() {
             />
           </Link>
 
+          {/* VIP LINK: Goes to Profile if logged in, Welcome page if not */}
           <Link
             href={vipUser ? "/club-profile" : "/vip-welcome"}
             className="admin-button vip"
           >
-            {vipUser ? "My VIP Profile" : "My VIP Profile"}
+            My VIP Profile
           </Link>
         </div>
 
