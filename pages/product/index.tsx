@@ -1,0 +1,113 @@
+import Head from "next/head";
+import type { GetServerSideProps } from "next";
+import { useRouter } from "next/router";
+import { useMemo } from "react";
+
+import Header from "../../components/Header";
+import Footer from "../../components/Footer";
+import ProductCard, { ProductLike } from "../../components/ProductCard";
+import { adminDb } from "../../utils/firebaseAdmin";
+
+type Props = {
+  items: ProductLike[];
+};
+
+export default function ProductsPage({ items }: Props) {
+  const router = useRouter();
+  const { designer } = router.query;
+
+  const selectedDesigner =
+    typeof designer === "string" && designer.length > 0 ? designer : undefined;
+
+  // Filter by designer (if selected) and group by category
+  const groupedByCategory = useMemo(() => {
+    const filtered = selectedDesigner
+      ? items.filter((item: any) => {
+          const itemDesigner =
+            item.designer || item.designerName || item.brand || "";
+          return itemDesigner === selectedDesigner;
+        })
+      : items;
+
+    const groups: Record<string, ProductLike[]> = {};
+
+    filtered.forEach((item: any) => {
+      const cat =
+        item.category ||
+        item.categoryName ||
+        item.department ||
+        "Other";
+
+      if (!groups[cat]) groups[cat] = [];
+      groups[cat].push(item);
+    });
+
+    return groups;
+  }, [items, selectedDesigner]);
+
+  const pageTitle = selectedDesigner
+    ? `${selectedDesigner} – Designer Pieces | Famous Finds`
+    : "All Designer Pieces | Famous Finds";
+
+  return (
+    <>
+      <Head>
+        <title>{pageTitle}</title>
+      </Head>
+      <Header />
+
+      <main className="max-w-6xl mx-auto px-4 py-10">
+        <div className="mb-8">
+          <h1 className="text-3xl font-semibold tracking-tight mb-2">
+            {selectedDesigner ? selectedDesigner : "All Designer Pieces"}
+          </h1>
+          {selectedDesigner && (
+            <p className="text-sm text-gray-500">
+              Showing all authenticated pieces saved under&nbsp;
+              <span className="font-medium">{selectedDesigner}</span>, grouped
+              by category.
+            </p>
+          )}
+        </div>
+
+        {Object.keys(groupedByCategory).length === 0 && (
+          <p className="text-sm text-gray-500">
+            No pieces found for this designer yet.
+          </p>
+        )}
+
+        {Object.entries(groupedByCategory).map(([category, catItems]) => (
+          <section key={category} className="mb-10">
+            <h2 className="text-xl font-medium mb-4">{category}</h2>
+            <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+              {catItems.map((item: any) => (
+                <ProductCard key={item.id} item={item} />
+              ))}
+            </div>
+          </section>
+        ))}
+      </main>
+
+      <Footer />
+    </>
+  );
+}
+
+export const getServerSideProps: GetServerSideProps<Props> = async () => {
+  // Pull all listings once and filter on the server – avoids index issues.
+  const snapshot = await adminDb.collection("listings").get();
+
+  const items: ProductLike[] = snapshot.docs.map((doc) => {
+    const data = doc.data() as any;
+    return {
+      id: doc.id,
+      ...data,
+    } as ProductLike;
+  });
+
+  return {
+    props: {
+      items,
+    },
+  };
+};
