@@ -14,162 +14,229 @@ type HomeProps = {
   newArrivals: ProductLike[];
 };
 
-const Home: NextPage<HomeProps> = ({
-  trending = [],
-  newArrivals = [],
-}) => {
+const Home: NextPage<HomeProps> = ({ trending = [], newArrivals = [] }) => {
   const totalItems = (trending.length || 0) + (newArrivals.length || 0);
 
   return (
-    <div className="page-wrapper bg-white">
+    <div className="bg-white min-h-screen flex flex-col">
       <Head>
-        <title>Famous Finds — US</title>
+        <title>Famous Finds – Curated Luxury Resale</title>
       </Head>
 
+      {/* DO NOT TOUCH – shared header */}
       <Header />
 
-      <main className="page-content">
-        <div className="wrap space-y-16 md:space-y-24">
-          {/* LUXURY HERO SECTION */}
-          <section className="home-hero relative overflow-hidden rounded-[32px] bg-[#F9F9F7] px-6 py-12 md:px-12 md:py-20 text-center">
-            <div className="mx-auto max-w-4xl space-y-8">
-              
-              {/* Top Badge */}
-              <div className="flex justify-center">
-                <div className="inline-flex items-center gap-2 rounded-full border border-neutral-200 bg-white px-4 py-1.5 text-[11px] font-bold uppercase tracking-widest text-neutral-500 shadow-sm">
-                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                  Curated Pre-loved Luxury
+      <main className="flex-1">
+        <div className="mx-auto max-w-6xl px-4 md:px-6 lg:px-0 py-10 md:py-14 space-y-12 md:space-y-16">
+          {/* TOP HERO – closer to shopfamousfinds.store feel */}
+          <section className="grid gap-10 md:grid-cols-[1.4fr,1fr] items-start">
+            {/* Left side: welcome + actions */}
+            <div className="space-y-6">
+              <div className="inline-flex items-center gap-2 rounded-full border border-neutral-200 bg-[#F9F9F7] px-4 py-1 text-[11px] font-semibold tracking-[0.18em] uppercase text-neutral-500">
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                Curated Pre-Loved Luxury
+              </div>
+
+              <div className="space-y-3">
+                <h1 className="font-serif text-3xl md:text-[40px] leading-tight tracking-tight text-neutral-900">
+                  Discover, save & shop
+                  <br />
+                  authenticated designer pieces.
+                </h1>
+                <p className="text-sm md:text-base text-neutral-500 max-w-xl">
+                  Browse a hand-picked selection of bags, jewelry, watches and
+                  ready-to-wear from trusted sellers. Every piece is vetted so
+                  you can shop with confidence.
+                </p>
+              </div>
+
+              {/* Quick stats similar to dashboard cards */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 text-sm">
+                <div className="rounded-xl border border-neutral-200 bg-white px-4 py-3">
+                  <p className="text-[11px] font-medium text-neutral-500 uppercase tracking-wide">
+                    Live Listings
+                  </p>
+                  <p className="mt-1 text-xl font-semibold text-neutral-900">
+                    {totalItems || "20+"}
+                  </p>
+                  <p className="text-[11px] text-neutral-400">
+                    Updated in real time
+                  </p>
+                </div>
+                <div className="rounded-xl border border-neutral-200 bg-white px-4 py-3">
+                  <p className="text-[11px] font-medium text-neutral-500 uppercase tracking-wide">
+                    New This Week
+                  </p>
+                  <p className="mt-1 text-xl font-semibold text-neutral-900">
+                    {newArrivals.length || "10+"}
+                  </p>
+                  <p className="text-[11px] text-neutral-400">
+                    Fresh drops & finds
+                  </p>
+                </div>
+                <div className="rounded-xl border border-neutral-200 bg-white px-4 py-3">
+                  <p className="text-[11px] font-medium text-neutral-500 uppercase tracking-wide">
+                    Designers
+                  </p>
+                  <p className="mt-1 text-xl font-semibold text-neutral-900">
+                    50+
+                  </p>
+                  <p className="text-[11px] text-neutral-400">
+                    From Chanel to Rolex
+                  </p>
+                </div>
+                <div className="rounded-xl border border-neutral-200 bg-white px-4 py-3">
+                  <p className="text-[11px] font-medium text-neutral-500 uppercase tracking-wide">
+                    Authentication
+                  </p>
+                  <p className="mt-1 text-xl font-semibold text-neutral-900">
+                    100%
+                  </p>
+                  <p className="text-[11px] text-neutral-400">
+                    Every piece reviewed
+                  </p>
                 </div>
               </div>
 
-              {/* Headline */}
-              <h1 className="hero-main-title font-serif text-4xl md:text-6xl leading-[1.1] text-neutral-900 tracking-tight">
-                Find the{" "}
-                <span className="italic text-neutral-600">one-of-a-kind</span>{" "}
-                pieces everyone else missed.
-              </h1>
-
-              {/* Subheadline */}
-              <p className="mx-auto max-w-2xl text-base md:text-lg text-neutral-500 leading-relaxed font-light">
-                Hand-picked designer fashion, authenticated and ready to re-wear.
-                New treasures dropping, iconic pieces trending — all in one place.
-              </p>
-
-              {/* CTAs */}
-              <div className="flex flex-col md:flex-row items-center justify-center gap-4 pt-4">
-                <a
-                  href="#trending"
-                  className="global-cta-button min-w-[200px] bg-neutral-900 text-white hover:bg-neutral-800 hover:shadow-lg transition-all duration-300"
-                >
-                  Start with Trending
-                </a>
-
+              {/* CTA row – mimics the “Quick actions” feel */}
+              <div className="flex flex-wrap gap-3 pt-2">
                 <a
                   href="#new-arrivals"
-                  className="min-w-[200px] inline-flex items-center justify-center gap-2 rounded-full border border-neutral-300 px-6 py-3 text-sm font-medium text-neutral-900 hover:bg-white hover:border-neutral-400 transition-all"
+                  className="inline-flex items-center justify-center rounded-full bg-neutral-900 px-6 py-3 text-sm font-semibold text-white hover:bg-neutral-800 transition"
                 >
-                  View Fresh Arrivals
+                  Browse New Arrivals
+                </a>
+                <a
+                  href="#trending"
+                  className="inline-flex items-center justify-center rounded-full border border-neutral-300 bg-white px-6 py-3 text-sm font-semibold text-neutral-900 hover:border-neutral-500 transition"
+                >
+                  View Trending Pieces
+                </a>
+                <a
+                  href="/designers"
+                  className="inline-flex items-center justify-center rounded-full border border-dashed border-neutral-300 px-5 py-3 text-xs font-medium uppercase tracking-[0.16em] text-neutral-500 hover:border-neutral-500 hover:text-neutral-900 transition"
+                >
+                  Shop by Designer
                 </a>
               </div>
-
-              {/* Trust Indicators / Stats - Minimalist Row */}
-              <div className="flex flex-wrap items-center justify-center gap-x-8 gap-y-3 pt-8 text-xs md:text-sm font-medium text-neutral-400 uppercase tracking-wide">
-                <div className="flex items-center gap-2">
-                  <span className="text-emerald-600">●</span> {totalItems || "20+"} Live Listings
-                </div>
-                <div className="hidden md:block w-px h-3 bg-neutral-300"></div>
-                <div className="flex items-center gap-2">
-                  <span>✓</span> 100% Authenticated
-                </div>
-                <div className="hidden md:block w-px h-3 bg-neutral-300"></div>
-                <div className="flex items-center gap-2">
-                  <span>★</span> VIP Experience
-                </div>
-              </div>
-            </div>
-            
-            {/* --- OLD BUTLER BLOCK REMOVED FROM HERE --- */}
-          </section>
-
-          {/* TRENDING SECTION */}
-          <section id="trending" className="section">
-            <div className="section-header flex flex-col md:flex-row md:items-end justify-between mb-8 gap-4">
-              <div>
-                <h2 className="font-serif text-3xl md:text-4xl text-neutral-900 mb-2">Trending Now</h2>
-                <p className="section-subtitle text-neutral-500 text-sm uppercase tracking-wide">
-                  Most-loved pieces shoppers are saving today
-                </p>
-              </div>
-              <div className="h-px flex-1 bg-neutral-100 mx-8 hidden md:block"></div>
             </div>
 
-            <DemoGrid items={trending} />
+            {/* Right side: simple “account style” summary card */}
+            <aside className="rounded-2xl border border-neutral-200 bg-white px-6 py-6 md:px-7 md:py-7 shadow-sm">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-sm font-semibold text-neutral-900">
+                  Your Famous Finds Snapshot
+                </h2>
+                <span className="rounded-full bg-neutral-100 px-2.5 py-1 text-[11px] font-medium text-neutral-500">
+                  Guest view
+                </span>
+              </div>
+              <div className="space-y-3 text-sm">
+                <div className="flex items-center justify-between">
+                  <span className="text-neutral-500">Saved Items</span>
+                  <span className="font-semibold text-neutral-900">0</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-neutral-500">Recently Viewed</span>
+                  <span className="font-semibold text-neutral-900">0</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-neutral-500">Active Offers</span>
+                  <span className="font-semibold text-neutral-900">0</span>
+                </div>
+              </div>
+              <div className="mt-5 space-y-2">
+                <button className="w-full rounded-full bg-neutral-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-neutral-800 transition">
+                  Sign in to view your dashboard
+                </button>
+                <button className="w-full rounded-full border border-neutral-300 bg-white px-4 py-2.5 text-sm font-semibold text-neutral-900 hover:border-neutral-500 transition">
+                  Create a free buyer account
+                </button>
+              </div>
+            </aside>
           </section>
 
-          {/* NEW ARRIVALS SECTION */}
-          <section id="new-arrivals" className="section">
-            <div className="section-header flex flex-col md:flex-row md:items-end justify-between mb-8 gap-4">
+          {/* CATEGORY SHORTCUTS – horizontal pills like nav bar */}
+          <section className="border-t border-neutral-100 pt-8">
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <h2 className="font-serif text-xl md:text-2xl text-neutral-900">
+                Shop by Category
+              </h2>
+              <div className="flex flex-wrap gap-2 text-xs md:text-sm">
+                <a
+                  href="/category/women"
+                  className="rounded-full border border-neutral-200 bg-white px-4 py-1.5 text-neutral-700 hover:border-neutral-900 hover:text-neutral-900 transition"
+                >
+                  Women
+                </a>
+                <a
+                  href="/category/bags"
+                  className="rounded-full border border-neutral-200 bg-white px-4 py-1.5 text-neutral-700 hover:border-neutral-900 hover:text-neutral-900 transition"
+                >
+                  Bags
+                </a>
+                <a
+                  href="/category/jewelry"
+                  className="rounded-full border border-neutral-200 bg-white px-4 py-1.5 text-neutral-700 hover:border-neutral-900 hover:text-neutral-900 transition"
+                >
+                  Jewelry
+                </a>
+                <a
+                  href="/category/watches"
+                  className="rounded-full border border-neutral-200 bg-white px-4 py-1.5 text-neutral-700 hover:border-neutral-900 hover:text-neutral-900 transition"
+                >
+                  Watches
+                </a>
+                <a
+                  href="/designers"
+                  className="rounded-full border border-neutral-200 bg-white px-4 py-1.5 text-neutral-700 hover:border-neutral-900 hover:text-neutral-900 transition"
+                >
+                  All Designers
+                </a>
+              </div>
+            </div>
+          </section>
+
+          {/* NEW ARRIVALS – main grid like “All Products” */}
+          <section id="new-arrivals" className="space-y-4 pt-6">
+            <div className="flex items-baseline justify-between gap-3">
               <div>
-                <h2 className="font-serif text-3xl md:text-4xl text-neutral-900 mb-2">Fresh Arrivals</h2>
-                <p className="section-subtitle text-neutral-500 text-sm uppercase tracking-wide">
-                  Just In — New Drops From Vetted Sellers
+                <h2 className="font-serif text-2xl md:text-3xl text-neutral-900">
+                  New Arrivals
+                </h2>
+                <p className="text-xs md:text-sm text-neutral-500">
+                  Just in – freshly listed pieces from our vetted sellers.
                 </p>
               </div>
-               <div className="h-px flex-1 bg-neutral-100 mx-8 hidden md:block"></div>
             </div>
 
             <DemoGrid items={newArrivals} />
           </section>
 
-          {/* WHY SHOP - 3 Column Grid */}
-          <section className="section py-12 border-t border-neutral-100">
-             <div className="text-center mb-12">
-                <h2 className="font-serif text-3xl md:text-4xl text-neutral-900 mb-3">Why Famous Finds?</h2>
-                <p className="text-neutral-500">The premier destination for secure luxury resale.</p>
-             </div>
-
-            <div className="grid md:grid-cols-3 gap-8 md:gap-12 px-4 md:px-0">
-              <article className="text-center space-y-3">
-                <div className="mx-auto w-12 h-12 flex items-center justify-center rounded-full bg-neutral-100 text-xl">
-                  🛡️
-                </div>
-                <h3 className="font-serif text-xl text-neutral-900">Authenticity First</h3>
-                <p className="text-sm text-neutral-500 leading-relaxed max-w-xs mx-auto">
-                  Every item is reviewed and checked against brand-specific
-                  criteria, so you can shop with absolute confidence.
+          {/* TRENDING – second grid */}
+          <section id="trending" className="space-y-4 pt-4 pb-6">
+            <div className="flex items-baseline justify-between gap-3">
+              <div>
+                <h2 className="font-serif text-2xl md:text-3xl text-neutral-900">
+                  Trending Now
+                </h2>
+                <p className="text-xs md:text-sm text-neutral-500">
+                  Most-viewed and most-saved listings this week.
                 </p>
-              </article>
-
-              <article className="text-center space-y-3">
-                 <div className="mx-auto w-12 h-12 flex items-center justify-center rounded-full bg-neutral-100 text-xl">
-                  💎
-                </div>
-                <h3 className="font-serif text-xl text-neutral-900">Curated Selection</h3>
-                <p className="text-sm text-neutral-500 leading-relaxed max-w-xs mx-auto">
-                  We focus on quality, condition and desirability – only the
-                  pieces that genuinely deserve another life.
-                </p>
-              </article>
-
-              <article className="text-center space-y-3">
-                 <div className="mx-auto w-12 h-12 flex items-center justify-center rounded-full bg-neutral-100 text-xl">
-                  ✨
-                </div>
-                <h3 className="font-serif text-xl text-neutral-900">Seamless Experience</h3>
-                <p className="text-sm text-neutral-500 leading-relaxed max-w-xs mx-auto">
-                  Simple tools for sellers, transparent history for buyers, and a modern marketplace feel tailored to you.
-                </p>
-              </article>
+              </div>
             </div>
+
+            <DemoGrid items={trending} />
           </section>
         </div>
       </main>
 
-      {/* GLOBAL FLOATING BUTLER — Always bottom-right */}
-      <div className="butler-floating">
+      {/* Floating Butler – unchanged */}
+      <div className="fixed bottom-6 right-4 md:right-8 z-40">
         <HomepageButler />
       </div>
 
+      {/* DO NOT TOUCH – shared footer */}
       <Footer />
     </div>
   );
