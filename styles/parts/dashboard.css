@@ -129,4 +129,186 @@
   .buyer-snapshot-card {
     order: -1;
   }
+/* ==== Seller & Management dashboards ==== */
+
+.dashboard-page {
+  background: #f7f5f1;
+  min-height: 100vh;
+}
+
+.dashboard-main {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 48px 24px 72px;
+}
+
+/* Top title row: "Seller Console" / "Management Console" + link */
+.dashboard-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  margin-bottom: 32px;
+}
+
+.dashboard-header h1 {
+  margin: 0 0 6px;
+  font-size: 28px;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+}
+
+.dashboard-header p {
+  margin: 0;
+  font-size: 14px;
+  color: #6b7280;
+}
+
+.dashboard-header a {
+  font-size: 13px;
+  color: #111827;
+  text-decoration: underline;
+}
+
+/* Welcome banner block at top */
+.dashboard-welcome-banner {
+  margin-bottom: 32px;
+  padding: 20px 22px;
+  border-radius: 20px;
+  background: #111827;
+  color: #f9fafb;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.dashboard-welcome-banner h2 {
+  margin: 0;
+  font-size: 18px;
+}
+
+.dashboard-welcome-banner p {
+  margin: 0;
+  font-size: 14px;
+  max-width: 520px;
+}
+
+.dashboard-welcome-banner-button {
+  margin-top: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 16px;
+  border-radius: 999px;
+  background: #f9fafb;
+  color: #111827;
+  font-size: 13px;
+  font-weight: 500;
+  text-decoration: none;
+}
+
+/* Section blocks: "Manage Listings", "Orders & Performance", etc. */
+.dashboard-section {
+  margin-bottom: 32px;
+  padding-top: 16px;
+  border-top: 1px solid #e5e7eb;
+}
+
+.dashboard-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.dashboard-section-title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 500;
+}
+
+/* Grid of tiles inside each section */
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 20px;
+}
+
+/* Individual navigation tiles */
+.dashboard-tile {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 16px 18px;
+  border-radius: 18px;
+  border: 1px solid #e5e7eb;
+  background: #ffffff;
+  text-decoration: none;
+  color: #111827;
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.06);
+  transition: transform 0.12s ease, box-shadow 0.12s ease,
+    border-color 0.12s ease;
+}
+
+.dashboard-tile:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 16px 35px rgba(15, 23, 42, 0.10);
+  border-color: #cbd5f5;
+}
+
+.dashboard-tile-title {
+  margin: 0 0 4px;
+  font-size: 15px;
+  font-weight: 500;
+}
+
+.dashboard-tile-description {
+  margin: 0 0 10px;
+  font-size: 13px;
+  color: #6b7280;
+}
+
+/* "Go to page →" pill at bottom of tile */
+.dashboard-tile-link {
+  align-self: flex-start;
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+/* Color accents */
+.dashboard-tile-link-blue {
+  background: #e0ecff;
+  color: #1d4ed8;
+}
+
+.dashboard-tile-link-green {
+  background: #def7ec;
+  color: #047857;
+}
+
+.dashboard-tile-link-gray {
+  background: #e5e7eb;
+  color: #374151;
+}
+
+/* Responsive: stack nicely on mobiles */
+@media (max-width: 768px) {
+  .dashboard-main {
+    padding: 32px 16px 48px;
+  }
+
+  .dashboard-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+  }
+
+  .dashboard-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .dashboard-welcome-banner {
+    padding: 16px 18px;
+  }
 }
