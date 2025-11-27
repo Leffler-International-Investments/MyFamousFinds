@@ -1,73 +1,60 @@
 // FILE: /components/DemoGrid.tsx
 
+import { FC } from "react";
 import ProductCard, { ProductLike } from "./ProductCard";
 
 type Props = {
-  items: ProductLike[];
-  title?: string;
-  emptyLabel?: string;
+  title: string;
+  products: ProductLike[];
+  subtitle?: string; // ✅ add this line
 };
 
-export default function DemoGrid({ items, title, emptyLabel }: Props) {
-  const hasItems = items && items.length > 0;
-
+const DemoGrid: FC<Props> = ({ title, subtitle, products }) => {
   return (
-    <section>
-      {title && (
-        <div className="sec">
-          <h3>{title}</h3>
-        </div>
-      )}
+    <section className="demo-grid">
+      <header className="demo-grid__header">
+        <h2>{title}</h2>
+        {subtitle && (
+          <p className="demo-grid__subtitle">{subtitle}</p>
+        )}
+      </header>
 
-      {hasItems ? (
-        <div className="grid">
-          {items.map((item) => (
-            <ProductCard key={item.id} {...item} />
-          ))}
-        </div>
-      ) : (
-        <p className="empty">
-          {emptyLabel || "More pieces will appear here soon."}
-        </p>
-      )}
+      <div className="demo-grid__grid">
+        {products.map((product) => (
+          <ProductCard key={product.id} product={product} />
+        ))}
+      </div>
 
       <style jsx>{`
-        .sec {
-          margin: 18px 0 8px;
+        .demo-grid {
+          margin-top: 32px;
+        }
+
+        .demo-grid__header {
           display: flex;
-          align-items: center;
-          justify-content: space-between;
-        }
-        .sec h3 {
-          color: #111827;
-          font-size: 16px;
-          font-weight: 700;
+          flex-direction: column;
+          gap: 4px;
+          margin-bottom: 16px;
         }
 
-        .grid {
-          display: grid;
-          gap: 10px;
-          grid-template-columns: repeat(2, minmax(0, 1fr));
+        .demo-grid__header h2 {
+          font-size: 22px;
+          font-weight: 600;
         }
 
-        .empty {
-          margin-top: 8px;
-          font-size: 13px;
+        .demo-grid__subtitle {
+          font-size: 14px;
           color: #6b7280;
         }
 
-        @media (min-width: 640px) {
-          .grid {
-            grid-template-columns: repeat(3, minmax(0, 1fr));
-          }
-        }
-
-        @media (min-width: 1024px) {
-          .grid {
-            grid-template-columns: repeat(5, minmax(0, 1fr));
-          }
+        .demo-grid__grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+          gap: 16px;
         }
       `}</style>
     </section>
   );
-}
+};
+
+export default DemoGrid;
