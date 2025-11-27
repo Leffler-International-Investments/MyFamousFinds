@@ -19,7 +19,10 @@ export default function Footer() {
             </div>
           </div>
 
-          {/* MIDDLE: BLUE LINKS (1 or 2 rows) */}
+          {/* MIDDLE: BLUE LINKS */}
+          {/* flex-wrap: makes it wrap to 2-3 lines on mobile */}
+          {/* gap-x-6: adds space between words */}
+          {/* gap-y-3: adds space between rows when wrapped */}
           <nav className="flex flex-wrap justify-center gap-x-6 gap-y-3 text-[13px] font-medium">
             <Link href="/help" className="text-blue-400 hover:text-blue-300 transition-colors">
               Help Center
