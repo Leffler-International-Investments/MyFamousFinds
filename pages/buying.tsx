@@ -1,132 +1,77 @@
 // FILE: /pages/buying.tsx
+
 import Head from "next/head";
-import Link from "next/link";
 import Header from "../components/Header";
 import Footer from "../components/Footer";
 
-export default function Buying() {
+export default function BuyingPage() {
   return (
-    <div className="dark-theme-page">
+    <div className="page">
       <Head>
         <title>Buying on Famous Finds</title>
       </Head>
-
       <Header />
 
       <main className="wrap">
-        <Link href="/" className="back-link">
-          ← Back to Dashboard
-        </Link>
+        <a href="/help" className="back-link">← Help Center</a>
 
-        <h1>Buying guide</h1>
+        <h1>Buying on Famous Finds</h1>
         <p className="intro">
-          Everything you need to know about shopping safely on Famous Finds.
+          Everything you need to know before placing an order.
         </p>
 
-        <section className="card">
-          <h2>Authenticity &amp; review</h2>
-          <p>
-            Every listing is reviewed before it goes live. For higher-value
-            items we may request extra images or documents from the seller to
-            support our authenticity checks.
-          </p>
-        </section>
+        <div className="card">
+          <h2>1. Browsing & Search</h2>
+          <p>Explore New Arrivals, categories and designer filters.</p>
+        </div>
 
-        <section className="card">
-          <h2>Payments &amp; security</h2>
-          <ul>
-            <li>All payments are processed securely via Stripe.</li>
-            <li>Your card details are handled by Stripe, not stored by us.</li>
-            <li>
-              Orders are only paid out to the seller after delivery or once the
-              inspection window closes.
-            </li>
-          </ul>
-        </section>
+        <div className="card">
+          <h2>2. Authenticity</h2>
+          <p>All listings are reviewed for accuracy and compliance.</p>
+        </div>
 
-        <section className="card">
-          <h2>Fees &amp; taxes</h2>
-          <p>
-            Prices shown on the site are for the item only. Shipping and any
-            applicable taxes are calculated at checkout before you confirm
-            payment so there are no surprises.
-          </p>
-        </section>
+        <div className="card">
+          <h2>3. Placing an order</h2>
+          <p>Payments are processed securely using our payment provider.</p>
+        </div>
 
-        <section className="card">
-          <h2>Need help with an order?</h2>
-          <p>
-            If something doesn&apos;t look right with your order, contact our
-            team and we&apos;ll investigate.
-          </p>
-          <p className="small">
-            Visit the <Link href="/help">Help Center</Link> or{" "}
-            <Link href="/contact">contact us</Link>.
-          </p>
-        </section>
+        <div className="card">
+          <h2>4. Receiving your item</h2>
+          <p>Check your item upon arrival and contact support if needed.</p>
+        </div>
       </main>
 
       <Footer />
 
       <style jsx>{`
+        .page {
+          background: #fff;
+          color: #111;
+        }
         .wrap {
-          max-width: 800px;
-          margin: 0 auto;
-          padding: 24px 16px 80px;
-        }
-        h1 {
-          font-size: 26px;
-          margin-top: 8px;
-          margin-bottom: 10px;
-        }
-        .intro {
-          font-size: 14px;
-          color: #d4d4d4;
-          margin-bottom: 20px;
-        }
-        .card {
-          border-radius: 16px;
-          border: 1px solid #27272a;
-          background: #020617;
-          padding: 16px 18px;
-          margin-bottom: 16px;
-          font-size: 14px;
-          color: #e5e5e5;
-        }
-        .card h2 {
-          font-size: 16px;
-          margin-bottom: 6px;
-        }
-        .card ul {
-          margin: 8px 0 0;
-          padding-left: 18px;
-          list-style: disc;
-          color: #d4d4d4;
-        }
-        .card li + li {
-          margin-top: 4px;
-        }
-        .small {
-          font-size: 12px;
-          color: #a1a1aa;
-          margin-top: 10px;
-        }
-        a {
-          color: #a5b4fc;
-          text-decoration: none;
-        }
-        a:hover {
-          text-decoration: underline;
+          max-width: 900px;
+          margin: 24px auto 60px;
+          padding: 0 16px;
         }
         .back-link {
-          display: inline-block;
-          font-size: 12px;
-          color: #a1a1aa;
-          margin-bottom: 4px;
-          text-decoration: none;
+          color: #6b7280;
         }
-        .back-link:hover {
-          color: #e5e5e5;
+        h1 {
+          margin-top: 12px;
+          font-family: Georgia, serif;
+          font-size: 26px;
+        }
+        .intro {
+          margin-bottom: 18px;
+          color: #4b5563;
+        }
+        .card {
+          background: white;
+          border-radius: 18px;
+          border: 1px solid #e5e7eb;
+          padding: 18px;
+          margin-bottom: 18px;
+          box-shadow: 0 10px 30px rgba(0,0,0,0.05);
         }
       `}</style>
     </div>
