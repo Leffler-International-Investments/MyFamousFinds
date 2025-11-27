@@ -212,7 +212,6 @@ textarea::placeholder {
 
 /* --------------------------------------------------------
    FAMOUS FINDS MARKETPLACE GRID & PRODUCT CARDS
-   (this is what brings back your old homepage look)
 ---------------------------------------------------------*/
 
 /* Category/Product grids */
@@ -327,4 +326,23 @@ textarea::placeholder {
   font-size: 11px;
   opacity: 0.7;
   color: #6b7280;
+}
+
+/* --------------------------------------------------------
+   GLOBAL FOOTER OVERRIDES
+   (Forces footer to Black even if classes fail)
+---------------------------------------------------------*/
+footer {
+  background-color: #111827 !important; /* Neutral-900 / Black */
+  color: #ffffff !important;
+  border-top: 1px solid #374151 !important; /* Dark Border */
+}
+
+footer a {
+  color: #9ca3af; /* Light Gray links */
+  transition: color 0.2s;
+}
+
+footer a:hover {
+  color: #ffffff !important;
 }
