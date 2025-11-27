@@ -32,7 +32,7 @@ type Props = {
   tag: string | null;
 };
 
-// ------------ page component ------------
+// ------------ page ------------
 const ProductsPage: NextPage<Props> = ({ items, designer, tag }) => {
   const grouped: Record<string, ProductLike[]> = {};
 
@@ -52,34 +52,35 @@ const ProductsPage: NextPage<Props> = ({ items, designer, tag }) => {
       </Head>
       <Header />
 
-      {/* centered layout like homepage */}
-      <main className="wrap py-10">
-        <h1 className="text-3xl font-semibold tracking-tight mb-3">
-          {designer ? designer : tag ? `${tag} pieces` : "All Designer Pieces"}
-        </h1>
+      <main className="luxury-products-main">
+        <div className="luxury-products-inner">
+          <h1 className="luxury-products-title">
+            {designer ? designer : tag ? `${tag} pieces` : "All Designer Pieces"}
+          </h1>
 
-        {designer && (
-          <p className="text-sm text-gray-500 mb-6">
-            Showing all live listings for <strong>{designer}</strong>, grouped
-            by category.
-          </p>
-        )}
+          {designer && (
+            <p className="luxury-products-subtitle">
+              Showing all live listings for <strong>{designer}</strong>, grouped
+              by category.
+            </p>
+          )}
 
-        {Object.keys(grouped).length === 0 && (
-          <p className="text-sm text-gray-500">No items found.</p>
-        )}
+          {Object.keys(grouped).length === 0 && (
+            <p className="luxury-products-empty">No items found.</p>
+          )}
 
-        {Object.entries(grouped).map(([category, catItems]) => (
-          <section key={category} className="mb-12">
-            <h2 className="text-xl font-medium mb-4 capitalize">{category}</h2>
+          {Object.entries(grouped).map(([category, catItems]) => (
+            <section key={category} className="luxury-products-section">
+              <h2 className="luxury-products-category">{category}</h2>
 
-            <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 md:grid-cols-3">
-              {catItems.map((item) => (
-                <ProductCard key={item.id} {...item} />
-              ))}
-            </div>
-          </section>
-        ))}
+              <div className="luxury-products-grid">
+                {catItems.map((item) => (
+                  <ProductCard key={item.id} {...item} />
+                ))}
+              </div>
+            </section>
+          ))}
+        </div>
       </main>
 
       <Footer />
@@ -124,12 +125,12 @@ export const getServerSideProps: GetServerSideProps<Props> = async (
     };
   });
 
-  // filter by designer
   if (designer) {
-    items = items.filter((item: any) => (item.brand || "").trim() === designer);
+    items = items.filter(
+      (item: any) => (item.brand || "").trim() === designer
+    );
   }
 
-  // filter by tag
   if (tag) {
     items = items.filter((item: any) =>
       Array.isArray(item.tags) ? item.tags.includes(tag) : false
