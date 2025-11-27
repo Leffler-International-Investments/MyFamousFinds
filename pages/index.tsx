@@ -1,359 +1,509 @@
 // FILE: /pages/index.tsx
 
 import Head from "next/head";
-import Link from "next/link";
 import type { GetServerSideProps, NextPage } from "next";
 
 import Header from "../components/Header";
 import Footer from "../components/Footer";
+import DemoGrid from "../components/DemoGrid";
 import HomepageButler from "../components/HomepageButler";
+import { ProductLike } from "../components/ProductCard";
 import { adminDb } from "../utils/firebaseAdmin";
 
-// ----------------- Types -----------------
-
-type ListingCard = {
-  id: string;
-  title: string;
-  price: string;
-  primaryImageUrl?: string | null;
-  designer?: string | null;
-};
-
-type DesignerCard = {
-  id: string;
-  name: string;
-  slug: string;
-};
+// --------------------------------------------------
+// Types
+// --------------------------------------------------
 
 type HomeProps = {
-  trending: ListingCard[];
-  newArrivals: ListingCard[];
-  designers: DesignerCard[];
+  trending: ProductLike[];
+  newArrivals: ProductLike[];
 };
 
-// ----------------- Small components -----------------
+// Helper to normalise price
+const formatPrice = (raw: any): string => {
+  const num = typeof raw === "number" ? raw : Number(raw || 0);
+  if (!num) return "";
+  return `US$${num.toLocaleString()}`;
+};
 
-const HomeProductGrid: React.FC<{ items: ListingCard[] }> = ({ items }) => {
-  if (!items || items.length === 0) {
-    return (
-      <p className="text-sm text-neutral-500">
-        More pieces will appear here soon.
-      </p>
-    );
+// Helper to pick first usable image
+const pickImage = (data: any): string => {
+  if (data.image_url) return data.image_url;
+  if (data.imageUrl) return data.imageUrl;
+  if (data.image) return data.image;
+  if (Array.isArray(data.imageUrls) && data.imageUrls.length > 0) {
+    return data.imageUrls[0];
   }
-
-  return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-      {items.map((item) => (
-        <article
-          key={item.id}
-          className="bg-white rounded-xl shadow-sm border border-neutral-100 overflow-hidden flex flex-col"
-        >
-          <div className="relative w-full aspect-[4/5] bg-neutral-50">
-            {/* Fallback placeholder image if none provided */}
-            <img
-              src={item.primaryImageUrl || "/ff-placeholder.png"}
-              alt={item.title}
-              className="w-full h-full object-cover"
-            />
-          </div>
-          <div className="p-4 flex flex-col gap-1">
-            {item.designer && (
-              <p className="text-[11px] font-medium tracking-[0.16em] uppercase text-neutral-500">
-                {item.designer}
-              </p>
-            )}
-            <h3 className="text-sm font-medium text-neutral-900 line-clamp-2">
-              {item.title}
-            </h3>
-            {item.price && (
-              <p className="mt-1 text-sm font-semibold text-neutral-900">
-                {item.price}
-              </p>
-            )}
-          </div>
-        </article>
-      ))}
-    </div>
-  );
+  return "";
 };
 
-const FeaturedDesignersCarousel: React.FC<{ designers: DesignerCard[] }> = ({
-  designers,
-}) => {
-  if (!designers || designers.length === 0) return null;
+// --------------------------------------------------
+// Component
+// --------------------------------------------------
 
-  return (
-    <section className="mt-16 mb-4">
-      <div className="flex items-baseline justify-between mb-4">
-        <h2 className="text-lg font-semibold tracking-wide">
-          Featured Designers
-        </h2>
-        <Link
-          href="/designers"
-          className="text-xs text-neutral-500 hover:text-neutral-800 underline-offset-4 hover:underline"
-        >
-          View full directory
-        </Link>
-      </div>
-
-      <div className="flex gap-3 overflow-x-auto pb-2">
-        {designers.map((d) => {
-          const label = d.name;
-          const slug = d.slug || d.name.toLowerCase().replace(/\s+/g, "-");
-
-          return (
-            <Link
-              key={d.id}
-              href={`/products?designer=${encodeURIComponent(slug)}`}
-              className="whitespace-nowrap px-4 py-2 rounded-full border border-neutral-200 bg-white text-sm hover:border-neutral-900 hover:text-neutral-900 transition-colors"
-            >
-              {label}
-            </Link>
-          );
-        })}
-      </div>
-    </section>
-  );
-};
-
-// ----------------- Page component -----------------
-
-const Home: NextPage<HomeProps> = ({ trending, newArrivals, designers }) => {
+const Home: NextPage<HomeProps> = ({ trending, newArrivals }) => {
   return (
     <div className="home-wrapper">
       <Head>
-        <title>Famous Finds — US</title>
+        <title>Famous Finds — Shop authenticated designer pieces</title>
       </Head>
 
       <Header />
 
       <main className="wrap">
-        {/* HERO + SNAPSHOT ROW */}
-        <div className="home-hero-layout">
-          {/* LEFT: HERO COPY */}
-          <section className="home-hero">
-            <p className="home-eyebrow">• Curated pre-loved luxury</p>
-            <h1 className="home-title">
-              Discover, save &amp; shop
-              <br />
-              authenticated designer pieces.
-            </h1>
-            <p className="home-subtitle">
+        {/* HERO + SNAPSHOT */}
+        <section className="hero">
+          <div className="hero-copy">
+            <p className="eyebrow">Curated pre-loved luxury</p>
+            <h1>Discover, save &amp; shop authenticated designer pieces.</h1>
+            <p className="hero-sub">
               Browse a hand-picked selection of bags, jewelry, watches and
               ready-to-wear from trusted sellers. Every piece is vetted so you
               can shop with confidence.
             </p>
 
-            {/* STATS ROW */}
-            <div className="home-stats-row">
-              <article className="home-stat-card">
-                <h3 className="home-stat-label">Live listings</h3>
-                <p className="home-stat-value">20+</p>
-                <p className="home-stat-caption">Updated in real time</p>
-              </article>
-
-              <article className="home-stat-card">
-                <h3 className="home-stat-label">New this week</h3>
-                <p className="home-stat-value">10+</p>
-                <p className="home-stat-caption">Fresh drops &amp; finds</p>
-              </article>
-
-              <article className="home-stat-card">
-                <h3 className="home-stat-label">Designers</h3>
-                <p className="home-stat-value">50+</p>
-                <p className="home-stat-caption">From Chanel to Rolex</p>
-              </article>
-
-              <article className="home-stat-card">
-                <h3 className="home-stat-label">Authentication</h3>
-                <p className="home-stat-value">100%</p>
-                <p className="home-stat-caption">Every piece reviewed</p>
-              </article>
+            {/* STAT CARDS */}
+            <div className="hero-stats">
+              <div className="stat-card">
+                <p className="stat-label">Live listings</p>
+                <p className="stat-value">20+</p>
+                <p className="stat-note">Updated in real time</p>
+              </div>
+              <div className="stat-card">
+                <p className="stat-label">New this week</p>
+                <p className="stat-value">10+</p>
+                <p className="stat-note">Fresh drops &amp; finds</p>
+              </div>
+              <div className="stat-card">
+                <p className="stat-label">Designers</p>
+                <p className="stat-value">50+</p>
+                <p className="stat-note">From Chanel to Rolex</p>
+              </div>
+              <div className="stat-card">
+                <p className="stat-label">Authentication</p>
+                <p className="stat-value">100%</p>
+                <p className="stat-note">Every piece reviewed</p>
+              </div>
             </div>
 
-            {/* CTA ROW */}
-            <div className="home-cta-row">
-              <a href="/new-arrivals" className="btn-primary">
+            <div className="hero-actions">
+              <a href="/products?tag=New+Arrival" className="btn-primary">
                 Browse New Arrivals
               </a>
-              <a href="/trending" className="btn-secondary">
+              <a href="/products?tag=Trending" className="btn-secondary">
                 View Trending Pieces
               </a>
-              <a href="/designers" className="btn-tertiary">
-                Shop by Designer
-              </a>
             </div>
-          </section>
+          </div>
 
-          {/* RIGHT: SNAPSHOT PANEL */}
-          <section className="home-snapshot">
-            <header className="snapshot-header">
-              <div>
-                <p className="snapshot-title">Your Famous Finds Snapshot</p>
-                <p className="snapshot-subtitle">Guest view</p>
-              </div>
-            </header>
-
-            <dl className="snapshot-metrics">
-              <div className="snapshot-row">
-                <dt>Saved Items</dt>
-                <dd>0</dd>
-              </div>
-              <div className="snapshot-row">
-                <dt>Recently Viewed</dt>
-                <dd>0</dd>
-              </div>
-              <div className="snapshot-row">
-                <dt>Active Offers</dt>
-                <dd>0</dd>
-              </div>
-            </dl>
-
-            <div className="snapshot-actions">
-              <a href="/dashboard" className="btn-primary block">
-                Sign in to view your dashboard
-              </a>
-              <a href="/signup" className="btn-outline block">
-                Create a free buyer account
-              </a>
+          {/* SNAPSHOT CARD */}
+          <aside className="snapshot-card">
+            <h2>Your Famous Finds Snapshot</h2>
+            <p className="snapshot-view">Guest view</p>
+            <div className="snapshot-row">
+              <span>Saved Items</span>
+              <span>0</span>
             </div>
-          </section>
-        </div>
+            <div className="snapshot-row">
+              <span>Recently Viewed</span>
+              <span>0</span>
+            </div>
+            <div className="snapshot-row">
+              <span>Active Offers</span>
+              <span>0</span>
+            </div>
+            <button
+              className="snapshot-btn primary"
+              onClick={() => (window.location.href = "/dashboard")}
+            >
+              Sign in to view your dashboard
+            </button>
+            <button
+              className="snapshot-btn"
+              onClick={() => (window.location.href = "/signup")}
+            >
+              Create a free buyer account
+            </button>
+          </aside>
+        </section>
 
         {/* FEATURED DESIGNERS CAROUSEL */}
-        <FeaturedDesignersCarousel designers={designers} />
+        <section className="home-featured-designers mt-10">
+          <header className="home-feed-header">
+            <h2 className="home-feed-title">Featured Designers</h2>
+            <a
+              href="/designers"
+              className="text-xs font-medium text-neutral-500 hover:text-neutral-900 underline-offset-4 hover:underline"
+            >
+              View full directory →
+            </a>
+          </header>
 
-        {/* NEW ARRIVALS + TRENDING ROW */}
-        <div className="home-feed-layout">
-          <section className="home-feed-section">
-            <header className="home-feed-header">
-              <h2 className="home-feed-title">New Arrivals</h2>
-              <p className="home-feed-subtitle">
-                Just in – freshly listed pieces from our vetted sellers.
-              </p>
-            </header>
+          <div className="mt-4 flex gap-3 overflow-x-auto pb-2">
+            {[
+              "Chanel",
+              "Louis Vuitton",
+              "Hermès",
+              "Gucci",
+              "Prada",
+              "Dior",
+              "Saint Laurent",
+              "Fendi",
+              "Balenciaga",
+              "Goyard",
+              "Cartier",
+              "Rolex",
+            ].map((name) => (
+              <button
+                key={name}
+                className="whitespace-nowrap px-4 py-2 rounded-full border border-neutral-200 bg-white text-xs font-medium text-neutral-800 shadow-sm hover:border-neutral-400 hover:bg-neutral-50 transition"
+                onClick={() => {
+                  window.location.href = `/products?designer=${encodeURIComponent(
+                    name
+                  )}`;
+                }}
+              >
+                {name}
+              </button>
+            ))}
+          </div>
+        </section>
 
-            <HomeProductGrid items={newArrivals} />
-          </section>
+        {/* NEW ARRIVALS GRID */}
+        <section className="home-section">
+          <DemoGrid
+            title="New Arrivals"
+            subtitle="Just in – freshly listed pieces from our vetted sellers."
+            products={newArrivals}
+          />
+        </section>
 
-          <section className="home-feed-section">
-            <header className="home-feed-header">
-              <h2 className="home-feed-title">Trending Now</h2>
-              <p className="home-feed-subtitle">
-                Most-viewed and most-saved listings this week.
-              </p>
-            </header>
-
-            <HomeProductGrid items={trending} />
-          </section>
-        </div>
-
-        {/* STORY / TRUST STRIP */}
-        <div className="home-trust-row">
-          <section className="home-trust-card">
-            <h3>Every piece has a story.</h3>
-            <p>
-              From vintage runway to modern icons, each item is authenticated
-              and ready for a second life in your wardrobe.
-            </p>
-          </section>
-          <section className="home-trust-card">
-            <h3>For collectors &amp; first-timers.</h3>
-            <p>
-              Simple tools for sellers, transparent history for buyers, and a
-              modern marketplace feel tailored to you.
-            </p>
-          </section>
-        </div>
+        {/* TRENDING GRID */}
+        <section className="home-section">
+          <DemoGrid
+            title="Trending Now"
+            subtitle="Most-viewed and most-saved listings this week."
+            products={trending}
+          />
+        </section>
       </main>
 
-      {/* GLOBAL FLOATING BUTLER — Always bottom-right */}
-      <div className="butler-floating">
-        <HomepageButler />
-      </div>
+      {/* AI Butler bubble – unchanged */}
+      <HomepageButler />
 
       <Footer />
+
+      {/* Local tweaks to ensure white cards and consistent sizes */}
+      <style jsx>{`
+        .home-wrapper {
+          background: #f7f7f5;
+        }
+
+        .wrap {
+          max-width: 1200px;
+          margin: 0 auto;
+          padding: 32px 16px 64px;
+        }
+
+        .hero {
+          display: grid;
+          grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+          gap: 32px;
+          margin-bottom: 40px;
+        }
+
+        @media (max-width: 900px) {
+          .hero {
+            grid-template-columns: 1fr;
+          }
+        }
+
+        .eyebrow {
+          text-transform: uppercase;
+          letter-spacing: 0.12em;
+          font-size: 11px;
+          color: #6b7280;
+          margin-bottom: 8px;
+        }
+
+        h1 {
+          font-size: 36px;
+          line-height: 1.1;
+          margin: 0 0 12px;
+          font-family: "Georgia", serif;
+        }
+
+        .hero-sub {
+          color: #4b5563;
+          max-width: 520px;
+          margin-bottom: 20px;
+        }
+
+        .hero-stats {
+          display: grid;
+          grid-template-columns: repeat(4, minmax(0, 1fr));
+          gap: 12px;
+          margin-bottom: 20px;
+        }
+
+        @media (max-width: 900px) {
+          .hero-stats {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+          }
+        }
+
+        .stat-card {
+          background: #ffffff;
+          border-radius: 16px;
+          padding: 12px 14px;
+          border: 1px solid #e5e7eb;
+        }
+
+        .stat-label {
+          font-size: 11px;
+          text-transform: uppercase;
+          letter-spacing: 0.08em;
+          color: #6b7280;
+        }
+
+        .stat-value {
+          font-size: 18px;
+          font-weight: 600;
+          margin: 4px 0;
+        }
+
+        .stat-note {
+          font-size: 12px;
+          color: #9ca3af;
+        }
+
+        .hero-actions {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 12px;
+        }
+
+        .btn-primary,
+        .btn-secondary {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          padding: 10px 18px;
+          border-radius: 999px;
+          font-size: 14px;
+          font-weight: 500;
+          text-decoration: none;
+          border: 1px solid transparent;
+        }
+
+        .btn-primary {
+          background: #111827;
+          color: #ffffff;
+        }
+
+        .btn-secondary {
+          background: #ffffff;
+          border-color: #d1d5db;
+          color: #111827;
+        }
+
+        .snapshot-card {
+          background: #ffffff;
+          border-radius: 24px;
+          padding: 20px 22px;
+          border: 1px solid #e5e7eb;
+          box-shadow: 0 18px 40px rgba(15, 23, 42, 0.08);
+          align-self: flex-start;
+        }
+
+        .snapshot-card h2 {
+          margin: 0 0 4px;
+          font-size: 18px;
+        }
+
+        .snapshot-view {
+          font-size: 11px;
+          text-transform: uppercase;
+          letter-spacing: 0.12em;
+          color: #9ca3af;
+          margin-bottom: 12px;
+        }
+
+        .snapshot-row {
+          display: flex;
+          justify-content: space-between;
+          font-size: 14px;
+          padding: 6px 0;
+          border-bottom: 1px solid #f3f4f6;
+        }
+
+        .snapshot-row:last-of-type {
+          border-bottom: none;
+          margin-bottom: 14px;
+        }
+
+        .snapshot-btn {
+          width: 100%;
+          border-radius: 999px;
+          border: 1px solid #d1d5db;
+          padding: 10px 12px;
+          font-size: 14px;
+          margin-bottom: 8px;
+          background: #ffffff;
+          cursor: pointer;
+        }
+
+        .snapshot-btn.primary {
+          background: #111827;
+          color: #ffffff;
+          border-color: #111827;
+        }
+
+        .home-section {
+          margin-top: 40px;
+        }
+
+        /* --- FEATURED DESIGNERS STYLES --- */
+        .home-featured-designers {
+          margin-top: 40px;
+        }
+        .home-feed-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: baseline;
+          margin-bottom: 16px;
+        }
+        .home-feed-title {
+          font-size: 24px;
+          font-weight: 500;
+          font-family: "Georgia", serif;
+          margin: 0;
+        }
+        .home-feed-header a {
+          font-size: 13px;
+          color: #6b7280;
+          text-decoration: none;
+        }
+        .home-feed-header a:hover {
+          color: #111827;
+          text-decoration: underline;
+        }
+        .home-featured-designers .flex {
+          display: flex;
+          gap: 12px;
+          overflow-x: auto;
+          padding-bottom: 8px;
+        }
+        /* Hide scrollbar */
+        .home-featured-designers .flex::-webkit-scrollbar {
+          display: none;
+        }
+        .home-featured-designers .flex {
+          -ms-overflow-style: none;
+          scrollbar-width: none;
+        }
+        .home-featured-designers button {
+          white-space: nowrap;
+          padding: 8px 16px;
+          border-radius: 999px;
+          border: 1px solid #e5e7eb;
+          background: #ffffff;
+          font-size: 13px;
+          font-weight: 500;
+          color: #1f2937;
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+        .home-featured-designers button:hover {
+          background: #f9fafb;
+          border-color: #d1d5db;
+        }
+
+        /* Ensure product cards are white and consistent */
+        :global(.product-card) {
+          background: #ffffff !important;
+          border-radius: 18px;
+          border: 1px solid #e5e7eb;
+          overflow: hidden;
+        }
+
+        :global(.product-card img) {
+          width: 100%;
+          height: 260px;
+          object-fit: cover;
+          background: #ffffff;
+        }
+      `}</style>
     </div>
   );
 };
 
-// ----------------- Data fetching -----------------
+export default Home;
+
+// --------------------------------------------------
+// Server-side data: pull approved (Live) listings
+// --------------------------------------------------
 
 export const getServerSideProps: GetServerSideProps<HomeProps> = async () => {
-  let trending: ListingCard[] = [];
-  let newArrivals: ListingCard[] = [];
-  let designers: DesignerCard[] = [];
+  const snapshot = await adminDb
+    .collection("listings")
+    .where("status", "==", "Live")
+    .get();
 
-  try {
-    // LIVE LISTINGS
-    const liveSnap = await adminDb
-      .collection("listings")
-      .where("status", "==", "Live")
-      .limit(40)
-      .get();
+  const items = snapshot.docs.map((doc) => {
+    const data = doc.data() as any;
 
-    const allLive: ListingCard[] = liveSnap.docs.map((doc) => {
-      const data = doc.data() as any;
-      const rawPrice = data.price;
-      let displayPrice = "";
+    return {
+      id: doc.id,
+      title: data.title || "",
+      brand: data.brand || "",
+      price: formatPrice(data.price),
+      image: pickImage(data),
+      href: `/product/${doc.id}`,
+      // optional extras — used by category pages / filters
+      category: data.category || "",
+      condition: data.condition || "",
+      badge: data.condition || "",
+    } as ProductLike & {
+      category?: string;
+      condition?: string;
+    };
+  });
 
-      if (typeof rawPrice === "number") {
-        displayPrice = `$${rawPrice.toLocaleString("en-US", {
-          minimumFractionDigits: 0,
-          maximumFractionDigits: 0,
-        })}`;
-      } else if (typeof rawPrice === "string") {
-        displayPrice = rawPrice;
-      }
+  // New Arrivals – newest first by createdAt (if present)
+  const newArrivals = items
+    .slice()
+    .sort((a: any, b: any) => {
+      const aTime =
+        a.createdAt && typeof a.createdAt.toMillis === "function"
+          ? a.createdAt.toMillis()
+          : 0;
+      const bTime =
+        b.createdAt && typeof b.createdAt.toMillis === "function"
+          ? b.createdAt.toMillis()
+          : 0;
+      return bTime - aTime;
+    })
+    .slice(0, 8);
 
-      return {
-        id: doc.id,
-        title: data.title || data.name || "Untitled piece",
-        price: displayPrice,
-        primaryImageUrl:
-          data.primaryImageUrl || data.imageUrl || data.image || null,
-        designer: data.designer || data.brand || null,
-      };
-    });
+  // Trending – highest viewCount, fallback to same as newArrivals
+  let trending = items
+    .slice()
+    .sort((a: any, b: any) => {
+      const av = a.viewCount || 0;
+      const bv = b.viewCount || 0;
+      return bv - av;
+    })
+    .slice(0, 8);
 
-    // New Arrivals = latest items
-    newArrivals = allLive.slice(0, 8);
-    // Trending = next group
-    trending = allLive.slice(8, 16);
-
-    // DESIGNERS for carousel – all active designers
-    const designersSnap = await adminDb
-      .collection("designers")
-      .where("active", "==", true)
-      .get();
-
-    designers = designersSnap.docs
-      .map((doc) => {
-        const data = doc.data() as any;
-        return {
-          id: doc.id,
-          name: data.name || "",
-          slug:
-            data.slug ||
-            (data.name
-              ? String(data.name).toLowerCase().replace(/\s+/g, "-")
-              : ""),
-        };
-      })
-      .filter((d) => d.name)
-      .sort((a, b) => a.name.localeCompare(b.name));
-  } catch (error) {
-    console.error("Error loading homepage data:", error);
+  if (!trending.length) {
+    trending = newArrivals;
   }
 
   return {
     props: {
       trending,
       newArrivals,
-      designers,
     },
   };
 };
-
-export default Home;
