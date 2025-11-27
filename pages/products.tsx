@@ -6,7 +6,7 @@ import Footer from "../components/Footer";
 import ProductCard, { ProductLike } from "../components/ProductCard";
 import { adminDb } from "../utils/firebaseAdmin";
 
-// ------------ helpers (same logic as home) ------------
+// ------------ helpers ------------
 const formatPrice = (raw: any): string => {
   const num = typeof raw === "number" ? raw : Number(raw || 0);
   if (!num) return "";
@@ -32,13 +32,11 @@ type Props = {
 
 // ------------ page component ------------
 const ProductsPage: NextPage<Props> = ({ items, designer, tag }) => {
-  // filter on server props
-  const filtered = items;
   const titleBase = designer || tag || "All Designer Pieces";
 
   // group by category
   const grouped: Record<string, ProductLike[]> = {};
-  filtered.forEach((item: any) => {
+  items.forEach((item: any) => {
     const cat =
       item.category || item.categoryName || item.department || "Other";
     if (!grouped[cat]) grouped[cat] = [];
@@ -52,7 +50,8 @@ const ProductsPage: NextPage<Props> = ({ items, designer, tag }) => {
       </Head>
       <Header />
 
-      <main className="wrap">
+      {/* ---- FIXED STYLING WRAPPER ---- */}
+      <main className="max-w-6xl mx-auto px-4 py-10">
         <h1 className="text-3xl font-semibold tracking-tight mb-3">
           {designer
             ? designer
@@ -73,9 +72,12 @@ const ProductsPage: NextPage<Props> = ({ items, designer, tag }) => {
         )}
 
         {Object.entries(grouped).map(([category, catItems]) => (
-          <section key={category} className="mb-10">
-            <h2 className="text-xl font-medium mb-4">{category}</h2>
-            <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+          <section key={category} className="mb-12">
+            <h2 className="text-xl font-medium mb-4 capitalize">
+              {category}
+            </h2>
+
+            <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 md:grid-cols-3">
               {catItems.map((item) => (
                 <ProductCard key={item.id} {...item} />
               ))}
@@ -92,9 +94,7 @@ const ProductsPage: NextPage<Props> = ({ items, designer, tag }) => {
 export default ProductsPage;
 
 // ------------ server-side data ------------
-export const getServerSideProps: GetServerSideProps<Props> = async (
-  context
-) => {
+export const getServerSideProps: GetServerSideProps<Props> = async (context) => {
   const { designer, tag } = context.query;
 
   const snapshot = await adminDb
@@ -115,17 +115,17 @@ export const getServerSideProps: GetServerSideProps<Props> = async (
       condition: data.condition || "",
       badge: data.condition || "",
       tags: data.tags || [],
-    } as any;
+    } as ProductLike;
   });
 
-  // filter by designer (brand) if present
+  // filter by designer
   if (typeof designer === "string" && designer.length) {
     items = items.filter(
       (item: any) => (item.brand || "").trim() === designer.trim()
     );
   }
 
-  // (optional) filter by tag for /products?tag=New+Arrival etc
+  // filter by tag
   if (typeof tag === "string" && tag.length) {
     items = items.filter((item: any) =>
       Array.isArray(item.tags) ? item.tags.includes(tag) : false
