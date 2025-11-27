@@ -34,6 +34,41 @@ type ItemWithPrice = ProductLike & {
 };
 
 // ------------------------------
+// Data Constants
+// ------------------------------
+
+// Matches the consistent list used in /category/[slug]
+const DESIGNER_LIST = [
+  "Alexander McQueen",
+  "Balenciaga",
+  "Bottega Veneta",
+  "Burberry",
+  "Dior",
+  "Fendi",
+  "Givenchy",
+  "Goyard",
+  "Gucci",
+  "Hermès",
+  "Louis Vuitton",
+  "Prada",
+  "Saint Laurent",
+  "Valentino",
+  "Versace",
+];
+
+const CATEGORY_LIST = [
+  "Women",
+  "Men",
+  "Bags",
+  "Shoes",
+  "Accessories",
+  "Jewelry",
+  "Watches",
+];
+
+const CONDITION_LIST = ["New", "Excellent", "Very good", "Good"];
+
+// ------------------------------
 // Component
 // ------------------------------
 
@@ -55,18 +90,6 @@ export default function DesignersPage({ items, designers }: Props) {
   const [selectedCondition, setSelectedCondition] = useState<string[]>([]);
   const [minPrice, setMinPrice] = useState<number>(0);
   const [maxPrice, setMaxPrice] = useState<number>(10000);
-
-  const categories = [
-    "Women",
-    "Men",
-    "Bags",
-    "Shoes",
-    "Accessories",
-    "Jewelry",
-    "Watches",
-  ];
-
-  const conditions = ["New", "Excellent", "Very good", "Good"];
 
   const toggle = (list: string[], value: string) =>
     list.includes(value) ? list.filter((x) => x !== value) : [...list, value];
@@ -161,7 +184,7 @@ export default function DesignersPage({ items, designers }: Props) {
           {/* Category */}
           <div className="filter-section">
             <h3>Category</h3>
-            {categories.map((c) => (
+            {CATEGORY_LIST.map((c) => (
               <label key={c} className="filter-row">
                 <input
                   type="checkbox"
@@ -173,7 +196,7 @@ export default function DesignersPage({ items, designers }: Props) {
             ))}
           </div>
 
-          {/* Designers */}
+          {/* Designers (Using prop passed from Server, which is now consistent) */}
           <div className="filter-section">
             <h3>Designer</h3>
             {designers.map((d) => (
@@ -191,7 +214,7 @@ export default function DesignersPage({ items, designers }: Props) {
           {/* Condition */}
           <div className="filter-section">
             <h3>Condition</h3>
-            {conditions.map((c) => (
+            {CONDITION_LIST.map((c) => (
               <label key={c} className="filter-row">
                 <input
                   type="checkbox"
@@ -362,13 +385,8 @@ export const getServerSideProps: GetServerSideProps = async () => {
     };
   });
 
-  const designers = Array.from(
-    new Set(
-      items
-        .map((i: any) => i.brand || i.designer || "")
-        .filter((d: string) => d && d.length > 0)
-    )
-  ).sort();
+  // Use the consistent list defined at the top of the file
+  const designers = DESIGNER_LIST;
 
   return {
     props: {
