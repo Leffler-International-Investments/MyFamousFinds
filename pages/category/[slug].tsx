@@ -2,6 +2,7 @@
 import Head from "next/head";
 import Link from "next/link";
 import type { GetServerSideProps } from "next";
+import { useEffect, useMemo, useState } from "react";
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
 import ProductCard, { ProductLike } from "../../components/ProductCard";
@@ -11,297 +12,389 @@ type CategoryProps = {
   slug: string;
   label: string;
   items: ProductLike[];
-  count: number;
 };
 
-export default function CategoryPage({ slug, label, items, count }: CategoryProps) {
+type ItemWithPrice = ProductLike & { priceValue: number };
+
+type PublicDesignersResponse = {
+  ok: boolean;
+  designers?: { id: string; name: string; slug: string; active?: boolean }[];
+  error?: string;
+};
+
+// ---- Helper: "US$1,200" -> 1200 ----
+function parsePrice(price?: string | null): number {
+  if (!price) return 0;
+  const cleaned = price.replace(/[^0-9.,]/g, "").replace(/,/g, "");
+  const asNumber = Number(cleaned);
+  return Number.isFinite(asNumber) ? asNumber : 0;
+}
+
+// You can EDIT these lists any time.
+// Add / remove entries and the filters will update automatically.
+const CATEGORY_OPTIONS = [
+  "Women",
+  "Men",
+  "Bags",
+  "Shoes",
+  "Accessories",
+  "Jewelry",
+  "Watches",
+];
+
+const CONDITION_OPTIONS = ["New", "Excellent", "Very good", "Good"];
+
+// Fallback list if /api/public/designers has none
+const DEFAULT_DESIGNERS = [
+  "Chanel",
+  "Hermès",
+  "Louis Vuitton",
+  "Gucci",
+  "Prada",
+  "Dior",
+  "Rolex",
+];
+
+export default function CategoryPage({ slug, label, items }: CategoryProps) {
+  // Pre-compute numeric prices once
+  const [itemsWithPrice] = useState<ItemWithPrice[]>(() =>
+    (items || []).map((item) => ({
+      ...item,
+      priceValue: parsePrice(item.price),
+    }))
+  );
+
+  const [sortBy, setSortBy] = useState<"newest" | "price-asc" | "price-desc">(
+    "newest"
+  );
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  const [selectedDesigners, setSelectedDesigners] = useState<string[]>([]);
+  const [selectedConditions, setSelectedConditions] = useState<string[]>([]);
+  const [minPrice, setMinPrice] = useState<number | "">(0);
+  const [maxPrice, setMaxPrice] = useState<number | "">(10000);
+
+  // Designers list for the filter
+  const [designerOptions, setDesignerOptions] =
+    useState<string[]>(DEFAULT_DESIGNERS);
+
+  // Load designers from your public API once on mount
+  useEffect(() => {
+    async function loadDesigners() {
+      try {
+        const res = await fetch("/api/public/designers");
+        const data: PublicDesignersResponse = await res.json();
+
+        if (data.ok && data.designers && data.designers.length > 0) {
+          const names = Array.from(
+            new Set(
+              data.designers
+                .filter((d) => d.active !== false)
+                .map((d) => d.name.trim())
+                .filter(Boolean)
+            )
+          ).sort((a, b) => a.localeCompare(b));
+          if (names.length > 0) {
+            setDesignerOptions(names);
+            return;
+          }
+        }
+      } catch (err) {
+        console.error("Failed to load designers for filters", err);
+      }
+
+      // Fallback: use brands from items or DEFAULT_DESIGNERS
+      const fromItems = Array.from(
+        new Set(
+          itemsWithPrice
+            .map((i) => (i.brand || "").trim())
+            .filter(Boolean)
+        )
+      ).sort((a, b) => a.localeCompare(b));
+
+      if (fromItems.length > 0) {
+        setDesignerOptions(fromItems);
+      } else {
+        setDesignerOptions(DEFAULT_DESIGNERS);
+      }
+    }
+
+    loadDesigners();
+  }, [itemsWithPrice]);
+
+  // Simple helpers to toggle filters
+  function toggleInList(list: string[], value: string): string[] {
+    return list.includes(value)
+      ? list.filter((v) => v !== value)
+      : [...list, value];
+  }
+
+  function onCategoryChange(name: string) {
+    setSelectedCategories((prev) => toggleInList(prev, name));
+  }
+  function onDesignerChange(name: string) {
+    setSelectedDesigners((prev) => toggleInList(prev, name));
+  }
+  function onConditionChange(name: string) {
+    setSelectedConditions((prev) => toggleInList(prev, name));
+  }
+
+  function resetFilters() {
+    setSelectedCategories([]);
+    setSelectedDesigners([]);
+    setSelectedConditions([]);
+    setMinPrice(0);
+    setMaxPrice(10000);
+  }
+
+  // Apply filters + sort
+  const filteredItems: ItemWithPrice[] = useMemo(() => {
+    let result = [...itemsWithPrice];
+
+    // Filter by designer
+    if (selectedDesigners.length > 0) {
+      result = result.filter((item) =>
+        item.brand ? selectedDesigners.includes(item.brand) : false
+      );
+    }
+
+    // Filter by price
+    result = result.filter((item) => {
+      const price = item.priceValue;
+      if (typeof minPrice === "number" && price < minPrice) return false;
+      if (typeof maxPrice === "number" && price > maxPrice) return false;
+      return true;
+    });
+
+    // NOTE:
+    // We don't yet have structured category / condition fields on ProductLike,
+    // so category + condition filters are visual only for now.
+    // When you’re ready, we can wire them to real listing fields.
+
+    // Sort
+    if (sortBy === "price-asc") {
+      result.sort((a, b) => a.priceValue - b.priceValue);
+    } else if (sortBy === "price-desc") {
+      result.sort((a, b) => b.priceValue - a.priceValue);
+    } else {
+      // "newest" – keep server order (createdAt desc)
+    }
+
+    return result;
+  }, [itemsWithPrice, selectedDesigners, minPrice, maxPrice, sortBy]);
+
+  const resultsCount = filteredItems.length;
+
+  const breadcrumbLabel =
+    label || slug.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+
   return (
-    <div className="dark-theme-page">
+    <div className="category-page">
       <Head>
-        <title>{label} – Famous Finds</title>
+        <title>{breadcrumbLabel} – All Products | Famous Finds</title>
       </Head>
 
       <Header />
 
-      <main className="wrap">
-        <header className="heading">
-          <div className="crumbs">
-            <Link href="/" className="back">
-              ← Home
-            </Link>
-            <span className="divider">/</span>
-            <span className="crumb-label">{label}</span>
+      <main className="page-main">
+        <div className="page-inner">
+          {/* Breadcrumb */}
+          <div className="breadcrumb">
+            <Link href="/">Home</Link>
+            <span>/</span>
+            <span>{breadcrumbLabel}</span>
           </div>
-          <div className="heading-main">
-            <h1>All Products</h1>
-            <div className="summary">
-              <span className="count">{count} results</span>
-              <form method="get" className="sort-form">
-                <label htmlFor="sort" className="sort-label">
-                  Sort
-                </label>
-                <select id="sort" name="sort" className="sort-select" defaultValue="">
-                  <option value="">Newest</option>
-                  <option value="price-asc">Price: Low to High</option>
-                  <option value="price-desc">Price: High to Low</option>
-                </select>
-              </form>
-            </div>
-          </div>
-        </header>
 
-        <div className="layout">
-          {/* FILTERS SIDEBAR */}
-          <aside className="filters">
-            <div className="filters-header">
-              <h2>Filters</h2>
-              <Link href={`/category/${slug}`} className="clear-link">
-                Clear All
-              </Link>
-            </div>
+          <div className="layout">
+            {/* LEFT – Filters */}
+            <aside className="filters">
+              <div className="filters-header">
+                <h2>Filters</h2>
+                <button type="button" onClick={resetFilters}>
+                  Clear All
+                </button>
+              </div>
 
-            <form method="get" className="filters-form">
-              {/* CATEGORY GROUP */}
-              <section className="filter-group">
-                <div className="filter-title-row">
-                  <h3>Category</h3>
+              <div className="filter-block">
+                <h3>Category</h3>
+                <div className="filter-list">
+                  {CATEGORY_OPTIONS.map((cat) => (
+                    <label key={cat} className="filter-option">
+                      <input
+                        type="checkbox"
+                        checked={selectedCategories.includes(cat)}
+                        onChange={() => onCategoryChange(cat)}
+                      />
+                      <span>{cat}</span>
+                    </label>
+                  ))}
                 </div>
-                <div className="filter-options">
-                  <label className="check">
-                    <input type="checkbox" name="category" value="women" />
-                    <span>Women&apos;s</span>
-                  </label>
-                  <label className="check">
-                    <input type="checkbox" name="category" value="men" />
-                    <span>Men&apos;s</span>
-                  </label>
-                  <label className="check">
-                    <input type="checkbox" name="category" value="bags" />
-                    <span>Bags</span>
-                  </label>
-                  <label className="check">
-                    <input type="checkbox" name="category" value="shoes" />
-                    <span>Shoes</span>
-                  </label>
-                  <label className="check">
-                    <input type="checkbox" name="category" value="accessories" />
-                    <span>Accessories</span>
-                  </label>
-                  <label className="check">
-                    <input type="checkbox" name="category" value="jewelry" />
-                    <span>Jewelry</span>
-                  </label>
-                  <label className="check">
-                    <input type="checkbox" name="category" value="watches" />
-                    <span>Watches</span>
-                  </label>
-                </div>
-              </section>
+              </div>
 
-              {/* DESIGNER GROUP */}
-              <section className="filter-group">
-                <div className="filter-title-row">
-                  <h3>Designer</h3>
+              <div className="filter-block">
+                <h3>Designer</h3>
+                <div className="filter-list">
+                  {designerOptions.map((name) => (
+                    <label key={name} className="filter-option">
+                      <input
+                        type="checkbox"
+                        checked={selectedDesigners.includes(name)}
+                        onChange={() => onDesignerChange(name)}
+                      />
+                      <span>{name}</span>
+                    </label>
+                  ))}
                 </div>
-                <div className="filter-options">
-                  <label className="check">
-                    <input type="checkbox" name="designer" value="chanel" />
-                    <span>Chanel</span>
-                  </label>
-                  <label className="check">
-                    <input type="checkbox" name="designer" value="louis vuitton" />
-                    <span>Louis Vuitton</span>
-                  </label>
-                  <label className="check">
-                    <input type="checkbox" name="designer" value="prada" />
-                    <span>Prada</span>
-                  </label>
-                  <label className="check">
-                    <input type="checkbox" name="designer" value="gucci" />
-                    <span>Gucci</span>
-                  </label>
-                  <label className="check">
-                    <input type="checkbox" name="designer" value="hermes" />
-                    <span>Hermès</span>
-                  </label>
-                  <label className="check">
-                    <input type="checkbox" name="designer" value="rolex" />
-                    <span>Rolex</span>
-                  </label>
-                </div>
-              </section>
+              </div>
 
-              {/* CONDITION GROUP */}
-              <section className="filter-group">
-                <div className="filter-title-row">
-                  <h3>Condition</h3>
+              <div className="filter-block">
+                <h3>Condition</h3>
+                <div className="filter-list">
+                  {CONDITION_OPTIONS.map((cond) => (
+                    <label key={cond} className="filter-option">
+                      <input
+                        type="checkbox"
+                        checked={selectedConditions.includes(cond)}
+                        onChange={() => onConditionChange(cond)}
+                      />
+                      <span>{cond}</span>
+                    </label>
+                  ))}
                 </div>
-                <div className="filter-options">
-                  <label className="check">
-                    <input type="checkbox" name="condition" value="new" />
-                    <span>New</span>
-                  </label>
-                  <label className="check">
-                    <input type="checkbox" name="condition" value="excellent" />
-                    <span>Excellent</span>
-                  </label>
-                  <label className="check">
-                    <input type="checkbox" name="condition" value="very good" />
-                    <span>Very good</span>
-                  </label>
-                  <label className="check">
-                    <input type="checkbox" name="condition" value="good" />
-                    <span>Good</span>
-                  </label>
-                </div>
-              </section>
+              </div>
 
-              {/* PRICE GROUP */}
-              <section className="filter-group">
-                <div className="filter-title-row">
-                  <h3>Price</h3>
-                </div>
+              <div className="filter-block">
+                <h3>Price</h3>
                 <div className="price-row">
-                  <div className="price-field">
-                    <label htmlFor="minPrice">Min</label>
+                  <div className="price-input">
+                    <span>Min</span>
                     <input
-                      id="minPrice"
-                      name="minPrice"
                       type="number"
-                      min={0}
-                      placeholder="0"
+                      value={minPrice}
+                      onChange={(e) =>
+                        setMinPrice(
+                          e.target.value === ""
+                            ? ""
+                            : Number(e.target.value) || 0
+                        )
+                      }
                     />
                   </div>
-                  <div className="dash">–</div>
-                  <div className="price-field">
-                    <label htmlFor="maxPrice">Max</label>
+                  <span className="price-separator">–</span>
+                  <div className="price-input">
+                    <span>Max</span>
                     <input
-                      id="maxPrice"
-                      name="maxPrice"
                       type="number"
-                      min={0}
-                      placeholder="10000"
+                      value={maxPrice}
+                      onChange={(e) =>
+                        setMaxPrice(
+                          e.target.value === ""
+                            ? ""
+                            : Number(e.target.value) || 0
+                        )
+                      }
                     />
                   </div>
                 </div>
-              </section>
-
-              <button type="submit" className="btn-apply">
-                Apply Filters
-              </button>
-            </form>
-          </aside>
-
-          {/* PRODUCTS GRID */}
-          <section className="results">
-            {items.length > 0 ? (
-              <div className="grid">
-                {items.map((p) => (
-                  <ProductCard key={p.id} {...p} />
-                ))}
+                <button
+                  type="button"
+                  className="apply-btn"
+                  onClick={() => {
+                    // Filters are already live – button is just for UX
+                  }}
+                >
+                  Apply Filters
+                </button>
               </div>
-            ) : (
-              <div className="empty">
-                <p>
-                  No items match these filters yet. Try adjusting your filters
-                  or checking back soon.
-                </p>
+            </aside>
+
+            {/* RIGHT – Results */}
+            <section className="results">
+              <div className="results-header">
+                <div>
+                  <h1>All Products</h1>
+                  <p className="results-count">
+                    {resultsCount} {resultsCount === 1 ? "result" : "results"}
+                  </p>
+                </div>
+                <div className="sort">
+                  <label>
+                    Sort
+                    <select
+                      value={sortBy}
+                      onChange={(e) =>
+                        setSortBy(
+                          e.target.value as "newest" | "price-asc" | "price-desc"
+                        )
+                      }
+                    >
+                      <option value="newest">Newest</option>
+                      <option value="price-asc">Price: Low to High</option>
+                      <option value="price-desc">Price: High to Low</option>
+                    </select>
+                  </label>
+                </div>
               </div>
-            )}
-          </section>
+
+              {resultsCount === 0 ? (
+                <div className="empty-state">
+                  <h2>No items match these filters yet.</h2>
+                  <p>Try adjusting your filters or checking back soon.</p>
+                </div>
+              ) : (
+                <div className="grid">
+                  {filteredItems.map((item) => (
+                    <ProductCard key={item.id} {...item} />
+                  ))}
+                </div>
+              )}
+            </section>
+          </div>
         </div>
       </main>
 
       <Footer />
 
       <style jsx>{`
-        .dark-theme-page {
-          background-color: #ffffff;
+        .category-page {
+          background: #ffffff;
           color: #111827;
           min-height: 100vh;
-          display: flex;
-          flex-direction: column;
         }
-        .wrap {
+        .page-main {
+          padding: 24px 0 64px;
+        }
+        .page-inner {
           max-width: 1200px;
           margin: 0 auto;
-          padding: 24px 16px 48px;
-          width: 100%;
+          padding: 0 16px;
         }
-        .heading {
-          border-bottom: 1px solid #e5e7eb;
-          padding-bottom: 12px;
+        .breadcrumb {
+          font-size: 13px;
+          color: #6b7280;
           margin-bottom: 16px;
           display: flex;
-          flex-direction: column;
-          gap: 10px;
-        }
-        .crumbs {
-          display: flex;
           align-items: center;
           gap: 6px;
-          font-size: 13px;
-          color: #6b7280;
         }
-        .back {
+        .breadcrumb a {
+          color: inherit;
           text-decoration: none;
-          color: #4b5563;
-        }
-        .back:hover {
-          color: #111827;
-        }
-        .divider {
-          color: #d1d5db;
-        }
-        .crumb-label {
-          color: #4b5563;
-        }
-        .heading-main {
-          display: flex;
-          align-items: baseline;
-          justify-content: space-between;
-          gap: 12px;
-        }
-        h1 {
-          font-family: "Georgia", serif;
-          font-size: 24px;
-          letter-spacing: -0.02em;
-          margin: 0;
-        }
-        .summary {
-          display: flex;
-          align-items: center;
-          gap: 16px;
-          font-size: 13px;
-        }
-        .count {
-          color: #6b7280;
-        }
-        .sort-form {
-          display: flex;
-          align-items: center;
-          gap: 6px;
-        }
-        .sort-label {
-          font-size: 12px;
-          color: #6b7280;
-        }
-        .sort-select {
-          border-radius: 999px;
-          border: 1px solid #d1d5db;
-          padding: 6px 10px;
-          font-size: 13px;
-          background: #ffffff;
         }
         .layout {
           display: grid;
           grid-template-columns: 260px minmax(0, 1fr);
           gap: 24px;
-          margin-top: 20px;
+        }
+        @media (max-width: 900px) {
+          .layout {
+            grid-template-columns: 1fr;
+          }
         }
         .filters {
-          border-right: 1px solid #e5e7eb;
-          padding-right: 16px;
+          border-radius: 16px;
+          border: 1px solid #e5e7eb;
+          padding: 16px 18px 20px;
+          background: #fafafa;
         }
         .filters-header {
           display: flex;
@@ -310,260 +403,200 @@ export default function CategoryPage({ slug, label, items, count }: CategoryProp
           margin-bottom: 12px;
         }
         .filters-header h2 {
-          font-size: 16px;
+          font-size: 18px;
           font-weight: 600;
         }
-        .clear-link {
-          font-size: 12px;
+        .filters-header button {
+          border: none;
+          background: none;
+          font-size: 13px;
+          text-decoration: underline;
+          cursor: pointer;
           color: #6b7280;
-          text-decoration: none;
         }
-        .clear-link:hover {
-          color: #111827;
+        .filter-block {
+          border-top: 1px solid #e5e7eb;
+          padding-top: 12px;
+          margin-top: 12px;
         }
-        .filters-form {
-          display: flex;
-          flex-direction: column;
-          gap: 18px;
-          font-size: 13px;
+        .filter-block:first-of-type {
+          border-top: none;
+          padding-top: 0;
+          margin-top: 0;
         }
-        .filter-group {
-          border-bottom: 1px solid #e5e7eb;
-          padding-bottom: 14px;
-        }
-        .filter-title-row {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          margin-bottom: 8px;
-        }
-        .filter-title-row h3 {
-          font-size: 13px;
+        .filter-block h3 {
+          font-size: 14px;
           font-weight: 600;
+          margin-bottom: 6px;
         }
-        .filter-options {
+        .filter-list {
           display: flex;
           flex-direction: column;
           gap: 4px;
+          font-size: 14px;
         }
-        .check {
+        .filter-option {
           display: flex;
           align-items: center;
-          gap: 6px;
-          color: #4b5563;
+          gap: 8px;
         }
-        .check input {
-          width: 14px;
-          height: 14px;
+        .filter-option input {
+          accent-color: #111827;
         }
         .price-row {
           display: flex;
           align-items: center;
           gap: 8px;
+          margin-bottom: 10px;
         }
-        .price-field {
+        .price-input {
           flex: 1;
           display: flex;
           flex-direction: column;
           gap: 4px;
-          font-size: 12px;
-        }
-        .price-field input {
-          border-radius: 8px;
-          border: 1px solid #d1d5db;
-          padding: 6px 8px;
           font-size: 13px;
         }
-        .dash {
+        .price-input input {
+          border-radius: 999px;
+          border: 1px solid #d1d5db;
+          padding: 6px 10px;
+          font-size: 14px;
+        }
+        .price-separator {
           font-size: 14px;
           color: #6b7280;
         }
-        .btn-apply {
-          margin-top: 4px;
+        .apply-btn {
           width: 100%;
+          margin-top: 4px;
           border-radius: 999px;
-          border: none;
           background: #111827;
           color: white;
-          padding: 9px 14px;
-          font-size: 13px;
-          font-weight: 600;
+          padding: 8px 12px;
+          border: none;
+          font-size: 14px;
+          font-weight: 500;
           cursor: pointer;
-        }
-        .btn-apply:hover {
-          opacity: 0.92;
         }
         .results {
           min-height: 200px;
         }
+        .results-header {
+          display: flex;
+          align-items: flex-end;
+          justify-content: space-between;
+          gap: 12px;
+          margin-bottom: 12px;
+        }
+        .results-header h1 {
+          font-family: Georgia, "Times New Roman", serif;
+          font-size: 26px;
+          margin: 0;
+        }
+        .results-count {
+          font-size: 13px;
+          color: #6b7280;
+          margin-top: 2px;
+        }
+        .sort label {
+          font-size: 13px;
+          display: flex;
+          flex-direction: column;
+          gap: 4px;
+        }
+        .sort select {
+          border-radius: 999px;
+          border: 1px solid #d1d5db;
+          padding: 6px 10px;
+          font-size: 14px;
+          background: #ffffff;
+        }
         .grid {
           display: grid;
-          grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+          grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
           gap: 18px;
+          margin-top: 12px;
         }
-        .empty {
-          border-radius: 12px;
-          border: 1px dashed #d1d5db;
+        .empty-state {
+          margin-top: 32px;
+          border-radius: 16px;
+          border: 1px solid #e5e7eb;
           padding: 24px;
           text-align: center;
-          color: #6b7280;
           background: #f9fafb;
         }
-        @media (max-width: 900px) {
-          .heading-main {
-            flex-direction: column;
-            align-items: flex-start;
-            gap: 6px;
-          }
-          .layout {
-            grid-template-columns: 1fr;
-          }
-          .filters {
-            border-right: none;
-            border-bottom: 1px solid #e5e7eb;
-            padding-right: 0;
-            padding-bottom: 16px;
-          }
+        .empty-state h2 {
+          margin: 0 0 4px;
+          font-size: 18px;
+        }
+        .empty-state p {
+          margin: 0;
+          color: #6b7280;
+          font-size: 14px;
         }
       `}</style>
     </div>
   );
 }
 
-export const getServerSideProps: GetServerSideProps<CategoryProps> = async (ctx) => {
-  const raw = ctx.params?.slug;
-  const slug = (Array.isArray(raw) ? raw[0] : raw) || "";
-  if (!slug) return { notFound: true };
+// Map pretty labels for slug -> heading
+const labelMap: Record<string, string> = {
+  "new-arrivals": "New Arrivals",
+  women: "Women",
+  men: "Men",
+  bags: "Bags",
+  jewelry: "Jewelry",
+  watches: "Watches",
+};
 
-  const normalized = slug.toLowerCase();
+export const getServerSideProps: GetServerSideProps<CategoryProps> = async (
+  ctx
+) => {
+  const rawSlug = String(ctx.params?.slug || "");
+  const normalized = rawSlug.toLowerCase();
 
-  const q = ctx.query || {};
-  const toArray = (value: string | string[] | undefined): string[] => {
-    if (!value) return [];
-    return Array.isArray(value) ? value : [value];
-  };
-
-  let categories = toArray(q.category as any).map((v) => v.toLowerCase());
-  const designers = toArray(q.designer as any).map((v) => v.toLowerCase());
-  const conditions = toArray(q.condition as any).map((v) => v.toLowerCase());
-
-  if (!categories.length) {
-    const defaultCats = ["women", "men", "bags", "shoes", "accessories", "jewelry", "watches"];
-    if (defaultCats.includes(normalized)) {
-      categories = [normalized];
-    }
-  }
-
-  const minPrice =
-    typeof q.minPrice === "string" ? parseInt(q.minPrice, 10) || undefined : undefined;
-  const maxPrice =
-    typeof q.maxPrice === "string" ? parseInt(q.maxPrice, 10) || undefined : undefined;
-  const sortParam = typeof q.sort === "string" ? q.sort : "";
+  let items: ProductLike[] = [];
 
   try {
-    const snap = await adminDb
-      .collection("listings")
-      .orderBy("createdAt", "desc")
-      .limit(200)
-      .get();
-
     const allowedStatuses = ["Live", "Active", "Approved"];
 
-    type Raw = { id: string; priceNumber: number; createdAt: number; d: any };
-    const rows: Raw[] = [];
+    const snap = await adminDb
+      .collection("listings")
+      .where("status", "in", allowedStatuses)
+      .orderBy("createdAt", "desc")
+      .limit(60)
+      .get();
 
-    snap.docs.forEach((doc) => {
-      const d: any = doc.data() || {};
+    items = snap.docs.map((doc) => {
+      const d = doc.data() as any;
 
-      if (d.status && !allowedStatuses.includes(d.status)) {
-        return;
-      }
-
-      const catValue = (d.category || "").toString().toLowerCase();
-      if (categories.length && !categories.includes(catValue)) {
-        return;
-      }
-
-      const brandValue = (d.brand || "").toString().toLowerCase();
-      if (designers.length && !designers.includes(brandValue)) {
-        return;
-      }
-
-      const condValue = (d.condition || "").toString().toLowerCase();
-      if (conditions.length && !conditions.includes(condValue)) {
-        return;
-      }
-
-      const priceNumber = Number(d.price) || 0;
-      if (minPrice && priceNumber < minPrice) return;
-      if (maxPrice && priceNumber > maxPrice) return;
-
-      const createdAtRaw: any = d.createdAt;
-      let createdAt = 0;
-      if (createdAtRaw && typeof createdAtRaw === "object") {
-        if (typeof createdAtRaw.seconds === "number") createdAt = createdAtRaw.seconds;
-        else if (typeof createdAtRaw._seconds === "number") createdAt = createdAtRaw._seconds;
-      }
-
-      rows.push({ id: doc.id, priceNumber, createdAt, d });
-    });
-
-    const sortKey = sortParam || (normalized === "new-arrivals" ? "newest" : "default");
-
-    rows.sort((a, b) => {
-      if (sortKey === "price-asc") return a.priceNumber - b.priceNumber;
-      if (sortKey === "price-desc") return b.priceNumber - a.priceNumber;
-      return b.createdAt - a.createdAt; // newest first
-    });
-
-    const items: ProductLike[] = rows.map(({ id, priceNumber, d }) => {
-      const price = priceNumber ? `US$${priceNumber.toLocaleString("en-US")}` : "";
-      const image: string =
+      const image =
         d.image_url ||
         d.imageUrl ||
         d.image ||
         (Array.isArray(d.imageUrls) && d.imageUrls[0]) ||
         "";
 
+      const priceNum = Number(d.price) || 0;
+
       return {
-        id,
-        title: d.title || "Untitled listing",
+        id: doc.id,
+        title: d.title || "",
         brand: d.brand || "",
-        price,
+        price: priceNum ? `US$${priceNum.toLocaleString()}` : "",
         image,
-        href: `/product/${id}`,
-        badge: d.badge || undefined,
+        href: `/product/${doc.id}`,
       };
     });
-
-    const labelMap: Record<string, string> = {
-      bags: "BAGS",
-      men: "MEN",
-      women: "WOMEN",
-      "new-arrivals": "NEW ARRIVALS",
-      jewelry: "JEWELRY",
-      watches: "WATCHES",
-      shoes: "SHOES",
-      accessories: "ACCESSORIES",
-    };
-
-    return {
-      props: {
-        slug: normalized,
-        label: labelMap[normalized] || normalized.toUpperCase(),
-        items,
-        count: items.length,
-      },
-    };
   } catch (err) {
     console.error("Error loading category page", err);
-    return {
-      props: {
-        slug: normalized,
-        label: normalized.toUpperCase(),
-        items: [],
-        count: 0,
-      },
-    };
   }
+
+  return {
+    props: {
+      slug: normalized,
+      label: labelMap[normalized] || normalized.toUpperCase(),
+      items,
+    },
+  };
 };
