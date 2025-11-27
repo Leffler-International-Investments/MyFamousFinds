@@ -1,91 +1,59 @@
 // FILE: /components/Footer.tsx
 
 import Link from "next/link";
-import { useState } from "react";
 import HomepageButler from "./HomepageButler";
 
 export default function Footer() {
-  const [openSection, setOpenSection] = useState<string | null>(null);
-
-  const toggleSection = (section: string) => {
-    setOpenSection(openSection === section ? null : section);
-  };
-
   return (
     <>
       <footer className="mt-auto border-t border-neutral-800 bg-neutral-900 text-white">
-        <div className="mx-auto flex max-w-[1280px] flex-col items-center justify-between gap-4 px-6 py-8 md:flex-row md:items-start">
+        <div className="mx-auto flex max-w-5xl flex-col items-center gap-6 px-6 py-10 text-center">
           
-          {/* LEFT: BRAND + COPYRIGHT */}
-          <div className="flex flex-col items-center text-center md:items-start md:text-left">
-            <div className="text-xs uppercase tracking-[0.2em] text-white font-bold">
+          {/* TOP: BRAND + COPYRIGHT */}
+          <div className="flex flex-col items-center gap-1">
+            <div className="text-sm font-bold uppercase tracking-[0.2em] text-white">
               Famous Finds
             </div>
-            <div className="mt-2 text-[10px] text-neutral-400">
-              © {new Date().getFullYear()} All rights reserved.
-            </div>
-            <div className="mt-1 hidden text-[10px] text-neutral-500 md:block">
-              Curated pre-loved luxury.
+            <div className="text-[11px] text-neutral-500">
+              © {new Date().getFullYear()} All rights reserved. Curated pre-loved luxury.
             </div>
           </div>
 
-          {/* RIGHT: TOGGLE GROUPS (COMPACT) */}
-          <div className="flex items-start gap-3">
-            {/* HELP SECTION */}
-            <div className="relative flex flex-col items-end">
-              <button
-                type="button"
-                onClick={() => toggleSection("help")}
-                className={`flex items-center gap-2 rounded-full border px-4 py-1.5 text-[10px] font-semibold uppercase tracking-[0.12em] transition-all
-                ${
-                  openSection === "help"
-                    ? "border-white bg-white text-neutral-900"
-                    : "border-neutral-700 bg-transparent text-white hover:border-white"
-                }`}
-              >
-                <span>Help</span>
-              </button>
+          {/* MIDDLE: BLUE LINKS (1 or 2 rows) */}
+          <nav className="flex flex-wrap justify-center gap-x-6 gap-y-3 text-[13px] font-medium">
+            <Link href="/help" className="text-blue-400 hover:text-blue-300 transition-colors">
+              Help Center
+            </Link>
+            <Link href="/about" className="text-blue-400 hover:text-blue-300 transition-colors">
+              About
+            </Link>
+            <Link href="/contact" className="text-blue-400 hover:text-blue-300 transition-colors">
+              Contact
+            </Link>
+            <Link href="/buying" className="text-blue-400 hover:text-blue-300 transition-colors">
+              Buying
+            </Link>
+            <Link href="/selling" className="text-blue-400 hover:text-blue-300 transition-colors">
+              Selling
+            </Link>
+            <Link href="/shipping" className="text-blue-400 hover:text-blue-300 transition-colors">
+              Shipping
+            </Link>
+            <Link href="/returns" className="text-blue-400 hover:text-blue-300 transition-colors">
+              Returns
+            </Link>
+            <Link href="/authenticity-policy" className="text-blue-400 hover:text-blue-300 transition-colors">
+              Authenticity
+            </Link>
+            <Link href="/privacy" className="text-blue-400 hover:text-blue-300 transition-colors">
+              Privacy
+            </Link>
+          </nav>
 
-              {openSection === "help" && (
-                <ul className="absolute bottom-full mb-2 w-32 rounded-lg border border-neutral-700 bg-neutral-900 p-3 text-right text-xs text-neutral-300 shadow-xl">
-                  <li className="mb-2"><Link href="/help" className="hover:text-white hover:underline">Help Center</Link></li>
-                  <li className="mb-2"><Link href="/shipping" className="hover:text-white hover:underline">Shipping</Link></li>
-                  <li className="mb-2"><Link href="/returns" className="hover:text-white hover:underline">Returns</Link></li>
-                  <li className="mb-2"><Link href="/buying" className="hover:text-white hover:underline">Buying</Link></li>
-                  <li><Link href="/selling" className="hover:text-white hover:underline">Selling</Link></li>
-                </ul>
-              )}
-            </div>
-
-            {/* COMPANY SECTION */}
-            <div className="relative flex flex-col items-end">
-              <button
-                type="button"
-                onClick={() => toggleSection("company")}
-                className={`flex items-center gap-2 rounded-full border px-4 py-1.5 text-[10px] font-semibold uppercase tracking-[0.12em] transition-all
-                ${
-                  openSection === "company"
-                    ? "border-white bg-white text-neutral-900"
-                    : "border-neutral-700 bg-transparent text-white hover:border-white"
-                }`}
-              >
-                <span>Company</span>
-              </button>
-
-              {openSection === "company" && (
-                <ul className="absolute bottom-full mb-2 w-32 rounded-lg border border-neutral-700 bg-neutral-900 p-3 text-right text-xs text-neutral-300 shadow-xl">
-                  <li className="mb-2"><Link href="/about" className="hover:text-white hover:underline">About</Link></li>
-                  <li className="mb-2"><Link href="/contact" className="hover:text-white hover:underline">Contact</Link></li>
-                  <li className="mb-2"><Link href="/privacy" className="hover:text-white hover:underline">Privacy</Link></li>
-                  <li><Link href="/authenticity-policy" className="hover:text-white hover:underline">Authenticity</Link></li>
-                </ul>
-              )}
-            </div>
-          </div>
         </div>
       </footer>
 
-      {/* RESTORED BUTLER: Included here so it appears on every page */}
+      {/* BUTLER */}
       <div className="butler-floating">
         <HomepageButler />
       </div>
