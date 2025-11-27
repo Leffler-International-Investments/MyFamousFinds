@@ -6,7 +6,7 @@ import ProductCard, { ProductLike } from "./ProductCard";
 type Props = {
   title: string;
   products: ProductLike[];
-  subtitle?: string; // ✅ add this line
+  subtitle?: string;
 };
 
 const DemoGrid: FC<Props> = ({ title, subtitle, products }) => {
@@ -14,14 +14,12 @@ const DemoGrid: FC<Props> = ({ title, subtitle, products }) => {
     <section className="demo-grid">
       <header className="demo-grid__header">
         <h2>{title}</h2>
-        {subtitle && (
-          <p className="demo-grid__subtitle">{subtitle}</p>
-        )}
+        {subtitle && <p className="demo-grid__subtitle">{subtitle}</p>}
       </header>
 
       <div className="demo-grid__grid">
         {products.map((product) => (
-          <ProductCard key={product.id} product={product} />
+          <ProductCard key={product.id} {...product} />
         ))}
       </div>
 
