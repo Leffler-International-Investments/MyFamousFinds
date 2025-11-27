@@ -1,3 +1,5 @@
+// FILE: pages/products.tsx
+
 import Head from "next/head";
 import type { GetServerSideProps, NextPage } from "next";
 
@@ -26,8 +28,8 @@ const pickImage = (data: any): string => {
 // ------------ types ------------
 type Props = {
   items: ProductLike[];
-  designer?: string;
-  tag?: string;
+  designer: string | null;
+  tag: string | null;
 };
 
 // ------------ page component ------------
@@ -41,13 +43,16 @@ const ProductsPage: NextPage<Props> = ({ items, designer, tag }) => {
     grouped[cat].push(item);
   });
 
+  const pageTitle = designer || tag || "All Designer Pieces";
+
   return (
     <>
       <Head>
-        <title>{designer || tag || "All Designer Pieces"} | Famous Finds</title>
+        <title>{pageTitle} | Famous Finds</title>
       </Head>
       <Header />
 
+      {/* centered layout like homepage */}
       <main className="wrap py-10">
         <h1 className="text-3xl font-semibold tracking-tight mb-3">
           {designer ? designer : tag ? `${tag} pieces` : "All Designer Pieces"}
@@ -55,7 +60,8 @@ const ProductsPage: NextPage<Props> = ({ items, designer, tag }) => {
 
         {designer && (
           <p className="text-sm text-gray-500 mb-6">
-            Showing all live listings for <strong>{designer}</strong>, grouped by category.
+            Showing all live listings for <strong>{designer}</strong>, grouped
+            by category.
           </p>
         )}
 
@@ -84,8 +90,17 @@ const ProductsPage: NextPage<Props> = ({ items, designer, tag }) => {
 export default ProductsPage;
 
 // ------------ server-side data ------------
-export const getServerSideProps: GetServerSideProps<Props> = async (context) => {
-  const { designer, tag } = context.query;
+export const getServerSideProps: GetServerSideProps<Props> = async (
+  context
+) => {
+  const { designer: rawDesigner, tag: rawTag } = context.query;
+
+  const designer =
+    typeof rawDesigner === "string" && rawDesigner.length > 0
+      ? rawDesigner
+      : null;
+  const tag =
+    typeof rawTag === "string" && rawTag.length > 0 ? rawTag : null;
 
   const snapshot = await adminDb
     .collection("listings")
@@ -109,11 +124,13 @@ export const getServerSideProps: GetServerSideProps<Props> = async (context) => 
     };
   });
 
-  if (typeof designer === "string" && designer.length) {
-    items = items.filter((item: any) => item.brand === designer);
+  // filter by designer
+  if (designer) {
+    items = items.filter((item: any) => (item.brand || "").trim() === designer);
   }
 
-  if (typeof tag === "string" && tag.length) {
+  // filter by tag
+  if (tag) {
     items = items.filter((item: any) =>
       Array.isArray(item.tags) ? item.tags.includes(tag) : false
     );
@@ -122,8 +139,8 @@ export const getServerSideProps: GetServerSideProps<Props> = async (context) => 
   return {
     props: {
       items,
-      designer: designer || null,
-      tag: tag || null,
+      designer,
+      tag,
     },
   };
 };
