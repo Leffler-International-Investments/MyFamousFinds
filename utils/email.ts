@@ -7,7 +7,7 @@ const user = process.env.SMTP_USER;
 const pass = process.env.SMTP_PASS;
 const from = process.env.SMTP_FROM || user;
 
-// Warn if missing envs (will show in Vercel logs)
+// Warn if missing envs (shows in Vercel logs)
 if (!host || !user || !pass) {
   console.warn("[email] Missing SMTP configuration. Emails will NOT be sent.", {
     host,
@@ -18,8 +18,12 @@ if (!host || !user || !pass) {
 const transporter = nodemailer.createTransport({
   host,
   port,
-  secure: port === 465, // Gmail: 587 = STARTTLS, 465 = SSL
+  secure: port === 465, // 587 = STARTTLS, 465 = SSL
   auth: { user, pass },
+  tls: {
+    // avoids some TLS issues on serverless hosts
+    rejectUnauthorized: false,
+  },
 });
 
 // Generic helper
@@ -29,12 +33,19 @@ async function sendMail(to: string, subject: string, text: string) {
     return;
   }
 
-  await transporter.sendMail({
-    from,
-    to,
-    subject,
-    text,
-  });
+  try {
+    const info = await transporter.sendMail({
+      from,
+      to,
+      subject,
+      text,
+    });
+    console.log("[email] sent", { to, messageId: info.messageId });
+  } catch (err) {
+    console.error("[email] error sending mail", err);
+    // Let the API route see the error so it can return ok:false
+    throw err;
+  }
 }
 
 /**
@@ -143,8 +154,7 @@ export async function sendOrderConfirmationEmail(
     return;
   }
 
-  const finalSubject =
-    subject || "Your Famous Finds order confirmation";
+  const finalSubject = subject || "Your Famous Finds order confirmation";
 
   const itemsText =
     items && items.length
