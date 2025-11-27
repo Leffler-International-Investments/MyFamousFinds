@@ -1,6 +1,7 @@
 // FILE: /pages/index.tsx
 
 import Head from "next/head";
+import Link from "next/link";
 import type { GetServerSideProps, NextPage } from "next";
 import Header from "../components/Header";
 import Footer from "../components/Footer";
@@ -9,14 +10,24 @@ import { ProductLike } from "../components/ProductCard";
 import { adminDb } from "../utils/firebaseAdmin";
 import HomepageButler from "../components/HomepageButler";
 
+type HomeStats = {
+  liveListings: string;
+  newThisWeek: string;
+  designers: string;
+  authentication: string;
+};
+
 type HomeProps = {
   trending: ProductLike[];
   newArrivals: ProductLike[];
+  stats: HomeStats;
 };
 
-const Home: NextPage<HomeProps> = ({ trending = [], newArrivals = [] }) => {
-  const totalItems = (trending.length || 0) + (newArrivals.length || 0);
-
+const Home: NextPage<HomeProps> = ({
+  trending = [],
+  newArrivals = [],
+  stats,
+}) => {
   return (
     <div className="home-page">
       <Head>
@@ -28,12 +39,10 @@ const Home: NextPage<HomeProps> = ({ trending = [], newArrivals = [] }) => {
 
       <main className="home-main">
         <div className="home-inner">
-
           {/* ---------------------------------- */}
           {/* HERO SECTION */}
           {/* ---------------------------------- */}
           <section className="hero">
-
             {/* LEFT SIDE */}
             <div className="hero-left">
               <div className="hero-pill">
@@ -42,7 +51,7 @@ const Home: NextPage<HomeProps> = ({ trending = [], newArrivals = [] }) => {
               </div>
 
               <h1 className="hero-title">
-                Discover, save & shop
+                Discover, save &amp; shop
                 <br />
                 authenticated designer pieces.
               </h1>
@@ -55,26 +64,40 @@ const Home: NextPage<HomeProps> = ({ trending = [], newArrivals = [] }) => {
 
               {/* HERO STATS */}
               <div className="hero-stats">
-                <div className="stat-card">
-                  <p className="stat-label">LIVE LISTINGS</p>
-                  <p className="stat-value">{totalItems || "20+"}</p>
-                  <p className="stat-note">Updated in real time</p>
-                </div>
-                <div className="stat-card">
-                  <p className="stat-label">NEW THIS WEEK</p>
-                  <p className="stat-value">{newArrivals.length || "10+"}</p>
-                  <p className="stat-note">Fresh drops &amp; finds</p>
-                </div>
-                <div className="stat-card">
-                  <p className="stat-label">DESIGNERS</p>
-                  <p className="stat-value">50+</p>
-                  <p className="stat-note">From Chanel to Rolex</p>
-                </div>
-                <div className="stat-card">
-                  <p className="stat-label">AUTHENTICATION</p>
-                  <p className="stat-value">100%</p>
-                  <p className="stat-note">Every piece reviewed</p>
-                </div>
+                <Link href="/category/new-arrivals" className="stat-card-link">
+                  <div className="stat-card">
+                    <p className="stat-label">LIVE LISTINGS</p>
+                    <p className="stat-value">{stats.liveListings}</p>
+                    <p className="stat-note">Updated in real time</p>
+                  </div>
+                </Link>
+
+                <Link href="/category/new-arrivals" className="stat-card-link">
+                  <div className="stat-card">
+                    <p className="stat-label">NEW THIS WEEK</p>
+                    <p className="stat-value">{stats.newThisWeek}</p>
+                    <p className="stat-note">Fresh drops &amp; finds</p>
+                  </div>
+                </Link>
+
+                <Link href="/designers" className="stat-card-link">
+                  <div className="stat-card">
+                    <p className="stat-label">DESIGNERS</p>
+                    <p className="stat-value">{stats.designers}</p>
+                    <p className="stat-note">From Chanel to Rolex</p>
+                  </div>
+                </Link>
+
+                <Link
+                  href="/authenticity-policy"
+                  className="stat-card-link"
+                >
+                  <div className="stat-card">
+                    <p className="stat-label">AUTHENTICATION</p>
+                    <p className="stat-value">{stats.authentication}</p>
+                    <p className="stat-note">Every piece reviewed</p>
+                  </div>
+                </Link>
               </div>
 
               {/* CTA BUTTONS */}
@@ -85,9 +108,9 @@ const Home: NextPage<HomeProps> = ({ trending = [], newArrivals = [] }) => {
                 <a href="#trending" className="btn-secondary">
                   View Trending Pieces
                 </a>
-                <a href="/designers" className="btn-outline">
+                <Link href="/designers" className="btn-outline">
                   Shop by Designer
-                </a>
+                </Link>
               </div>
             </div>
 
@@ -114,12 +137,12 @@ const Home: NextPage<HomeProps> = ({ trending = [], newArrivals = [] }) => {
               </div>
 
               <div className="snapshot-actions">
-                <button className="btn-primary full">
+                <Link href="/club-login" className="btn-primary full">
                   Sign in to view your dashboard
-                </button>
-                <button className="btn-secondary full">
+                </Link>
+                <Link href="/vip-welcome" className="btn-secondary full">
                   Create a free buyer account
-                </button>
+                </Link>
               </div>
             </aside>
           </section>
@@ -253,11 +276,22 @@ const Home: NextPage<HomeProps> = ({ trending = [], newArrivals = [] }) => {
           }
         }
 
+        .stat-card-link {
+          text-decoration: none;
+          color: inherit;
+        }
+
         .stat-card {
           border: 1px solid #e5e5e5;
           border-radius: 16px;
           padding: 12px;
           background: white;
+          transition: box-shadow 0.15s ease, transform 0.15s ease;
+        }
+
+        .stat-card:hover {
+          box-shadow: 0 12px 30px rgba(0, 0, 0, 0.06);
+          transform: translateY(-1px);
         }
 
         .stat-label {
@@ -410,16 +444,64 @@ const Home: NextPage<HomeProps> = ({ trending = [], newArrivals = [] }) => {
 };
 
 /* ----------------------------------------------------------- */
-/* BACKEND CONNECTION (REAL LISTINGS) */
+/* BACKEND CONNECTION (REAL LISTINGS + DESIGNERS) */
 /* ----------------------------------------------------------- */
 export const getServerSideProps: GetServerSideProps<HomeProps> = async () => {
   let trending: ProductLike[] = [];
   let newArrivals: ProductLike[] = [];
+  let stats: HomeStats = {
+    liveListings: "20+",
+    newThisWeek: "10+",
+    designers: "50+",
+    authentication: "100%",
+  };
+
+  const allowedStatuses = ["Live", "Active", "Approved"];
 
   try {
-    const allowedStatuses = ["Live", "Active", "Approved"];
+    // --- LIVE LISTINGS SNAPSHOT FOR STATS ---
+    const listingsSnap = await adminDb
+      .collection("listings")
+      .where("status", "in", allowedStatuses)
+      .get();
 
-    // TRENDING
+    const nowSeconds = Math.floor(Date.now() / 1000);
+    const oneWeekAgo = nowSeconds - 7 * 24 * 60 * 60;
+
+    let liveCount = 0;
+    let newThisWeekCount = 0;
+
+    listingsSnap.forEach((doc) => {
+      const d: any = doc.data() || {};
+      liveCount += 1;
+
+      const createdAtRaw: any = d.createdAt;
+      let createdAt = 0;
+      if (createdAtRaw && typeof createdAtRaw === "object") {
+        if (typeof createdAtRaw.seconds === "number") {
+          createdAt = createdAtRaw.seconds;
+        } else if (typeof createdAtRaw._seconds === "number") {
+          createdAt = createdAtRaw._seconds;
+        }
+      }
+
+      if (createdAt >= oneWeekAgo) {
+        newThisWeekCount += 1;
+      }
+    });
+
+    // --- DESIGNERS COUNT ---
+    const designersSnap = await adminDb.collection("designers").get();
+    const designersCount = designersSnap.size;
+
+    stats = {
+      liveListings: liveCount ? liveCount.toString() : "20+",
+      newThisWeek: newThisWeekCount ? newThisWeekCount.toString() : "10+",
+      designers: designersCount ? designersCount.toString() : "50+",
+      authentication: "100%",
+    };
+
+    // --- TRENDING LISTINGS ---
     const trendingSnap = await adminDb
       .collection("listings")
       .where("status", "in", allowedStatuses)
@@ -429,9 +511,9 @@ export const getServerSideProps: GetServerSideProps<HomeProps> = async () => {
 
     trending = trendingSnap.docs.map((doc) => {
       const d: any = doc.data() || {};
-      const priceNum = Number(d.price) || 0;
+      const priceNumber = Number(d.price) || 0;
 
-      const image =
+      const image: string =
         d.image_url ||
         d.imageUrl ||
         d.image ||
@@ -442,13 +524,13 @@ export const getServerSideProps: GetServerSideProps<HomeProps> = async () => {
         id: doc.id,
         title: d.title || "",
         brand: d.brand || "",
-        price: priceNum ? `US$${priceNum.toLocaleString()}` : "",
+        price: priceNumber ? `US$${priceNumber.toLocaleString()}` : "",
         image,
         href: `/product/${doc.id}`,
       };
     });
 
-    // NEW ARRIVALS
+    // --- NEW ARRIVALS (LATEST LISTINGS) ---
     const arrivalsSnap = await adminDb
       .collection("listings")
       .where("status", "in", allowedStatuses)
@@ -458,9 +540,9 @@ export const getServerSideProps: GetServerSideProps<HomeProps> = async () => {
 
     newArrivals = arrivalsSnap.docs.map((doc) => {
       const d: any = doc.data() || {};
-      const priceNum = Number(d.price) || 0;
+      const priceNumber = Number(d.price) || 0;
 
-      const image =
+      const image: string =
         d.image_url ||
         d.imageUrl ||
         d.image ||
@@ -471,7 +553,7 @@ export const getServerSideProps: GetServerSideProps<HomeProps> = async () => {
         id: doc.id,
         title: d.title || "",
         brand: d.brand || "",
-        price: priceNum ? `US$${priceNum.toLocaleString()}` : "",
+        price: priceNumber ? `US$${priceNumber.toLocaleString()}` : "",
         image,
         href: `/product/${doc.id}`,
       };
@@ -484,6 +566,7 @@ export const getServerSideProps: GetServerSideProps<HomeProps> = async () => {
     props: {
       trending,
       newArrivals,
+      stats,
     },
   };
 };
