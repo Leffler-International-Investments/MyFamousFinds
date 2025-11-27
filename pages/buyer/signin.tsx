@@ -1,3 +1,5 @@
+// FILE: pages/buyer/signin.tsx
+
 import { useState, useEffect } from "react";
 import Head from "next/head";
 import Link from "next/link";
@@ -47,7 +49,7 @@ export default function BuyerSignInPage() {
       await signInWithEmailAndPassword(auth, email.trim(), password);
       router.push("/buyer/dashboard");
     } catch (err: any) {
-      setError(err.message);
+      setError(err.message || "Unable to sign you in.");
     } finally {
       setLoading(false);
     }
@@ -56,51 +58,55 @@ export default function BuyerSignInPage() {
   return (
     <>
       <Head>
-        <title>Buyer Sign In</title>
+        <title>Sign in | Famous Finds</title>
       </Head>
       <Header />
-      <main className="wrap max-w-md mx-auto py-10">
-        <h1 className="text-2xl font-semibold mb-6">Sign in</h1>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-sm mb-1">Email</label>
-            <input
-              type="email"
-              className="w-full border rounded px-3 py-2 text-sm"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-            />
-          </div>
+      <main className="auth-main">
+        <div className="auth-inner">
+          <h1 className="auth-title">Sign in</h1>
 
-          <div>
-            <label className="block text-sm mb-1">Password</label>
-            <input
-              type="password"
-              className="w-full border rounded px-3 py-2 text-sm"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-            />
-          </div>
+          <form onSubmit={handleSubmit} className="auth-form">
+            <div className="auth-field">
+              <label className="auth-label">Email</label>
+              <input
+                type="email"
+                className="auth-input"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+              />
+            </div>
 
-          {error && <p className="text-sm text-red-600">{error}</p>}
+            <div className="auth-field">
+              <label className="auth-label">Password</label>
+              <input
+                type="password"
+                className="auth-input"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+              />
+            </div>
 
-          <button
-            type="submit"
-            className="w-full bg-slate-900 text-white rounded-full py-2 text-sm"
-            disabled={loading}
-          >
-            {loading ? "Signing in…" : "Sign in"}
-          </button>
-        </form>
+            {error && <p className="auth-error">{error}</p>}
 
-        <p className="mt-4 text-sm text-gray-500">
-          Don&apos;t have an account?{" "}
-          <Link href="/buyer/signup" className="underline">
-            Create one
-          </Link>
-        </p>
+            <button
+              type="submit"
+              className="auth-button"
+              disabled={loading}
+            >
+              {loading ? "Signing in…" : "Sign in"}
+            </button>
+          </form>
+
+          <p className="auth-switch">
+            Don&apos;t have an account yet?{" "}
+            <Link href="/buyer/signup">Create a free buyer account</Link>
+          </p>
+        </div>
       </main>
+
       <Footer />
     </>
   );
