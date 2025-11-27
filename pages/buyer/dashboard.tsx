@@ -1,14 +1,12 @@
+// FILE: pages/buyer/dashboard.tsx
+
 import { useEffect, useState } from "react";
 import Head from "next/head";
 import { useRouter } from "next/router";
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
 
-import {
-  initializeApp,
-  getApps,
-  getApp,
-} from "firebase/app";
+import { initializeApp, getApps, getApp } from "firebase/app";
 import {
   getAuth,
   onAuthStateChanged,
@@ -49,7 +47,6 @@ export default function BuyerDashboardPage() {
   const [savedItems, setSavedItems] = useState<ItemRow[]>([]);
   const [viewedItems, setViewedItems] = useState<ItemRow[]>([]);
   const [activeOffers, setActiveOffers] = useState<ItemRow[]>([]);
-
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -66,8 +63,8 @@ export default function BuyerDashboardPage() {
   }, [router]);
 
   const loadData = async (uid: string) => {
-    const load = async (collectionName: string) => {
-      const q = query(collection(db, collectionName), where("userId", "==", uid));
+    const loadCollection = async (name: string) => {
+      const q = query(collection(db, name), where("userId", "==", uid));
       const snap = await getDocs(q);
       return snap.docs.map((doc) => ({
         id: doc.id,
@@ -75,12 +72,12 @@ export default function BuyerDashboardPage() {
       })) as ItemRow[];
     };
 
-    setSavedItems(await load("buyerSavedItems"));
-    setViewedItems(await load("buyerRecentlyViewed"));
-    setActiveOffers(await load("buyerOffers"));
+    setSavedItems(await loadCollection("buyerSavedItems"));
+    setViewedItems(await loadCollection("buyerRecentlyViewed"));
+    setActiveOffers(await loadCollection("buyerOffers"));
   };
 
-  const logout = async () => {
+  const handleSignOut = async () => {
     await signOut(auth);
     router.push("/");
   };
@@ -88,70 +85,138 @@ export default function BuyerDashboardPage() {
   return (
     <>
       <Head>
-        <title>Buyer Dashboard</title>
+        <title>Buyer Dashboard | Famous Finds</title>
       </Head>
+
       <Header />
 
-      <main className="wrap py-10">
-        <div className="flex justify-between mb-10">
-          <div>
-            <h1 className="text-3xl font-semibold">Your Dashboard</h1>
-            {user && (
-              <p className="text-sm text-gray-500">
-                Signed in as {user.email}
-              </p>
-            )}
+      <main className="buyer-dashboard-main">
+        <div className="wrap buyer-dashboard-wrap">
+          {/* Top header */}
+          <div className="buyer-dashboard-header">
+            <div>
+              <h1 className="buyer-dashboard-title">
+                Your Famous Finds Snapshot
+              </h1>
+              {user && (
+                <p className="buyer-dashboard-meta">
+                  Signed in as {user.email}
+                </p>
+              )}
+            </div>
+
+            <button
+              type="button"
+              onClick={handleSignOut}
+              className="buyer-dashboard-signout"
+            >
+              Sign out
+            </button>
           </div>
 
-          <button onClick={logout} className="underline text-sm">
-            Sign out
-          </button>
+          <div className="buyer-dashboard-body">
+            {/* Snapshot card on the right (similar look to homepage) */}
+            <section className="buyer-snapshot-card">
+              <div className="buyer-snapshot-label">GUEST VIEW</div>
+              <div className="buyer-snapshot-row">
+                <span>Saved Items</span>
+                <span>{savedItems.length}</span>
+              </div>
+              <div className="buyer-snapshot-row">
+                <span>Recently Viewed</span>
+                <span>{viewedItems.length}</span>
+              </div>
+              <div className="buyer-snapshot-row">
+                <span>Active Offers</span>
+                <span>{activeOffers.length}</span>
+              </div>
+            </section>
+
+            {/* Lists on the left */}
+            <section className="buyer-lists">
+              {loading && <p className="buyer-loading">Loading…</p>}
+
+              {!loading && (
+                <>
+                  <div className="buyer-list-block">
+                    <h2 className="buyer-list-title">Saved items</h2>
+                    {savedItems.length === 0 ? (
+                      <p className="buyer-list-empty">
+                        You haven&apos;t saved any pieces yet.
+                      </p>
+                    ) : (
+                      <ul className="buyer-list">
+                        {savedItems.map((item) => (
+                          <li key={item.id}>
+                            <span className="buyer-item-title">
+                              {item.title}
+                            </span>
+                            {item.brand && (
+                              <span className="buyer-item-brand">
+                                {" "}
+                                — {item.brand}
+                              </span>
+                            )}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+
+                  <div className="buyer-list-block">
+                    <h2 className="buyer-list-title">Recently viewed</h2>
+                    {viewedItems.length === 0 ? (
+                      <p className="buyer-list-empty">
+                        No recently viewed pieces yet.
+                      </p>
+                    ) : (
+                      <ul className="buyer-list">
+                        {viewedItems.map((item) => (
+                          <li key={item.id}>
+                            <span className="buyer-item-title">
+                              {item.title}
+                            </span>
+                            {item.brand && (
+                              <span className="buyer-item-brand">
+                                {" "}
+                                — {item.brand}
+                              </span>
+                            )}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+
+                  <div className="buyer-list-block">
+                    <h2 className="buyer-list-title">Active offers</h2>
+                    {activeOffers.length === 0 ? (
+                      <p className="buyer-list-empty">
+                        You don&apos;t have any active offers yet.
+                      </p>
+                    ) : (
+                      <ul className="buyer-list">
+                        {activeOffers.map((item) => (
+                          <li key={item.id}>
+                            <span className="buyer-item-title">
+                              {item.title}
+                            </span>
+                            {item.brand && (
+                              <span className="buyer-item-brand">
+                                {" "}
+                                — {item.brand}
+                              </span>
+                            )}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                </>
+              )}
+            </section>
+          </div>
         </div>
-
-        {loading && <p>Loading…</p>}
-
-        {!loading && (
-          <>
-            <section className="mb-10">
-              <h2 className="text-xl font-medium mb-3">Saved items</h2>
-              {savedItems.length === 0 ? (
-                <p className="text-sm text-gray-500">None saved yet.</p>
-              ) : (
-                <ul className="space-y-1 text-sm">
-                  {savedItems.map((i) => (
-                    <li key={i.id}>{i.title}</li>
-                  ))}
-                </ul>
-              )}
-            </section>
-
-            <section className="mb-10">
-              <h2 className="text-xl font-medium mb-3">Recently viewed</h2>
-              {viewedItems.length === 0 ? (
-                <p className="text-sm text-gray-500">None viewed yet.</p>
-              ) : (
-                <ul className="space-y-1 text-sm">
-                  {viewedItems.map((i) => (
-                    <li key={i.id}>{i.title}</li>
-                  ))}
-                </ul>
-              )}
-            </section>
-
-            <section className="mb-10">
-              <h2 className="text-xl font-medium mb-3">Active offers</h2>
-              {activeOffers.length === 0 ? (
-                <p className="text-sm text-gray-500">No active offers.</p>
-              ) : (
-                <ul className="space-y-1 text-sm">
-                  {activeOffers.map((i) => (
-                    <li key={i.id}>{i.title}</li>
-                  ))}
-                </ul>
-              )}
-            </section>
-          </>
-        )}
       </main>
 
       <Footer />
