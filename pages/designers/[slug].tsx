@@ -1,11 +1,16 @@
 // FILE: /pages/designers/[slug].tsx
+
 import Head from "next/head";
 import Link from "next/link";
+import type { GetServerSideProps } from "next";
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
 import { adminDb } from "../../utils/firebaseAdmin";
+import ProductCard, {
+  ProductLike,
+} from "../../components/ProductCard";
 
-// simple slug helper (same logic as seed-designers API)
+// same helper as before
 const slugify = (s: string) =>
   s
     .toLowerCase()
@@ -14,9 +19,12 @@ const slugify = (s: string) =>
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/(^-|-$)/g, "");
 
-export default function DesignerPage(props: any) {
-  const { designer, items } = props;
+type DesignerProps = {
+  designer: { id: string; name: string; slug?: string } | null;
+  items: ProductLike[];
+};
 
+export default function DesignerPage({ designer, items }: DesignerProps) {
   return (
     <div className="page">
       <Head>
@@ -29,32 +37,34 @@ export default function DesignerPage(props: any) {
 
       <main className="wrap">
         <Link href="/designers" className="back">
-          ← Designers
+          ← All designers
         </Link>
 
         {designer ? (
           <>
-            <h1>{designer.name}</h1>
-            <p className="hint">All live items from this designer.</p>
+            <header className="header-block">
+              <h1>{designer.name}</h1>
+              <p className="hint">
+                All live, authenticated pieces currently available from this
+                designer.
+              </p>
+              <p className="count">
+                {items.length === 1
+                  ? "1 item available"
+                  : `${items.length} items available`}
+              </p>
+            </header>
 
             {items.length === 0 ? (
-              <p>No items yet for this designer.</p>
+              <p className="empty">
+                No live items yet for this designer. Please check back soon.
+              </p>
             ) : (
-              <div className="grid">
-                {items.map((item: any) => (
-                  <Link
-                    href={`/item/${item.id}`}
-                    key={item.id}
-                    className="card"
-                  >
-                    {item.images?.[0] && (
-                      <img src={item.images[0]} alt={item.title} />
-                    )}
-                    <h3>{item.title}</h3>
-                    <p className="price">${item.price}</p>
-                  </Link>
+              <section className="grid">
+                {items.map((p) => (
+                  <ProductCard key={p.id} {...p} />
                 ))}
-              </div>
+              </section>
             )}
           </>
         ) : (
@@ -66,51 +76,53 @@ export default function DesignerPage(props: any) {
 
       <style jsx>{`
         .page {
-          background: #fff;
-          color: #111;
+          background: #ffffff;
+          color: #111827;
+          min-height: 100vh;
+          display: flex;
+          flex-direction: column;
         }
         .wrap {
-          max-width: 1200px;
+          max-width: 1150px;
           margin: 0 auto;
-          padding: 20px 16px 60px;
+          padding: 24px 16px 60px;
+          width: 100%;
         }
         .back {
           font-size: 13px;
           color: #6b7280;
           text-decoration: none;
         }
+        .back:hover {
+          color: #111827;
+        }
+        .header-block {
+          margin-top: 10px;
+          margin-bottom: 20px;
+        }
         h1 {
-          font-size: 26px;
-          margin: 8px 0 6px;
+          font-family: "Georgia", serif;
+          font-size: 28px;
+          margin-bottom: 4px;
         }
         .hint {
+          font-size: 14px;
+          color: #4b5563;
+        }
+        .count {
           font-size: 13px;
-          color: #444;
-          margin-bottom: 20px;
+          color: #9ca3af;
+          margin-top: 4px;
         }
         .grid {
           display: grid;
-          grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-          gap: 20px;
+          grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+          gap: 18px;
         }
-        .card {
-          background: #fff;
-          border: 1px solid #e5e7eb;
-          border-radius: 10px;
-          padding: 12px;
-          text-decoration: none;
-          color: #111;
-        }
-        .card img {
-          width: 100%;
-          height: 220px;
-          object-fit: cover;
-          border-radius: 8px;
-          margin-bottom: 8px;
-        }
-        .price {
+        .empty {
+          margin-top: 18px;
           font-size: 14px;
-          color: #333;
+          color: #6b7280;
         }
         .error {
           margin-top: 16px;
@@ -122,40 +134,35 @@ export default function DesignerPage(props: any) {
   );
 }
 
-export async function getServerSideProps(ctx: any) {
+export const getServerSideProps: GetServerSideProps<DesignerProps> = async (
+  ctx
+) => {
   try {
     const raw = String(ctx.params?.slug || "");
     const decoded = decodeURIComponent(raw);
     const slugFromName = slugify(decoded);
 
-    let docSnap = await adminDb.collection("designers").doc(raw).get();
+    // 1. Find designer document (same robust logic as original file)
+    let docSnap = await adminDb.collection("designers").doc(raw).get(); // :contentReference[oaicite:1]{index=1}
 
     if (!docSnap.exists) {
       docSnap = await adminDb.collection("designers").doc(slugFromName).get();
     }
-
     if (!docSnap.exists) {
       const bySlug = await adminDb
         .collection("designers")
         .where("slug", "==", raw.toLowerCase())
         .limit(1)
         .get();
-
-      if (!bySlug.empty) {
-        docSnap = bySlug.docs[0];
-      }
+      if (!bySlug.empty) docSnap = bySlug.docs[0];
     }
-
     if (!docSnap.exists) {
       const byName = await adminDb
         .collection("designers")
         .where("name", "==", decoded)
         .limit(1)
         .get();
-
-      if (!byName.empty) {
-        docSnap = byName.docs[0];
-      }
+      if (!byName.empty) docSnap = byName.docs[0];
     }
 
     if (!docSnap.exists) {
@@ -163,26 +170,48 @@ export async function getServerSideProps(ctx: any) {
     }
 
     const d = docSnap;
-    const data: any = d.data();
+    const data: any = d.data() || {};
     const designer = {
       id: d.id,
-      name: data.name,
-      slug: data.slug,
+      name: data.name || decoded || d.id,
+      slug: data.slug || raw,
     };
 
-    const iSnap = await adminDb
-      .collection("items")
-      .where("designer", "==", designer.name)
-      .where("live", "==", true)
+    const allowedStatuses = ["Live", "Active", "Approved"];
+
+    // 2. Fetch listings for this designer (try "brand" first, then "designer")
+    let listingSnap = await adminDb
+      .collection("listings")
+      .where("brand", "==", designer.name)
+      .where("status", "in", allowedStatuses)
       .get();
 
-    const items = iSnap.docs.map((doc) => {
-      const item: any = doc.data();
+    if (listingSnap.empty) {
+      listingSnap = await adminDb
+        .collection("listings")
+        .where("designer", "==", designer.name)
+        .where("status", "in", allowedStatuses)
+        .get();
+    }
+
+    const items: ProductLike[] = listingSnap.docs.map((doc) => {
+      const l: any = doc.data() || {};
+      const priceNumber = Number(l.price) || 0;
+      const image: string =
+        l.image_url ||
+        l.imageUrl ||
+        l.image ||
+        (Array.isArray(l.imageUrls) && l.imageUrls[0]) ||
+        "";
+
       return {
         id: doc.id,
-        title: item.title || "",
-        price: item.price || 0,
-        images: item.images || [],
+        title: l.title || "",
+        brand: l.brand || designer.name,
+        price: priceNumber ? `US$${priceNumber.toLocaleString("en-US")}` : "",
+        image,
+        href: `/product/${doc.id}`,
+        badge: l.badge || undefined,
       };
     });
 
@@ -191,4 +220,4 @@ export async function getServerSideProps(ctx: any) {
     console.error("Error loading designer page", error);
     return { props: { designer: null, items: [] } };
   }
-}
+};
