@@ -1,131 +1,117 @@
-// FILE: /pages/selling.tsx
+// FILE: /pages/help/selling.tsx
+
 import Head from "next/head";
-import Link from "next/link";
-import Header from "../components/Header";
-import Footer from "../components/Footer";
+import Header from "../../components/Header";
+import Footer from "../../components/Footer";
 
-export default function SellingInfo() {
+export default function SellingHelpPage() {
   return (
-    <div className="dark-theme-page">
+    <div className="page">
       <Head>
-        <title>Selling on Famous Finds</title>
+        <title>Selling on Famous Finds – Help</title>
       </Head>
-
       <Header />
 
       <main className="wrap">
-        <Link href="/" className="back-link">
-          ← Back to Dashboard
-        </Link>
+        <a href="/help" className="back-link">
+          ← Help Center
+        </a>
 
-        <h1>Selling guide</h1>
+        <h1>Selling on Famous Finds</h1>
         <p className="intro">
-          A quick overview of how to list items and get paid as a seller on
-          Famous Finds.
+          A quick overview of how to list items, manage orders and get paid as a
+          seller on Famous Finds.
         </p>
 
-        <section className="card">
-          <h2>1. Submit your item</h2>
+        <div className="card">
+          <h2>1. Listing your item</h2>
           <p>
-            Use the{" "}
-            <Link href="/sell">
-              Sell form
-            </Link>{" "}
-            to send us details and photos. Our team reviews every submission for
-            brand, condition and fit with the marketplace.
+            Create a new listing from your seller dashboard. Add clear photos,
+            describe the condition honestly and choose the correct designer and
+            category.
           </p>
-        </section>
+        </div>
 
-        <section className="card">
-          <h2>2. Approval &amp; listing</h2>
+        <div className="card">
+          <h2>2. Review &amp; approval</h2>
           <p>
-            Once approved, we create a listing on Famous Finds. We may adjust
-            the title, description or price to match our house standards and
-            current market data.
+            Our team reviews each listing for completeness, brand accuracy and
+            policy compliance. Approved items go live in the marketplace and can
+            appear in search, New Arrivals and designer pages.
           </p>
-        </section>
+        </div>
 
-        <section className="card">
-          <h2>3. Shipping &amp; delivery</h2>
+        <div className="card">
+          <h2>3. Shipping the order</h2>
           <p>
-            When an item sells, we&apos;ll send you a shipping label or
-            instructions. You&apos;re expected to dispatch within the agreed
-            time frame and upload tracking so the buyer can follow the delivery.
+            When an item sells, you&apos;ll receive an order notification and
+            shipping instructions. Pack the item securely and dispatch within
+            the agreed time frame, then upload tracking so the buyer can follow
+            the delivery.
           </p>
-        </section>
+        </div>
 
-        <section className="card">
+        <div className="card">
           <h2>4. Getting paid</h2>
           <p>
             Payouts are processed via Stripe Connect to your nominated bank
-            account. You can track balances and payouts in your{" "}
-            <Link href="/seller/wallet">Wallet</Link> and monthly{" "}
-            <Link href="/seller/statements">Statements</Link>.
+            account. You can track balances and payouts in your Wallet and
+            monthly statements.
           </p>
-        </section>
+        </div>
       </main>
 
       <Footer />
 
       <style jsx>{`
+        .page {
+          min-height: 100vh;
+          background: #ffffff;
+          color: #111827;
+          display: flex;
+          flex-direction: column;
+        }
         .wrap {
-          max-width: 800px;
-          margin: 0 auto;
-          padding: 24px 16px 80px;
-        }
-        h1 {
-          font-size: 26px;
-          margin-top: 8px;
-          margin-bottom: 10px;
-        }
-        .intro {
-          font-size: 14px;
-          color: #d4d4d4;
-          margin-bottom: 20px;
-        }
-        .card {
-          border-radius: 16px;
-          border: 1px solid #27272a;
-          background: #020617;
-          padding: 16px 18px;
-          margin-bottom: 16px;
-          font-size: 14px;
-          color: #e5e5e5;
-        }
-        .card h2 {
-          font-size: 16px;
-          margin-bottom: 6px;
-        }
-        .card ul {
-          margin: 8px 0 0;
-          padding-left: 18px;
-          list-style: disc;
-          color: #d4d4d4;
-        }
-        .card li + li {
-          margin-top: 4px;
-        }
-        .small {
-          font-size: 12px;
-          color: #a1a1aa;
-          margin-top: 10px;
-        }
-        a {
-          color: #a5b4fc;
-          text-decoration: none;
-        }
-        a:hover {
-          text-decoration: underline;
+          max-width: 900px;
+          margin: 24px auto 60px;
+          padding: 0 16px;
         }
         .back-link {
-          display: inline-block;
-          font-size: 12px;
-          color: #a1a1aa;
-          margin-bottom: 4px;
+          font-size: 13px;
+          color: #6b7280;
           text-decoration: none;
         }
         .back-link:hover {
-          color: #e5e5e5;
+          color: #111827;
+        }
+        h1 {
+          margin-top: 12px;
+          font-family: "Georgia", serif;
+          font-size: 26px;
+        }
+        .intro {
+          margin-top: 6px;
+          color: #4b5563;
+          font-size: 14px;
+          margin-bottom: 18px;
+        }
+        .card {
+          background: #ffffff; /* WHITE, not black */
+          color: #111827;
+          border-radius: 18px;
+          border: 1px solid #e5e7eb;
+          padding: 16px 18px;
+          margin-bottom: 16px;
+          box-shadow: 0 10px 30px rgba(15, 23, 42, 0.04);
+        }
+        .card h2 {
+          font-size: 18px;
+          margin-bottom: 6px;
+        }
+        .card p {
+          font-size: 14px;
+          color: #4b5563;
+          line-height: 1.6;
         }
       `}</style>
     </div>
