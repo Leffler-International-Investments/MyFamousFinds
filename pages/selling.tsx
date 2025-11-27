@@ -1,62 +1,50 @@
-// FILE: /pages/help/selling.tsx
+// FILE: /pages/selling.tsx
 
 import Head from "next/head";
-import Header from "../../components/Header";
-import Footer from "../../components/Footer";
+import Header from "../components/Header";
+import Footer from "../components/Footer";
 
-export default function SellingHelpPage() {
+export default function SellingPage() {
   return (
     <div className="page">
       <Head>
-        <title>Selling on Famous Finds – Help</title>
+        <title>Selling on Famous Finds</title>
       </Head>
       <Header />
 
       <main className="wrap">
-        <a href="/help" className="back-link">
-          ← Help Center
-        </a>
+        <a href="/help" className="back-link">← Help Center</a>
 
         <h1>Selling on Famous Finds</h1>
         <p className="intro">
-          A quick overview of how to list items, manage orders and get paid as a
-          seller on Famous Finds.
+          How to list items, ship orders and get paid as a seller.
         </p>
 
         <div className="card">
           <h2>1. Listing your item</h2>
           <p>
-            Create a new listing from your seller dashboard. Add clear photos,
-            describe the condition honestly and choose the correct designer and
-            category.
+            Upload photos, choose the correct category and describe the item accurately.
           </p>
         </div>
 
         <div className="card">
-          <h2>2. Review &amp; approval</h2>
+          <h2>2. Review &amp; Approval</h2>
           <p>
-            Our team reviews each listing for completeness, brand accuracy and
-            policy compliance. Approved items go live in the marketplace and can
-            appear in search, New Arrivals and designer pages.
+            Our team reviews every listing before it becomes visible in the marketplace.
           </p>
         </div>
 
         <div className="card">
           <h2>3. Shipping the order</h2>
           <p>
-            When an item sells, you&apos;ll receive an order notification and
-            shipping instructions. Pack the item securely and dispatch within
-            the agreed time frame, then upload tracking so the buyer can follow
-            the delivery.
+            When your item sells, pack securely, ship on time and upload tracking.
           </p>
         </div>
 
         <div className="card">
           <h2>4. Getting paid</h2>
           <p>
-            Payouts are processed via Stripe Connect to your nominated bank
-            account. You can track balances and payouts in your Wallet and
-            monthly statements.
+            Payouts are processed via Stripe Connect to your bank account.
           </p>
         </div>
       </main>
@@ -65,11 +53,8 @@ export default function SellingHelpPage() {
 
       <style jsx>{`
         .page {
-          min-height: 100vh;
-          background: #ffffff;
-          color: #111827;
-          display: flex;
-          flex-direction: column;
+          background: #fff;
+          color: #111;
         }
         .wrap {
           max-width: 900px;
@@ -81,37 +66,26 @@ export default function SellingHelpPage() {
           color: #6b7280;
           text-decoration: none;
         }
-        .back-link:hover {
-          color: #111827;
-        }
         h1 {
-          margin-top: 12px;
-          font-family: "Georgia", serif;
+          margin: 12px 0;
+          font-family: Georgia, serif;
           font-size: 26px;
         }
         .intro {
-          margin-top: 6px;
           color: #4b5563;
-          font-size: 14px;
           margin-bottom: 18px;
         }
         .card {
-          background: #ffffff; /* WHITE, not black */
-          color: #111827;
+          background: #ffffff;
           border-radius: 18px;
           border: 1px solid #e5e7eb;
-          padding: 16px 18px;
-          margin-bottom: 16px;
-          box-shadow: 0 10px 30px rgba(15, 23, 42, 0.04);
+          padding: 18px;
+          margin-bottom: 18px;
+          box-shadow: 0 10px 30px rgba(0,0,0,0.05);
         }
         .card h2 {
           font-size: 18px;
           margin-bottom: 6px;
-        }
-        .card p {
-          font-size: 14px;
-          color: #4b5563;
-          line-height: 1.6;
         }
       `}</style>
     </div>
