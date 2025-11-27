@@ -67,3 +67,52 @@ body {
 a:hover {
   opacity: 0.85;
 }
+/* ==== Products / Designer listing page ==== */
+
+.luxury-products-main {
+  background: #f7f5f1;
+  padding: 48px 0 72px;
+}
+
+.luxury-products-inner {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
+.luxury-products-title {
+  margin: 0 0 8px;
+  font-size: 32px;
+  line-height: 1.1;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.luxury-products-subtitle {
+  margin: 0 0 24px;
+  font-size: 14px;
+  color: #6b7280;
+}
+
+.luxury-products-empty {
+  margin: 0 0 24px;
+  font-size: 14px;
+  color: #6b7280;
+}
+
+.luxury-products-section {
+  margin-bottom: 32px;
+}
+
+.luxury-products-category {
+  margin: 0 0 12px;
+  font-size: 20px;
+  font-weight: 500;
+  text-transform: capitalize;
+}
+
+.luxury-products-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 24px;
+}
