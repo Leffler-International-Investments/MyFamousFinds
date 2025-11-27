@@ -9,9 +9,9 @@ import Footer from "../../components/Footer";
 import ProductCard, { ProductLike } from "../../components/ProductCard";
 import { adminDb } from "../../utils/firebaseAdmin";
 
-// --------------------------------------------------
+// ------------------------------
 // Helpers
-// --------------------------------------------------
+// ------------------------------
 
 const parsePrice = (p: string | number | undefined) => {
   if (!p) return 0;
@@ -19,18 +19,25 @@ const parsePrice = (p: string | number | undefined) => {
   return Number(p.replace(/[^0-9.-]+/g, "")) || 0;
 };
 
-// --------------------------------------------------
-// Page Component
-// --------------------------------------------------
-
 type Props = {
   items: ProductLike[];
   designers: string[];
 };
 
-export default function DesignersPage({ items, designers }: Props) {
-  type ItemWithPrice = ProductLike & { priceValue: number };
+// ProductLike + extra fields we want to filter on
+type ItemWithPrice = ProductLike & {
+  priceValue: number;
+  // optional fields – TS will now allow access
+  designer?: string;
+  category?: string;
+  condition?: string;
+};
 
+// ------------------------------
+// Component
+// ------------------------------
+
+export default function DesignersPage({ items, designers }: Props) {
   const [itemsWithPrice, setItemsWithPrice] = useState<ItemWithPrice[]>([]);
 
   useEffect(() => {
@@ -42,9 +49,7 @@ export default function DesignersPage({ items, designers }: Props) {
     );
   }, [items]);
 
-  // -------------------------
   // Filters
-  // -------------------------
   const [selectedDesigner, setSelectedDesigner] = useState<string[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string[]>([]);
   const [selectedCondition, setSelectedCondition] = useState<string[]>([]);
@@ -64,9 +69,7 @@ export default function DesignersPage({ items, designers }: Props) {
   const conditions = ["New", "Excellent", "Very good", "Good"];
 
   const toggle = (list: string[], value: string) =>
-    list.includes(value)
-      ? list.filter((x) => x !== value)
-      : [...list, value];
+    list.includes(value) ? list.filter((x) => x !== value) : [...list, value];
 
   const toggleDesigner = (d: string) =>
     setSelectedDesigner((prev) => toggle(prev, d));
@@ -85,32 +88,40 @@ export default function DesignersPage({ items, designers }: Props) {
     setMaxPrice(10000);
   };
 
-  // -------------------------
+  // ------------------------------
   // Apply filters
-  // -------------------------
+  // ------------------------------
 
   const filteredItems = useMemo(() => {
     return itemsWithPrice.filter((item) => {
+      // treat BRAND as the "designer" value; if not, fall back to designer field
+      const designerName =
+        (item.brand as string | undefined) || item.designer || "";
+
       if (
         selectedDesigner.length > 0 &&
-        !selectedDesigner.includes(item.designer || "")
-      )
+        !selectedDesigner.includes(designerName)
+      ) {
         return false;
+      }
 
       if (
         selectedCategory.length > 0 &&
         !selectedCategory.includes(item.category || "")
-      )
+      ) {
         return false;
+      }
 
       if (
         selectedCondition.length > 0 &&
         !selectedCondition.includes(item.condition || "")
-      )
+      ) {
         return false;
+      }
 
-      if (item.priceValue < minPrice || item.priceValue > maxPrice)
+      if (item.priceValue < minPrice || item.priceValue > maxPrice) {
         return false;
+      }
 
       return true;
     });
@@ -123,9 +134,9 @@ export default function DesignersPage({ items, designers }: Props) {
     maxPrice,
   ]);
 
-  // --------------------------------------------------
+  // ------------------------------
   // UI
-  // --------------------------------------------------
+  // ------------------------------
 
   return (
     <>
@@ -138,10 +149,7 @@ export default function DesignersPage({ items, designers }: Props) {
       <main className="wrap">
         <h1>All Products</h1>
 
-        {/* --------------------- */}
         {/* Filters */}
-        {/* --------------------- */}
-
         <div className="filters-box">
           <div className="filters-header">
             <h2>Filters</h2>
@@ -216,10 +224,7 @@ export default function DesignersPage({ items, designers }: Props) {
           <button className="apply-btn">Apply Filters</button>
         </div>
 
-        {/* --------------------- */}
-        {/* Products Grid */}
-        {/* --------------------- */}
-
+        {/* Products grid */}
         <section className="items-grid">
           {filteredItems.length === 0 && (
             <p className="no-results">
@@ -228,16 +233,12 @@ export default function DesignersPage({ items, designers }: Props) {
           )}
 
           {filteredItems.map((item) => (
-            <ProductCard key={item.id} product={item} />
+            <ProductCard key={item.id} {...item} />
           ))}
         </section>
       </main>
 
       <Footer />
-
-      {/* --------------------- */}
-      {/* Styling */}
-      {/* --------------------- */}
 
       <style jsx>{`
         .wrap {
@@ -262,6 +263,7 @@ export default function DesignersPage({ items, designers }: Props) {
         .filters-header {
           display: flex;
           justify-content: space-between;
+          align-items: center;
         }
 
         .clear-btn {
@@ -269,6 +271,7 @@ export default function DesignersPage({ items, designers }: Props) {
           border: none;
           color: #6b7280;
           cursor: pointer;
+          font-size: 13px;
         }
 
         .filter-section h3 {
@@ -292,6 +295,10 @@ export default function DesignersPage({ items, designers }: Props) {
           margin-top: 4px;
         }
 
+        .price-row input {
+          width: 100%;
+        }
+
         .apply-btn {
           margin-top: 18px;
           width: 100%;
@@ -301,6 +308,7 @@ export default function DesignersPage({ items, designers }: Props) {
           border-radius: 10px;
           border: none;
           cursor: pointer;
+          font-weight: 500;
         }
 
         .items-grid {
@@ -318,23 +326,47 @@ export default function DesignersPage({ items, designers }: Props) {
   );
 }
 
-// --------------------------------------------------
+// ------------------------------
 // SERVER SIDE
-// --------------------------------------------------
+// ------------------------------
 
 export const getServerSideProps: GetServerSideProps = async () => {
   const snapshot = await adminDb.collection("listings").get();
 
-  const items = snapshot.docs.map((doc) => ({
-    id: doc.id,
-    ...doc.data(),
-  })) as ProductLike[];
+  const items = snapshot.docs.map((doc) => {
+    const data = doc.data() as any;
+
+    const priceNum = Number(data.price) || 0;
+    const image =
+      data.image_url ||
+      data.imageUrl ||
+      data.image ||
+      (Array.isArray(data.imageUrls) && data.imageUrls[0]) ||
+      "";
+
+    return {
+      id: doc.id,
+      title: data.title || "",
+      brand: data.brand || "",
+      price: priceNum ? `US$${priceNum.toLocaleString()}` : "",
+      image,
+      href: `/product/${doc.id}`,
+      // extra fields if they exist
+      designer: data.designer || data.brand || "",
+      category: data.category || "",
+      condition: data.condition || "",
+    } as ProductLike & {
+      designer?: string;
+      category?: string;
+      condition?: string;
+    };
+  });
 
   const designers = Array.from(
     new Set(
       items
-        .map((i) => i.designer)
-        .filter((d) => typeof d === "string" && d.length > 0)
+        .map((i: any) => i.brand || i.designer || "")
+        .filter((d: string) => d && d.length > 0)
     )
   ).sort();
 
