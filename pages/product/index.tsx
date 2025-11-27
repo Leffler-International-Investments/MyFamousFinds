@@ -1,3 +1,5 @@
+// FILE: pages/products/index.tsx
+
 import Head from "next/head";
 import type { GetServerSideProps } from "next";
 import { useRouter } from "next/router";
@@ -19,12 +21,14 @@ export default function ProductsPage({ items }: Props) {
   const selectedDesigner =
     typeof designer === "string" && designer.length > 0 ? designer : undefined;
 
-  // Filter by designer (if selected) and group by category
   const groupedByCategory = useMemo(() => {
     const filtered = selectedDesigner
       ? items.filter((item: any) => {
           const itemDesigner =
-            item.designer || item.designerName || item.brand || "";
+            (item as any).designer ||
+            (item as any).designerName ||
+            (item as any).brand ||
+            "";
           return itemDesigner === selectedDesigner;
         })
       : items;
@@ -33,9 +37,9 @@ export default function ProductsPage({ items }: Props) {
 
     filtered.forEach((item: any) => {
       const cat =
-        item.category ||
-        item.categoryName ||
-        item.department ||
+        (item as any).category ||
+        (item as any).categoryName ||
+        (item as any).department ||
         "Other";
 
       if (!groups[cat]) groups[cat] = [];
@@ -63,7 +67,7 @@ export default function ProductsPage({ items }: Props) {
           </h1>
           {selectedDesigner && (
             <p className="text-sm text-gray-500">
-              Showing all authenticated pieces saved under&nbsp;
+              Showing all authenticated pieces saved under{" "}
               <span className="font-medium">{selectedDesigner}</span>, grouped
               by category.
             </p>
@@ -80,8 +84,8 @@ export default function ProductsPage({ items }: Props) {
           <section key={category} className="mb-10">
             <h2 className="text-xl font-medium mb-4">{category}</h2>
             <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
-              {catItems.map((item: any) => (
-                <ProductCard key={item.id} item={item} />
+              {catItems.map((item: ProductLike) => (
+                <ProductCard key={item.id} {...item} />
               ))}
             </div>
           </section>
@@ -94,7 +98,6 @@ export default function ProductsPage({ items }: Props) {
 }
 
 export const getServerSideProps: GetServerSideProps<Props> = async () => {
-  // Pull all listings once and filter on the server – avoids index issues.
   const snapshot = await adminDb.collection("listings").get();
 
   const items: ProductLike[] = snapshot.docs.map((doc) => {
