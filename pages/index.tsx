@@ -23,14 +23,18 @@ const Home: NextPage<HomeProps> = ({ trending = [], newArrivals = [] }) => {
         <title>Famous Finds – Curated Luxury Resale</title>
       </Head>
 
-      {/* HEADER – leave as is */}
+      {/* HEADER (unchanged) */}
       <Header />
 
       <main className="home-main">
         <div className="home-inner">
-          {/* HERO */}
+
+          {/* ---------------------------------- */}
+          {/* HERO SECTION */}
+          {/* ---------------------------------- */}
           <section className="hero">
-            {/* LEFT */}
+
+            {/* LEFT SIDE */}
             <div className="hero-left">
               <div className="hero-pill">
                 <span className="pill-dot" />
@@ -38,7 +42,7 @@ const Home: NextPage<HomeProps> = ({ trending = [], newArrivals = [] }) => {
               </div>
 
               <h1 className="hero-title">
-                Discover, save &amp; shop
+                Discover, save & shop
                 <br />
                 authenticated designer pieces.
               </h1>
@@ -49,6 +53,7 @@ const Home: NextPage<HomeProps> = ({ trending = [], newArrivals = [] }) => {
                 can shop with confidence.
               </p>
 
+              {/* HERO STATS */}
               <div className="hero-stats">
                 <div className="stat-card">
                   <p className="stat-label">LIVE LISTINGS</p>
@@ -57,9 +62,7 @@ const Home: NextPage<HomeProps> = ({ trending = [], newArrivals = [] }) => {
                 </div>
                 <div className="stat-card">
                   <p className="stat-label">NEW THIS WEEK</p>
-                  <p className="stat-value">
-                    {newArrivals.length || "10+"}
-                  </p>
+                  <p className="stat-value">{newArrivals.length || "10+"}</p>
                   <p className="stat-note">Fresh drops &amp; finds</p>
                 </div>
                 <div className="stat-card">
@@ -74,6 +77,7 @@ const Home: NextPage<HomeProps> = ({ trending = [], newArrivals = [] }) => {
                 </div>
               </div>
 
+              {/* CTA BUTTONS */}
               <div className="hero-actions">
                 <a href="#new-arrivals" className="btn-primary">
                   Browse New Arrivals
@@ -87,12 +91,13 @@ const Home: NextPage<HomeProps> = ({ trending = [], newArrivals = [] }) => {
               </div>
             </div>
 
-            {/* RIGHT – snapshot card */}
+            {/* RIGHT SIDE SNAPSHOT CARD */}
             <aside className="snapshot-card">
               <div className="snapshot-header">
                 <h2>Your Famous Finds Snapshot</h2>
                 <span className="snapshot-badge">Guest view</span>
               </div>
+
               <div className="snapshot-rows">
                 <div className="snapshot-row">
                   <span>Saved Items</span>
@@ -107,6 +112,7 @@ const Home: NextPage<HomeProps> = ({ trending = [], newArrivals = [] }) => {
                   <strong>0</strong>
                 </div>
               </div>
+
               <div className="snapshot-actions">
                 <button className="btn-primary full">
                   Sign in to view your dashboard
@@ -118,39 +124,15 @@ const Home: NextPage<HomeProps> = ({ trending = [], newArrivals = [] }) => {
             </aside>
           </section>
 
-          {/* CATEGORY SHORTCUTS */}
-          <section className="section section-categories">
-            <div className="section-header">
-              <h2>Shop by Category</h2>
-            </div>
-            <div className="category-pills">
-              <a href="/category/women" className="pill-link">
-                Women
-              </a>
-              <a href="/category/bags" className="pill-link">
-                Bags
-              </a>
-              <a href="/category/jewelry" className="pill-link">
-                Jewelry
-              </a>
-              <a href="/category/watches" className="pill-link">
-                Watches
-              </a>
-              <a href="/designers" className="pill-link">
-                All Designers
-              </a>
-            </div>
-          </section>
-
+          {/* ---------------------------------- */}
           {/* NEW ARRIVALS */}
+          {/* ---------------------------------- */}
           <section id="new-arrivals" className="section">
             <div className="section-header">
-              <div>
-                <h2>New Arrivals</h2>
-                <p className="section-sub">
-                  Just in – freshly listed pieces from our vetted sellers.
-                </p>
-              </div>
+              <h2>New Arrivals</h2>
+              <p className="section-sub">
+                Just in – freshly listed pieces from our vetted sellers.
+              </p>
             </div>
 
             {newArrivals.length ? (
@@ -160,15 +142,15 @@ const Home: NextPage<HomeProps> = ({ trending = [], newArrivals = [] }) => {
             )}
           </section>
 
-          {/* TRENDING */}
+          {/* ---------------------------------- */}
+          {/* TRENDING NOW */}
+          {/* ---------------------------------- */}
           <section id="trending" className="section">
             <div className="section-header">
-              <div>
-                <h2>Trending Now</h2>
-                <p className="section-sub">
-                  Most-viewed and most-saved listings this week.
-                </p>
-              </div>
+              <h2>Trending Now</h2>
+              <p className="section-sub">
+                Most-viewed and most-saved listings this week.
+              </p>
             </div>
 
             {trending.length ? (
@@ -180,20 +162,22 @@ const Home: NextPage<HomeProps> = ({ trending = [], newArrivals = [] }) => {
         </div>
       </main>
 
-      {/* FLOATING BUTLER – unchanged */}
+      {/* BUTLER */}
       <div className="butler-floating">
         <HomepageButler />
       </div>
 
-      {/* FOOTER – unchanged */}
+      {/* FOOTER */}
       <Footer />
 
-      {/* PAGE-SCOPED STYLES */}
+      {/* ---------------------------------- */}
+      {/* STYLES */}
+      {/* ---------------------------------- */}
       <style jsx>{`
         .home-page {
           min-height: 100vh;
           background: #ffffff;
-          color: #111111;
+          color: #111;
           display: flex;
           flex-direction: column;
         }
@@ -208,23 +192,17 @@ const Home: NextPage<HomeProps> = ({ trending = [], newArrivals = [] }) => {
           margin: 0 auto;
         }
 
-        /* HERO */
-
+        /* HERO GRID */
         .hero {
           display: grid;
-          grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
+          grid-template-columns: 1.6fr 1fr;
           gap: 32px;
           align-items: flex-start;
         }
-
-        @media (max-width: 880px) {
+        @media (max-width: 900px) {
           .hero {
             grid-template-columns: 1fr;
           }
-        }
-
-        .hero-left {
-          max-width: 640px;
         }
 
         .hero-pill {
@@ -246,69 +224,56 @@ const Home: NextPage<HomeProps> = ({ trending = [], newArrivals = [] }) => {
         .pill-dot {
           width: 6px;
           height: 6px;
-          border-radius: 999px;
+          border-radius: 100%;
           background: #22c55e;
         }
 
         .hero-title {
-          font-family: "Georgia", "Times New Roman", serif;
-          font-size: 32px;
-          line-height: 1.15;
-          letter-spacing: -0.03em;
-          margin: 0 0 10px;
-        }
-
-        @media (min-width: 960px) {
-          .hero-title {
-            font-size: 40px;
-          }
+          font-family: "Georgia", serif;
+          font-size: 40px;
+          margin-bottom: 10px;
         }
 
         .hero-sub {
-          margin: 0 0 22px;
+          color: #666;
+          margin-bottom: 22px;
           font-size: 14px;
-          color: #666666;
           max-width: 520px;
         }
 
         .hero-stats {
           display: grid;
-          grid-template-columns: repeat(4, minmax(0, 1fr));
+          grid-template-columns: repeat(4, 1fr);
           gap: 12px;
           margin-bottom: 22px;
         }
-
-        @media (max-width: 960px) {
+        @media (max-width: 900px) {
           .hero-stats {
-            grid-template-columns: repeat(2, minmax(0, 1fr));
+            grid-template-columns: repeat(2, 1fr);
           }
         }
 
         .stat-card {
-          border-radius: 16px;
           border: 1px solid #e5e5e5;
-          background: #ffffff;
-          padding: 10px 14px;
+          border-radius: 16px;
+          padding: 12px;
+          background: white;
         }
 
         .stat-label {
           font-size: 11px;
-          letter-spacing: 0.14em;
-          text-transform: uppercase;
           color: #9ca3af;
-          margin: 0 0 4px;
+          letter-spacing: 0.12em;
         }
 
         .stat-value {
           font-size: 20px;
           font-weight: 600;
-          margin: 0 0 2px;
         }
 
         .stat-note {
           font-size: 11px;
           color: #9ca3af;
-          margin: 0;
         }
 
         .hero-actions {
@@ -324,105 +289,82 @@ const Home: NextPage<HomeProps> = ({ trending = [], newArrivals = [] }) => {
           padding: 11px 20px;
           font-size: 13px;
           font-weight: 600;
-          border: none;
-          cursor: pointer;
           text-decoration: none;
+          cursor: pointer;
           display: inline-flex;
           align-items: center;
           justify-content: center;
-          transition: background 0.16s ease, color 0.16s ease,
-            border-color 0.16s ease, opacity 0.16s ease;
-          white-space: nowrap;
+          transition: 0.15s;
         }
 
         .btn-primary {
-          background: #111111;
-          color: #ffffff;
+          background: #111;
+          color: #fff;
         }
-
         .btn-primary:hover {
           opacity: 0.9;
         }
 
         .btn-secondary {
           background: #f3f4f6;
-          color: #111111;
+          color: #111;
         }
-
         .btn-secondary:hover {
           background: #e5e7eb;
         }
 
         .btn-outline {
-          border: 1px dashed #d1d5db;
-          background: #ffffff;
-          color: #6b7280;
+          background: #fff;
+          border: 1px dashed #ccc;
+          color: #666;
           font-size: 11px;
-          letter-spacing: 0.16em;
+          letter-spacing: 0.14em;
           text-transform: uppercase;
         }
-
         .btn-outline:hover {
-          border-color: #111111;
-          color: #111111;
+          border-color: #111;
+          color: #111;
         }
-
-        .btn-primary.full,
-        .btn-secondary.full {
-          width: 100%;
-        }
-
-        /* SNAPSHOT CARD */
 
         .snapshot-card {
           border-radius: 20px;
           border: 1px solid #e5e5e5;
-          background: #ffffff;
-          padding: 20px 22px;
+          background: white;
+          padding: 22px;
           box-shadow: 0 14px 40px rgba(0, 0, 0, 0.04);
         }
 
         .snapshot-header {
           display: flex;
           justify-content: space-between;
-          align-items: center;
-          margin-bottom: 12px;
+          margin-bottom: 14px;
         }
 
         .snapshot-header h2 {
           font-size: 14px;
           font-weight: 600;
-          margin: 0;
         }
 
         .snapshot-badge {
           padding: 4px 9px;
-          border-radius: 999px;
           background: #f3f4f6;
+          color: #666;
+          border-radius: 999px;
           font-size: 11px;
-          color: #6b7280;
         }
 
         .snapshot-rows {
-          border-radius: 14px;
           background: #fafafa;
           padding: 10px 12px;
+          border-radius: 14px;
           margin-bottom: 14px;
         }
 
         .snapshot-row {
           display: flex;
           justify-content: space-between;
-          font-size: 13px;
           padding: 4px 0;
-        }
-
-        .snapshot-row span {
-          color: #6b7280;
-        }
-
-        .snapshot-row strong {
-          font-weight: 600;
+          font-size: 13px;
         }
 
         .snapshot-actions {
@@ -431,109 +373,111 @@ const Home: NextPage<HomeProps> = ({ trending = [], newArrivals = [] }) => {
           gap: 8px;
         }
 
-        /* SECTIONS */
+        .full {
+          width: 100%;
+        }
 
         .section {
-          margin-top: 40px;
+          margin-top: 45px;
         }
 
         .section-header h2 {
-          font-family: "Georgia", "Times New Roman", serif;
-          font-size: 24px;
-          margin: 0 0 4px;
+          font-family: "Georgia", serif;
+          font-size: 26px;
+          margin-bottom: 5px;
         }
 
         .section-sub {
-          font-size: 13px;
-          color: #6b7280;
-          margin: 0;
-        }
-
-        .section-categories {
-          border-top: 1px solid #f3f4f6;
-          padding-top: 22px;
-        }
-
-        .category-pills {
-          display: flex;
-          flex-wrap: wrap;
-          gap: 8px;
-          margin-top: 14px;
-        }
-
-        .pill-link {
-          border-radius: 999px;
-          border: 1px solid #e5e5e5;
-          padding: 7px 16px;
-          font-size: 13px;
-          color: #4b5563;
-          text-decoration: none;
-          transition: border-color 0.16s ease, color 0.16s ease,
-            background 0.16s ease;
-        }
-
-        .pill-link:hover {
-          border-color: #111111;
-          color: #111111;
-          background: #f9fafb;
+          color: #666;
+          font-size: 14px;
+          margin-bottom: 20px;
         }
 
         .empty-text {
           font-size: 13px;
-          color: #9ca3af;
-          margin-top: 20px;
+          color: #999;
         }
-
-        /* BUTLER */
 
         .butler-floating {
           position: fixed;
-          right: 20px;
           bottom: 20px;
+          right: 20px;
           z-index: 40;
-        }
-
-        @media (max-width: 600px) {
-          .home-main {
-            padding-top: 24px;
-          }
-          .snapshot-card {
-            max-width: 400px;
-          }
         }
       `}</style>
     </div>
   );
 };
 
+/* ----------------------------------------------------------- */
+/* BACKEND CONNECTION (REAL LISTINGS) */
+/* ----------------------------------------------------------- */
 export const getServerSideProps: GetServerSideProps<HomeProps> = async () => {
   let trending: ProductLike[] = [];
   let newArrivals: ProductLike[] = [];
 
   try {
+    const allowedStatuses = ["Live", "Active", "Approved"];
+
+    // TRENDING
     const trendingSnap = await adminDb
-      .collection("products")
+      .collection("listings")
+      .where("status", "in", allowedStatuses)
       .where("isTrending", "==", true)
       .limit(12)
       .get();
 
-    trending = trendingSnap.docs.map((doc) => ({
-      id: doc.id,
-      ...(doc.data() as Omit<ProductLike, "id">),
-    }));
+    trending = trendingSnap.docs.map((doc) => {
+      const d: any = doc.data() || {};
+      const priceNum = Number(d.price) || 0;
 
+      const image =
+        d.image_url ||
+        d.imageUrl ||
+        d.image ||
+        (Array.isArray(d.imageUrls) && d.imageUrls[0]) ||
+        "";
+
+      return {
+        id: doc.id,
+        title: d.title || "",
+        brand: d.brand || "",
+        price: priceNum ? `US$${priceNum.toLocaleString()}` : "",
+        image,
+        href: `/product/${doc.id}`,
+      };
+    });
+
+    // NEW ARRIVALS
     const arrivalsSnap = await adminDb
-      .collection("products")
+      .collection("listings")
+      .where("status", "in", allowedStatuses)
       .orderBy("createdAt", "desc")
       .limit(12)
       .get();
 
-    newArrivals = arrivalsSnap.docs.map((doc) => ({
-      id: doc.id,
-      ...(doc.data() as Omit<ProductLike, "id">),
-    }));
-  } catch (error) {
-    console.error("Error loading homepage products:", error);
+    newArrivals = arrivalsSnap.docs.map((doc) => {
+      const d: any = doc.data() || {};
+      const priceNum = Number(d.price) || 0;
+
+      const image =
+        d.image_url ||
+        d.imageUrl ||
+        d.image ||
+        (Array.isArray(d.imageUrls) && d.imageUrls[0]) ||
+        "";
+
+      return {
+        id: doc.id,
+        title: d.title || "",
+        brand: d.brand || "",
+        price: priceNum ? `US$${priceNum.toLocaleString()}` : "",
+        image,
+        href: `/product/${doc.id}`,
+      };
+    });
+  } catch (err) {
+    console.error("Homepage Firestore error:", err);
   }
 
   return {
