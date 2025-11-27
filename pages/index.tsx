@@ -1,6 +1,7 @@
 // FILE: /pages/index.tsx
 
 import Head from "next/head";
+import Link from "next/link"; // Added import for Link
 import type { GetServerSideProps, NextPage } from "next";
 
 import Header from "../components/Header";
@@ -112,18 +113,21 @@ const Home: NextPage<HomeProps> = ({ trending, newArrivals }) => {
               <span>Active Offers</span>
               <span>0</span>
             </div>
-            <button
-              className="snapshot-btn primary"
-              onClick={() => (window.location.href = "/dashboard")}
+
+            {/* UPDATED LINKS */}
+            <Link
+              href="/buyer/dashboard"
+              className="block w-full bg-slate-900 text-white rounded-full py-3 text-center text-sm font-medium"
             >
               Sign in to view your dashboard
-            </button>
-            <button
-              className="snapshot-btn"
-              onClick={() => (window.location.href = "/signup")}
+            </Link>
+
+            <Link
+              href="/buyer/signup"
+              className="block w-full border border-gray-300 text-gray-700 rounded-full py-3 mt-3 text-center text-sm font-medium"
             >
               Create a free buyer account
-            </button>
+            </Link>
           </aside>
         </section>
 
@@ -342,6 +346,8 @@ const Home: NextPage<HomeProps> = ({ trending, newArrivals }) => {
           margin-bottom: 14px;
         }
 
+        /* Note: .snapshot-btn styles are no longer used by the new Links 
+           but kept here to prevent breaking if used elsewhere or reverted */
         .snapshot-btn {
           width: 100%;
           border-radius: 999px;
