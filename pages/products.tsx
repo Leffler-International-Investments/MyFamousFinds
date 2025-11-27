@@ -8,7 +8,8 @@ import Footer from "../components/Footer";
 import ProductCard, { ProductLike } from "../components/ProductCard";
 import { adminDb } from "../utils/firebaseAdmin";
 
-// ------------ helpers ------------
+// ---------------- helpers ----------------
+
 const formatPrice = (raw: any): string => {
   const num = typeof raw === "number" ? raw : Number(raw || 0);
   if (!num) return "";
@@ -25,14 +26,16 @@ const pickImage = (data: any): string => {
   return "";
 };
 
-// ------------ types ------------
+// ---------------- types ----------------
+
 type Props = {
   items: ProductLike[];
   designer: string | null;
   tag: string | null;
 };
 
-// ------------ page ------------
+// ---------------- page ----------------
+
 const ProductsPage: NextPage<Props> = ({ items, designer, tag }) => {
   const grouped: Record<string, ProductLike[]> = {};
 
@@ -50,32 +53,92 @@ const ProductsPage: NextPage<Props> = ({ items, designer, tag }) => {
       <Head>
         <title>{pageTitle} | Famous Finds</title>
       </Head>
+
       <Header />
 
-      <main className="luxury-products-main">
-        <div className="luxury-products-inner">
-          <h1 className="luxury-products-title">
+      {/* Simple layout, no CSS files required */}
+      <main
+        style={{
+          background: "#f7f5f1",
+          padding: "48px 0 72px",
+        }}
+      >
+        <div
+          style={{
+            maxWidth: "1120px",
+            margin: "0 auto",
+            padding: "0 24px",
+          }}
+        >
+          <h1
+            style={{
+              margin: "0 0 8px",
+              fontSize: "32px",
+              lineHeight: 1.1,
+              fontWeight: 600,
+              letterSpacing: "-0.02em",
+            }}
+          >
             {designer ? designer : tag ? `${tag} pieces` : "All Designer Pieces"}
           </h1>
 
           {designer && (
-            <p className="luxury-products-subtitle">
+            <p
+              style={{
+                margin: "0 0 24px",
+                fontSize: "14px",
+                color: "#6b7280",
+              }}
+            >
               Showing all live listings for <strong>{designer}</strong>, grouped
               by category.
             </p>
           )}
 
           {Object.keys(grouped).length === 0 && (
-            <p className="luxury-products-empty">No items found.</p>
+            <p
+              style={{
+                margin: "0 0 24px",
+                fontSize: "14px",
+                color: "#6b7280",
+              }}
+            >
+              No items found.
+            </p>
           )}
 
           {Object.entries(grouped).map(([category, catItems]) => (
-            <section key={category} className="luxury-products-section">
-              <h2 className="luxury-products-category">{category}</h2>
+            <section key={category} style={{ marginBottom: "32px" }}>
+              <h2
+                style={{
+                  margin: "0 0 12px",
+                  fontSize: "20px",
+                  fontWeight: 500,
+                  textTransform: "capitalize",
+                }}
+              >
+                {category}
+              </h2>
 
-              <div className="luxury-products-grid">
+              {/* Grid like the homepage – cards stay small */}
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns:
+                    "repeat(auto-fit, minmax(280px, 1fr))",
+                  gap: "32px",
+                  alignItems: "flex-start",
+                }}
+              >
                 {catItems.map((item) => (
-                  <ProductCard key={item.id} {...item} />
+                  <div
+                    key={item.id}
+                    style={{
+                      maxWidth: "360px",
+                    }}
+                  >
+                    <ProductCard {...item} />
+                  </div>
                 ))}
               </div>
             </section>
@@ -90,7 +153,8 @@ const ProductsPage: NextPage<Props> = ({ items, designer, tag }) => {
 
 export default ProductsPage;
 
-// ------------ server-side data ------------
+// ---------------- server-side data ----------------
+
 export const getServerSideProps: GetServerSideProps<Props> = async (
   context
 ) => {
