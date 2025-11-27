@@ -11,8 +11,25 @@ import ProductCard, { ProductLike } from "../../components/ProductCard";
 import { adminDb } from "../../utils/firebaseAdmin";
 
 // ------------------------------
-// Helpers
+// Static designers list (same as category pages)
 // ------------------------------
+const STATIC_DESIGNERS = [
+  "Alexander McQueen",
+  "Balenciaga",
+  "Bottega Veneta",
+  "Burberry",
+  "Dior",
+  "Fendi",
+  "Givenchy",
+  "Goyard",
+  "Gucci",
+  "Hermès",
+  "Louis Vuitton",
+  "Prada",
+  "Saint Laurent",
+  "Valentino",
+  "Versace",
+];
 
 // Helper to ensure price is a string for the UI
 const formatPrice = (num: number): string => {
@@ -21,7 +38,7 @@ const formatPrice = (num: number): string => {
 
 type Props = {
   items: ProductLike[];
-  designers: string[];
+  designers: string[]; // full list for filters
 };
 
 // ------------------------------
@@ -50,8 +67,6 @@ export default function DesignersPage({ items, designers }: Props) {
     }
 
     if (query.designer) {
-      // Split and ensure we match case logic if needed,
-      // though we store lowercase in URL usually.
       setSelectedDesigner((query.designer as string).split(","));
     } else {
       setSelectedDesigner([]);
@@ -77,7 +92,6 @@ export default function DesignersPage({ items, designers }: Props) {
     list.includes(value) ? list.filter((x) => x !== value) : [...list, value];
 
   const toggleDesigner = (d: string) => {
-    // We store lowercase in state/URL for consistency
     setSelectedDesigner((prev) => toggle(prev, d.toLowerCase()));
   };
 
@@ -87,6 +101,8 @@ export default function DesignersPage({ items, designers }: Props) {
   const toggleCondition = (c: string) =>
     setSelectedCondition((prev) => toggle(prev, c));
 
+  const selectedCategoriesCount = selectedCategory.length;
+
   const resetFilters = () => {
     setSelectedDesigner([]);
     setSelectedCategory([]);
@@ -95,9 +111,6 @@ export default function DesignersPage({ items, designers }: Props) {
     setMaxPrice(100000);
     router.push("/designers");
   };
-
-  // Helper for render check
-  const selectedCategoriesCount = selectedCategory.length;
 
   // ------------------------------
   // Apply Filters (Triggers Server Reload)
@@ -110,11 +123,9 @@ export default function DesignersPage({ items, designers }: Props) {
     }
 
     if (selectedDesigner.length > 0) {
-      // Join as lowercase to match server logic
       params.set("designer", selectedDesigner.join(",").toLowerCase());
     }
 
-    // Only add price if it's different from defaults
     if (minPrice > 0) params.set("minPrice", String(minPrice));
     if (maxPrice < 100000) params.set("maxPrice", String(maxPrice));
 
@@ -156,14 +167,13 @@ export default function DesignersPage({ items, designers }: Props) {
             ))}
           </div>
 
-          {/* Designers (Fetched from Firestore) */}
+          {/* Designers (same list as other pages) */}
           <div className="filter-section">
             <h3>Designer</h3>
             {designers.map((d) => (
               <label key={d} className="filter-row">
                 <input
                   type="checkbox"
-                  // Check against lowercase state
                   checked={selectedDesigner.includes(d.toLowerCase())}
                   onChange={() => toggleDesigner(d)}
                 />
@@ -324,28 +334,27 @@ export const getServerSideProps: GetServerSideProps = async (ctx) => {
   const minPrice = Number(query.minPrice || 0);
   const maxPrice = Number(query.maxPrice || 100000);
 
-  // 1. Fetch Active Designers for the sidebar
-  let designers: string[] = [];
+  // 1. Fetch Active Designers and merge with static list
+  let designers: string[] = STATIC_DESIGNERS.slice();
   try {
     const designersSnap = await adminDb
       .collection("designers")
       .where("active", "==", true)
       .get();
 
-    designers = designersSnap.docs.map((d) => d.data().name).sort();
+    const fromDb = designersSnap.docs
+      .map((d) => (d.data() as any).name as string)
+      .filter(Boolean);
+
+    designers = Array.from(new Set([...STATIC_DESIGNERS, ...fromDb])).sort();
   } catch (error) {
     console.error("Error fetching designers:", error);
-    // Fallback if collection doesn't exist yet
-    designers = [];
   }
 
   // 2. Build Listings Query
   let ref = adminDb.collection("listings").where("status", "==", "Live");
 
-  // CATEGORY FILTER (Firestore 'in' query)
   if (selectedCategories.length > 0) {
-    // Note: Firestore 'in' supports max 10 values.
-    // If user selects > 10, this might error, but UI only has ~7 categories.
     ref = ref.where("category", "in", selectedCategories);
   }
 
@@ -353,8 +362,8 @@ export const getServerSideProps: GetServerSideProps = async (ctx) => {
 
   // 3. Map Data
   let items = snap.docs.map((d) => {
-    const data = d.data();
-    // Helper to find image
+    const data = d.data() as any;
+
     const image =
       data.primaryImageUrl ||
       data.image_url ||
@@ -368,21 +377,18 @@ export const getServerSideProps: GetServerSideProps = async (ctx) => {
       title: data.title || "Untitled",
       designer: data.designer || data.brand || "",
       category: data.category || "",
-      rawPrice: Number(data.price || 0), // Keep raw number for filtering
-      image: image,
+      rawPrice: Number(data.price || 0),
+      image,
     };
   });
 
   // 4. Apply JS Filters (Designer + Price)
-
-  // DESIGNER
   if (selectedDesigners.length > 0) {
     items = items.filter((i) =>
       selectedDesigners.includes((i.designer || "").toLowerCase())
     );
   }
 
-  // PRICE
   items = items.filter((i) => i.rawPrice >= minPrice && i.rawPrice <= maxPrice);
 
   // 5. Final formatting for UI
@@ -390,7 +396,7 @@ export const getServerSideProps: GetServerSideProps = async (ctx) => {
     id: i.id,
     title: i.title,
     brand: i.designer,
-    price: formatPrice(i.rawPrice), // Convert to string for display
+    price: formatPrice(i.rawPrice),
     image: i.image,
     href: `/product/${i.id}`,
   }));
