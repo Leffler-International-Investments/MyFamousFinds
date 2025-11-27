@@ -129,6 +129,8 @@
   .buyer-snapshot-card {
     order: -1;
   }
+} /* <--- FIXED: Added missing closing brace here */
+
 /* ==== Seller & Management dashboards ==== */
 
 .dashboard-page {
