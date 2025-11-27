@@ -11,128 +11,74 @@ export default function Footer() {
   };
 
   return (
-    <footer className="mt-auto border-t border-neutral-200 bg-[#faf9f6]">
-      <div className="page-container mx-auto flex flex-col gap-6 px-4 py-8 text-center md:flex-row md:items-start md:justify-between md:text-left">
+    <footer className="mt-auto border-t border-neutral-800 bg-neutral-900 text-white">
+      <div className="mx-auto flex max-w-[1280px] flex-col items-center justify-between gap-4 px-6 py-6 md:flex-row md:items-start md:py-8">
+        
         {/* LEFT: BRAND + COPYRIGHT */}
-        <div className="space-y-2">
-          <div className="text-xs uppercase tracking-[0.18em] text-neutral-500">
+        <div className="flex flex-col items-center text-center md:items-start md:text-left">
+          <div className="text-xs uppercase tracking-[0.2em] text-white">
             Famous Finds
           </div>
-          <div className="text-xs text-neutral-400">
-            © {new Date().getFullYear()} Famous Finds. All rights reserved.
+          <div className="mt-1 text-[10px] text-neutral-500">
+            © {new Date().getFullYear()} All rights reserved.
+          </div>
+          <div className="mt-2 hidden text-[10px] text-neutral-600 md:block">
+            Curated pre-loved luxury.
           </div>
         </div>
 
-        {/* CENTER: TOGGLE GROUPS */}
-        <div className="flex flex-col items-center gap-4 md:flex-row md:items-start md:gap-8">
+        {/* RIGHT: TOGGLE GROUPS (COMPACT) */}
+        <div className="flex items-start gap-3">
           {/* HELP SECTION */}
-          <div className="flex flex-col items-center md:items-start">
+          <div className="relative flex flex-col items-end">
             <button
               type="button"
               onClick={() => toggleSection("help")}
-              className={`group flex items-center gap-2 rounded-full border px-5 py-2 text-[11px] font-semibold uppercase tracking-[0.18em] transition-all
+              className={`flex items-center gap-2 rounded-full border px-4 py-1.5 text-[10px] font-semibold uppercase tracking-[0.12em] transition-all
               ${
                 openSection === "help"
-                  ? "border-neutral-900 bg-neutral-900 text-white shadow-sm"
-                  : "border-neutral-300 bg-white text-neutral-900 hover:border-neutral-900 hover:bg-neutral-50"
+                  ? "border-white bg-white text-neutral-900"
+                  : "border-neutral-700 bg-transparent text-neutral-300 hover:border-neutral-500 hover:text-white"
               }`}
             >
               <span>Help</span>
-              <span
-                className={`text-[9px] transition-transform duration-300 ${
-                  openSection === "help" ? "rotate-180" : ""
-                }`}
-              >
-                ▼
-              </span>
             </button>
 
             {openSection === "help" && (
-              <ul className="mt-3 space-y-2 text-sm text-neutral-500 md:mt-4">
-                <li>
-                  <Link href="/help" className="hover:text-neutral-900">
-                    Help Center
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/shipping" className="hover:text-neutral-900">
-                    Shipping
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/returns" className="hover:text-neutral-900">
-                    Returns
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/buying" className="hover:text-neutral-900">
-                    Buying
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/selling" className="hover:text-neutral-900">
-                    Selling
-                  </Link>
-                </li>
+              <ul className="absolute bottom-full mb-2 w-32 rounded-lg border border-neutral-800 bg-neutral-900 p-3 text-right text-xs text-neutral-400 shadow-xl">
+                <li className="mb-2"><Link href="/help" className="hover:text-white">Help Center</Link></li>
+                <li className="mb-2"><Link href="/shipping" className="hover:text-white">Shipping</Link></li>
+                <li className="mb-2"><Link href="/returns" className="hover:text-white">Returns</Link></li>
+                <li className="mb-2"><Link href="/buying" className="hover:text-white">Buying</Link></li>
+                <li><Link href="/selling" className="hover:text-white">Selling</Link></li>
               </ul>
             )}
           </div>
 
           {/* COMPANY SECTION */}
-          <div className="flex flex-col items-center md:items-start">
+          <div className="relative flex flex-col items-end">
             <button
               type="button"
               onClick={() => toggleSection("company")}
-              className={`group flex items-center gap-2 rounded-full border px-5 py-2 text-[11px] font-semibold uppercase tracking-[0.18em] transition-all
+              className={`flex items-center gap-2 rounded-full border px-4 py-1.5 text-[10px] font-semibold uppercase tracking-[0.12em] transition-all
               ${
                 openSection === "company"
-                  ? "border-neutral-900 bg-neutral-900 text-white shadow-sm"
-                  : "border-neutral-300 bg-white text-neutral-900 hover:border-neutral-900 hover:bg-neutral-50"
+                  ? "border-white bg-white text-neutral-900"
+                  : "border-neutral-700 bg-transparent text-neutral-300 hover:border-neutral-500 hover:text-white"
               }`}
             >
               <span>Company</span>
-              <span
-                className={`text-[9px] transition-transform duration-300 ${
-                  openSection === "company" ? "rotate-180" : ""
-                }`}
-              >
-                ▼
-              </span>
             </button>
 
             {openSection === "company" && (
-              <ul className="mt-3 space-y-2 text-sm text-neutral-500 md:mt-4">
-                <li>
-                  <Link href="/about" className="hover:text-neutral-900">
-                    About
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/contact" className="hover:text-neutral-900">
-                    Contact
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/privacy" className="hover:text-neutral-900">
-                    Privacy
-                  </Link>
-                </li>
-                <li>
-                  <Link
-                    href="/authenticity-policy"
-                    className="hover:text-neutral-900"
-                  >
-                    Authenticity
-                  </Link>
-                </li>
+              <ul className="absolute bottom-full mb-2 w-32 rounded-lg border border-neutral-800 bg-neutral-900 p-3 text-right text-xs text-neutral-400 shadow-xl">
+                <li className="mb-2"><Link href="/about" className="hover:text-white">About</Link></li>
+                <li className="mb-2"><Link href="/contact" className="hover:text-white">Contact</Link></li>
+                <li className="mb-2"><Link href="/privacy" className="hover:text-white">Privacy</Link></li>
+                <li><Link href="/authenticity-policy" className="hover:text-white">Authenticity</Link></li>
               </ul>
             )}
           </div>
-        </div>
-
-        {/* RIGHT: SMALL NOTE (OPTIONAL) */}
-        <div className="hidden text-xs text-neutral-400 md:block">
-          Curated pre-loved luxury, verified by Famous Finds.
         </div>
       </div>
     </footer>
