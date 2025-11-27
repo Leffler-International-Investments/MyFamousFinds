@@ -1,122 +1,132 @@
-/* FILE: styles/parts/dashboard.css */
+/* ==== Buyer dashboard layout ==== */
 
-.dashboard-page {
-  min-height: 100vh;
-  background: #f9fafb;
-  color: #111827;
+.buyer-dashboard-main {
+  background: #f7f5f1;
+  padding: 48px 0 72px;
 }
 
-.dashboard-main {
-  max-width: 1152px;
+.buyer-dashboard-wrap {
+  max-width: 1120px;
   margin: 0 auto;
-  padding: 24px 16px 64px;
+  padding: 0 24px;
 }
 
-.dashboard-layout {
+.buyer-dashboard-header {
   display: flex;
-  flex-direction: column;
-  gap: 12px;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+  margin-bottom: 32px;
 }
 
-/* Header row at top of dashboard */
-.dashboard-header {
-  margin-bottom: 24px;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-@media (min-width: 768px) {
-  .dashboard-header {
-    flex-direction: row;
-    align-items: center;
-    justify-content: space-between;
-  }
-}
-
-.dashboard-header h1 {
-  font-size: 24px;
+.buyer-dashboard-title {
+  margin: 0 0 4px;
+  font-size: 32px;
+  line-height: 1.1;
   font-weight: 600;
-  color: #111827;
+  letter-spacing: -0.02em;
 }
 
-.dashboard-header p {
-  margin-top: 4px;
-  font-size: 14px;
-  color: #4b5563;
-}
-
-/* Sections & tiles */
-.dashboard-section {
-  border-radius: 18px;
-  padding: 12px 14px;
-  background: #f9fafb;
-  border: 1px solid #e5e7eb;
-  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-}
-
-.dashboard-section-header {
-  margin-bottom: 16px;
-}
-
-.dashboard-section-title {
-  font-size: 18px;
-  font-weight: 600;
-  color: #111827;
-}
-
-.dashboard-section-subtitle {
-  margin-top: 4px;
-  font-size: 14px;
+.buyer-dashboard-meta {
+  margin: 0;
+  font-size: 13px;
   color: #6b7280;
 }
 
-.dashboard-grid {
-  display: grid;
-  gap: 16px;
-}
-@media (min-width: 640px) {
-  .dashboard-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-}
-@media (min-width: 1024px) {
-  .dashboard-grid {
-    grid-template-columns: repeat(3, 1fr);
-  }
-}
-
-.dashboard-tile {
-  display: block;
-  border-radius: 8px;
-  border: 1px solid #e5e7eb;
-  background: #f9fafb;
-  padding: 16px;
-  font-size: 14px;
-  color: #374151;
-  text-align: left;
-  transition: all 0.15s ease;
-}
-.dashboard-tile:hover {
-  border-color: #3b82f6;
-  background: #ffffff;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1),
-              0 2px 4px 2px rgba(0, 0, 0, 0.1);
-}
-
-.dashboard-tile-title {
-  font-weight: 600;
-  color: #111827;
-}
-.dashboard-tile-description {
-  margin-top: 4px;
-  font-size: 12px;
-  color: #4b5563;
-}
-.dashboard-tile-link {
-  margin-top: 12px;
-  font-size: 12px;
-  font-weight: 600;
-  color: #1d4ed8;
+.buyer-dashboard-signout {
+  border: none;
+  background: transparent;
+  font-size: 13px;
+  color: #6b7280;
   text-decoration: underline;
+  cursor: pointer;
+}
+
+/* Two-column layout: lists + snapshot card */
+.buyer-dashboard-body {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(260px, 1fr);
+  gap: 40px;
+  align-items: flex-start;
+}
+
+/* Snapshot card (right column) */
+.buyer-snapshot-card {
+  background: #ffffff;
+  border-radius: 24px;
+  padding: 22px 24px;
+  border: 1px solid #e4dfd7;
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.05);
+  font-size: 14px;
+}
+
+.buyer-snapshot-label {
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: #9ca3af;
+  margin-bottom: 10px;
+}
+
+.buyer-snapshot-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 0;
+}
+
+/* Lists (left column) */
+.buyer-lists {
+  font-size: 14px;
+}
+
+.buyer-list-block {
+  margin-bottom: 28px;
+}
+
+.buyer-list-title {
+  margin: 0 0 8px;
+  font-size: 18px;
+  font-weight: 500;
+}
+
+.buyer-list-empty {
+  margin: 0;
+  color: #6b7280;
+  font-size: 13px;
+}
+
+.buyer-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.buyer-list li + li {
+  margin-top: 4px;
+}
+
+.buyer-item-title {
+  font-weight: 500;
+}
+
+.buyer-item-brand {
+  color: #6b7280;
+  font-size: 13px;
+}
+
+.buyer-loading {
+  font-size: 13px;
+  color: #6b7280;
+}
+
+/* Stack columns on small screens */
+@media (max-width: 768px) {
+  .buyer-dashboard-body {
+    grid-template-columns: 1fr;
+  }
+
+  .buyer-snapshot-card {
+    order: -1;
+  }
 }
