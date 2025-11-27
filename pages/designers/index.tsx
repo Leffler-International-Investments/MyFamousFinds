@@ -1,8 +1,8 @@
 // FILE: /pages/designers/index.tsx
+
 import Head from "next/head";
 import Link from "next/link";
 import type { GetServerSideProps } from "next";
-import { useState, useEffect } from "react";
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
 import { adminDb } from "../../utils/firebaseAdmin";
@@ -11,258 +11,181 @@ type Designer = {
   id: string;
   name: string;
   slug: string;
-  itemTypes?: string;
-  image?: string; // Representative image for featured section
 };
 
 type DesignersPageProps = {
-  featuredDesigners: Designer[];
-  groupedDesigners: Record<string, Designer[]>;
-  allKeys: string[]; // ["A", "B", "C"...]
+  designers: Designer[];
 };
 
-export default function DesignersIndexPage({
-  featuredDesigners,
-  groupedDesigners,
-  allKeys,
-}: DesignersPageProps) {
-  // Simple active state for the sticky nav
-  const [activeLetter, setActiveLetter] = useState("");
+export default function DesignersIndexPage({ designers }: DesignersPageProps) {
+  // Group designers A-Z for simple section headings
+  const grouped: Record<string, Designer[]> = {};
+  designers.forEach((d) => {
+    const first = d.name.charAt(0).toUpperCase();
+    const key = /[A-Z]/.test(first) ? first : "#";
+    if (!grouped[key]) grouped[key] = [];
+    grouped[key].push(d);
+  });
+  const letters = Object.keys(grouped).sort();
 
   return (
-    <div className="bg-white min-h-screen text-neutral-900">
+    <div className="designers-page">
       <Head>
         <title>Designers Directory – Famous Finds</title>
       </Head>
 
       <Header />
 
-      <main className="pb-24">
-        {/* --- HERO / FEATURED SECTION --- */}
-        <section className="bg-[#F9F9F7] px-6 py-12 md:py-16">
-          <div className="mx-auto max-w-[1400px]">
-            <div className="mb-10 text-center">
-              <h1 className="font-serif text-3xl md:text-5xl text-neutral-900 mb-4">
-                Featured Designers
-              </h1>
-              <p className="text-neutral-500 max-w-2xl mx-auto">
-                Discover the world's most coveted luxury brands, authenticated and ready for a second life.
-              </p>
-            </div>
-
-            {/* Featured Grid with Background Images */}
-            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-              {featuredDesigners.map((d) => (
-                <Link
-                  key={d.id}
-                  href={`/designers/${d.slug || d.id}`}
-                  className="group relative aspect-[3/4] overflow-hidden rounded-lg bg-neutral-200"
-                >
-                  {/* Background Image */}
-                  {d.image ? (
-                    <img
-                      src={d.image}
-                      alt={d.name}
-                      className="absolute inset-0 h-full w-full object-cover transition-transform duration-700 group-hover:scale-110"
-                    />
-                  ) : (
-                    <div className="absolute inset-0 bg-neutral-300" />
-                  )}
-
-                  {/* Dark Overlay for Text Readability */}
-                  <div className="absolute inset-0 bg-black/20 group-hover:bg-black/30 transition-colors" />
-                  
-                  {/* Gradient at bottom */}
-                  <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-black/80 to-transparent" />
-
-                  {/* Designer Name */}
-                  <div className="absolute inset-x-0 bottom-0 p-4 text-center">
-                    <span className="font-serif text-lg md:text-xl font-medium text-white tracking-wide">
-                      {d.name}
-                    </span>
-                  </div>
-                </Link>
-              ))}
-            </div>
-          </div>
+      <main className="wrap">
+        {/* HERO */}
+        <section className="hero">
+          <h1>Featured Designers</h1>
+          <p>
+            Discover the world&apos;s most coveted luxury brands, authenticated
+            and ready for a second life.
+          </p>
         </section>
 
-        {/* --- A-Z STICKY NAVIGATION --- */}
-        <div className="sticky top-0 z-40 border-b border-t border-neutral-200 bg-white/95 backdrop-blur-sm">
-          <div className="mx-auto flex max-w-[1200px] items-center justify-between px-4 py-3 md:justify-center md:gap-6 overflow-x-auto no-scrollbar">
-            {allKeys.map((letter) => (
-              <a
-                key={letter}
-                href={`#letter-${letter}`}
-                className="font-medium text-neutral-500 hover:text-black hover:underline px-2 py-1 transition-colors text-sm md:text-base whitespace-nowrap"
-              >
-                {letter}
-              </a>
-            ))}
-          </div>
-        </div>
+        {/* DIRECTORY A–Z */}
+        {letters.length === 0 ? (
+          <p className="empty">No designers found yet.</p>
+        ) : (
+          letters.map((letter) => (
+            <section key={letter} className="letter-block">
+              <div className="letter-heading">
+                <span className="letter">{letter}</span>
+                <div className="divider" />
+              </div>
 
-        {/* --- A-Z DIRECTORY LIST --- */}
-        <div className="mx-auto max-w-[1200px] px-6 py-12">
-          {allKeys.length === 0 ? (
-            <p className="text-center text-neutral-500">No designers found.</p>
-          ) : (
-            <div className="space-y-16">
-              {allKeys.map((letter) => (
-                <div
-                  key={letter}
-                  id={`letter-${letter}`}
-                  className="scroll-mt-24" // Offset for sticky header
-                >
-                  <div className="flex flex-col md:flex-row gap-8 md:gap-24">
-                    {/* Big Letter Heading */}
-                    <div className="md:w-32 flex-shrink-0">
-                      <span className="block text-6xl font-serif text-neutral-200 font-bold">
-                        {letter}
-                      </span>
-                    </div>
-
-                    {/* List of Designers for this letter */}
-                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-8 gap-y-4 flex-1">
-                      {groupedDesigners[letter].map((d) => (
-                        <Link
-                          key={d.id}
-                          href={`/designers/${d.slug || d.id}`}
-                          className="text-neutral-600 hover:text-black hover:underline transition-colors text-sm md:text-base"
-                        >
-                          {d.name}
-                        </Link>
-                      ))}
-                    </div>
-                  </div>
-                  <div className="mt-12 h-px w-full bg-neutral-100" />
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+              <div className="designer-grid">
+                {grouped[letter].map((d) => (
+                  <Link
+                    key={d.id}
+                    href={`/designers/${d.slug || d.id}`}
+                    className="designer-card"
+                  >
+                    <span className="designer-name">{d.name}</span>
+                    <span className="designer-cta">View pieces →</span>
+                  </Link>
+                ))}
+              </div>
+            </section>
+          ))
+        )}
       </main>
 
       <Footer />
-      
-      <style jsx global>{`
-        .no-scrollbar::-webkit-scrollbar {
-          display: none;
+
+      <style jsx>{`
+        .designers-page {
+          background: #ffffff;
+          color: #111827;
+          min-height: 100vh;
+          display: flex;
+          flex-direction: column;
         }
-        .no-scrollbar {
-          -ms-overflow-style: none;
-          scrollbar-width: none;
+        .wrap {
+          max-width: 1150px;
+          margin: 0 auto;
+          padding: 32px 16px 60px;
+          width: 100%;
+        }
+        .hero {
+          text-align: center;
+          margin-bottom: 32px;
+        }
+        .hero h1 {
+          font-family: "Georgia", serif;
+          font-size: 32px;
+          margin-bottom: 8px;
+        }
+        .hero p {
+          max-width: 540px;
+          margin: 0 auto;
+          color: #6b7280;
+          font-size: 14px;
+        }
+        .letter-block {
+          margin-bottom: 32px;
+        }
+        .letter-heading {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          margin-bottom: 16px;
+        }
+        .letter {
+          font-size: 26px;
+          font-family: "Georgia", serif;
+          color: #d1d5db;
+        }
+        .divider {
+          flex: 1;
+          height: 1px;
+          background: #e5e7eb;
+        }
+        .designer-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+          gap: 12px;
+        }
+        .designer-card {
+          border-radius: 10px;
+          border: 1px solid #e5e7eb;
+          padding: 12px 14px;
+          text-decoration: none;
+          background: #f9fafb;
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          gap: 8px;
+          transition: background 0.15s ease, box-shadow 0.15s ease,
+            transform 0.15s ease;
+          color: inherit;
+        }
+        .designer-card:hover {
+          background: #ffffff;
+          box-shadow: 0 10px 30px rgba(0, 0, 0, 0.04);
+          transform: translateY(-1px);
+        }
+        .designer-name {
+          font-size: 14px;
+        }
+        .designer-cta {
+          font-size: 11px;
+          text-transform: uppercase;
+          letter-spacing: 0.14em;
+          color: #9ca3af;
+        }
+        .empty {
+          text-align: center;
+          color: #6b7280;
+          margin-top: 24px;
         }
       `}</style>
     </div>
   );
 }
 
-export const getServerSideProps: GetServerSideProps<DesignersPageProps> = async () => {
-  try {
-    // 1. Fetch all designers
-    const snap = await adminDb.collection("designers").get();
-    
-    let designers: Designer[] = snap.docs
-      .map((doc) => {
-        const data = doc.data() as any;
-        return {
-          id: doc.id,
-          name: data.name || doc.id,
-          slug: data.slug || doc.id,
-          itemTypes: data.itemTypes || "",
-        };
-      })
-      .sort((a, b) => a.name.localeCompare(b.name));
+export const getServerSideProps: GetServerSideProps<DesignersPageProps> =
+  async () => {
+    try {
+      const snap = await adminDb.collection("designers").get(); // :contentReference[oaicite:0]{index=0}
 
-    // 2. Define the "Featured" list (Top Luxury Brands)
-    // You can adjust this list to match your inventory
-    const featuredNames = [
-      "Chanel",
-      "Louis Vuitton",
-      "Hermès",
-      "Gucci",
-      "Prada",
-      "Dior",
-      "Saint Laurent",
-      "Fendi",
-      "Cartier",
-      "Rolex",
-      "Burberry",
-      "Balenciaga"
-    ];
+      const designers: Designer[] = snap.docs
+        .map((doc) => {
+          const data = doc.data() as any;
+          return {
+            id: doc.id,
+            name: data.name || doc.id,
+            slug: data.slug || doc.id,
+          };
+        })
+        .sort((a, b) => a.name.localeCompare(b.name));
 
-    // 3. Separate Featured vs Regular & fetch images for featured
-    const featuredDesigners: Designer[] = [];
-    
-    // We want to find the designers in our DB that match the featured list
-    for (const name of featuredNames) {
-      const found = designers.find(d => 
-        d.name.toLowerCase() === name.toLowerCase()
-      );
-      
-      if (found) {
-        // Try to find ONE listing image for this designer to use as background
-        // We look in 'listings' collection where designer == name
-        let bgImage = "";
-        try {
-          const productSnap = await adminDb.collection("listings")
-            .where("designer", "==", found.name) // Make sure casing matches in your DB
-            .where("status", "in", ["Live", "Active"]) // Only show images from live items
-            .limit(1)
-            .get();
-          
-          if (!productSnap.empty) {
-            const pData = productSnap.docs[0].data();
-             bgImage =
-                pData.image_url ||
-                pData.imageUrl ||
-                pData.image ||
-                (Array.isArray(pData.imageUrls) && pData.imageUrls[0]) ||
-                "";
-          }
-        } catch (e) {
-          // ignore error, just no image
-        }
-
-        featuredDesigners.push({
-          ...found,
-          image: bgImage // will be empty string if not found, UI handles that
-        });
-      }
+      return { props: { designers } };
+    } catch (err) {
+      console.error("Error loading designers index", err);
+      return { props: { designers: [] } };
     }
-
-    // 4. Group ALL designers by First Letter for the Directory
-    const groupedDesigners: Record<string, Designer[]> = {};
-    
-    designers.forEach((d) => {
-      // Get first char, handle numeric/special
-      const firstChar = d.name.charAt(0).toUpperCase();
-      const key = /[A-Z]/.test(firstChar) ? firstChar : "#";
-      
-      if (!groupedDesigners[key]) {
-        groupedDesigners[key] = [];
-      }
-      groupedDesigners[key].push(d);
-    });
-
-    const allKeys = Object.keys(groupedDesigners).sort();
-
-    return { 
-      props: { 
-        featuredDesigners,
-        groupedDesigners,
-        allKeys
-      } 
-    };
-  } catch (err) {
-    console.error("Error loading designers index", err);
-    return { 
-      props: { 
-        featuredDesigners: [], 
-        groupedDesigners: {},
-        allKeys: []
-      } 
-    };
-  }
-};
+  };
