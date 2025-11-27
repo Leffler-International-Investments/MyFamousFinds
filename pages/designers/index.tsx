@@ -50,7 +50,7 @@ export default function DesignersPage({ items, designers }: Props) {
     }
 
     if (query.designer) {
-      // Split and ensure we match case logic if needed, 
+      // Split and ensure we match case logic if needed,
       // though we store lowercase in URL usually.
       setSelectedDesigner((query.designer as string).split(","));
     } else {
@@ -96,6 +96,9 @@ export default function DesignersPage({ items, designers }: Props) {
     router.push("/designers");
   };
 
+  // Helper for render check
+  const selectedCategoriesCount = selectedCategory.length;
+
   // ------------------------------
   // Apply Filters (Triggers Server Reload)
   // ------------------------------
@@ -117,9 +120,6 @@ export default function DesignersPage({ items, designers }: Props) {
 
     router.push(`/designers?${params.toString()}`);
   };
-
-  // Helper for render check
-  const selectedCategoriesCount = selectedCategory.length;
 
   return (
     <>
@@ -331,7 +331,7 @@ export const getServerSideProps: GetServerSideProps = async (ctx) => {
       .collection("designers")
       .where("active", "==", true)
       .get();
-    
+
     designers = designersSnap.docs.map((d) => d.data().name).sort();
   } catch (error) {
     console.error("Error fetching designers:", error);
@@ -344,13 +344,13 @@ export const getServerSideProps: GetServerSideProps = async (ctx) => {
 
   // CATEGORY FILTER (Firestore 'in' query)
   if (selectedCategories.length > 0) {
-    // Note: Firestore 'in' supports max 10 values. 
+    // Note: Firestore 'in' supports max 10 values.
     // If user selects > 10, this might error, but UI only has ~7 categories.
     ref = ref.where("category", "in", selectedCategories);
   }
 
   const snap = await ref.get();
-  
+
   // 3. Map Data
   let items = snap.docs.map((d) => {
     const data = d.data();
@@ -374,7 +374,7 @@ export const getServerSideProps: GetServerSideProps = async (ctx) => {
   });
 
   // 4. Apply JS Filters (Designer + Price)
-  
+
   // DESIGNER
   if (selectedDesigners.length > 0) {
     items = items.filter((i) =>
