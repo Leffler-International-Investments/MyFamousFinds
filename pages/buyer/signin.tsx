@@ -12,7 +12,6 @@ import {
   onAuthStateChanged,
 } from "firebase/auth";
 
-// ---------- Firebase client ----------
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY as string,
   authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN as string,
@@ -25,7 +24,6 @@ const firebaseConfig = {
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 const auth = getAuth(app);
 
-// ---------- Page ----------
 export default function BuyerSignInPage() {
   const router = useRouter();
   const [email, setEmail] = useState("");
@@ -35,9 +33,7 @@ export default function BuyerSignInPage() {
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, (user) => {
-      if (user) {
-        router.replace("/buyer/dashboard");
-      }
+      if (user) router.replace("/buyer/dashboard");
     });
     return () => unsub();
   }, [router]);
@@ -46,11 +42,12 @@ export default function BuyerSignInPage() {
     e.preventDefault();
     setLoading(true);
     setError(null);
+
     try {
       await signInWithEmailAndPassword(auth, email.trim(), password);
       router.push("/buyer/dashboard");
     } catch (err: any) {
-      setError(err.message || "Unable to sign in.");
+      setError(err.message);
     } finally {
       setLoading(false);
     }
@@ -59,11 +56,11 @@ export default function BuyerSignInPage() {
   return (
     <>
       <Head>
-        <title>Buyer Sign In | Famous Finds</title>
+        <title>Buyer Sign In</title>
       </Head>
       <Header />
-      <main className="max-w-md mx-auto px-4 py-10">
-        <h1 className="text-2xl font-semibold mb-6">Sign in to your account</h1>
+      <main className="wrap max-w-md mx-auto py-10">
+        <h1 className="text-2xl font-semibold mb-6">Sign in</h1>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
@@ -73,7 +70,6 @@ export default function BuyerSignInPage() {
               className="w-full border rounded px-3 py-2 text-sm"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              required
             />
           </div>
 
@@ -84,27 +80,24 @@ export default function BuyerSignInPage() {
               className="w-full border rounded px-3 py-2 text-sm"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              required
             />
           </div>
 
-          {error && (
-            <p className="text-sm text-red-600 whitespace-pre-line">{error}</p>
-          )}
+          {error && <p className="text-sm text-red-600">{error}</p>}
 
           <button
             type="submit"
+            className="w-full bg-slate-900 text-white rounded-full py-2 text-sm"
             disabled={loading}
-            className="w-full bg-slate-900 text-white rounded-full py-2 text-sm font-medium disabled:opacity-60"
           >
-            {loading ? "Signing in..." : "Sign in"}
+            {loading ? "Signing in…" : "Sign in"}
           </button>
         </form>
 
         <p className="mt-4 text-sm text-gray-500">
           Don&apos;t have an account?{" "}
           <Link href="/buyer/signup" className="underline">
-            Create a free buyer account
+            Create one
           </Link>
         </p>
       </main>
