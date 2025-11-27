@@ -35,45 +35,39 @@ export default function BuyerSignUpPage() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
     setError(null);
     try {
-      const cred = await createUserWithEmailAndPassword(
+      const userCred = await createUserWithEmailAndPassword(
         auth,
         email.trim(),
         password
       );
-      const uid = cred.user.uid;
 
-      await setDoc(doc(db, "buyers", uid), {
-        name: name.trim(),
-        email: email.trim().toLowerCase(),
+      await setDoc(doc(db, "buyers", userCred.user.uid), {
+        name,
+        email,
         createdAt: serverTimestamp(),
       });
 
       router.push("/buyer/dashboard");
     } catch (err: any) {
-      setError(err.message || "Unable to create account.");
-    } finally {
-      setLoading(false);
+      setError(err.message);
     }
   };
 
   return (
     <>
       <Head>
-        <title>Create Buyer Account | Famous Finds</title>
+        <title>Create Account</title>
       </Head>
       <Header />
-      <main className="max-w-md mx-auto px-4 py-10">
-        <h1 className="text-2xl font-semibold mb-6">
-          Create a free buyer account
-        </h1>
+
+      <main className="wrap max-w-md mx-auto py-10">
+        <h1 className="text-2xl font-semibold mb-6">Create account</h1>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
@@ -82,7 +76,6 @@ export default function BuyerSignUpPage() {
               className="w-full border rounded px-3 py-2 text-sm"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              required
             />
           </div>
 
@@ -93,7 +86,6 @@ export default function BuyerSignUpPage() {
               className="w-full border rounded px-3 py-2 text-sm"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              required
             />
           </div>
 
@@ -104,21 +96,17 @@ export default function BuyerSignUpPage() {
               className="w-full border rounded px-3 py-2 text-sm"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              required
               minLength={6}
             />
           </div>
 
-          {error && (
-            <p className="text-sm text-red-600 whitespace-pre-line">{error}</p>
-          )}
+          {error && <p className="text-red-600 text-sm">{error}</p>}
 
           <button
             type="submit"
-            disabled={loading}
-            className="w-full bg-slate-900 text-white rounded-full py-2 text-sm font-medium disabled:opacity-60"
+            className="w-full bg-slate-900 text-white rounded-full py-2 text-sm"
           >
-            {loading ? "Creating account..." : "Create account"}
+            Create account
           </button>
         </form>
 
