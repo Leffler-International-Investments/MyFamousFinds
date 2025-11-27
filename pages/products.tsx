@@ -32,10 +32,8 @@ type Props = {
 
 // ------------ page component ------------
 const ProductsPage: NextPage<Props> = ({ items, designer, tag }) => {
-  const titleBase = designer || tag || "All Designer Pieces";
-
-  // group by category
   const grouped: Record<string, ProductLike[]> = {};
+
   items.forEach((item: any) => {
     const cat =
       item.category || item.categoryName || item.department || "Other";
@@ -46,24 +44,18 @@ const ProductsPage: NextPage<Props> = ({ items, designer, tag }) => {
   return (
     <>
       <Head>
-        <title>{titleBase} | Famous Finds</title>
+        <title>{designer || tag || "All Designer Pieces"} | Famous Finds</title>
       </Head>
       <Header />
 
-      {/* ---- FIXED STYLING WRAPPER ---- */}
-      <main className="max-w-6xl mx-auto px-4 py-10">
+      <main className="wrap py-10">
         <h1 className="text-3xl font-semibold tracking-tight mb-3">
-          {designer
-            ? designer
-            : tag
-            ? `${tag} pieces`
-            : "All Designer Pieces"}
+          {designer ? designer : tag ? `${tag} pieces` : "All Designer Pieces"}
         </h1>
 
         {designer && (
           <p className="text-sm text-gray-500 mb-6">
-            Showing all live listings for <strong>{designer}</strong>, grouped
-            by category.
+            Showing all live listings for <strong>{designer}</strong>, grouped by category.
           </p>
         )}
 
@@ -73,9 +65,7 @@ const ProductsPage: NextPage<Props> = ({ items, designer, tag }) => {
 
         {Object.entries(grouped).map(([category, catItems]) => (
           <section key={category} className="mb-12">
-            <h2 className="text-xl font-medium mb-4 capitalize">
-              {category}
-            </h2>
+            <h2 className="text-xl font-medium mb-4 capitalize">{category}</h2>
 
             <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 md:grid-cols-3">
               {catItems.map((item) => (
@@ -104,6 +94,7 @@ export const getServerSideProps: GetServerSideProps<Props> = async (context) => 
 
   let items: ProductLike[] = snapshot.docs.map((doc) => {
     const data = doc.data() as any;
+
     return {
       id: doc.id,
       title: data.title || "",
@@ -115,17 +106,13 @@ export const getServerSideProps: GetServerSideProps<Props> = async (context) => 
       condition: data.condition || "",
       badge: data.condition || "",
       tags: data.tags || [],
-    } as ProductLike;
+    };
   });
 
-  // filter by designer
   if (typeof designer === "string" && designer.length) {
-    items = items.filter(
-      (item: any) => (item.brand || "").trim() === designer.trim()
-    );
+    items = items.filter((item: any) => item.brand === designer);
   }
 
-  // filter by tag
   if (typeof tag === "string" && tag.length) {
     items = items.filter((item: any) =>
       Array.isArray(item.tags) ? item.tags.includes(tag) : false
@@ -135,8 +122,8 @@ export const getServerSideProps: GetServerSideProps<Props> = async (context) => 
   return {
     props: {
       items,
-      designer: typeof designer === "string" ? designer : null,
-      tag: typeof tag === "string" ? tag : null,
+      designer: designer || null,
+      tag: tag || null,
     },
   };
 };
