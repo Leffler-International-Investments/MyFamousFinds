@@ -1,3 +1,5 @@
+// FILE: pages/buyer/signup.tsx
+
 import { useState } from "react";
 import Head from "next/head";
 import Link from "next/link";
@@ -40,6 +42,7 @@ export default function BuyerSignUpPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+
     try {
       const userCred = await createUserWithEmailAndPassword(
         auth,
@@ -48,75 +51,76 @@ export default function BuyerSignUpPage() {
       );
 
       await setDoc(doc(db, "buyers", userCred.user.uid), {
-        name,
-        email,
+        name: name.trim(),
+        email: email.trim(),
         createdAt: serverTimestamp(),
       });
 
       router.push("/buyer/dashboard");
     } catch (err: any) {
-      setError(err.message);
+      setError(err.message || "Unable to create your account.");
     }
   };
 
   return (
     <>
       <Head>
-        <title>Create Account</title>
+        <title>Create Buyer Account | Famous Finds</title>
       </Head>
       <Header />
 
-      <main className="wrap max-w-md mx-auto py-10">
-        <h1 className="text-2xl font-semibold mb-6">Create account</h1>
+      <main className="auth-main">
+        <div className="auth-inner">
+          <h1 className="auth-title">Create account</h1>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-sm mb-1">Full name</label>
-            <input
-              className="w-full border rounded px-3 py-2 text-sm"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-            />
-          </div>
+          <form onSubmit={handleSubmit} className="auth-form">
+            <div className="auth-field">
+              <label className="auth-label">Full name</label>
+              <input
+                className="auth-input"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                required
+              />
+            </div>
 
-          <div>
-            <label className="block text-sm mb-1">Email</label>
-            <input
-              type="email"
-              className="w-full border rounded px-3 py-2 text-sm"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-            />
-          </div>
+            <div className="auth-field">
+              <label className="auth-label">Email</label>
+              <input
+                type="email"
+                className="auth-input"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+              />
+            </div>
 
-          <div>
-            <label className="block text-sm mb-1">Password</label>
-            <input
-              type="password"
-              className="w-full border rounded px-3 py-2 text-sm"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              minLength={6}
-            />
-          </div>
+            <div className="auth-field">
+              <label className="auth-label">Password</label>
+              <input
+                type="password"
+                className="auth-input"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                minLength={6}
+              />
+            </div>
 
-          {error && <p className="text-red-600 text-sm">{error}</p>}
+            {error && <p className="auth-error">{error}</p>}
 
-          <button
-            type="submit"
-            className="w-full bg-slate-900 text-white rounded-full py-2 text-sm"
-          >
-            Create account
-          </button>
-        </form>
+            <button type="submit" className="auth-button">
+              Create account
+            </button>
+          </form>
 
-        <p className="mt-4 text-sm text-gray-500">
-          Already have an account?{" "}
-          <Link href="/buyer/signin" className="underline">
-            Sign in
-          </Link>
-        </p>
+          <p className="auth-switch">
+            Already have an account?{" "}
+            <Link href="/buyer/signin">Sign in</Link>
+          </p>
+        </div>
       </main>
+
       <Footer />
     </>
   );
