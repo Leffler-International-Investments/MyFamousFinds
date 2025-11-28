@@ -1,7 +1,8 @@
 // FILE: /utils/firebaseAdmin.ts
 
 import { cert, getApps, getApp, initializeApp } from "firebase-admin/app";
-import { getFirestore } from "firebase-admin/firestore";
+import { getFirestore, FieldValue as FirestoreFieldValue } from "firebase-admin/firestore";
+import { getAuth } from "firebase-admin/auth";
 
 function initAdminApp() {
   // Re-use existing app if already initialised
@@ -13,7 +14,7 @@ function initAdminApp() {
   let clientEmail: string | undefined;
   let privateKey: string | undefined;
 
-  // 1) OLD STYLE: single JSON env (what you were using before)
+  // 1) OLD STYLE: single JSON env (your original setup)
   const serviceAccountJson = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
   if (serviceAccountJson) {
     try {
@@ -26,7 +27,7 @@ function initAdminApp() {
     }
   }
 
-  // 2) NEW STYLE: split envs (FB_PROJECT_ID, FB_CLIENT_EMAIL, FB_PRIVATE_KEY)
+  // 2) NEW STYLE: split envs (optional fallback)
   if (!projectId) projectId = process.env.FB_PROJECT_ID;
   if (!clientEmail) clientEmail = process.env.FB_CLIENT_EMAIL;
   if (!privateKey) privateKey = process.env.FB_PRIVATE_KEY;
@@ -50,4 +51,8 @@ function initAdminApp() {
 }
 
 const adminApp = initAdminApp();
+
+// ✅ Exports used across the app
 export const adminDb = getFirestore(adminApp);
+export const adminAuth = getAuth(adminApp);
+export const FieldValue = FirestoreFieldValue;
