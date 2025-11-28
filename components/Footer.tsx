@@ -8,7 +8,6 @@ export default function Footer() {
     <>
       <footer className="mt-auto border-t border-neutral-800 bg-neutral-900 text-white">
         <div className="mx-auto flex max-w-5xl flex-col items-center gap-6 px-6 py-10 text-center">
-          
           {/* BRAND + COPYRIGHT */}
           <div className="flex flex-col items-center gap-1">
             <div className="text-sm font-bold uppercase tracking-[0.2em] text-white">
@@ -19,37 +18,65 @@ export default function Footer() {
             </div>
           </div>
 
-          {/* BLUE LINKS WITH PERFECT SPACING */}
-          <nav className="flex flex-wrap justify-center gap-x-8 gap-y-4 text-[13px] font-medium">
-            <Link href="/help" className="text-blue-400 hover:text-blue-300 transition">
-              Help Center
-            </Link>
-            <Link href="/about" className="text-blue-400 hover:text-blue-300 transition">
-              About
-            </Link>
-            <Link href="/contact" className="text-blue-400 hover:text-blue-300 transition">
-              Contact
-            </Link>
-            <Link href="/buying" className="text-blue-400 hover:text-blue-300 transition">
-              Buying
-            </Link>
-            <Link href="/selling" className="text-blue-400 hover:text-blue-300 transition">
-              Selling
-            </Link>
-            <Link href="/shipping" className="text-blue-400 hover:text-blue-300 transition">
-              Shipping
-            </Link>
-            <Link href="/returns" className="text-blue-400 hover:text-blue-300 transition">
-              Returns
-            </Link>
-            <Link href="/authenticity-policy" className="text-blue-400 hover:text-blue-300 transition">
-              Authenticity
-            </Link>
-            <Link href="/privacy" className="text-blue-400 hover:text-blue-300 transition">
-              Privacy
-            </Link>
+          {/* LINK PILLS – WRAP ON MOBILE */}
+          <nav className="w-full flex justify-center">
+            <div className="flex flex-wrap justify-center gap-3 max-w-xl">
+              <Link
+                href="/help"
+                className="inline-flex items-center justify-center rounded-full bg-neutral-800 px-3 py-1 text-xs sm:text-[13px] text-blue-300 hover:bg-neutral-700 hover:text-blue-100 transition-colors"
+              >
+                Help Center
+              </Link>
+              <Link
+                href="/about"
+                className="inline-flex items-center justify-center rounded-full bg-neutral-800 px-3 py-1 text-xs sm:text-[13px] text-blue-300 hover:bg-neutral-700 hover:text-blue-100 transition-colors"
+              >
+                About
+              </Link>
+              <Link
+                href="/contact"
+                className="inline-flex items-center justify-center rounded-full bg-neutral-800 px-3 py-1 text-xs sm:text-[13px] text-blue-300 hover:bg-neutral-700 hover:text-blue-100 transition-colors"
+              >
+                Contact
+              </Link>
+              <Link
+                href="/buying"
+                className="inline-flex items-center justify-center rounded-full bg-neutral-800 px-3 py-1 text-xs sm:text-[13px] text-blue-300 hover:bg-neutral-700 hover:text-blue-100 transition-colors"
+              >
+                Buying
+              </Link>
+              <Link
+                href="/selling"
+                className="inline-flex items-center justify-center rounded-full bg-neutral-800 px-3 py-1 text-xs sm:text-[13px] text-blue-300 hover:bg-neutral-700 hover:text-blue-100 transition-colors"
+              >
+                Selling
+              </Link>
+              <Link
+                href="/shipping"
+                className="inline-flex items-center justify-center rounded-full bg-neutral-800 px-3 py-1 text-xs sm:text-[13px] text-blue-300 hover:bg-neutral-700 hover:text-blue-100 transition-colors"
+              >
+                Shipping
+              </Link>
+              <Link
+                href="/returns"
+                className="inline-flex items-center justify-center rounded-full bg-neutral-800 px-3 py-1 text-xs sm:text-[13px] text-blue-300 hover:bg-neutral-700 hover:text-blue-100 transition-colors"
+              >
+                Returns
+              </Link>
+              <Link
+                href="/authenticity-policy"
+                className="inline-flex items-center justify-center rounded-full bg-neutral-800 px-3 py-1 text-xs sm:text-[13px] text-blue-300 hover:bg-neutral-700 hover:text-blue-100 transition-colors"
+              >
+                Authenticity
+              </Link>
+              <Link
+                href="/privacy"
+                className="inline-flex items-center justify-center rounded-full bg-neutral-800 px-3 py-1 text-xs sm:text-[13px] text-blue-300 hover:bg-neutral-700 hover:text-blue-100 transition-colors"
+              >
+                Privacy
+              </Link>
+            </div>
           </nav>
-
         </div>
       </footer>
 
