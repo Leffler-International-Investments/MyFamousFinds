@@ -1,55 +1,57 @@
 // FILE: /components/DemoGrid.tsx
 
-import type { FC } from "react";
-import type { ProductLike } from "./ProductCard";
-
-// Extend ProductLike so TS is happy with these optional fields
-type DemoItem = ProductLike & {
-  designer?: string;
-  currency?: string;
-  price?: number | string | null;
-};
+import { FC } from "react";
+import ProductCard, { ProductLike } from "./ProductCard";
 
 type Props = {
-  trending: DemoItem[];
-  newArrivals: DemoItem[];
+  title: string;
+  products: ProductLike[];
+  subtitle?: string;
 };
 
-const DemoGrid: FC<Props> = ({ trending, newArrivals }) => {
-  const renderPrice = (item: DemoItem) => {
-    const currency = item.currency || "USD";
-    const raw = item.price ?? "";
-    return `${currency} ${raw}`;
-  };
-
-  const renderItem = (item: DemoItem) => (
-    <article key={item.id} className="demo-grid-item">
-      <div className="demo-grid-title">{item.title}</div>
-      <div className="demo-grid-meta">
-        <span className="demo-grid-designer">
-          {item.designer || "Designer"}
-        </span>
-        <span className="demo-grid-price">{renderPrice(item)}</span>
-      </div>
-    </article>
-  );
-
+const DemoGrid: FC<Props> = ({ title, subtitle, products }) => {
   return (
-    <div className="demo-grid">
-      <div className="demo-grid-column">
-        <h3>Trending now</h3>
-        <div className="demo-grid-list">
-          {trending.map((item) => renderItem(item))}
-        </div>
+    <section className="demo-grid">
+      <header className="demo-grid__header">
+        <h2>{title}</h2>
+        {subtitle && <p className="demo-grid__subtitle">{subtitle}</p>}
+      </header>
+
+      <div className="demo-grid__grid">
+        {products.map((product) => (
+          <ProductCard key={product.id} {...product} />
+        ))}
       </div>
 
-      <div className="demo-grid-column">
-        <h3>New arrivals</h3>
-        <div className="demo-grid-list">
-          {newArrivals.map((item) => renderItem(item))}
-        </div>
-      </div>
-    </div>
+      <style jsx>{`
+        .demo-grid {
+          margin-top: 32px;
+        }
+
+        .demo-grid__header {
+          display: flex;
+          flex-direction: column;
+          gap: 4px;
+          margin-bottom: 16px;
+        }
+
+        .demo-grid__header h2 {
+          font-size: 22px;
+          font-weight: 600;
+        }
+
+        .demo-grid__subtitle {
+          font-size: 14px;
+          color: #6b7280;
+        }
+
+        .demo-grid__grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+          gap: 16px;
+        }
+      `}</style>
+    </section>
   );
 };
 
