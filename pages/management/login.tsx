@@ -1,4 +1,5 @@
 // FILE: /pages/management/login.tsx
+
 import Head from "next/head";
 import Link from "next/link";
 import { useRouter } from "next/router";
@@ -6,8 +7,27 @@ import { FormEvent, useState } from "react";
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
 import PasswordInput from "../../components/PasswordInput";
-import { getAuth, signInWithEmailAndPassword } from "firebase/auth";
-import firebaseApp from "../../utils/firebaseClient";
+
+type LoginSuccess = { ok: true; managementId?: string };
+type LoginError = {
+  ok: false;
+  code: "bad_credentials" | "pending" | "not_authorised" | string;
+  message?: string;
+};
+type LoginResponse = LoginSuccess | LoginError;
+
+type Start2faSuccess = {
+  ok: true;
+  challengeId: string;
+  via: "sms" | "email";
+  devCode?: string;
+};
+type Start2faError = { ok: false; message?: string };
+type Start2faResponse = Start2faSuccess | Start2faError;
+
+type Verify2faSuccess = { ok: true };
+type Verify2faError = { ok: false; message?: string };
+type Verify2faResponse = Verify2faSuccess | Verify2faError;
 
 type TwoFactorStep = "credentials" | "verify";
 
@@ -31,18 +51,55 @@ export default function ManagementLoginPage() {
     e.preventDefault();
     setError(null);
     setInfo(null);
+
+    const trimmedEmail = email.trim().toLowerCase();
+    if (!trimmedEmail || !password) {
+      setError("Please enter your email and password.");
+      return;
+    }
+
     setLoading(true);
-
     try {
-      const auth = getAuth(firebaseApp);
-      await signInWithEmailAndPassword(
-        auth,
-        email.toLowerCase().trim(),
-        password
-      );
+      // 1) SERVER-SIDE MANAGEMENT LOGIN (mirrors seller login)
+      const res = await fetch("/api/management/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: trimmedEmail, password }),
+      });
+      const json = (await res.json()) as LoginResponse;
 
-      const trimmedEmail = email.toLowerCase().trim();
-      const res = await fetch("/api/auth/start-2fa", {
+      if (!json.ok) {
+        const errJson = json as LoginError;
+
+        if (errJson.code === "pending") {
+          setError("");
+          setInfo(
+            "Your management access is still under review. We'll email you as soon as it is approved."
+          );
+          return;
+        }
+
+        if (errJson.code === "not_authorised") {
+          setError(
+            "This account is not authorised for management access. Please contact the site owner."
+          );
+          return;
+        }
+
+        if (errJson.code === "bad_credentials") {
+          setError("Incorrect email or password. Please try again.");
+          return;
+        }
+
+        setError(
+          errJson.message ||
+            "We couldn't sign you in. Please check your details and try again."
+        );
+        return;
+      }
+
+      // 2) START 2FA (same pattern as Seller login)
+      const twofaRes = await fetch("/api/auth/start-2fa", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -52,30 +109,28 @@ export default function ManagementLoginPage() {
         }),
       });
 
-      const json = await res.json();
+      const twofaJson = (await twofaRes.json()) as Start2faResponse;
 
-      if (!json.ok) {
+      if (!twofaJson.ok) {
+        const errJson = twofaJson as Start2faError;
         setError(
-          json.message ||
+          errJson.message ||
             "We couldn't start the verification process. Please try again."
         );
-        setLoading(false);
         return;
       }
 
-      setChallengeId(json.challengeId);
+      setChallengeId(twofaJson.challengeId);
       setStep("verify");
+
       let message = "We've sent a 6-digit code to your email address.";
-      if (json.devCode) {
-        message += ` (Dev code: ${json.devCode})`;
+      if ((twofaJson as Start2faSuccess).devCode) {
+        message += ` (Dev code: ${(twofaJson as Start2faSuccess).devCode})`;
       }
       setInfo(message);
-    } catch (err: any) {
+    } catch (err) {
       console.error("management_login_error", err);
-      setError(
-        err?.message ||
-          "Unable to sign you in. Please check your details and try again."
-      );
+      setError("Unexpected error. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -84,17 +139,14 @@ export default function ManagementLoginPage() {
   async function handleVerifySubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError(null);
-    setInfo(null);
 
     if (!challengeId) {
-      setError("Your verification session has expired. Please start again.");
+      setError("Your verification session has expired. Please log in again.");
       setStep("credentials");
       return;
     }
-
-    const trimmedCode = code.trim();
-    if (!trimmedCode || trimmedCode.length < 6) {
-      setError("Please enter the 6-digit code.");
+    if (!code.trim()) {
+      setError("Please enter the verification code.");
       return;
     }
 
@@ -105,23 +157,22 @@ export default function ManagementLoginPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           challengeId,
-          code: trimmedCode,
+          code: code.trim(),
         }),
       });
-
-      const json = await res.json();
+      const json = (await res.json()) as Verify2faResponse;
 
       if (!json.ok) {
-        setError(json.message || "Incorrect or expired code.");
-        setLoading(false);
+        const errJson = json as Verify2faError;
+        setError(errJson.message || "Incorrect or expired code.");
         return;
       }
 
-      const trimmedEmail = email.toLowerCase().trim();
       if (typeof window !== "undefined") {
         window.localStorage.setItem("ff-role", "management");
-        window.localStorage.setItem("ff-email", trimmedEmail);
+        window.localStorage.setItem("ff-email", email.toLowerCase().trim());
       }
+
       router.push(from || "/management/dashboard");
     } catch (err) {
       console.error("management_verify_2fa_error", err);
@@ -181,7 +232,7 @@ export default function ManagementLoginPage() {
                     disabled={disabled}
                     className="auth-button-primary"
                   >
-                    {loading ? "Processing..." : "Sign In"}
+                    {loading ? "Checking..." : "Sign In"}
                   </button>
                 </div>
               </form>
@@ -260,7 +311,7 @@ export default function ManagementLoginPage() {
           border-radius: 22px;
           border: 1px solid #e5e7eb;
           padding: 32px 28px;
-          box-shadow: 0 12px 35px rgba(0,0,0,0.06);
+          box-shadow: 0 12px 35px rgba(0, 0, 0, 0.06);
         }
         h1 {
           font-family: ui-serif, "Times New Roman", serif;
@@ -304,7 +355,7 @@ export default function ManagementLoginPage() {
           outline: none;
           border-color: #111 !important;
           background: #fff !important;
-          box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
         }
         .auth-button-primary {
           margin-top: 8px;
@@ -326,21 +377,52 @@ export default function ManagementLoginPage() {
           opacity: 0.5;
           cursor: default;
         }
-        .auth-error, .auth-info {
+        .auth-error,
+        .auth-info {
           border-radius: 12px;
           padding: 10px;
           font-size: 13px;
           margin-bottom: 16px;
           text-align: center;
         }
-        .auth-error { background: #fef2f2; color: #b91c1c; }
-        .auth-info { background: #eff6ff; color: #1d4ed8; }
-        .auth-code-input { text-align: center; letter-spacing: 0.2em; font-weight: 600; }
-        .auth-secondary-link { margin-top: 20px; text-align: center; font-size: 13px; }
-        .auth-secondary-link a { color: #6b7280; text-decoration: underline; }
-        .auth-secondary-link a:hover { color: #111; }
-        .auth-secondary-link-inline { text-align: center; font-size: 13px; color: #666; margin-bottom: 16px; }
-        .auth-secondary-link-inline button { border:none; background:none; text-decoration:underline; cursor:pointer; color:#111; }
+        .auth-error {
+          background: #fef2f2;
+          color: #b91c1c;
+        }
+        .auth-info {
+          background: #eff6ff;
+          color: #1d4ed8;
+        }
+        .auth-code-input {
+          text-align: center;
+          letter-spacing: 0.2em;
+          font-weight: 600;
+        }
+        .auth-secondary-link {
+          margin-top: 20px;
+          text-align: center;
+          font-size: 13px;
+        }
+        .auth-secondary-link a {
+          color: #6b7280;
+          text-decoration: underline;
+        }
+        .auth-secondary-link a:hover {
+          color: #111;
+        }
+        .auth-secondary-link-inline {
+          text-align: center;
+          font-size: 13px;
+          color: #666;
+          margin-bottom: 16px;
+        }
+        .auth-secondary-link-inline button {
+          border: none;
+          background: none;
+          text-decoration: underline;
+          cursor: pointer;
+          color: #111;
+        }
       `}</style>
     </>
   );
