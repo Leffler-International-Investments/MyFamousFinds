@@ -1,215 +1,292 @@
 // FILE: /pages/buyer/signin.tsx
 
-import { useState, useEffect } from "react";
 import Head from "next/head";
 import Link from "next/link";
 import { useRouter } from "next/router";
+import { FormEvent, useState } from "react";
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
+import PasswordInput from "../../components/PasswordInput";
 
-// 🔥 IMPORTANT: use the SAME Firebase client as Seller & Management
-import firebaseApp from "../../utils/firebaseClient";
-import {
-  getAuth,
-  signInWithEmailAndPassword,
-  onAuthStateChanged,
-  sendPasswordResetEmail,
-} from "firebase/auth";
+type LoginSuccess = { ok: true; buyerId: string };
+type LoginError = { ok: false; code: string; message: string };
+type LoginResponse = LoginSuccess | LoginError;
 
-const auth = getAuth(firebaseApp);
+type Start2faSuccess = { ok: true; challengeId: string; via: "email"; devCode?: string };
+type Start2faError = { ok: false; message?: string };
+type Start2faResponse = Start2faSuccess | Start2faError;
+
+type Verify2faSuccess = { ok: true };
+type Verify2faError = { ok: false; message?: string };
+type Verify2faResponse = Verify2faSuccess | Verify2faError;
+
+type Step = "credentials" | "verify";
 
 export default function BuyerSignInPage() {
   const router = useRouter();
-
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [code, setCode] = useState("");
+  const [step, setStep] = useState<Step>("credentials");
+  const [challengeId, setChallengeId] = useState<string | null>(null);
+  const [info, setInfo] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [resetSent, setResetSent] = useState(false);
-  const [resetLoading, setResetLoading] = useState(false);
+  const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    const unsub = onAuthStateChanged(auth, (user) => {
-      if (user) router.replace("/buyer/dashboard");
-    });
-    return () => unsub();
-  }, [router]);
-
-  const handleSubmit = async (e: React.FormEvent) => {
+  async function submitCredentials(e: FormEvent) {
     e.preventDefault();
-    setLoading(true);
     setError(null);
+    setInfo(null);
 
-    const trimmedEmail = email.trim().toLowerCase();
-
-    try {
-      await signInWithEmailAndPassword(auth, trimmedEmail, password);
-      router.push("/buyer/dashboard");
-    } catch (err: any) {
-      console.error("buyer_signin_error", err);
-
-      const code = err?.code;
-
-      if (code === "auth/user-not-found") {
-        setError("No account found for this email. Please sign up.");
-      } else if (code === "auth/wrong-password" || code === "auth/invalid-credential") {
-        setError("Email or password is incorrect. Try again or reset your password.");
-      } else if (code === "auth/too-many-requests") {
-        setError("Too many attempts. Reset your password.");
-      } else {
-        setError("Unable to sign you in right now. Please try again.");
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleForgotPassword = async () => {
-    setResetSent(false);
-    setResetLoading(true);
-    setError(null);
-
-    const trimmedEmail = email.trim().toLowerCase();
-    if (!trimmedEmail) {
-      setError("Enter your email first, then click Forgot Password.");
-      setResetLoading(false);
+    const trimmed = email.trim().toLowerCase();
+    if (!trimmed || !password) {
+      setError("Please enter your email and password.");
       return;
     }
 
+    setLoading(true);
     try {
-      await sendPasswordResetEmail(auth, trimmedEmail);
-      setResetSent(true);
-    } catch (err) {
-      console.error("buyer_reset_error", err);
-      setError("Unable to send reset email. Try again.");
+      const res = await fetch("/api/buyer/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: trimmed, password }),
+      });
+      const json = (await res.json()) as LoginResponse;
+
+      if (!json.ok) {
+        setError("Incorrect email or password. Please try again.");
+        return;
+      }
+
+      const twofa = await fetch("/api/auth/start-2fa", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: trimmed, role: "buyer", method: "email" }),
+      });
+      const twofaJson = (await twofa.json()) as Start2faResponse;
+
+      if (!twofaJson.ok) {
+        setError("Unable to start verification. Please try again.");
+        return;
+      }
+
+      setChallengeId(twofaJson.challengeId);
+      setStep("verify");
+
+      let msg = "We sent a 6-digit code to your email.";
+      if (twofaJson.devCode) msg += ` (Dev code: ${twofaJson.devCode})`;
+      setInfo(msg);
     } finally {
-      setResetLoading(false);
+      setLoading(false);
     }
-  };
+  }
+
+  async function submitVerify(e: FormEvent) {
+    e.preventDefault();
+    setError(null);
+
+    if (!challengeId) {
+      setError("Session expired. Please sign in again.");
+      return;
+    }
+
+    if (!code.trim()) {
+      setError("Enter the verification code.");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const res = await fetch("/api/auth/verify-2fa", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ challengeId, code: code.trim() }),
+      });
+      const json = (await res.json()) as Verify2faResponse;
+
+      if (!json.ok) {
+        setError("Incorrect or expired code.");
+        return;
+      }
+
+      window.localStorage.setItem("ff-role", "buyer");
+      window.localStorage.setItem("ff-email", email.toLowerCase().trim());
+
+      router.push("/");
+    } finally {
+      setLoading(false);
+    }
+  }
 
   return (
     <>
       <Head>
-        <title>Sign in | Famous Finds</title>
+        <title>Sign In - Famous Finds</title>
       </Head>
 
       <Header />
 
       <main className="auth-main">
-        <div className="auth-inner">
+        <div className="auth-card">
+          <h1>Welcome Back</h1>
+          <p className="auth-subtitle">Sign in to continue shopping.</p>
 
-          <h1 className="auth-title">Sign in</h1>
+          {error && <div className="auth-error">{error}</div>}
+          {info && <div className="auth-info">{info}</div>}
 
-          {resetSent && (
-            <div className="auth-banner">
-              Password reset email sent to <strong>{email}</strong>.  
-              Check your inbox and follow the link.
-            </div>
-          )}
+          {step === "credentials" ? (
+            <form onSubmit={submitCredentials}>
+              <div className="auth-fields">
+                <label>Email</label>
+                <input
+                  type="email"
+                  className="auth-input"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="name@example.com"
+                  disabled={loading}
+                />
 
-          {error && (
-            <div className="auth-error-box">
-              {error}
+                <PasswordInput
+                  label="Password"
+                  value={password}
+                  onChange={setPassword}
+                  name="password"
+                  required
+                />
 
-              <div className="auth-error-actions">
-                <Link href="/buyer/signin?forgot=true" className="auth-btn forgot">
-                  Forgot Password
-                </Link>
+                <button className="auth-button-primary" disabled={loading}>
+                  {loading ? "Checking..." : "Continue"}
+                </button>
 
-                <Link href="/buyer/signup" className="auth-btn signup">
-                  Create Account
-                </Link>
+                <div className="auth-secondary">
+                  <Link href="/buyer/forgot-password">Forgot password?</Link>
+                </div>
               </div>
-            </div>
+            </form>
+          ) : (
+            <form onSubmit={submitVerify}>
+              <p className="auth-subtitle-small">Enter the 6-digit code we emailed you.</p>
+              <input
+                className="auth-input auth-code"
+                maxLength={6}
+                value={code}
+                onChange={(e) => setCode(e.target.value)}
+                inputMode="numeric"
+              />
+
+              <button className="auth-button-primary" disabled={loading}>
+                {loading ? "Verifying..." : "Confirm Login"}
+              </button>
+
+              <p className="auth-secondary-inline">
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (loading) return;
+                    setStep("credentials");
+                    setCode("");
+                    setInfo(null);
+                    setError(null);
+                  }}
+                >
+                  Use different email
+                </button>
+              </p>
+            </form>
           )}
 
-          <form onSubmit={handleSubmit} className="auth-form">
-
-            <div className="auth-field">
-              <label className="auth-label">Email</label>
-              <input
-                type="email"
-                className="auth-input"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-              />
-            </div>
-
-            <div className="auth-field">
-              <label className="auth-label">Password</label>
-              <input
-                type="password"
-                className="auth-input"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-              />
-            </div>
-
-            <button className="auth-button" type="submit" disabled={loading}>
-              {loading ? "Signing in…" : "Sign in"}
-            </button>
-
-            <button
-              type="button"
-              className="auth-link-button"
-              onClick={handleForgotPassword}
-              disabled={resetLoading}
-            >
-              {resetLoading ? "Sending…" : "Forgot password?"}
-            </button>
-          </form>
-
-          <p className="auth-switch">
-            Don’t have an account? <Link href="/buyer/signup">Create one</Link>
+          <p className="auth-secondary-link">
+            Don’t have an account?{" "}
+            <Link href="/buyer/signup">Create one</Link>
           </p>
-
         </div>
       </main>
 
       <Footer />
 
       <style jsx>{`
-        .auth-banner {
-          background: #ecfdf5;
-          border: 1px solid #16a34a;
-          padding: 12px;
-          border-radius: 6px;
-          color: #14532d;
-          margin-bottom: 12px;
-        }
-
-        .auth-error-box {
-          background: #fff1f1;
-          border: 1px solid #ffcccc;
-          padding: 12px;
-          border-radius: 6px;
-          margin-bottom: 12px;
-        }
-
-        .auth-error-actions {
-          margin-top: 10px;
+        .auth-main {
+          min-height: 70vh;
           display: flex;
-          gap: 10px;
+          justify-content: center;
+          padding: 60px 16px;
         }
-
-        .auth-btn {
-          flex: 1;
-          padding: 10px;
+        .auth-card {
+          max-width: 420px;
+          width: 100%;
+          padding: 32px;
+          border-radius: 22px;
+          border: 1px solid #eee;
+          background: #fff;
+          box-shadow: 0 10px 30px rgba(0,0,0,0.05);
+        }
+        h1 {
           text-align: center;
-          border-radius: 6px;
-          color: white;
+          font-size: 26px;
+          font-weight: 700;
+        }
+        .auth-subtitle {
+          text-align: center;
+          font-size: 14px;
+          color: #555;
+          margin-bottom: 20px;
+        }
+        .auth-fields {
+          display: flex;
+          flex-direction: column;
+          gap: 16px;
+        }
+        .auth-input {
+          border-radius: 14px;
+          border: 1px solid #ddd;
+          padding: 12px;
+          background: #fafafa;
+        }
+        .auth-input:focus {
+          background: white;
+          border-color: black;
+        }
+        .auth-error {
+          padding: 12px;
+          background: #fff4d4;
+          color: #7a4a00;
+          border-radius: 12px;
+          margin-bottom: 16px;
+          text-align: center;
+        }
+        .auth-info {
+          padding: 12px;
+          background: #eef7ff;
+          color: #0b4dad;
+          border-radius: 12px;
+          margin-bottom: 16px;
+          text-align: center;
+        }
+        .auth-button-primary {
+          width: 100%;
+          padding: 12px;
+          border-radius: 999px;
+          border: none;
+          background: #111;
+          color: #fff;
           font-weight: 600;
-          cursor: pointer;
+          margin-top: 10px;
         }
-
-        .forgot {
-          background: #1f2937;
+        .auth-secondary a {
+          font-size: 13px;
+          text-decoration: underline;
+          color: #444;
         }
-
-        .signup {
-          background: #f97316;
+        .auth-code {
+          text-align: center;
+          font-size: 20px;
+          letter-spacing: 0.4em;
+          font-weight: 700;
+        }
+        .auth-secondary-link {
+          margin-top: 20px;
+          text-align: center;
         }
       `}</style>
     </>
