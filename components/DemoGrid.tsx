@@ -3,9 +3,16 @@
 import type { FC } from "react";
 import type { ProductLike } from "./ProductCard";
 
+// Extend ProductLike so TS allows these fields
+type DemoItem = ProductLike & {
+  designer?: string;
+  currency?: string;
+  price?: number | string;
+};
+
 type Props = {
-  trending: ProductLike[];
-  newArrivals: ProductLike[];
+  trending: DemoItem[];
+  newArrivals: DemoItem[];
 };
 
 const DemoGrid: FC<Props> = ({ trending, newArrivals }) => {
@@ -18,12 +25,14 @@ const DemoGrid: FC<Props> = ({ trending, newArrivals }) => {
             <article key={item.id} className="demo-grid-item">
               <div className="demo-grid-title">{item.title}</div>
               <div className="demo-grid-meta">
-                <span className="demo-grid-designer">{item.designer}</span>
+                <span className="demo-grid-designer">
+                  {item.designer || "Designer"}
+                </span>
                 <span className="demo-grid-price">
                   {item.currency || "USD"}{" "}
                   {typeof item.price === "number"
                     ? item.price.toLocaleString()
-                    : item.price}
+                    : item.price || ""}
                 </span>
               </div>
             </article>
@@ -38,12 +47,14 @@ const DemoGrid: FC<Props> = ({ trending, newArrivals }) => {
             <article key={item.id} className="demo-grid-item">
               <div className="demo-grid-title">{item.title}</div>
               <div className="demo-grid-meta">
-                <span className="demo-grid-designer">{item.designer}</span>
+                <span className="demo-grid-designer">
+                  {item.designer || "Designer"}
+                </span>
                 <span className="demo-grid-price">
                   {item.currency || "USD"}{" "}
                   {typeof item.price === "number"
                     ? item.price.toLocaleString()
-                    : item.price}
+                    : item.price || ""}
                 </span>
               </div>
             </article>
