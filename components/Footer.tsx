@@ -1,3 +1,5 @@
+// FILE: /components/Footer.tsx
+
 import Link from "next/link";
 import HomepageButler from "./HomepageButler";
 
@@ -11,33 +13,31 @@ export default function Footer() {
           {/* BRAND + COPYRIGHT */}
           <div className="flex flex-col items-center gap-2">
             <div className="text-sm font-bold uppercase tracking-[0.2em] text-white">
-              Famous Finds
+              FAMOUS FINDS
             </div>
             <div className="text-[11px] text-neutral-400">
-              © {new Date().getFullYear()} All rights reserved. Curated pre-loved
-              luxury.
+              © {new Date().getFullYear()} All rights reserved. Curated pre-loved luxury.
             </div>
           </div>
 
           {/* LINKS SECTION */}
           <nav className="w-full flex justify-center">
-            {/* FIXED: changed invalid 'gap-x-30' to 'gap-x-10' (40px) */}
-            <div className="w-full max-w-6xl flex flex-wrap justify-center gap-x-10 gap-y-4">
-
+            <div className="w-full max-w-6xl flex flex-wrap justify-center gap-x-16 gap-y-4">
+              {/* 16 = 4rem = 64px = over 1cm of real-world spacing */}
+              
               <Link
                 href="/buying"
-                className="text-xs sm:text-[13px] text-blue-400 hover:text-blue-200 transition-colors"
+                className="text-xs sm:text-[13px] text-blue-400 hover:text-blue-300 transition-colors"
               >
                 Authenticity
               </Link>
 
               <Link
                 href="/privacy"
-                className="text-xs sm:text-[13px] text-blue-400 hover:text-blue-200 transition-colors"
+                className="text-xs sm:text-[13px] text-blue-400 hover:text-blue-300 transition-colors"
               >
                 Privacy
               </Link>
-
             </div>
           </nav>
         </div>
