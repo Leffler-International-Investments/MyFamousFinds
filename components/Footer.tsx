@@ -19,11 +19,8 @@ export default function Footer() {
             </div>
           </div>
 
-          {/* MIDDLE: BLUE LINKS */}
-          {/* flex-wrap: makes it wrap to 2-3 lines on mobile */}
-          {/* gap-x-6: adds space between words */}
-          {/* gap-y-3: adds space between rows when wrapped */}
-          <nav className="flex flex-wrap justify-center gap-x-6 gap-y-3 text-[13px] font-medium">
+          {/* MIDDLE: BLUE LINKS WITH SPACING */}
+          <nav className="flex flex-wrap justify-center gap-x-8 gap-y-4 text-[13px] font-medium">
             <Link href="/help" className="text-blue-400 hover:text-blue-300 transition-colors">
               Help Center
             </Link>
@@ -56,7 +53,7 @@ export default function Footer() {
         </div>
       </footer>
 
-      {/* BUTLER */}
+      {/* BUTLER FLOATING ICON */}
       <div className="butler-floating">
         <HomepageButler />
       </div>
