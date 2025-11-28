@@ -1,180 +1,205 @@
 // FILE: /pages/buyer/signup.tsx
-
 import Head from "next/head";
 import Link from "next/link";
 import { FormEvent, useState } from "react";
+import { useRouter } from "next/router";
+import { createUserWithEmailAndPassword } from "firebase/auth";
+
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
 import PasswordInput from "../../components/PasswordInput";
+import { auth } from "../../utils/firebaseClient";
 
-type SignupSuccess = { ok: true; buyerId: string };
-type SignupError = { ok: false; code?: string; message?: string };
-type SignupResponse = SignupSuccess | SignupError;
+type BannerState =
+  | null
+  | { type: "error" | "info"; message: string; code?: string };
 
 export default function BuyerSignupPage() {
+  const router = useRouter();
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [banner, setBanner] = useState<BannerState>(null);
   const [loading, setLoading] = useState(false);
-  const [info, setInfo] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
 
-  async function handleSubmit(e: FormEvent) {
+  async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    setError(null);
-    setInfo(null);
+    setBanner(null);
 
     const trimmedEmail = email.trim().toLowerCase();
-    if (!fullName || !trimmedEmail || !password) {
-      setError("Please fill in all fields.");
+    if (!fullName.trim() || !trimmedEmail || !password) {
+      setBanner({
+        type: "error",
+        message: "Please fill in your name, email and password.",
+      });
       return;
     }
 
     setLoading(true);
     try {
-      const res = await fetch("/api/buyer/signup", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: fullName,
-          email: trimmedEmail,
-          password,
-        }),
-      });
+      await createUserWithEmailAndPassword(auth, trimmedEmail, password);
 
-      let json: SignupResponse | any = {};
-      try {
-        json = await res.json();
-      } catch {
-        // ignore
+      if (typeof window !== "undefined") {
+        window.localStorage.setItem("ff-role", "buyer");
+        window.localStorage.setItem("ff-email", trimmedEmail);
       }
 
-      if (!res.ok || !json.ok) {
-        const msg: string =
-          json?.message ||
-          "An account with this email already exists. Please sign in instead or use \"Forgot password\" on the sign-in page.";
-        setError(msg);
-        return;
-      }
-
-      setInfo("Account created. Please sign in to continue.");
-    } catch (err) {
+      router.push("/buyer/dashboard");
+    } catch (err: any) {
       console.error("buyer_signup_error", err);
-      setError("We couldn't create your account. Please try again.");
+
+      const code = err?.code as string | undefined;
+
+      if (code === "auth/email-already-in-use") {
+        setBanner({
+          type: "info",
+          code,
+          message:
+            'An account with this email already exists. Please sign in instead or use "Forgot password" on the sign-in page.',
+        });
+      } else if (code === "auth/weak-password") {
+        setBanner({
+          type: "error",
+          code,
+          message: "Please choose a stronger password (at least 6 characters).",
+        });
+      } else {
+        setBanner({
+          type: "error",
+          code,
+          message:
+            "We couldn’t create your account. Please check your details and try again.",
+        });
+      }
     } finally {
       setLoading(false);
     }
   }
 
-  const showExistingLinks =
-    error &&
-    error
-      .toLowerCase()
-      .includes("already exists");
+  const disabled = loading;
 
   return (
     <>
       <Head>
-        <title>Create Account - Famous Finds</title>
+        <title>Create account - Famous Finds</title>
       </Head>
 
-      <Header />
+      <div className="auth-page">
+        <Header />
+        <main className="auth-main">
+          <div className="auth-card">
+            <h1>Create account</h1>
+            <p className="auth-subtitle">
+              Join Famous Finds to save favourites and manage your orders.
+            </p>
 
-      <main className="auth-main">
-        <div className="auth-card">
-          <h1>Create account</h1>
-          <p className="auth-subtitle">
-            Join Famous Finds to save favourites and manage your orders.
-          </p>
-
-          {error && (
-            <div className="auth-error">
-              {error}
-              {showExistingLinks && (
-                <div className="auth-helper-links">
-                  <Link href="/buyer/signin">Please sign in</Link>
-                  <span> • </span>
-                  <Link href="/buyer/forgot-password">Forgot password</Link>
-                </div>
-              )}
-            </div>
-          )}
-
-          {info && <div className="auth-info">{info}</div>}
-
-          <form onSubmit={handleSubmit}>
-            <div className="auth-fields">
-              <div className="auth-field">
-                <label htmlFor="name">Full name</label>
-                <input
-                  id="name"
-                  type="text"
-                  className="auth-input"
-                  value={fullName}
-                  onChange={(e) => setFullName(e.target.value)}
-                  disabled={loading}
-                />
-              </div>
-
-              <div className="auth-field">
-                <label htmlFor="email">Email</label>
-                <input
-                  id="email"
-                  type="email"
-                  className="auth-input"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  disabled={loading}
-                />
-              </div>
-
-              <PasswordInput
-                label="Password"
-                value={password}
-                onChange={setPassword}
-                name="password"
-                required
-              />
-
-              <button
-                type="submit"
-                className="auth-button-primary"
-                disabled={loading}
+            {banner && (
+              <div
+                className={
+                  banner.type === "error" ? "auth-banner error" : "auth-banner"
+                }
               >
-                {loading ? "Creating..." : "Create account"}
-              </button>
-            </div>
-          </form>
+                <p>{banner.message}</p>
+                {banner.code === "auth/email-already-in-use" && (
+                  <p className="auth-inline-links">
+                    <Link href="/buyer/signin">Please sign in</Link>
+                    {"  •  "}
+                    <Link href="/buyer/forgot-password">Forgot password</Link>
+                  </p>
+                )}
+              </div>
+            )}
 
-          <p className="auth-secondary-link">
-            Already have an account? <Link href="/buyer/signin">Sign in</Link>
-          </p>
-        </div>
-      </main>
+            <form onSubmit={handleSubmit}>
+              <div className="auth-fields">
+                <div className="auth-field">
+                  <label htmlFor="name">Full name</label>
+                  <input
+                    id="name"
+                    type="text"
+                    autoComplete="name"
+                    value={fullName}
+                    onChange={(e) => setFullName(e.target.value)}
+                    className="auth-input"
+                    placeholder="Full name"
+                    disabled={disabled}
+                    required
+                  />
+                </div>
 
-      <Footer />
+                <div className="auth-field">
+                  <label htmlFor="email">Email</label>
+                  <input
+                    id="email"
+                    type="email"
+                    autoComplete="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="auth-input"
+                    placeholder="name@example.com"
+                    disabled={disabled}
+                    required
+                  />
+                </div>
+
+                <PasswordInput
+                  label="Password"
+                  name="password"
+                  value={password}
+                  onChange={setPassword}
+                  required
+                  placeholder="Create password"
+                  showStrength={true}
+                />
+
+                <button
+                  type="submit"
+                  className="auth-button-primary"
+                  disabled={disabled}
+                >
+                  {loading ? "Creating account..." : "Create account"}
+                </button>
+              </div>
+            </form>
+
+            <p className="auth-secondary-link">
+              Already have an account? <Link href="/buyer/signin">Sign in</Link>
+            </p>
+          </div>
+        </main>
+        <Footer />
+      </div>
 
       <style jsx>{`
-        .auth-main {
-          min-height: 70vh;
+        .auth-page {
+          min-height: 100vh;
           display: flex;
+          flex-direction: column;
+          background: #f8fafc;
+          color: #111827;
+        }
+        .auth-main {
+          flex: 1;
+          display: flex;
+          align-items: flex-start;
           justify-content: center;
-          padding: 60px 16px;
-          background: #ffffff;
+          padding: 60px 16px 40px;
         }
         .auth-card {
           width: 100%;
           max-width: 420px;
           background: #ffffff;
-          border-radius: 22px;
+          border-radius: 28px;
           border: 1px solid #e5e7eb;
-          padding: 32px 28px;
-          box-shadow: 0 12px 35px rgba(0, 0, 0, 0.06);
+          padding: 32px 28px 28px;
+          box-shadow: 0 20px 40px rgba(15, 23, 42, 0.08);
         }
         h1 {
+          font-family: ui-serif, "Times New Roman", serif;
           font-size: 26px;
           font-weight: 700;
           margin: 0 0 8px;
+          letter-spacing: -0.02em;
           text-align: center;
         }
         .auth-subtitle {
@@ -195,65 +220,74 @@ export default function BuyerSignupPage() {
           font-weight: 500;
           color: #374151;
         }
-        .auth-input {
+        :global(.auth-input) {
           width: 100%;
-          border-radius: 14px;
+          border-radius: 999px;
           border: 1px solid #d1d5db;
-          background: #fafafa;
+          background: #f9fafb;
           padding: 10px 14px;
           font-size: 14px;
+          color: #111827;
           transition: all 0.2s ease;
         }
-        .auth-input:focus {
+        :global(.auth-input:focus) {
           outline: none;
-          border-color: #111;
-          background: #fff;
-          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+          border-color: #111827;
+          background: #ffffff;
+          box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06);
         }
         .auth-button-primary {
-          margin-top: 8px;
+          margin-top: 4px;
           width: 100%;
           border-radius: 999px;
           padding: 12px;
           border: none;
           font-size: 14px;
           font-weight: 600;
-          background: #111;
-          color: #fff;
+          background: #111827;
+          color: #ffffff;
           cursor: pointer;
+          transition: transform 0.1s ease, opacity 0.2s;
         }
-        .auth-error,
-        .auth-info {
+        .auth-button-primary:hover {
+          opacity: 0.9;
+        }
+        .auth-button-primary:disabled {
+          opacity: 0.6;
+          cursor: default;
+        }
+        .auth-banner {
           border-radius: 12px;
           padding: 10px;
-          font-size: 13px;
           margin-bottom: 16px;
+          font-size: 13px;
           text-align: center;
+          background: #fef3c7;
+          color: #92400e;
         }
-        .auth-error {
-          background: #fff4d4;
-          color: #7a4a00;
+        .auth-banner.error {
+          background: #fef2f2;
+          color: #b91c1c;
         }
-        .auth-info {
-          background: #eff6ff;
-          color: #1d4ed8;
+        .auth-inline-links {
+          margin-top: 4px;
         }
-        .auth-helper-links {
-          margin-top: 8px;
-          font-size: 12px;
-        }
-        .auth-helper-links a {
+        .auth-inline-links a {
+          color: #111827;
           text-decoration: underline;
-          color: #6b7280;
         }
         .auth-secondary-link {
-          margin-top: 20px;
+          margin-top: 12px;
           text-align: center;
           font-size: 13px;
+          color: #6b7280;
         }
         .auth-secondary-link a {
+          color: #111827;
           text-decoration: underline;
-          color: #6b7280;
+        }
+        .auth-secondary-link a:hover {
+          color: #000000;
         }
       `}</style>
     </>
