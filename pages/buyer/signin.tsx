@@ -55,16 +55,13 @@ export default function BuyerSignInPage() {
       let json: LoginResponse | any = {};
       try {
         json = await res.json();
-      } catch {
-        // ignore
-      }
+      } catch {}
 
       if (!res.ok || !json.ok) {
         setError("Email or password did not match. Please try again.");
         return;
       }
 
-      // start 2FA
       const twoRes = await fetch("/api/auth/start-2fa", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -75,18 +72,22 @@ export default function BuyerSignInPage() {
       });
 
       const twoJson = (await twoRes.json()) as Start2faResponse;
+
       if (!twoJson.ok) {
-        setError(
-          twoJson.message ||
-            "We couldn't start verification. Please try again."
-        );
+        const msg =
+          "message" in twoJson && twoJson.message
+            ? twoJson.message
+            : "We couldn't start verification. Please try again.";
+        setError(msg);
         return;
       }
 
       setChallengeId(twoJson.challengeId);
       setStep("verify");
+
       let msg = "We sent a 6-digit code to your email.";
-      if (twoJson.devCode) msg += ` (Dev code: ${twoJson.devCode})`;
+      if ("devCode" in twoJson && twoJson.devCode)
+        msg += ` (Dev code: ${twoJson.devCode})`;
       setInfo(msg);
     } catch (err) {
       console.error("buyer_login_error", err);
@@ -116,10 +117,15 @@ export default function BuyerSignInPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ challengeId, code: code.trim() }),
       });
+
       const json = (await res.json()) as Verify2faResponse;
 
       if (!json.ok) {
-        setError(json.message || "Incorrect or expired code.");
+        const msg =
+          "message" in json && json.message
+            ? json.message
+            : "Incorrect or expired code.";
+        setError(msg);
         return;
       }
 
@@ -159,12 +165,10 @@ export default function BuyerSignInPage() {
             <form onSubmit={handleCredentials}>
               <div className="auth-fields">
                 <div className="auth-field">
-                  <label htmlFor="email">Email</label>
+                  <label>Email</label>
                   <input
-                    id="email"
                     type="email"
                     className="auth-input"
-                    placeholder="name@example.com"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     disabled={loading}
@@ -177,7 +181,6 @@ export default function BuyerSignInPage() {
                   onChange={setPassword}
                   name="password"
                   required
-                  placeholder="Enter password"
                 />
 
                 <button
@@ -203,7 +206,6 @@ export default function BuyerSignInPage() {
                   type="text"
                   maxLength={6}
                   inputMode="numeric"
-                  autoComplete="one-time-code"
                   className="auth-input auth-code"
                   value={code}
                   onChange={(e) => setCode(e.target.value)}
@@ -217,6 +219,7 @@ export default function BuyerSignInPage() {
               >
                 {loading ? "Verifying..." : "Confirm login"}
               </button>
+
               <p className="auth-secondary-inline">
                 <button
                   type="button"
@@ -248,34 +251,26 @@ export default function BuyerSignInPage() {
           display: flex;
           justify-content: center;
           padding: 60px 16px;
-          background: #ffffff;
         }
         .auth-card {
           width: 100%;
           max-width: 420px;
-          background: #ffffff;
+          background: #fff;
           border-radius: 22px;
-          border: 1px solid #e5e7eb;
-          padding: 32px 28px;
-          box-shadow: 0 12px 35px rgba(0, 0, 0, 0.06);
+          border: 1px solid #eee;
+          padding: 32px;
+          box-shadow: 0 10px 30px rgba(0,0,0,0.06);
         }
         h1 {
+          text-align: center;
           font-size: 26px;
           font-weight: 700;
-          margin: 0 0 8px;
-          text-align: center;
         }
         .auth-subtitle {
-          margin: 0 0 24px;
+          text-align: center;
           font-size: 14px;
-          color: #6b7280;
-          text-align: center;
-        }
-        .auth-subtitle-small {
-          margin: 0 0 12px;
-          font-size: 13px;
-          color: #4b5563;
-          text-align: center;
+          color: #555;
+          margin-bottom: 20px;
         }
         .auth-fields {
           display: flex;
@@ -283,26 +278,19 @@ export default function BuyerSignInPage() {
           gap: 16px;
         }
         .auth-field label {
-          display: block;
-          margin-bottom: 6px;
           font-size: 13px;
-          font-weight: 500;
-          color: #374151;
+          margin-bottom: 6px;
+          display: block;
         }
         .auth-input {
-          width: 100%;
           border-radius: 14px;
-          border: 1px solid #d1d5db;
+          border: 1px solid #ddd;
+          padding: 12px;
           background: #fafafa;
-          padding: 10px 14px;
-          font-size: 14px;
-          transition: all 0.2s ease;
         }
         .auth-input:focus {
-          outline: none;
-          border-color: #111;
-          background: #fff;
-          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+          border-color: black;
+          background: white;
         }
         .auth-code {
           text-align: center;
@@ -311,49 +299,46 @@ export default function BuyerSignInPage() {
           font-size: 18px;
         }
         .auth-button-primary {
-          margin-top: 8px;
           width: 100%;
-          border-radius: 999px;
           padding: 12px;
+          border-radius: 999px;
           border: none;
-          font-size: 14px;
-          font-weight: 600;
           background: #111;
           color: #fff;
-          cursor: pointer;
-        }
-        .auth-error,
-        .auth-info {
-          border-radius: 12px;
-          padding: 10px;
-          font-size: 13px;
-          margin-bottom: 16px;
-          text-align: center;
+          font-weight: 600;
         }
         .auth-error {
           background: #fff4d4;
+          padding: 12px;
+          border-radius: 10px;
+          text-align: center;
           color: #7a4a00;
+          margin-bottom: 16px;
         }
         .auth-info {
-          background: #eff6ff;
+          background: #eef7ff;
+          padding: 12px;
+          border-radius: 10px;
+          text-align: center;
           color: #1d4ed8;
+          margin-bottom: 16px;
         }
         .auth-secondary,
         .auth-secondary-link,
         .auth-secondary-inline {
-          margin-top: 12px;
           text-align: center;
           font-size: 13px;
+          margin-top: 16px;
         }
         .auth-secondary a,
         .auth-secondary-link a,
         .auth-secondary-inline button {
-          color: #6b7280;
           text-decoration: underline;
+          color: #444;
         }
         .auth-secondary-inline button {
-          border: none;
           background: none;
+          border: none;
           cursor: pointer;
         }
       `}</style>
