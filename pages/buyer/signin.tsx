@@ -12,6 +12,7 @@ import {
   getAuth,
   signInWithEmailAndPassword,
   onAuthStateChanged,
+  sendPasswordResetEmail,
 } from "firebase/auth";
 
 const firebaseConfig = {
@@ -32,6 +33,7 @@ export default function BuyerSignInPage() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [resetSent, setResetSent] = useState(false);
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, (user) => {
@@ -44,14 +46,53 @@ export default function BuyerSignInPage() {
     e.preventDefault();
     setLoading(true);
     setError(null);
+    setResetSent(false);
+
+    const trimmedEmail = email.trim().toLowerCase();
 
     try {
-      await signInWithEmailAndPassword(auth, email.trim(), password);
+      await signInWithEmailAndPassword(auth, trimmedEmail, password);
       router.push("/buyer/dashboard");
     } catch (err: any) {
-      setError(err.message || "Unable to sign you in.");
+      console.error("buyer_signin_error", err);
+      const code = err?.code as string | undefined;
+
+      if (code === "auth/invalid-credential" || code === "auth/wrong-password") {
+        setError("Email or password is incorrect. Please try again.");
+      } else if (code === "auth/user-not-found") {
+        setError(
+          "We couldn’t find an account with this email. Please create a free buyer account."
+        );
+      } else if (code === "auth/too-many-requests") {
+        setError(
+          "Too many unsuccessful attempts. Please wait a moment or reset your password."
+        );
+      } else {
+        setError("Unable to sign you in right now. Please try again.");
+      }
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleForgotPassword = async () => {
+    setError(null);
+    setResetSent(false);
+
+    const trimmedEmail = email.trim().toLowerCase();
+    if (!trimmedEmail) {
+      setError("Enter your email above and then click “Forgot password”.");
+      return;
+    }
+
+    try {
+      await sendPasswordResetEmail(auth, trimmedEmail);
+      setResetSent(true);
+    } catch (err: any) {
+      console.error("buyer_reset_error", err);
+      setError(
+        "We couldn’t send a reset email. Please double-check the address or try again later."
+      );
     }
   };
 
@@ -90,6 +131,11 @@ export default function BuyerSignInPage() {
             </div>
 
             {error && <p className="auth-error">{error}</p>}
+            {resetSent && (
+              <p className="auth-info">
+                Password reset email sent. Please check your inbox.
+              </p>
+            )}
 
             <button
               type="submit"
@@ -97,6 +143,15 @@ export default function BuyerSignInPage() {
               disabled={loading}
             >
               {loading ? "Signing in…" : "Sign in"}
+            </button>
+
+            <button
+              type="button"
+              className="auth-link-button"
+              onClick={handleForgotPassword}
+              disabled={loading}
+            >
+              Forgot password?
             </button>
           </form>
 
@@ -108,6 +163,18 @@ export default function BuyerSignInPage() {
       </main>
 
       <Footer />
+
+      <style jsx>{`
+        .auth-link-button {
+          margin-top: 8px;
+          background: none;
+          border: none;
+          color: #f97316;
+          font-size: 0.875rem;
+          cursor: pointer;
+          text-decoration: underline;
+        }
+      `}</style>
     </>
   );
 }
