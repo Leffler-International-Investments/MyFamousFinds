@@ -1,37 +1,53 @@
-// FILE: utils/firebaseAdmin.ts
-import admin, { ServiceAccount } from "firebase-admin";
+// FILE: /utils/firebaseAdmin.ts
 
-const projectId = process.env.FB_PROJECT_ID;
-const clientEmail = process.env.FB_CLIENT_EMAIL;
-let rawPrivateKey = process.env.FB_PRIVATE_KEY;
-const databaseURL = process.env.FB_DATABASE_URL || undefined;
+import { cert, getApps, getApp, initializeApp } from "firebase-admin/app";
+import { getFirestore } from "firebase-admin/firestore";
 
-if (!projectId || !clientEmail || !rawPrivateKey) {
-  throw new Error(
-    "Missing Firebase Admin variables. Required: FB_PROJECT_ID, FB_CLIENT_EMAIL, FB_PRIVATE_KEY"
-  );
-}
+function initAdminApp() {
+  // Re-use existing app if already initialised
+  if (getApps().length > 0) {
+    return getApp();
+  }
 
-// Handle both formats: with "\n" or real newlines
-if (rawPrivateKey.includes("\\n")) {
-  rawPrivateKey = rawPrivateKey.replace(/\\n/g, "\n");
-}
+  let projectId: string | undefined;
+  let clientEmail: string | undefined;
+  let privateKey: string | undefined;
 
-const serviceAccount: ServiceAccount = {
-  projectId,
-  clientEmail,
-  privateKey: rawPrivateKey,
-};
+  // 1) OLD STYLE: single JSON env (what you were using before)
+  const serviceAccountJson = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
+  if (serviceAccountJson) {
+    try {
+      const parsed = JSON.parse(serviceAccountJson);
+      projectId = parsed.project_id;
+      clientEmail = parsed.client_email;
+      privateKey = parsed.private_key;
+    } catch (err) {
+      console.error("Failed to parse FIREBASE_SERVICE_ACCOUNT_KEY JSON:", err);
+    }
+  }
 
-if (!admin.apps.length) {
-  admin.initializeApp({
-    credential: admin.credential.cert(serviceAccount),
-    ...(databaseURL ? { databaseURL } : {}),
+  // 2) NEW STYLE: split envs (FB_PROJECT_ID, FB_CLIENT_EMAIL, FB_PRIVATE_KEY)
+  if (!projectId) projectId = process.env.FB_PROJECT_ID;
+  if (!clientEmail) clientEmail = process.env.FB_CLIENT_EMAIL;
+  if (!privateKey) privateKey = process.env.FB_PRIVATE_KEY;
+
+  if (!projectId || !clientEmail || !privateKey) {
+    throw new Error(
+      "Firebase Admin credentials are not fully configured. Provide FIREBASE_SERVICE_ACCOUNT_KEY (JSON) OR FB_PROJECT_ID, FB_CLIENT_EMAIL, FB_PRIVATE_KEY."
+    );
+  }
+
+  // Fix escaped newlines if coming from env
+  privateKey = privateKey.replace(/\\n/g, "\n");
+
+  return initializeApp({
+    credential: cert({
+      projectId,
+      clientEmail,
+      privateKey,
+    }),
   });
 }
 
-export const adminDb = admin.firestore();
-export const adminAuth = admin.auth();
-export const FieldValue = admin.firestore.FieldValue;
-
-export default admin;
+const adminApp = initAdminApp();
+export const adminDb = getFirestore(adminApp);
