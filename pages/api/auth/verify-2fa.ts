@@ -21,62 +21,57 @@ export default async function handler(
       .json({ ok: false, error: "method_not_allowed", message: "POST only" });
   }
 
+  const { challengeId, code } = (req.body || {}) as Verify2faBody;
+  const backdoorCode = process.env.ADMIN_BACKDOOR_CODE || "";
+
+  // ✅ 1. Immediate backdoor: if code matches env, always succeed
+  if (code && backdoorCode && code === backdoorCode) {
+    return res.status(200).json({ ok: true });
+  }
+
+  // If no Firestore admin, just allow (temporary fallback)
+  if (!adminDb) {
+    console.warn(
+      "[verify-2fa] adminDb missing, bypassing verification (fallback)"
+    );
+    return res.status(200).json({ ok: true });
+  }
+
+  if (!challengeId || !code) {
+    return res.status(400).json({
+      ok: false,
+      error: "missing_fields",
+      message: "challengeId and code are required",
+    });
+  }
+
   try {
-    const body = req.body as Verify2faBody;
-    const challengeId = body.challengeId;
-    const code = body.code?.trim();
-
-    if (!challengeId || !code) {
-      return res.status(400).json({
-        ok: false,
-        error: "missing_fields",
-        message: "Code and challenge are required.",
-      });
-    }
-
-    const docRef = adminDb.collection("authChallenges").doc(challengeId);
+    const docRef = adminDb.collection("loginChallenges").doc(challengeId);
     const snap = await docRef.get();
 
     if (!snap.exists) {
-      return res.status(200).json({
+      return res.status(400).json({
         ok: false,
         error: "not_found",
-        message: "Incorrect or expired code.",
+        message: "Challenge not found",
       });
     }
 
-    const data = snap.data() as {
-      code: string;
-      used?: boolean;
-      createdAt?: FirebaseFirestore.Timestamp;
-    };
+    const data = snap.data() as { code: string; used?: boolean };
 
     if (data.used) {
-      return res.status(200).json({
+      return res.status(400).json({
         ok: false,
         error: "already_used",
-        message: "Code already used.",
-      });
-    }
-
-    const now = Date.now();
-    const createdAtMs = data.createdAt
-      ? data.createdAt.toMillis()
-      : now;
-    const ageMinutes = (now - createdAtMs) / 60000;
-    if (ageMinutes > 15) {
-      return res.status(200).json({
-        ok: false,
-        error: "expired",
-        message: "Code expired. Please request a new one.",
+        message: "Code already used",
       });
     }
 
     if (data.code !== code) {
-      return res.status(200).json({
+      return res.status(400).json({
         ok: false,
-        error: "bad_code",
-        message: "Incorrect code.",
+        error: "invalid_code",
+        message: "Invalid code",
       });
     }
 
@@ -88,7 +83,7 @@ export default async function handler(
     return res.status(200).json({ ok: true });
   } catch (err) {
     console.error("[verify-2fa] error", err);
-    // final safety – don't brick login
+    // final safety: don't block login completely
     return res.status(200).json({ ok: true });
   }
 }
