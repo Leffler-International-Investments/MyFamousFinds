@@ -19,21 +19,20 @@ export default function Footer() {
             </div>
           </div>
 
-          {/* LINK PILLS – FULL WIDTH, RESPONSIVE WRAP */}
+          {/* LINKS - SIMPLE TEXT STYLE */}
           <nav className="w-full flex justify-center">
             <div className="w-full max-w-6xl flex flex-wrap justify-center gap-x-8 gap-y-4">
 
               <Link
                 href="/buying"
-                className="inline-flex items-center justify-center rounded-full border border-blue-400/60 px-4 py-1.5 text-xs sm:text-[13px] text-blue-300 hover:bg-blue-500/10 hover:border-blue-300 hover:text-blue-100 transition-colors"
+                className="text-xs sm:text-[13px] text-blue-400 hover:text-blue-200 transition-colors"
               >
-
                 Authenticity
               </Link>
 
               <Link
                 href="/privacy"
-                className="inline-flex items-center justify-center rounded-full border border-blue-400/60 px-4 py-1.5 text-xs sm:text-[13px] text-blue-300 hover:bg-blue-500/10 hover:border-blue-300 hover:text-blue-100 transition-colors"
+                className="text-xs sm:text-[13px] text-blue-400 hover:text-blue-200 transition-colors"
               >
                 Privacy
               </Link>
