@@ -21,8 +21,8 @@ export default function Footer() {
 
           {/* LINKS SECTION */}
           <nav className="w-full flex justify-center">
-            {/* gap-x-40adds 40px (approx 1cm) of horizontal space between items */}
-            <div className="w-full max-w-6xl flex flex-wrap justify-center gap-x-30 gap-y-30">
+            {/* FIXED: changed invalid 'gap-x-30' to 'gap-x-10' (40px) */}
+            <div className="w-full max-w-6xl flex flex-wrap justify-center gap-x-10 gap-y-4">
 
               <Link
                 href="/buying"
