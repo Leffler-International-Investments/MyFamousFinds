@@ -305,7 +305,7 @@ export default function IndexPage({
                       <article key={listing.id} className="trend-card">
                         <div className="trend-image-wrapper">
                           {/* ✅ FIX: pass listing props directly instead of product={listing} */}
-                          <ProductCard {...listing} bare />
+                          <ProductCard {...listing} />
                         </div>
                         <div className="trend-body">
                           <div className="trend-title">{listing.title}</div>
