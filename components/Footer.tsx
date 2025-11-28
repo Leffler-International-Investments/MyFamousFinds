@@ -7,20 +7,22 @@ export default function Footer() {
   return (
     <>
       <footer className="mt-auto border-t border-neutral-800 bg-neutral-900 text-white">
-        <div className="mx-auto flex max-w-5xl flex-col items-center gap-8 px-6 py-12 text-center">
+        {/* wider main container */}
+        <div className="mx-auto flex max-w-6xl flex-col items-center gap-8 px-4 sm:px-6 py-12 text-center">
           {/* BRAND + COPYRIGHT */}
           <div className="flex flex-col items-center gap-2">
             <div className="text-sm font-bold uppercase tracking-[0.2em] text-white">
               Famous Finds
             </div>
             <div className="text-[11px] text-neutral-400">
-              © {new Date().getFullYear()} All rights reserved. Curated pre-loved luxury.
+              © {new Date().getFullYear()} All rights reserved. Curated pre-loved
+              luxury.
             </div>
           </div>
 
-          {/* LINK PILLS – MORE SPACING, WRAP ON MOBILE */}
+          {/* LINK PILLS – FULL WIDTH, RESPONSIVE WRAP */}
           <nav className="w-full flex justify-center">
-            <div className="flex flex-wrap justify-center gap-x-12 gap-y-12 max-w-3xl">
+            <div className="w-full max-w-6xl flex flex-wrap justify-center gap-x-8 gap-y-4">
               <Link
                 href="/help"
                 className="inline-flex items-center justify-center rounded-full border border-blue-400/60 px-4 py-1.5 text-xs sm:text-[13px] text-blue-300 hover:bg-blue-500/10 hover:border-blue-300 hover:text-blue-100 transition-colors"
