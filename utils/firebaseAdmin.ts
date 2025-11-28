@@ -3,7 +3,7 @@ import admin, { ServiceAccount } from "firebase-admin";
 
 const projectId = process.env.FB_PROJECT_ID;
 const clientEmail = process.env.FB_CLIENT_EMAIL;
-const rawPrivateKey = process.env.FB_PRIVATE_KEY;
+let rawPrivateKey = process.env.FB_PRIVATE_KEY;
 const databaseURL = process.env.FB_DATABASE_URL || undefined;
 
 if (!projectId || !clientEmail || !rawPrivateKey) {
@@ -12,16 +12,20 @@ if (!projectId || !clientEmail || !rawPrivateKey) {
   );
 }
 
-// In Vercel the key is stored as one line with literal \n – convert to real newlines:
-const privateKey = rawPrivateKey.replace(/\\n/g, "\n");
+// Handle both formats: with "\n" or real newlines
+if (rawPrivateKey.includes("\\n")) {
+  rawPrivateKey = rawPrivateKey.replace(/\\n/g, "\n");
+}
+
+const serviceAccount: ServiceAccount = {
+  projectId,
+  clientEmail,
+  privateKey: rawPrivateKey,
+};
 
 if (!admin.apps.length) {
   admin.initializeApp({
-    credential: admin.credential.cert({
-      projectId,
-      clientEmail,
-      privateKey,
-    } as ServiceAccount),
+    credential: admin.credential.cert(serviceAccount),
     ...(databaseURL ? { databaseURL } : {}),
   });
 }
