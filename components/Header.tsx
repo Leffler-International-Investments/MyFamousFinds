@@ -111,7 +111,7 @@ export default function Header() {
 
         <nav className="ff-main-nav">
           <Link href="/my-orders" className="ff-main-link">
-            🛍 FF Shopping Bag
+            🛍 My Shopping Bag
           </Link>
           <Link href="/" className="ff-main-link">
             Dashboard
