@@ -6,8 +6,14 @@ import { FormEvent, useState } from "react";
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
 import PasswordInput from "../../components/PasswordInput";
-import { getAuth, signInWithEmailAndPassword } from "firebase/auth";
-import firebaseApp from "../../utils/firebaseClient";
+
+type SellerLoginOk = { ok: true; sellerId: string };
+type SellerLoginError = {
+  ok: false;
+  code: "apply_first" | "pending" | "bad_credentials" | string;
+  message: string;
+};
+type SellerLoginResponse = SellerLoginOk | SellerLoginError;
 
 type TwoFactorStep = "credentials" | "verify";
 
@@ -27,62 +33,103 @@ export default function ManagementLoginPage() {
       ? router.query.from
       : "/management/dashboard";
 
+  // ---------------------------
+  // STEP 1: EMAIL + PASSWORD
+  // ---------------------------
   async function handleCredentialsSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError(null);
     setInfo(null);
 
     const trimmedEmail = email.toLowerCase().trim();
-    if (!trimmedEmail || !password) {
+    const trimmedPassword = password.trim();
+
+    if (!trimmedEmail || !trimmedPassword) {
       setError("Please enter your email and password.");
       return;
     }
 
     setLoading(true);
-    try {
-      const auth = getAuth(firebaseApp);
-      await signInWithEmailAndPassword(auth, trimmedEmail, password);
 
-      const res = await fetch("/api/auth/start-2fa", {
+    try {
+      // 🔐 USE EXISTING SELLER LOGIN API (no Firebase Auth here)
+      const res = await fetch("/api/seller/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           email: trimmedEmail,
-          role: "management",
-          method: "email",
+          password: trimmedPassword,
         }),
       });
 
-      const json = await res.json();
+      const json = (await res.json()) as SellerLoginResponse;
 
       if (!json.ok) {
-        setError(
-          json.message ||
-            "We couldn't start the verification process. Please try again."
-        );
-        setLoading(false);
+        const errJson = json as SellerLoginError;
+
+        if (errJson.code === "apply_first") {
+          setError(
+            "This email is not registered yet. Please complete the seller application first."
+          );
+          return;
+        }
+
+        if (errJson.code === "pending") {
+          setError("");
+          setInfo(
+            "Your access is still under review. We'll email you as soon as it is approved."
+          );
+          return;
+        }
+
+        if (errJson.code === "bad_credentials") {
+          setError("Incorrect email or password. Please try again.");
+          return;
+        }
+
+        setError(errJson.message || "Unable to sign you in. Please try again.");
         return;
       }
 
-      setChallengeId(json.challengeId);
+      // ✅ Password OK → start 2FA as MANAGEMENT
+      const twofaRes = await fetch("/api/auth/start-2fa", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: trimmedEmail,
+          role: "management", // <— important
+        }),
+      });
+
+      const twofaJson = await twofaRes.json();
+
+      if (!twofaJson.ok) {
+        setError(
+          twofaJson.message ||
+            "We couldn't start the verification process. Please try again."
+        );
+        return;
+      }
+
+      setChallengeId(twofaJson.challengeId);
       setStep("verify");
 
       let message = "We've sent a 6-digit code to your email address.";
-      if (json.devCode) {
-        message += ` (Dev code: ${json.devCode})`;
+      if (twofaJson.devCode) {
+        message += ` (Dev code: ${twofaJson.devCode})`;
       }
       setInfo(message);
-    } catch (err: any) {
+    } catch (err) {
       console.error("management_login_error", err);
-      setError(
-        err?.message ||
-          "Unable to sign you in. Please check your details and try again."
-      );
+      setError("Unexpected error. Please try again.");
     } finally {
       setLoading(false);
     }
   }
 
+  // ---------------------------
+  // STEP 2: VERIFY 2FA CODE
+  // ---------------------------
   async function handleVerifySubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError(null);
@@ -101,6 +148,7 @@ export default function ManagementLoginPage() {
     }
 
     setLoading(true);
+
     try {
       const res = await fetch("/api/auth/verify-2fa", {
         method: "POST",
@@ -115,22 +163,19 @@ export default function ManagementLoginPage() {
 
       if (!json.ok) {
         setError(json.message || "Incorrect or expired code.");
-        setLoading(false);
         return;
       }
 
+      // Mark this browser as management
       if (typeof window !== "undefined") {
         window.localStorage.setItem("ff-role", "management");
         window.localStorage.setItem("ff-email", email.toLowerCase().trim());
       }
 
       router.push(from || "/management/dashboard");
-    } catch (err: any) {
+    } catch (err) {
       console.error("management_verify_2fa_error", err);
-      setError(
-        err?.message ||
-          "Unable to verify the code. Please check and try again."
-      );
+      setError("Unable to verify the code. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -138,6 +183,9 @@ export default function ManagementLoginPage() {
 
   const disabled = loading;
 
+  // ---------------------------
+  // UI
+  // ---------------------------
   return (
     <>
       <Head>
@@ -186,7 +234,7 @@ export default function ManagementLoginPage() {
                     disabled={disabled}
                     className="auth-button-primary"
                   >
-                    {loading ? "Processing..." : "Sign In"}
+                    {loading ? "Checking..." : "Sign In"}
                   </button>
                 </div>
               </form>
