@@ -2,149 +2,55 @@
 
 import Head from "next/head";
 import Link from "next/link";
-import { useRouter } from "next/router";
-import { useState } from "react";
-import { GetServerSideProps } from "next";
+import type { GetServerSideProps, NextPage } from "next";
 
 import Header from "../components/Header";
 import Footer from "../components/Footer";
-import ProductCard, { ProductLike } from "../components/ProductCard";
+import DemoGrid from "../components/DemoGrid";
+import HomepageButler from "../components/HomepageButler";
+import { ProductLike } from "../components/ProductCard";
 import { adminDb } from "../utils/firebaseAdmin";
 
-type IndexPageProps = {
-  liveCount: number;
-  designersCount: number;
-  activeOffersCount: number;
-  newThisWeekCount: number;
-  latestListings: ProductLike[];
-  trendingListings: ProductLike[];
+// --------------------------------------------------
+// Types
+// --------------------------------------------------
+
+type HomeProps = {
+  trending: ProductLike[];
+  newArrivals: ProductLike[];
 };
 
-export const getServerSideProps: GetServerSideProps<IndexPageProps> = async () => {
-  try {
-    const listingsRef = adminDb.collection("listings");
+// Helper to normalise price
+const formatPrice = (raw: any): string => {
+  const num = typeof raw === "number" ? raw : Number(raw || 0);
+  if (!num) return "";
+  return `US$${num.toLocaleString()}`;
+};
 
-    const snapshot = await listingsRef.get();
-    const allListings = snapshot.docs.map((doc) => {
-      const data = doc.data();
-      return {
-        id: doc.id,
-        ...data,
-        createdAt: data.createdAt ? data.createdAt.toDate().toISOString() : null,
-      } as any;
-    });
-
-    const liveListings = allListings.filter((l) => l.status === "live");
-    const liveCount = liveListings.length;
-
-    const designersSet = new Set<string>();
-    let activeOffersCount = 0;
-
-    liveListings.forEach((listing) => {
-      if (listing.designer) {
-        designersSet.add(listing.designer);
-      }
-      if (Array.isArray(listing.offers)) {
-        activeOffersCount += listing.offers.filter(
-          (offer: any) => offer.status === "pending" || offer.status === "accepted"
-        ).length;
-      }
-    });
-
-    const designersCount = designersSet.size;
-
-    const oneWeekAgo = new Date();
-    oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
-    const newThisWeek = liveListings.filter((listing) => {
-      if (!listing.createdAt) return false;
-      const createdDate = new Date(listing.createdAt);
-      return createdDate >= oneWeekAgo;
-    });
-    const newThisWeekCount = newThisWeek.length;
-
-    const latestListings = liveListings
-      .slice()
-      .sort((a, b) => {
-        const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-        const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-        return dateB - dateA;
-      })
-      .slice(0, 6);
-
-    const trendingListings = liveListings
-      .slice()
-      .sort((a, b) => {
-        const offersA = Array.isArray(a.offers)
-          ? a.offers.filter((o: any) => o.status === "pending" || o.status === "accepted").length
-          : 0;
-        const offersB = Array.isArray(b.offers)
-          ? b.offers.filter((o: any) => o.status === "pending" || o.status === "accepted").length
-          : 0;
-        return offersB - offersA;
-      })
-      .slice(0, 6);
-
-    return {
-      props: {
-        liveCount,
-        designersCount,
-        activeOffersCount,
-        newThisWeekCount,
-        latestListings,
-        trendingListings,
-      },
-    };
-  } catch (error) {
-    console.error("Error loading home page stats:", error);
-    return {
-      props: {
-        liveCount: 0,
-        designersCount: 0,
-        activeOffersCount: 0,
-        newThisWeekCount: 0,
-        latestListings: [],
-        trendingListings: [],
-      },
-    };
+// Helper to pick first usable image
+const pickImage = (data: any): string => {
+  if (data.image_url) return data.image_url;
+  if (data.imageUrl) return data.imageUrl;
+  if (data.image) return data.image;
+  if (Array.isArray(data.imageUrls) && data.imageUrls.length > 0) {
+    return data.imageUrls[0];
   }
+  return "";
 };
 
-export default function IndexPage({
-  liveCount,
-  designersCount,
-  activeOffersCount,
-  newThisWeekCount,
-  latestListings,
-  trendingListings,
-}: IndexPageProps) {
-  const router = useRouter();
-  const [search, setSearch] = useState("");
-  const [searching, setSearching] = useState(false);
+// --------------------------------------------------
+// Component
+// --------------------------------------------------
 
-  const handleSearch = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!search.trim()) return;
-    setSearching(true);
-    try {
-      await router.push(`/search?q=${encodeURIComponent(search.trim())}`);
-    } finally {
-      setSearching(false);
-    }
-  };
-
-  const formatCompact = (n: number) => {
-    if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
-    if (n >= 1_000) return `${(n / 1_000).toFixed(1)}k`;
-    return n.toString();
-  };
-
+const Home: NextPage<HomeProps> = ({ trending, newArrivals }) => {
   return (
-    <>
+    <div className="home-wrapper">
       <Head>
         <title>Famous Finds — Shop authenticated designer pieces</title>
+        {/* Optional description you had before */}
         <meta
           name="description"
-          content="Discover curated, authenticated pre-loved designer bags, jewelry, watches and ready-to-wear from trusted sellers. Every piece is vetted so you can buy with confidence."
+          content="Discover curated, authenticated pre-loved designer bags, jewelry, watches and ready-to-wear from trusted sellers. Every piece is vetted so you can shop with confidence."
         />
         {/* Google Search Console */}
         <meta
@@ -160,319 +66,240 @@ export default function IndexPage({
 
       <Header />
 
-      <main className="page">
-        <div className="page-inner">
-          {/* HERO */}
-          <section className="hero">
-            <div className="hero-content">
-              <div className="hero-copy">
-                <p className="hero-kicker">Curated pre-loved luxury</p>
-                <h1 className="hero-title">
-                  Discover, save &amp; shop authenticated designer pieces.
-                </h1>
-                <p className="hero-subtitle">
-                  Browse a hand-picked selection of bags, jewelry, watches and ready-to-wear
-                  from trusted sellers. Every piece is reviewed so you can shop with confidence.
-                </p>
+      <main className="wrap">
+        {/* HERO + SNAPSHOT */}
+        <section className="hero">
+          <div className="hero-copy">
+            <p className="eyebrow">Curated pre-loved luxury</p>
+            <h1>Discover, save &amp; shop authenticated designer pieces.</h1>
+            <p className="hero-sub">
+              Browse a hand-picked selection of bags, jewelry, watches and
+              ready-to-wear from trusted sellers. Every piece is vetted so you
+              can shop with confidence.
+            </p>
 
-                <div className="hero-ctas">
-                  <Link href="/category/new-arrivals" className="btn-primary">
-                    Browse New Arrivals
-                  </Link>
-                  <Link href="/sell" className="btn-secondary">
-                    Apply to Sell
-                  </Link>
-                </div>
-
-                <div className="hero-metrics">
-                  <div className="hero-metric">
-                    <span className="metric-label">Live listings</span>
-                    <span className="metric-value">{formatCompact(liveCount)}</span>
-                    <span className="metric-caption">All authenticated &amp; vetted</span>
-                  </div>
-                  <div className="hero-metric">
-                    <span className="metric-label">Designers</span>
-                    <span className="metric-value">{formatCompact(designersCount)}</span>
-                    <span className="metric-caption">Chanel, Hermès, Rolex &amp; more</span>
-                  </div>
-                  <div className="hero-metric">
-                    <span className="metric-label">Active offers</span>
-                    <span className="metric-value">{formatCompact(activeOffersCount)}</span>
-                    <span className="metric-caption">Serious buyers only</span>
-                  </div>
-                </div>
+            {/* STAT CARDS */}
+            <div className="hero-stats">
+              <div className="stat-card">
+                <p className="stat-label">Live listings</p>
+                <p className="stat-value">20+</p>
+                <p className="stat-note">Updated in real time</p>
               </div>
-
-              <div className="hero-image">
-                <div className="hero-image-inner" />
+              <div className="stat-card">
+                <p className="stat-label">New this week</p>
+                <p className="stat-value">10+</p>
+                <p className="stat-note">Fresh drops &amp; finds</p>
+              </div>
+              <div className="stat-card">
+                <p className="stat-label">Designers</p>
+                <p className="stat-value">50+</p>
+                <p className="stat-note">From Chanel to Rolex</p>
+              </div>
+              <div className="stat-card">
+                <p className="stat-label">Authentication</p>
+                <p className="stat-value">100%</p>
+                <p className="stat-note">Every piece reviewed</p>
               </div>
             </div>
 
-            <form className="hero-search" onSubmit={handleSearch}>
-              <input
-                type="search"
-                placeholder="Search by designer, style or keyword…"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-              />
-              <button type="submit" disabled={searching}>
-                {searching ? "Searching…" : "Search"}
+            <div className="hero-actions">
+              <a href="/products?tag=New+Arrival" className="btn-primary">
+                Browse New Arrivals
+              </a>
+              <a href="/products?tag=Trending" className="btn-secondary">
+                View Trending Pieces
+              </a>
+            </div>
+          </div>
+
+          {/* SNAPSHOT CARD */}
+          <aside className="snapshot-card">
+            <h2>Your Famous Finds Snapshot</h2>
+            <p className="snapshot-view">Guest view</p>
+            <div className="snapshot-row">
+              <span>Saved Items</span>
+              <span>0</span>
+            </div>
+            <div className="snapshot-row">
+              <span>Recently Viewed</span>
+              <span>0</span>
+            </div>
+            <div className="snapshot-row">
+              <span>Active Offers</span>
+              <span>0</span>
+            </div>
+
+            {/* UPDATED LINKS */}
+            <Link
+              href="/buyer/dashboard"
+              className="block w-full bg-slate-900 text-white rounded-full py-3 text-center text-sm font-medium"
+            >
+              Sign in to view your dashboard
+            </Link>
+
+            <Link
+              href="/buyer/signup"
+              className="block w-full border border-gray-300 text-gray-700 rounded-full py-3 mt-3 text-center text-sm font-medium"
+            >
+              Create a free buyer account
+            </Link>
+          </aside>
+        </section>
+
+        {/* FEATURED DESIGNERS CAROUSEL */}
+        <section className="home-featured-designers mt-10">
+          <header className="home-feed-header">
+            <h2 className="home-feed-title">Featured Designers</h2>
+            <a
+              href="/designers"
+              className="text-xs font-medium text-neutral-500 hover:text-neutral-900 underline-offset-4 hover:underline"
+            >
+              View full directory →
+            </a>
+          </header>
+
+          <div className="mt-4 flex gap-3 overflow-x-auto pb-2">
+            {[
+              "Chanel",
+              "Louis Vuitton",
+              "Hermès",
+              "Gucci",
+              "Prada",
+              "Dior",
+              "Saint Laurent",
+              "Fendi",
+              "Balenciaga",
+              "Goyard",
+              "Cartier",
+              "Rolex",
+            ].map((name) => (
+              <button
+                key={name}
+                className="whitespace-nowrap px-4 py-2 rounded-full border border-neutral-200 bg-white text-xs font-medium text-neutral-800 shadow-sm hover:border-neutral-400 hover:bg-neutral-50 transition"
+                onClick={() => {
+                  window.location.href = `/products?designer=${encodeURIComponent(
+                    name
+                  )}`;
+                }}
+              >
+                {name}
               </button>
-            </form>
-          </section>
+            ))}
+          </div>
+        </section>
 
-          {/* SNAPSHOT BAR */}
-          <section className="stats-bar">
-            <div className="stat-item">
-              <span className="stat-label">Live Listings</span>
-              <span className="stat-value">{liveCount.toLocaleString()}</span>
-            </div>
-            <div className="stat-item">
-              <span className="stat-label">New this week</span>
-              <span className="stat-value">{newThisWeekCount.toLocaleString()}</span>
-            </div>
-            <div className="stat-item">
-              <span className="stat-label">Top Designers</span>
-              <span className="stat-value">Chanel, Hermès, Rolex</span>
-            </div>
-            <div className="stat-item">
-              <span className="stat-label">Active Offers</span>
-              <span className="stat-value">{activeOffersCount.toLocaleString()}</span>
-            </div>
-          </section>
+        {/* NEW ARRIVALS GRID */}
+        <section className="home-section">
+          <DemoGrid
+            title="New Arrivals"
+            subtitle="Just in – freshly listed pieces from our vetted sellers."
+            products={newArrivals}
+          />
+        </section>
 
-          {/* MAIN GRID */}
-          <section className="content-grid">
-            {/* LEFT / MAIN COLUMN */}
-            <div className="main-column">
-              {/* Snapshot */}
-              <section className="section">
-                <header className="section-header">
-                  <div>
-                    <p className="section-kicker">Today&apos;s Snapshot</p>
-                    <h2 className="section-title">New arrivals &amp; trending now</h2>
-                  </div>
-                  <Link href="/category/new-arrivals" className="section-link">
-                    View all new arrivals
-                  </Link>
-                </header>
-
-                <div className="snapshot-card">
-                  <div className="snapshot-header">
-                    <h3 className="snapshot-title">New in this week</h3>
-                    <span className="snapshot-badge">
-                      +{newThisWeekCount.toLocaleString()} new pieces
-                    </span>
-                  </div>
-
-                  <div className="snapshot-metrics">
-                    <div className="snapshot-metric">
-                      <span className="snapshot-label">Bags</span>
-                      <span className="snapshot-value">Chanel, Hermès, Louis Vuitton</span>
-                    </div>
-                    <div className="snapshot-metric">
-                      <span className="snapshot-label">Watches</span>
-                      <span className="snapshot-value">Rolex, Cartier &amp; more</span>
-                    </div>
-                    <div className="snapshot-metric">
-                      <span className="snapshot-label">Ready-to-wear</span>
-                      <span className="snapshot-value">
-                        From classics to statement pieces
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="pill-row">
-                    <Link href="/category/new-arrivals" className="pill">
-                      Shop new arrivals
-                    </Link>
-                    <Link href="/category/bags" className="pill-secondary">
-                      View designer bags
-                    </Link>
-                    <Link href="/category/watches" className="pill-secondary">
-                      Iconic watches
-                    </Link>
-                  </div>
-                </div>
-              </section>
-
-              {/* Trending grid */}
-              <section className="section">
-                <header className="section-header">
-                  <div>
-                    <p className="section-kicker">Trending now</p>
-                    <h2 className="section-title">What buyers are looking at</h2>
-                    <p className="section-body">
-                      A peek at how your catalogue and listings will appear to buyers. Every item
-                      here is live, vetted and ready to purchase.
-                    </p>
-                  </div>
-                </header>
-
-                {trendingListings.length === 0 ? (
-                  <p>No listings yet – once you add items, they&apos;ll appear here.</p>
-                ) : (
-                  <div className="trend-grid">
-                    {trendingListings.map((listing) => {
-                      const meta = listing as any;
-
-                      const price =
-                        typeof meta.price === "number"
-                          ? `US$${meta.price.toLocaleString()}`
-                          : typeof meta.price === "string"
-                          ? meta.price
-                          : "";
-
-                      return (
-                        <article key={listing.id} className="trend-card">
-                          <div className="trend-image-wrapper">
-                            {/* pass listing props directly */}
-                            <ProductCard {...listing} />
-                          </div>
-                          <div className="trend-body">
-                            <div className="trend-title">{listing.title}</div>
-                            <div className="trend-meta">
-                              {meta.designer && <span>{meta.designer}</span>}
-                              {meta.category && <span> · {meta.category}</span>}
-                            </div>
-                            {price && <div className="trend-price">{price}</div>}
-                          </div>
-                        </article>
-                      );
-                    })}
-                  </div>
-                )}
-              </section>
-
-              {/* How it works */}
-              <section className="section">
-                <header className="section-header">
-                  <div>
-                    <p className="section-kicker">How Famous Finds works</p>
-                    <h2 className="section-title">Built for serious buyers &amp; sellers</h2>
-                  </div>
-                </header>
-
-                <ol className="bullet-list">
-                  <li className="bullet-item">
-                    <span className="bullet-label">1. Sellers apply</span>
-                    <span className="bullet-text">
-                      Sellers submit their details and sample items. Our team reviews each seller
-                      before they can list, helping to keep quality high.
-                    </span>
-                  </li>
-                  <li className="bullet-item">
-                    <span className="bullet-label">2. Listings are vetted</span>
-                    <span className="bullet-text">
-                      Every listing is checked by management before going live. This includes
-                      category, pricing, and supporting photos.
-                    </span>
-                  </li>
-                  <li className="bullet-item">
-                    <span className="bullet-label">3. Buyers shop safely</span>
-                    <span className="bullet-text">
-                      Buyers can browse, save to wishlist, and purchase through our secure checkout
-                      with clear shipping and returns information.
-                    </span>
-                  </li>
-                  <li className="bullet-item">
-                    <span className="bullet-label">4. Management oversees it all</span>
-                    <span className="bullet-text">
-                      The management dashboard tracks sellers, orders, disputes, payouts and more—
-                      built for a proper marketplace, not a hobby shop.
-                    </span>
-                  </li>
-                </ol>
-              </section>
-            </div>
-
-            {/* RIGHT / SIDEBAR */}
-            <aside className="sidebar-column">
-              <section className="sidebar-card">
-                <h3 className="sidebar-title">Are you a seller?</h3>
-                <p className="sidebar-text">
-                  Apply to list your authenticated designer pieces with us. We focus on quality,
-                  clear photos, and accurate descriptions.
-                </p>
-                <Link href="/sell" className="sidebar-link">
-                  Seller Registration
-                </Link>
-              </section>
-
-              <section className="sidebar-card">
-                <h3 className="sidebar-title">My VIP Profile</h3>
-                <p className="sidebar-text">
-                  Save favourites, track orders and get notified when your favourite designers
-                  drop new pieces.
-                </p>
-                <Link href="/dashboard" className="sidebar-link">
-                  Go to Dashboard
-                </Link>
-              </section>
-            </aside>
-          </section>
-        </div>
+        {/* TRENDING GRID */}
+        <section className="home-section">
+          <DemoGrid
+            title="Trending Now"
+            subtitle="Most-viewed and most-saved listings this week."
+            products={trending}
+          />
+        </section>
       </main>
+
+      {/* AI Butler bubble – unchanged */}
+      <HomepageButler />
 
       <Footer />
 
-      {/* PAGE-SPECIFIC LAYOUT / STYLING */}
+      {/* Local tweaks to ensure white cards and consistent sizes */}
       <style jsx>{`
-        .page {
-          background: #f7f5f1;
-          min-height: 100vh;
+        .home-wrapper {
+          background: #f7f7f5;
         }
 
-        .page-inner {
-          max-width: 1120px;
+        .wrap {
+          max-width: 1200px;
           margin: 0 auto;
-          padding: 48px 24px 72px;
+          padding: 32px 16px 64px;
         }
 
         .hero {
+          display: grid;
+          grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+          gap: 32px;
           margin-bottom: 40px;
         }
 
-        .hero-content {
-          display: grid;
-          grid-template-columns: minmax(0, 3fr) minmax(260px, 2fr);
-          gap: 32px;
-          align-items: stretch;
+        @media (max-width: 900px) {
+          .hero {
+            grid-template-columns: 1fr;
+          }
         }
 
-        .hero-copy {
-          display: flex;
-          flex-direction: column;
-          gap: 18px;
-        }
-
-        .hero-kicker {
-          margin: 0;
-          font-size: 12px;
-          letter-spacing: 0.18em;
+        .eyebrow {
           text-transform: uppercase;
+          letter-spacing: 0.12em;
+          font-size: 11px;
+          color: #6b7280;
+          margin-bottom: 8px;
+        }
+
+        h1 {
+          font-size: 36px;
+          line-height: 1.1;
+          margin: 0 0 12px;
+          font-family: "Georgia", serif;
+        }
+
+        .hero-sub {
+          color: #4b5563;
+          max-width: 520px;
+          margin-bottom: 20px;
+        }
+
+        .hero-stats {
+          display: grid;
+          grid-template-columns: repeat(4, minmax(0, 1fr));
+          gap: 12px;
+          margin-bottom: 20px;
+        }
+
+        @media (max-width: 900px) {
+          .hero-stats {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+          }
+        }
+
+        .stat-card {
+          background: #ffffff;
+          border-radius: 16px;
+          padding: 12px 14px;
+          border: 1px solid #e5e7eb;
+        }
+
+        .stat-label {
+          font-size: 11px;
+          text-transform: uppercase;
+          letter-spacing: 0.08em;
           color: #6b7280;
         }
 
-        .hero-title {
-          margin: 0;
-          font-size: 32px;
-          line-height: 1.1;
+        .stat-value {
+          font-size: 18px;
           font-weight: 600;
-          letter-spacing: -0.02em;
+          margin: 4px 0;
         }
 
-        .hero-subtitle {
-          margin: 0;
-          font-size: 15px;
-          color: #4b5563;
-          max-width: 520px;
+        .stat-note {
+          font-size: 12px;
+          color: #9ca3af;
         }
 
-        .hero-ctas {
+        .hero-actions {
           display: flex;
           flex-wrap: wrap;
-          gap: 10px;
+          gap: 12px;
         }
 
         .btn-primary,
@@ -485,343 +312,218 @@ export default function IndexPage({
           font-size: 14px;
           font-weight: 500;
           text-decoration: none;
+          border: 1px solid transparent;
         }
 
         .btn-primary {
           background: #111827;
-          color: #f9fafb;
+          color: #ffffff;
         }
 
         .btn-secondary {
-          background: #e5e7eb;
+          background: #ffffff;
+          border-color: #d1d5db;
           color: #111827;
-        }
-
-        .hero-metrics {
-          display: flex;
-          flex-wrap: wrap;
-          gap: 18px;
-          margin-top: 10px;
-        }
-
-        .hero-metric {
-          min-width: 120px;
-        }
-
-        .metric-label {
-          display: block;
-          font-size: 11px;
-          text-transform: uppercase;
-          letter-spacing: 0.14em;
-          color: #9ca3af;
-          margin-bottom: 2px;
-        }
-
-        .metric-value {
-          display: block;
-          font-size: 18px;
-          font-weight: 600;
-        }
-
-        .metric-caption {
-          display: block;
-          font-size: 12px;
-          color: #6b7280;
-        }
-
-        .hero-image {
-          position: relative;
-        }
-
-        .hero-image-inner {
-          border-radius: 28px;
-          height: 100%;
-          min-height: 220px;
-          background: radial-gradient(circle at top, #fef3c7, #f97316),
-            radial-gradient(circle at bottom, #dbeafe, #1d4ed8);
-          background-blend-mode: multiply;
-        }
-
-        .hero-search {
-          margin-top: 24px;
-          display: flex;
-          gap: 10px;
-        }
-
-        .hero-search input {
-          flex: 1;
-          padding: 10px 14px;
-          border-radius: 999px;
-          border: 1px solid #e5e7eb;
-          font-size: 14px;
-        }
-
-        .hero-search button {
-          padding: 10px 18px;
-          border-radius: 999px;
-          border: none;
-          background: #111827;
-          color: #f9fafb;
-          font-size: 14px;
-          cursor: pointer;
-        }
-
-        .stats-bar {
-          margin: 8px 0 32px;
-          padding: 12px 18px;
-          border-radius: 999px;
-          background: #fefce8;
-          display: flex;
-          flex-wrap: wrap;
-          gap: 18px;
-          align-items: center;
-          font-size: 13px;
-        }
-
-        .stat-item {
-          display: flex;
-          gap: 6px;
-        }
-
-        .stat-label {
-          color: #6b7280;
-        }
-
-        .stat-value {
-          font-weight: 600;
-        }
-
-        .content-grid {
-          display: grid;
-          grid-template-columns: minmax(0, 2.2fr) minmax(260px, 1fr);
-          gap: 32px;
-          align-items: flex-start;
-        }
-
-        .section {
-          margin-bottom: 32px;
-        }
-
-        .section-header {
-          display: flex;
-          justify-content: space-between;
-          align-items: baseline;
-          gap: 16px;
-          margin-bottom: 16px;
-        }
-
-        .section-kicker {
-          margin: 0;
-          font-size: 11px;
-          letter-spacing: 0.16em;
-          text-transform: uppercase;
-          color: #9ca3af;
-        }
-
-        .section-title {
-          margin: 2px 0 0;
-          font-size: 22px;
-          font-weight: 600;
-        }
-
-        .section-link {
-          font-size: 13px;
-          color: #111827;
-          text-decoration: underline;
-          white-space: nowrap;
         }
 
         .snapshot-card {
-          border-radius: 24px;
           background: #ffffff;
+          border-radius: 24px;
           padding: 20px 22px;
           border: 1px solid #e5e7eb;
-          box-shadow: 0 10px 30px rgba(15, 23, 42, 0.04);
-          font-size: 14px;
+          box-shadow: 0 18px 40px rgba(15, 23, 42, 0.08);
+          align-self: flex-start;
         }
 
-        .snapshot-header {
+        .snapshot-card h2 {
+          margin: 0 0 4px;
+          font-size: 18px;
+        }
+
+        .snapshot-view {
+          font-size: 11px;
+          text-transform: uppercase;
+          letter-spacing: 0.12em;
+          color: #9ca3af;
+          margin-bottom: 12px;
+        }
+
+        .snapshot-row {
           display: flex;
-          align-items: center;
           justify-content: space-between;
-          margin-bottom: 12px;
-        }
-
-        .snapshot-title {
-          margin: 0;
-          font-size: 16px;
-          font-weight: 500;
-        }
-
-        .snapshot-badge {
-          font-size: 12px;
-          padding: 4px 10px;
-          border-radius: 999px;
-          background: #ecfdf3;
-          color: #166534;
-        }
-
-        .snapshot-metrics {
-          display: grid;
-          gap: 6px;
-          margin-bottom: 12px;
-        }
-
-        .snapshot-label {
-          font-size: 12px;
-          color: #6b7280;
-        }
-
-        .snapshot-value {
-          font-size: 13px;
-        }
-
-        .pill-row {
-          display: flex;
-          flex-wrap: wrap;
-          gap: 8px;
-        }
-
-        .pill,
-        .pill-secondary {
-          padding: 6px 12px;
-          border-radius: 999px;
-          font-size: 12px;
-          text-decoration: none;
-        }
-
-        .pill {
-          background: #111827;
-          color: #f9fafb;
-        }
-
-        .pill-secondary {
-          background: #e5e7eb;
-          color: #111827;
-        }
-
-        .trend-grid {
-          display: grid;
-          grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-          gap: 18px;
-        }
-
-        .trend-card {
-          border-radius: 18px;
-          border: 1px solid #e5e7eb;
-          background: #ffffff;
-          overflow: hidden;
-          display: flex;
-          flex-direction: column;
-        }
-
-        .trend-image-wrapper {
-          padding: 10px;
+          font-size: 14px;
+          padding: 6px 0;
           border-bottom: 1px solid #f3f4f6;
         }
 
-        .trend-body {
-          padding: 10px 12px 12px;
+        .snapshot-row:last-of-type {
+          border-bottom: none;
+          margin-bottom: 14px;
         }
 
-        .trend-title {
-          font-size: 14px;
-          font-weight: 500;
-          margin-bottom: 4px;
-        }
-
-        .trend-meta {
-          font-size: 12px;
-          color: #6b7280;
-          margin-bottom: 4px;
-        }
-
-        .trend-price {
-          font-size: 14px;
-          font-weight: 600;
-        }
-
-        .bullet-list {
-          list-style: none;
-          padding: 0;
-          margin: 0;
-          display: grid;
-          gap: 10px;
-          font-size: 14px;
-        }
-
-        .bullet-item {
-          border-radius: 14px;
+        /* Note: .snapshot-btn styles kept for safety */
+        .snapshot-btn {
+          width: 100%;
+          border-radius: 999px;
+          border: 1px solid #d1d5db;
           padding: 10px 12px;
-          background: #ffffff;
-          border: 1px solid #e5e7eb;
-        }
-
-        .bullet-label {
-          display: block;
-          font-weight: 500;
-          margin-bottom: 4px;
-        }
-
-        .bullet-text {
-          font-size: 13px;
-          color: #4b5563;
-        }
-
-        .sidebar-column {
-          display: grid;
-          gap: 16px;
-        }
-
-        .sidebar-card {
-          border-radius: 20px;
-          background: #ffffff;
-          padding: 18px 18px 16px;
-          border: 1px solid #e5e7eb;
-          box-shadow: 0 10px 28px rgba(15, 23, 42, 0.04);
           font-size: 14px;
+          margin-bottom: 8px;
+          background: #ffffff;
+          cursor: pointer;
         }
 
-        .sidebar-title {
-          margin: 0 0 4px;
-          font-size: 16px;
+        .snapshot-btn.primary {
+          background: #111827;
+          color: #ffffff;
+          border-color: #111827;
+        }
+
+        .home-section {
+          margin-top: 40px;
+        }
+
+        /* --- FEATURED DESIGNERS STYLES --- */
+        .home-featured-designers {
+          margin-top: 40px;
+        }
+        .home-feed-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: baseline;
+          margin-bottom: 16px;
+        }
+        .home-feed-title {
+          font-size: 24px;
           font-weight: 500;
+          font-family: "Georgia", serif;
+          margin: 0;
         }
-
-        .sidebar-text {
-          margin: 0 0 8px;
+        .home-feed-header a {
           font-size: 13px;
-          color: #4b5563;
+          color: #6b7280;
+          text-decoration: none;
         }
-
-        .sidebar-link {
-          font-size: 13px;
-          text-decoration: underline;
+        .home-feed-header a:hover {
           color: #111827;
+          text-decoration: underline;
+        }
+        .home-featured-designers .flex {
+          display: flex;
+          gap: 12px;
+          overflow-x: auto;
+          padding-bottom: 8px;
+        }
+        /* Hide scrollbar */
+        .home-featured-designers .flex::-webkit-scrollbar {
+          display: none;
+        }
+        .home-featured-designers .flex {
+          -ms-overflow-style: none;
+          scrollbar-width: none;
+        }
+        .home-featured-designers button {
+          white-space: nowrap;
+          padding: 8px 16px;
+          border-radius: 999px;
+          border: 1px solid #e5e7eb;
+          background: #ffffff;
+          font-size: 13px;
+          font-weight: 500;
+          color: #1f2937;
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+        .home-featured-designers button:hover {
+          background: #f9fafb;
+          border-color: #d1d5db;
         }
 
-        @media (max-width: 900px) {
-          .page-inner {
-            padding: 32px 16px 48px;
-          }
+        /* Ensure product cards are white and consistent */
+        :global(.product-card) {
+          background: #ffffff !important;
+          border-radius: 18px;
+          border: 1px solid #e5e7eb;
+          overflow: hidden;
+        }
 
-          .hero-content {
-            grid-template-columns: 1fr;
-          }
-
-          .hero-image-inner {
-            min-height: 180px;
-          }
-
-          .content-grid {
-            grid-template-columns: 1fr;
-          }
-
-          .stats-bar {
-            border-radius: 20px;
-          }
+        :global(.product-card img) {
+          width: 100%;
+          height: 260px;
+          object-fit: cover;
+          background: #ffffff;
         }
       `}</style>
-    </>
+    </div>
   );
-}
+};
+
+export default Home;
+
+// --------------------------------------------------
+// Server-side data: pull approved (Live) listings
+// --------------------------------------------------
+
+export const getServerSideProps: GetServerSideProps<HomeProps> = async () => {
+  const snapshot = await adminDb
+    .collection("listings")
+    .where("status", "==", "Live")
+    .get();
+
+  const items = snapshot.docs.map((doc) => {
+    const data = doc.data() as any;
+
+    return {
+      id: doc.id,
+      title: data.title || "",
+      brand: data.brand || "",
+      price: formatPrice(data.price),
+      image: pickImage(data),
+      href: `/product/${doc.id}`,
+      // optional extras — used by category pages / filters
+      category: data.category || "",
+      condition: data.condition || "",
+      badge: data.condition || "",
+    } as ProductLike & {
+      category?: string;
+      condition?: string;
+    };
+  });
+
+  // New Arrivals – newest first by createdAt (if present)
+  const newArrivals = items
+    .slice()
+    .sort((a: any, b: any) => {
+      const aTime =
+        a.createdAt && typeof a.createdAt.toMillis === "function"
+          ? a.createdAt.toMillis()
+          : 0;
+      const bTime =
+        b.createdAt && typeof b.createdAt.toMillis === "function"
+          ? b.createdAt.toMillis()
+          : 0;
+      return bTime - aTime;
+    })
+    .slice(0, 8);
+
+  // Trending – highest viewCount, fallback to same as newArrivals
+  let trending = items
+    .slice()
+    .sort((a: any, b: any) => {
+      const av = a.viewCount || 0;
+      const bv = b.viewCount || 0;
+      return bv - av;
+    })
+    .slice(0, 8);
+
+  if (!trending.length) {
+    trending = newArrivals;
+  }
+
+  return {
+    props: {
+      trending,
+      newArrivals,
+    },
+  };
+};
