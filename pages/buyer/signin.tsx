@@ -7,7 +7,7 @@ import { useRouter } from "next/router";
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
 
-import { initializeApp, getApps, getApp } from "firebase/app";
+import firebaseApp from "../../utils/firebaseClient";
 import {
   getAuth,
   signInWithEmailAndPassword,
@@ -15,17 +15,7 @@ import {
   sendPasswordResetEmail,
 } from "firebase/auth";
 
-const firebaseConfig = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY as string,
-  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN as string,
-  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID as string,
-  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET as string,
-  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID as string,
-  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID as string,
-};
-
-const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
-const auth = getAuth(app);
+const auth = getAuth(firebaseApp);
 
 export default function BuyerSignInPage() {
   const router = useRouter();
@@ -47,7 +37,6 @@ export default function BuyerSignInPage() {
     e.preventDefault();
     setLoading(true);
     setError(null);
-    // keep resetSent banner if it was already shown
 
     const trimmedEmail = email.trim().toLowerCase();
 
@@ -82,7 +71,7 @@ export default function BuyerSignInPage() {
 
     const trimmedEmail = email.trim().toLowerCase();
     if (!trimmedEmail) {
-      setError("Enter your email above and then click “Forgot password”.");
+      setError('Enter your email above and then click "Forgot password".');
       return;
     }
 
@@ -111,12 +100,12 @@ export default function BuyerSignInPage() {
         <div className="auth-inner">
           <h1 className="auth-title">Sign in</h1>
 
-          {/* ✅ BIG BANNER WHEN RESET EMAIL SENT */}
+          {/* Banner when reset email sent */}
           {resetSent && (
             <div className="auth-banner">
               Password reset email sent to <strong>{email.trim()}</strong>.{" "}
-              Please check your inbox (and spam/junk) and follow the link to
-              set your password. After that, come back here and sign in.
+              Please check your inbox (and spam/junk) and follow the link to set
+              your password. Then return here and sign in.
             </div>
           )}
 
