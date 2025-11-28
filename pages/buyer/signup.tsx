@@ -43,22 +43,36 @@ export default function BuyerSignUpPage() {
     e.preventDefault();
     setError(null);
 
+    const trimmedEmail = email.trim().toLowerCase();
+    const trimmedName = name.trim();
+
     try {
       const userCred = await createUserWithEmailAndPassword(
         auth,
-        email.trim(),
+        trimmedEmail,
         password
       );
 
       await setDoc(doc(db, "buyers", userCred.user.uid), {
-        name: name.trim(),
-        email: email.trim(),
+        name: trimmedName,
+        email: trimmedEmail,
         createdAt: serverTimestamp(),
       });
 
       router.push("/buyer/dashboard");
     } catch (err: any) {
-      setError(err.message || "Unable to create your account.");
+      console.error("buyer_signup_error", err);
+      const code = err?.code as string | undefined;
+
+      if (code === "auth/email-already-in-use") {
+        setError(
+          "An account with this email already exists. Please sign in instead or use “Forgot password” on the sign-in page."
+        );
+      } else if (code === "auth/weak-password") {
+        setError("Password is too weak. Please use at least 6 characters.");
+      } else {
+        setError("Unable to create your account right now. Please try again.");
+      }
     }
   };
 
