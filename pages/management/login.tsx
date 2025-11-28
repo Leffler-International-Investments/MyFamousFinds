@@ -1,347 +1,399 @@
-// FILE: /pages/management/login.tsx
+// FILE: /pages/index.tsx
+
 import Head from "next/head";
 import Link from "next/link";
 import { useRouter } from "next/router";
-import { FormEvent, useState } from "react";
-import Header from "../../components/Header";
-import Footer from "../../components/Footer";
-import PasswordInput from "../../components/PasswordInput";
-import { getAuth, signInWithEmailAndPassword } from "firebase/auth";
-import firebaseApp from "../../utils/firebaseClient";
+import { useState } from "react";
+import { GetServerSideProps } from "next";
 
-type TwoFactorStep = "credentials" | "verify";
+import Header from "../components/Header";
+import Footer from "../components/Footer";
+import ProductCard, { ProductLike } from "../components/ProductCard";
+import { adminDb } from "../utils/firebaseAdmin";
 
-export default function ManagementLoginPage() {
+type IndexPageProps = {
+  liveCount: number;
+  designersCount: number;
+  activeOffersCount: number;
+  newThisWeekCount: number;
+  latestListings: ProductLike[];
+  trendingListings: ProductLike[];
+};
+
+export const getServerSideProps: GetServerSideProps<IndexPageProps> = async () => {
+  try {
+    const listingsRef = adminDb.collection("listings");
+
+    const snapshot = await listingsRef.get();
+    const allListings = snapshot.docs.map((doc) => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        ...data,
+        createdAt: data.createdAt ? data.createdAt.toDate().toISOString() : null,
+      } as any;
+    });
+
+    const liveListings = allListings.filter((l) => l.status === "live");
+    const liveCount = liveListings.length;
+
+    const designersSet = new Set<string>();
+    let activeOffersCount = 0;
+
+    liveListings.forEach((listing) => {
+      if (listing.designer) {
+        designersSet.add(listing.designer);
+      }
+      if (Array.isArray(listing.offers)) {
+        activeOffersCount += listing.offers.filter(
+          (offer: any) => offer.status === "pending" || offer.status === "accepted"
+        ).length;
+      }
+    });
+
+    const designersCount = designersSet.size;
+
+    const oneWeekAgo = new Date();
+    oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+    const newThisWeek = liveListings.filter((listing) => {
+      if (!listing.createdAt) return false;
+      const createdDate = new Date(listing.createdAt);
+      return createdDate >= oneWeekAgo;
+    });
+    const newThisWeekCount = newThisWeek.length;
+
+    const latestListings = liveListings
+      .slice()
+      .sort((a, b) => {
+        const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+        const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+        return dateB - dateA;
+      })
+      .slice(0, 6);
+
+    const trendingListings = liveListings
+      .slice()
+      .sort((a, b) => {
+        const offersA = Array.isArray(a.offers)
+          ? a.offers.filter((o: any) => o.status === "pending" || o.status === "accepted").length
+          : 0;
+        const offersB = Array.isArray(b.offers)
+          ? b.offers.filter((o: any) => o.status === "pending" || o.status === "accepted").length
+          : 0;
+        return offersB - offersA;
+      })
+      .slice(0, 6);
+
+    return {
+      props: {
+        liveCount,
+        designersCount,
+        activeOffersCount,
+        newThisWeekCount,
+        latestListings,
+        trendingListings,
+      },
+    };
+  } catch (error) {
+    console.error("Error loading home page stats:", error);
+    return {
+      props: {
+        liveCount: 0,
+        designersCount: 0,
+        activeOffersCount: 0,
+        newThisWeekCount: 0,
+        latestListings: [],
+        trendingListings: [],
+      },
+    };
+  }
+};
+
+export default function IndexPage({
+  liveCount,
+  designersCount,
+  activeOffersCount,
+  newThisWeekCount,
+  latestListings,
+  trendingListings,
+}: IndexPageProps) {
   const router = useRouter();
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [code, setCode] = useState("");
-  const [step, setStep] = useState<TwoFactorStep>("credentials");
-  const [challengeId, setChallengeId] = useState<string | null>(null);
-  const [info, setInfo] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
+  const [searching, setSearching] = useState(false);
 
-  const from =
-    typeof router.query.from === "string"
-      ? router.query.from
-      : "/management/dashboard";
-
-  async function handleCredentialsSubmit(e: FormEvent<HTMLFormElement>) {
+  const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError(null);
-    setInfo(null);
-    setLoading(true);
-
+    if (!search.trim()) return;
+    setSearching(true);
     try {
-      const auth = getAuth(firebaseApp);
-      await signInWithEmailAndPassword(
-        auth,
-        email.toLowerCase().trim(),
-        password
-      );
-
-      const trimmedEmail = email.toLowerCase().trim();
-      const res = await fetch("/api/auth/start-2fa", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email: trimmedEmail,
-          role: "management",
-          method: "email",
-        }),
-      });
-
-      const json = await res.json();
-
-      if (!json.ok) {
-        setError(
-          json.message ||
-            "We couldn't start the verification process. Please try again."
-        );
-        setLoading(false);
-        return;
-      }
-
-      setChallengeId(json.challengeId);
-      setStep("verify");
-      let message = "We've sent a 6-digit code to your email address.";
-      if (json.devCode) {
-        message += ` (Dev code: ${json.devCode})`;
-      }
-      setInfo(message);
-    } catch (err: any) {
-      console.error("management_login_error", err);
-      setError(
-        err?.message ||
-          "Unable to sign you in. Please check your details and try again."
-      );
+      await router.push(`/search?q=${encodeURIComponent(search.trim())}`);
     } finally {
-      setLoading(false);
+      setSearching(false);
     }
-  }
+  };
 
-  async function handleVerifySubmit(e: FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    setError(null);
-    setInfo(null);
-
-    if (!challengeId) {
-      setError("Your verification session has expired. Please start again.");
-      setStep("credentials");
-      return;
-    }
-
-    const trimmedCode = code.trim();
-    if (!trimmedCode || trimmedCode.length < 6) {
-      setError("Please enter the 6-digit code.");
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const res = await fetch("/api/auth/verify-2fa", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          challengeId,
-          code: trimmedCode,
-        }),
-      });
-
-      const json = await res.json();
-
-      if (!json.ok) {
-        setError(json.message || "Incorrect or expired code.");
-        setLoading(false);
-        return;
-      }
-
-      const trimmedEmail = email.toLowerCase().trim();
-      if (typeof window !== "undefined") {
-        window.localStorage.setItem("ff-role", "management");
-        window.localStorage.setItem("ff-email", trimmedEmail);
-      }
-      router.push(from || "/management/dashboard");
-    } catch (err) {
-      console.error("management_verify_2fa_error", err);
-      setError("Unable to verify the code. Please try again.");
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  const disabled = loading;
+  const formatCompact = (n: number) => {
+    if (n >= 1000000) return `${(n / 1000000).toFixed(1)}M`;
+    if (n >= 1000) return `${(n / 1000).toFixed(1)}k`;
+    return n.toString();
+  };
 
   return (
     <>
       <Head>
-        <title>Management Login - Famous Finds</title>
+        <title>Famous Finds – Shop authenticated designer pieces</title>
+        <meta
+          name="description"
+          content="Discover curated, authenticated pre-loved designer bags, jewelry, watches and ready-to-wear from trusted sellers. Every piece is vetted so you can buy with confidence."
+        />
       </Head>
-      <div className="auth-page">
-        <Header />
-        <main className="auth-main">
-          <div className="auth-card">
-            <h1>Management Login</h1>
-            <p className="auth-subtitle">Secure admin access.</p>
 
-            {error && <div className="auth-error">{error}</div>}
-            {info && <div className="auth-info">{info}</div>}
+      <Header />
 
-            {step === "credentials" ? (
-              <form onSubmit={handleCredentialsSubmit}>
-                <div className="auth-fields">
-                  <div className="auth-field">
-                    <label htmlFor="email">Admin Email</label>
-                    <input
-                      id="email"
-                      type="email"
-                      autoComplete="email"
-                      required
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      className="auth-input"
-                      placeholder="name@famousfinds.com"
-                      disabled={disabled}
-                    />
+      <main className="page">
+        <div className="page-inner">
+          {/* HERO */}
+          <section className="hero">
+            <div className="hero-content">
+              <div className="hero-copy">
+                <p className="hero-kicker">Curated pre-loved luxury</p>
+                <h1 className="hero-title">
+                  Discover, save &amp; shop authenticated designer pieces.
+                </h1>
+                <p className="hero-subtitle">
+                  Browse a hand-picked selection of bags, jewelry, watches and ready-to-wear
+                  from trusted sellers. Every piece is reviewed so you can shop with confidence.
+                </p>
+
+                <div className="hero-ctas">
+                  <Link href="/category/new-arrivals" className="btn-primary">
+                    Browse New Arrivals
+                  </Link>
+                  <Link href="/sell" className="btn-secondary">
+                    Apply to Sell
+                  </Link>
+                </div>
+
+                <div className="hero-metrics">
+                  <div className="hero-metric">
+                    <span className="metric-label">Live listings</span>
+                    <span className="metric-value">{formatCompact(liveCount)}</span>
+                    <span className="metric-caption">All authenticated &amp; vetted</span>
+                  </div>
+                  <div className="hero-metric">
+                    <span className="metric-label">Designers</span>
+                    <span className="metric-value">{formatCompact(designersCount)}</span>
+                    <span className="metric-caption">Chanel, Hermès, Rolex &amp; more</span>
+                  </div>
+                  <div className="hero-metric">
+                    <span className="metric-label">Active offers</span>
+                    <span className="metric-value">{formatCompact(activeOffersCount)}</span>
+                    <span className="metric-caption">Serious buyers only</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="hero-image">
+                <div className="hero-image-inner" />
+              </div>
+            </div>
+
+            <form className="hero-search" onSubmit={handleSearch}>
+              <input
+                type="search"
+                placeholder="Search by designer, style or keyword…"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+              <button type="submit" disabled={searching}>
+                {searching ? "Searching…" : "Search"}
+              </button>
+            </form>
+          </section>
+
+          {/* SNAPSHOT BAR */}
+          <section className="stats-bar">
+            <div className="stat-item">
+              <span className="stat-label">Live Listings</span>
+              <span className="stat-value">{liveCount.toLocaleString()}</span>
+            </div>
+            <div className="stat-item">
+              <span className="stat-label">New this week</span>
+              <span className="stat-value">{newThisWeekCount.toLocaleString()}</span>
+            </div>
+            <div className="stat-item">
+              <span className="stat-label">Top Designers</span>
+              <span className="stat-value">Chanel, Hermès, Rolex</span>
+            </div>
+            <div className="stat-item">
+              <span className="stat-label">Active Offers</span>
+              <span className="stat-value">{activeOffersCount.toLocaleString()}</span>
+            </div>
+          </section>
+
+          {/* MAIN GRID */}
+          <section className="content-grid">
+            {/* LEFT / MAIN COLUMN */}
+            <div className="main-column">
+              {/* Snapshot */}
+              <section className="section">
+                <header className="section-header">
+                  <div>
+                    <p className="section-kicker">Today&apos;s Snapshot</p>
+                    <h2 className="section-title">New arrivals &amp; trending now</h2>
+                  </div>
+                  <Link href="/category/new-arrivals" className="section-link">
+                    View all new arrivals
+                  </Link>
+                </header>
+
+                <div className="snapshot-card">
+                  <div className="snapshot-header">
+                    <h3 className="snapshot-title">New in this week</h3>
+                    <span className="snapshot-badge">
+                      +{newThisWeekCount.toLocaleString()} new pieces
+                    </span>
                   </div>
 
-                  <PasswordInput
-                    label="Password"
-                    value={password}
-                    onChange={setPassword}
-                    name="password"
-                    required
-                    showStrength={true}
-                    placeholder="Enter password"
-                  />
-
-                  <button
-                    type="submit"
-                    disabled={disabled}
-                    className="auth-button-primary"
-                  >
-                    {loading ? "Processing..." : "Sign In"}
-                  </button>
-                </div>
-              </form>
-            ) : (
-              <form onSubmit={handleVerifySubmit}>
-                <p className="auth-secondary-link-inline">
-                  Enter the 6-digit code sent to your email.
-                </p>
-                <div className="auth-fields">
-                  <div className="auth-field">
-                    <label htmlFor="code">Verification Code</label>
-                    <input
-                      id="code"
-                      type="text"
-                      inputMode="numeric"
-                      autoComplete="one-time-code"
-                      maxLength={6}
-                      value={code}
-                      onChange={(e) => setCode(e.target.value)}
-                      className="auth-input auth-code-input"
-                      disabled={disabled}
-                    />
+                  <div className="snapshot-metrics">
+                    <div className="snapshot-metric">
+                      <span className="snapshot-label">Bags</span>
+                      <span className="snapshot-value">Chanel, Hermès, Louis Vuitton</span>
+                    </div>
+                    <div className="snapshot-metric">
+                      <span className="snapshot-label">Watches</span>
+                      <span className="snapshot-value">Rolex, Cartier &amp; more</span>
+                    </div>
+                    <div className="snapshot-metric">
+                      <span className="snapshot-label">Ready-to-wear</span>
+                      <span className="snapshot-value">From classics to statement pieces</span>
+                    </div>
                   </div>
-                  <button
-                    type="submit"
-                    disabled={disabled}
-                    className="auth-button-primary"
-                  >
-                    {loading ? "Verifying..." : "Confirm"}
-                  </button>
+
+                  <div className="pill-row">
+                    <Link href="/category/new-arrivals" className="pill">
+                      Shop new arrivals
+                    </Link>
+                    <Link href="/category/bags" className="pill-secondary">
+                      View designer bags
+                    </Link>
+                    <Link href="/category/watches" className="pill-secondary">
+                      Iconic watches
+                    </Link>
+                  </div>
                 </div>
-                <p className="auth-secondary-link-inline">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (disabled) return;
-                      setStep("credentials");
-                      setCode("");
-                      setInfo(null);
-                      setError(null);
-                    }}
-                  >
-                    Back to login
-                  </button>
+              </section>
+
+              {/* Trending grid */}
+              <section className="section">
+                <header className="section-header">
+                  <div>
+                    <p className="section-kicker">Trending now</p>
+                    <h2 className="section-title">What buyers are looking at</h2>
+                    <p className="section-body">
+                      A peek at how your catalogue and listings will appear to buyers. Every item
+                      here is live, vetted and ready to purchase.
+                    </p>
+                  </div>
+                </header>
+
+                {trendingListings.length === 0 ? (
+                  <p>No listings yet – once you add items, they&apos;ll appear here.</p>
+                ) : (
+                  <div className="trend-grid">
+                    {trendingListings.map((listing) => (
+                      <article key={listing.id} className="trend-card">
+                        <div className="trend-image-wrapper">
+                          {/* pass listing props directly */}
+                          <ProductCard {...listing} />
+                        </div>
+                        <div className="trend-body">
+                          <div className="trend-title">{listing.title}</div>
+                          <div className="trend-meta">
+                            {listing.designer && <span>{listing.designer}</span>}
+                            {listing.category && <span> · {listing.category}</span>}
+                          </div>
+                          <div className="trend-price">
+                            {listing.price ? `US$${listing.price.toLocaleString()}` : ""}
+                          </div>
+                        </div>
+                      </article>
+                    ))}
+                  </div>
+                )}
+              </section>
+
+              {/* How it works */}
+              <section className="section">
+                <header className="section-header">
+                  <div>
+                    <p className="section-kicker">How Famous Finds works</p>
+                    <h2 className="section-title">Built for serious buyers &amp; sellers</h2>
+                  </div>
+                </header>
+
+                <ol className="bullet-list">
+                  <li className="bullet-item">
+                    <span className="bullet-label">1. Sellers apply</span>
+                    <span className="bullet-text">
+                      Sellers submit their details and sample items. Our team reviews each seller
+                      before they can list, helping to keep quality high.
+                    </span>
+                  </li>
+                  <li className="bullet-item">
+                    <span className="bullet-label">2. Listings are vetted</span>
+                    <span className="bullet-text">
+                      Every listing is checked by management before going live. This includes
+                      category, pricing, and supporting photos.
+                    </span>
+                  </li>
+                  <li className="bullet-item">
+                    <span className="bullet-label">3. Buyers shop safely</span>
+                    <span className="bullet-text">
+                      Buyers can browse, save to wishlist, and purchase through our secure checkout
+                      with clear shipping and returns information.
+                    </span>
+                  </li>
+                  <li className="bullet-item">
+                    <span className="bullet-label">4. Management oversees it all</span>
+                    <span className="bullet-text">
+                      The management dashboard tracks sellers, orders, disputes, payouts and more—
+                      built for a proper marketplace, not a hobby shop.
+                    </span>
+                  </li>
+                </ol>
+              </section>
+            </div>
+
+            {/* RIGHT / SIDEBAR */}
+            <aside className="sidebar-column">
+              <section className="sidebar-card">
+                <h3 className="sidebar-title">Are you a seller?</h3>
+                <p className="sidebar-text">
+                  Apply to list your authenticated designer pieces with us. We focus on quality,
+                  clear photos, and accurate descriptions.
                 </p>
-              </form>
-            )}
+                <Link href="/sell" className="sidebar-link">
+                  Seller Registration
+                </Link>
+              </section>
 
-            <p className="auth-secondary-link">
-              <Link href="/">Return to Store</Link>
-            </p>
-          </div>
-        </main>
-        <Footer />
-      </div>
+              <section className="sidebar-card">
+                <h3 className="sidebar-title">My VIP Profile</h3>
+                <p className="sidebar-text">
+                  Save favourites, track orders and get notified when your favourite designers
+                  drop new pieces.
+                </p>
+                <Link href="/dashboard" className="sidebar-link">
+                  Go to Dashboard
+                </Link>
+              </section>
+            </aside>
+          </section>
+        </div>
+      </main>
 
-      <style jsx>{`
-        .auth-page {
-          min-height: 100vh;
-          display: flex;
-          flex-direction: column;
-          background: #ffffff;
-          color: #111;
-        }
-        .auth-main {
-          flex: 1;
-          display: flex;
-          align-items: flex-start;
-          justify-content: center;
-          padding: 60px 16px 40px;
-        }
-        .auth-card {
-          width: 100%;
-          max-width: 400px;
-          background: #ffffff;
-          border-radius: 22px;
-          border: 1px solid #e5e7eb;
-          padding: 32px 28px;
-          box-shadow: 0 12px 35px rgba(0,0,0,0.06);
-        }
-        h1 {
-          font-family: ui-serif, "Times New Roman", serif;
-          font-size: 26px;
-          font-weight: 700;
-          margin: 0 0 8px;
-          letter-spacing: -0.02em;
-          color: #111;
-          text-align: center;
-        }
-        .auth-subtitle {
-          margin: 0 0 24px;
-          font-size: 14px;
-          color: #6b7280;
-          text-align: center;
-          line-height: 1.5;
-        }
-        .auth-fields {
-          display: flex;
-          flex-direction: column;
-          gap: 16px;
-        }
-        .auth-field label {
-          display: block;
-          margin-bottom: 6px;
-          font-size: 13px;
-          font-weight: 500;
-          color: #374151;
-        }
-        :global(.auth-input) {
-          width: 100%;
-          border-radius: 14px !important;
-          border: 1px solid #d1d5db !important;
-          background: #fafafa !important;
-          padding: 10px 14px !important;
-          font-size: 14px !important;
-          color: #111 !important;
-          transition: all 0.2s ease;
-        }
-        :global(.auth-input:focus) {
-          outline: none;
-          border-color: #111 !important;
-          background: #fff !important;
-          box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-        }
-        .auth-button-primary {
-          margin-top: 8px;
-          width: 100%;
-          border-radius: 999px;
-          padding: 12px;
-          border: none;
-          font-size: 14px;
-          font-weight: 600;
-          background: #111;
-          color: #fff;
-          cursor: pointer;
-          transition: transform 0.1s ease, opacity 0.2s;
-        }
-        .auth-button-primary:hover {
-          opacity: 0.9;
-        }
-        .auth-button-primary:disabled {
-          opacity: 0.5;
-          cursor: default;
-        }
-        .auth-error, .auth-info {
-          border-radius: 12px;
-          padding: 10px;
-          font-size: 13px;
-          margin-bottom: 16px;
-          text-align: center;
-        }
-        .auth-error { background: #fef2f2; color: #b91c1c; }
-        .auth-info { background: #eff6ff; color: #1d4ed8; }
-        .auth-code-input { text-align: center; letter-spacing: 0.2em; font-weight: 600; }
-        .auth-secondary-link { margin-top: 20px; text-align: center; font-size: 13px; }
-        .auth-secondary-link a { color: #6b7280; text-decoration: underline; }
-        .auth-secondary-link a:hover { color: #111; }
-        .auth-secondary-link-inline { text-align: center; font-size: 13px; color: #666; margin-bottom: 16px; }
-        .auth-secondary-link-inline button { border:none; background:none; text-decoration:underline; cursor:pointer; color:#111; }
-      `}</style>
+      <Footer />
     </>
   );
 }
