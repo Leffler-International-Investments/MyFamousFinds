@@ -101,7 +101,6 @@ export default function Header() {
             />
           </Link>
 
-          {/* VIP LINK: Goes to Profile if logged in, Welcome page if not */}
           <Link
             href={vipUser ? "/club-profile" : "/vip-welcome"}
             className="admin-button vip"
@@ -133,16 +132,25 @@ export default function Header() {
             Management Admin Login
           </Link>
 
-          <Link href="/seller/login" className="admin-button seller">
-            Seller Admin Login
+          {/* ⭐ UPDATED BUTTON WITH TWO LINES INSIDE ⭐ */}
+          <Link
+            href="/seller/login"
+            className="admin-button seller"
+            style={{
+              padding: "10px 12px",
+              display: "flex",
+              flexDirection: "column",
+              lineHeight: "1.1",
+              textAlign: "center",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <span>Seller Admin Login</span>
+            <span style={{ fontSize: "10px", opacity: 0.9 }}>
+              Become a Seller – Click Here
+            </span>
           </Link>
-
-          {/* >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> */}
-          {/* THE ONLY NEW LINE YOU ASKED FOR — NOTHING ELSE CHANGED */}
-          <div style={{ fontSize: "11px", color: "#0f766e", marginTop: "2px" }}>
-            Become a Seller – Click Here
-          </div>
-          {/* >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> */}
 
         </div>
       </div>
@@ -193,7 +201,6 @@ export default function Header() {
           color: #111827;
         }
 
-        /* === TOP BAR === */
         .ff-header-top {
           max-width: 1280px;
           margin: 0 auto;
@@ -210,11 +217,6 @@ export default function Header() {
           align-items: center;
           gap: 14px;
           flex-shrink: 0;
-        }
-
-        .ff-logo {
-          display: inline-flex;
-          align-items: center;
         }
 
         .ff-main-nav {
@@ -256,10 +258,10 @@ export default function Header() {
           white-space: nowrap;
         }
 
-        .admin-button.vip {
-          border-color: #f97316;
-          color: #9a3412;
-          background: #fffbeb;
+        .admin-button.seller {
+          border-color: #14b8a6;
+          color: #0f766e;
+          background: #ecfeff;
         }
 
         .admin-button.management {
@@ -268,13 +270,12 @@ export default function Header() {
           background: #eef2ff;
         }
 
-        .admin-button.seller {
-          border-color: #14b8a6;
-          color: #0f766e;
-          background: #ecfeff;
+        .admin-button.vip {
+          border-color: #f97316;
+          color: #9a3412;
+          background: #fffbeb;
         }
 
-        /* === BRAND + SEARCH === */
         .ff-header-middle {
           max-width: 1280px;
           margin: 0 auto;
@@ -314,7 +315,6 @@ export default function Header() {
           color: #9ca3af;
         }
 
-        /* === CATEGORY NAV + MEGAMENU === */
         .ff-category-nav {
           max-width: 1280px;
           margin: 0 auto;
@@ -325,12 +325,10 @@ export default function Header() {
           font-size: 11px;
           letter-spacing: 0.18em;
           text-transform: uppercase;
-          position: relative;
         }
 
         .ff-cat-item {
           position: relative;
-          display: inline-block;
         }
 
         .ff-cat-link {
@@ -381,7 +379,6 @@ export default function Header() {
           display: block;
         }
 
-        /* === RESPONSIVE === */
         @media (max-width: 900px) {
           .ff-header-top {
             align-items: flex-start;
