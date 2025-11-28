@@ -13,14 +13,15 @@ if (!projectId || !clientEmail || !rawPrivateKey) {
 }
 
 // Handle both formats: with "\n" or real newlines
-if (rawPrivateKey.includes("\\n")) {
-  rawPrivateKey = rawPrivateKey.replace(/\\n/g, "\n");
+if (rawPrivateKey.startsWith('"') && rawPrivateKey.endsWith('"')) {
+  rawPrivateKey = rawPrivateKey.slice(1, -1);
 }
+const privateKey = rawPrivateKey.replace(/\\n/g, "\n");
 
 const serviceAccount: ServiceAccount = {
   projectId,
   clientEmail,
-  privateKey: rawPrivateKey,
+  privateKey,
 };
 
 if (!admin.apps.length) {
