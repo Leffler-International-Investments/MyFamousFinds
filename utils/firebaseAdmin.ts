@@ -10,43 +10,23 @@ function initAdminApp() {
     return getApp();
   }
 
-  let projectId: string | undefined;
-  let clientEmail: string | undefined;
-  let privateKey: string | undefined;
+  const json = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
 
-  // 1) OLD STYLE: single JSON env (your original setup)
-  const serviceAccountJson = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
-  if (serviceAccountJson) {
-    try {
-      const parsed = JSON.parse(serviceAccountJson);
-      projectId = parsed.project_id;
-      clientEmail = parsed.client_email;
-      privateKey = parsed.private_key;
-    } catch (err) {
-      console.error("Failed to parse FIREBASE_SERVICE_ACCOUNT_KEY JSON:", err);
-    }
+  if (!json) {
+    // This is the ONLY requirement now – your original env
+    throw new Error("FIREBASE_SERVICE_ACCOUNT_KEY is missing");
   }
 
-  // 2) NEW STYLE: split envs (optional fallback)
-  if (!projectId) projectId = process.env.FB_PROJECT_ID;
-  if (!clientEmail) clientEmail = process.env.FB_CLIENT_EMAIL;
-  if (!privateKey) privateKey = process.env.FB_PRIVATE_KEY;
+  const serviceAccount = JSON.parse(json);
 
-  if (!projectId || !clientEmail || !privateKey) {
-    throw new Error(
-      "Firebase Admin credentials are not fully configured. Provide FIREBASE_SERVICE_ACCOUNT_KEY (JSON) OR FB_PROJECT_ID, FB_CLIENT_EMAIL, FB_PRIVATE_KEY."
-    );
+  // private_key normally already has real newlines after JSON.parse,
+  // but this is harmless if they were escaped.
+  if (serviceAccount.private_key) {
+    serviceAccount.private_key = serviceAccount.private_key.replace(/\\n/g, "\n");
   }
-
-  // Fix escaped newlines if coming from env
-  privateKey = privateKey.replace(/\\n/g, "\n");
 
   return initializeApp({
-    credential: cert({
-      projectId,
-      clientEmail,
-      privateKey,
-    }),
+    credential: cert(serviceAccount as any),
   });
 }
 
