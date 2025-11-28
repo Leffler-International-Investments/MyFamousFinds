@@ -69,7 +69,7 @@ export default function MyOrdersPage() {
   }, []);
 
   return (
-    <div className="dark-theme-page">
+    <div>
       <Head>
         <title>My Orders - Famous Finds</title>
       </Head>
