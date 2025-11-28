@@ -1,4 +1,4 @@
-// FILE: pages/buyer/signin.tsx
+// FILE: /pages/buyer/signin.tsx
 
 import { useState, useEffect } from "react";
 import Head from "next/head";
@@ -34,6 +34,7 @@ export default function BuyerSignInPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [resetSent, setResetSent] = useState(false);
+  const [resetLoading, setResetLoading] = useState(false);
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, (user) => {
@@ -46,7 +47,7 @@ export default function BuyerSignInPage() {
     e.preventDefault();
     setLoading(true);
     setError(null);
-    setResetSent(false);
+    // keep resetSent banner if it was already shown
 
     const trimmedEmail = email.trim().toLowerCase();
 
@@ -85,6 +86,7 @@ export default function BuyerSignInPage() {
       return;
     }
 
+    setResetLoading(true);
     try {
       await sendPasswordResetEmail(auth, trimmedEmail);
       setResetSent(true);
@@ -93,6 +95,8 @@ export default function BuyerSignInPage() {
       setError(
         "We couldn’t send a reset email. Please double-check the address or try again later."
       );
+    } finally {
+      setResetLoading(false);
     }
   };
 
@@ -106,6 +110,17 @@ export default function BuyerSignInPage() {
       <main className="auth-main">
         <div className="auth-inner">
           <h1 className="auth-title">Sign in</h1>
+
+          {/* ✅ BIG BANNER WHEN RESET EMAIL SENT */}
+          {resetSent && (
+            <div className="auth-banner">
+              Password reset email sent to <strong>{email.trim()}</strong>.{" "}
+              Please check your inbox (and spam/junk) and follow the link to
+              set your password. After that, come back here and sign in.
+            </div>
+          )}
+
+          {error && <p className="auth-error">{error}</p>}
 
           <form onSubmit={handleSubmit} className="auth-form">
             <div className="auth-field">
@@ -130,13 +145,6 @@ export default function BuyerSignInPage() {
               />
             </div>
 
-            {error && <p className="auth-error">{error}</p>}
-            {resetSent && (
-              <p className="auth-info">
-                Password reset email sent. Please check your inbox.
-              </p>
-            )}
-
             <button
               type="submit"
               className="auth-button"
@@ -149,9 +157,9 @@ export default function BuyerSignInPage() {
               type="button"
               className="auth-link-button"
               onClick={handleForgotPassword}
-              disabled={loading}
+              disabled={resetLoading}
             >
-              Forgot password?
+              {resetLoading ? "Sending reset email…" : "Forgot password?"}
             </button>
           </form>
 
@@ -165,6 +173,15 @@ export default function BuyerSignInPage() {
       <Footer />
 
       <style jsx>{`
+        .auth-banner {
+          margin-bottom: 16px;
+          padding: 10px 12px;
+          border-radius: 8px;
+          background: #ecfdf5;
+          border: 1px solid #16a34a;
+          color: #14532d;
+          font-size: 0.9rem;
+        }
         .auth-link-button {
           margin-top: 8px;
           background: none;
@@ -173,6 +190,10 @@ export default function BuyerSignInPage() {
           font-size: 0.875rem;
           cursor: pointer;
           text-decoration: underline;
+        }
+        .auth-link-button:disabled {
+          opacity: 0.6;
+          cursor: default;
         }
       `}</style>
     </>
