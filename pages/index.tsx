@@ -1,14 +1,13 @@
 // FILE: /pages/index.tsx
 
 import Head from "next/head";
-import Link from "next/link"; // Added import for Link
+import Link from "next/link";
 import type { GetServerSideProps, NextPage } from "next";
 
 import Header from "../components/Header";
 import Footer from "../components/Footer";
 import DemoGrid from "../components/DemoGrid";
 import HomepageButler from "../components/HomepageButler";
-import { ProductLike } from "../components/ProductCard";
 import { adminDb } from "../utils/firebaseAdmin";
 
 // --------------------------------------------------
@@ -16,8 +15,8 @@ import { adminDb } from "../utils/firebaseAdmin";
 // --------------------------------------------------
 
 type HomeProps = {
-  trending: ProductLike[];
-  newArrivals: ProductLike[];
+  trending: any[];
+  newArrivals: any[];
 };
 
 const HomePage: NextPage<HomeProps> = ({ trending, newArrivals }) => {
@@ -161,9 +160,6 @@ export default HomePage;
 // --------------------------------------------------
 
 export const getServerSideProps: GetServerSideProps<HomeProps> = async () => {
-  // Fetch some sample products from Firestore for the demo grid.
-  // This is just a light demo query; management pages use more complex filters.
-
   const snapshot = await adminDb
     .collection("listings")
     .where("status", "==", "approved")
@@ -171,7 +167,7 @@ export const getServerSideProps: GetServerSideProps<HomeProps> = async () => {
     .limit(40)
     .get();
 
-  let items: ProductLike[] = snapshot.docs.map((doc) => {
+  const items: any[] = snapshot.docs.map((doc) => {
     const data = doc.data() as any;
 
     return {
@@ -192,7 +188,6 @@ export const getServerSideProps: GetServerSideProps<HomeProps> = async () => {
     };
   });
 
-  // Split into "trending" and "new arrivals" for the demo grid
   const newArrivals = items.slice(0, 8);
   let trending = [...items]
     .sort((a, b) => {
