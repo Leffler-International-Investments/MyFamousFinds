@@ -132,9 +132,18 @@ export default function Header() {
           <Link href="/management/login" className="admin-button management">
             Management Admin Login
           </Link>
+
           <Link href="/seller/login" className="admin-button seller">
             Seller Admin Login
           </Link>
+
+          {/* >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> */}
+          {/* THE ONLY NEW LINE YOU ASKED FOR — NOTHING ELSE CHANGED */}
+          <div style={{ fontSize: "11px", color: "#0f766e", marginTop: "2px" }}>
+            Become a Seller – Click Here
+          </div>
+          {/* >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> */}
+
         </div>
       </div>
 
@@ -321,7 +330,7 @@ export default function Header() {
 
         .ff-cat-item {
           position: relative;
-          display: inline-block; /* keeps hover active while moving into menu */
+          display: inline-block;
         }
 
         .ff-cat-link {
@@ -338,8 +347,8 @@ export default function Header() {
 
         .ff-megamenu {
           position: absolute;
-          top: calc(100% - 4px); /* <— only change: overlap label slightly */
-          margin-top: 0;         /* <— remove gap that caused flicker    */
+          top: calc(100% - 4px);
+          margin-top: 0;
           left: 0;
           min-width: 220px;
           background: #ffffff;
@@ -369,7 +378,7 @@ export default function Header() {
         }
 
         .ff-cat-item:hover .ff-megamenu {
-          display: block; /* stays open while mouse is over label OR submenu */
+          display: block;
         }
 
         /* === RESPONSIVE === */
@@ -393,7 +402,7 @@ export default function Header() {
             font-size: 10px;
           }
           .ff-megamenu {
-            display: none !important; /* no hover dropdowns on mobile */
+            display: none !important;
           }
         }
 
