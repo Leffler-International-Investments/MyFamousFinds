@@ -1,4 +1,4 @@
-// FILE: pages/buyer/signup.tsx
+// FILE: /pages/buyer/signup.tsx
 
 import { useState } from "react";
 import Head from "next/head";
@@ -7,7 +7,7 @@ import { useRouter } from "next/router";
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
 
-import { initializeApp, getApps, getApp } from "firebase/app";
+import firebaseApp from "../../utils/firebaseClient";
 import {
   getAuth,
   createUserWithEmailAndPassword,
@@ -19,18 +19,8 @@ import {
   serverTimestamp,
 } from "firebase/firestore";
 
-const firebaseConfig = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY as string,
-  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN as string,
-  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID as string,
-  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET as string,
-  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID as string,
-  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID as string,
-};
-
-const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
-const auth = getAuth(app);
-const db = getFirestore(app);
+const auth = getAuth(firebaseApp);
+const db = getFirestore(firebaseApp);
 
 export default function BuyerSignUpPage() {
   const router = useRouter();
@@ -66,7 +56,7 @@ export default function BuyerSignUpPage() {
 
       if (code === "auth/email-already-in-use") {
         setError(
-          "An account with this email already exists. Please sign in instead or use “Forgot password” on the sign-in page."
+          'An account with this email already exists. Please sign in instead or use "Forgot password" on the sign-in page.'
         );
       } else if (code === "auth/weak-password") {
         setError("Password is too weak. Please use at least 6 characters.");
@@ -86,6 +76,8 @@ export default function BuyerSignUpPage() {
       <main className="auth-main">
         <div className="auth-inner">
           <h1 className="auth-title">Create account</h1>
+
+          {error && <p className="auth-error">{error}</p>}
 
           <form onSubmit={handleSubmit} className="auth-form">
             <div className="auth-field">
@@ -120,8 +112,6 @@ export default function BuyerSignUpPage() {
                 minLength={6}
               />
             </div>
-
-            {error && <p className="auth-error">{error}</p>}
 
             <button type="submit" className="auth-button">
               Create account
