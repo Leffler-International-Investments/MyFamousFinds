@@ -7,6 +7,7 @@ import { useRouter } from "next/router";
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
 
+// 🔥 IMPORTANT: use the SAME Firebase client as Seller & Management
 import firebaseApp from "../../utils/firebaseClient";
 import {
   getAuth,
@@ -19,6 +20,7 @@ const auth = getAuth(firebaseApp);
 
 export default function BuyerSignInPage() {
   const router = useRouter();
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -45,18 +47,15 @@ export default function BuyerSignInPage() {
       router.push("/buyer/dashboard");
     } catch (err: any) {
       console.error("buyer_signin_error", err);
-      const code = err?.code as string | undefined;
 
-      if (code === "auth/invalid-credential" || code === "auth/wrong-password") {
-        setError("Email or password is incorrect. Please try again.");
-      } else if (code === "auth/user-not-found") {
-        setError(
-          "We couldn’t find an account with this email. Please create a free buyer account."
-        );
+      const code = err?.code;
+
+      if (code === "auth/user-not-found") {
+        setError("No account found for this email. Please sign up.");
+      } else if (code === "auth/wrong-password" || code === "auth/invalid-credential") {
+        setError("Email or password is incorrect. Try again or reset your password.");
       } else if (code === "auth/too-many-requests") {
-        setError(
-          "Too many unsuccessful attempts. Please wait a moment or reset your password."
-        );
+        setError("Too many attempts. Reset your password.");
       } else {
         setError("Unable to sign you in right now. Please try again.");
       }
@@ -66,24 +65,23 @@ export default function BuyerSignInPage() {
   };
 
   const handleForgotPassword = async () => {
-    setError(null);
     setResetSent(false);
+    setResetLoading(true);
+    setError(null);
 
     const trimmedEmail = email.trim().toLowerCase();
     if (!trimmedEmail) {
-      setError('Enter your email above and then click "Forgot password".');
+      setError("Enter your email first, then click Forgot Password.");
+      setResetLoading(false);
       return;
     }
 
-    setResetLoading(true);
     try {
       await sendPasswordResetEmail(auth, trimmedEmail);
       setResetSent(true);
-    } catch (err: any) {
+    } catch (err) {
       console.error("buyer_reset_error", err);
-      setError(
-        "We couldn’t send a reset email. Please double-check the address or try again later."
-      );
+      setError("Unable to send reset email. Try again.");
     } finally {
       setResetLoading(false);
     }
@@ -94,24 +92,39 @@ export default function BuyerSignInPage() {
       <Head>
         <title>Sign in | Famous Finds</title>
       </Head>
+
       <Header />
 
       <main className="auth-main">
         <div className="auth-inner">
+
           <h1 className="auth-title">Sign in</h1>
 
-          {/* Banner when reset email sent */}
           {resetSent && (
             <div className="auth-banner">
-              Password reset email sent to <strong>{email.trim()}</strong>.{" "}
-              Please check your inbox (and spam/junk) and follow the link to set
-              your password. Then return here and sign in.
+              Password reset email sent to <strong>{email}</strong>.  
+              Check your inbox and follow the link.
             </div>
           )}
 
-          {error && <p className="auth-error">{error}</p>}
+          {error && (
+            <div className="auth-error-box">
+              {error}
+
+              <div className="auth-error-actions">
+                <Link href="/buyer/signin?forgot=true" className="auth-btn forgot">
+                  Forgot Password
+                </Link>
+
+                <Link href="/buyer/signup" className="auth-btn signup">
+                  Create Account
+                </Link>
+              </div>
+            </div>
+          )}
 
           <form onSubmit={handleSubmit} className="auth-form">
+
             <div className="auth-field">
               <label className="auth-label">Email</label>
               <input
@@ -134,11 +147,7 @@ export default function BuyerSignInPage() {
               />
             </div>
 
-            <button
-              type="submit"
-              className="auth-button"
-              disabled={loading}
-            >
+            <button className="auth-button" type="submit" disabled={loading}>
               {loading ? "Signing in…" : "Sign in"}
             </button>
 
@@ -148,14 +157,14 @@ export default function BuyerSignInPage() {
               onClick={handleForgotPassword}
               disabled={resetLoading}
             >
-              {resetLoading ? "Sending reset email…" : "Forgot password?"}
+              {resetLoading ? "Sending…" : "Forgot password?"}
             </button>
           </form>
 
           <p className="auth-switch">
-            Don&apos;t have an account yet?{" "}
-            <Link href="/buyer/signup">Create a free buyer account</Link>
+            Don’t have an account? <Link href="/buyer/signup">Create one</Link>
           </p>
+
         </div>
       </main>
 
@@ -163,26 +172,44 @@ export default function BuyerSignInPage() {
 
       <style jsx>{`
         .auth-banner {
-          margin-bottom: 16px;
-          padding: 10px 12px;
-          border-radius: 8px;
           background: #ecfdf5;
           border: 1px solid #16a34a;
+          padding: 12px;
+          border-radius: 6px;
           color: #14532d;
-          font-size: 0.9rem;
+          margin-bottom: 12px;
         }
-        .auth-link-button {
-          margin-top: 8px;
-          background: none;
-          border: none;
-          color: #f97316;
-          font-size: 0.875rem;
+
+        .auth-error-box {
+          background: #fff1f1;
+          border: 1px solid #ffcccc;
+          padding: 12px;
+          border-radius: 6px;
+          margin-bottom: 12px;
+        }
+
+        .auth-error-actions {
+          margin-top: 10px;
+          display: flex;
+          gap: 10px;
+        }
+
+        .auth-btn {
+          flex: 1;
+          padding: 10px;
+          text-align: center;
+          border-radius: 6px;
+          color: white;
+          font-weight: 600;
           cursor: pointer;
-          text-decoration: underline;
         }
-        .auth-link-button:disabled {
-          opacity: 0.6;
-          cursor: default;
+
+        .forgot {
+          background: #1f2937;
+        }
+
+        .signup {
+          background: #f97316;
         }
       `}</style>
     </>
