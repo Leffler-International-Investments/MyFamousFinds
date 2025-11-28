@@ -1,7 +1,7 @@
 // FILE: /pages/index.tsx
 
 import Head from "next/head";
-import Link from "next/link"; // Added import for Link
+import Link from "next/link";
 import type { GetServerSideProps, NextPage } from "next";
 
 import Header from "../components/Header";
@@ -47,6 +47,12 @@ const Home: NextPage<HomeProps> = ({ trending, newArrivals }) => {
     <div className="home-wrapper">
       <Head>
         <title>Famous Finds — Shop authenticated designer pieces</title>
+        
+        {/* Google Search Console */}
+        <meta name="google-site-verification" content="RQh6GnJJ4BngX_4si1xGlYpnL9_7Z5srwkz1P3YSrhk" />
+
+        {/* Bing Webmaster Tools */}
+        <meta name="msvalidate.01" content="1A5F9E495867B41926D6E2C113347122" />
       </Head>
 
       <Header />
