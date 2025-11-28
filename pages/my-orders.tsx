@@ -163,9 +163,10 @@ export default function MyOrdersPage() {
       <style jsx>{`
         .sell-card {
           background: #ffffff;
-          border-radius: 16px;
-          padding: 18px 18px 20px;
-          border: 1px solid #e5e7eb;
+          border-radius: 24px;
+          padding: 22px 22px 24px;
+          border: 1px solid #f3f4f6;
+          box-shadow: 0 18px 45px rgba(15, 23, 42, 0.06);
         }
         .table-overflow-wrapper {
           overflow-x: auto;
@@ -178,7 +179,7 @@ export default function MyOrdersPage() {
         }
         .catalogue-table th,
         .catalogue-table td {
-          padding: 10px 12px;
+          padding: 12px 14px;
           text-align: left;
           border-bottom: 1px solid #e5e7eb;
         }
@@ -194,7 +195,7 @@ export default function MyOrdersPage() {
         .table-message {
           text-align: center;
           color: #6b7280;
-          padding: 24px;
+          padding: 28px;
         }
         .table-message-small {
           font-size: 11px;
@@ -204,7 +205,7 @@ export default function MyOrdersPage() {
           display: inline-flex;
           align-items: center;
           justify-content: center;
-          padding: 4px 12px;
+          padding: 5px 14px;
           border-radius: 999px;
           border: 1px solid #d1d5db;
           font-size: 12px;
