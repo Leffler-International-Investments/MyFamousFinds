@@ -301,24 +301,34 @@ export default function IndexPage({
                   <p>No listings yet – once you add items, they&apos;ll appear here.</p>
                 ) : (
                   <div className="trend-grid">
-                    {trendingListings.map((listing) => (
-                      <article key={listing.id} className="trend-card">
-                        <div className="trend-image-wrapper">
-                          {/* ✅ FIX: pass listing props directly instead of product={listing} */}
-                          <ProductCard {...listing} />
-                        </div>
-                        <div className="trend-body">
-                          <div className="trend-title">{listing.title}</div>
-                          <div className="trend-meta">
-                            {listing.designer && <span>{listing.designer}</span>}
-                            {listing.category && <span> · {listing.category}</span>}
+                    {trendingListings.map((listing) => {
+                      // Cast so we can safely read extra Firestore fields
+                      const meta = listing as any;
+
+                      const price =
+                        typeof meta.price === "number"
+                          ? `US$${meta.price.toLocaleString()}`
+                          : typeof meta.price === "string"
+                          ? meta.price
+                          : "";
+
+                      return (
+                        <article key={listing.id} className="trend-card">
+                          <div className="trend-image-wrapper">
+                            {/* pass listing props directly */}
+                            <ProductCard {...listing} />
                           </div>
-                          <div className="trend-price">
-                            {listing.price ? `US$${listing.price.toLocaleString()}` : ""}
+                          <div className="trend-body">
+                            <div className="trend-title">{listing.title}</div>
+                            <div className="trend-meta">
+                              {meta.designer && <span>{meta.designer}</span>}
+                              {meta.category && <span> · {meta.category}</span>}
+                            </div>
+                            {price && <div className="trend-price">{price}</div>}
                           </div>
-                        </div>
-                      </article>
-                    ))}
+                        </article>
+                      );
+                    })}
                   </div>
                 )}
               </section>
