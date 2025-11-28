@@ -162,10 +162,10 @@ export default function MyOrdersPage() {
 
       <style jsx>{`
         .sell-card {
-          background: #111827;
+          background: #ffffff;
           border-radius: 16px;
           padding: 18px 18px 20px;
-          border: 1px solid #1f2937;
+          border: 1px solid #e5e7eb;
         }
         .table-overflow-wrapper {
           overflow-x: auto;
@@ -174,31 +174,31 @@ export default function MyOrdersPage() {
           width: 100%;
           border-collapse: collapse;
           font-size: 14px;
-          color: #e5e7eb;
+          color: #111827;
         }
         .catalogue-table th,
         .catalogue-table td {
           padding: 10px 12px;
           text-align: left;
-          border-bottom: 1px solid #374151;
+          border-bottom: 1px solid #e5e7eb;
         }
         .catalogue-table th {
           font-size: 12px;
           text-transform: uppercase;
-          color: #9ca3af;
-          font-weight: 500;
+          color: #6b7280;
+          font-weight: 600;
         }
         .catalogue-table tr:last-child td {
           border-bottom: none;
         }
         .table-message {
           text-align: center;
-          color: #9ca3af;
+          color: #6b7280;
           padding: 24px;
         }
         .table-message-small {
           font-size: 11px;
-          color: #9ca3af;
+          color: #6b7280;
         }
         .btn-table-view {
           display: inline-flex;
@@ -206,15 +206,15 @@ export default function MyOrdersPage() {
           justify-content: center;
           padding: 4px 12px;
           border-radius: 999px;
-          border: 1px solid #374151;
+          border: 1px solid #d1d5db;
           font-size: 12px;
           font-weight: 500;
           text-decoration: none;
-          color: #e5e7eb;
-          background: #1f2937;
+          color: #111827;
+          background: #f9fafb;
         }
         .btn-table-view:hover {
-          border-color: #6b7280;
+          border-color: #9ca3af;
         }
       `}</style>
     </div>
