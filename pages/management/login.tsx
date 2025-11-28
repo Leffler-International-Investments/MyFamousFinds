@@ -1,5 +1,4 @@
 // FILE: /pages/management/login.tsx
-
 import Head from "next/head";
 import Link from "next/link";
 import { useRouter } from "next/router";
@@ -7,27 +6,8 @@ import { FormEvent, useState } from "react";
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
 import PasswordInput from "../../components/PasswordInput";
-
-type LoginSuccess = { ok: true; managementId?: string };
-type LoginError = {
-  ok: false;
-  code: "bad_credentials" | "pending" | "not_authorised" | string;
-  message?: string;
-};
-type LoginResponse = LoginSuccess | LoginError;
-
-type Start2faSuccess = {
-  ok: true;
-  challengeId: string;
-  via: "sms" | "email";
-  devCode?: string;
-};
-type Start2faError = { ok: false; message?: string };
-type Start2faResponse = Start2faSuccess | Start2faError;
-
-type Verify2faSuccess = { ok: true };
-type Verify2faError = { ok: false; message?: string };
-type Verify2faResponse = Verify2faSuccess | Verify2faError;
+import { getAuth, signInWithEmailAndPassword } from "firebase/auth";
+import firebaseApp from "../../utils/firebaseClient";
 
 type TwoFactorStep = "credentials" | "verify";
 
@@ -52,7 +32,7 @@ export default function ManagementLoginPage() {
     setError(null);
     setInfo(null);
 
-    const trimmedEmail = email.trim().toLowerCase();
+    const trimmedEmail = email.toLowerCase().trim();
     if (!trimmedEmail || !password) {
       setError("Please enter your email and password.");
       return;
@@ -60,46 +40,10 @@ export default function ManagementLoginPage() {
 
     setLoading(true);
     try {
-      // 1) SERVER-SIDE MANAGEMENT LOGIN (mirrors seller login)
-      const res = await fetch("/api/management/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: trimmedEmail, password }),
-      });
-      const json = (await res.json()) as LoginResponse;
+      const auth = getAuth(firebaseApp);
+      await signInWithEmailAndPassword(auth, trimmedEmail, password);
 
-      if (!json.ok) {
-        const errJson = json as LoginError;
-
-        if (errJson.code === "pending") {
-          setError("");
-          setInfo(
-            "Your management access is still under review. We'll email you as soon as it is approved."
-          );
-          return;
-        }
-
-        if (errJson.code === "not_authorised") {
-          setError(
-            "This account is not authorised for management access. Please contact the site owner."
-          );
-          return;
-        }
-
-        if (errJson.code === "bad_credentials") {
-          setError("Incorrect email or password. Please try again.");
-          return;
-        }
-
-        setError(
-          errJson.message ||
-            "We couldn't sign you in. Please check your details and try again."
-        );
-        return;
-      }
-
-      // 2) START 2FA (same pattern as Seller login)
-      const twofaRes = await fetch("/api/auth/start-2fa", {
+      const res = await fetch("/api/auth/start-2fa", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -109,28 +53,31 @@ export default function ManagementLoginPage() {
         }),
       });
 
-      const twofaJson = (await twofaRes.json()) as Start2faResponse;
+      const json = await res.json();
 
-      if (!twofaJson.ok) {
-        const errJson = twofaJson as Start2faError;
+      if (!json.ok) {
         setError(
-          errJson.message ||
+          json.message ||
             "We couldn't start the verification process. Please try again."
         );
+        setLoading(false);
         return;
       }
 
-      setChallengeId(twofaJson.challengeId);
+      setChallengeId(json.challengeId);
       setStep("verify");
 
       let message = "We've sent a 6-digit code to your email address.";
-      if ((twofaJson as Start2faSuccess).devCode) {
-        message += ` (Dev code: ${(twofaJson as Start2faSuccess).devCode})`;
+      if (json.devCode) {
+        message += ` (Dev code: ${json.devCode})`;
       }
       setInfo(message);
-    } catch (err) {
+    } catch (err: any) {
       console.error("management_login_error", err);
-      setError("Unexpected error. Please try again.");
+      setError(
+        err?.message ||
+          "Unable to sign you in. Please check your details and try again."
+      );
     } finally {
       setLoading(false);
     }
@@ -139,14 +86,17 @@ export default function ManagementLoginPage() {
   async function handleVerifySubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError(null);
+    setInfo(null);
 
     if (!challengeId) {
-      setError("Your verification session has expired. Please log in again.");
+      setError("Your verification session has expired. Please start again.");
       setStep("credentials");
       return;
     }
-    if (!code.trim()) {
-      setError("Please enter the verification code.");
+
+    const trimmedCode = code.trim();
+    if (!trimmedCode || trimmedCode.length < 6) {
+      setError("Please enter the 6-digit code.");
       return;
     }
 
@@ -157,14 +107,15 @@ export default function ManagementLoginPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           challengeId,
-          code: code.trim(),
+          code: trimmedCode,
         }),
       });
-      const json = (await res.json()) as Verify2faResponse;
+
+      const json = await res.json();
 
       if (!json.ok) {
-        const errJson = json as Verify2faError;
-        setError(errJson.message || "Incorrect or expired code.");
+        setError(json.message || "Incorrect or expired code.");
+        setLoading(false);
         return;
       }
 
@@ -174,9 +125,12 @@ export default function ManagementLoginPage() {
       }
 
       router.push(from || "/management/dashboard");
-    } catch (err) {
+    } catch (err: any) {
       console.error("management_verify_2fa_error", err);
-      setError("Unable to verify the code. Please try again.");
+      setError(
+        err?.message ||
+          "Unable to verify the code. Please check and try again."
+      );
     } finally {
       setLoading(false);
     }
@@ -232,7 +186,7 @@ export default function ManagementLoginPage() {
                     disabled={disabled}
                     className="auth-button-primary"
                   >
-                    {loading ? "Checking..." : "Sign In"}
+                    {loading ? "Processing..." : "Sign In"}
                   </button>
                 </div>
               </form>
@@ -256,6 +210,7 @@ export default function ManagementLoginPage() {
                       disabled={disabled}
                     />
                   </div>
+
                   <button
                     type="submit"
                     disabled={disabled}
