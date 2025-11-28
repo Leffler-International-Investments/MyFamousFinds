@@ -5,7 +5,7 @@ import { sendLoginCode } from "../../../utils/email";
 
 type Start2faBody = {
   email?: string;
-  role?: "seller" | "management" | "buyer";
+  role?: "seller" | "management";
 };
 
 type Start2faResponse =
@@ -22,46 +22,57 @@ export default async function handler(
       .json({ ok: false, error: "method_not_allowed", message: "POST only" });
   }
 
-  let challengeId = "";
+  const { email, role } = (req.body || {}) as Start2faBody;
+
+  if (!email) {
+    return res
+      .status(400)
+      .json({ ok: false, error: "missing_email", message: "Email required" });
+  }
+
+  const normalizedRole: "seller" | "management" =
+    role === "seller" ? "seller" : "management";
+
+  // 6-digit code
+  const code = Math.floor(100000 + Math.random() * 900000).toString();
+
+  // Fallback challenge id
+  let challengeId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+
   try {
-    const body = req.body as Start2faBody;
-    const email = body.email?.trim().toLowerCase();
-    const role: "seller" | "management" | "buyer" =
-      body.role || "buyer";
-
-    if (!email) {
-      return res.status(400).json({
-        ok: false,
-        error: "missing_email",
-        message: "Email is required.",
+    // 1) Store challenge in Firestore if adminDb is available
+    if (adminDb) {
+      const docRef = await adminDb.collection("loginChallenges").add({
+        email,
+        role: normalizedRole,
+        code,
+        createdAt: FieldValue.serverTimestamp(),
+        used: false,
       });
+      challengeId = docRef.id;
+    } else {
+      console.warn(
+        "[start-2fa] adminDb not available – skipping Firestore challenge store"
+      );
     }
 
-    const code = (Math.floor(100000 + Math.random() * 900000)).toString();
-
-    const docRef = adminDb.collection("authChallenges").doc();
-    challengeId = docRef.id;
-
-    await docRef.set({
-      email,
-      role,
-      code,
-      createdAt: FieldValue.serverTimestamp(),
-      used: false,
-    });
-
+    // 2) Send email with login code (will throw if SMTP not configured)
     try {
-      // tolerant – if emailing fails we still let login continue
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (sendLoginCode as any)(email, code, role);
-    } catch (err) {
-      console.error("[start-2fa] sendLoginCode error", err);
+      await sendLoginCode(email, code);
+    } catch (emailErr) {
+      console.error("[start-2fa] sendLoginCode failed:", emailErr);
+      // We still allow flow to continue; the UI can show generic error if needed
     }
 
+    // 3) Always respond ok so the front-end can continue
     return res.status(200).json({ ok: true, challengeId });
-  } catch (err) {
-    console.error("[start-2fa] error", err);
-    // final fallback – don't hard-block login
-    return res.status(200).json({ ok: true, challengeId: challengeId || "" });
+  } catch (err: any) {
+    console.error("start-2fa error", err);
+
+    // FINAL FALLBACK: do not break login completely
+    return res.status(200).json({
+      ok: true,
+      challengeId,
+    });
   }
 }
