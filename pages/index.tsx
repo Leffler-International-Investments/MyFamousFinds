@@ -2,408 +2,209 @@
 
 import Head from "next/head";
 import Link from "next/link";
-import { useRouter } from "next/router";
-import { useState } from "react";
-import { GetServerSideProps } from "next";
+import type { GetServerSideProps, NextPage } from "next";
 
 import Header from "../components/Header";
 import Footer from "../components/Footer";
-import ProductCard, { ProductLike } from "../components/ProductCard";
+import DemoGrid from "../components/DemoGrid";
+import HomepageButler from "../components/HomepageButler";
 import { adminDb } from "../utils/firebaseAdmin";
 
-type IndexPageProps = {
-  liveCount: number;
-  designersCount: number;
-  activeOffersCount: number;
-  newThisWeekCount: number;
-  latestListings: ProductLike[];
-  trendingListings: ProductLike[];
+// --------------------------------------------------
+// Types
+// --------------------------------------------------
+
+type HomeProps = {
+  trending: any[];
+  newArrivals: any[];
 };
 
-export const getServerSideProps: GetServerSideProps<IndexPageProps> = async () => {
-  try {
-    const listingsRef = adminDb.collection("listings");
-
-    const snapshot = await listingsRef.get();
-    const allListings = snapshot.docs.map((doc) => {
-      const data = doc.data();
-      return {
-        id: doc.id,
-        ...data,
-        createdAt: data.createdAt ? data.createdAt.toDate().toISOString() : null,
-      } as any;
-    });
-
-    const liveListings = allListings.filter((l) => l.status === "live");
-    const liveCount = liveListings.length;
-
-    const designersSet = new Set<string>();
-    let activeOffersCount = 0;
-
-    liveListings.forEach((listing) => {
-      if (listing.designer) {
-        designersSet.add(listing.designer);
-      }
-      if (Array.isArray(listing.offers)) {
-        activeOffersCount += listing.offers.filter(
-          (offer: any) => offer.status === "pending" || offer.status === "accepted"
-        ).length;
-      }
-    });
-
-    const designersCount = designersSet.size;
-
-    const oneWeekAgo = new Date();
-    oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
-    const newThisWeek = liveListings.filter((listing) => {
-      if (!listing.createdAt) return false;
-      const createdDate = new Date(listing.createdAt);
-      return createdDate >= oneWeekAgo;
-    });
-    const newThisWeekCount = newThisWeek.length;
-
-    const latestListings = liveListings
-      .slice()
-      .sort((a, b) => {
-        const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-        const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-        return dateB - dateA;
-      })
-      .slice(0, 6);
-
-    const trendingListings = liveListings
-      .slice()
-      .sort((a, b) => {
-        const offersA = Array.isArray(a.offers)
-          ? a.offers.filter((o: any) => o.status === "pending" || o.status === "accepted").length
-          : 0;
-        const offersB = Array.isArray(b.offers)
-          ? b.offers.filter((o: any) => o.status === "pending" || o.status === "accepted").length
-          : 0;
-        return offersB - offersA;
-      })
-      .slice(0, 6);
-
-    return {
-      props: {
-        liveCount,
-        designersCount,
-        activeOffersCount,
-        newThisWeekCount,
-        latestListings,
-        trendingListings,
-      },
-    };
-  } catch (error) {
-    console.error("Error loading home page stats:", error);
-    return {
-      props: {
-        liveCount: 0,
-        designersCount: 0,
-        activeOffersCount: 0,
-        newThisWeekCount: 0,
-        latestListings: [],
-        trendingListings: [],
-      },
-    };
-  }
-};
-
-export default function IndexPage({
-  liveCount,
-  designersCount,
-  activeOffersCount,
-  newThisWeekCount,
-  latestListings,
-  trendingListings,
-}: IndexPageProps) {
-  const router = useRouter();
-  const [search, setSearch] = useState("");
-  const [searching, setSearching] = useState(false);
-
-  const handleSearch = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!search.trim()) return;
-    setSearching(true);
-    try {
-      await router.push(`/search?q=${encodeURIComponent(search.trim())}`);
-    } finally {
-      setSearching(false);
-    }
-  };
-
-  const formatCompact = (n: number) => {
-    if (n >= 1000000) return `${(n / 1000000).toFixed(1)}M`;
-    if (n >= 1000) return `${(n / 1000).toFixed(1)}k`;
-    return n.toString();
-  };
-
+const HomePage: NextPage<HomeProps> = ({ trending, newArrivals }) => {
   return (
     <>
       <Head>
-        <title>Famous Finds – Shop authenticated designer pieces</title>
+        <title>Famous Finds — Shop authenticated designer pieces</title>
+        {/* Google Search Console */}
         <meta
-          name="description"
-          content="Discover curated, authenticated pre-loved designer bags, jewelry, watches and ready-to-wear from trusted sellers. Every piece is vetted so you can buy with confidence."
+          name="google-site-verification"
+          content="RQh6GnJJ4BngX_4si1xGlYpnL9_7Z5srwkz1P3YSrhk"
+        />
+        {/* Bing Webmaster Tools */}
+        <meta
+          name="msvalidate.01"
+          content="1A5F9E495867B41926D6E2C113347122"
         />
       </Head>
 
       <Header />
 
-      <main className="page">
-        <div className="page-inner">
-          {/* HERO */}
-          <section className="hero">
-            <div className="hero-content">
-              <div className="hero-copy">
-                <p className="hero-kicker">Curated pre-loved luxury</p>
-                <h1 className="hero-title">
-                  Discover, save &amp; shop authenticated designer pieces.
-                </h1>
-                <p className="hero-subtitle">
-                  Browse a hand-picked selection of bags, jewelry, watches and ready-to-wear
-                  from trusted sellers. Every piece is reviewed so you can shop with confidence.
-                </p>
+      <main className="wrap">
+        {/* HERO + SNAPSHOT */}
+        <section className="hero">
+          <div className="hero-copy">
+            <p className="eyebrow">Curated pre-loved luxury</p>
+            <h1>Discover, save &amp; shop authenticated designer pieces.</h1>
+            <p className="hero-sub">
+              Browse a hand-picked selection of bags, jewelry, watches and
+              ready-to-wear from trusted sellers. Every piece is reviewed so you
+              can shop with confidence.
+            </p>
 
-                <div className="hero-ctas">
-                  <Link href="/category/new-arrivals" className="btn-primary">
-                    Browse New Arrivals
-                  </Link>
-                  <Link href="/sell" className="btn-secondary">
-                    Apply to Sell
-                  </Link>
-                </div>
+            <div className="hero-actions">
+              <Link href="/catalogue" className="btn btn-primary">
+                Browse New Arrivals
+              </Link>
+              <Link href="/sell" className="btn btn-secondary">
+                Apply to Sell
+              </Link>
+            </div>
+          </div>
 
-                <div className="hero-metrics">
-                  <div className="hero-metric">
-                    <span className="metric-label">Live listings</span>
-                    <span className="metric-value">{formatCompact(liveCount)}</span>
-                    <span className="metric-caption">All authenticated &amp; vetted</span>
-                  </div>
-                  <div className="hero-metric">
-                    <span className="metric-label">Designers</span>
-                    <span className="metric-value">{formatCompact(designersCount)}</span>
-                    <span className="metric-caption">Chanel, Hermès, Rolex &amp; more</span>
-                  </div>
-                  <div className="hero-metric">
-                    <span className="metric-label">Active offers</span>
-                    <span className="metric-value">{formatCompact(activeOffersCount)}</span>
-                    <span className="metric-caption">Serious buyers only</span>
-                  </div>
-                </div>
+          <div className="hero-snapshot">
+            <div className="snapshot-card">
+              <h2>Today&apos;s Snapshot</h2>
+              <div className="snapshot-row">
+                <span>Live Listings</span>
+                <strong>1,284</strong>
               </div>
-
-              <div className="hero-image">
-                <div className="hero-image-inner" />
+              <div className="snapshot-row">
+                <span>New this week</span>
+                <strong>96</strong>
+              </div>
+              <div className="snapshot-row">
+                <span>Top Designers</span>
+                <strong>Chanel, Hermès, Rolex</strong>
+              </div>
+              <div className="snapshot-row">
+                <span>Active Offers</span>
+                <strong>214</strong>
               </div>
             </div>
+          </div>
+        </section>
 
-            <form className="hero-search" onSubmit={handleSearch}>
-              <input
-                type="search"
-                placeholder="Search by designer, style or keyword…"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-              />
-              <button type="submit" disabled={searching}>
-                {searching ? "Searching…" : "Search"}
-              </button>
-            </form>
-          </section>
+        {/* DEMO GRID (TRENDING & NEW ARRIVALS) */}
+        <section className="demo-grid-section">
+          <h2 className="section-title">Trending now</h2>
+          <p className="section-subtitle">
+            A taste of how your catalogue and listings will appear to buyers.
+          </p>
+          <DemoGrid trending={trending} newArrivals={newArrivals} />
+        </section>
 
-          {/* SNAPSHOT BAR */}
-          <section className="stats-bar">
-            <div className="stat-item">
-              <span className="stat-label">Live Listings</span>
-              <span className="stat-value">{liveCount.toLocaleString()}</span>
+        {/* HOW IT WORKS */}
+        <section className="how-it-works">
+          <h2>How Famous Finds works</h2>
+          <div className="how-grid">
+            <div className="how-card">
+              <h3>1. Sellers apply</h3>
+              <p>
+                Sellers submit their details and sample items. Our team reviews
+                each seller before they can list, helping to keep quality high.
+              </p>
             </div>
-            <div className="stat-item">
-              <span className="stat-label">New this week</span>
-              <span className="stat-value">{newThisWeekCount.toLocaleString()}</span>
+            <div className="how-card">
+              <h3>2. Listings are vetted</h3>
+              <p>
+                Every listing is checked by management before going live. This
+                includes category, pricing, and supporting photos.
+              </p>
             </div>
-            <div className="stat-item">
-              <span className="stat-label">Top Designers</span>
-              <span className="stat-value">Chanel, Hermès, Rolex</span>
+            <div className="how-card">
+              <h3>3. Buyers shop safely</h3>
+              <p>
+                Buyers can browse, save to wishlist, and purchase through our
+                secure checkout with clear shipping and returns information.
+              </p>
             </div>
-            <div className="stat-item">
-              <span className="stat-label">Active Offers</span>
-              <span className="stat-value">{activeOffersCount.toLocaleString()}</span>
+            <div className="how-card">
+              <h3>4. Management oversees it all</h3>
+              <p>
+                The management dashboard tracks sellers, orders, disputes,
+                payouts and more—built for a proper marketplace, not a hobby
+                shop.
+              </p>
             </div>
-          </section>
+          </div>
+        </section>
 
-          {/* MAIN GRID */}
-          <section className="content-grid">
-            {/* LEFT / MAIN COLUMN */}
-            <div className="main-column">
-              {/* Snapshot */}
-              <section className="section">
-                <header className="section-header">
-                  <div>
-                    <p className="section-kicker">Today&apos;s Snapshot</p>
-                    <h2 className="section-title">New arrivals &amp; trending now</h2>
-                  </div>
-                  <Link href="/category/new-arrivals" className="section-link">
-                    View all new arrivals
-                  </Link>
-                </header>
-
-                <div className="snapshot-card">
-                  <div className="snapshot-header">
-                    <h3 className="snapshot-title">New in this week</h3>
-                    <span className="snapshot-badge">
-                      +{newThisWeekCount.toLocaleString()} new pieces
-                    </span>
-                  </div>
-
-                  <div className="snapshot-metrics">
-                    <div className="snapshot-metric">
-                      <span className="snapshot-label">Bags</span>
-                      <span className="snapshot-value">Chanel, Hermès, Louis Vuitton</span>
-                    </div>
-                    <div className="snapshot-metric">
-                      <span className="snapshot-label">Watches</span>
-                      <span className="snapshot-value">Rolex, Cartier &amp; more</span>
-                    </div>
-                    <div className="snapshot-metric">
-                      <span className="snapshot-label">Ready-to-wear</span>
-                      <span className="snapshot-value">From classics to statement pieces</span>
-                    </div>
-                  </div>
-
-                  <div className="pill-row">
-                    <Link href="/category/new-arrivals" className="pill">
-                      Shop new arrivals
-                    </Link>
-                    <Link href="/category/bags" className="pill-secondary">
-                      View designer bags
-                    </Link>
-                    <Link href="/category/watches" className="pill-secondary">
-                      Iconic watches
-                    </Link>
-                  </div>
-                </div>
-              </section>
-
-              {/* Trending grid */}
-              <section className="section">
-                <header className="section-header">
-                  <div>
-                    <p className="section-kicker">Trending now</p>
-                    <h2 className="section-title">What buyers are looking at</h2>
-                    <p className="section-body">
-                      A peek at how your catalogue and listings will appear to buyers. Every item
-                      here is live, vetted and ready to purchase.
-                    </p>
-                  </div>
-                </header>
-
-                {trendingListings.length === 0 ? (
-                  <p>No listings yet – once you add items, they&apos;ll appear here.</p>
-                ) : (
-                  <div className="trend-grid">
-                    {trendingListings.map((listing) => {
-                      // Cast so we can safely read extra Firestore fields
-                      const meta = listing as any;
-
-                      const price =
-                        typeof meta.price === "number"
-                          ? `US$${meta.price.toLocaleString()}`
-                          : typeof meta.price === "string"
-                          ? meta.price
-                          : "";
-
-                      return (
-                        <article key={listing.id} className="trend-card">
-                          <div className="trend-image-wrapper">
-                            {/* pass listing props directly */}
-                            <ProductCard {...listing} />
-                          </div>
-                          <div className="trend-body">
-                            <div className="trend-title">{listing.title}</div>
-                            <div className="trend-meta">
-                              {meta.designer && <span>{meta.designer}</span>}
-                              {meta.category && <span> · {meta.category}</span>}
-                            </div>
-                            {price && <div className="trend-price">{price}</div>}
-                          </div>
-                        </article>
-                      );
-                    })}
-                  </div>
-                )}
-              </section>
-
-              {/* How it works */}
-              <section className="section">
-                <header className="section-header">
-                  <div>
-                    <p className="section-kicker">How Famous Finds works</p>
-                    <h2 className="section-title">Built for serious buyers &amp; sellers</h2>
-                  </div>
-                </header>
-
-                <ol className="bullet-list">
-                  <li className="bullet-item">
-                    <span className="bullet-label">1. Sellers apply</span>
-                    <span className="bullet-text">
-                      Sellers submit their details and sample items. Our team reviews each seller
-                      before they can list, helping to keep quality high.
-                    </span>
-                  </li>
-                  <li className="bullet-item">
-                    <span className="bullet-label">2. Listings are vetted</span>
-                    <span className="bullet-text">
-                      Every listing is checked by management before going live. This includes
-                      category, pricing, and supporting photos.
-                    </span>
-                  </li>
-                  <li className="bullet-item">
-                    <span className="bullet-label">3. Buyers shop safely</span>
-                    <span className="bullet-text">
-                      Buyers can browse, save to wishlist, and purchase through our secure checkout
-                      with clear shipping and returns information.
-                    </span>
-                  </li>
-                  <li className="bullet-item">
-                    <span className="bullet-label">4. Management oversees it all</span>
-                    <span className="bullet-text">
-                      The management dashboard tracks sellers, orders, disputes, payouts and more—
-                      built for a proper marketplace, not a hobby shop.
-                    </span>
-                  </li>
-                </ol>
-              </section>
-            </div>
-
-            {/* RIGHT / SIDEBAR */}
-            <aside className="sidebar-column">
-              <section className="sidebar-card">
-                <h3 className="sidebar-title">Are you a seller?</h3>
-                <p className="sidebar-text">
-                  Apply to list your authenticated designer pieces with us. We focus on quality,
-                  clear photos, and accurate descriptions.
-                </p>
-                <Link href="/sell" className="sidebar-link">
-                  Seller Registration
-                </Link>
-              </section>
-
-              <section className="sidebar-card">
-                <h3 className="sidebar-title">My VIP Profile</h3>
-                <p className="sidebar-text">
-                  Save favourites, track orders and get notified when your favourite designers
-                  drop new pieces.
-                </p>
-                <Link href="/dashboard" className="sidebar-link">
-                  Go to Dashboard
-                </Link>
-              </section>
-            </aside>
-          </section>
-        </div>
+        {/* CALL TO ACTION BANNERS */}
+        <section className="cta-row">
+          <div className="cta-card">
+            <h3>Are you a seller?</h3>
+            <p>Apply to list your authenticated designer pieces with us.</p>
+            <Link href="/seller/register" className="btn btn-primary">
+              Seller Registration
+            </Link>
+          </div>
+          <div className="cta-card">
+            <h3>Want to join the VIP club?</h3>
+            <p>Be first to know about rare drops and special offers.</p>
+            <Link href="/club-register" className="btn btn-secondary">
+              Join Famous Finds Club
+            </Link>
+          </div>
+        </section>
       </main>
 
+      <HomepageButler />
       <Footer />
     </>
   );
-}
+};
+
+export default HomePage;
+
+// --------------------------------------------------
+// Server-side data
+// --------------------------------------------------
+
+export const getServerSideProps: GetServerSideProps<HomeProps> = async () => {
+  const snapshot = await adminDb
+    .collection("listings")
+    .where("status", "==", "approved")
+    .orderBy("createdAt", "desc")
+    .limit(40)
+    .get();
+
+  const items: any[] = snapshot.docs.map((doc) => {
+    const data = doc.data() as any;
+
+    return {
+      id: doc.id,
+      title: data.title || "Untitled Piece",
+      designer: data.designer || "Unknown",
+      price: data.price || 0,
+      currency: data.currency || "USD",
+      images: data.images || [],
+      condition: data.condition || "Good",
+      category: data.category || "Other",
+      subcategory: data.subcategory || "",
+      sellerDisplayName: data.sellerDisplayName || "Verified Seller",
+      location: data.location || "",
+      wishlistCount: data.wishlistCount || 0,
+      isFeatured: data.isFeatured || false,
+      createdAt: data.createdAt || null,
+    };
+  });
+
+  const newArrivals = items.slice(0, 8);
+  let trending = [...items]
+    .sort((a, b) => {
+      const wishA = a.wishlistCount || 0;
+      const wishB = b.wishlistCount || 0;
+      return wishB - wishA;
+    })
+    .slice(0, 8);
+
+  if (!trending.length) {
+    trending = newArrivals;
+  }
+
+  return {
+    props: {
+      trending,
+      newArrivals,
+    },
+  };
+};
