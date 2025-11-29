@@ -129,7 +129,7 @@
   .buyer-snapshot-card {
     order: -1;
   }
-} /* <--- FIXED: Added missing closing brace here */
+}
 
 /* ==== Seller & Management dashboards ==== */
 
@@ -313,4 +313,22 @@
   .dashboard-welcome-banner {
     padding: 16px 18px;
   }
+}
+
+/* ========================================================= */
+/* IMAGE BACKGROUND FIX (Louis Vuitton Clean Look)          */
+/* This forces off-white backgrounds to pure white.         */
+/* ========================================================= */
+
+/* Target images in known containers */
+.product-card img,
+.listing-image img,
+div[class*="grid"] img, /* Catch-all for grid items */
+div[class*="card"] img {
+    /* 1. Increase brightness to blow out light gray to white */
+    filter: contrast(1.05) brightness(1.08);
+    
+    /* 2. Multiply blend mode makes white pixels transparent, 
+       revealing the pure white card background underneath. */
+    mix-blend-mode: multiply;
 }
