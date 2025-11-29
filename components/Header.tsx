@@ -16,6 +16,7 @@ export default function Header() {
 
   const categoryNav = [
     { label: "NEW ARRIVALS", href: "/category/new-arrivals" },
+    { label: "CATALOGUE", href: "/designers" },
     { label: "DESIGNERS", href: "/designers" },
     { label: "WOMEN", href: "/category/women" },
     { label: "BAGS", href: "/category/bags" },
@@ -178,14 +179,13 @@ export default function Header() {
           background: #f9fafb;
         }
 
-        /* ✅ FIXED: Seller Button Colors */
+        /* ✅ FIXED: Seller Button Colors (Black Background / White Text) */
         .admin-button.seller {
           border-color: #111827;
-          background: #111827; /* Black Background */
-          color: #ffffff;      /* White Text */
+          background: #111827;
+          color: #ffffff;
         }
         
-        /* Ensure hover stays distinct */
         .admin-button.seller:hover {
           opacity: 0.9;
         }
