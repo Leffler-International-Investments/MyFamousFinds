@@ -34,7 +34,7 @@ const CATEGORY_OPTIONS = [
 
 const CONDITION_OPTIONS = ["New", "Excellent", "Very good", "Good"];
 
-// 🔸 FULL STATIC DESIGNERS LIST (back to the long list)
+// FULL STATIC DESIGNERS LIST
 const DESIGNER_OPTIONS = [
   "Alexander McQueen",
   "Balenciaga",
@@ -104,7 +104,7 @@ const DesignersPage: NextPage<DesignersPageProps> = ({ items }) => {
     setMaxPrice(100000);
   };
 
-  // Button is mostly UX – but we also sync the filters into the URL
+  // Apply button = sync to URL (engine is already live)
   const applyFiltersToUrl = () => {
     const query: Record<string, string> = {};
 
@@ -123,22 +123,32 @@ const DesignersPage: NextPage<DesignersPageProps> = ({ items }) => {
   const filteredItems = useMemo(() => {
     let result = [...baseItems];
 
+    // Normalize helpers
+    const normList = (arr: string[]) =>
+      arr.map((v) => v.toLowerCase().trim());
+    const normSelectedCategories = normList(selectedCategories);
+    const normSelectedDesigners = normList(selectedDesigners);
+    const normSelectedConditions = normList(selectedConditions);
+
     if (selectedCategories.length > 0) {
-      result = result.filter((i) =>
-        i.category ? selectedCategories.includes(i.category) : false
-      );
+      result = result.filter((i) => {
+        const cat = (i.category || "").toLowerCase().trim();
+        return cat && normSelectedCategories.includes(cat);
+      });
     }
 
     if (selectedDesigners.length > 0) {
-      result = result.filter((i) =>
-        i.brand ? selectedDesigners.includes(i.brand) : false
-      );
+      result = result.filter((i) => {
+        const brand = (i.brand || "").toLowerCase().trim();
+        return brand && normSelectedDesigners.includes(brand);
+      });
     }
 
     if (selectedConditions.length > 0) {
-      result = result.filter((i) =>
-        i.condition ? selectedConditions.includes(i.condition) : false
-      );
+      result = result.filter((i) => {
+        const cond = (i.condition || "").toLowerCase().trim();
+        return cond && normSelectedConditions.includes(cond);
+      });
     }
 
     result = result.filter((i) => {
@@ -538,38 +548,31 @@ export default DesignersPage;
 export const getServerSideProps: GetServerSideProps<
   DesignersPageProps
 > = async () => {
-  const allowedStatuses = ["Live", "Active", "Approved"];
-
   try {
-    const snap = await adminDb
+    // EXACTLY LIKE HOMEPAGE: only Live listings (approved)
+    const snapshot = await adminDb
       .collection("listings")
-      .where("status", "in", allowedStatuses)
-      .orderBy("createdAt", "desc")
-      .limit(120)
+      .where("status", "==", "Live")
       .get();
 
-    const items: ProductLike[] = snap.docs.map((doc) => {
-      const d: any = doc.data() || {};
-
-      const priceNumber = Number(d.price) || 0;
-
-      const image =
-        d.image_url ||
-        d.imageUrl ||
-        d.image ||
-        (Array.isArray(d.imageUrls) && d.imageUrls.length > 0
-          ? d.imageUrls[0]
-          : "");
+    const items: ProductLike[] = snapshot.docs.map((doc) => {
+      const data = doc.data() as any;
 
       return {
         id: doc.id,
-        title: d.title || "",
-        brand: d.brand || "",
-        category: d.category || "",
-        condition: d.condition || "",
-        price: priceNumber ? `US$${priceNumber.toLocaleString("en-US")}` : "",
-        image,
+        title: data.title || "",
+        brand: data.brand || "",
+        price: data.price ? `US$${Number(data.price).toLocaleString()}` : "",
+        image:
+          data.image_url ||
+          data.imageUrl ||
+          data.image ||
+          (Array.isArray(data.imageUrls) && data.imageUrls.length > 0
+            ? data.imageUrls[0]
+            : ""),
         href: `/product/${doc.id}`,
+        category: data.category || "",
+        condition: data.condition || "",
       } as ProductLike & { category?: string; condition?: string };
     });
 
