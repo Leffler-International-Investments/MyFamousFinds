@@ -365,7 +365,6 @@
   border-radius: 18px;
   border: 1px solid #e5e7eb;
   overflow: hidden;
-  /* Ensure it has a white background for the mix-blend-mode to work against */
 }
 
 /* 2. The Image Fix (Brighten + Blend) */
@@ -386,4 +385,275 @@ div[class*="card"] img {
     height: 260px; /* Standardize height */
     object-fit: cover;
     background: #ffffff; /* Fallback */
+}
+
+/* ========================================================= */
+/* HEADER BUTTON OVERRIDE (FORCE FIX)                        */
+/* ========================================================= */
+
+/* Forces Seller Admin Login button to be Black/White */
+.ff-header .admin-button.seller,
+a.admin-button.seller {
+  background-color: #111827 !important; /* Force Black */
+  border-color: #111827 !important;     /* Force Black Border */
+  color: #ffffff !important;            /* Force White Text */
+}
+
+/* Forces inner text to be white */
+.ff-header .admin-button.seller *,
+a.admin-button.seller * {
+  color: #ffffff !important;
+  opacity: 1 !important;
+}
+
+/* Hover state */
+.ff-header .admin-button.seller:hover,
+a.admin-button.seller:hover {
+  background-color: #000000 !important;
+  opacity: 0.9 !important;
+}
+
+/* ========================================================= */
+/* MESSAGE BOARD MANAGEMENT (Admin Page)                     */
+/* ========================================================= */
+
+.editor-card {
+  background: #ffffff;
+  padding: 24px;
+  border-radius: 16px;
+  border: 1px solid #e5e7eb;
+  margin-bottom: 40px;
+}
+
+.editor-card h2 {
+  margin: 0 0 16px;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.span-2 { grid-column: span 2; }
+
+@media (max-width: 768px) {
+  .form-grid { grid-template-columns: 1fr; }
+  .span-2 { grid-column: span 1; }
+}
+
+.form-grid label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #374151;
+}
+
+.form-grid .hint {
+  font-size: 11px;
+  color: #6b7280;
+  font-weight: 400;
+}
+
+.form-grid input, 
+.form-grid select, 
+.form-grid textarea {
+  padding: 10px;
+  border-radius: 8px;
+  border: 1px solid #d1d5db;
+  font-family: inherit;
+  font-size: 14px;
+  background-color: #fff;
+}
+
+.form-grid textarea {
+  resize: vertical;
+  min-height: 42px;
+}
+
+.form-actions {
+  display: flex;
+  gap: 12px;
+}
+
+.btn-save {
+  background: #111827;
+  color: white;
+  padding: 10px 24px;
+  border-radius: 99px;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+.btn-save:hover { opacity: 0.9; }
+
+.btn-cancel {
+  background: white;
+  border: 1px solid #d1d5db;
+  padding: 10px 24px;
+  border-radius: 99px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/* --- Message List (Admin View) --- */
+.message-list h3 {
+  font-size: 18px;
+  margin-bottom: 16px;
+  font-weight: 600;
+}
+
+.list-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.message-item {
+  background: #ffffff;
+  padding: 16px 20px;
+  border-radius: 12px;
+  border: 1px solid #e5e7eb;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.message-item.inactive {
+  background: #f9fafb;
+  border-style: dashed;
+  opacity: 0.8;
+}
+
+.message-content {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+}
+
+.type-badge {
+  font-size: 10px;
+  text-transform: uppercase;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-weight: 700;
+}
+.type-badge.info { background: #e5e7eb; color: #374151; }
+.type-badge.promo { background: #fef08a; color: #854d0e; }
+.type-badge.alert { background: #fecaca; color: #991b1b; }
+
+.message-content .text {
+  font-size: 14px;
+  font-weight: 500;
+  margin: 0;
+  color: #111;
+}
+
+.link-preview {
+  color: #2563eb;
+  font-size: 12px;
+  margin-left: 4px;
+}
+
+.status {
+  font-size: 12px;
+  color: #059669;
+  font-weight: 600;
+  margin-left: 12px;
+  white-space: nowrap;
+}
+.inactive .status { color: #6b7280; }
+
+.message-actions {
+  display: flex;
+  gap: 8px;
+  margin-left: 16px;
+}
+
+.message-actions button {
+  padding: 6px 12px;
+  font-size: 12px;
+  border-radius: 6px;
+  border: 1px solid #d1d5db;
+  background: white;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.message-actions button:hover { background: #f3f4f6; }
+
+.message-actions button.delete {
+  color: #dc2626;
+  border-color: #fca5a5;
+}
+.message-actions button.delete:hover { background: #fef2f2; }
+
+
+/* ========================================================= */
+/* BUYER MESSAGE BOARD (Homepage View)                       */
+/* ========================================================= */
+
+.buyer-message-board-container {
+  margin-top: 36px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.buyer-message-board {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 24px;
+  text-align: center;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+  transition: transform 0.2s;
+}
+
+/* Luxury Styles for Message Types */
+.buyer-message-board.promo {
+  background: #fffbeb; /* Amber-50 (Gold tint) */
+  border-color: #fcd34d; /* Amber-300 */
+  color: #92400e;
+}
+
+.buyer-message-board.alert {
+  background: #fef2f2; /* Red-50 */
+  border-color: #fecaca; /* Red-200 */
+  color: #991b1b;
+}
+
+.buyer-message-board.info {
+  background: #f9fafb; /* Gray-50 */
+  border-color: #e5e7eb;
+  color: #374151;
+}
+
+.buyer-message-board .message-content p {
+  font-family: "Georgia", serif;
+  font-size: 19px;
+  margin: 0;
+  line-height: 1.5;
+  color: inherit;
+}
+
+/* The link style inside the message */
+.catalogue-link {
+  color: inherit;
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+  transition: opacity 0.2s;
+  margin-left: 4px;
+  cursor: pointer;
+}
+
+.catalogue-link:hover {
+  opacity: 0.7;
 }
