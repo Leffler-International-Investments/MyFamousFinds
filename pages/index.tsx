@@ -21,13 +21,15 @@ type BuyerMessage = {
   linkText?: string;
   linkUrl?: string;
   type: "info" | "promo" | "alert";
+  active?: boolean;
+  createdAt?: number;
 };
 
 type HomeProps = {
   trending: ProductLike[];
   newArrivals: ProductLike[];
   featuredDesigners: string[];
-  activeMessages: BuyerMessage[]; // ✅ DATA FROM ADMIN
+  activeMessages: BuyerMessage[];
 };
 
 // Helper to normalise price
@@ -86,12 +88,16 @@ const Home: NextPage<HomeProps> = ({
             <div className="hero-stats">
               <div className="stat-card">
                 <p className="stat-label">Live listings</p>
-                <p className="stat-value">{newArrivals.length > 20 ? "20+" : newArrivals.length}</p>
+                <p className="stat-value">
+                  {newArrivals.length > 20 ? "20+" : newArrivals.length}
+                </p>
                 <p className="stat-note">Updated in real time</p>
               </div>
               <div className="stat-card">
                 <p className="stat-label">New this week</p>
-                <p className="stat-value">{newArrivals.length > 10 ? "10+" : newArrivals.length}</p>
+                <p className="stat-value">
+                  {newArrivals.length > 10 ? "10+" : newArrivals.length}
+                </p>
                 <p className="stat-note">Fresh drops &amp; finds</p>
               </div>
               <div className="stat-card">
@@ -173,7 +179,6 @@ const Home: NextPage<HomeProps> = ({
         </section>
 
         {/* ✅ DYNAMIC MESSAGE BOARD BANNER */}
-        {/* Renders messages posted from Admin Dashboard */}
         {activeMessages && activeMessages.length > 0 && (
           <section className="buyer-message-board-container">
             {activeMessages.map((msg) => (
@@ -389,7 +394,7 @@ const Home: NextPage<HomeProps> = ({
           flex-direction: column;
           gap: 16px;
         }
-        
+
         .buyer-message-board {
           background: #ffffff;
           border: 1px solid #e5e7eb;
@@ -400,23 +405,22 @@ const Home: NextPage<HomeProps> = ({
           transition: transform 0.2s;
         }
 
-        /* Luxury Styles for Message Types */
         .buyer-message-board.promo {
-          background: #fffbeb; /* Amber-50 (Gold tint) */
-          border-color: #fcd34d; /* Amber-300 */
+          background: #fffbeb;
+          border-color: #fcd34d;
           color: #92400e;
         }
         .buyer-message-board.alert {
-          background: #fef2f2; /* Red-50 */
-          border-color: #fecaca; /* Red-200 */
+          background: #fef2f2;
+          border-color: #fecaca;
           color: #991b1b;
         }
         .buyer-message-board.info {
-          background: #f9fafb; /* Gray-50 */
+          background: #f9fafb;
           border-color: #e5e7eb;
           color: #374151;
         }
-        
+
         .message-content p {
           font-family: "Georgia", serif;
           font-size: 19px;
@@ -432,7 +436,7 @@ const Home: NextPage<HomeProps> = ({
           transition: opacity 0.2s;
           margin-left: 4px;
         }
-        
+
         :global(.catalogue-link:hover) {
           opacity: 0.7;
         }
@@ -496,36 +500,52 @@ export const getServerSideProps: GetServerSideProps<HomeProps> = async () => {
     trending = newArrivals;
   }
 
-  // 4. Featured Designers (Dynamic)
-  const uniqueBrands = Array.from(new Set(items.map((i) => i.brand).filter(Boolean)));
+  // 4. Featured Designers
+  const uniqueBrands = Array.from(
+    new Set(items.map((i) => i.brand).filter(Boolean))
+  );
   const featuredDesigners = uniqueBrands.sort();
   if (featuredDesigners.length === 0) {
-    featuredDesigners.push("Chanel", "Louis Vuitton", "Hermès", "Gucci", "Prada");
+    featuredDesigners.push(
+      "Chanel",
+      "Louis Vuitton",
+      "Hermès",
+      "Gucci",
+      "Prada"
+    );
   }
 
-  // 5. ✅ FETCH ACTIVE MESSAGES
+  // 5. ✅ FETCH ACTIVE MESSAGES (robust)
   let activeMessages: BuyerMessage[] = [];
+
   try {
-    const messagesSnap = await adminDb
-      .collection("buyer_messages")
-      .where("active", "==", true)
-      .get();
-    
-    // Manual sort by createdAt desc
-    activeMessages = messagesSnap.docs
-      .map(doc => {
-        const d = doc.data();
+    const messagesRef = adminDb.collection("buyer_messages");
+
+    // First try: only active
+    let snap = await messagesRef.where("active", "==", true).get();
+
+    // Fallback: if admin created messages without `active` field yet
+    if (snap.empty) {
+      snap = await messagesRef.get();
+    }
+
+    activeMessages = snap.docs
+      .map((doc) => {
+        const d = doc.data() as any;
         return {
           id: doc.id,
           text: d.text || "",
           linkText: d.linkText || "",
           linkUrl: d.linkUrl || "",
-          type: d.type || "info",
+          type: (d.type as BuyerMessage["type"]) || "info",
+          active: d.active ?? true,
           createdAt: d.createdAt?.toMillis?.() || 0,
-        } as BuyerMessage & { createdAt: number };
+        } as BuyerMessage;
       })
-      .sort((a, b) => b.createdAt - a.createdAt); 
-
+      // keep only those that should be visible + have text
+      .filter((m) => m.active !== false && m.text.trim().length > 0)
+      // newest first
+      .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
   } catch (err) {
     console.error("Error fetching messages:", err);
   }
