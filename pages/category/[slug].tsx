@@ -14,7 +14,12 @@ type CategoryProps = {
   items: ProductLike[];
 };
 
-type ItemWithPrice = ProductLike & { priceValue: number };
+// NOTE: we add category + condition as optionals on top of ProductLike
+type ItemWithPrice = ProductLike & {
+  priceValue: number;
+  category?: string;
+  condition?: string;
+};
 
 type PublicDesignersResponse = {
   ok: boolean;
@@ -58,9 +63,11 @@ const DEFAULT_DESIGNERS = [
 export default function CategoryPage({ slug, label, items }: CategoryProps) {
   // Pre-compute numeric prices once
   const [itemsWithPrice] = useState<ItemWithPrice[]>(() =>
-    (items || []).map((item) => ({
+    (items || []).map((item: any) => ({
       ...item,
       priceValue: parsePrice(item.price),
+      category: item.category || "",
+      condition: item.condition || "",
     }))
   );
 
@@ -146,18 +153,36 @@ export default function CategoryPage({ slug, label, items }: CategoryProps) {
     setMaxPrice(10000);
   }
 
-  // Apply filters + sort
+  // Apply filters + sort ------------- FIXED -------------
   const filteredItems: ItemWithPrice[] = useMemo(() => {
     let result = [...itemsWithPrice];
 
-    // Filter by designer
+    // 1) Category
+    if (selectedCategories.length > 0) {
+      result = result.filter((item) =>
+        item.category
+          ? selectedCategories.includes(item.category)
+          : false
+      );
+    }
+
+    // 2) Designer
     if (selectedDesigners.length > 0) {
       result = result.filter((item) =>
         item.brand ? selectedDesigners.includes(item.brand) : false
       );
     }
 
-    // Filter by price
+    // 3) Condition
+    if (selectedConditions.length > 0) {
+      result = result.filter((item) =>
+        item.condition
+          ? selectedConditions.includes(item.condition)
+          : false
+      );
+    }
+
+    // 4) Price
     result = result.filter((item) => {
       const price = item.priceValue;
       if (typeof minPrice === "number" && price < minPrice) return false;
@@ -165,12 +190,7 @@ export default function CategoryPage({ slug, label, items }: CategoryProps) {
       return true;
     });
 
-    // NOTE:
-    // We don't yet have structured category / condition fields on ProductLike,
-    // so category + condition filters are visual only for now.
-    // When you’re ready, we can wire them to real listing fields.
-
-    // Sort
+    // 5) Sort
     if (sortBy === "price-asc") {
       result.sort((a, b) => a.priceValue - b.priceValue);
     } else if (sortBy === "price-desc") {
@@ -180,12 +200,21 @@ export default function CategoryPage({ slug, label, items }: CategoryProps) {
     }
 
     return result;
-  }, [itemsWithPrice, selectedDesigners, minPrice, maxPrice, sortBy]);
+  }, [
+    itemsWithPrice,
+    selectedCategories,
+    selectedDesigners,
+    selectedConditions,
+    minPrice,
+    maxPrice,
+    sortBy,
+  ]);
 
   const resultsCount = filteredItems.length;
 
   const breadcrumbLabel =
-    label || slug.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+    label ||
+    slug.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 
   return (
     <div className="category-page">
@@ -313,7 +342,8 @@ export default function CategoryPage({ slug, label, items }: CategoryProps) {
                 <div>
                   <h1>All Products</h1>
                   <p className="results-count">
-                    {resultsCount} {resultsCount === 1 ? "result" : "results"}
+                    {resultsCount}{" "}
+                    {resultsCount === 1 ? "result" : "results"}
                   </p>
                 </div>
                 <div className="sort">
@@ -323,13 +353,20 @@ export default function CategoryPage({ slug, label, items }: CategoryProps) {
                       value={sortBy}
                       onChange={(e) =>
                         setSortBy(
-                          e.target.value as "newest" | "price-asc" | "price-desc"
+                          e.target.value as
+                            | "newest"
+                            | "price-asc"
+                            | "price-desc"
                         )
                       }
                     >
                       <option value="newest">Newest</option>
-                      <option value="price-asc">Price: Low to High</option>
-                      <option value="price-desc">Price: High to Low</option>
+                      <option value="price-asc">
+                        Price: Low to High
+                      </option>
+                      <option value="price-desc">
+                        Price: High to Low
+                      </option>
                     </select>
                   </label>
                 </div>
@@ -555,19 +592,28 @@ export const getServerSideProps: GetServerSideProps<CategoryProps> = async (
   const rawSlug = String(ctx.params?.slug || "");
   const normalized = rawSlug.toLowerCase();
 
-  let items: ProductLike[] = [];
+  const allowedStatuses = ["Live", "Active", "Approved"];
+
+  const categoryLabel =
+    labelMap[normalized] ||
+    normalized.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 
   try {
-    const allowedStatuses = ["Live", "Active", "Approved"];
-
-    const snap = await adminDb
+    let query = adminDb
       .collection("listings")
-      .where("status", "in", allowedStatuses)
-      .orderBy("createdAt", "desc")
-      .limit(60)
-      .get();
+      .where("status", "in", allowedStatuses);
 
-    items = snap.docs.map((doc) => {
+    // NEW ARRIVALS = just newest
+    if (normalized === "new-arrivals") {
+      query = query.orderBy("createdAt", "desc");
+    } else {
+      // ALL OTHER CATEGORY PAGES FILTER BY category FIELD
+      query = query.where("category", "==", categoryLabel);
+    }
+
+    const snap = await query.limit(60).get();
+
+    const items: ProductLike[] = snap.docs.map((doc) => {
       const d = doc.data() as any;
 
       const image =
@@ -583,20 +629,29 @@ export const getServerSideProps: GetServerSideProps<CategoryProps> = async (
         id: doc.id,
         title: d.title || "",
         brand: d.brand || "",
+        category: d.category || "",
+        condition: d.condition || "",
         price: priceNum ? `US$${priceNum.toLocaleString()}` : "",
         image,
         href: `/product/${doc.id}`,
-      };
+      } as ProductLike & { category?: string; condition?: string };
     });
+
+    return {
+      props: {
+        slug: normalized,
+        label: labelMap[normalized] || normalized.toUpperCase(),
+        items,
+      },
+    };
   } catch (err) {
     console.error("Error loading category page", err);
+    return {
+      props: {
+        slug: normalized,
+        label: labelMap[normalized] || normalized.toUpperCase(),
+        items: [],
+      },
+    };
   }
-
-  return {
-    props: {
-      slug: normalized,
-      label: labelMap[normalized] || normalized.toUpperCase(),
-      items,
-    },
-  };
 };
