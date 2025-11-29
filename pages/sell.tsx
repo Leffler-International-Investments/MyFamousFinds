@@ -22,6 +22,25 @@ type Designer = {
   active?: boolean;
 };
 
+// ✅ STANDARD LISTS (Matches seller/bulk-simple and Filters)
+const CATEGORIES = [
+  "Bags",
+  "Shoes",
+  "Jewelry",
+  "Watches",
+  "Clothing",
+  "Accessories",
+];
+
+const CONDITIONS = [
+  "New with tags",
+  "New (never used)",
+  "Excellent",
+  "Very good",
+  "Good",
+  "Fair",
+];
+
 export default function Sell() {
   const [submitted, setSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -77,7 +96,6 @@ export default function Sell() {
       const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
       const path = `listing-images/${Date.now()}-${safeName}`;
 
-      // Import Firebase Storage only on the client
       const {
         getStorage,
         ref,
@@ -310,14 +328,30 @@ export default function Sell() {
                 />
               </label>
 
+              {/* ✅ UPDATED: Category Dropdown */}
+              <label>
+                Category
+                <select name="category" required defaultValue="">
+                  <option value="">— Pick a category —</option>
+                  {CATEGORIES.map((cat) => (
+                    <option key={cat} value={cat}>
+                      {cat}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              {/* ✅ UPDATED: Condition Dropdown */}
               <label>
                 Condition
-                <input
-                  name="condition"
-                  type="text"
-                  placeholder="e.g. New with tags, Gently used"
-                  required
-                />
+                <select name="condition" required defaultValue="">
+                  <option value="">— Pick a condition —</option>
+                  {CONDITIONS.map((cond) => (
+                    <option key={cond} value={cond}>
+                      {cond}
+                    </option>
+                  ))}
+                </select>
               </label>
 
               <label>
