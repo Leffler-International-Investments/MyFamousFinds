@@ -316,40 +316,17 @@
 }
 
 /* ========================================================= */
-/* IMAGE BACKGROUND FIX (Louis Vuitton Clean Look)          */
-/* This forces off-white backgrounds to pure white.         */
-/* ========================================================= */
-
-/* Target images in known containers */
-.product-card img,
-.listing-image img,
-div[class*="grid"] img, /* Catch-all for grid items */
-div[class*="card"] img {
-    /* 1. Increase brightness to blow out light gray to white */
-    filter: contrast(1.05) brightness(1.08);
-    
-    /* 2. Multiply blend mode makes white pixels transparent, 
-       revealing the pure white card background underneath. */
-    mix-blend-mode: multiply;
-}
-
-/* ========================================================= */
-/* LUXURY PILL BUTTONS (MOVED HERE TO ENSURE LOADING)        */
+/* LUXURY PILL BUTTONS (Designers, Tags)                     */
 /* ========================================================= */
 
 .luxury-pill {
-  /* IMPORTANT: Use flex to center text properly */
   display: inline-flex !important;
   align-items: center;
   justify-content: center;
   white-space: nowrap;
   
   /* SIZING - WIDE & ELEGANT */
-  /* This prevents the "squashed" look by adding huge side padding */
   padding: 12px 42px !important; 
-  
-  /* FORCE A MINIMUM WIDTH */
-  /* Even short names like "Dior" will look like a long pill now */
   min-width: 140px !important;
   
   font-size: 14px;
@@ -367,16 +344,46 @@ div[class*="card"] img {
   transition: all 0.2s ease;
   box-shadow: 0 1px 2px rgba(0,0,0,0.05);
   cursor: pointer;
-  
-  /* Ensure they don't touch each other */
   margin-right: 8px;
 }
 
-/* Premium Hover State: Solid Black */
 .luxury-pill:hover {
   border-color: #000000;
   background-color: #000000;
   color: #ffffff;
   box-shadow: 0 4px 12px rgba(0,0,0,0.15);
   transform: translateY(-1px);
+}
+
+/* ========================================================= */
+/* GLOBAL PRODUCT CARD STYLES (Luxury Look Everywhere)       */
+/* ========================================================= */
+
+/* 1. The Card Container */
+.product-card {
+  background: #ffffff !important;
+  border-radius: 18px;
+  border: 1px solid #e5e7eb;
+  overflow: hidden;
+  /* Ensure it has a white background for the mix-blend-mode to work against */
+}
+
+/* 2. The Image Fix (Brighten + Blend) */
+/* Targets cards on Home, Search, and Category pages */
+.product-card img,
+.listing-image img,
+div[class*="grid"] img, 
+div[class*="results"] img, /* Catch-all for search results */
+div[class*="card"] img {
+    /* Blow out light gray backgrounds to white */
+    filter: contrast(1.05) brightness(1.08);
+    
+    /* Make white pixels transparent so they blend with the white card */
+    mix-blend-mode: multiply;
+    
+    /* Ensure image fits perfectly */
+    width: 100%;
+    height: 260px; /* Standardize height */
+    object-fit: cover;
+    background: #ffffff; /* Fallback */
 }
