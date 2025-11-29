@@ -110,6 +110,7 @@ function levenshtein(a: string, b: string): number {
   return matrix[bLen][aLen];
 }
 
+// canonical tokens used for matching
 function canonCategory(raw: string): string {
   const n = normalize(raw);
   if (!n) return "";
@@ -137,13 +138,21 @@ function canonBrand(raw: string): string {
   return normalize(raw);
 }
 
+// MUCH SMARTER BRAND MATCHING:
+// - exact
+// - substring (e.g. "louis vuitton heels")
+// - small typo distance
 function brandMatches(selected: string, actual: string): boolean {
   const sel = canonBrand(selected);
   const act = canonBrand(actual);
   if (!sel || !act) return false;
-  if (sel === act) return true;
+
+  // substring match first
+  if (act.includes(sel) || sel.includes(act)) return true;
+
+  // fuzzy match for typos / small differences
   const dist = levenshtein(sel, act);
-  return dist <= 2;
+  return dist <= 4;
 }
 
 const pickImage = (data: any): string => {
@@ -181,9 +190,7 @@ const DesignersPage: NextPage<DesignersPageProps> = ({ items }) => {
   );
 
   const toggleInList = (list: string[], value: string): string[] =>
-    list.includes(value)
-      ? list.filter((v) => v !== value)
-      : [...list, value];
+    list.includes(value) ? list.filter((v) => v !== value) : [...list, value];
 
   const onCategoryChange = (name: string) =>
     setSelectedCategories((prev) => toggleInList(prev, name));
@@ -200,6 +207,7 @@ const DesignersPage: NextPage<DesignersPageProps> = ({ items }) => {
     setMaxPrice(100000);
   };
 
+  // keep URL in sync (optional – real filtering is client-side below)
   const applyFiltersToUrl = () => {
     const query: Record<string, string> = {};
 
@@ -217,17 +225,21 @@ const DesignersPage: NextPage<DesignersPageProps> = ({ items }) => {
   const filteredItems = useMemo(() => {
     let result = [...baseItems];
 
-    const normSelectedCats = selectedCategories.map(canonCategory);
-    const normSelectedConds = selectedConditions.map(canonCondition);
+    const normSelectedCats = selectedCategories.map((c) => canonCategory(c));
+    const normSelectedConds = selectedConditions.map((c) => canonCondition(c));
 
+    // CATEGORY FILTER – smart, partial match
     if (selectedCategories.length > 0) {
       result = result.filter((item) => {
-        const token = canonCategory(item.category || "");
-        if (!token) return false;
-        return normSelectedCats.includes(token);
+        const itemCatNorm = normalize(item.category || "");
+        if (!itemCatNorm) return false;
+        return normSelectedCats.some((sel) =>
+          itemCatNorm.includes(canonCategory(sel))
+        );
       });
     }
 
+    // DESIGNER FILTER – uses brandMatches
     if (selectedDesigners.length > 0) {
       result = result.filter((item) => {
         const actualBrand = item.brand || "";
@@ -236,14 +248,18 @@ const DesignersPage: NextPage<DesignersPageProps> = ({ items }) => {
       });
     }
 
+    // CONDITION FILTER – smart, partial match
     if (selectedConditions.length > 0) {
       result = result.filter((item) => {
-        const token = canonCondition(item.condition || "");
-        if (!token) return false;
-        return normSelectedConds.includes(token);
+        const itemCondNorm = normalize(item.condition || "");
+        if (!itemCondNorm) return false;
+        return normSelectedConds.some((sel) =>
+          itemCondNorm.includes(canonCondition(sel))
+        );
       });
     }
 
+    // PRICE FILTER
     result = result.filter((item) => {
       const p = item.priceValue;
       if (typeof minPrice === "number" && p < minPrice) return false;
@@ -251,6 +267,7 @@ const DesignersPage: NextPage<DesignersPageProps> = ({ items }) => {
       return true;
     });
 
+    // SORT
     if (sortBy === "price-asc") {
       result.sort((a, b) => a.priceValue - b.priceValue);
     } else if (sortBy === "price-desc") {
@@ -402,7 +419,10 @@ const DesignersPage: NextPage<DesignersPageProps> = ({ items }) => {
                       value={sortBy}
                       onChange={(e) =>
                         setSortBy(
-                          e.target.value as "newest" | "price-asc" | "price-desc"
+                          e.target.value as
+                            | "newest"
+                            | "price-asc"
+                            | "price-desc"
                         )
                       }
                     >
