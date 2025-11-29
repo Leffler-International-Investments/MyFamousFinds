@@ -8,6 +8,16 @@ import { adminDb } from "../../../utils/firebaseAdmin";
 import { FieldValue } from "firebase-admin/firestore";
 import { getSellerId } from "../../../utils/authServer";
 
+// ✅ ADDED: Fix for 413 Payload Too Large error
+// This allows larger images to be uploaded via the API.
+export const config = {
+  api: {
+    bodyParser: {
+      sizeLimit: "20mb",
+    },
+  },
+};
+
 // ---------- Types ----------
 type IncomingRow = {
   title?: string;
