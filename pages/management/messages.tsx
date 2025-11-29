@@ -18,7 +18,6 @@ import {
   serverTimestamp,
 } from "firebase/firestore";
 
-// Define the Message type
 export type BuyerMessage = {
   id: string;
   text: string;
@@ -63,19 +62,13 @@ export default function MessageBoardManagement({ initialMessages }: Props) {
   };
 
   const handleSave = async () => {
-    // 1. Basic Validation
     if (!formText.trim()) return alert("Message text is required");
-
-    // 2. Simple 'Spell Check' / Cleanup (Trim whitespace)
-    const cleanText = formText.trim(); 
-    const cleanLinkText = formLinkText.trim();
-    const cleanLinkUrl = formLinkUrl.trim();
 
     try {
       const payload = {
-        text: cleanText,
-        linkText: cleanLinkText,
-        linkUrl: cleanLinkUrl,
+        text: formText.trim(),
+        linkText: formLinkText.trim(),
+        linkUrl: formLinkUrl.trim(),
         type: formType,
         updatedAt: serverTimestamp(),
       };
@@ -96,13 +89,12 @@ export default function MessageBoardManagement({ initialMessages }: Props) {
           createdAt: serverTimestamp(),
         });
 
-        // Add to local list immediately
         setMessages((prev) => [
           {
             id: ref.id,
-            text: cleanText,
-            linkText: cleanLinkText,
-            linkUrl: cleanLinkUrl,
+            text: formText.trim(),
+            linkText: formLinkText.trim(),
+            linkUrl: formLinkUrl.trim(),
             active: true,
             type: formType,
             createdAt: Date.now(),
@@ -163,13 +155,20 @@ export default function MessageBoardManagement({ initialMessages }: Props) {
           <div className="form-grid">
             <label className="span-2">
               Message Text
-              <input
+              {/* ✅ CHANGED TO TEXTAREA + ADDED AUTO-CORRECT FLAGS */}
+              <textarea
                 value={formText}
                 onChange={(e) => setFormText(e.target.value)}
                 placeholder="e.g. Boker Tov Ariel - Enjoy Your New Shop"
-                spellCheck={true} // ✅ Enabling browser spellcheck
+                rows={2}
+                // These 3 attributes force the browser to help you write better:
+                spellCheck={true}
+                autoCorrect="on"
+                autoCapitalize="sentences"
               />
-              <span className="hint">Browser spellcheck is enabled.</span>
+              <span className="hint">
+                <span style={{ color: "#059669" }}>✓</span> Spellcheck &amp; Auto-correct enabled.
+              </span>
             </label>
 
             <label>
@@ -178,6 +177,7 @@ export default function MessageBoardManagement({ initialMessages }: Props) {
                 value={formLinkText}
                 onChange={(e) => setFormLinkText(e.target.value)}
                 placeholder="e.g. Catalogue"
+                spellCheck={true}
               />
             </label>
 
@@ -289,10 +289,15 @@ export default function MessageBoardManagement({ initialMessages }: Props) {
           color: #6b7280;
           font-weight: 400;
         }
-        input, select {
+        input, select, textarea {
           padding: 10px;
           border-radius: 8px;
           border: 1px solid #d1d5db;
+          font-family: inherit;
+        }
+        textarea {
+          resize: vertical;
+          min-height: 42px;
         }
         .form-actions {
           display: flex;
