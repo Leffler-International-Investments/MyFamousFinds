@@ -91,7 +91,6 @@ export default function ManagementDashboard({ stats }: Props) {
 
         <ManagementDashboardTutorial />
 
-        {/* Management Banking Banner */}
         <section className="dashboard-welcome-banner">
           <h2>Team payouts setup</h2>
           <p>
