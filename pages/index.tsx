@@ -139,12 +139,7 @@ const Home: NextPage<HomeProps> = ({ trending, newArrivals, featuredDesigners })
         <section className="home-featured-designers mt-10">
           <header className="home-feed-header">
             <h2 className="home-feed-title">Featured Designers</h2>
-            <Link
-              href="/designers"
-              className="text-xs font-medium text-neutral-500 hover:text-neutral-900 underline-offset-4 hover:underline"
-            >
-              View full directory →
-            </Link>
+            {/* Link removed as requested */}
           </header>
 
           <div className="mt-4 flex gap-3 overflow-x-auto pb-4 pt-1">
@@ -153,6 +148,7 @@ const Home: NextPage<HomeProps> = ({ trending, newArrivals, featuredDesigners })
                 <Link
                   href={`/designers?designer=${encodeURIComponent(name)}`}
                   key={name}
+                  // ✅ Using the class defined in dashboard.css
                   className="luxury-pill"
                 >
                   {name}
