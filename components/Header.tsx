@@ -178,10 +178,16 @@ export default function Header() {
           background: #f9fafb;
         }
 
+        /* ✅ FIXED: Seller Button Colors */
         .admin-button.seller {
-          border-color: #14b8a6;
-          color: #0f766e;
-          background: #ecfeff;
+          border-color: #111827;
+          background: #111827; /* Black Background */
+          color: #ffffff;      /* White Text */
+        }
+        
+        /* Ensure hover stays distinct */
+        .admin-button.seller:hover {
+          opacity: 0.9;
         }
 
         .admin-button.management {
