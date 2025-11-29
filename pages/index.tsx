@@ -153,7 +153,6 @@ const Home: NextPage<HomeProps> = ({ trending, newArrivals, featuredDesigners })
                 <Link
                   href={`/designers?designer=${encodeURIComponent(name)}`}
                   key={name}
-                  // ✅ Using the class defined in dashboard.css
                   className="luxury-pill"
                 >
                   {name}
@@ -352,19 +351,6 @@ const Home: NextPage<HomeProps> = ({ trending, newArrivals, featuredDesigners })
         .home-featured-designers .flex {
           -ms-overflow-style: none;
           scrollbar-width: none;
-        }
-        /* Product cards */
-        :global(.product-card) {
-          background: #ffffff !important;
-          border-radius: 18px;
-          border: 1px solid #e5e7eb;
-          overflow: hidden;
-        }
-        :global(.product-card img) {
-          width: 100%;
-          height: 260px;
-          object-fit: cover;
-          background: #ffffff;
         }
       `}</style>
     </div>
