@@ -63,13 +63,19 @@ export default function MessageBoardManagement({ initialMessages }: Props) {
   };
 
   const handleSave = async () => {
+    // 1. Basic Validation
     if (!formText.trim()) return alert("Message text is required");
+
+    // 2. Simple 'Spell Check' / Cleanup (Trim whitespace)
+    const cleanText = formText.trim(); 
+    const cleanLinkText = formLinkText.trim();
+    const cleanLinkUrl = formLinkUrl.trim();
 
     try {
       const payload = {
-        text: formText,
-        linkText: formLinkText,
-        linkUrl: formLinkUrl,
+        text: cleanText,
+        linkText: cleanLinkText,
+        linkUrl: cleanLinkUrl,
         type: formType,
         updatedAt: serverTimestamp(),
       };
@@ -94,9 +100,9 @@ export default function MessageBoardManagement({ initialMessages }: Props) {
         setMessages((prev) => [
           {
             id: ref.id,
-            text: formText,
-            linkText: formLinkText,
-            linkUrl: formLinkUrl,
+            text: cleanText,
+            linkText: cleanLinkText,
+            linkUrl: cleanLinkUrl,
             active: true,
             type: formType,
             createdAt: Date.now(),
@@ -161,7 +167,9 @@ export default function MessageBoardManagement({ initialMessages }: Props) {
                 value={formText}
                 onChange={(e) => setFormText(e.target.value)}
                 placeholder="e.g. Boker Tov Ariel - Enjoy Your New Shop"
+                spellCheck={true} // ✅ Enabling browser spellcheck
               />
+              <span className="hint">Browser spellcheck is enabled.</span>
             </label>
 
             <label>
@@ -275,6 +283,11 @@ export default function MessageBoardManagement({ initialMessages }: Props) {
           font-size: 13px;
           font-weight: 600;
           color: #374151;
+        }
+        .hint {
+          font-size: 11px;
+          color: #6b7280;
+          font-weight: 400;
         }
         input, select {
           padding: 10px;
