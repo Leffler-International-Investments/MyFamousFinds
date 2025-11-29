@@ -15,10 +15,19 @@ import { adminDb } from "../utils/firebaseAdmin";
 // Types
 // --------------------------------------------------
 
+type BuyerMessage = {
+  id: string;
+  text: string;
+  linkText?: string;
+  linkUrl?: string;
+  type: "info" | "promo" | "alert";
+};
+
 type HomeProps = {
   trending: ProductLike[];
   newArrivals: ProductLike[];
   featuredDesigners: string[];
+  activeMessages: BuyerMessage[]; // ✅ NEW PROP
 };
 
 // Helper to normalise price
@@ -43,7 +52,12 @@ const pickImage = (data: any): string => {
 // Component
 // --------------------------------------------------
 
-const Home: NextPage<HomeProps> = ({ trending, newArrivals, featuredDesigners }) => {
+const Home: NextPage<HomeProps> = ({
+  trending,
+  newArrivals,
+  featuredDesigners,
+  activeMessages,
+}) => {
   return (
     <div className="home-wrapper">
       <Head>
@@ -135,7 +149,7 @@ const Home: NextPage<HomeProps> = ({ trending, newArrivals, featuredDesigners })
           </aside>
         </section>
 
-        {/* FEATURED DESIGNERS CAROUSEL */}
+        {/* FEATURED DESIGNERS CAROUSEL (Dynamic) */}
         <section className="home-featured-designers mt-10">
           <header className="home-feed-header">
             <h2 className="home-feed-title">Featured Designers</h2>
@@ -158,17 +172,25 @@ const Home: NextPage<HomeProps> = ({ trending, newArrivals, featuredDesigners })
           </div>
         </section>
 
-        {/* ✅ NEW BUYER MESSAGE BOARD BANNER */}
-        <section className="buyer-message-board">
-          <div className="message-content">
-            <p>
-              Looking for something specific? We have many more of your desired items in the{" "}
-              <Link href="/designers" className="catalogue-link">
-                Catalogue
-              </Link>.
-            </p>
-          </div>
-        </section>
+        {/* ✅ DYNAMIC MESSAGE BOARD BANNER */}
+        {activeMessages && activeMessages.length > 0 && (
+          <section className="buyer-message-board-container">
+            {activeMessages.map((msg) => (
+              <div key={msg.id} className={`buyer-message-board ${msg.type}`}>
+                <div className="message-content">
+                  <p>
+                    {msg.text}{" "}
+                    {msg.linkText && msg.linkUrl && (
+                      <Link href={msg.linkUrl} className="catalogue-link">
+                        {msg.linkText}
+                      </Link>
+                    )}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </section>
+        )}
 
         {/* NEW ARRIVALS GRID */}
         <section className="home-section">
@@ -359,16 +381,31 @@ const Home: NextPage<HomeProps> = ({ trending, newArrivals, featuredDesigners })
           scrollbar-width: none;
         }
 
-        /* --- MESSAGE BOARD BANNER --- */
-        .buyer-message-board {
+        /* --- MESSAGE BOARD STYLES --- */
+        .buyer-message-board-container {
           margin-top: 32px;
-          margin-bottom: 12px;
+          display: flex;
+          flex-direction: column;
+          gap: 12px;
+        }
+        
+        .buyer-message-board {
           background: #ffffff;
           border: 1px solid #e5e7eb;
           border-radius: 12px;
           padding: 24px;
           text-align: center;
           box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        }
+
+        /* Optional: Styles based on message type */
+        .buyer-message-board.promo {
+          background: #fefce8; /* Light yellow */
+          border-color: #fde047;
+        }
+        .buyer-message-board.alert {
+          background: #fef2f2; /* Light red */
+          border-color: #fecaca;
         }
         
         .message-content p {
@@ -379,7 +416,6 @@ const Home: NextPage<HomeProps> = ({ trending, newArrivals, featuredDesigners })
           line-height: 1.5;
         }
 
-        /* The luxury link inside the text */
         :global(.catalogue-link) {
           color: #111827;
           font-weight: 600;
@@ -424,7 +460,7 @@ export const getServerSideProps: GetServerSideProps<HomeProps> = async () => {
     };
   });
 
-  // 1. New Arrivals (Sort by newest)
+  // 1. New Arrivals
   const newArrivals = items
     .slice()
     .sort((a: any, b: any) => {
@@ -440,7 +476,7 @@ export const getServerSideProps: GetServerSideProps<HomeProps> = async () => {
     })
     .slice(0, 8);
 
-  // 2. Trending (Sort by viewCount)
+  // 2. Trending
   let trending = items
     .slice()
     .sort((a: any, b: any) => (b.viewCount || 0) - (a.viewCount || 0))
@@ -450,22 +486,43 @@ export const getServerSideProps: GetServerSideProps<HomeProps> = async () => {
     trending = newArrivals;
   }
 
-  // 3. Featured Designers (Dynamic from Live items)
-  // Extract all unique brand names from the items we just fetched
+  // 3. Featured Designers
   const uniqueBrands = Array.from(new Set(items.map((i) => i.brand).filter(Boolean)));
-  // Sort alphabetically
   const featuredDesigners = uniqueBrands.sort();
-  
-  // Fallback if empty (e.g. no live items yet)
   if (featuredDesigners.length === 0) {
     featuredDesigners.push("Chanel", "Louis Vuitton", "Hermès", "Gucci", "Prada");
+  }
+
+  // 4. Fetch Active Messages
+  let activeMessages: BuyerMessage[] = [];
+  try {
+    const messagesSnap = await adminDb
+      .collection("buyer_messages")
+      .where("active", "==", true)
+      .get();
+    
+    // Manual sort by createdAt desc if index missing, or rely on client
+    activeMessages = messagesSnap.docs.map(doc => {
+      const d = doc.data();
+      return {
+        id: doc.id,
+        text: d.text || "",
+        linkText: d.linkText || "",
+        linkUrl: d.linkUrl || "",
+        type: d.type || "info",
+        active: true
+      };
+    });
+  } catch (err) {
+    console.error("Error fetching messages:", err);
   }
 
   return {
     props: {
       trending,
       newArrivals,
-      featuredDesigners: featuredDesigners.slice(0, 15), // Limit to top 15
+      featuredDesigners: featuredDesigners.slice(0, 15),
+      activeMessages,
     },
   };
 };
