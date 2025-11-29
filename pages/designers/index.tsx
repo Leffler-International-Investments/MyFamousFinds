@@ -1,26 +1,41 @@
-// FILE: /pages/designers/index.tsx
-
+// FILE: /pages/category/[slug].tsx
 import Head from "next/head";
 import Link from "next/link";
-import { useRouter } from "next/router";
-import { useMemo, useState } from "react";
-import type { GetServerSideProps, NextPage } from "next";
-
+import type { GetServerSideProps } from "next";
+import { useEffect, useMemo, useState } from "react";
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
 import ProductCard, { ProductLike } from "../../components/ProductCard";
 import { adminDb } from "../../utils/firebaseAdmin";
 
+type CategoryProps = {
+  slug: string;
+  label: string;
+  items: ProductLike[];
+};
+
+// we extend ProductLike with optional category & condition
 type ItemWithPrice = ProductLike & {
   priceValue: number;
   category?: string;
   condition?: string;
 };
 
-type DesignersPageProps = {
-  items: ProductLike[];
+type PublicDesignersResponse = {
+  ok: boolean;
+  designers?: { id: string; name: string; slug: string; active?: boolean }[];
+  error?: string;
 };
 
+// ---- Helper: "US$1,200" -> 1200 ----
+function parsePrice(price?: string | null): number {
+  if (!price) return 0;
+  const cleaned = price.replace(/[^0-9.,]/g, "").replace(/,/g, "");
+  const asNumber = Number(cleaned);
+  return Number.isFinite(asNumber) ? asNumber : 0;
+}
+
+// Sidebar options
 const CATEGORY_OPTIONS = [
   "Women",
   "Men",
@@ -33,143 +48,160 @@ const CATEGORY_OPTIONS = [
 
 const CONDITION_OPTIONS = ["New", "Excellent", "Very good", "Good"];
 
-const DesignersPage: NextPage<DesignersPageProps> = ({ items }) => {
-  const router = useRouter();
+// Fallback designers if API/items empty
+const DEFAULT_DESIGNERS = [
+  "Chanel",
+  "Hermès",
+  "Louis Vuitton",
+  "Gucci",
+  "Prada",
+  "Dior",
+  "Rolex",
+];
 
-  // Precompute prices + keep category/condition
-  const baseItems: ItemWithPrice[] = (items || []).map((it: any) => ({
-    ...it,
-    priceValue: parsePrice(it.price),
-    category: it.category || "",
-    condition: it.condition || "",
-  }));
+export default function CategoryPage({ slug, label, items }: CategoryProps) {
+  // Pre-compute numeric prices once
+  const [itemsWithPrice] = useState<ItemWithPrice[]>(() =>
+    (items || []).map((item: any) => ({
+      ...item,
+      priceValue: parsePrice(item.price),
+      category: item.category || "",
+      condition: item.condition || "",
+    }))
+  );
 
-  // Initialise filters from query (so Apply Filters round-trips)
-  const initialCategory =
-    typeof router.query.category === "string"
-      ? router.query.category
-      : "";
-  const initialDesigner =
-    typeof router.query.designer === "string"
-      ? router.query.designer
-      : "";
-  const initialCondition =
-    typeof router.query.condition === "string"
-      ? router.query.condition
-      : "";
-
-  const [selectedCategories, setSelectedCategories] = useState<string[]>(
-    initialCategory ? [initialCategory] : []
-  );
-  const [selectedDesigners, setSelectedDesigners] = useState<string[]>(
-    initialDesigner ? [initialDesigner] : []
-  );
-  const [selectedConditions, setSelectedConditions] = useState<string[]>(
-    initialCondition ? [initialCondition] : []
-  );
-  const [minPrice, setMinPrice] = useState<number | "">(
-    typeof router.query.minPrice === "string"
-      ? Number(router.query.minPrice) || 0
-      : 0
-  );
-  const [maxPrice, setMaxPrice] = useState<number | "">(
-    typeof router.query.maxPrice === "string"
-      ? Number(router.query.maxPrice) || 100000
-      : 100000
-  );
   const [sortBy, setSortBy] = useState<"newest" | "price-asc" | "price-desc">(
     "newest"
   );
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  const [selectedDesigners, setSelectedDesigners] = useState<string[]>([]);
+  const [selectedConditions, setSelectedConditions] = useState<string[]>([]);
+  const [minPrice, setMinPrice] = useState<number | "">(0);
+  const [maxPrice, setMaxPrice] = useState<number | "">(10000);
 
-  // Designer options from items
-  const designerOptions = useMemo(
-    () =>
-      Array.from(
+  // Designers list for the filter (this is the missing bit you’re not seeing)
+  const [designerOptions, setDesignerOptions] =
+    useState<string[]>(DEFAULT_DESIGNERS);
+
+  // Load designers from your public API once on mount,
+  // then fall back to brands from items, then DEFAULT_DESIGNERS
+  useEffect(() => {
+    async function loadDesigners() {
+      try {
+        const res = await fetch("/api/public/designers");
+        const data: PublicDesignersResponse = await res.json();
+
+        if (data.ok && data.designers && data.designers.length > 0) {
+          const names = Array.from(
+            new Set(
+              data.designers
+                .filter((d) => d.active !== false)
+                .map((d) => d.name.trim())
+                .filter(Boolean)
+            )
+          ).sort((a, b) => a.localeCompare(b));
+          if (names.length > 0) {
+            setDesignerOptions(names);
+            return;
+          }
+        }
+      } catch (err) {
+        console.error("Failed to load designers for filters", err);
+      }
+
+      // Fallback: use brands from items or DEFAULT_DESIGNERS
+      const fromItems = Array.from(
         new Set(
-          baseItems
+          itemsWithPrice
             .map((i) => (i.brand || "").trim())
             .filter(Boolean)
         )
-      ).sort((a, b) => a.localeCompare(b)),
-    [baseItems]
-  );
+      ).sort((a, b) => a.localeCompare(b));
 
-  // helpers
+      if (fromItems.length > 0) {
+        setDesignerOptions(fromItems);
+      } else {
+        setDesignerOptions(DEFAULT_DESIGNERS);
+      }
+    }
+
+    loadDesigners();
+  }, [itemsWithPrice]);
+
+  // Simple helpers to toggle filters
   function toggleInList(list: string[], value: string): string[] {
     return list.includes(value)
       ? list.filter((v) => v !== value)
       : [...list, value];
   }
 
-  const onCategoryChange = (name: string) =>
+  function onCategoryChange(name: string) {
     setSelectedCategories((prev) => toggleInList(prev, name));
-  const onDesignerChange = (name: string) =>
+  }
+  function onDesignerChange(name: string) {
     setSelectedDesigners((prev) => toggleInList(prev, name));
-  const onConditionChange = (name: string) =>
+  }
+  function onConditionChange(name: string) {
     setSelectedConditions((prev) => toggleInList(prev, name));
+  }
 
-  const resetFilters = () => {
+  function resetFilters() {
     setSelectedCategories([]);
     setSelectedDesigners([]);
     setSelectedConditions([]);
     setMinPrice(0);
-    setMaxPrice(100000);
-  };
+    setMaxPrice(10000);
+  }
 
-  // Apply Filters → push query so URL matches
-  const applyFiltersToUrl = () => {
-    const query: Record<string, string> = {};
+  // Apply filters + sort
+  const filteredItems: ItemWithPrice[] = useMemo(() => {
+    let result = [...itemsWithPrice];
 
-    if (selectedCategories[0]) query.category = selectedCategories[0];
-    if (selectedDesigners[0]) query.designer = selectedDesigners[0];
-    if (selectedConditions[0]) query.condition = selectedConditions[0];
-    if (typeof minPrice === "number") query.minPrice = String(minPrice);
-    if (typeof maxPrice === "number") query.maxPrice = String(maxPrice);
-
-    router.push({
-      pathname: "/designers",
-      query,
-    });
-  };
-
-  // Client-side filter + sort
-  const filteredItems = useMemo(() => {
-    let result = [...baseItems];
-
+    // 1) Category filter
     if (selectedCategories.length > 0) {
-      result = result.filter((i) =>
-        i.category ? selectedCategories.includes(i.category) : false
+      result = result.filter((item) =>
+        item.category
+          ? selectedCategories.includes(item.category)
+          : false
       );
     }
 
+    // 2) Designer filter
     if (selectedDesigners.length > 0) {
-      result = result.filter((i) =>
-        i.brand ? selectedDesigners.includes(i.brand) : false
+      result = result.filter((item) =>
+        item.brand ? selectedDesigners.includes(item.brand) : false
       );
     }
 
+    // 3) Condition filter
     if (selectedConditions.length > 0) {
-      result = result.filter((i) =>
-        i.condition ? selectedConditions.includes(i.condition) : false
+      result = result.filter((item) =>
+        item.condition
+          ? selectedConditions.includes(item.condition)
+          : false
       );
     }
 
-    result = result.filter((i) => {
-      const p = i.priceValue;
-      if (typeof minPrice === "number" && p < minPrice) return false;
-      if (typeof maxPrice === "number" && p > maxPrice) return false;
+    // 4) Price filter
+    result = result.filter((item) => {
+      const price = item.priceValue;
+      if (typeof minPrice === "number" && price < minPrice) return false;
+      if (typeof maxPrice === "number" && price > maxPrice) return false;
       return true;
     });
 
+    // 5) Sort
     if (sortBy === "price-asc") {
       result.sort((a, b) => a.priceValue - b.priceValue);
     } else if (sortBy === "price-desc") {
       result.sort((a, b) => b.priceValue - a.priceValue);
+    } else {
+      // "newest" – keep server order (createdAt desc)
     }
 
     return result;
   }, [
-    baseItems,
+    itemsWithPrice,
     selectedCategories,
     selectedDesigners,
     selectedConditions,
@@ -180,24 +212,29 @@ const DesignersPage: NextPage<DesignersPageProps> = ({ items }) => {
 
   const resultsCount = filteredItems.length;
 
+  const breadcrumbLabel =
+    label ||
+    slug.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+
   return (
-    <div className="designers-page">
+    <div className="category-page">
       <Head>
-        <title>Designers – All Products | Famous Finds</title>
+        <title>{breadcrumbLabel} – All Products | Famous Finds</title>
       </Head>
 
       <Header />
 
       <main className="page-main">
         <div className="page-inner">
+          {/* Breadcrumb */}
           <div className="breadcrumb">
             <Link href="/">Home</Link>
             <span>/</span>
-            <span>Designers</span>
+            <span>{breadcrumbLabel}</span>
           </div>
 
           <div className="layout">
-            {/* FILTERS */}
+            {/* LEFT – Filters */}
             <aside className="filters">
               <div className="filters-header">
                 <h2>Filters</h2>
@@ -206,6 +243,7 @@ const DesignersPage: NextPage<DesignersPageProps> = ({ items }) => {
                 </button>
               </div>
 
+              {/* CATEGORY BLOCK */}
               <div className="filter-block">
                 <h3>Category</h3>
                 <div className="filter-list">
@@ -222,6 +260,7 @@ const DesignersPage: NextPage<DesignersPageProps> = ({ items }) => {
                 </div>
               </div>
 
+              {/* DESIGNER BLOCK – THIS IS WHAT WAS MISSING IN YOUR UI */}
               <div className="filter-block">
                 <h3>Designer</h3>
                 <div className="filter-list">
@@ -238,6 +277,7 @@ const DesignersPage: NextPage<DesignersPageProps> = ({ items }) => {
                 </div>
               </div>
 
+              {/* CONDITION BLOCK */}
               <div className="filter-block">
                 <h3>Condition</h3>
                 <div className="filter-list">
@@ -254,6 +294,7 @@ const DesignersPage: NextPage<DesignersPageProps> = ({ items }) => {
                 </div>
               </div>
 
+              {/* PRICE BLOCK */}
               <div className="filter-block">
                 <h3>Price</h3>
                 <div className="price-row">
@@ -271,7 +312,7 @@ const DesignersPage: NextPage<DesignersPageProps> = ({ items }) => {
                       }
                     />
                   </div>
-                  <span className="price-separator">-</span>
+                  <span className="price-separator">–</span>
                   <div className="price-input">
                     <span>Max</span>
                     <input
@@ -290,14 +331,16 @@ const DesignersPage: NextPage<DesignersPageProps> = ({ items }) => {
                 <button
                   type="button"
                   className="apply-btn"
-                  onClick={applyFiltersToUrl}
+                  onClick={() => {
+                    // filters already live – button is for UX only
+                  }}
                 >
                   Apply Filters
                 </button>
               </div>
             </aside>
 
-            {/* RESULTS */}
+            {/* RIGHT – Results */}
             <section className="results">
               <div className="results-header">
                 <div>
@@ -307,7 +350,6 @@ const DesignersPage: NextPage<DesignersPageProps> = ({ items }) => {
                     {resultsCount === 1 ? "result" : "results"}
                   </p>
                 </div>
-
                 <div className="sort">
                   <label>
                     Sort
@@ -354,7 +396,7 @@ const DesignersPage: NextPage<DesignersPageProps> = ({ items }) => {
       <Footer />
 
       <style jsx>{`
-        .designers-page {
+        .category-page {
           background: #ffffff;
           color: #111827;
           min-height: 100vh;
@@ -536,57 +578,56 @@ const DesignersPage: NextPage<DesignersPageProps> = ({ items }) => {
       `}</style>
     </div>
   );
-};
-
-export default DesignersPage;
-
-// Helper: parse "US$1,200" → 1200
-function parsePrice(price?: string | null): number {
-  if (!price) return 0;
-  const cleaned = price.replace(/[^0-9.,]/g, "").replace(/,/g, "");
-  const n = Number(cleaned);
-  return Number.isFinite(n) ? n : 0;
 }
 
-export const getServerSideProps: GetServerSideProps<
-  DesignersPageProps
-> = async (ctx) => {
+// Map pretty labels for slug -> heading
+const labelMap: Record<string, string> = {
+  "new-arrivals": "New Arrivals",
+  women: "Women",
+  men: "Men",
+  bags: "Bags",
+  jewelry: "Jewelry",
+  watches: "Watches",
+};
+
+export const getServerSideProps: GetServerSideProps<CategoryProps> = async (
+  ctx
+) => {
+  const rawSlug = String(ctx.params?.slug || "");
+  const normalized = rawSlug.toLowerCase();
+
   const allowedStatuses = ["Live", "Active", "Approved"];
 
-  const { category, designer, condition, minPrice, maxPrice } = ctx.query;
+  const categoryLabel =
+    labelMap[normalized] ||
+    normalized.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 
-  let query: FirebaseFirestore.Query = adminDb
-    .collection("listings")
-    .where("status", "in", allowedStatuses);
-
-  if (typeof designer === "string" && designer.trim()) {
-    query = query.where("brand", "==", designer.trim());
-  }
-
-  if (typeof category === "string" && category.trim()) {
-    query = query.where("category", "==", category.trim());
-  }
-
-  if (typeof condition === "string" && condition.trim()) {
-    query = query.where("condition", "==", condition.trim());
-  }
-
-  // For consistent layout, order by createdAt when available
   try {
-    const snap = await query.orderBy("createdAt", "desc").limit(80).get();
+    let query = adminDb
+      .collection("listings")
+      .where("status", "in", allowedStatuses);
+
+    // "New Arrivals" = newest only
+    if (normalized === "new-arrivals") {
+      query = query.orderBy("createdAt", "desc");
+    } else {
+      // ALL other category pages filter by category field
+      query = query.where("category", "==", categoryLabel);
+    }
+
+    const snap = await query.limit(60).get();
 
     const items: ProductLike[] = snap.docs.map((doc) => {
-      const d: any = doc.data() || {};
-
-      const priceNumber = Number(d.price) || 0;
+      const d = doc.data() as any;
 
       const image =
         d.image_url ||
         d.imageUrl ||
         d.image ||
-        (Array.isArray(d.imageUrls) && d.imageUrls.length > 0
-          ? d.imageUrls[0]
-          : "");
+        (Array.isArray(d.imageUrls) && d.imageUrls[0]) ||
+        "";
+
+      const priceNum = Number(d.price) || 0;
 
       return {
         id: doc.id,
@@ -594,7 +635,7 @@ export const getServerSideProps: GetServerSideProps<
         brand: d.brand || "",
         category: d.category || "",
         condition: d.condition || "",
-        price: priceNumber ? `US$${priceNumber.toLocaleString("en-US")}` : "",
+        price: priceNum ? `US$${priceNum.toLocaleString()}` : "",
         image,
         href: `/product/${doc.id}`,
       } as ProductLike & { category?: string; condition?: string };
@@ -602,13 +643,17 @@ export const getServerSideProps: GetServerSideProps<
 
     return {
       props: {
+        slug: normalized,
+        label: labelMap[normalized] || normalized.toUpperCase(),
         items,
       },
     };
   } catch (err) {
-    console.error("Error loading designers listings", err);
+    console.error("Error loading category page", err);
     return {
       props: {
+        slug: normalized,
+        label: labelMap[normalized] || normalized.toUpperCase(),
         items: [],
       },
     };
