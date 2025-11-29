@@ -1,403 +1,706 @@
-// FILE: /pages/management/listings.tsx
-import { useMemo, useState } from "react";
-import type { GetServerSideProps } from "next";
+// FILE: /pages/designers/index.tsx
+
 import Head from "next/head";
 import Link from "next/link";
+import { useRouter } from "next/router";
+import { useMemo, useState } from "react";
+import type { GetServerSideProps, NextPage } from "next";
+
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
-import { useRequireAdmin } from "../../hooks/useRequireAdmin";
+import ProductCard, { ProductLike } from "../../components/ProductCard";
 import { adminDb } from "../../utils/firebaseAdmin";
 
-type Listing = {
-  id: string;
-  title: string;
-  seller: string;
-  status: "Live" | "Pending" | "Rejected" | "Sold";
-  price: number;
+// --------------------------------------------------
+// Types
+// --------------------------------------------------
+
+type ItemWithMeta = ProductLike & {
+  priceValue: number;
+  category?: string;
+  condition?: string;
+  brand?: string;
 };
 
-type Props = {
-  items: Listing[];
+type DesignersPageProps = {
+  items: ItemWithMeta[];
 };
 
-export default function ManagementListings({ items }: Props) {
-  const { loading } = useRequireAdmin();
+// --------------------------------------------------
+// Filter options
+// --------------------------------------------------
 
-  const [rows, setRows] = useState<Listing[]>(items);
-  const [query, setQuery] = useState("");
-  const [statusFilter, setStatusFilter] =
-    useState<"All" | "Live" | "Pending" | "Rejected" | "Sold">("All");
-  const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [sellingId, setSellingId] = useState<string | null>(null);
+const CATEGORY_OPTIONS = [
+  "Women",
+  "Men",
+  "Bags",
+  "Shoes",
+  "Accessories",
+  "Jewelry",
+  "Watches",
+];
 
-  const visible = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    return rows.filter((l) => {
-      if (statusFilter !== "All" && l.status !== statusFilter) return false;
-      if (!q) return true;
-      return (
-        l.title.toLowerCase().includes(q) ||
-        l.seller.toLowerCase().includes(q) ||
-        l.id.toLowerCase().includes(q)
-      );
-    });
-  }, [rows, query, statusFilter]);
+// EXACTLY same labels as /seller/bulk-simple
+const CONDITION_OPTIONS = [
+  "New with tags",
+  "New (never used)",
+  "Excellent",
+  "Very good",
+  "Good",
+  "Fair",
+];
 
-  async function handleDelete(id: string, title: string) {
-    if (deletingId) return;
-    const ok = window.confirm(
-      `Delete listing "${title}" permanently? It will disappear from the homepage and catalogue.`
-    );
-    if (!ok) return;
+const DESIGNER_OPTIONS = [
+  "Alexander McQueen",
+  "Balenciaga",
+  "Bottega Veneta",
+  "Burberry",
+  "Dior",
+  "Fendi",
+  "Givenchy",
+  "Goyard",
+  "Gucci",
+  "Hermès",
+  "Louis Vuitton",
+  "Prada",
+  "Saint Laurent",
+  "Valentino",
+  "Versace",
+];
 
-    try {
-      setDeletingId(id);
-      const res = await fetch(`/api/admin/delete/${id}`, {
-        method: "POST",
-      });
-      const json = await res.json();
-      if (!res.ok || !json?.ok) {
-        throw new Error(json?.error || "Failed to delete listing");
-      }
+// --------------------------------------------------
+// Helpers
+// --------------------------------------------------
 
-      setRows((prev) => prev.filter((l) => l.id !== id));
-    } catch (err: any) {
-      console.error("Delete listing error", err);
-      alert(err?.message || "Unable to delete listing");
-    } finally {
-      setDeletingId(null);
-    }
-  }
-
-  async function handleMarkSold(id: string, title: string) {
-    if (sellingId) return;
-    const ok = window.confirm(
-      `Mark listing "${title}" as SOLD and hide it from the homepage?`
-    );
-    if (!ok) return;
-
-    try {
-      setSellingId(id);
-      const res = await fetch(`/api/admin/mark-sold/${id}`, {
-        method: "POST",
-      });
-      const json = await res.json();
-      if (!res.ok || !json?.ok) {
-        throw new Error(json?.error || "Failed to mark listing as sold");
-      }
-
-      // Update status locally so admin sees change immediately
-      setRows((prev) =>
-        prev.map((l) =>
-          l.id === id
-            ? {
-                ...l,
-                status: "Sold",
-              }
-            : l
-        )
-      );
-    } catch (err: any) {
-      console.error("Mark sold error", err);
-      alert(err?.message || "Unable to mark listing as sold");
-    } finally {
-      setSellingId(null);
-    }
-  }
-
-  if (loading) return <div className="dashboard-page" />;
-
-  return (
-    <>
-      <Head>
-        <title>All Listings — Admin</title>
-      </Head>
-
-      <div className="dashboard-page">
-        <Header />
-
-        <main className="dashboard-main">
-          <div className="dashboard-header">
-            <div>
-              <h1>All Listings</h1>
-              <p>Search, review, and moderate every item on Famous-Finds.</p>
-            </div>
-            <Link href="/management/dashboard">
-              ← Back to Management Dashboard
-            </Link>
-          </div>
-
-          <div className="filters-bar">
-            <input
-              type="text"
-              placeholder="Search by title, seller, or ID…"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              className="form-input"
-            />
-            <select
-              value={statusFilter}
-              onChange={(e) =>
-                setStatusFilter(e.target.value as any)
-              }
-              className="form-input"
-              style={{ maxWidth: "220px" }}
-            >
-              <option value="All">All statuses</option>
-              <option value="Live">Live</option>
-              <option value="Pending">Pending</option>
-              <option value="Rejected">Rejected</option>
-              <option value="Sold">Sold</option>
-            </select>
-          </div>
-
-          <div className="table-wrapper">
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>Listing</th>
-                  <th>Seller</th>
-                  <th>Price (US$)</th>
-                  <th>Status</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {visible.map((l) => (
-                  <tr key={l.id}>
-                    <td>{l.title}</td>
-                    <td>{l.seller}</td>
-                    <td>
-                      {l.price
-                        ? l.price.toLocaleString("en-US", {
-                            style: "currency",
-                            currency: "USD",
-                          })
-                        : "—"}
-                    </td>
-                    <td>
-                      <span
-                        className={
-                          "status-badge " +
-                          (l.status === "Live"
-                            ? "status-active"
-                            : l.status === "Pending"
-                            ? "status-pending"
-                            : l.status === "Rejected"
-                            ? "status-rejected"
-                            : "status-sold")
-                        }
-                      >
-                        {l.status}
-                      </span>
-                    </td>
-                    <td>
-                      <Link
-                        href={`/product/${l.id}`}
-                        className="btn-table-view"
-                      >
-                        View
-                      </Link>
-
-                      {/* Mark sold (hide from homepage) */}
-                      {l.status !== "Sold" && (
-                        <button
-                          type="button"
-                          className="btn-table-sold"
-                          onClick={() => handleMarkSold(l.id, l.title)}
-                          disabled={sellingId === l.id}
-                        >
-                          {sellingId === l.id ? "Marking…" : "Mark sold"}
-                        </button>
-                      )}
-
-                      {/* Delete permanently */}
-                      <button
-                        type="button"
-                        className="btn-table-delete"
-                        onClick={() => handleDelete(l.id, l.title)}
-                        disabled={deletingId === l.id}
-                      >
-                        {deletingId === l.id ? "Deleting…" : "Delete"}
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-                {visible.length === 0 && (
-                  <tr>
-                    <td colSpan={5} className="table-message">
-                      No listings match this filter.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </main>
-
-        <Footer />
-      </div>
-
-      <style jsx>{`
-        .filters-bar {
-          margin-bottom: 16px;
-          display: flex;
-          flex-wrap: wrap;
-          gap: 12px;
-        }
-        .form-input {
-          max-width: 320px;
-          border-radius: 6px;
-          border: 1px solid #d1d5db;
-          padding: 8px 12px;
-          font-size: 14px;
-        }
-        .form-input:focus {
-          border-color: #111827;
-          outline: none;
-        }
-
-        .table-wrapper {
-          overflow-x: auto;
-          border-radius: 8px;
-          border: 1px solid #e5e7eb;
-          background: #ffffff;
-          box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-        }
-        .data-table {
-          min-width: 100%;
-          border-collapse: collapse;
-          font-size: 14px;
-        }
-        .data-table thead {
-          background: #f9fafb;
-        }
-        .data-table th {
-          padding: 8px 12px;
-          text-align: left;
-          font-weight: 500;
-          color: #374151;
-        }
-        .data-table tbody tr {
-          border-bottom: 1px solid #f3f4f6;
-        }
-        .data-table tbody tr:last-child {
-          border-bottom: none;
-        }
-        .data-table td {
-          padding: 8px 12px;
-          color: #111827;
-        }
-        .data-table td:first-child {
-          font-weight: 500;
-        }
-        .table-message {
-          padding: 24px;
-          text-align: center;
-          color: #6b7280;
-        }
-
-        .status-badge {
-          display: inline-flex;
-          border-radius: 999px;
-          padding: 2px 8px;
-          font-size: 12px;
-          font-weight: 500;
-        }
-        .status-active {
-          background: #d1fae5;
-          color: #065f46;
-        }
-        .status-pending {
-          background: #fef3c7;
-          color: #92400e;
-        }
-        .status-rejected {
-          background: #fee2e2;
-          color: #991b1b;
-        }
-        .status-sold {
-          background: #e5e7eb;
-          color: #4b5563;
-        }
-
-        .btn-table-view {
-          font-size: 12px;
-          font-weight: 500;
-          color: #2563eb;
-          text-decoration: none;
-          margin-right: 8px;
-        }
-        .btn-table-view:hover {
-          color: #1d4ed8;
-        }
-
-        .btn-table-sold {
-          font-size: 12px;
-          font-weight: 500;
-          border-radius: 999px;
-          padding: 4px 10px;
-          border: 1px solid #047857;
-          background: #ecfdf5;
-          color: #047857;
-          cursor: pointer;
-          margin-right: 8px;
-        }
-        .btn-table-sold:disabled {
-          opacity: 0.7;
-          cursor: default;
-        }
-        .btn-table-sold:hover:not(:disabled) {
-          background: #d1fae5;
-        }
-
-        .btn-table-delete {
-          font-size: 12px;
-          font-weight: 500;
-          border-radius: 999px;
-          padding: 4px 10px;
-          border: 1px solid #dc2626;
-          background: #fee2e2;
-          color: #b91c1c;
-          cursor: pointer;
-        }
-        .btn-table-delete:disabled {
-          opacity: 0.7;
-          cursor: default;
-        }
-        .btn-table-delete:hover:not(:disabled) {
-          background: #fecaca;
-        }
-      `}</style>
-    </>
-  );
+function parsePrice(price?: string | null): number {
+  if (!price) return 0;
+  const cleaned = price.replace(/[^0-9.,]/g, "").replace(/,/g, "");
+  const n = Number(cleaned);
+  return Number.isFinite(n) ? n : 0;
 }
 
-export const getServerSideProps: GetServerSideProps<Props> = async () => {
+function normalize(raw: string | undefined | null): string {
+  if (!raw) return "";
+  return raw
+    .toString()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, "");
+}
+
+function levenshtein(a: string, b: string): number {
+  if (a === b) return 0;
+  const aLen = a.length;
+  const bLen = b.length;
+  if (aLen === 0) return bLen;
+  if (bLen === 0) return aLen;
+
+  const matrix: number[][] = [];
+  for (let i = 0; i <= bLen; i++) matrix[i] = [i];
+  for (let j = 0; j <= aLen; j++) matrix[0][j] = j;
+
+  for (let i = 1; i <= bLen; i++) {
+    for (let j = 1; j <= aLen; j++) {
+      if (b.charAt(i - 1) === a.charAt(j - 1)) {
+        matrix[i][j] = matrix[i - 1][j - 1];
+      } else {
+        matrix[i][j] = Math.min(
+          matrix[i - 1][j] + 1,
+          matrix[i][j - 1] + 1,
+          matrix[i - 1][j - 1] + 1
+        );
+      }
+    }
+  }
+
+  return matrix[bLen][aLen];
+}
+
+// canonical tokens
+
+function canonCategory(raw: string): string {
+  const n = normalize(raw);
+  if (!n) return "";
+  if (n === "women") return "women";
+  if (n === "men") return "men";
+  if (n === "bags" || n === "bag") return "bags";
+  if (n === "shoes" || n === "shoe" || n === "footwear") return "shoes";
+  if (n === "accessories" || n === "accessory") return "accessories";
+  if (n === "jewelry" || n === "jewellery") return "jewelry";
+  if (n === "watches" || n === "watch") return "watches";
+  return n;
+}
+
+// ✅ GROUP “NEW”, “NEW WITH TAGS”, “NEW (NEVER USED)” etc. together
+function canonCondition(raw: string): string {
+  const n = normalize(raw);
+  if (!n) return "";
+  if (
+    n === "new" ||
+    n === "newwithtags" ||
+    n === "newneverused" ||
+    n === "brandnew"
+  ) {
+    return "new";
+  }
+  if (n === "excellent" || n === "likenew") return "excellent";
+  if (n === "verygood" || n === "verygoodcondition") return "verygood";
+  if (n === "good" || n === "usedgood") return "good";
+  if (n === "fair") return "fair";
+  return n;
+}
+
+function canonBrand(raw: string): string {
+  return normalize(raw);
+}
+
+// BRAND MATCH: exact / substring / small typo
+function brandMatches(selected: string, actual: string): boolean {
+  const sel = canonBrand(selected);
+  const act = canonBrand(actual);
+  if (!sel || !act) return false;
+
+  if (act.includes(sel) || sel.includes(act)) return true;
+
+  const dist = levenshtein(sel, act);
+  return dist <= 4;
+}
+
+const pickImage = (data: any): string => {
+  if (data.image_url) return data.image_url;
+  if (data.imageUrl) return data.imageUrl;
+  if (data.image) return data.image;
+  if (Array.isArray(data.imageUrls) && data.imageUrls.length > 0) {
+    return data.imageUrls[0];
+  }
+  return "";
+};
+
+// --------------------------------------------------
+// Component
+// --------------------------------------------------
+
+const DesignersPage: NextPage<DesignersPageProps> = ({ items }) => {
+  const router = useRouter();
+
+  const baseItems: ItemWithMeta[] = (items || []).map((it: any) => ({
+    ...it,
+    priceValue: parsePrice(it.price),
+    category: it.category || "",
+    condition: it.condition || "",
+    brand: it.brand || "",
+  }));
+
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  const [selectedDesigners, setSelectedDesigners] = useState<string[]>([]);
+  const [selectedConditions, setSelectedConditions] = useState<string[]>([]);
+  const [minPrice, setMinPrice] = useState<number | "">(0);
+  const [maxPrice, setMaxPrice] = useState<number | "">(100000);
+  const [sortBy, setSortBy] = useState<"newest" | "price-asc" | "price-desc">(
+    "newest"
+  );
+
+  const toggleInList = (list: string[], value: string): string[] =>
+    list.includes(value) ? list.filter((v) => v !== value) : [...list, value];
+
+  const onCategoryChange = (name: string) =>
+    setSelectedCategories((prev) => toggleInList(prev, name));
+  const onDesignerChange = (name: string) =>
+    setSelectedDesigners((prev) => toggleInList(prev, name));
+  const onConditionChange = (name: string) =>
+    setSelectedConditions((prev) => toggleInList(prev, name));
+
+  const resetFilters = () => {
+    setSelectedCategories([]);
+    setSelectedDesigners([]);
+    setSelectedConditions([]);
+    setMinPrice(0);
+    setMaxPrice(100000);
+  };
+
+  const applyFiltersToUrl = () => {
+    const query: Record<string, string> = {};
+
+    if (selectedCategories[0]) query.category = selectedCategories[0];
+    if (selectedDesigners[0]) query.designer = selectedDesigners[0];
+    if (selectedConditions[0]) query.condition = selectedConditions[0];
+    if (typeof minPrice === "number") query.minPrice = String(minPrice);
+    if (typeof maxPrice === "number") query.maxPrice = String(maxPrice);
+
+    router.replace({ pathname: "/designers", query }, undefined, {
+      shallow: true,
+    });
+  };
+
+  const filteredItems = useMemo(() => {
+    let result = [...baseItems];
+
+    const normSelectedCats = selectedCategories.map((c) => canonCategory(c));
+    const normSelectedConds = selectedConditions.map((c) =>
+      canonCondition(c)
+    );
+
+    // CATEGORY
+    if (selectedCategories.length > 0) {
+      result = result.filter((item) => {
+        const itemCatNorm = canonCategory(item.category || "");
+        if (!itemCatNorm) return false;
+        return normSelectedCats.includes(itemCatNorm);
+      });
+    }
+
+    // DESIGNER
+    if (selectedDesigners.length > 0) {
+      result = result.filter((item) => {
+        const actualBrand = item.brand || "";
+        if (!actualBrand) return false;
+        return selectedDesigners.some((sel) => brandMatches(sel, actualBrand));
+      });
+    }
+
+    // ✅ CONDITION – using canonical groups
+    if (selectedConditions.length > 0) {
+      result = result.filter((item) => {
+        const itemCond = canonCondition(item.condition || "");
+        if (!itemCond) return false;
+        return normSelectedConds.includes(itemCond);
+      });
+    }
+
+    // PRICE
+    result = result.filter((item) => {
+      const p = item.priceValue;
+      if (typeof minPrice === "number" && p < minPrice) return false;
+      if (typeof maxPrice === "number" && p > maxPrice) return false;
+      return true;
+    });
+
+    // SORT
+    if (sortBy === "price-asc") {
+      result.sort((a, b) => a.priceValue - b.priceValue);
+    } else if (sortBy === "price-desc") {
+      result.sort((a, b) => b.priceValue - a.priceValue);
+    }
+
+    return result;
+  }, [
+    baseItems,
+    selectedCategories,
+    selectedDesigners,
+    selectedConditions,
+    minPrice,
+    maxPrice,
+    sortBy,
+  ]);
+
+  const resultsCount = filteredItems.length;
+
+  return (
+    <div className="designers-page">
+      <Head>
+        <title>Designers – All Products | Famous Finds</title>
+      </Head>
+
+      <Header />
+
+      <main className="page-main">
+        <div className="page-inner">
+          <div className="breadcrumb">
+            <Link href="/">Home</Link>
+            <span>/</span>
+            <span>Designers</span>
+          </div>
+
+          <div className="layout">
+            <aside className="filters">
+              <div className="filters-header">
+                <h2>Filters</h2>
+                <button type="button" onClick={resetFilters}>
+                  Clear All
+                </button>
+              </div>
+
+              <div className="filter-block">
+                <h3>Category</h3>
+                <div className="filter-list">
+                  {CATEGORY_OPTIONS.map((cat) => (
+                    <label key={cat} className="filter-option">
+                      <input
+                        type="checkbox"
+                        checked={selectedCategories.includes(cat)}
+                        onChange={() => onCategoryChange(cat)}
+                      />
+                      <span>{cat}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              <div className="filter-block">
+                <h3>Designer</h3>
+                <div className="filter-list">
+                  {DESIGNER_OPTIONS.map((name) => (
+                    <label key={name} className="filter-option">
+                      <input
+                        type="checkbox"
+                        checked={selectedDesigners.includes(name)}
+                        onChange={() => onDesignerChange(name)}
+                      />
+                      <span>{name}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              <div className="filter-block">
+                <h3>Condition</h3>
+                <div className="filter-list">
+                  {CONDITION_OPTIONS.map((cond) => (
+                    <label key={cond} className="filter-option">
+                      <input
+                        type="checkbox"
+                        checked={selectedConditions.includes(cond)}
+                        onChange={() => onConditionChange(cond)}
+                      />
+                      <span>{cond}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              <div className="filter-block">
+                <h3>Price</h3>
+                <div className="price-row">
+                  <div className="price-input">
+                    <span>Min</span>
+                    <input
+                      type="number"
+                      value={minPrice}
+                      onChange={(e) =>
+                        setMinPrice(
+                          e.target.value === ""
+                            ? ""
+                            : Number(e.target.value) || 0
+                        )
+                      }
+                    />
+                  </div>
+                  <span className="price-separator">-</span>
+                  <div className="price-input">
+                    <span>Max</span>
+                    <input
+                      type="number"
+                      value={maxPrice}
+                      onChange={(e) =>
+                        setMaxPrice(
+                          e.target.value === ""
+                            ? ""
+                            : Number(e.target.value) || 0
+                        )
+                      }
+                    />
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  className="apply-btn"
+                  onClick={applyFiltersToUrl}
+                >
+                  Apply Filters
+                </button>
+              </div>
+            </aside>
+
+            <section className="results">
+              <div className="results-header">
+                <div>
+                  <h1>All Products</h1>
+                  <p className="results-count">
+                    {resultsCount} {resultsCount === 1 ? "result" : "results"}
+                  </p>
+                </div>
+
+                <div className="sort">
+                  <label>
+                    Sort
+                    <select
+                      value={sortBy}
+                      onChange={(e) =>
+                        setSortBy(
+                          e.target.value as
+                            | "newest"
+                            | "price-asc"
+                            | "price-desc"
+                        )
+                      }
+                    >
+                      <option value="newest">Newest</option>
+                      <option value="price-asc">Price: Low to High</option>
+                      <option value="price-desc">Price: High to Low</option>
+                    </select>
+                  </label>
+                </div>
+              </div>
+
+              {resultsCount === 0 ? (
+                <div className="empty-state">
+                  <h2>No items match these filters yet.</h2>
+                  <p>Try adjusting your filters or checking back soon.</p>
+                </div>
+              ) : (
+                <div className="grid">
+                  {filteredItems.map((item) => (
+                    <ProductCard key={item.id} {...item} />
+                  ))}
+                </div>
+              )}
+            </section>
+          </div>
+        </div>
+      </main>
+
+      <Footer />
+
+      <style jsx>{`
+        .designers-page {
+          background: #ffffff;
+          color: #111827;
+          min-height: 100vh;
+        }
+        .page-main {
+          padding: 24px 0 64px;
+        }
+        .page-inner {
+          max-width: 1200px;
+          margin: 0 auto;
+          padding: 0 16px;
+        }
+        .breadcrumb {
+          font-size: 13px;
+          color: #6b7280;
+          margin-bottom: 16px;
+          display: flex;
+          align-items: center;
+          gap: 6px;
+        }
+        .breadcrumb a {
+          color: inherit;
+          text-decoration: none;
+        }
+        .layout {
+          display: grid;
+          grid-template-columns: 260px minmax(0, 1fr);
+          gap: 24px;
+        }
+        @media (max-width: 900px) {
+          .layout {
+            grid-template-columns: 1fr;
+          }
+        }
+        .filters {
+          border-radius: 16px;
+          border: 1px solid #e5e7eb;
+          padding: 16px 18px 20px;
+          background: #fafafa;
+        }
+        .filters-header {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          margin-bottom: 12px;
+        }
+        .filters-header h2 {
+          font-size: 18px;
+          font-weight: 600;
+        }
+        .filters-header button {
+          border: none;
+          background: none;
+          font-size: 13px;
+          text-decoration: underline;
+          cursor: pointer;
+          color: #6b7280;
+        }
+        .filter-block {
+          border-top: 1px solid #e5e7eb;
+          padding-top: 12px;
+          margin-top: 12px;
+        }
+        .filter-block:first-of-type {
+          border-top: none;
+          padding-top: 0;
+          margin-top: 0;
+        }
+        .filter-block h3 {
+          font-size: 14px;
+          font-weight: 600;
+          margin-bottom: 6px;
+        }
+        .filter-list {
+          display: flex;
+          flex-direction: column;
+          gap: 4px;
+          font-size: 14px;
+        }
+        .filter-option {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        }
+        .filter-option input {
+          accent-color: #111827;
+        }
+        .price-row {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          margin-bottom: 10px;
+        }
+        .price-input {
+          flex: 1;
+          display: flex;
+          flex-direction: column;
+          gap: 4px;
+          font-size: 13px;
+        }
+        .price-input input {
+          border-radius: 999px;
+          border: 1px solid #d1d5db;
+          padding: 6px 10px;
+          font-size: 14px;
+        }
+        .price-separator {
+          font-size: 14px;
+          color: #6b7280;
+        }
+        .apply-btn {
+          width: 100%;
+          margin-top: 4px;
+          border-radius: 999px;
+          background: #111827;
+          color: white;
+          padding: 8px 12px;
+          border: none;
+          font-size: 14px;
+          font-weight: 500;
+          cursor: pointer;
+        }
+        .results {
+          min-height: 200px;
+        }
+        .results-header {
+          display: flex;
+          align-items: flex-end;
+          justify-content: space-between;
+          gap: 12px;
+          margin-bottom: 12px;
+        }
+        .results-header h1 {
+          font-family: Georgia, "Times New Roman", serif;
+          font-size: 26px;
+          margin: 0;
+        }
+        .results-count {
+          font-size: 13px;
+          color: #6b7280;
+          margin-top: 2px;
+        }
+        .sort label {
+          font-size: 13px;
+          display: flex;
+          flex-direction: column;
+          gap: 4px;
+        }
+        .sort select {
+          border-radius: 999px;
+          border: 1px solid #d1d5db;
+          padding: 6px 10px;
+          font-size: 14px;
+          background: #ffffff;
+        }
+        .grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+          gap: 18px;
+          margin-top: 12px;
+        }
+        .empty-state {
+          margin-top: 32px;
+          border-radius: 16px;
+          border: 1px solid #e5e7eb;
+          padding: 24px;
+          text-align: center;
+          background: #f9fafb;
+        }
+        .empty-state h2 {
+          margin: 0 0 4px;
+          font-size: 18px;
+        }
+        .empty-state p {
+          margin: 0;
+          color: #6b7280;
+          font-size: 14px;
+        }
+      `}</style>
+    </div>
+  );
+};
+
+export default DesignersPage;
+
+// --------------------------------------------------
+// SERVER-SIDE DATA LOAD
+// --------------------------------------------------
+
+export const getServerSideProps: GetServerSideProps<
+  DesignersPageProps
+> = async () => {
   try {
-    const snap = await adminDb.collection("listings").get();
+    const snapshot = await adminDb
+      .collection("listings")
+      .where("status", "==", "Live")
+      .get();
 
-    const items: Listing[] = snap.docs.map((doc) => {
+    const items: ItemWithMeta[] = snapshot.docs.map((doc) => {
       const d: any = doc.data() || {};
-      const rawStatus = (d.status || "").toString();
-      let status: Listing["status"] = "Live";
 
-      if (/pending/i.test(rawStatus)) status = "Pending";
-      else if (/reject/i.test(rawStatus)) status = "Rejected";
-      else if (/sold/i.test(rawStatus)) status = "Sold";
+      const brandRaw =
+        d.brand || d.designer || d.designerName || d.brandName || "";
+      const categoryRaw =
+        d.category || d.categoryLabel || d.categoryName || "";
+      const conditionRaw =
+        d.condition ||
+        d.conditionLabel ||
+        d.itemCondition ||
+        d.conditionText ||
+        "";
+
+      const priceNum =
+        typeof d.price === "number" ? d.price : Number(d.price || 0);
+      const price = priceNum
+        ? `US$${priceNum.toLocaleString("en-US")}`
+        : "";
+
+      const image = pickImage(d);
 
       return {
         id: doc.id,
-        title: d.title || "Untitled listing",
-        seller: d.sellerName || d.sellerId || "Seller",
-        price: Number(d.price || 0),
-        status,
+        title: d.title || "",
+        brand: brandRaw,
+        category: categoryRaw,
+        condition: conditionRaw,
+        price,
+        image,
+        href: `/product/${doc.id}`,
+        priceValue: priceNum || 0,
       };
     });
 
     return { props: { items } };
   } catch (err) {
-    console.error("Error loading listings", err);
+    console.error("Error loading designers listings", err);
     return { props: { items: [] } };
   }
 };
