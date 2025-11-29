@@ -4,8 +4,8 @@
 //
 // FEATURES:
 // - Sharp Image Processing (Resize, Compress, White Background)
+// - Auto-Brightening (Fixes gray backgrounds using .modulate)
 // - 20MB Payload Support
-// - Firestore Validation
 
 import type { NextApiRequest, NextApiResponse } from "next";
 import { adminDb } from "../../../utils/firebaseAdmin";
@@ -86,28 +86,29 @@ async function processImage(base64Str: string): Promise<string | null> {
     // 2. Convert to Buffer
     const buffer = Buffer.from(rawBase64, "base64");
 
-    // 3. Process with Sharp (The "Luxury Standard")
-    // - Rotate: Fixes iPhone sideways photos
-    // - Resize: 1080x1080 Square (Industry Standard)
-    // - Fit 'contain': Ensures the whole item is visible
-    // - Background: White (#ffffff) to fill empty space
-    // - Format: JPEG at 80% quality (Visual perfection, low file size)
+    // 3. Process with Sharp (Luxury Standard)
     const optimizedBuffer = await sharp(buffer)
-      .rotate() 
+      .rotate() // Fixes iPhone rotation
+      
+      // ✅ BRIGHTNESS BOOST: This turns light gray backgrounds white
+      .modulate({
+        brightness: 1.1, // Increases brightness by 10%
+        saturation: 1.05 // Slight color boost to keep the product popping
+      })
+
       .resize(1080, 1080, {
         fit: "contain",
         background: { r: 255, g: 255, b: 255, alpha: 1 },
       })
       .flatten({ background: "#ffffff" }) // Removes transparency
-      .toFormat("jpeg", { quality: 80, mozjpeg: true })
+      .toFormat("jpeg", { quality: 85, mozjpeg: true }) // High quality JPEG
       .toBuffer();
 
     // 4. Return as Data URL
     return `data:image/jpeg;base64,${optimizedBuffer.toString("base64")}`;
   } catch (error) {
     console.error("Image processing failed:", error);
-    // If optimization fails, we return null to avoid breaking the listing creation.
-    // Alternatively, you could return the original string, but that risks the 1MB limit.
+    // If optimization fails, return null so we don't save a broken image
     return null;
   }
 }
@@ -209,7 +210,6 @@ export default async function handler(
       // --- 🎨 IMAGE PROCESSING ENGINE ---
       if (cleaned.image_url) {
         // This converts the raw upload into a standardized, compressed PRO image
-        // It prevents the "1MB limit" error by compressing efficiently.
         cleaned.image_url = await processImage(cleaned.image_url);
       }
       // ----------------------------------
