@@ -27,7 +27,7 @@ type HomeProps = {
   trending: ProductLike[];
   newArrivals: ProductLike[];
   featuredDesigners: string[];
-  activeMessages: BuyerMessage[]; // ✅ ADDED: The messages data
+  activeMessages: BuyerMessage[]; // ✅ DATA FROM ADMIN
 };
 
 // Helper to normalise price
@@ -149,7 +149,7 @@ const Home: NextPage<HomeProps> = ({
           </aside>
         </section>
 
-        {/* FEATURED DESIGNERS CAROUSEL (Dynamic) */}
+        {/* FEATURED DESIGNERS CAROUSEL */}
         <section className="home-featured-designers mt-10">
           <header className="home-feed-header">
             <h2 className="home-feed-title">Featured Designers</h2>
@@ -172,8 +172,8 @@ const Home: NextPage<HomeProps> = ({
           </div>
         </section>
 
-        {/* ✅ RENDER MESSAGE BOARD BANNER */}
-        {/* Only shows if there are active messages in the DB */}
+        {/* ✅ DYNAMIC MESSAGE BOARD BANNER */}
+        {/* Renders messages posted from Admin Dashboard */}
         {activeMessages && activeMessages.length > 0 && (
           <section className="buyer-message-board-container">
             {activeMessages.map((msg) => (
@@ -183,7 +183,7 @@ const Home: NextPage<HomeProps> = ({
                     {msg.text}{" "}
                     {msg.linkText && msg.linkUrl && (
                       <Link href={msg.linkUrl} className="catalogue-link">
-                        {msg.linkText}
+                        {msg.linkText} →
                       </Link>
                     )}
                   </p>
@@ -384,10 +384,10 @@ const Home: NextPage<HomeProps> = ({
 
         /* --- MESSAGE BOARD STYLES --- */
         .buyer-message-board-container {
-          margin-top: 32px;
+          margin-top: 36px;
           display: flex;
           flex-direction: column;
-          gap: 12px;
+          gap: 16px;
         }
         
         .buyer-message-board {
@@ -397,36 +397,44 @@ const Home: NextPage<HomeProps> = ({
           padding: 24px;
           text-align: center;
           box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+          transition: transform 0.2s;
         }
 
-        /* Optional: Styles based on message type */
+        /* Luxury Styles for Message Types */
         .buyer-message-board.promo {
-          background: #fefce8; /* Light yellow */
-          border-color: #fde047;
+          background: #fffbeb; /* Amber-50 (Gold tint) */
+          border-color: #fcd34d; /* Amber-300 */
+          color: #92400e;
         }
         .buyer-message-board.alert {
-          background: #fef2f2; /* Light red */
-          border-color: #fecaca;
+          background: #fef2f2; /* Red-50 */
+          border-color: #fecaca; /* Red-200 */
+          color: #991b1b;
+        }
+        .buyer-message-board.info {
+          background: #f9fafb; /* Gray-50 */
+          border-color: #e5e7eb;
+          color: #374151;
         }
         
         .message-content p {
           font-family: "Georgia", serif;
-          font-size: 18px;
-          color: #374151;
+          font-size: 19px;
           margin: 0;
           line-height: 1.5;
         }
 
         :global(.catalogue-link) {
-          color: #111827;
-          font-weight: 600;
+          color: inherit;
+          font-weight: 700;
           text-decoration: underline;
           text-underline-offset: 4px;
-          transition: color 0.2s;
+          transition: opacity 0.2s;
+          margin-left: 4px;
         }
         
         :global(.catalogue-link:hover) {
-          color: #4b5563;
+          opacity: 0.7;
         }
       `}</style>
     </div>
@@ -488,7 +496,7 @@ export const getServerSideProps: GetServerSideProps<HomeProps> = async () => {
     trending = newArrivals;
   }
 
-  // 4. Featured Designers (Dynamic from Live items)
+  // 4. Featured Designers (Dynamic)
   const uniqueBrands = Array.from(new Set(items.map((i) => i.brand).filter(Boolean)));
   const featuredDesigners = uniqueBrands.sort();
   if (featuredDesigners.length === 0) {
@@ -503,7 +511,7 @@ export const getServerSideProps: GetServerSideProps<HomeProps> = async () => {
       .where("active", "==", true)
       .get();
     
-    // Sort by createdAt manually since we can't always guarantee complex indexes in dev
+    // Manual sort by createdAt desc
     activeMessages = messagesSnap.docs
       .map(doc => {
         const d = doc.data();
@@ -513,10 +521,10 @@ export const getServerSideProps: GetServerSideProps<HomeProps> = async () => {
           linkText: d.linkText || "",
           linkUrl: d.linkUrl || "",
           type: d.type || "info",
-          createdAt: d.createdAt?.toMillis?.() || 0, // capture for sort
+          createdAt: d.createdAt?.toMillis?.() || 0,
         } as BuyerMessage & { createdAt: number };
       })
-      .sort((a, b) => b.createdAt - a.createdAt); // Newest first
+      .sort((a, b) => b.createdAt - a.createdAt); 
 
   } catch (err) {
     console.error("Error fetching messages:", err);
