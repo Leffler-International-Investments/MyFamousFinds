@@ -19,10 +19,11 @@ type ItemWithMeta = ProductLike & {
   priceValue: number;
   category?: string;
   condition?: string;
+  brand?: string;
 };
 
 type DesignersPageProps = {
-  items: ProductLike[];
+  items: ItemWithMeta[];
 };
 
 // --------------------------------------------------
@@ -41,7 +42,6 @@ const CATEGORY_OPTIONS = [
 
 const CONDITION_OPTIONS = ["New", "Excellent", "Very good", "Good"];
 
-// Full static designer list (like your original)
 const DESIGNER_OPTIONS = [
   "Alexander McQueen",
   "Balenciaga",
@@ -64,7 +64,6 @@ const DESIGNER_OPTIONS = [
 // Helpers
 // --------------------------------------------------
 
-// Same style as homepage: "US$1,200" -> 1200
 function parsePrice(price?: string | null): number {
   if (!price) return 0;
   const cleaned = price.replace(/[^0-9.,]/g, "").replace(/,/g, "");
@@ -72,19 +71,17 @@ function parsePrice(price?: string | null): number {
   return Number.isFinite(n) ? n : 0;
 }
 
-// Normalize string for smart matching
 function normalize(raw: string | undefined | null): string {
   if (!raw) return "";
   return raw
     .toString()
     .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "") // accents
+    .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase()
     .trim()
-    .replace(/[^a-z0-9]+/g, ""); // keep letters+digits only
+    .replace(/[^a-z0-9]+/g, "");
 }
 
-// Levenshtein distance
 function levenshtein(a: string, b: string): number {
   if (a === b) return 0;
   const aLen = a.length;
@@ -93,7 +90,6 @@ function levenshtein(a: string, b: string): number {
   if (bLen === 0) return aLen;
 
   const matrix: number[][] = [];
-
   for (let i = 0; i <= bLen; i++) matrix[i] = [i];
   for (let j = 0; j <= aLen; j++) matrix[0][j] = j;
 
@@ -103,9 +99,9 @@ function levenshtein(a: string, b: string): number {
         matrix[i][j] = matrix[i - 1][j - 1];
       } else {
         matrix[i][j] = Math.min(
-          matrix[i - 1][j] + 1, // delete
-          matrix[i][j - 1] + 1, // insert
-          matrix[i - 1][j - 1] + 1 // substitute
+          matrix[i - 1][j] + 1,
+          matrix[i][j - 1] + 1,
+          matrix[i - 1][j - 1] + 1
         );
       }
     }
@@ -114,11 +110,9 @@ function levenshtein(a: string, b: string): number {
   return matrix[bLen][aLen];
 }
 
-// Category synonyms → canonical token
 function canonCategory(raw: string): string {
   const n = normalize(raw);
   if (!n) return "";
-
   if (n === "women") return "women";
   if (n === "men") return "men";
   if (n === "bags" || n === "bag") return "bags";
@@ -126,29 +120,23 @@ function canonCategory(raw: string): string {
   if (n === "accessories" || n === "accessory") return "accessories";
   if (n === "jewelry" || n === "jewellery") return "jewelry";
   if (n === "watches" || n === "watch") return "watches";
-
   return n;
 }
 
-// Condition synonyms → canonical token
 function canonCondition(raw: string): string {
   const n = normalize(raw);
   if (!n) return "";
-
   if (n === "new" || n === "brandnew" || n === "withtags") return "new";
   if (n === "excellent" || n === "likenew") return "excellent";
   if (n === "verygood" || n === "verygoodcondition") return "verygood";
   if (n === "good" || n === "usedgood") return "good";
-
   return n;
 }
 
-// Brand canonical form
 function canonBrand(raw: string): string {
   return normalize(raw);
 }
 
-// Smart brand match: exact OR distance <= 2
 function brandMatches(selected: string, actual: string): boolean {
   const sel = canonBrand(selected);
   const act = canonBrand(actual);
@@ -158,7 +146,6 @@ function brandMatches(selected: string, actual: string): boolean {
   return dist <= 2;
 }
 
-// Same image selection logic as homepage
 const pickImage = (data: any): string => {
   if (data.image_url) return data.image_url;
   if (data.imageUrl) return data.imageUrl;
@@ -181,9 +168,9 @@ const DesignersPage: NextPage<DesignersPageProps> = ({ items }) => {
     priceValue: parsePrice(it.price),
     category: it.category || "",
     condition: it.condition || "",
+    brand: it.brand || "",
   }));
 
-  // Filters state
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [selectedDesigners, setSelectedDesigners] = useState<string[]>([]);
   const [selectedConditions, setSelectedConditions] = useState<string[]>([]);
@@ -193,7 +180,6 @@ const DesignersPage: NextPage<DesignersPageProps> = ({ items }) => {
     "newest"
   );
 
-  // Toggle helper
   const toggleInList = (list: string[], value: string): string[] =>
     list.includes(value)
       ? list.filter((v) => v !== value)
@@ -201,10 +187,8 @@ const DesignersPage: NextPage<DesignersPageProps> = ({ items }) => {
 
   const onCategoryChange = (name: string) =>
     setSelectedCategories((prev) => toggleInList(prev, name));
-
   const onDesignerChange = (name: string) =>
     setSelectedDesigners((prev) => toggleInList(prev, name));
-
   const onConditionChange = (name: string) =>
     setSelectedConditions((prev) => toggleInList(prev, name));
 
@@ -230,17 +214,12 @@ const DesignersPage: NextPage<DesignersPageProps> = ({ items }) => {
     });
   };
 
-  // --------------------------------------------------
-  // SMART FILTER ENGINE
-  // --------------------------------------------------
-
   const filteredItems = useMemo(() => {
     let result = [...baseItems];
 
     const normSelectedCats = selectedCategories.map(canonCategory);
     const normSelectedConds = selectedConditions.map(canonCondition);
 
-    // Category
     if (selectedCategories.length > 0) {
       result = result.filter((item) => {
         const token = canonCategory(item.category || "");
@@ -249,7 +228,6 @@ const DesignersPage: NextPage<DesignersPageProps> = ({ items }) => {
       });
     }
 
-    // Designer / brand
     if (selectedDesigners.length > 0) {
       result = result.filter((item) => {
         const actualBrand = item.brand || "";
@@ -258,7 +236,6 @@ const DesignersPage: NextPage<DesignersPageProps> = ({ items }) => {
       });
     }
 
-    // Condition
     if (selectedConditions.length > 0) {
       result = result.filter((item) => {
         const token = canonCondition(item.condition || "");
@@ -267,7 +244,6 @@ const DesignersPage: NextPage<DesignersPageProps> = ({ items }) => {
       });
     }
 
-    // Price range
     result = result.filter((item) => {
       const p = item.priceValue;
       if (typeof minPrice === "number" && p < minPrice) return false;
@@ -275,13 +251,11 @@ const DesignersPage: NextPage<DesignersPageProps> = ({ items }) => {
       return true;
     });
 
-    // Sort
     if (sortBy === "price-asc") {
       result.sort((a, b) => a.priceValue - b.priceValue);
     } else if (sortBy === "price-desc") {
       result.sort((a, b) => b.priceValue - a.priceValue);
     }
-    // "newest" keeps server order
 
     return result;
   }, [
@@ -295,10 +269,6 @@ const DesignersPage: NextPage<DesignersPageProps> = ({ items }) => {
   ]);
 
   const resultsCount = filteredItems.length;
-
-  // --------------------------------------------------
-  // JSX
-  // --------------------------------------------------
 
   return (
     <div className="designers-page">
@@ -317,7 +287,6 @@ const DesignersPage: NextPage<DesignersPageProps> = ({ items }) => {
           </div>
 
           <div className="layout">
-            {/* FILTERS */}
             <aside className="filters">
               <div className="filters-header">
                 <h2>Filters</h2>
@@ -326,7 +295,6 @@ const DesignersPage: NextPage<DesignersPageProps> = ({ items }) => {
                 </button>
               </div>
 
-              {/* Category */}
               <div className="filter-block">
                 <h3>Category</h3>
                 <div className="filter-list">
@@ -343,7 +311,6 @@ const DesignersPage: NextPage<DesignersPageProps> = ({ items }) => {
                 </div>
               </div>
 
-              {/* Designer */}
               <div className="filter-block">
                 <h3>Designer</h3>
                 <div className="filter-list">
@@ -360,7 +327,6 @@ const DesignersPage: NextPage<DesignersPageProps> = ({ items }) => {
                 </div>
               </div>
 
-              {/* Condition */}
               <div className="filter-block">
                 <h3>Condition</h3>
                 <div className="filter-list">
@@ -377,7 +343,6 @@ const DesignersPage: NextPage<DesignersPageProps> = ({ items }) => {
                 </div>
               </div>
 
-              {/* Price */}
               <div className="filter-block">
                 <h3>Price</h3>
                 <div className="price-row">
@@ -421,7 +386,6 @@ const DesignersPage: NextPage<DesignersPageProps> = ({ items }) => {
               </div>
             </aside>
 
-            {/* RESULTS */}
             <section className="results">
               <div className="results-header">
                 <div>
@@ -604,7 +568,7 @@ const DesignersPage: NextPage<DesignersPageProps> = ({ items }) => {
           margin-bottom: 12px;
         }
         .results-header h1 {
-          font-family: Georgia, 'Times New Roman', serif;
+          font-family: Georgia, "Times New Roman", serif;
           font-size: 26px;
           margin: 0;
         }
@@ -657,7 +621,7 @@ const DesignersPage: NextPage<DesignersPageProps> = ({ items }) => {
 export default DesignersPage;
 
 // --------------------------------------------------
-// SERVER-SIDE DATA LOAD  (MATCHES HOMEPAGE STYLE)
+// SERVER-SIDE DATA LOAD
 // --------------------------------------------------
 
 export const getServerSideProps: GetServerSideProps<
@@ -666,30 +630,43 @@ export const getServerSideProps: GetServerSideProps<
   try {
     const snapshot = await adminDb
       .collection("listings")
-      .where("status", "==", "Live") // same as homepage
+      .where("status", "==", "Live")
       .get();
 
-    const items: ProductLike[] = snapshot.docs.map((doc) => {
-      const data = doc.data() as any;
+    const items: ItemWithMeta[] = snapshot.docs.map((doc) => {
+      const d: any = doc.data() || {};
+
+      // try all possible field names used in forms
+      const brandRaw =
+        d.brand || d.designer || d.designerName || d.brandName || "";
+      const categoryRaw =
+        d.category || d.categoryLabel || d.categoryName || "";
+      const conditionRaw =
+        d.condition ||
+        d.conditionLabel ||
+        d.itemCondition ||
+        d.conditionText ||
+        "";
 
       const priceNum =
-        typeof data.price === "number" ? data.price : Number(data.price || 0);
+        typeof d.price === "number" ? d.price : Number(d.price || 0);
       const price = priceNum
         ? `US$${priceNum.toLocaleString("en-US")}`
         : "";
 
-      const image = pickImage(data);
+      const image = pickImage(d);
 
       return {
         id: doc.id,
-        title: data.title || "",
-        brand: data.brand || "",
-        category: data.category || "",
-        condition: data.condition || "",
+        title: d.title || "",
+        brand: brandRaw,
+        category: categoryRaw,
+        condition: conditionRaw,
         price,
         image,
         href: `/product/${doc.id}`,
-      } as ProductLike & { category?: string; condition?: string };
+        priceValue: priceNum || 0,
+      };
     });
 
     return { props: { items } };
