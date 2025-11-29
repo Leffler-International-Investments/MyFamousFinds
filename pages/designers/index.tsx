@@ -11,11 +11,11 @@ import Footer from "../../components/Footer";
 import ProductCard, { ProductLike } from "../../components/ProductCard";
 import { adminDb } from "../../utils/firebaseAdmin";
 
-// -----------------------------
+// --------------------------------------------------
 // Types
-// -----------------------------
+// --------------------------------------------------
 
-type ItemWithPrice = ProductLike & {
+type ItemWithMeta = ProductLike & {
   priceValue: number;
   category?: string;
   condition?: string;
@@ -25,9 +25,9 @@ type DesignersPageProps = {
   items: ProductLike[];
 };
 
-// -----------------------------
+// --------------------------------------------------
 // Filter options
-// -----------------------------
+// --------------------------------------------------
 
 const CATEGORY_OPTIONS = [
   "Women",
@@ -41,7 +41,7 @@ const CATEGORY_OPTIONS = [
 
 const CONDITION_OPTIONS = ["New", "Excellent", "Very good", "Good"];
 
-// Full static designer list
+// Full static designer list (like your original)
 const DESIGNER_OPTIONS = [
   "Alexander McQueen",
   "Balenciaga",
@@ -60,11 +60,11 @@ const DESIGNER_OPTIONS = [
   "Versace",
 ];
 
-// -----------------------------
+// --------------------------------------------------
 // Helpers
-// -----------------------------
+// --------------------------------------------------
 
-// Parse "US$1,200" → 1200
+// Same style as homepage: "US$1,200" -> 1200
 function parsePrice(price?: string | null): number {
   if (!price) return 0;
   const cleaned = price.replace(/[^0-9.,]/g, "").replace(/,/g, "");
@@ -73,10 +73,6 @@ function parsePrice(price?: string | null): number {
 }
 
 // Normalize string for smart matching
-// - lower case
-// - trim
-// - remove accents
-// - remove non-alphanumeric
 function normalize(raw: string | undefined | null): string {
   if (!raw) return "";
   return raw
@@ -85,10 +81,10 @@ function normalize(raw: string | undefined | null): string {
     .replace(/[\u0300-\u036f]/g, "") // accents
     .toLowerCase()
     .trim()
-    .replace(/[^a-z0-9]+/g, ""); // keep letters + digits only
+    .replace(/[^a-z0-9]+/g, ""); // keep letters+digits only
 }
 
-// Simple Levenshtein distance
+// Levenshtein distance
 function levenshtein(a: string, b: string): number {
   if (a === b) return 0;
   const aLen = a.length;
@@ -98,12 +94,8 @@ function levenshtein(a: string, b: string): number {
 
   const matrix: number[][] = [];
 
-  for (let i = 0; i <= bLen; i++) {
-    matrix[i] = [i];
-  }
-  for (let j = 0; j <= aLen; j++) {
-    matrix[0][j] = j;
-  }
+  for (let i = 0; i <= bLen; i++) matrix[i] = [i];
+  for (let j = 0; j <= aLen; j++) matrix[0][j] = j;
 
   for (let i = 1; i <= bLen; i++) {
     for (let j = 1; j <= aLen; j++) {
@@ -127,7 +119,6 @@ function canonCategory(raw: string): string {
   const n = normalize(raw);
   if (!n) return "";
 
-  // direct matches first
   if (n === "women") return "women";
   if (n === "men") return "men";
   if (n === "bags" || n === "bag") return "bags";
@@ -152,38 +143,47 @@ function canonCondition(raw: string): string {
   return n;
 }
 
-// Brand canonical form (we still keep original for display)
+// Brand canonical form
 function canonBrand(raw: string): string {
   return normalize(raw);
 }
 
-// Smart match: selected brand vs item brand
-// exact match OR Levenshtein distance <= 2
+// Smart brand match: exact OR distance <= 2
 function brandMatches(selected: string, actual: string): boolean {
   const sel = canonBrand(selected);
   const act = canonBrand(actual);
   if (!sel || !act) return false;
   if (sel === act) return true;
   const dist = levenshtein(sel, act);
-  return dist <= 2; // up to 2 char differences
+  return dist <= 2;
 }
 
-// -----------------------------
-// Page component
-// -----------------------------
+// Same image selection logic as homepage
+const pickImage = (data: any): string => {
+  if (data.image_url) return data.image_url;
+  if (data.imageUrl) return data.imageUrl;
+  if (data.image) return data.image;
+  if (Array.isArray(data.imageUrls) && data.imageUrls.length > 0) {
+    return data.imageUrls[0];
+  }
+  return "";
+};
+
+// --------------------------------------------------
+// Component
+// --------------------------------------------------
 
 const DesignersPage: NextPage<DesignersPageProps> = ({ items }) => {
   const router = useRouter();
 
-  // Base items enriched with numeric price
-  const baseItems: ItemWithPrice[] = (items || []).map((it: any) => ({
+  const baseItems: ItemWithMeta[] = (items || []).map((it: any) => ({
     ...it,
     priceValue: parsePrice(it.price),
     category: it.category || "",
     condition: it.condition || "",
   }));
 
-  // Filters
+  // Filters state
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [selectedDesigners, setSelectedDesigners] = useState<string[]>([]);
   const [selectedConditions, setSelectedConditions] = useState<string[]>([]);
@@ -193,12 +193,11 @@ const DesignersPage: NextPage<DesignersPageProps> = ({ items }) => {
     "newest"
   );
 
-  // Helper toggle
-  function toggleInList(list: string[], value: string): string[] {
-    return list.includes(value)
+  // Toggle helper
+  const toggleInList = (list: string[], value: string): string[] =>
+    list.includes(value)
       ? list.filter((v) => v !== value)
       : [...list, value];
-  }
 
   const onCategoryChange = (name: string) =>
     setSelectedCategories((prev) => toggleInList(prev, name));
@@ -217,7 +216,6 @@ const DesignersPage: NextPage<DesignersPageProps> = ({ items }) => {
     setMaxPrice(100000);
   };
 
-  // Apply button – sync filters to URL (engine is already live)
   const applyFiltersToUrl = () => {
     const query: Record<string, string> = {};
 
@@ -232,47 +230,44 @@ const DesignersPage: NextPage<DesignersPageProps> = ({ items }) => {
     });
   };
 
-  // -----------------------------
+  // --------------------------------------------------
   // SMART FILTER ENGINE
-  // -----------------------------
+  // --------------------------------------------------
 
   const filteredItems = useMemo(() => {
     let result = [...baseItems];
 
-    // Pre-normalize selected values
     const normSelectedCats = selectedCategories.map(canonCategory);
-    const normSelectedConditions = selectedConditions.map(canonCondition);
+    const normSelectedConds = selectedConditions.map(canonCondition);
 
-    // CATEGORY (smart, but strict enough)
+    // Category
     if (selectedCategories.length > 0) {
       result = result.filter((item) => {
-        const itemCatToken = canonCategory(item.category || "");
-        if (!itemCatToken) return false;
-        return normSelectedCats.includes(itemCatToken);
+        const token = canonCategory(item.category || "");
+        if (!token) return false;
+        return normSelectedCats.includes(token);
       });
     }
 
-    // DESIGNER / BRAND (smart fuzzy match)
+    // Designer / brand
     if (selectedDesigners.length > 0) {
       result = result.filter((item) => {
         const actualBrand = item.brand || "";
         if (!actualBrand) return false;
-
-        // if ANY selected designer matches this item brand
         return selectedDesigners.some((sel) => brandMatches(sel, actualBrand));
       });
     }
 
-    // CONDITION (smart, canonical)
+    // Condition
     if (selectedConditions.length > 0) {
       result = result.filter((item) => {
-        const condToken = canonCondition(item.condition || "");
-        if (!condToken) return false;
-        return normSelectedConditions.includes(condToken);
+        const token = canonCondition(item.condition || "");
+        if (!token) return false;
+        return normSelectedConds.includes(token);
       });
     }
 
-    // PRICE RANGE
+    // Price range
     result = result.filter((item) => {
       const p = item.priceValue;
       if (typeof minPrice === "number" && p < minPrice) return false;
@@ -280,13 +275,13 @@ const DesignersPage: NextPage<DesignersPageProps> = ({ items }) => {
       return true;
     });
 
-    // SORT
+    // Sort
     if (sortBy === "price-asc") {
       result.sort((a, b) => a.priceValue - b.priceValue);
     } else if (sortBy === "price-desc") {
       result.sort((a, b) => b.priceValue - a.priceValue);
     }
-    // "newest" keeps server order from Firestore (createdAt desc)
+    // "newest" keeps server order
 
     return result;
   }, [
@@ -301,9 +296,9 @@ const DesignersPage: NextPage<DesignersPageProps> = ({ items }) => {
 
   const resultsCount = filteredItems.length;
 
-  // -----------------------------
+  // --------------------------------------------------
   // JSX
-  // -----------------------------
+  // --------------------------------------------------
 
   return (
     <div className="designers-page">
@@ -432,8 +427,7 @@ const DesignersPage: NextPage<DesignersPageProps> = ({ items }) => {
                 <div>
                   <h1>All Products</h1>
                   <p className="results-count">
-                    {resultsCount}{" "}
-                    {resultsCount === 1 ? "result" : "results"}
+                    {resultsCount} {resultsCount === 1 ? "result" : "results"}
                   </p>
                 </div>
 
@@ -444,20 +438,13 @@ const DesignersPage: NextPage<DesignersPageProps> = ({ items }) => {
                       value={sortBy}
                       onChange={(e) =>
                         setSortBy(
-                          e.target.value as
-                            | "newest"
-                            | "price-asc"
-                            | "price-desc"
+                          e.target.value as "newest" | "price-asc" | "price-desc"
                         )
                       }
                     >
                       <option value="newest">Newest</option>
-                      <option value="price-asc">
-                        Price: Low to High
-                      </option>
-                      <option value="price-desc">
-                        Price: High to Low
-                      </option>
+                      <option value="price-asc">Price: Low to High</option>
+                      <option value="price-desc">Price: High to Low</option>
                     </select>
                   </label>
                 </div>
@@ -617,7 +604,7 @@ const DesignersPage: NextPage<DesignersPageProps> = ({ items }) => {
           margin-bottom: 12px;
         }
         .results-header h1 {
-          font-family: Georgia, "Times New Roman", serif;
+          font-family: Georgia, 'Times New Roman', serif;
           font-size: 26px;
           margin: 0;
         }
@@ -669,9 +656,9 @@ const DesignersPage: NextPage<DesignersPageProps> = ({ items }) => {
 
 export default DesignersPage;
 
-// -----------------------------
-// SERVER-SIDE DATA LOAD
-// -----------------------------
+// --------------------------------------------------
+// SERVER-SIDE DATA LOAD  (MATCHES HOMEPAGE STYLE)
+// --------------------------------------------------
 
 export const getServerSideProps: GetServerSideProps<
   DesignersPageProps
@@ -679,23 +666,19 @@ export const getServerSideProps: GetServerSideProps<
   try {
     const snapshot = await adminDb
       .collection("listings")
-      .where("status", "==", "Live") // approved/live listings only
-      .orderBy("createdAt", "desc")
-      .limit(200)
+      .where("status", "==", "Live") // same as homepage
       .get();
 
     const items: ProductLike[] = snapshot.docs.map((doc) => {
       const data = doc.data() as any;
 
-      const priceNumber = Number(data.price) || 0;
+      const priceNum =
+        typeof data.price === "number" ? data.price : Number(data.price || 0);
+      const price = priceNum
+        ? `US$${priceNum.toLocaleString("en-US")}`
+        : "";
 
-      const image =
-        data.image_url ||
-        data.imageUrl ||
-        data.image ||
-        (Array.isArray(data.imageUrls) && data.imageUrls.length > 0
-          ? data.imageUrls[0]
-          : "");
+      const image = pickImage(data);
 
       return {
         id: doc.id,
@@ -703,21 +686,15 @@ export const getServerSideProps: GetServerSideProps<
         brand: data.brand || "",
         category: data.category || "",
         condition: data.condition || "",
-        price: priceNumber
-          ? `US$${priceNumber.toLocaleString("en-US")}`
-          : "",
+        price,
         image,
         href: `/product/${doc.id}`,
       } as ProductLike & { category?: string; condition?: string };
     });
 
-    return {
-      props: { items },
-    };
+    return { props: { items } };
   } catch (err) {
     console.error("Error loading designers listings", err);
-    return {
-      props: { items: [] },
-    };
+    return { props: { items: [] } };
   }
 };
