@@ -1,36 +1,20 @@
 // FILE: /pages/designers/index.tsx
 
 import Head from "next/head";
-import Link from "next/link";
+import type { GetServerSideProps } from "next";
 import { useRouter } from "next/router";
-import { useMemo, useState } from "react";
-import type { GetServerSideProps, NextPage } from "next";
+import { useMemo } from "react";
 
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
 import ProductCard, { ProductLike } from "../../components/ProductCard";
 import { adminDb } from "../../utils/firebaseAdmin";
 
-// --------------------------------------------------
-// Types
-// --------------------------------------------------
+// ------------------------------------
+// Constants
+// ------------------------------------
 
-type ItemWithMeta = ProductLike & {
-  priceValue: number;
-  category?: string;
-  condition?: string;
-  brand?: string;
-};
-
-type DesignersPageProps = {
-  items: ItemWithMeta[];
-};
-
-// --------------------------------------------------
-// Filter options
-// --------------------------------------------------
-
-const CATEGORY_OPTIONS = [
+const CATEGORY_FILTERS = [
   "Women",
   "Men",
   "Bags",
@@ -40,9 +24,7 @@ const CATEGORY_OPTIONS = [
   "Watches",
 ];
 
-const CONDITION_OPTIONS = ["New", "Excellent", "Very good", "Good"];
-
-const DESIGNER_OPTIONS = [
+const DESIGNER_FILTERS = [
   "Alexander McQueen",
   "Balenciaga",
   "Bottega Veneta",
@@ -60,389 +42,224 @@ const DESIGNER_OPTIONS = [
   "Versace",
 ];
 
-// --------------------------------------------------
-// Helpers
-// --------------------------------------------------
+// MATCHED 1:1 WITH /seller/bulk-simple CONDITION DROPDOWN
+const CONDITION_FILTERS = [
+  "New with tags",
+  "New (never used)",
+  "Excellent",
+  "Very good",
+  "Good",
+  "Fair",
+];
 
-function parsePrice(price?: string | null): number {
-  if (!price) return 0;
-  const cleaned = price.replace(/[^0-9.,]/g, "").replace(/,/g, "");
-  const n = Number(cleaned);
-  return Number.isFinite(n) ? n : 0;
-}
-
-function normalize(raw: string | undefined | null): string {
-  if (!raw) return "";
-  return raw
-    .toString()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9]+/g, "");
-}
-
-function levenshtein(a: string, b: string): number {
-  if (a === b) return 0;
-  const aLen = a.length;
-  const bLen = b.length;
-  if (aLen === 0) return bLen;
-  if (bLen === 0) return aLen;
-
-  const matrix: number[][] = [];
-  for (let i = 0; i <= bLen; i++) matrix[i] = [i];
-  for (let j = 0; j <= aLen; j++) matrix[0][j] = j;
-
-  for (let i = 1; i <= bLen; i++) {
-    for (let j = 1; j <= aLen; j++) {
-      if (b.charAt(i - 1) === a.charAt(j - 1)) {
-        matrix[i][j] = matrix[i - 1][j - 1];
-      } else {
-        matrix[i][j] = Math.min(
-          matrix[i - 1][j] + 1,
-          matrix[i][j - 1] + 1,
-          matrix[i - 1][j - 1] + 1
-        );
-      }
-    }
-  }
-
-  return matrix[bLen][aLen];
-}
-
-// canonical tokens used for matching
-function canonCategory(raw: string): string {
-  const n = normalize(raw);
-  if (!n) return "";
-  if (n === "women") return "women";
-  if (n === "men") return "men";
-  if (n === "bags" || n === "bag") return "bags";
-  if (n === "shoes" || n === "shoe" || n === "footwear") return "shoes";
-  if (n === "accessories" || n === "accessory") return "accessories";
-  if (n === "jewelry" || n === "jewellery") return "jewelry";
-  if (n === "watches" || n === "watch") return "watches";
-  return n;
-}
-
-function canonCondition(raw: string): string {
-  const n = normalize(raw);
-  if (!n) return "";
-  if (n === "new" || n === "brandnew" || n === "withtags") return "new";
-  if (n === "excellent" || n === "likenew") return "excellent";
-  if (n === "verygood" || n === "verygoodcondition") return "verygood";
-  if (n === "good" || n === "usedgood") return "good";
-  return n;
-}
-
-function canonBrand(raw: string): string {
-  return normalize(raw);
-}
-
-// MUCH SMARTER BRAND MATCHING:
-// - exact
-// - substring (e.g. "louis vuitton heels")
-// - small typo distance
-function brandMatches(selected: string, actual: string): boolean {
-  const sel = canonBrand(selected);
-  const act = canonBrand(actual);
-  if (!sel || !act) return false;
-
-  // substring match first
-  if (act.includes(sel) || sel.includes(act)) return true;
-
-  // fuzzy match for typos / small differences
-  const dist = levenshtein(sel, act);
-  return dist <= 4;
-}
-
-const pickImage = (data: any): string => {
-  if (data.image_url) return data.image_url;
-  if (data.imageUrl) return data.imageUrl;
-  if (data.image) return data.image;
-  if (Array.isArray(data.imageUrls) && data.imageUrls.length > 0) {
-    return data.imageUrls[0];
-  }
-  return "";
+type DesignersPageProps = {
+  items: ProductLike[];
+  selectedCategories: string[];
+  selectedDesigner: string | null;
+  selectedConditions: string[];
+  minPrice: number;
+  maxPrice: number;
 };
 
-// --------------------------------------------------
-// Component
-// --------------------------------------------------
+// ------------------------------------
+// Helpers
+// ------------------------------------
 
-const DesignersPage: NextPage<DesignersPageProps> = ({ items }) => {
-  const router = useRouter();
+function toArray(value: string | string[] | undefined): string[] {
+  if (!value) return [];
+  return Array.isArray(value) ? value : [value];
+}
 
-  const baseItems: ItemWithMeta[] = (items || []).map((it: any) => ({
-    ...it,
-    priceValue: parsePrice(it.price),
-    category: it.category || "",
-    condition: it.condition || "",
-    brand: it.brand || "",
-  }));
+function parseNumber(value: string | string[] | undefined, fallback: number) {
+  if (!value) return fallback;
+  const s = Array.isArray(value) ? value[0] : value;
+  const n = Number(s);
+  return Number.isFinite(n) ? n : fallback;
+}
 
-  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
-  const [selectedDesigners, setSelectedDesigners] = useState<string[]>([]);
-  const [selectedConditions, setSelectedConditions] = useState<string[]>([]);
-  const [minPrice, setMinPrice] = useState<number | "">(0);
-  const [maxPrice, setMaxPrice] = useState<number | "">(100000);
-  const [sortBy, setSortBy] = useState<"newest" | "price-asc" | "price-desc">(
-    "newest"
-  );
+// ------------------------------------
+// Page Component
+// ------------------------------------
 
-  const toggleInList = (list: string[], value: string): string[] =>
-    list.includes(value) ? list.filter((v) => v !== value) : [...list, value];
-
-  const onCategoryChange = (name: string) =>
-    setSelectedCategories((prev) => toggleInList(prev, name));
-  const onDesignerChange = (name: string) =>
-    setSelectedDesigners((prev) => toggleInList(prev, name));
-  const onConditionChange = (name: string) =>
-    setSelectedConditions((prev) => toggleInList(prev, name));
-
-  const resetFilters = () => {
-    setSelectedCategories([]);
-    setSelectedDesigners([]);
-    setSelectedConditions([]);
-    setMinPrice(0);
-    setMaxPrice(100000);
-  };
-
-  // keep URL in sync (optional – real filtering is client-side below)
-  const applyFiltersToUrl = () => {
-    const query: Record<string, string> = {};
-
-    if (selectedCategories[0]) query.category = selectedCategories[0];
-    if (selectedDesigners[0]) query.designer = selectedDesigners[0];
-    if (selectedConditions[0]) query.condition = selectedConditions[0];
-    if (typeof minPrice === "number") query.minPrice = String(minPrice);
-    if (typeof maxPrice === "number") query.maxPrice = String(maxPrice);
-
-    router.replace({ pathname: "/designers", query }, undefined, {
-      shallow: true,
-    });
-  };
-
-  const filteredItems = useMemo(() => {
-    let result = [...baseItems];
-
-    const normSelectedCats = selectedCategories.map((c) => canonCategory(c));
-    const normSelectedConds = selectedConditions.map((c) => canonCondition(c));
-
-    // CATEGORY FILTER – smart, partial match
-    if (selectedCategories.length > 0) {
-      result = result.filter((item) => {
-        const itemCatNorm = normalize(item.category || "");
-        if (!itemCatNorm) return false;
-        return normSelectedCats.some((sel) =>
-          itemCatNorm.includes(canonCategory(sel))
-        );
-      });
-    }
-
-    // DESIGNER FILTER – uses brandMatches
-    if (selectedDesigners.length > 0) {
-      result = result.filter((item) => {
-        const actualBrand = item.brand || "";
-        if (!actualBrand) return false;
-        return selectedDesigners.some((sel) => brandMatches(sel, actualBrand));
-      });
-    }
-
-    // CONDITION FILTER – smart, partial match
-    if (selectedConditions.length > 0) {
-      result = result.filter((item) => {
-        const itemCondNorm = normalize(item.condition || "");
-        if (!itemCondNorm) return false;
-        return normSelectedConds.some((sel) =>
-          itemCondNorm.includes(canonCondition(sel))
-        );
-      });
-    }
-
-    // PRICE FILTER
-    result = result.filter((item) => {
-      const p = item.priceValue;
-      if (typeof minPrice === "number" && p < minPrice) return false;
-      if (typeof maxPrice === "number" && p > maxPrice) return false;
-      return true;
-    });
-
-    // SORT
-    if (sortBy === "price-asc") {
-      result.sort((a, b) => a.priceValue - b.priceValue);
-    } else if (sortBy === "price-desc") {
-      result.sort((a, b) => b.priceValue - a.priceValue);
-    }
-
-    return result;
-  }, [
-    baseItems,
+export default function DesignersPage(props: DesignersPageProps) {
+  const {
+    items,
     selectedCategories,
-    selectedDesigners,
+    selectedDesigner,
     selectedConditions,
     minPrice,
     maxPrice,
-    sortBy,
-  ]);
+  } = props;
 
-  const resultsCount = filteredItems.length;
+  const router = useRouter();
+
+  const resultsLabel = useMemo(() => {
+    if (!items.length) return "0 results";
+    if (items.length === 1) return "1 result";
+    return `${items.length} results`;
+  }, [items]);
 
   return (
-    <div className="designers-page">
+    <>
       <Head>
         <title>Designers – All Products | Famous Finds</title>
+        <meta
+          name="description"
+          content="Shop authenticated luxury pieces by designer, category, condition and price on Famous Finds."
+        />
       </Head>
 
       <Header />
 
-      <main className="page-main">
-        <div className="page-inner">
-          <div className="breadcrumb">
-            <Link href="/">Home</Link>
-            <span>/</span>
+      <main className="ff-page-shell">
+        <div className="ff-page-inner">
+          {/* Breadcrumb */}
+          <div className="ff-breadcrumb">
+            <span>Home</span>
+            <span className="ff-breadcrumb-sep">/</span>
             <span>Designers</span>
           </div>
 
-          <div className="layout">
-            <aside className="filters">
-              <div className="filters-header">
-                <h2>Filters</h2>
-                <button type="button" onClick={resetFilters}>
+          <div className="ff-products-layout">
+            {/* -------------------- */}
+            {/* Filters sidebar     */}
+            {/* -------------------- */}
+            <aside className="ff-filters">
+              <div className="ff-filters-header">
+                <h2 className="ff-filters-title">Filters</h2>
+                <button
+                  type="button"
+                  className="ff-filters-clear"
+                  onClick={() => router.push("/designers")}
+                >
                   Clear All
                 </button>
               </div>
 
-              <div className="filter-block">
-                <h3>Category</h3>
-                <div className="filter-list">
-                  {CATEGORY_OPTIONS.map((cat) => (
-                    <label key={cat} className="filter-option">
-                      <input
-                        type="checkbox"
-                        checked={selectedCategories.includes(cat)}
-                        onChange={() => onCategoryChange(cat)}
-                      />
-                      <span>{cat}</span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-
-              <div className="filter-block">
-                <h3>Designer</h3>
-                <div className="filter-list">
-                  {DESIGNER_OPTIONS.map((name) => (
-                    <label key={name} className="filter-option">
-                      <input
-                        type="checkbox"
-                        checked={selectedDesigners.includes(name)}
-                        onChange={() => onDesignerChange(name)}
-                      />
-                      <span>{name}</span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-
-              <div className="filter-block">
-                <h3>Condition</h3>
-                <div className="filter-list">
-                  {CONDITION_OPTIONS.map((cond) => (
-                    <label key={cond} className="filter-option">
-                      <input
-                        type="checkbox"
-                        checked={selectedConditions.includes(cond)}
-                        onChange={() => onConditionChange(cond)}
-                      />
-                      <span>{cond}</span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-
-              <div className="filter-block">
-                <h3>Price</h3>
-                <div className="price-row">
-                  <div className="price-input">
-                    <span>Min</span>
-                    <input
-                      type="number"
-                      value={minPrice}
-                      onChange={(e) =>
-                        setMinPrice(
-                          e.target.value === ""
-                            ? ""
-                            : Number(e.target.value) || 0
-                        )
-                      }
-                    />
+              {/* We use a GET form so filters map directly to URL query
+                  and SSR picks them up in getServerSideProps */}
+              <form method="get" action="/designers" className="ff-filters-form">
+                {/* CATEGORY */}
+                <section className="ff-filter-block">
+                  <h3 className="ff-filter-heading">Category</h3>
+                  <div className="ff-filter-options">
+                    {CATEGORY_FILTERS.map((cat) => (
+                      <label key={cat} className="ff-filter-checkbox">
+                        <input
+                          type="checkbox"
+                          name="category"
+                          value={cat}
+                          defaultChecked={selectedCategories.includes(cat)}
+                        />
+                        <span>{cat}</span>
+                      </label>
+                    ))}
                   </div>
-                  <span className="price-separator">-</span>
-                  <div className="price-input">
-                    <span>Max</span>
-                    <input
-                      type="number"
-                      value={maxPrice}
-                      onChange={(e) =>
-                        setMaxPrice(
-                          e.target.value === ""
-                            ? ""
-                            : Number(e.target.value) || 0
-                        )
-                      }
-                    />
+                </section>
+
+                {/* DESIGNER */}
+                <section className="ff-filter-block">
+                  <h3 className="ff-filter-heading">Designer</h3>
+                  <div className="ff-filter-options">
+                    {DESIGNER_FILTERS.map((d) => (
+                      <label key={d} className="ff-filter-checkbox">
+                        <input
+                          type="radio"
+                          name="designer"
+                          value={d}
+                          defaultChecked={selectedDesigner === d}
+                        />
+                        <span>{d}</span>
+                      </label>
+                    ))}
                   </div>
-                </div>
-                <button
-                  type="button"
-                  className="apply-btn"
-                  onClick={applyFiltersToUrl}
-                >
+                </section>
+
+                {/* CONDITION – EXACT MATCH WITH SELLER CONDITIONS */}
+                <section className="ff-filter-block">
+                  <h3 className="ff-filter-heading">Condition</h3>
+                  <div className="ff-filter-options">
+                    {CONDITION_FILTERS.map((cond) => (
+                      <label key={cond} className="ff-filter-checkbox">
+                        <input
+                          type="checkbox"
+                          name="condition"
+                          value={cond}
+                          defaultChecked={selectedConditions.includes(cond)}
+                        />
+                        <span>{cond}</span>
+                      </label>
+                    ))}
+                  </div>
+                </section>
+
+                {/* PRICE */}
+                <section className="ff-filter-block">
+                  <h3 className="ff-filter-heading">Price</h3>
+                  <div className="ff-price-row">
+                    <div className="ff-price-field">
+                      <label htmlFor="minPrice">Min</label>
+                      <input
+                        id="minPrice"
+                        name="minPrice"
+                        type="number"
+                        min={0}
+                        defaultValue={minPrice}
+                      />
+                    </div>
+                    <span className="ff-price-sep">–</span>
+                    <div className="ff-price-field">
+                      <label htmlFor="maxPrice">Max</label>
+                      <input
+                        id="maxPrice"
+                        name="maxPrice"
+                        type="number"
+                        min={0}
+                        defaultValue={maxPrice || ""}
+                      />
+                    </div>
+                  </div>
+                </section>
+
+                <button type="submit" className="ff-apply-btn">
                   Apply Filters
                 </button>
-              </div>
+              </form>
             </aside>
 
-            <section className="results">
-              <div className="results-header">
-                <div>
-                  <h1>All Products</h1>
-                  <p className="results-count">
-                    {resultsCount} {resultsCount === 1 ? "result" : "results"}
-                  </p>
-                </div>
-
-                <div className="sort">
-                  <label>
-                    Sort
-                    <select
-                      value={sortBy}
-                      onChange={(e) =>
-                        setSortBy(
-                          e.target.value as
-                            | "newest"
-                            | "price-asc"
-                            | "price-desc"
-                        )
-                      }
-                    >
-                      <option value="newest">Newest</option>
-                      <option value="price-asc">Price: Low to High</option>
-                      <option value="price-desc">Price: High to Low</option>
+            {/* -------------------- */}
+            {/* Results grid        */}
+            {/* -------------------- */}
+            <section className="ff-products-section">
+              <div className="ff-products-header">
+                <h1 className="ff-products-title">All Products</h1>
+                <div className="ff-products-meta">
+                  <span className="ff-results-count">{resultsLabel}</span>
+                  {/* Sort placeholder – wired later if needed */}
+                  <div className="ff-sort">
+                    <label htmlFor="sort">Sort</label>
+                    <select id="sort" name="sort" defaultValue="Newest">
+                      <option value="Newest">Newest</option>
+                      <option value="PriceLowHigh">Price: Low to High</option>
+                      <option value="PriceHighLow">Price: High to Low</option>
                     </select>
-                  </label>
+                  </div>
                 </div>
               </div>
 
-              {resultsCount === 0 ? (
-                <div className="empty-state">
-                  <h2>No items match these filters yet.</h2>
-                  <p>Try adjusting your filters or checking back soon.</p>
+              {items.length === 0 ? (
+                <div className="ff-empty-state">
+                  <p className="ff-empty-title">
+                    No items match these filters yet.
+                  </p>
+                  <p className="ff-empty-sub">
+                    Try adjusting your filters or checking back soon.
+                  </p>
                 </div>
               ) : (
-                <div className="grid">
-                  {filteredItems.map((item) => (
-                    <ProductCard key={item.id} {...item} />
+                <div className="ff-products-grid">
+                  {items.map((item) => (
+                    <ProductCard key={item.id} product={item} />
                   ))}
                 </div>
               )}
@@ -453,245 +270,277 @@ const DesignersPage: NextPage<DesignersPageProps> = ({ items }) => {
 
       <Footer />
 
+      {/* PAGE STYLES – matches existing layout */}
       <style jsx>{`
-        .designers-page {
-          background: #ffffff;
-          color: #111827;
+        .ff-page-shell {
+          background: #f7f4f0;
           min-height: 100vh;
         }
-        .page-main {
-          padding: 24px 0 64px;
-        }
-        .page-inner {
+        .ff-page-inner {
           max-width: 1200px;
           margin: 0 auto;
-          padding: 0 16px;
+          padding: 32px 16px 64px;
         }
-        .breadcrumb {
+        .ff-breadcrumb {
           font-size: 13px;
-          color: #6b7280;
+          color: #777;
           margin-bottom: 16px;
-          display: flex;
-          align-items: center;
-          gap: 6px;
         }
-        .breadcrumb a {
-          color: inherit;
-          text-decoration: none;
+        .ff-breadcrumb-sep {
+          margin: 0 6px;
         }
-        .layout {
+        .ff-products-layout {
           display: grid;
-          grid-template-columns: 260px minmax(0, 1fr);
-          gap: 24px;
+          grid-template-columns: 280px minmax(0, 1fr);
+          gap: 32px;
         }
         @media (max-width: 900px) {
-          .layout {
+          .ff-products-layout {
             grid-template-columns: 1fr;
           }
         }
-        .filters {
-          border-radius: 16px;
-          border: 1px solid #e5e7eb;
-          padding: 16px 18px 20px;
-          background: #fafafa;
+        .ff-filters {
+          background: #fff;
+          border-radius: 12px;
+          padding: 20px 18px 24px;
+          box-shadow: 0 6px 18px rgba(15, 23, 42, 0.06);
         }
-        .filters-header {
+        .ff-filters-header {
           display: flex;
           align-items: center;
           justify-content: space-between;
-          margin-bottom: 12px;
+          margin-bottom: 16px;
         }
-        .filters-header h2 {
+        .ff-filters-title {
           font-size: 18px;
           font-weight: 600;
+          letter-spacing: 0.04em;
+          text-transform: uppercase;
         }
-        .filters-header button {
-          border: none;
-          background: none;
+        .ff-filters-clear {
           font-size: 13px;
-          text-decoration: underline;
-          cursor: pointer;
           color: #6b7280;
+          text-decoration: underline;
+          background: none;
+          border: none;
+          cursor: pointer;
         }
-        .filter-block {
+        .ff-filter-block {
+          margin-top: 16px;
+          padding-top: 14px;
           border-top: 1px solid #e5e7eb;
-          padding-top: 12px;
-          margin-top: 12px;
         }
-        .filter-block:first-of-type {
-          border-top: none;
-          padding-top: 0;
-          margin-top: 0;
-        }
-        .filter-block h3 {
+        .ff-filter-heading {
           font-size: 14px;
           font-weight: 600;
-          margin-bottom: 6px;
-        }
-        .filter-list {
-          display: flex;
-          flex-direction: column;
-          gap: 4px;
-          font-size: 14px;
-        }
-        .filter-option {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-        }
-        .filter-option input {
-          accent-color: #111827;
-        }
-        .price-row {
-          display: flex;
-          align-items: center;
-          gap: 8px;
           margin-bottom: 10px;
         }
-        .price-input {
+        .ff-filter-options {
+          display: grid;
+          gap: 4px;
+        }
+        .ff-filter-checkbox {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          font-size: 13px;
+          color: #111827;
+        }
+        .ff-filter-checkbox input {
+          width: 14px;
+          height: 14px;
+          accent-color: #111827;
+        }
+        .ff-price-row {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        }
+        .ff-price-field {
           flex: 1;
           display: flex;
           flex-direction: column;
           gap: 4px;
-          font-size: 13px;
         }
-        .price-input input {
+        .ff-price-field label {
+          font-size: 12px;
+          color: #6b7280;
+        }
+        .ff-price-field input {
           border-radius: 999px;
           border: 1px solid #d1d5db;
           padding: 6px 10px;
-          font-size: 14px;
+          font-size: 13px;
+          width: 100%;
         }
-        .price-separator {
-          font-size: 14px;
+        .ff-price-sep {
+          font-size: 12px;
           color: #6b7280;
         }
-        .apply-btn {
+        .ff-apply-btn {
+          margin-top: 18px;
           width: 100%;
-          margin-top: 4px;
           border-radius: 999px;
-          background: #111827;
-          color: white;
-          padding: 8px 12px;
           border: none;
+          padding: 10px 14px;
           font-size: 14px;
-          font-weight: 500;
+          font-weight: 600;
+          background: #020617;
+          color: #f9fafb;
           cursor: pointer;
         }
-        .results {
-          min-height: 200px;
+        .ff-apply-btn:hover {
+          background: #111827;
         }
-        .results-header {
-          display: flex;
-          align-items: flex-end;
-          justify-content: space-between;
-          gap: 12px;
-          margin-bottom: 12px;
-        }
-        .results-header h1 {
-          font-family: Georgia, "Times New Roman", serif;
-          font-size: 26px;
-          margin: 0;
-        }
-        .results-count {
-          font-size: 13px;
-          color: #6b7280;
-          margin-top: 2px;
-        }
-        .sort label {
-          font-size: 13px;
+
+        .ff-products-section {
           display: flex;
           flex-direction: column;
-          gap: 4px;
+          gap: 16px;
         }
-        .sort select {
+        .ff-products-header {
+          display: flex;
+          align-items: baseline;
+          justify-content: space-between;
+          gap: 16px;
+        }
+        .ff-products-title {
+          font-size: 28px;
+          font-weight: 700;
+        }
+        .ff-products-meta {
+          display: flex;
+          align-items: center;
+          gap: 16px;
+          font-size: 13px;
+        }
+        .ff-sort {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+        }
+        .ff-sort select {
           border-radius: 999px;
           border: 1px solid #d1d5db;
-          padding: 6px 10px;
-          font-size: 14px;
-          background: #ffffff;
+          padding: 4px 10px;
+          font-size: 13px;
+          background: #fff;
         }
-        .grid {
+        .ff-products-grid {
           display: grid;
           grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-          gap: 18px;
-          margin-top: 12px;
+          gap: 24px;
         }
-        .empty-state {
-          margin-top: 32px;
+        .ff-empty-state {
+          margin-top: 40px;
+          padding: 32px 24px;
+          background: #fff;
           border-radius: 16px;
-          border: 1px solid #e5e7eb;
-          padding: 24px;
           text-align: center;
-          background: #f9fafb;
+          box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
         }
-        .empty-state h2 {
-          margin: 0 0 4px;
-          font-size: 18px;
+        .ff-empty-title {
+          font-weight: 600;
+          margin-bottom: 6px;
         }
-        .empty-state p {
-          margin: 0;
-          color: #6b7280;
+        .ff-empty-sub {
           font-size: 14px;
+          color: #6b7280;
         }
       `}</style>
-    </div>
+    </>
   );
-};
+}
 
-export default DesignersPage;
-
-// --------------------------------------------------
-// SERVER-SIDE DATA LOAD
-// --------------------------------------------------
+// ------------------------------------
+// Server-side data (Firestore)
+// ------------------------------------
 
 export const getServerSideProps: GetServerSideProps<
   DesignersPageProps
-> = async () => {
-  try {
-    const snapshot = await adminDb
-      .collection("listings")
-      .where("status", "==", "Live")
-      .get();
+> = async (ctx) => {
+  const q = ctx.query;
 
-    const items: ItemWithMeta[] = snapshot.docs.map((doc) => {
-      const d: any = doc.data() || {};
+  const selectedCategories = toArray(q.category);
+  const selectedDesignerArr = toArray(q.designer);
+  const selectedDesigner = selectedDesignerArr[0] || null;
+  const selectedConditions = toArray(q.condition);
 
-      // try all possible field names used in forms
-      const brandRaw =
-        d.brand || d.designer || d.designerName || d.brandName || "";
-      const categoryRaw =
-        d.category || d.categoryLabel || d.categoryName || "";
-      const conditionRaw =
-        d.condition ||
-        d.conditionLabel ||
-        d.itemCondition ||
-        d.conditionText ||
-        "";
+  const minPrice = parseNumber(q.minPrice, 0);
+  const maxPrice = parseNumber(q.maxPrice, 100000);
 
-      const priceNum =
-        typeof d.price === "number" ? d.price : Number(d.price || 0);
-      const price = priceNum
-        ? `US$${priceNum.toLocaleString("en-US")}`
-        : "";
+  // Base query – only LIVE listings
+  let query: FirebaseFirestore.Query = adminDb
+    .collection("listings")
+    .where("status", "==", "Live");
 
-      const image = pickImage(d);
-
-      return {
-        id: doc.id,
-        title: d.title || "",
-        brand: brandRaw,
-        category: categoryRaw,
-        condition: conditionRaw,
-        price,
-        image,
-        href: `/product/${doc.id}`,
-        priceValue: priceNum || 0,
-      };
-    });
-
-    return { props: { items } };
-  } catch (err) {
-    console.error("Error loading designers listings", err);
-    return { props: { items: [] } };
+  if (selectedDesigner) {
+    query = query.where("designer", "==", selectedDesigner);
   }
+
+  // Condition: exact match with seller bulk-simple values
+  if (selectedConditions.length > 0) {
+    // Only valid values
+    const validConds = selectedConditions.filter((c) =>
+      CONDITION_FILTERS.includes(c)
+    );
+    if (validConds.length > 0) {
+      // Firestore "in" query on condition
+      query = query.where("condition", "in", validConds);
+    }
+  }
+
+  // Price range
+  if (minPrice > 0) {
+    query = query.where("price", ">=", minPrice);
+  }
+  if (maxPrice > 0) {
+    query = query.where("price", "<=", maxPrice);
+  }
+
+  // Fetch docs
+  const snap = await query.limit(200).get();
+
+  let items: ProductLike[] = snap.docs.map((doc) => {
+    const data = doc.data() as any;
+    return {
+      id: doc.id,
+      title: data.title || "",
+      price: data.price || 0,
+      brand: data.designer || data.designerName || "",
+      designer: data.designer || data.designerName || "",
+      imageUrl:
+        (data.images && (data.images[0]?.url || data.images[0])) ||
+        "/placeholder-product.png",
+      category: data.category || "",
+      condition: data.condition || "",
+      // spread the rest so ProductCard has anything else it expects
+      ...data,
+    } as unknown as ProductLike;
+  });
+
+  // If multiple categories were checked, filter in memory.
+  if (selectedCategories.length > 0) {
+    items = items.filter((item: any) =>
+      selectedCategories.includes(item.category)
+    );
+  }
+
+  // Sort newest first if we have createdAt
+  items.sort((a: any, b: any) => {
+    const ta = (a.createdAt?._seconds || a.createdAt?._seconds) ?? 0;
+    const tb = (b.createdAt?._seconds || b.createdAt?._seconds) ?? 0;
+    return tb - ta;
+  });
+
+  return {
+    props: {
+      items,
+      selectedCategories,
+      selectedDesigner,
+      selectedConditions,
+      minPrice,
+      maxPrice,
+    },
+  };
 };
