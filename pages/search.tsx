@@ -46,12 +46,8 @@ const SearchPage: NextPage<Props> = ({ items, query }) => {
 
       <Header />
 
-      <main
-        style={{
-          background: "#f7f5f1",
-          padding: "48px 0 72px",
-        }}
-      >
+      {/* ✅ Added className="dashboard-page" to pick up global background */}
+      <main className="dashboard-page" style={{ padding: "48px 0 72px" }}>
         <div
           style={{
             maxWidth: "1120px",
@@ -108,11 +104,15 @@ const SearchPage: NextPage<Props> = ({ items, query }) => {
 
           {items.length > 0 && (
             <section style={{ marginBottom: "32px" }}>
+              {/* ✅ ADDED className="search-results-grid" 
+                  This triggers the CSS in dashboard.css that fixes the 
+                  image backgrounds and card styling. 
+              */}
               <div
+                className="search-results-grid"
                 style={{
                   display: "grid",
-                  gridTemplateColumns:
-                    "repeat(auto-fit, minmax(280px, 1fr))",
+                  gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
                   gap: "32px",
                   alignItems: "flex-start",
                 }}
@@ -120,9 +120,9 @@ const SearchPage: NextPage<Props> = ({ items, query }) => {
                 {items.map((item) => (
                   <div
                     key={item.id}
-                    style={{
-                      maxWidth: "360px",
-                    }}
+                    // ✅ Force the container to be a white card manually if needed,
+                    // but the global CSS .product-card rule should handle it too.
+                    className="product-card-wrapper"
                   >
                     <ProductCard {...item} />
                   </div>
