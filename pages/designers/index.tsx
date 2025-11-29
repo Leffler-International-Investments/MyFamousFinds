@@ -11,7 +11,10 @@ import Footer from "../../components/Footer";
 import ProductCard, { ProductLike } from "../../components/ProductCard";
 import { adminDb } from "../../utils/firebaseAdmin";
 
-// Extend ProductLike with calculated + optional fields
+// -----------------------------
+// Types
+// -----------------------------
+
 type ItemWithPrice = ProductLike & {
   priceValue: number;
   category?: string;
@@ -21,6 +24,10 @@ type ItemWithPrice = ProductLike & {
 type DesignersPageProps = {
   items: ProductLike[];
 };
+
+// -----------------------------
+// Filter options
+// -----------------------------
 
 const CATEGORY_OPTIONS = [
   "Women",
@@ -34,7 +41,7 @@ const CATEGORY_OPTIONS = [
 
 const CONDITION_OPTIONS = ["New", "Excellent", "Very good", "Good"];
 
-// FULL STATIC DESIGNERS LIST
+// Full static designer list
 const DESIGNER_OPTIONS = [
   "Alexander McQueen",
   "Balenciaga",
@@ -53,7 +60,11 @@ const DESIGNER_OPTIONS = [
   "Versace",
 ];
 
-// Helper: parse "US$1,200" → 1200
+// -----------------------------
+// Helpers
+// -----------------------------
+
+// Parse "US$1,200" → 1200
 function parsePrice(price?: string | null): number {
   if (!price) return 0;
   const cleaned = price.replace(/[^0-9.,]/g, "").replace(/,/g, "");
@@ -61,10 +72,110 @@ function parsePrice(price?: string | null): number {
   return Number.isFinite(n) ? n : 0;
 }
 
+// Normalize string for smart matching
+// - lower case
+// - trim
+// - remove accents
+// - remove non-alphanumeric
+function normalize(raw: string | undefined | null): string {
+  if (!raw) return "";
+  return raw
+    .toString()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "") // accents
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, ""); // keep letters + digits only
+}
+
+// Simple Levenshtein distance
+function levenshtein(a: string, b: string): number {
+  if (a === b) return 0;
+  const aLen = a.length;
+  const bLen = b.length;
+  if (aLen === 0) return bLen;
+  if (bLen === 0) return aLen;
+
+  const matrix: number[][] = [];
+
+  for (let i = 0; i <= bLen; i++) {
+    matrix[i] = [i];
+  }
+  for (let j = 0; j <= aLen; j++) {
+    matrix[0][j] = j;
+  }
+
+  for (let i = 1; i <= bLen; i++) {
+    for (let j = 1; j <= aLen; j++) {
+      if (b.charAt(i - 1) === a.charAt(j - 1)) {
+        matrix[i][j] = matrix[i - 1][j - 1];
+      } else {
+        matrix[i][j] = Math.min(
+          matrix[i - 1][j] + 1, // delete
+          matrix[i][j - 1] + 1, // insert
+          matrix[i - 1][j - 1] + 1 // substitute
+        );
+      }
+    }
+  }
+
+  return matrix[bLen][aLen];
+}
+
+// Category synonyms → canonical token
+function canonCategory(raw: string): string {
+  const n = normalize(raw);
+  if (!n) return "";
+
+  // direct matches first
+  if (n === "women") return "women";
+  if (n === "men") return "men";
+  if (n === "bags" || n === "bag") return "bags";
+  if (n === "shoes" || n === "shoe" || n === "footwear") return "shoes";
+  if (n === "accessories" || n === "accessory") return "accessories";
+  if (n === "jewelry" || n === "jewellery") return "jewelry";
+  if (n === "watches" || n === "watch") return "watches";
+
+  return n;
+}
+
+// Condition synonyms → canonical token
+function canonCondition(raw: string): string {
+  const n = normalize(raw);
+  if (!n) return "";
+
+  if (n === "new" || n === "brandnew" || n === "withtags") return "new";
+  if (n === "excellent" || n === "likenew") return "excellent";
+  if (n === "verygood" || n === "verygoodcondition") return "verygood";
+  if (n === "good" || n === "usedgood") return "good";
+
+  return n;
+}
+
+// Brand canonical form (we still keep original for display)
+function canonBrand(raw: string): string {
+  return normalize(raw);
+}
+
+// Smart match: selected brand vs item brand
+// exact match OR Levenshtein distance <= 2
+function brandMatches(selected: string, actual: string): boolean {
+  const sel = canonBrand(selected);
+  const act = canonBrand(actual);
+  if (!sel || !act) return false;
+  if (sel === act) return true;
+  const dist = levenshtein(sel, act);
+  return dist <= 2; // up to 2 char differences
+}
+
+// -----------------------------
+// Page component
+// -----------------------------
+
 const DesignersPage: NextPage<DesignersPageProps> = ({ items }) => {
   const router = useRouter();
 
-  // Base items with numeric prices
+  // Base items enriched with numeric price
   const baseItems: ItemWithPrice[] = (items || []).map((it: any) => ({
     ...it,
     priceValue: parsePrice(it.price),
@@ -82,7 +193,7 @@ const DesignersPage: NextPage<DesignersPageProps> = ({ items }) => {
     "newest"
   );
 
-  // Helpers
+  // Helper toggle
   function toggleInList(list: string[], value: string): string[] {
     return list.includes(value)
       ? list.filter((v) => v !== value)
@@ -91,8 +202,10 @@ const DesignersPage: NextPage<DesignersPageProps> = ({ items }) => {
 
   const onCategoryChange = (name: string) =>
     setSelectedCategories((prev) => toggleInList(prev, name));
+
   const onDesignerChange = (name: string) =>
     setSelectedDesigners((prev) => toggleInList(prev, name));
+
   const onConditionChange = (name: string) =>
     setSelectedConditions((prev) => toggleInList(prev, name));
 
@@ -104,7 +217,7 @@ const DesignersPage: NextPage<DesignersPageProps> = ({ items }) => {
     setMaxPrice(100000);
   };
 
-  // Apply button = sync to URL (engine is already live)
+  // Apply button – sync filters to URL (engine is already live)
   const applyFiltersToUrl = () => {
     const query: Record<string, string> = {};
 
@@ -119,51 +232,61 @@ const DesignersPage: NextPage<DesignersPageProps> = ({ items }) => {
     });
   };
 
-  // CLIENT-SIDE engine: category + designer + condition + price + sort
+  // -----------------------------
+  // SMART FILTER ENGINE
+  // -----------------------------
+
   const filteredItems = useMemo(() => {
     let result = [...baseItems];
 
-    // Normalize helpers
-    const normList = (arr: string[]) =>
-      arr.map((v) => v.toLowerCase().trim());
-    const normSelectedCategories = normList(selectedCategories);
-    const normSelectedDesigners = normList(selectedDesigners);
-    const normSelectedConditions = normList(selectedConditions);
+    // Pre-normalize selected values
+    const normSelectedCats = selectedCategories.map(canonCategory);
+    const normSelectedConditions = selectedConditions.map(canonCondition);
 
+    // CATEGORY (smart, but strict enough)
     if (selectedCategories.length > 0) {
-      result = result.filter((i) => {
-        const cat = (i.category || "").toLowerCase().trim();
-        return cat && normSelectedCategories.includes(cat);
+      result = result.filter((item) => {
+        const itemCatToken = canonCategory(item.category || "");
+        if (!itemCatToken) return false;
+        return normSelectedCats.includes(itemCatToken);
       });
     }
 
+    // DESIGNER / BRAND (smart fuzzy match)
     if (selectedDesigners.length > 0) {
-      result = result.filter((i) => {
-        const brand = (i.brand || "").toLowerCase().trim();
-        return brand && normSelectedDesigners.includes(brand);
+      result = result.filter((item) => {
+        const actualBrand = item.brand || "";
+        if (!actualBrand) return false;
+
+        // if ANY selected designer matches this item brand
+        return selectedDesigners.some((sel) => brandMatches(sel, actualBrand));
       });
     }
 
+    // CONDITION (smart, canonical)
     if (selectedConditions.length > 0) {
-      result = result.filter((i) => {
-        const cond = (i.condition || "").toLowerCase().trim();
-        return cond && normSelectedConditions.includes(cond);
+      result = result.filter((item) => {
+        const condToken = canonCondition(item.condition || "");
+        if (!condToken) return false;
+        return normSelectedConditions.includes(condToken);
       });
     }
 
-    result = result.filter((i) => {
-      const p = i.priceValue;
+    // PRICE RANGE
+    result = result.filter((item) => {
+      const p = item.priceValue;
       if (typeof minPrice === "number" && p < minPrice) return false;
       if (typeof maxPrice === "number" && p > maxPrice) return false;
       return true;
     });
 
+    // SORT
     if (sortBy === "price-asc") {
       result.sort((a, b) => a.priceValue - b.priceValue);
     } else if (sortBy === "price-desc") {
       result.sort((a, b) => b.priceValue - a.priceValue);
     }
-    // "newest" keeps server order
+    // "newest" keeps server order from Firestore (createdAt desc)
 
     return result;
   }, [
@@ -177,6 +300,10 @@ const DesignersPage: NextPage<DesignersPageProps> = ({ items }) => {
   ]);
 
   const resultsCount = filteredItems.length;
+
+  // -----------------------------
+  // JSX
+  // -----------------------------
 
   return (
     <div className="designers-page">
@@ -221,7 +348,7 @@ const DesignersPage: NextPage<DesignersPageProps> = ({ items }) => {
                 </div>
               </div>
 
-              {/* Designer – FULL STATIC LIST */}
+              {/* Designer */}
               <div className="filter-block">
                 <h3>Designer</h3>
                 <div className="filter-list">
@@ -542,37 +669,45 @@ const DesignersPage: NextPage<DesignersPageProps> = ({ items }) => {
 
 export default DesignersPage;
 
-// ----------------------
+// -----------------------------
 // SERVER-SIDE DATA LOAD
-// ----------------------
+// -----------------------------
+
 export const getServerSideProps: GetServerSideProps<
   DesignersPageProps
 > = async () => {
   try {
-    // EXACTLY LIKE HOMEPAGE: only Live listings (approved)
     const snapshot = await adminDb
       .collection("listings")
-      .where("status", "==", "Live")
+      .where("status", "==", "Live") // approved/live listings only
+      .orderBy("createdAt", "desc")
+      .limit(200)
       .get();
 
     const items: ProductLike[] = snapshot.docs.map((doc) => {
       const data = doc.data() as any;
 
+      const priceNumber = Number(data.price) || 0;
+
+      const image =
+        data.image_url ||
+        data.imageUrl ||
+        data.image ||
+        (Array.isArray(data.imageUrls) && data.imageUrls.length > 0
+          ? data.imageUrls[0]
+          : "");
+
       return {
         id: doc.id,
         title: data.title || "",
         brand: data.brand || "",
-        price: data.price ? `US$${Number(data.price).toLocaleString()}` : "",
-        image:
-          data.image_url ||
-          data.imageUrl ||
-          data.image ||
-          (Array.isArray(data.imageUrls) && data.imageUrls.length > 0
-            ? data.imageUrls[0]
-            : ""),
-        href: `/product/${doc.id}`,
         category: data.category || "",
         condition: data.condition || "",
+        price: priceNumber
+          ? `US$${priceNumber.toLocaleString("en-US")}`
+          : "",
+        image,
+        href: `/product/${doc.id}`,
       } as ProductLike & { category?: string; condition?: string };
     });
 
