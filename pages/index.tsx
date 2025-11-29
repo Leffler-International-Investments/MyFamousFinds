@@ -18,6 +18,7 @@ import { adminDb } from "../utils/firebaseAdmin";
 type HomeProps = {
   trending: ProductLike[];
   newArrivals: ProductLike[];
+  featuredDesigners: string[];
 };
 
 // Helper to normalise price
@@ -42,25 +43,14 @@ const pickImage = (data: any): string => {
 // Component
 // --------------------------------------------------
 
-const Home: NextPage<HomeProps> = ({ trending, newArrivals }) => {
+const Home: NextPage<HomeProps> = ({ trending, newArrivals, featuredDesigners }) => {
   return (
     <div className="home-wrapper">
       <Head>
         <title>Famous Finds — Shop authenticated designer pieces</title>
-        {/* Optional description you had before */}
         <meta
           name="description"
-          content="Discover curated, authenticated pre-loved designer bags, jewelry, watches and ready-to-wear from trusted sellers. Every piece is vetted so you can shop with confidence."
-        />
-        {/* Google Search Console */}
-        <meta
-          name="google-site-verification"
-          content="RQh6GnJJ4BngX_4si1xGlYpnL9_7Z5srwkz1P3YSrhk"
-        />
-        {/* Bing Webmaster Tools */}
-        <meta
-          name="msvalidate.01"
-          content="1A5F9E495867B41926D6E2C113347122"
+          content="Discover curated, authenticated pre-loved designer bags, jewelry, watches and ready-to-wear from trusted sellers."
         />
       </Head>
 
@@ -82,17 +72,17 @@ const Home: NextPage<HomeProps> = ({ trending, newArrivals }) => {
             <div className="hero-stats">
               <div className="stat-card">
                 <p className="stat-label">Live listings</p>
-                <p className="stat-value">20+</p>
+                <p className="stat-value">{newArrivals.length > 20 ? "20+" : newArrivals.length}</p>
                 <p className="stat-note">Updated in real time</p>
               </div>
               <div className="stat-card">
                 <p className="stat-label">New this week</p>
-                <p className="stat-value">10+</p>
+                <p className="stat-value">{newArrivals.length > 10 ? "10+" : newArrivals.length}</p>
                 <p className="stat-note">Fresh drops &amp; finds</p>
               </div>
               <div className="stat-card">
                 <p className="stat-label">Designers</p>
-                <p className="stat-value">50+</p>
+                <p className="stat-value">{featuredDesigners.length}+</p>
                 <p className="stat-note">From Chanel to Rolex</p>
               </div>
               <div className="stat-card">
@@ -103,12 +93,14 @@ const Home: NextPage<HomeProps> = ({ trending, newArrivals }) => {
             </div>
 
             <div className="hero-actions">
-              <a href="/products?tag=New+Arrival" className="btn-primary">
+              {/* ✅ LINKED TO WORKING CATEGORY PAGE */}
+              <Link href="/category/new-arrivals" className="btn-primary">
                 Browse New Arrivals
-              </a>
-              <a href="/products?tag=Trending" className="btn-secondary">
+              </Link>
+              {/* ✅ LINKED TO ALL DESIGNERS */}
+              <Link href="/designers" className="btn-secondary">
                 View Trending Pieces
-              </a>
+              </Link>
             </div>
           </div>
 
@@ -129,7 +121,6 @@ const Home: NextPage<HomeProps> = ({ trending, newArrivals }) => {
               <span>0</span>
             </div>
 
-            {/* UPDATED LINKS */}
             <Link
               href="/buyer/dashboard"
               className="block w-full bg-slate-900 text-white rounded-full py-3 text-center text-sm font-medium"
@@ -146,45 +137,32 @@ const Home: NextPage<HomeProps> = ({ trending, newArrivals }) => {
           </aside>
         </section>
 
-        {/* FEATURED DESIGNERS CAROUSEL */}
+        {/* FEATURED DESIGNERS CAROUSEL (Dynamic) */}
         <section className="home-featured-designers mt-10">
           <header className="home-feed-header">
             <h2 className="home-feed-title">Featured Designers</h2>
-            <a
+            <Link
               href="/designers"
               className="text-xs font-medium text-neutral-500 hover:text-neutral-900 underline-offset-4 hover:underline"
             >
               View full directory →
-            </a>
+            </Link>
           </header>
 
           <div className="mt-4 flex gap-3 overflow-x-auto pb-2">
-            {[
-              "Chanel",
-              "Louis Vuitton",
-              "Hermès",
-              "Gucci",
-              "Prada",
-              "Dior",
-              "Saint Laurent",
-              "Fendi",
-              "Balenciaga",
-              "Goyard",
-              "Cartier",
-              "Rolex",
-            ].map((name) => (
-              <button
-                key={name}
-                className="whitespace-nowrap px-4 py-2 rounded-full border border-neutral-200 bg-white text-xs font-medium text-neutral-800 shadow-sm hover:border-neutral-400 hover:bg-neutral-50 transition"
-                onClick={() => {
-                  window.location.href = `/products?designer=${encodeURIComponent(
-                    name
-                  )}`;
-                }}
-              >
-                {name}
-              </button>
-            ))}
+            {featuredDesigners.length > 0 ? (
+              featuredDesigners.map((name) => (
+                <Link
+                  href={`/designers?designer=${encodeURIComponent(name)}`}
+                  key={name}
+                  className="whitespace-nowrap px-4 py-2 rounded-full border border-neutral-200 bg-white text-xs font-medium text-neutral-800 shadow-sm hover:border-neutral-400 hover:bg-neutral-50 transition no-underline"
+                >
+                  {name}
+                </Link>
+              ))
+            ) : (
+              <p className="text-sm text-gray-400">Loading designers...</p>
+            )}
           </div>
         </section>
 
@@ -207,36 +185,29 @@ const Home: NextPage<HomeProps> = ({ trending, newArrivals }) => {
         </section>
       </main>
 
-      {/* AI Butler bubble – unchanged */}
       <HomepageButler />
-
       <Footer />
 
-      {/* Local tweaks to ensure white cards and consistent sizes */}
       <style jsx>{`
         .home-wrapper {
           background: #f7f7f5;
         }
-
         .wrap {
           max-width: 1200px;
           margin: 0 auto;
           padding: 32px 16px 64px;
         }
-
         .hero {
           display: grid;
           grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
           gap: 32px;
           margin-bottom: 40px;
         }
-
         @media (max-width: 900px) {
           .hero {
             grid-template-columns: 1fr;
           }
         }
-
         .eyebrow {
           text-transform: uppercase;
           letter-spacing: 0.12em;
@@ -244,64 +215,54 @@ const Home: NextPage<HomeProps> = ({ trending, newArrivals }) => {
           color: #6b7280;
           margin-bottom: 8px;
         }
-
         h1 {
           font-size: 36px;
           line-height: 1.1;
           margin: 0 0 12px;
           font-family: "Georgia", serif;
         }
-
         .hero-sub {
           color: #4b5563;
           max-width: 520px;
           margin-bottom: 20px;
         }
-
         .hero-stats {
           display: grid;
           grid-template-columns: repeat(4, minmax(0, 1fr));
           gap: 12px;
           margin-bottom: 20px;
         }
-
         @media (max-width: 900px) {
           .hero-stats {
             grid-template-columns: repeat(2, minmax(0, 1fr));
           }
         }
-
         .stat-card {
           background: #ffffff;
           border-radius: 16px;
           padding: 12px 14px;
           border: 1px solid #e5e7eb;
         }
-
         .stat-label {
           font-size: 11px;
           text-transform: uppercase;
           letter-spacing: 0.08em;
           color: #6b7280;
         }
-
         .stat-value {
           font-size: 18px;
           font-weight: 600;
           margin: 4px 0;
         }
-
         .stat-note {
           font-size: 12px;
           color: #9ca3af;
         }
-
         .hero-actions {
           display: flex;
           flex-wrap: wrap;
           gap: 12px;
         }
-
         .btn-primary,
         .btn-secondary {
           display: inline-flex;
@@ -314,18 +275,15 @@ const Home: NextPage<HomeProps> = ({ trending, newArrivals }) => {
           text-decoration: none;
           border: 1px solid transparent;
         }
-
         .btn-primary {
           background: #111827;
           color: #ffffff;
         }
-
         .btn-secondary {
           background: #ffffff;
           border-color: #d1d5db;
           color: #111827;
         }
-
         .snapshot-card {
           background: #ffffff;
           border-radius: 24px;
@@ -334,12 +292,10 @@ const Home: NextPage<HomeProps> = ({ trending, newArrivals }) => {
           box-shadow: 0 18px 40px rgba(15, 23, 42, 0.08);
           align-self: flex-start;
         }
-
         .snapshot-card h2 {
           margin: 0 0 4px;
           font-size: 18px;
         }
-
         .snapshot-view {
           font-size: 11px;
           text-transform: uppercase;
@@ -347,7 +303,6 @@ const Home: NextPage<HomeProps> = ({ trending, newArrivals }) => {
           color: #9ca3af;
           margin-bottom: 12px;
         }
-
         .snapshot-row {
           display: flex;
           justify-content: space-between;
@@ -355,35 +310,13 @@ const Home: NextPage<HomeProps> = ({ trending, newArrivals }) => {
           padding: 6px 0;
           border-bottom: 1px solid #f3f4f6;
         }
-
         .snapshot-row:last-of-type {
           border-bottom: none;
           margin-bottom: 14px;
         }
-
-        /* Note: .snapshot-btn styles kept for safety */
-        .snapshot-btn {
-          width: 100%;
-          border-radius: 999px;
-          border: 1px solid #d1d5db;
-          padding: 10px 12px;
-          font-size: 14px;
-          margin-bottom: 8px;
-          background: #ffffff;
-          cursor: pointer;
-        }
-
-        .snapshot-btn.primary {
-          background: #111827;
-          color: #ffffff;
-          border-color: #111827;
-        }
-
         .home-section {
           margin-top: 40px;
         }
-
-        /* --- FEATURED DESIGNERS STYLES --- */
         .home-featured-designers {
           margin-top: 40px;
         }
@@ -414,7 +347,6 @@ const Home: NextPage<HomeProps> = ({ trending, newArrivals }) => {
           overflow-x: auto;
           padding-bottom: 8px;
         }
-        /* Hide scrollbar */
         .home-featured-designers .flex::-webkit-scrollbar {
           display: none;
         }
@@ -422,31 +354,13 @@ const Home: NextPage<HomeProps> = ({ trending, newArrivals }) => {
           -ms-overflow-style: none;
           scrollbar-width: none;
         }
-        .home-featured-designers button {
-          white-space: nowrap;
-          padding: 8px 16px;
-          border-radius: 999px;
-          border: 1px solid #e5e7eb;
-          background: #ffffff;
-          font-size: 13px;
-          font-weight: 500;
-          color: #1f2937;
-          cursor: pointer;
-          transition: all 0.2s;
-        }
-        .home-featured-designers button:hover {
-          background: #f9fafb;
-          border-color: #d1d5db;
-        }
-
-        /* Ensure product cards are white and consistent */
+        /* Product cards */
         :global(.product-card) {
           background: #ffffff !important;
           border-radius: 18px;
           border: 1px solid #e5e7eb;
           overflow: hidden;
         }
-
         :global(.product-card img) {
           width: 100%;
           height: 260px;
@@ -461,7 +375,7 @@ const Home: NextPage<HomeProps> = ({ trending, newArrivals }) => {
 export default Home;
 
 // --------------------------------------------------
-// Server-side data: pull approved (Live) listings
+// Server-side data
 // --------------------------------------------------
 
 export const getServerSideProps: GetServerSideProps<HomeProps> = async () => {
@@ -472,7 +386,6 @@ export const getServerSideProps: GetServerSideProps<HomeProps> = async () => {
 
   const items = snapshot.docs.map((doc) => {
     const data = doc.data() as any;
-
     return {
       id: doc.id,
       title: data.title || "",
@@ -480,17 +393,14 @@ export const getServerSideProps: GetServerSideProps<HomeProps> = async () => {
       price: formatPrice(data.price),
       image: pickImage(data),
       href: `/product/${doc.id}`,
-      // optional extras — used by category pages / filters
       category: data.category || "",
       condition: data.condition || "",
-      badge: data.condition || "",
-    } as ProductLike & {
-      category?: string;
-      condition?: string;
+      createdAt: data.createdAt,
+      viewCount: data.viewCount || 0,
     };
   });
 
-  // New Arrivals – newest first by createdAt (if present)
+  // 1. New Arrivals (Sort by newest)
   const newArrivals = items
     .slice()
     .sort((a: any, b: any) => {
@@ -506,24 +416,32 @@ export const getServerSideProps: GetServerSideProps<HomeProps> = async () => {
     })
     .slice(0, 8);
 
-  // Trending – highest viewCount, fallback to same as newArrivals
+  // 2. Trending (Sort by viewCount)
   let trending = items
     .slice()
-    .sort((a: any, b: any) => {
-      const av = a.viewCount || 0;
-      const bv = b.viewCount || 0;
-      return bv - av;
-    })
+    .sort((a: any, b: any) => (b.viewCount || 0) - (a.viewCount || 0))
     .slice(0, 8);
 
   if (!trending.length) {
     trending = newArrivals;
   }
 
+  // 3. Featured Designers (Dynamic from Live items)
+  // Extract all unique brand names from the items we just fetched
+  const uniqueBrands = Array.from(new Set(items.map((i) => i.brand).filter(Boolean)));
+  // Sort alphabetically
+  const featuredDesigners = uniqueBrands.sort();
+  
+  // Fallback if empty (e.g. no live items yet)
+  if (featuredDesigners.length === 0) {
+    featuredDesigners.push("Chanel", "Louis Vuitton", "Hermès", "Gucci", "Prada");
+  }
+
   return {
     props: {
       trending,
       newArrivals,
+      featuredDesigners: featuredDesigners.slice(0, 15), // Limit to top 15
     },
   };
 };
