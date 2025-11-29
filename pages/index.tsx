@@ -93,11 +93,9 @@ const Home: NextPage<HomeProps> = ({ trending, newArrivals, featuredDesigners })
             </div>
 
             <div className="hero-actions">
-              {/* ✅ LINKED TO WORKING CATEGORY PAGE */}
               <Link href="/category/new-arrivals" className="btn-primary">
                 Browse New Arrivals
               </Link>
-              {/* ✅ LINKED TO ALL DESIGNERS */}
               <Link href="/designers" className="btn-secondary">
                 View Trending Pieces
               </Link>
@@ -149,13 +147,14 @@ const Home: NextPage<HomeProps> = ({ trending, newArrivals, featuredDesigners })
             </Link>
           </header>
 
-          <div className="mt-4 flex gap-3 overflow-x-auto pb-2">
+          <div className="mt-4 flex gap-3 overflow-x-auto pb-4 pt-1">
             {featuredDesigners.length > 0 ? (
               featuredDesigners.map((name) => (
                 <Link
                   href={`/designers?designer=${encodeURIComponent(name)}`}
                   key={name}
-                  className="whitespace-nowrap px-4 py-2 rounded-full border border-neutral-200 bg-white text-xs font-medium text-neutral-800 shadow-sm hover:border-neutral-400 hover:bg-neutral-50 transition no-underline"
+                  // ✅ Using the class defined in dashboard.css
+                  className="luxury-pill"
                 >
                   {name}
                 </Link>
