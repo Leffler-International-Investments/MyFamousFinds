@@ -1,15 +1,19 @@
 // FILE: /pages/api/seller/bulk-commit.ts
 // Accepts rows from seller bulk upload / bulk-simple and creates
-// docs in the "listings" collection so they appear in the
-// management listing queue for approval.
+// docs in the "listings" collection.
+//
+// FEATURES:
+// - Sharp Image Processing (Resize, Compress, White Background)
+// - 20MB Payload Support
+// - Firestore Validation
 
 import type { NextApiRequest, NextApiResponse } from "next";
 import { adminDb } from "../../../utils/firebaseAdmin";
 import { FieldValue } from "firebase-admin/firestore";
 import { getSellerId } from "../../../utils/authServer";
+import sharp from "sharp";
 
-// ✅ ADDED: Fix for 413 Payload Too Large error
-// This allows larger images to be uploaded via the API.
+// ✅ CONFIG: Allow large uploads (20MB) to prevent 413 errors
 export const config = {
   api: {
     bodyParser: {
@@ -30,8 +34,6 @@ type IncomingRow = {
   purchase_source?: string;
   purchase_proof?: string;
   serial_number?: string;
-
-  // >>> ADDED SAFELY <<<
   imageDataUrl?: string | null;
 };
 
@@ -49,8 +51,6 @@ type CleanRow = {
   _source?: "bulk";
   currency: "USD";
   status: "Pending";
-
-  // >>> ADDED SAFELY <<<
   image_url?: string | null;
 };
 
@@ -76,6 +76,42 @@ function coercePrice(v: unknown): number | null {
   return null;
 }
 
+// ---------- IMAGE ENGINE (Sharp) ----------
+async function processImage(base64Str: string): Promise<string | null> {
+  try {
+    // 1. Strip the "data:image/xyz;base64," prefix if present
+    const match = base64Str.match(/^data:image\/([a-zA-Z]*);base64,([^"]*)/);
+    const rawBase64 = match ? match[2] : base64Str;
+    
+    // 2. Convert to Buffer
+    const buffer = Buffer.from(rawBase64, "base64");
+
+    // 3. Process with Sharp (The "Luxury Standard")
+    // - Rotate: Fixes iPhone sideways photos
+    // - Resize: 1080x1080 Square (Industry Standard)
+    // - Fit 'contain': Ensures the whole item is visible
+    // - Background: White (#ffffff) to fill empty space
+    // - Format: JPEG at 80% quality (Visual perfection, low file size)
+    const optimizedBuffer = await sharp(buffer)
+      .rotate() 
+      .resize(1080, 1080, {
+        fit: "contain",
+        background: { r: 255, g: 255, b: 255, alpha: 1 },
+      })
+      .flatten({ background: "#ffffff" }) // Removes transparency
+      .toFormat("jpeg", { quality: 80, mozjpeg: true })
+      .toBuffer();
+
+    // 4. Return as Data URL
+    return `data:image/jpeg;base64,${optimizedBuffer.toString("base64")}`;
+  } catch (error) {
+    console.error("Image processing failed:", error);
+    // If optimization fails, we return null to avoid breaking the listing creation.
+    // Alternatively, you could return the original string, but that risks the 1MB limit.
+    return null;
+  }
+}
+
 // ---------- CLEAN ROW ----------
 function cleanRow(r: IncomingRow): CleanRow | null {
   const rawBrand = toStr(r.brand);
@@ -95,9 +131,6 @@ function cleanRow(r: IncomingRow): CleanRow | null {
 
   if (price == null) return null;
 
-  // >>> ADDED SAFELY <<<
-  const image_url = r.imageDataUrl || null;
-
   return {
     title,
     brand,
@@ -112,9 +145,7 @@ function cleanRow(r: IncomingRow): CleanRow | null {
     _source: "bulk",
     currency: "USD",
     status: "Pending",
-
-    // >>> ADDED SAFELY <<<
-    image_url,
+    image_url: r.imageDataUrl || null,
   };
 }
 
@@ -167,12 +198,21 @@ export default async function handler(
 
     const batch = adminDb.batch();
 
+    // Use a standard for loop to handle async/await correctly
     for (const raw of slice as IncomingRow[]) {
       const cleaned = cleanRow(raw);
       if (!cleaned) {
         skipped++;
         continue;
       }
+
+      // --- 🎨 IMAGE PROCESSING ENGINE ---
+      if (cleaned.image_url) {
+        // This converts the raw upload into a standardized, compressed PRO image
+        // It prevents the "1MB limit" error by compressing efficiently.
+        cleaned.image_url = await processImage(cleaned.image_url);
+      }
+      // ----------------------------------
 
       const brandKey = cleaned.brand.toLowerCase();
       const isApprovedDesigner =
@@ -188,10 +228,6 @@ export default async function handler(
           amount: cleaned.price,
           currency: "USD",
         },
-
-        // >>> ADDED SAFELY <<<
-        image_url: cleaned.image_url || null,
-
         visibility: {
           public: false,
           searchable: false,
