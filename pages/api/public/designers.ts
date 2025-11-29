@@ -1,47 +1,46 @@
 // FILE: /pages/api/public/designers.ts
-// Public: return designers for dropdowns (no composite index required)
+// Returns a list of designers that have "Live" listings
+// Used to populate filters in category pages so buyers don't see empty brands.
 
 import type { NextApiRequest, NextApiResponse } from "next";
 import { adminDb } from "../../../utils/firebaseAdmin";
 
-type D = { id: string; name: string; slug: string; active?: boolean };
-type ApiOk = { ok: true; designers: D[] };
-type ApiErr = { ok: false; error: string };
-
 export default async function handler(
-  _req: NextApiRequest,
-  res: NextApiResponse<ApiOk | ApiErr>
+  req: NextApiRequest,
+  res: NextApiResponse
 ) {
   try {
-    // Single-field index only: orderBy('name') — then filter in memory
-    const snap = await adminDb
-      .collection("designers")
-      .orderBy("name", "asc")
-      .limit(2000)
+    // 1. Fetch all Live listings
+    // We scan the actual inventory to see who is "in stock"
+    const snapshot = await adminDb
+      .collection("listings")
+      .where("status", "==", "Live")
+      .select("brand") // Optimization: Only fetch the brand field
       .get();
 
-    const designers = snap.docs
-      .map((d) => {
-        const data = d.data() as any;
-        const active =
-          typeof data.active === "boolean"
-            ? data.active
-            : typeof data.approved === "boolean"
-            ? data.approved
-            : true; // default true for your manual docs
+    // 2. Extract unique brands
+    const brandSet = new Set<string>();
+    snapshot.forEach((doc) => {
+      const b = doc.data().brand;
+      if (b && typeof b === "string") {
+        brandSet.add(b);
+      }
+    });
 
-        return {
-          id: d.id,
-          name: String(data.name ?? d.id),
-          slug: (data.slug as string) || d.id,
-          active,
-        } as D;
-      })
-      .filter((d) => d.active);
+    // 3. Convert to array of objects
+    const designers = Array.from(brandSet).map((name) => ({
+      id: name,
+      name: name,
+      slug: name.toLowerCase().replace(/\s+/g, "-"),
+      active: true,
+    }));
+
+    // 4. Sort A-Z
+    designers.sort((a, b) => a.name.localeCompare(b.name));
 
     res.status(200).json({ ok: true, designers });
-  } catch (e: any) {
-    console.error("Designers API failed:", e);
-    res.status(500).json({ ok: false, error: e?.message || "failed" });
+  } catch (error) {
+    console.error("Error fetching public designers:", error);
+    res.status(500).json({ ok: false, error: "Internal server error" });
   }
 }
