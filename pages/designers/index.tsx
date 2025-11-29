@@ -1,410 +1,616 @@
 // FILE: /pages/designers/index.tsx
 
 import Head from "next/head";
-import type { GetServerSideProps } from "next";
-import { useState, useEffect } from "react";
+import Link from "next/link";
 import { useRouter } from "next/router";
+import { useMemo, useState } from "react";
+import type { GetServerSideProps, NextPage } from "next";
 
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
 import ProductCard, { ProductLike } from "../../components/ProductCard";
 import { adminDb } from "../../utils/firebaseAdmin";
 
-// ------------------------------
-// Static designers list (same as category pages)
-// ------------------------------
-const STATIC_DESIGNERS = [
-  "Alexander McQueen",
-  "Balenciaga",
-  "Bottega Veneta",
-  "Burberry",
-  "Dior",
-  "Fendi",
-  "Givenchy",
-  "Goyard",
-  "Gucci",
-  "Hermès",
-  "Louis Vuitton",
-  "Prada",
-  "Saint Laurent",
-  "Valentino",
-  "Versace",
+type ItemWithPrice = ProductLike & {
+  priceValue: number;
+  category?: string;
+  condition?: string;
+};
+
+type DesignersPageProps = {
+  items: ProductLike[];
+};
+
+const CATEGORY_OPTIONS = [
+  "Women",
+  "Men",
+  "Bags",
+  "Shoes",
+  "Accessories",
+  "Jewelry",
+  "Watches",
 ];
 
-// Helper to ensure price is a string for the UI
-const formatPrice = (num: number): string => {
-  return `US$${num.toLocaleString()}`;
-};
+const CONDITION_OPTIONS = ["New", "Excellent", "Very good", "Good"];
 
-type Props = {
-  items: ProductLike[];
-  designers: string[]; // full list for filters
-};
-
-// ------------------------------
-// Component
-// ------------------------------
-
-export default function DesignersPage({ items, designers }: Props) {
+const DesignersPage: NextPage<DesignersPageProps> = ({ items }) => {
   const router = useRouter();
-  const { query } = router;
 
-  // Initialize state from URL query to keep UI in sync
-  const [selectedDesigner, setSelectedDesigner] = useState<string[]>([]);
-  const [selectedCategory, setSelectedCategory] = useState<string[]>([]);
-  const [selectedCondition, setSelectedCondition] = useState<string[]>([]);
-  const [minPrice, setMinPrice] = useState<number>(0);
-  const [maxPrice, setMaxPrice] = useState<number>(100000);
+  // Precompute prices + keep category/condition
+  const baseItems: ItemWithPrice[] = (items || []).map((it: any) => ({
+    ...it,
+    priceValue: parsePrice(it.price),
+    category: it.category || "",
+    condition: it.condition || "",
+  }));
 
-  // Sync state with URL when page loads/updates
-  useEffect(() => {
-    if (!router.isReady) return;
+  // Initialise filters from query (so Apply Filters round-trips)
+  const initialCategory =
+    typeof router.query.category === "string"
+      ? router.query.category
+      : "";
+  const initialDesigner =
+    typeof router.query.designer === "string"
+      ? router.query.designer
+      : "";
+  const initialCondition =
+    typeof router.query.condition === "string"
+      ? router.query.condition
+      : "";
 
-    if (query.category) {
-      setSelectedCategory((query.category as string).split(","));
-    } else {
-      setSelectedCategory([]);
-    }
+  const [selectedCategories, setSelectedCategories] = useState<string[]>(
+    initialCategory ? [initialCategory] : []
+  );
+  const [selectedDesigners, setSelectedDesigners] = useState<string[]>(
+    initialDesigner ? [initialDesigner] : []
+  );
+  const [selectedConditions, setSelectedConditions] = useState<string[]>(
+    initialCondition ? [initialCondition] : []
+  );
+  const [minPrice, setMinPrice] = useState<number | "">(
+    typeof router.query.minPrice === "string"
+      ? Number(router.query.minPrice) || 0
+      : 0
+  );
+  const [maxPrice, setMaxPrice] = useState<number | "">(
+    typeof router.query.maxPrice === "string"
+      ? Number(router.query.maxPrice) || 100000
+      : 100000
+  );
+  const [sortBy, setSortBy] = useState<"newest" | "price-asc" | "price-desc">(
+    "newest"
+  );
 
-    if (query.designer) {
-      setSelectedDesigner((query.designer as string).split(","));
-    } else {
-      setSelectedDesigner([]);
-    }
+  // Designer options from items
+  const designerOptions = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          baseItems
+            .map((i) => (i.brand || "").trim())
+            .filter(Boolean)
+        )
+      ).sort((a, b) => a.localeCompare(b)),
+    [baseItems]
+  );
 
-    if (query.minPrice) setMinPrice(Number(query.minPrice));
-    if (query.maxPrice) setMaxPrice(Number(query.maxPrice));
-  }, [router.isReady, query]);
+  // helpers
+  function toggleInList(list: string[], value: string): string[] {
+    return list.includes(value)
+      ? list.filter((v) => v !== value)
+      : [...list, value];
+  }
 
-  const categories = [
-    "Women",
-    "Men",
-    "Bags",
-    "Shoes",
-    "Accessories",
-    "Jewelry",
-    "Watches",
-  ];
-
-  const conditions = ["New", "Excellent", "Very good", "Good"];
-
-  const toggle = (list: string[], value: string) =>
-    list.includes(value) ? list.filter((x) => x !== value) : [...list, value];
-
-  const toggleDesigner = (d: string) => {
-    setSelectedDesigner((prev) => toggle(prev, d.toLowerCase()));
-  };
-
-  const toggleCategory = (c: string) =>
-    setSelectedCategory((prev) => toggle(prev, c));
-
-  const toggleCondition = (c: string) =>
-    setSelectedCondition((prev) => toggle(prev, c));
-
-  const selectedCategoriesCount = selectedCategory.length;
+  const onCategoryChange = (name: string) =>
+    setSelectedCategories((prev) => toggleInList(prev, name));
+  const onDesignerChange = (name: string) =>
+    setSelectedDesigners((prev) => toggleInList(prev, name));
+  const onConditionChange = (name: string) =>
+    setSelectedConditions((prev) => toggleInList(prev, name));
 
   const resetFilters = () => {
-    setSelectedDesigner([]);
-    setSelectedCategory([]);
-    setSelectedCondition([]);
+    setSelectedCategories([]);
+    setSelectedDesigners([]);
+    setSelectedConditions([]);
     setMinPrice(0);
     setMaxPrice(100000);
-    router.push("/designers");
   };
 
-  // ------------------------------
-  // Apply Filters (Triggers Server Reload)
-  // ------------------------------
-  const applyFilters = () => {
-    const params = new URLSearchParams();
+  // Apply Filters → push query so URL matches
+  const applyFiltersToUrl = () => {
+    const query: Record<string, string> = {};
 
-    if (selectedCategoriesCount > 0) {
-      params.set("category", selectedCategory.join(","));
-    }
+    if (selectedCategories[0]) query.category = selectedCategories[0];
+    if (selectedDesigners[0]) query.designer = selectedDesigners[0];
+    if (selectedConditions[0]) query.condition = selectedConditions[0];
+    if (typeof minPrice === "number") query.minPrice = String(minPrice);
+    if (typeof maxPrice === "number") query.maxPrice = String(maxPrice);
 
-    if (selectedDesigner.length > 0) {
-      params.set("designer", selectedDesigner.join(",").toLowerCase());
-    }
-
-    if (minPrice > 0) params.set("minPrice", String(minPrice));
-    if (maxPrice < 100000) params.set("maxPrice", String(maxPrice));
-
-    router.push(`/designers?${params.toString()}`);
+    router.push({
+      pathname: "/designers",
+      query,
+    });
   };
+
+  // Client-side filter + sort
+  const filteredItems = useMemo(() => {
+    let result = [...baseItems];
+
+    if (selectedCategories.length > 0) {
+      result = result.filter((i) =>
+        i.category ? selectedCategories.includes(i.category) : false
+      );
+    }
+
+    if (selectedDesigners.length > 0) {
+      result = result.filter((i) =>
+        i.brand ? selectedDesigners.includes(i.brand) : false
+      );
+    }
+
+    if (selectedConditions.length > 0) {
+      result = result.filter((i) =>
+        i.condition ? selectedConditions.includes(i.condition) : false
+      );
+    }
+
+    result = result.filter((i) => {
+      const p = i.priceValue;
+      if (typeof minPrice === "number" && p < minPrice) return false;
+      if (typeof maxPrice === "number" && p > maxPrice) return false;
+      return true;
+    });
+
+    if (sortBy === "price-asc") {
+      result.sort((a, b) => a.priceValue - b.priceValue);
+    } else if (sortBy === "price-desc") {
+      result.sort((a, b) => b.priceValue - a.priceValue);
+    }
+
+    return result;
+  }, [
+    baseItems,
+    selectedCategories,
+    selectedDesigners,
+    selectedConditions,
+    minPrice,
+    maxPrice,
+    sortBy,
+  ]);
+
+  const resultsCount = filteredItems.length;
 
   return (
-    <>
+    <div className="designers-page">
       <Head>
-        <title>Featured Designers – Famous Finds</title>
+        <title>Designers – All Products | Famous Finds</title>
       </Head>
 
       <Header />
 
-      <main className="wrap">
-        <h1>All Products</h1>
-
-        {/* Filters */}
-        <div className="filters-box">
-          <div className="filters-header">
-            <h2>Filters</h2>
-            <button className="clear-btn" onClick={resetFilters}>
-              Clear All
-            </button>
+      <main className="page-main">
+        <div className="page-inner">
+          <div className="breadcrumb">
+            <Link href="/">Home</Link>
+            <span>/</span>
+            <span>Designers</span>
           </div>
 
-          {/* Category */}
-          <div className="filter-section">
-            <h3>Category</h3>
-            {categories.map((c) => (
-              <label key={c} className="filter-row">
-                <input
-                  type="checkbox"
-                  checked={selectedCategory.includes(c)}
-                  onChange={() => toggleCategory(c)}
-                />
-                {c}
-              </label>
-            ))}
-          </div>
+          <div className="layout">
+            {/* FILTERS */}
+            <aside className="filters">
+              <div className="filters-header">
+                <h2>Filters</h2>
+                <button type="button" onClick={resetFilters}>
+                  Clear All
+                </button>
+              </div>
 
-          {/* Designers (same list as other pages) */}
-          <div className="filter-section">
-            <h3>Designer</h3>
-            {designers.map((d) => (
-              <label key={d} className="filter-row">
-                <input
-                  type="checkbox"
-                  checked={selectedDesigner.includes(d.toLowerCase())}
-                  onChange={() => toggleDesigner(d)}
-                />
-                {d}
-              </label>
-            ))}
-          </div>
+              <div className="filter-block">
+                <h3>Category</h3>
+                <div className="filter-list">
+                  {CATEGORY_OPTIONS.map((cat) => (
+                    <label key={cat} className="filter-option">
+                      <input
+                        type="checkbox"
+                        checked={selectedCategories.includes(cat)}
+                        onChange={() => onCategoryChange(cat)}
+                      />
+                      <span>{cat}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
 
-          {/* Condition */}
-          <div className="filter-section">
-            <h3>Condition</h3>
-            {conditions.map((c) => (
-              <label key={c} className="filter-row">
-                <input
-                  type="checkbox"
-                  checked={selectedCondition.includes(c)}
-                  onChange={() => toggleCondition(c)}
-                />
-                {c}
-              </label>
-            ))}
-          </div>
+              <div className="filter-block">
+                <h3>Designer</h3>
+                <div className="filter-list">
+                  {designerOptions.map((name) => (
+                    <label key={name} className="filter-option">
+                      <input
+                        type="checkbox"
+                        checked={selectedDesigners.includes(name)}
+                        onChange={() => onDesignerChange(name)}
+                      />
+                      <span>{name}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
 
-          {/* Price */}
-          <div className="filter-section">
-            <h3>Price</h3>
-            <div className="price-row">
-              <input
-                type="number"
-                value={minPrice}
-                onChange={(e) => setMinPrice(Number(e.target.value))}
-              />
-              <span>-</span>
-              <input
-                type="number"
-                value={maxPrice}
-                onChange={(e) => setMaxPrice(Number(e.target.value))}
-              />
-            </div>
-          </div>
+              <div className="filter-block">
+                <h3>Condition</h3>
+                <div className="filter-list">
+                  {CONDITION_OPTIONS.map((cond) => (
+                    <label key={cond} className="filter-option">
+                      <input
+                        type="checkbox"
+                        checked={selectedConditions.includes(cond)}
+                        onChange={() => onConditionChange(cond)}
+                      />
+                      <span>{cond}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
 
-          <button className="apply-btn" onClick={applyFilters}>
-            Apply Filters
-          </button>
+              <div className="filter-block">
+                <h3>Price</h3>
+                <div className="price-row">
+                  <div className="price-input">
+                    <span>Min</span>
+                    <input
+                      type="number"
+                      value={minPrice}
+                      onChange={(e) =>
+                        setMinPrice(
+                          e.target.value === ""
+                            ? ""
+                            : Number(e.target.value) || 0
+                        )
+                      }
+                    />
+                  </div>
+                  <span className="price-separator">-</span>
+                  <div className="price-input">
+                    <span>Max</span>
+                    <input
+                      type="number"
+                      value={maxPrice}
+                      onChange={(e) =>
+                        setMaxPrice(
+                          e.target.value === ""
+                            ? ""
+                            : Number(e.target.value) || 0
+                        )
+                      }
+                    />
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  className="apply-btn"
+                  onClick={applyFiltersToUrl}
+                >
+                  Apply Filters
+                </button>
+              </div>
+            </aside>
+
+            {/* RESULTS */}
+            <section className="results">
+              <div className="results-header">
+                <div>
+                  <h1>All Products</h1>
+                  <p className="results-count">
+                    {resultsCount}{" "}
+                    {resultsCount === 1 ? "result" : "results"}
+                  </p>
+                </div>
+
+                <div className="sort">
+                  <label>
+                    Sort
+                    <select
+                      value={sortBy}
+                      onChange={(e) =>
+                        setSortBy(
+                          e.target.value as
+                            | "newest"
+                            | "price-asc"
+                            | "price-desc"
+                        )
+                      }
+                    >
+                      <option value="newest">Newest</option>
+                      <option value="price-asc">
+                        Price: Low to High
+                      </option>
+                      <option value="price-desc">
+                        Price: High to Low
+                      </option>
+                    </select>
+                  </label>
+                </div>
+              </div>
+
+              {resultsCount === 0 ? (
+                <div className="empty-state">
+                  <h2>No items match these filters yet.</h2>
+                  <p>Try adjusting your filters or checking back soon.</p>
+                </div>
+              ) : (
+                <div className="grid">
+                  {filteredItems.map((item) => (
+                    <ProductCard key={item.id} {...item} />
+                  ))}
+                </div>
+              )}
+            </section>
+          </div>
         </div>
-
-        {/* Products grid */}
-        <section className="items-grid">
-          {items.length === 0 && (
-            <p className="no-results">
-              No items match these filters. Try adjusting your selection.
-            </p>
-          )}
-
-          {items.map((item) => (
-            <ProductCard key={item.id} {...item} />
-          ))}
-        </section>
       </main>
 
       <Footer />
 
       <style jsx>{`
-        .wrap {
-          max-width: 1300px;
-          margin: 40px auto;
+        .designers-page {
+          background: #ffffff;
+          color: #111827;
+          min-height: 100vh;
+        }
+        .page-main {
+          padding: 24px 0 64px;
+        }
+        .page-inner {
+          max-width: 1200px;
+          margin: 0 auto;
           padding: 0 16px;
         }
-
-        h1 {
-          font-family: Georgia, serif;
+        .breadcrumb {
+          font-size: 13px;
+          color: #6b7280;
+          margin-bottom: 16px;
+          display: flex;
+          align-items: center;
+          gap: 6px;
         }
-
-        .filters-box {
-          margin-top: 16px;
-          margin-bottom: 24px;
-          padding: 20px;
+        .breadcrumb a {
+          color: inherit;
+          text-decoration: none;
+        }
+        .layout {
+          display: grid;
+          grid-template-columns: 260px minmax(0, 1fr);
+          gap: 24px;
+        }
+        @media (max-width: 900px) {
+          .layout {
+            grid-template-columns: 1fr;
+          }
+        }
+        .filters {
+          border-radius: 16px;
           border: 1px solid #e5e7eb;
-          border-radius: 20px;
-          background: #fff;
+          padding: 16px 18px 20px;
+          background: #fafafa;
         }
-
         .filters-header {
           display: flex;
-          justify-content: space-between;
           align-items: center;
+          justify-content: space-between;
+          margin-bottom: 12px;
         }
-
-        .clear-btn {
-          background: none;
-          border: none;
-          color: #6b7280;
-          cursor: pointer;
-          font-size: 13px;
-        }
-
-        .filter-section h3 {
-          margin-top: 20px;
-          font-size: 16px;
+        .filters-header h2 {
+          font-size: 18px;
           font-weight: 600;
         }
-
-        .filter-row {
-          display: flex;
-          gap: 8px;
-          align-items: center;
-          padding: 4px 0;
-          font-size: 14px;
-        }
-
-        .price-row {
-          display: flex;
-          gap: 8px;
-          align-items: center;
-          margin-top: 4px;
-        }
-
-        .price-row input {
-          width: 100%;
-        }
-
-        .apply-btn {
-          margin-top: 18px;
-          width: 100%;
-          background: #111;
-          color: #fff;
-          padding: 10px;
-          border-radius: 10px;
+        .filters-header button {
           border: none;
+          background: none;
+          font-size: 13px;
+          text-decoration: underline;
           cursor: pointer;
-          font-weight: 500;
-        }
-
-        .items-grid {
-          margin-top: 30px;
-          display: grid;
-          grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-          gap: 20px;
-        }
-
-        .no-results {
           color: #6b7280;
         }
+        .filter-block {
+          border-top: 1px solid #e5e7eb;
+          padding-top: 12px;
+          margin-top: 12px;
+        }
+        .filter-block:first-of-type {
+          border-top: none;
+          padding-top: 0;
+          margin-top: 0;
+        }
+        .filter-block h3 {
+          font-size: 14px;
+          font-weight: 600;
+          margin-bottom: 6px;
+        }
+        .filter-list {
+          display: flex;
+          flex-direction: column;
+          gap: 4px;
+          font-size: 14px;
+        }
+        .filter-option {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        }
+        .filter-option input {
+          accent-color: #111827;
+        }
+        .price-row {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          margin-bottom: 10px;
+        }
+        .price-input {
+          flex: 1;
+          display: flex;
+          flex-direction: column;
+          gap: 4px;
+          font-size: 13px;
+        }
+        .price-input input {
+          border-radius: 999px;
+          border: 1px solid #d1d5db;
+          padding: 6px 10px;
+          font-size: 14px;
+        }
+        .price-separator {
+          font-size: 14px;
+          color: #6b7280;
+        }
+        .apply-btn {
+          width: 100%;
+          margin-top: 4px;
+          border-radius: 999px;
+          background: #111827;
+          color: white;
+          padding: 8px 12px;
+          border: none;
+          font-size: 14px;
+          font-weight: 500;
+          cursor: pointer;
+        }
+        .results {
+          min-height: 200px;
+        }
+        .results-header {
+          display: flex;
+          align-items: flex-end;
+          justify-content: space-between;
+          gap: 12px;
+          margin-bottom: 12px;
+        }
+        .results-header h1 {
+          font-family: Georgia, "Times New Roman", serif;
+          font-size: 26px;
+          margin: 0;
+        }
+        .results-count {
+          font-size: 13px;
+          color: #6b7280;
+          margin-top: 2px;
+        }
+        .sort label {
+          font-size: 13px;
+          display: flex;
+          flex-direction: column;
+          gap: 4px;
+        }
+        .sort select {
+          border-radius: 999px;
+          border: 1px solid #d1d5db;
+          padding: 6px 10px;
+          font-size: 14px;
+          background: #ffffff;
+        }
+        .grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+          gap: 18px;
+          margin-top: 12px;
+        }
+        .empty-state {
+          margin-top: 32px;
+          border-radius: 16px;
+          border: 1px solid #e5e7eb;
+          padding: 24px;
+          text-align: center;
+          background: #f9fafb;
+        }
+        .empty-state h2 {
+          margin: 0 0 4px;
+          font-size: 18px;
+        }
+        .empty-state p {
+          margin: 0;
+          color: #6b7280;
+          font-size: 14px;
+        }
       `}</style>
-    </>
+    </div>
   );
+};
+
+export default DesignersPage;
+
+// Helper: parse "US$1,200" → 1200
+function parsePrice(price?: string | null): number {
+  if (!price) return 0;
+  const cleaned = price.replace(/[^0-9.,]/g, "").replace(/,/g, "");
+  const n = Number(cleaned);
+  return Number.isFinite(n) ? n : 0;
 }
 
-// ------------------------------
-// SERVER SIDE
-// ------------------------------
+export const getServerSideProps: GetServerSideProps<
+  DesignersPageProps
+> = async (ctx) => {
+  const allowedStatuses = ["Live", "Active", "Approved"];
 
-export const getServerSideProps: GetServerSideProps = async (ctx) => {
-  const { query } = ctx;
+  const { category, designer, condition, minPrice, maxPrice } = ctx.query;
 
-  const selectedCategories = (query.category as string)?.split(",") || [];
-  const selectedDesigners = (query.designer as string)?.split(",") || [];
-  const minPrice = Number(query.minPrice || 0);
-  const maxPrice = Number(query.maxPrice || 100000);
+  let query: FirebaseFirestore.Query = adminDb
+    .collection("listings")
+    .where("status", "in", allowedStatuses);
 
-  // 1. Fetch Active Designers and merge with static list
-  let designers: string[] = STATIC_DESIGNERS.slice();
+  if (typeof designer === "string" && designer.trim()) {
+    query = query.where("brand", "==", designer.trim());
+  }
+
+  if (typeof category === "string" && category.trim()) {
+    query = query.where("category", "==", category.trim());
+  }
+
+  if (typeof condition === "string" && condition.trim()) {
+    query = query.where("condition", "==", condition.trim());
+  }
+
+  // For consistent layout, order by createdAt when available
   try {
-    const designersSnap = await adminDb
-      .collection("designers")
-      .where("active", "==", true)
-      .get();
+    const snap = await query.orderBy("createdAt", "desc").limit(80).get();
 
-    const fromDb = designersSnap.docs
-      .map((d) => (d.data() as any).name as string)
-      .filter(Boolean);
+    const items: ProductLike[] = snap.docs.map((doc) => {
+      const d: any = doc.data() || {};
 
-    designers = Array.from(new Set([...STATIC_DESIGNERS, ...fromDb])).sort();
-  } catch (error) {
-    console.error("Error fetching designers:", error);
-  }
+      const priceNumber = Number(d.price) || 0;
 
-  // 2. Build Listings Query
-  let ref = adminDb.collection("listings").where("status", "==", "Live");
+      const image =
+        d.image_url ||
+        d.imageUrl ||
+        d.image ||
+        (Array.isArray(d.imageUrls) && d.imageUrls.length > 0
+          ? d.imageUrls[0]
+          : "");
 
-  if (selectedCategories.length > 0) {
-    ref = ref.where("category", "in", selectedCategories);
-  }
-
-  const snap = await ref.get();
-
-  // 3. Map Data
-  let items = snap.docs.map((d) => {
-    const data = d.data() as any;
-
-    const image =
-      data.primaryImageUrl ||
-      data.image_url ||
-      data.imageUrl ||
-      data.image ||
-      (Array.isArray(data.imageUrls) && data.imageUrls[0]) ||
-      "";
+      return {
+        id: doc.id,
+        title: d.title || "",
+        brand: d.brand || "",
+        category: d.category || "",
+        condition: d.condition || "",
+        price: priceNumber ? `US$${priceNumber.toLocaleString("en-US")}` : "",
+        image,
+        href: `/product/${doc.id}`,
+      } as ProductLike & { category?: string; condition?: string };
+    });
 
     return {
-      id: d.id,
-      title: data.title || "Untitled",
-      designer: data.designer || data.brand || "",
-      category: data.category || "",
-      rawPrice: Number(data.price || 0),
-      image,
+      props: {
+        items,
+      },
     };
-  });
-
-  // 4. Apply JS Filters (Designer + Price)
-  if (selectedDesigners.length > 0) {
-    items = items.filter((i) =>
-      selectedDesigners.includes((i.designer || "").toLowerCase())
-    );
+  } catch (err) {
+    console.error("Error loading designers listings", err);
+    return {
+      props: {
+        items: [],
+      },
+    };
   }
-
-  items = items.filter((i) => i.rawPrice >= minPrice && i.rawPrice <= maxPrice);
-
-  // 5. Final formatting for UI
-  const formattedItems: ProductLike[] = items.map((i) => ({
-    id: i.id,
-    title: i.title,
-    brand: i.designer,
-    price: formatPrice(i.rawPrice),
-    image: i.image,
-    href: `/product/${i.id}`,
-  }));
-
-  return {
-    props: {
-      items: formattedItems,
-      designers,
-    },
-  };
 };
