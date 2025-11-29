@@ -63,10 +63,11 @@ body {
   font-size: 11px;
 }
 
-/* Links subtle hover */
-a:hover {
+/* Links subtle hover - EXCLUDING pills */
+a:not(.luxury-pill):hover {
   opacity: 0.85;
 }
+
 /* ==== Products / Designer listing page ==== */
 
 .luxury-products-main {
@@ -115,4 +116,42 @@ a:hover {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
   gap: 24px;
+}
+
+/* ========================================= */
+/* LUXURY PILL BUTTONS (For Designer Lists)  */
+/* ========================================= */
+
+.luxury-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
+  
+  /* Sizing */
+  padding: 10px 24px;
+  font-size: 14px;
+  font-weight: 500;
+  
+  /* Borders & Shape */
+  border-radius: 9999px;
+  border: 1px solid #d1d5db; /* Light gray border */
+  background-color: #ffffff;
+  color: #111827; /* Dark gray text */
+  text-decoration: none;
+  
+  /* Polish */
+  transition: all 0.2s ease;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+  cursor: pointer;
+}
+
+/* Premium Hover State: Solid Black */
+.luxury-pill:hover {
+  border-color: #000000;
+  background-color: #000000;
+  color: #ffffff;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  transform: translateY(-1px); /* Subtle lift */
+  opacity: 1;
 }
