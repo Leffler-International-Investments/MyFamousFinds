@@ -27,7 +27,7 @@ type HomeProps = {
   trending: ProductLike[];
   newArrivals: ProductLike[];
   featuredDesigners: string[];
-  activeMessages: BuyerMessage[]; // ✅ The data from your Admin page
+  activeMessages: BuyerMessage[]; // ✅ ADDED: The messages data
 };
 
 // Helper to normalise price
@@ -172,8 +172,8 @@ const Home: NextPage<HomeProps> = ({
           </div>
         </section>
 
-        {/* ✅ DYNAMIC MESSAGE BOARD BANNER */}
-        {/* This section reads from the database and renders what you typed in the Admin panel */}
+        {/* ✅ RENDER MESSAGE BOARD BANNER */}
+        {/* Only shows if there are active messages in the DB */}
         {activeMessages && activeMessages.length > 0 && (
           <section className="buyer-message-board-container">
             {activeMessages.map((msg) => (
@@ -399,7 +399,7 @@ const Home: NextPage<HomeProps> = ({
           box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
         }
 
-        /* Colors based on message type */
+        /* Optional: Styles based on message type */
         .buyer-message-board.promo {
           background: #fefce8; /* Light yellow */
           border-color: #fde047;
@@ -488,14 +488,14 @@ export const getServerSideProps: GetServerSideProps<HomeProps> = async () => {
     trending = newArrivals;
   }
 
-  // 4. Featured Designers (Dynamic)
+  // 4. Featured Designers (Dynamic from Live items)
   const uniqueBrands = Array.from(new Set(items.map((i) => i.brand).filter(Boolean)));
   const featuredDesigners = uniqueBrands.sort();
   if (featuredDesigners.length === 0) {
     featuredDesigners.push("Chanel", "Louis Vuitton", "Hermès", "Gucci", "Prada");
   }
 
-  // 5. ✅ FETCH ACTIVE MESSAGES FOR THE BOARD
+  // 5. ✅ FETCH ACTIVE MESSAGES
   let activeMessages: BuyerMessage[] = [];
   try {
     const messagesSnap = await adminDb
@@ -503,16 +503,21 @@ export const getServerSideProps: GetServerSideProps<HomeProps> = async () => {
       .where("active", "==", true)
       .get();
     
-    activeMessages = messagesSnap.docs.map(doc => {
-      const d = doc.data();
-      return {
-        id: doc.id,
-        text: d.text || "",
-        linkText: d.linkText || "",
-        linkUrl: d.linkUrl || "",
-        type: d.type || "info",
-      };
-    });
+    // Sort by createdAt manually since we can't always guarantee complex indexes in dev
+    activeMessages = messagesSnap.docs
+      .map(doc => {
+        const d = doc.data();
+        return {
+          id: doc.id,
+          text: d.text || "",
+          linkText: d.linkText || "",
+          linkUrl: d.linkUrl || "",
+          type: d.type || "info",
+          createdAt: d.createdAt?.toMillis?.() || 0, // capture for sort
+        } as BuyerMessage & { createdAt: number };
+      })
+      .sort((a, b) => b.createdAt - a.createdAt); // Newest first
+
   } catch (err) {
     console.error("Error fetching messages:", err);
   }
