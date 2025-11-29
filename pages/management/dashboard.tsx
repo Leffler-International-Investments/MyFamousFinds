@@ -1,5 +1,4 @@
 // FILE: /pages/management/dashboard.tsx
-// SAME AS YOUR CURRENT FILE, ONLY ONE EXTRA TILE ADDED FOR MASTER CATEGORY LIBRARY
 
 import Head from "next/head";
 import Link from "next/link";
@@ -92,7 +91,7 @@ export default function ManagementDashboard({ stats }: Props) {
 
         <ManagementDashboardTutorial />
 
-        {/* NEW: management onboarding banner for banking */}
+        {/* Management Banking Banner */}
         <section className="dashboard-welcome-banner">
           <h2>Team payouts setup</h2>
           <p>
@@ -212,7 +211,6 @@ export default function ManagementDashboard({ stats }: Props) {
             linkText="Manage Directory"
             linkColor="gray"
           />
-          {/* NEW: Master Category Library tile */}
           <DashboardTile
             title="Master Category Library"
             description="Control top-level categories and sub-menu items shown in the marketplace header."
@@ -274,6 +272,15 @@ export default function ManagementDashboard({ stats }: Props) {
           title="Platform, Support & Analytics"
           subtitle="Support customers, track performance, and manage internal access."
         >
+          {/* ✅ ADDED: Message Board Management Tile */}
+          <DashboardTile
+            title="Message Board"
+            description="Create or update public announcements visible to buyers on the homepage."
+            href="/management/messages"
+            linkText="Manage Messages"
+            linkColor="blue"
+          />
+
           <DashboardTile
             title="Analytics & Reports"
             description="High-level sales and traffic insights across Famous Finds."
