@@ -34,6 +34,25 @@ const CATEGORY_OPTIONS = [
 
 const CONDITION_OPTIONS = ["New", "Excellent", "Very good", "Good"];
 
+// 🔸 FULL STATIC DESIGNERS LIST (back to the long list)
+const DESIGNER_OPTIONS = [
+  "Alexander McQueen",
+  "Balenciaga",
+  "Bottega Veneta",
+  "Burberry",
+  "Dior",
+  "Fendi",
+  "Givenchy",
+  "Goyard",
+  "Gucci",
+  "Hermès",
+  "Louis Vuitton",
+  "Prada",
+  "Saint Laurent",
+  "Valentino",
+  "Versace",
+];
+
 // Helper: parse "US$1,200" → 1200
 function parsePrice(price?: string | null): number {
   if (!price) return 0;
@@ -53,20 +72,7 @@ const DesignersPage: NextPage<DesignersPageProps> = ({ items }) => {
     condition: it.condition || "",
   }));
 
-  // Build designer list from real brands
-  const designerOptions = useMemo(
-    () =>
-      Array.from(
-        new Set(
-          baseItems
-            .map((i) => (i.brand || "").trim())
-            .filter(Boolean)
-        )
-      ).sort((a, b) => a.localeCompare(b)),
-    [baseItems]
-  );
-
-  // Filters (start empty – user chooses)
+  // Filters
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [selectedDesigners, setSelectedDesigners] = useState<string[]>([]);
   const [selectedConditions, setSelectedConditions] = useState<string[]>([]);
@@ -205,11 +211,11 @@ const DesignersPage: NextPage<DesignersPageProps> = ({ items }) => {
                 </div>
               </div>
 
-              {/* Designer */}
+              {/* Designer – FULL STATIC LIST */}
               <div className="filter-block">
                 <h3>Designer</h3>
                 <div className="filter-list">
-                  {designerOptions.map((name) => (
+                  {DESIGNER_OPTIONS.map((name) => (
                     <label key={name} className="filter-option">
                       <input
                         type="checkbox"
