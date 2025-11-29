@@ -18,7 +18,8 @@ import {
   serverTimestamp,
 } from "firebase/firestore";
 
-type Message = {
+// Define the Message type
+export type BuyerMessage = {
   id: string;
   text: string;
   linkText?: string;
@@ -29,12 +30,12 @@ type Message = {
 };
 
 type Props = {
-  initialMessages: Message[];
+  initialMessages: BuyerMessage[];
 };
 
 export default function MessageBoardManagement({ initialMessages }: Props) {
   const { loading } = useRequireAdmin();
-  const [messages, setMessages] = useState<Message[]>(initialMessages);
+  const [messages, setMessages] = useState<BuyerMessage[]>(initialMessages);
   
   // Form State
   const [isEditing, setIsEditing] = useState<string | null>(null);
@@ -44,7 +45,7 @@ export default function MessageBoardManagement({ initialMessages }: Props) {
   const [formType, setFormType] = useState<"info" | "promo" | "alert">("info");
 
   // Load data into form for editing
-  const startEdit = (m: Message) => {
+  const startEdit = (m: BuyerMessage) => {
     setIsEditing(m.id);
     setFormText(m.text);
     setFormLinkText(m.linkText || "");
@@ -159,7 +160,7 @@ export default function MessageBoardManagement({ initialMessages }: Props) {
               <input
                 value={formText}
                 onChange={(e) => setFormText(e.target.value)}
-                placeholder="e.g. Looking for something specific? We have many more items..."
+                placeholder="e.g. Boker Tov Ariel - Enjoy Your New Shop"
               />
             </label>
 
