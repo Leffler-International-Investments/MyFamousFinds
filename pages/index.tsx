@@ -135,11 +135,10 @@ const Home: NextPage<HomeProps> = ({ trending, newArrivals, featuredDesigners })
           </aside>
         </section>
 
-        {/* FEATURED DESIGNERS CAROUSEL (Dynamic) */}
+        {/* FEATURED DESIGNERS CAROUSEL */}
         <section className="home-featured-designers mt-10">
           <header className="home-feed-header">
             <h2 className="home-feed-title">Featured Designers</h2>
-            {/* Link removed as requested */}
           </header>
 
           <div className="mt-4 flex gap-3 overflow-x-auto pb-4 pt-1">
@@ -148,7 +147,6 @@ const Home: NextPage<HomeProps> = ({ trending, newArrivals, featuredDesigners })
                 <Link
                   href={`/designers?designer=${encodeURIComponent(name)}`}
                   key={name}
-                  // ✅ Using the class defined in dashboard.css
                   className="luxury-pill"
                 >
                   {name}
@@ -157,6 +155,18 @@ const Home: NextPage<HomeProps> = ({ trending, newArrivals, featuredDesigners })
             ) : (
               <p className="text-sm text-gray-400">Loading designers...</p>
             )}
+          </div>
+        </section>
+
+        {/* ✅ NEW BUYER MESSAGE BOARD BANNER */}
+        <section className="buyer-message-board">
+          <div className="message-content">
+            <p>
+              Looking for something specific? We have many more of your desired items in the{" "}
+              <Link href="/designers" className="catalogue-link">
+                Catalogue
+              </Link>.
+            </p>
           </div>
         </section>
 
@@ -347,6 +357,39 @@ const Home: NextPage<HomeProps> = ({ trending, newArrivals, featuredDesigners })
         .home-featured-designers .flex {
           -ms-overflow-style: none;
           scrollbar-width: none;
+        }
+
+        /* --- MESSAGE BOARD BANNER --- */
+        .buyer-message-board {
+          margin-top: 32px;
+          margin-bottom: 12px;
+          background: #ffffff;
+          border: 1px solid #e5e7eb;
+          border-radius: 12px;
+          padding: 24px;
+          text-align: center;
+          box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        }
+        
+        .message-content p {
+          font-family: "Georgia", serif;
+          font-size: 18px;
+          color: #374151;
+          margin: 0;
+          line-height: 1.5;
+        }
+
+        /* The luxury link inside the text */
+        :global(.catalogue-link) {
+          color: #111827;
+          font-weight: 600;
+          text-decoration: underline;
+          text-underline-offset: 4px;
+          transition: color 0.2s;
+        }
+        
+        :global(.catalogue-link:hover) {
+          color: #4b5563;
         }
       `}</style>
     </div>
