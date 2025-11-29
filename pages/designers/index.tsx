@@ -40,10 +40,15 @@ const CATEGORY_OPTIONS = [
   "Watches",
 ];
 
-// ❗️These were your OLD wrong condition labels.
-// They DO NOT match Firestore values.
-// Keeping EXACTLY what you posted.
-const CONDITION_OPTIONS = ["New", "Excellent", "Very good", "Good"];
+// ✅ MATCHED TO /pages/seller/bulk-simple.tsx CONDITIONS
+const CONDITION_OPTIONS = [
+  "New with tags",
+  "New (never used)",
+  "Excellent",
+  "Very good",
+  "Good",
+  "Fair",
+];
 
 const DESIGNER_OPTIONS = [
   "Alexander McQueen",
@@ -127,26 +132,28 @@ function canonCategory(raw: string): string {
   return n;
 }
 
+// ✅ SIMPLIFIED: just normalise, so the exact labels match
 function canonCondition(raw: string): string {
-  const n = normalize(raw);
-  if (!n) return "";
-  if (n === "new" || n === "brandnew" || n === "withtags") return "new";
-  if (n === "excellent" || n === "likenew") return "excellent";
-  if (n === "verygood" || n === "verygoodcondition") return "verygood";
-  if (n === "good" || n === "usedgood") return "good";
-  return n;
+  return normalize(raw);
 }
 
 function canonBrand(raw: string): string {
   return normalize(raw);
 }
 
-// SMART brand match
+// MUCH SMARTER BRAND MATCHING:
+// - exact
+// - substring (e.g. "louis vuitton heels")
+// - small typo distance
 function brandMatches(selected: string, actual: string): boolean {
   const sel = canonBrand(selected);
   const act = canonBrand(actual);
   if (!sel || !act) return false;
+
+  // substring match first
   if (act.includes(sel) || sel.includes(act)) return true;
+
+  // fuzzy match for typos / small differences
   const dist = levenshtein(sel, act);
   return dist <= 4;
 }
@@ -203,6 +210,7 @@ const DesignersPage: NextPage<DesignersPageProps> = ({ items }) => {
     setMaxPrice(100000);
   };
 
+  // keep URL in sync (optional – real filtering is client-side below)
   const applyFiltersToUrl = () => {
     const query: Record<string, string> = {};
 
@@ -223,41 +231,40 @@ const DesignersPage: NextPage<DesignersPageProps> = ({ items }) => {
     const normSelectedCats = selectedCategories.map((c) => canonCategory(c));
     const normSelectedConds = selectedConditions.map((c) => canonCondition(c));
 
-    // CATEGORY FILTER
+    // CATEGORY FILTER – smart, partial match
     if (selectedCategories.length > 0) {
       result = result.filter((item) => {
         const itemCatNorm = normalize(item.category || "");
+        if (!itemCatNorm) return false;
         return normSelectedCats.some((sel) =>
           itemCatNorm.includes(canonCategory(sel))
         );
       });
     }
 
-    // DESIGNER FILTER
+    // DESIGNER FILTER – uses brandMatches
     if (selectedDesigners.length > 0) {
       result = result.filter((item) => {
-        return selectedDesigners.some((sel) =>
-          brandMatches(sel, item.brand || "")
-        );
+        const actualBrand = item.brand || "";
+        if (!actualBrand) return false;
+        return selectedDesigners.some((sel) => brandMatches(sel, actualBrand));
       });
     }
 
-    // CONDITION FILTER
+    // CONDITION FILTER – smart, matches the *normalised* labels
     if (selectedConditions.length > 0) {
       result = result.filter((item) => {
-        const itemCondNorm = normalize(item.condition || "");
-        return normSelectedConds.some((sel) =>
-          itemCondNorm.includes(canonCondition(sel))
-        );
+        const itemCondNorm = canonCondition(item.condition || "");
+        if (!itemCondNorm) return false;
+        return normSelectedConds.some((sel) => itemCondNorm === sel);
       });
     }
 
     // PRICE FILTER
     result = result.filter((item) => {
-      if (typeof minPrice === "number" && item.priceValue < minPrice)
-        return false;
-      if (typeof maxPrice === "number" && item.priceValue > maxPrice)
-        return false;
+      const p = item.priceValue;
+      if (typeof minPrice === "number" && p < minPrice) return false;
+      if (typeof maxPrice === "number" && p > maxPrice) return false;
       return true;
     });
 
@@ -298,7 +305,6 @@ const DesignersPage: NextPage<DesignersPageProps> = ({ items }) => {
           </div>
 
           <div className="layout">
-            {/*  FILTERS  */}
             <aside className="filters">
               <div className="filters-header">
                 <h2>Filters</h2>
@@ -398,7 +404,6 @@ const DesignersPage: NextPage<DesignersPageProps> = ({ items }) => {
               </div>
             </aside>
 
-            {/*  RESULTS  */}
             <section className="results">
               <div className="results-header">
                 <div>
@@ -438,9 +443,7 @@ const DesignersPage: NextPage<DesignersPageProps> = ({ items }) => {
               ) : (
                 <div className="grid">
                   {filteredItems.map((item) => (
-                    //  FIXED  ↓↓↓↓↓↓↓↓↓↓
                     <ProductCard key={item.id} {...item} />
-                    //  NO MORE TypeScript ERROR
                   ))}
                 </div>
               )}
@@ -654,6 +657,7 @@ export const getServerSideProps: GetServerSideProps<
     const items: ItemWithMeta[] = snapshot.docs.map((doc) => {
       const d: any = doc.data() || {};
 
+      // try all possible field names used in forms
       const brandRaw =
         d.brand || d.designer || d.designerName || d.brandName || "";
       const categoryRaw =
