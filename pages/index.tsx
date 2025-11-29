@@ -27,7 +27,7 @@ type HomeProps = {
   trending: ProductLike[];
   newArrivals: ProductLike[];
   featuredDesigners: string[];
-  activeMessages: BuyerMessage[]; // ✅ NEW PROP
+  activeMessages: BuyerMessage[]; // ✅ The data from your Admin page
 };
 
 // Helper to normalise price
@@ -173,6 +173,7 @@ const Home: NextPage<HomeProps> = ({
         </section>
 
         {/* ✅ DYNAMIC MESSAGE BOARD BANNER */}
+        {/* This section reads from the database and renders what you typed in the Admin panel */}
         {activeMessages && activeMessages.length > 0 && (
           <section className="buyer-message-board-container">
             {activeMessages.map((msg) => (
@@ -398,7 +399,7 @@ const Home: NextPage<HomeProps> = ({
           box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
         }
 
-        /* Optional: Styles based on message type */
+        /* Colors based on message type */
         .buyer-message-board.promo {
           background: #fefce8; /* Light yellow */
           border-color: #fde047;
@@ -439,6 +440,7 @@ export default Home;
 // --------------------------------------------------
 
 export const getServerSideProps: GetServerSideProps<HomeProps> = async () => {
+  // 1. Fetch Listings
   const snapshot = await adminDb
     .collection("listings")
     .where("status", "==", "Live")
@@ -460,7 +462,7 @@ export const getServerSideProps: GetServerSideProps<HomeProps> = async () => {
     };
   });
 
-  // 1. New Arrivals
+  // 2. New Arrivals (Sort by newest)
   const newArrivals = items
     .slice()
     .sort((a: any, b: any) => {
@@ -476,7 +478,7 @@ export const getServerSideProps: GetServerSideProps<HomeProps> = async () => {
     })
     .slice(0, 8);
 
-  // 2. Trending
+  // 3. Trending (Sort by viewCount)
   let trending = items
     .slice()
     .sort((a: any, b: any) => (b.viewCount || 0) - (a.viewCount || 0))
@@ -486,14 +488,14 @@ export const getServerSideProps: GetServerSideProps<HomeProps> = async () => {
     trending = newArrivals;
   }
 
-  // 3. Featured Designers
+  // 4. Featured Designers (Dynamic)
   const uniqueBrands = Array.from(new Set(items.map((i) => i.brand).filter(Boolean)));
   const featuredDesigners = uniqueBrands.sort();
   if (featuredDesigners.length === 0) {
     featuredDesigners.push("Chanel", "Louis Vuitton", "Hermès", "Gucci", "Prada");
   }
 
-  // 4. Fetch Active Messages
+  // 5. ✅ FETCH ACTIVE MESSAGES FOR THE BOARD
   let activeMessages: BuyerMessage[] = [];
   try {
     const messagesSnap = await adminDb
@@ -501,7 +503,6 @@ export const getServerSideProps: GetServerSideProps<HomeProps> = async () => {
       .where("active", "==", true)
       .get();
     
-    // Manual sort by createdAt desc if index missing, or rely on client
     activeMessages = messagesSnap.docs.map(doc => {
       const d = doc.data();
       return {
@@ -510,7 +511,6 @@ export const getServerSideProps: GetServerSideProps<HomeProps> = async () => {
         linkText: d.linkText || "",
         linkUrl: d.linkUrl || "",
         type: d.type || "info",
-        active: true
       };
     });
   } catch (err) {
