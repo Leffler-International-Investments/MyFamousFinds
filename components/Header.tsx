@@ -30,16 +30,7 @@ export default function Header() {
       {/* TOP BAR */}
       <div className="ff-header-top">
         <div className="ff-header-left">
-          <Link href="/" className="ff-logo">
-            <Image
-              src="/Famous-Finds-Logo.png"
-              alt="Famous Finds Logo"
-              width={95}
-              height={80}
-              priority
-            />
-          </Link>
-
+          {/* Logo removed by request – keep only VIP button */}
           <Link
             href={vipUser ? "/club-profile" : "/vip-welcome"}
             className="admin-button vip"
@@ -108,11 +99,7 @@ export default function Header() {
       {/* CLEAN CATEGORY BAR – NO DROPDOWN */}
       <nav className="ff-category-nav">
         {categoryNav.map((item) => (
-          <Link
-            key={item.label}
-            href={item.href}
-            className="ff-cat-link"
-          >
+          <Link key={item.label} href={item.href} className="ff-cat-link">
             {item.label}
           </Link>
         ))}
@@ -179,13 +166,12 @@ export default function Header() {
           background: #f9fafb;
         }
 
-        /* ✅ FIXED: Seller Button Colors (Black Background / White Text) */
         .admin-button.seller {
           border-color: #111827;
           background: #111827;
           color: #ffffff;
         }
-        
+
         .admin-button.seller:hover {
           opacity: 0.9;
         }
