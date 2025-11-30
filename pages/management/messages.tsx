@@ -4,6 +4,7 @@ import Head from "next/head";
 import Link from "next/link";
 import { useState } from "react";
 import type { GetServerSideProps } from "next";
+
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
 import { useRequireAdmin } from "../../hooks/useRequireAdmin";
@@ -14,6 +15,8 @@ export type BuyerMessage = {
   text: string;
   linkText?: string;
   linkUrl?: string;
+  imageUrl?: string;
+  videoUrl?: string;
   active: boolean;
   type: "info" | "promo" | "alert";
   createdAt?: number;
@@ -32,39 +35,51 @@ export default function MessageBoardManagement({ initialMessages }: Props) {
   const [formText, setFormText] = useState("");
   const [formLinkText, setFormLinkText] = useState("");
   const [formLinkUrl, setFormLinkUrl] = useState("");
+  const [formImageUrl, setFormImageUrl] = useState("");
+  const [formVideoUrl, setFormVideoUrl] = useState("");
   const [formType, setFormType] = useState<"info" | "promo" | "alert">("info");
 
-  // Load data into form for editing
   const startEdit = (m: BuyerMessage) => {
     setIsEditing(m.id);
     setFormText(m.text);
     setFormLinkText(m.linkText || "");
     setFormLinkUrl(m.linkUrl || "");
+    setFormImageUrl(m.imageUrl || "");
+    setFormVideoUrl(m.videoUrl || "");
     setFormType(m.type);
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    if (typeof window !== "undefined") {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
   };
 
-  const cancelEdit = () => {
+  const resetForm = () => {
     setIsEditing(null);
     setFormText("");
     setFormLinkText("");
     setFormLinkUrl("");
+    setFormImageUrl("");
+    setFormVideoUrl("");
     setFormType("info");
   };
 
   const handleSave = async () => {
-    if (!formText.trim()) return alert("Message text is required");
+    if (!formText.trim()) {
+      alert("Message text is required");
+      return;
+    }
 
     try {
       const payload = {
         text: formText.trim(),
         linkText: formLinkText.trim(),
         linkUrl: formLinkUrl.trim(),
+        imageUrl: formImageUrl.trim(),
+        videoUrl: formVideoUrl.trim(),
         type: formType,
       };
 
       if (isEditing) {
-        // UPDATE via API (PUT)
+        // UPDATE via API
         const res = await fetch("/api/management/messages", {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
@@ -79,7 +94,7 @@ export default function MessageBoardManagement({ initialMessages }: Props) {
           prev.map((m) => (m.id === isEditing ? { ...m, ...payload } : m))
         );
       } else {
-        // CREATE via API (POST)
+        // CREATE via API
         const res = await fetch("/api/management/messages", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -95,7 +110,9 @@ export default function MessageBoardManagement({ initialMessages }: Props) {
           text: payload.text,
           linkText: payload.linkText,
           linkUrl: payload.linkUrl,
-          type: payload.type,
+          imageUrl: payload.imageUrl,
+          videoUrl: payload.videoUrl,
+          type: payload.type as BuyerMessage["type"],
           active: true,
           createdAt: Date.now(),
         };
@@ -103,7 +120,7 @@ export default function MessageBoardManagement({ initialMessages }: Props) {
         setMessages((prev) => [newMessage, ...prev]);
       }
 
-      cancelEdit();
+      resetForm();
     } catch (error) {
       console.error("Error saving message:", error);
       alert("Failed to save message.");
@@ -171,12 +188,12 @@ export default function MessageBoardManagement({ initialMessages }: Props) {
         <section className="editor-card">
           <h2>{isEditing ? "Edit Message" : "Create New Message"}</h2>
           <div className="form-grid">
-            <label className="span-2">
+            <label className="span-3">
               Message Text
               <textarea
                 value={formText}
                 onChange={(e) => setFormText(e.target.value)}
-                placeholder="e.g. Boker Tov Ariel - Enjoy Your New Shop"
+                placeholder="e.g. Boker Tov Ariel – enjoy your beautiful shop."
                 rows={2}
                 spellCheck={true}
                 autoCorrect="on"
@@ -193,8 +210,7 @@ export default function MessageBoardManagement({ initialMessages }: Props) {
               <input
                 value={formLinkText}
                 onChange={(e) => setFormLinkText(e.target.value)}
-                placeholder="e.g. Catalogue"
-                spellCheck={true}
+                placeholder="e.g. View Collection"
               />
             </label>
 
@@ -203,7 +219,7 @@ export default function MessageBoardManagement({ initialMessages }: Props) {
               <input
                 value={formLinkUrl}
                 onChange={(e) => setFormLinkUrl(e.target.value)}
-                placeholder="e.g. /designers"
+                placeholder="e.g. /catalogue?tag=celebrity-collection"
               />
             </label>
 
@@ -211,12 +227,36 @@ export default function MessageBoardManagement({ initialMessages }: Props) {
               Type
               <select
                 value={formType}
-                onChange={(e) => setFormType(e.target.value as any)}
+                onChange={(e) =>
+                  setFormType(e.target.value as BuyerMessage["type"])
+                }
               >
                 <option value="info">Info (Gray/Neutral)</option>
                 <option value="promo">Promo (Green/Gold)</option>
                 <option value="alert">Alert (Red/Important)</option>
               </select>
+            </label>
+
+            <label>
+              Image URL (Optional)
+              <input
+                value={formImageUrl}
+                onChange={(e) => setFormImageUrl(e.target.value)}
+                placeholder="https://..."
+              />
+              <span className="hint">Shown under the text as a photo.</span>
+            </label>
+
+            <label>
+              Video URL (Optional)
+              <input
+                value={formVideoUrl}
+                onChange={(e) => setFormVideoUrl(e.target.value)}
+                placeholder="MP4 / YouTube / Vimeo link"
+              />
+              <span className="hint">
+                Short celebrity / collection clip (optional).
+              </span>
             </label>
           </div>
 
@@ -225,7 +265,7 @@ export default function MessageBoardManagement({ initialMessages }: Props) {
               {isEditing ? "Update Message" : "Post Message"}
             </button>
             {isEditing && (
-              <button className="btn-cancel" onClick={cancelEdit}>
+              <button className="btn-cancel" onClick={resetForm}>
                 Cancel
               </button>
             )}
@@ -246,15 +286,23 @@ export default function MessageBoardManagement({ initialMessages }: Props) {
                 >
                   <div className="message-content">
                     <span className={`type-badge ${m.type}`}>{m.type}</span>
-                    <p className="text">
-                      {m.text}{" "}
-                      {m.linkText && (
-                        <span className="link-preview">[{m.linkText}]</span>
+                    <div>
+                      <p className="text">
+                        {m.text}{" "}
+                        {m.linkText && (
+                          <span className="link-preview">[{m.linkText}]</span>
+                        )}
+                      </p>
+                      {(m.imageUrl || m.videoUrl) && (
+                        <p className="media-tags">
+                          {m.imageUrl && <span>📷 image</span>}
+                          {m.videoUrl && <span>🎥 video</span>}
+                        </p>
                       )}
-                    </p>
-                    <span className="status">
-                      {m.active ? "● Live on site" : "○ Hidden"}
-                    </span>
+                      <span className="status">
+                        {m.active ? "● Live on site" : "○ Hidden"}
+                      </span>
+                    </div>
                   </div>
 
                   <div className="message-actions">
@@ -292,12 +340,12 @@ export default function MessageBoardManagement({ initialMessages }: Props) {
         }
         .form-grid {
           display: grid;
-          grid-template-columns: 1fr 1fr 1fr;
+          grid-template-columns: repeat(3, minmax(0, 1fr));
           gap: 16px;
           margin-bottom: 20px;
         }
-        .span-2 {
-          grid-column: span 2;
+        .span-3 {
+          grid-column: span 3;
         }
         label {
           display: flex;
@@ -371,7 +419,7 @@ export default function MessageBoardManagement({ initialMessages }: Props) {
         }
         .message-content {
           display: flex;
-          align-items: center;
+          align-items: flex-start;
           gap: 12px;
         }
         .type-badge {
@@ -380,6 +428,7 @@ export default function MessageBoardManagement({ initialMessages }: Props) {
           padding: 2px 6px;
           border-radius: 4px;
           font-weight: 700;
+          margin-top: 3px;
         }
         .type-badge.info {
           background: #e5e7eb;
@@ -399,15 +448,17 @@ export default function MessageBoardManagement({ initialMessages }: Props) {
           font-weight: 500;
           margin: 0;
         }
-        .link-preview {
-          color: #2563eb;
+        .media-tags {
+          margin: 4px 0;
+          display: flex;
+          gap: 6px;
           font-size: 12px;
+          color: #6b7280;
         }
         .status {
           font-size: 12px;
           color: #059669;
           font-weight: 600;
-          margin-left: 12px;
         }
         .inactive .status {
           color: #6b7280;
@@ -435,6 +486,10 @@ export default function MessageBoardManagement({ initialMessages }: Props) {
         .message-actions button.delete:hover {
           background: #fef2f2;
         }
+        .empty {
+          font-size: 14px;
+          color: #6b7280;
+        }
       `}</style>
     </div>
   );
@@ -447,13 +502,15 @@ export const getServerSideProps: GetServerSideProps<Props> = async () => {
       .orderBy("createdAt", "desc")
       .get();
 
-    const messages = snap.docs.map((d) => {
+    const messages: BuyerMessage[] = snap.docs.map((d) => {
       const data = d.data() as any;
       return {
         id: d.id,
         text: data.text || "",
         linkText: data.linkText || "",
         linkUrl: data.linkUrl || "",
+        imageUrl: data.imageUrl || "",
+        videoUrl: data.videoUrl || "",
         active: data.active ?? true,
         type: (data.type as BuyerMessage["type"]) || "info",
         createdAt: data.createdAt?.toMillis?.() || 0,
