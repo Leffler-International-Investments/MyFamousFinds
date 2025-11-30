@@ -1,4 +1,5 @@
 // FILE: /pages/vip-welcome.tsx
+
 import React from "react";
 import Head from "next/head";
 import Link from "next/link";
@@ -11,7 +12,7 @@ const TicketIcon = () => (
     fill="none"
     viewBox="0 0 24 24"
     strokeWidth={1.5}
-    stroke="#facc15" // Gold color
+    stroke="#facc15"
     className="w-10 h-10 mb-4"
   >
     <path
@@ -73,12 +74,11 @@ export default function VipWelcomePage() {
         <title>The Front Row — Famous Finds VIP Club</title>
       </Head>
 
-      {/* Google Fonts Import */}
+      {/* Google Fonts Import + VIP layout overrides */}
       <style jsx global>{`
         @import url("https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600;700&family=Inter:wght@300;400&display=swap");
 
         .vip-welcome-page {
-          /* Luxurious dark background */
           background: radial-gradient(
             ellipse at 50% -20%,
             #2a2a2a 0%,
@@ -86,41 +86,64 @@ export default function VipWelcomePage() {
             #000 100%
           );
           font-family: "Inter", sans-serif;
-          color: #e5e7eb; /* gray-200 */
+          color: #e5e7eb;
           min-height: 100vh;
+        }
+
+        .vip-main {
+          max-width: 1120px;
+          margin: 0 auto;
+          padding: 48px 16px 80px;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+        }
+
+        .hero-section,
+        .benefits-section,
+        .cta-section {
+          width: 100%;
+          text-align: center;
         }
 
         .hero-title {
           font-family: "Cormorant Garamond", serif;
           font-weight: 700;
-          font-size: 4rem; /* 64px */
-          color: #facc15; /* gold-400 */
+          font-size: 4rem;
+          color: #facc15;
           letter-spacing: -0.02em;
           line-height: 1.1;
         }
 
         @media (max-width: 768px) {
           .hero-title {
-            font-size: 3rem; /* 48px */
+            font-size: 3rem;
           }
         }
 
         .hero-subtitle {
           font-family: "Inter", sans-serif;
           font-weight: 300;
-          font-size: 1.25rem; /* 20px */
-          color: #d1d5db; /* gray-300 */
+          font-size: 1.25rem;
+          color: #d1d5db;
           max-width: 600px;
           margin: 1.5rem auto 0 auto;
         }
 
+        .benefits-section {
+          margin-top: 2rem;
+        }
+
+        .benefits-section .benefits-grid {
+          justify-items: center;
+        }
+
         .benefit-card {
-          /* Frosted glass effect */
-          background: rgba(31, 41, 55, 0.3); /* gray-800 with 30% opacity */
+          background: rgba(31, 41, 55, 0.3);
           border: 1px solid rgba(255, 255, 255, 0.1);
           backdrop-filter: blur(8px);
-          border-radius: 1rem; /* 16px */
-          padding: 2rem; /* 32px */
+          border-radius: 1rem;
+          padding: 2rem;
           display: flex;
           flex-direction: column;
           align-items: center;
@@ -130,40 +153,62 @@ export default function VipWelcomePage() {
         .benefit-title {
           font-family: "Cormorant Garamond", serif;
           font-weight: 600;
-          font-size: 1.75rem; /* 28px */
+          font-size: 1.75rem;
           color: #fff;
-          margin-bottom: 0.5rem; /* 8px */
+          margin-bottom: 0.5rem;
         }
 
         .benefit-description {
           font-weight: 300;
-          color: #d1d5db; /* gray-300 */
+          color: #d1d5db;
         }
 
-        /* Use the existing gold button style from globals.css */
+        .cta-section h2 {
+          margin-bottom: 0.75rem;
+        }
+
+        /* Big luxurious pill button for Join the Club */
         .cta-button {
-          display: inline-block;
-          margin-top: 2rem; /* 32px */
-          /* These classes are defined in styles/globals.css */
-          /* .admin-button .vip */
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          margin-top: 2rem;
+          padding: 14px 42px;
+          border-radius: 9999px;
+          font-size: 1.25rem;
+          font-weight: 600;
+          letter-spacing: 0.08em;
+          text-transform: uppercase;
+          background-color: #facc15;
+          color: #111827;
+          border: none;
+          text-decoration: none;
+          box-shadow: 0 12px 30px rgba(0, 0, 0, 0.45);
+          transition: all 0.18s ease;
+        }
+
+        .cta-button:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 18px 45px rgba(0, 0, 0, 0.6);
+          background-color: #fde047;
         }
 
         .secondary-link {
-          margin-top: 1.5rem; /* 24px */
-          font-size: 0.875rem; /* 14px */
-          color: #9ca3af; /* gray-400 */
+          margin-top: 1.5rem;
+          font-size: 0.875rem;
+          color: #9ca3af;
           transition: color 0.2s ease;
         }
 
         .secondary-link:hover {
-          color: #f9fafb; /* gray-50 */
+          color: #f9fafb;
         }
       `}</style>
 
       <div className="vip-welcome-page">
         <Header />
 
-        <main>
+        <main className="vip-main">
           {/* Hero Section */}
           <section className="hero-section py-20 px-6 text-center">
             <h1 className="hero-title">Welcome to the Front Row.</h1>
@@ -174,9 +219,8 @@ export default function VipWelcomePage() {
           </section>
 
           {/* Benefits Section */}
-          <section className="benefits-section max-w-6xl mx-auto px-6 pb-20">
+          <section className="benefits-section px-6 pb-20">
             <div className="benefits-grid grid grid-cols-1 md:grid-cols-3 gap-8">
-              {/* Benefit 1 */}
               <div className="benefit-card">
                 <TicketIcon />
                 <h2 className="benefit-title">Exclusive Access</h2>
@@ -186,7 +230,6 @@ export default function VipWelcomePage() {
                 </p>
               </div>
 
-              {/* Benefit 2 */}
               <div className="benefit-card">
                 <GemIcon />
                 <h2 className="benefit-title">Earn Loyalty Rewards</h2>
@@ -196,7 +239,6 @@ export default function VipWelcomePage() {
                 </p>
               </div>
 
-              {/* Benefit 3 */}
               <div className="benefit-card">
                 <TagIcon />
                 <h2 className="benefit-title">Member-Only Perks</h2>
@@ -213,12 +255,11 @@ export default function VipWelcomePage() {
             <h2 className="text-2xl font-semibold text-white">
               Your Front Row seat is waiting.
             </h2>
-            <Link
-              href="/club-register"
-              className="cta-button admin-button vip text-lg px-8 py-3"
-            >
+
+            <Link href="/club-register" className="cta-button">
               Join the Club
             </Link>
+
             <div className="secondary-link">
               <Link href="/club-login">
                 Already a member?{" "}
