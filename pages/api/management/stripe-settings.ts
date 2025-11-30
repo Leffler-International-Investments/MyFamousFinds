@@ -15,50 +15,83 @@ type StripeSettingsResponse =
   | { ok: true; settings: StripeSettings | null }
   | { ok: false; error: string };
 
+// ✅ Adjust this path ONLY if your Firestore doc is different
+const STRIPE_SETTINGS_DOC = adminDb
+  .collection("admin")
+  .doc("stripe_settings");
+
 export default async function handler(
   req: NextApiRequest,
-  res: NextApiResponse<StripeSettingsResponse | { ok: boolean; error?: string }>
+  res: NextApiResponse<StripeSettingsResponse>
 ) {
-  const docRef = adminDb.collection("config").doc("stripe");
-
+  // ─────────────────────────────────────────────
+  // GET  → read current Stripe settings
+  // ─────────────────────────────────────────────
   if (req.method === "GET") {
     try {
-      const snap = await docRef.get();
+      const snap = await STRIPE_SETTINGS_DOC.get();
+
       if (!snap.exists) {
+        // No settings saved yet
         return res.status(200).json({ ok: true, settings: null });
       }
 
-      const data = snap.data() || {};
-      const settings: StripeSettings = {
-        publishableKey: String(data.publishableKey || ""),
-        secretKey: String(data.secretKey || ""),
-        platformCommission: Number(data.platformCommission || 0),
-        minPayout: Number(data.minPayout || 0),
-        testMode: Boolean(data.testMode),
-      };
+      const data = snap.data() as StripeSettings;
 
-      return res.status(200).json({ ok: true, settings });
+      return res.status(200).json({
+        ok: true,
+        settings: {
+          publishableKey: data.publishableKey || "",
+          secretKey: data.secretKey || "",
+          platformCommission: Number(data.platformCommission) || 0,
+          minPayout: Number(data.minPayout) || 0,
+          testMode: Boolean(data.testMode),
+        },
+      });
     } catch (err) {
       console.error("stripe_settings_get_error", err);
       return res.status(500).json({ ok: false, error: "server_error" });
     }
   }
 
+  // ─────────────────────────────────────────────
+  // POST → save/update Stripe settings
+  // body: { publishableKey, secretKey, platformCommission, minPayout, testMode }
+  // ─────────────────────────────────────────────
   if (req.method === "POST") {
     try {
-      const body = req.body || {};
+      const {
+        publishableKey,
+        secretKey,
+        platformCommission,
+        minPayout,
+        testMode,
+      } = req.body as Partial<StripeSettings>;
 
-      const settings: StripeSettings = {
-        publishableKey: String(body.publishableKey || "").trim(),
-        secretKey: String(body.secretKey || "").trim(),
-        platformCommission: Number(body.platformCommission || 0),
-        minPayout: Number(body.minPayout || 0),
-        testMode: Boolean(body.testMode),
-      };
+      if (!publishableKey || !secretKey) {
+        return res.status(400).json({
+          ok: false,
+          error: "missing_keys",
+        });
+      }
 
-      await docRef.set(
+      const commissionNumber = Number(platformCommission ?? 0);
+      const minPayoutNumber = Number(minPayout ?? 0);
+
+      if (Number.isNaN(commissionNumber) || Number.isNaN(minPayoutNumber)) {
+        return res.status(400).json({
+          ok: false,
+          error: "invalid_number_fields",
+        });
+      }
+
+      await STRIPE_SETTINGS_DOC.set(
         {
-          ...settings,
+          publishableKey,
+          secretKey,
+          platformCommission: commissionNumber,
+          minPayout: minPayoutNumber,
+          testMode: Boolean(testMode),
           updatedAt: new Date().toISOString(),
         },
         { merge: true }
@@ -71,5 +104,8 @@ export default async function handler(
     }
   }
 
+  // ─────────────────────────────────────────────
+  // Unsupported method
+  // ─────────────────────────────────────────────
   return res.status(405).json({ ok: false, error: "method_not_allowed" });
 }
