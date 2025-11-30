@@ -1,5 +1,3 @@
-// FILE: /pages/index.tsx
-
 import Head from "next/head";
 import Link from "next/link";
 import type { GetServerSideProps, NextPage } from "next";
@@ -20,9 +18,8 @@ type BuyerMessage = {
   text: string;
   linkText?: string;
   linkUrl?: string;
-  // ✅ NEW:
-  imageUrl?: string;
-  videoUrl?: string;
+  imageUrl?: string; // ✅ new
+  videoUrl?: string; // ✅ new
   type: "info" | "promo" | "alert";
   active?: boolean;
   createdAt?: number;
@@ -53,7 +50,7 @@ const pickImage = (data: any): string => {
   return "";
 };
 
-// ✅ Helper: convert YouTube URL to embed URL
+// ✅ Helper: convert YouTube URL to embed URL (currently unused but kept)
 const getYouTubeEmbedUrl = (url: string): string => {
   try {
     if (!url) return "";
@@ -204,61 +201,47 @@ const Home: NextPage<HomeProps> = ({
         {/* ✅ DYNAMIC MESSAGE BOARD BANNER */}
         {activeMessages && activeMessages.length > 0 && (
           <section className="buyer-message-board-container">
-            {activeMessages.map((msg) => {
-              const hasVideo = !!msg.videoUrl;
-              const hasImage = !!msg.imageUrl;
-              const maybeYouTube =
-                hasVideo &&
-                (msg.videoUrl!.includes("youtube.com") ||
-                  msg.videoUrl!.includes("youtu.be"));
-
-              return (
-                <div key={msg.id} className={`buyer-message-board ${msg.type}`}>
-                  <div className="message-content">
-                    <p>
-                      {msg.text}{" "}
-                      {msg.linkText && msg.linkUrl && (
-                        <Link href={msg.linkUrl} className="catalogue-link">
-                          {msg.linkText} →
-                        </Link>
-                      )}
-                    </p>
-
-                    {(hasVideo || hasImage) && (
-                      <div className="message-media">
-                        {hasVideo ? (
-                          maybeYouTube ? (
-                            <div className="video-wrapper">
-                              <iframe
-                                src={getYouTubeEmbedUrl(msg.videoUrl!)}
-                                title="Announcement video"
-                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                                allowFullScreen
-                              />
-                            </div>
-                          ) : (
-                            <video
-                              className="message-media-video"
-                              src={msg.videoUrl!}
-                              controls
-                              playsInline
-                            />
-                          )
-                        ) : (
-                          hasImage && (
-                            <img
-                              className="message-media-image"
-                              src={msg.imageUrl!}
-                              alt=""
-                            />
-                          )
-                        )}
-                      </div>
+            {activeMessages.map((msg) => (
+              <div key={msg.id} className={`buyer-message-board ${msg.type}`}>
+                <div className="message-content">
+                  <p>
+                    {msg.text}{" "}
+                    {msg.linkText && msg.linkUrl && (
+                      <Link href={msg.linkUrl} className="catalogue-link">
+                        {msg.linkText} →
+                      </Link>
                     )}
-                  </div>
+                  </p>
+
+                  {/* ✅ VIDEO / IMAGE */}
+                  {(msg.videoUrl || msg.imageUrl) && (
+                    <div className="message-media">
+                      {/* VIDEO LINK */}
+                      {msg.videoUrl && (
+                        <p className="video-link">
+                          <a
+                            href={msg.videoUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                          >
+                            Watch video →
+                          </a>
+                        </p>
+                      )}
+
+                      {/* OPTIONAL IMAGE */}
+                      {msg.imageUrl && (
+                        <img
+                          src={msg.imageUrl}
+                          alt=""
+                          className="message-media-image"
+                        />
+                      )}
+                    </div>
+                  )}
                 </div>
-              );
-            })}
+              </div>
+            ))}
           </section>
         )}
 
@@ -492,35 +475,25 @@ const Home: NextPage<HomeProps> = ({
           line-height: 1.5;
         }
 
-        /* ✅ NEW: media styles */
+        /* ====== NEW ======= */
         .message-media {
-          margin-top: 16px;
+          margin-top: 12px;
         }
-        .message-media-image,
-        .message-media-video,
-        .video-wrapper iframe {
+
+        .video-link a {
+          font-size: 14px;
+          text-decoration: underline;
+          text-underline-offset: 3px;
+          font-weight: 600;
+        }
+
+        .message-media-image {
           max-width: 100%;
           border-radius: 12px;
           display: block;
-          margin: 0 auto;
-        }
-        .message-media-video,
-        .video-wrapper iframe {
-          max-height: 320px;
-        }
-        .video-wrapper {
-          position: relative;
-          padding-bottom: 56.25%;
-          height: 0;
-          overflow: hidden;
-        }
-        .video-wrapper iframe {
-          position: absolute;
-          top: 0;
-          left: 0;
-          width: 100%;
-          height: 100%;
-          border: 0;
+          margin-top: 8px;
+          margin-left: auto;
+          margin-right: auto;
         }
 
         :global(.catalogue-link) {
@@ -629,8 +602,8 @@ export const getServerSideProps: GetServerSideProps<HomeProps> = async () => {
           text: d.text || "",
           linkText: d.linkText || "",
           linkUrl: d.linkUrl || "",
-          imageUrl: d.imageUrl || "",
-          videoUrl: d.videoUrl || "",
+          imageUrl: d.imageUrl || "", // ✅
+          videoUrl: d.videoUrl || "", // ✅
           type: (d.type as BuyerMessage["type"]) || "info",
           active: d.active ?? true,
           createdAt: d.createdAt?.toMillis?.() || 0,
