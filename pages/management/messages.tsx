@@ -1,657 +1,525 @@
-// FILE: /pages/index.tsx
+// FILE: /pages/management/messages.tsx
 
 import Head from "next/head";
 import Link from "next/link";
-import type { GetServerSideProps, NextPage } from "next";
+import { useState } from "react";
+import type { GetServerSideProps } from "next";
 
-import Header from "../components/Header";
-import Footer from "../components/Footer";
-import DemoGrid from "../components/DemoGrid";
-import HomepageButler from "../components/HomepageButler";
-import { ProductLike } from "../components/ProductCard";
-import { adminDb } from "../utils/firebaseAdmin";
+import Header from "../../components/Header";
+import Footer from "../../components/Footer";
+import { useRequireAdmin } from "../../hooks/useRequireAdmin";
+import { adminDb } from "../../utils/firebaseAdmin";
 
-// --------------------------------------------------
-// Types
-// --------------------------------------------------
-
-type BuyerMessage = {
+export type BuyerMessage = {
   id: string;
   text: string;
   linkText?: string;
   linkUrl?: string;
   imageUrl?: string;
   videoUrl?: string;
-  // ✅ Updated to include all new types
-  type: "info" | "promo" | "alert" | "success" | "warning" | "brand" | "luxury";
-  active?: boolean;
+  active: boolean;
+  type: "info" | "promo" | "alert";
   createdAt?: number;
 };
 
-type HomeProps = {
-  trending: ProductLike[];
-  newArrivals: ProductLike[];
-  featuredDesigners: string[];
-  activeMessages: BuyerMessage[];
+type Props = {
+  initialMessages: BuyerMessage[];
 };
 
-// Helper to normalise price
-const formatPrice = (raw: any): string => {
-  const num = typeof raw === "number" ? raw : Number(raw || 0);
-  if (!num) return "";
-  return `US$${num.toLocaleString()}`;
-};
+export default function MessageBoardManagement({ initialMessages }: Props) {
+  const { loading } = useRequireAdmin();
+  const [messages, setMessages] = useState<BuyerMessage[]>(initialMessages);
 
-// Helper to pick first usable image
-const pickImage = (data: any): string => {
-  if (data.image_url) return data.image_url;
-  if (data.imageUrl) return data.imageUrl;
-  if (data.image) return data.image;
-  if (Array.isArray(data.imageUrls) && data.imageUrls.length > 0) {
-    return data.imageUrls[0];
-  }
-  return "";
-};
+  // Form State
+  const [isEditing, setIsEditing] = useState<string | null>(null);
+  const [formText, setFormText] = useState("");
+  const [formLinkText, setFormLinkText] = useState("");
+  const [formLinkUrl, setFormLinkUrl] = useState("");
+  const [formImageUrl, setFormImageUrl] = useState("");
+  const [formVideoUrl, setFormVideoUrl] = useState("");
+  const [formType, setFormType] = useState<"info" | "promo" | "alert">("info");
 
-// --------------------------------------------------
-// Component
-// --------------------------------------------------
+  const startEdit = (m: BuyerMessage) => {
+    setIsEditing(m.id);
+    setFormText(m.text);
+    setFormLinkText(m.linkText || "");
+    setFormLinkUrl(m.linkUrl || "");
+    setFormImageUrl(m.imageUrl || "");
+    setFormVideoUrl(m.videoUrl || "");
+    setFormType(m.type);
+    if (typeof window !== "undefined") {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  };
 
-const Home: NextPage<HomeProps> = ({
-  trending,
-  newArrivals,
-  featuredDesigners,
-  activeMessages,
-}) => {
+  const resetForm = () => {
+    setIsEditing(null);
+    setFormText("");
+    setFormLinkText("");
+    setFormLinkUrl("");
+    setFormImageUrl("");
+    setFormVideoUrl("");
+    setFormType("info");
+  };
+
+  const handleSave = async () => {
+    if (!formText.trim()) {
+      alert("Message text is required");
+      return;
+    }
+
+    try {
+      const payload = {
+        text: formText.trim(),
+        linkText: formLinkText.trim(),
+        linkUrl: formLinkUrl.trim(),
+        imageUrl: formImageUrl.trim(),
+        videoUrl: formVideoUrl.trim(),
+        type: formType,
+      };
+
+      if (isEditing) {
+        // UPDATE via API
+        const res = await fetch("/api/management/messages", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id: isEditing, ...payload }),
+        });
+        const json = await res.json();
+        if (!res.ok || !json.ok) {
+          throw new Error(json?.error || "Failed to update message");
+        }
+
+        setMessages((prev) =>
+          prev.map((m) => (m.id === isEditing ? { ...m, ...payload } : m))
+        );
+      } else {
+        // CREATE via API
+        const res = await fetch("/api/management/messages", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        const json = await res.json();
+        if (!res.ok || !json.ok || !json.id) {
+          throw new Error(json?.error || "Failed to create message");
+        }
+
+        const newMessage: BuyerMessage = {
+          id: json.id,
+          text: payload.text,
+          linkText: payload.linkText,
+          linkUrl: payload.linkUrl,
+          imageUrl: payload.imageUrl,
+          videoUrl: payload.videoUrl,
+          type: payload.type as BuyerMessage["type"],
+          active: true,
+          createdAt: Date.now(),
+        };
+
+        setMessages((prev) => [newMessage, ...prev]);
+      }
+
+      resetForm();
+    } catch (error) {
+      console.error("Error saving message:", error);
+      alert("Failed to save message.");
+    }
+  };
+
+  const toggleActive = async (id: string, currentStatus: boolean) => {
+    try {
+      const res = await fetch("/api/management/messages", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, active: !currentStatus }),
+      });
+      const json = await res.json();
+      if (!res.ok || !json.ok) {
+        throw new Error(json?.error || "Failed to toggle status");
+      }
+
+      setMessages((prev) =>
+        prev.map((m) => (m.id === id ? { ...m, active: !currentStatus } : m))
+      );
+    } catch (error) {
+      console.error("Error toggling status:", error);
+      alert("Failed to update message status.");
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!window.confirm("Delete this message permanently?")) return;
+    try {
+      const res = await fetch(`/api/management/messages?id=${id}`, {
+        method: "DELETE",
+      });
+      const json = await res.json();
+      if (!res.ok || !json.ok) {
+        throw new Error(json?.error || "Failed to delete message");
+      }
+
+      setMessages((prev) => prev.filter((m) => m.id !== id));
+    } catch (error) {
+      console.error("Error deleting message:", error);
+      alert("Failed to delete message.");
+    }
+  };
+
+  if (loading) return <div className="dashboard-page" />;
+
   return (
-    <div className="home-wrapper">
+    <div className="dashboard-page">
       <Head>
-        <title>Famous Finds — Shop authenticated designer pieces</title>
-        <meta
-          name="description"
-          content="Discover curated, authenticated pre-loved designer bags, jewelry, watches and ready-to-wear from trusted sellers."
-        />
+        <title>Message Board Management - Admin</title>
       </Head>
-
       <Header />
 
-      <main className="wrap">
-        {/* HERO + SNAPSHOT */}
-        <section className="hero">
-          <div className="hero-copy">
-            <p className="eyebrow">Curated pre-loved luxury</p>
-            <h1>Discover, save &amp; shop authenticated designer pieces.</h1>
-            <p className="hero-sub">
-              Browse a hand-picked selection of bags, jewelry, watches and
-              ready-to-wear from trusted sellers. Every piece is vetted so you
-              can shop with confidence.
-            </p>
+      <main className="dashboard-main">
+        <div className="dashboard-header">
+          <div>
+            <h1>Message Board</h1>
+            <p>Manage the announcements shown to buyers on the homepage.</p>
+          </div>
+          <Link href="/management/dashboard">← Back to Dashboard</Link>
+        </div>
 
-            {/* STAT CARDS */}
-            <div className="hero-stats">
-              <div className="stat-card">
-                <p className="stat-label">Live listings</p>
-                <p className="stat-value">
-                  {newArrivals.length > 20 ? "20+" : newArrivals.length}
-                </p>
-                <p className="stat-note">Updated in real time</p>
-              </div>
-              <div className="stat-card">
-                <p className="stat-label">New this week</p>
-                <p className="stat-value">
-                  {newArrivals.length > 10 ? "10+" : newArrivals.length}
-                </p>
-                <p className="stat-note">Fresh drops &amp; finds</p>
-              </div>
-              <div className="stat-card">
-                <p className="stat-label">Designers</p>
-                <p className="stat-value">{featuredDesigners.length}+</p>
-                <p className="stat-note">From Chanel to Rolex</p>
-              </div>
-              <div className="stat-card">
-                <p className="stat-label">Authentication</p>
-                <p className="stat-value">100%</p>
-                <p className="stat-note">Every piece reviewed</p>
-              </div>
-            </div>
+        {/* EDITOR CARD */}
+        <section className="editor-card">
+          <h2>{isEditing ? "Edit Message" : "Create New Message"}</h2>
+          <div className="form-grid">
+            <label className="span-3">
+              Message Text
+              <textarea
+                value={formText}
+                onChange={(e) => setFormText(e.target.value)}
+                placeholder="e.g. Boker Tov Ariel – enjoy your beautiful shop."
+                rows={2}
+                spellCheck={true}
+                autoCorrect="on"
+                autoCapitalize="sentences"
+              />
+              <span className="hint">
+                <span style={{ color: "#059669" }}>✓</span> Spellcheck &amp;
+                Auto-correct enabled.
+              </span>
+            </label>
 
-            <div className="hero-actions">
-              <Link href="/category/new-arrivals" className="btn-primary">
-                Browse New Arrivals
-              </Link>
-              <Link href="/designers" className="btn-secondary">
-                View Trending Pieces
-              </Link>
-            </div>
+            <label>
+              Link Text (Optional)
+              <input
+                value={formLinkText}
+                onChange={(e) => setFormLinkText(e.target.value)}
+                placeholder="e.g. View Collection"
+              />
+            </label>
+
+            <label>
+              Link URL (Optional)
+              <input
+                value={formLinkUrl}
+                onChange={(e) => setFormLinkUrl(e.target.value)}
+                placeholder="e.g. /catalogue?tag=celebrity-collection"
+              />
+            </label>
+
+            <label>
+              Type
+              <select
+                value={formType}
+                onChange={(e) =>
+                  setFormType(e.target.value as BuyerMessage["type"])
+                }
+              >
+                <option value="info">Info (Gray/Neutral)</option>
+                <option value="promo">Promo (Green/Gold)</option>
+                <option value="alert">Alert (Red/Important)</option>
+              </select>
+            </label>
+
+            <label>
+              Image URL (Optional)
+              <input
+                value={formImageUrl}
+                onChange={(e) => setFormImageUrl(e.target.value)}
+                placeholder="https://..."
+              />
+              <span className="hint">Shown under the text as a photo.</span>
+            </label>
+
+            <label>
+              Video URL (Optional)
+              <input
+                value={formVideoUrl}
+                onChange={(e) => setFormVideoUrl(e.target.value)}
+                placeholder="MP4 / YouTube / Vimeo link"
+              />
+              <span className="hint">
+                Short celebrity / collection clip (optional).
+              </span>
+            </label>
           </div>
 
-          {/* SNAPSHOT CARD */}
-          <aside className="snapshot-card">
-            <h2>Your Famous Finds Snapshot</h2>
-            <p className="snapshot-view">Guest view</p>
-            <div className="snapshot-row">
-              <span>Saved Items</span>
-              <span>0</span>
-            </div>
-            <div className="snapshot-row">
-              <span>Recently Viewed</span>
-              <span>0</span>
-            </div>
-            <div className="snapshot-row">
-              <span>Active Offers</span>
-              <span>0</span>
-            </div>
-
-            <Link
-              href="/buyer/dashboard"
-              className="block w-full bg-slate-900 text-white rounded-full py-3 text-center text-sm font-medium"
-            >
-              Sign in to view your dashboard
-            </Link>
-
-            <Link
-              href="/buyer/signup"
-              className="block w-full border border-gray-300 text-gray-700 rounded-full py-3 mt-3 text-center text-sm font-medium"
-            >
-              Create a free buyer account
-            </Link>
-          </aside>
-        </section>
-
-        {/* FEATURED DESIGNERS CAROUSEL */}
-        <section className="home-featured-designers mt-10">
-          <header className="home-feed-header">
-            <h2 className="home-feed-title">Featured Designers</h2>
-          </header>
-
-          <div className="mt-4 flex gap-3 overflow-x-auto pb-4 pt-1">
-            {featuredDesigners.length > 0 ? (
-              featuredDesigners.map((name) => (
-                <Link
-                  href={`/designers?designer=${encodeURIComponent(name)}`}
-                  key={name}
-                  className="luxury-pill"
-                >
-                  {name}
-                </Link>
-              ))
-            ) : (
-              <p className="text-sm text-gray-400">Loading designers...</p>
+          <div className="form-actions">
+            <button className="btn-save" onClick={handleSave}>
+              {isEditing ? "Update Message" : "Post Message"}
+            </button>
+            {isEditing && (
+              <button className="btn-cancel" onClick={resetForm}>
+                Cancel
+              </button>
             )}
           </div>
         </section>
 
-        {/* DYNAMIC MESSAGE BOARD BANNER */}
-        {activeMessages && activeMessages.length > 0 && (
-          <section className="buyer-message-board-container">
-            {activeMessages.map((msg) => (
-              <div key={msg.id} className={`buyer-message-board ${msg.type}`}>
-                <div className="message-content">
-                  <div className="message-text-col">
-                    <p>
-                      {msg.text}{" "}
-                      {msg.linkText && msg.linkUrl && (
-                        <Link href={msg.linkUrl} className="catalogue-link">
-                          {msg.linkText} →
-                        </Link>
-                      )}
-                    </p>
-                    {/* VIDEO LINK */}
-                    {msg.videoUrl && (
-                      <p className="video-link">
-                        <a
-                          href={msg.videoUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                        >
-                          Watch video →
-                        </a>
+        {/* LIST */}
+        <section className="message-list">
+          <h3>Existing Messages</h3>
+          {messages.length === 0 ? (
+            <p className="empty">No messages created yet.</p>
+          ) : (
+            <div className="list-grid">
+              {messages.map((m) => (
+                <div
+                  key={m.id}
+                  className={`message-item ${m.active ? "active" : "inactive"}`}
+                >
+                  <div className="message-content">
+                    <span className={`type-badge ${m.type}`}>{m.type}</span>
+                    <div>
+                      <p className="text">
+                        {m.text}{" "}
+                        {m.linkText && (
+                          <span className="link-preview">[{m.linkText}]</span>
+                        )}
                       </p>
-                    )}
+                      {(m.imageUrl || m.videoUrl) && (
+                        <p className="media-tags">
+                          {m.imageUrl && <span>📷 image</span>}
+                          {m.videoUrl && <span>🎥 video</span>}
+                        </p>
+                      )}
+                      <span className="status">
+                        {m.active ? "● Live on site" : "○ Hidden"}
+                      </span>
+                    </div>
                   </div>
 
-                  {/* OPTIONAL IMAGE */}
-                  {msg.imageUrl && (
-                    <div className="message-image-col">
-                      <img
-                        src={msg.imageUrl}
-                        alt=""
-                        className="message-media-image"
-                      />
-                    </div>
-                  )}
+                  <div className="message-actions">
+                    <button onClick={() => toggleActive(m.id, m.active)}>
+                      {m.active ? "Hide" : "Publish"}
+                    </button>
+                    <button onClick={() => startEdit(m)}>Edit</button>
+                    <button
+                      className="delete"
+                      onClick={() => handleDelete(m.id)}
+                    >
+                      Delete
+                    </button>
+                  </div>
                 </div>
-              </div>
-            ))}
-          </section>
-        )}
-
-        {/* NEW ARRIVALS GRID */}
-        <section className="home-section">
-          <DemoGrid
-            title="New Arrivals"
-            subtitle="Just in – freshly listed pieces from our vetted sellers."
-            products={newArrivals}
-          />
-        </section>
-
-        {/* TRENDING GRID */}
-        <section className="home-section">
-          <DemoGrid
-            title="Trending Now"
-            subtitle="Most-viewed and most-saved listings this week."
-            products={trending}
-          />
+              ))}
+            </div>
+          )}
         </section>
       </main>
 
-      <HomepageButler />
       <Footer />
 
       <style jsx>{`
-        .home-wrapper {
-          background: #f7f7f5;
-        }
-        .wrap {
-          max-width: 1200px;
-          margin: 0 auto;
-          padding: 32px 16px 64px;
-        }
-        .hero {
-          display: grid;
-          grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
-          gap: 32px;
+        .editor-card {
+          background: #ffffff;
+          padding: 24px;
+          border-radius: 16px;
+          border: 1px solid #e5e7eb;
           margin-bottom: 40px;
         }
-        @media (max-width: 900px) {
-          .hero {
-            grid-template-columns: 1fr;
-          }
+        .editor-card h2 {
+          margin: 0 0 16px;
+          font-size: 18px;
         }
-        .eyebrow {
-          text-transform: uppercase;
-          letter-spacing: 0.12em;
-          font-size: 11px;
-          color: #6b7280;
-          margin-bottom: 8px;
-        }
-        h1 {
-          font-size: 36px;
-          line-height: 1.1;
-          margin: 0 0 12px;
-          font-family: "Georgia", serif;
-        }
-        .hero-sub {
-          color: #4b5563;
-          max-width: 520px;
-          margin-bottom: 20px;
-        }
-        .hero-stats {
+        .form-grid {
           display: grid;
-          grid-template-columns: repeat(4, minmax(0, 1fr));
-          gap: 12px;
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+          gap: 16px;
           margin-bottom: 20px;
         }
-        @media (max-width: 900px) {
-          .hero-stats {
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-          }
+        .span-3 {
+          grid-column: span 3;
         }
-        .stat-card {
-          background: #ffffff;
-          border-radius: 16px;
-          padding: 12px 14px;
-          border: 1px solid #e5e7eb;
-        }
-        .stat-label {
-          font-size: 11px;
-          text-transform: uppercase;
-          letter-spacing: 0.08em;
-          color: #6b7280;
-        }
-        .stat-value {
-          font-size: 18px;
-          font-weight: 600;
-          margin: 4px 0;
-        }
-        .stat-note {
-          font-size: 12px;
-          color: #9ca3af;
-        }
-        .hero-actions {
-          display: flex;
-          flex-wrap: wrap;
-          gap: 12px;
-        }
-        .btn-primary,
-        .btn-secondary {
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-          padding: 10px 18px;
-          border-radius: 999px;
-          font-size: 14px;
-          font-weight: 500;
-          text-decoration: none;
-          border: 1px solid transparent;
-        }
-        .btn-primary {
-          background: #111827;
-          color: #ffffff;
-        }
-        .btn-secondary {
-          background: #ffffff;
-          border-color: #d1d5db;
-          color: #111827;
-        }
-        .snapshot-card {
-          background: #ffffff;
-          border-radius: 24px;
-          padding: 20px 22px;
-          border: 1px solid #e5e7eb;
-          box-shadow: 0 18px 40px rgba(15, 23, 42, 0.08);
-          align-self: flex-start;
-        }
-        .snapshot-card h2 {
-          margin: 0 0 4px;
-          font-size: 18px;
-        }
-        .snapshot-view {
-          font-size: 11px;
-          text-transform: uppercase;
-          letter-spacing: 0.12em;
-          color: #9ca3af;
-          margin-bottom: 12px;
-        }
-        .snapshot-row {
-          display: flex;
-          justify-content: space-between;
-          font-size: 14px;
-          padding: 6px 0;
-          border-bottom: 1px solid #f3f4f6;
-        }
-        .snapshot-row:last-of-type {
-          border-bottom: none;
-          margin-bottom: 14px;
-        }
-        .home-section {
-          margin-top: 40px;
-        }
-        .home-featured-designers {
-          margin-top: 40px;
-        }
-        .home-feed-header {
-          display: flex;
-          justify-content: space-between;
-          align-items: baseline;
-          margin-bottom: 16px;
-        }
-        .home-feed-title {
-          font-size: 24px;
-          font-weight: 500;
-          font-family: "Georgia", serif;
-          margin: 0;
-        }
-        .home-feed-header a {
-          font-size: 13px;
-          color: #6b7280;
-          text-decoration: none;
-        }
-        .home-feed-header a:hover {
-          color: #111827;
-          text-decoration: underline;
-        }
-        .home-featured-designers .flex {
-          display: flex;
-          gap: 12px;
-          overflow-x: auto;
-          padding-bottom: 8px;
-        }
-        .home-featured-designers .flex::-webkit-scrollbar {
-          display: none;
-        }
-        .home-featured-designers .flex {
-          -ms-overflow-style: none;
-          scrollbar-width: none;
-        }
-
-        /* --- MESSAGE BOARD STYLES --- */
-        .buyer-message-board-container {
-          margin-top: 36px;
+        label {
           display: flex;
           flex-direction: column;
-          gap: 16px;
-        }
-
-        .buyer-message-board {
-          background: #ffffff;
-          border: 1px solid #e5e7eb;
-          border-radius: 12px;
-          padding: 20px;
-          box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
-          transition: transform 0.2s;
-        }
-
-        /* ✅ VIVID COLORS + BLACK LUXURY */
-        .buyer-message-board.info {
-          background: #f9fafb;
-          border-color: #e5e7eb;
+          gap: 6px;
+          font-size: 13px;
+          font-weight: 600;
           color: #374151;
         }
-        .buyer-message-board.success {
-          background: #f0fdf4;
-          border-color: #86efac;
-          color: #14532d;
+        .hint {
+          font-size: 11px;
+          color: #6b7280;
+          font-weight: 400;
         }
-        .buyer-message-board.warning {
-          background: #fff7ed;
-          border-color: #fdba74;
-          color: #7c2d12;
+        input,
+        select,
+        textarea {
+          padding: 10px;
+          border-radius: 8px;
+          border: 1px solid #d1d5db;
+          font-family: inherit;
         }
-        .buyer-message-board.alert {
-          background: #fef2f2;
-          border-color: #fca5a5;
-          color: #991b1b;
+        textarea {
+          resize: vertical;
+          min-height: 42px;
         }
-        .buyer-message-board.promo {
-          background: #fefce8;
-          border-color: #fde047;
-          color: #854d0e;
+        .form-actions {
+          display: flex;
+          gap: 12px;
         }
-        .buyer-message-board.brand {
-          background: #eff6ff;
-          border-color: #93c5fd;
-          color: #1e3a8a;
+        .btn-save {
+          background: #111827;
+          color: white;
+          padding: 10px 24px;
+          border-radius: 99px;
+          font-weight: 600;
+          border: none;
+          cursor: pointer;
         }
-        /* ✅ PURE BLACK STYLE */
-        .buyer-message-board.luxury {
-          background: #000000;
-          border-color: #000000;
-          color: #ffffff;
+        .btn-cancel {
+          background: white;
+          border: 1px solid #d1d5db;
+          padding: 10px 24px;
+          border-radius: 99px;
+          font-weight: 600;
+          cursor: pointer;
         }
 
-        /* ✅ FLEX LAYOUT TO PREVENT HUGE SIZE */
+        .message-list h3 {
+          font-size: 18px;
+          margin-bottom: 16px;
+        }
+        .list-grid {
+          display: flex;
+          flex-direction: column;
+          gap: 12px;
+        }
+        .message-item {
+          background: #ffffff;
+          padding: 16px 20px;
+          border-radius: 12px;
+          border: 1px solid #e5e7eb;
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+        }
+        .message-item.inactive {
+          background: #f9fafb;
+          border-style: dashed;
+          opacity: 0.8;
+        }
         .message-content {
           display: flex;
-          align-items: center;
-          justify-content: space-between;
-          gap: 20px;
+          align-items: flex-start;
+          gap: 12px;
         }
-        .message-text-col {
-          flex: 1;
+        .type-badge {
+          font-size: 10px;
+          text-transform: uppercase;
+          padding: 2px 6px;
+          border-radius: 4px;
+          font-weight: 700;
+          margin-top: 3px;
         }
-        .message-content p {
-          font-family: "Georgia", serif;
-          font-size: 19px;
-          margin: 0;
-          line-height: 1.5;
+        .type-badge.info {
+          background: #e5e7eb;
+          color: #374151;
         }
-        /* Ensure links inherit white color in luxury mode */
-        .luxury .message-content p,
-        .luxury .catalogue-link,
-        .luxury .video-link a {
-          color: #ffffff;
+        .type-badge.promo {
+          background: #fef08a;
+          color: #854d0e;
+        }
+        .type-badge.alert {
+          background: #fecaca;
+          color: #991b1b;
         }
 
-        .video-link {
-          margin-top: 8px;
-        }
-        .video-link a {
+        .text {
           font-size: 14px;
-          text-decoration: underline;
-          text-underline-offset: 3px;
+          font-weight: 500;
+          margin: 0;
+        }
+        .media-tags {
+          margin: 4px 0;
+          display: flex;
+          gap: 6px;
+          font-size: 12px;
+          color: #6b7280;
+        }
+        .status {
+          font-size: 12px;
+          color: #059669;
           font-weight: 600;
         }
-
-        /* ✅ RESTRICT IMAGE SIZE */
-        .message-image-col {
-          flex-shrink: 0;
-        }
-        .message-media-image {
-          max-width: 150px;
-          max-height: 150px;
-          width: auto;
-          height: auto;
-          border-radius: 8px;
-          display: block;
-          object-fit: cover;
-        }
-        @media (max-width: 600px) {
-          .message-content {
-            flex-direction: column;
-            text-align: center;
-          }
-          .message-media-image {
-            margin-top: 12px;
-            max-width: 100%;
-            max-height: 200px;
-          }
+        .inactive .status {
+          color: #6b7280;
         }
 
-        :global(.catalogue-link) {
-          color: inherit;
-          font-weight: 700;
-          text-decoration: underline;
-          text-underline-offset: 4px;
-          transition: opacity 0.2s;
-          margin-left: 4px;
+        .message-actions {
+          display: flex;
+          gap: 8px;
         }
-        :global(.catalogue-link:hover) {
-          opacity: 0.7;
+        .message-actions button {
+          padding: 6px 12px;
+          font-size: 12px;
+          border-radius: 6px;
+          border: 1px solid #d1d5db;
+          background: white;
+          cursor: pointer;
+        }
+        .message-actions button:hover {
+          background: #f3f4f6;
+        }
+        .message-actions button.delete {
+          color: #dc2626;
+          border-color: #fca5a5;
+        }
+        .message-actions button.delete:hover {
+          background: #fef2f2;
+        }
+        .empty {
+          font-size: 14px;
+          color: #6b7280;
         }
       `}</style>
     </div>
   );
-};
+}
 
-export default Home;
-
-// --------------------------------------------------
-// Server-side data
-// --------------------------------------------------
-
-export const getServerSideProps: GetServerSideProps<HomeProps> = async () => {
-  // 1. Fetch Listings
-  const snapshot = await adminDb
-    .collection("listings")
-    .where("status", "==", "Live")
-    .get();
-
-  const items = snapshot.docs.map((doc) => {
-    const data = doc.data() as any;
-    return {
-      id: doc.id,
-      title: data.title || "",
-      brand: data.brand || "",
-      price: formatPrice(data.price),
-      image: pickImage(data),
-      href: `/product/${doc.id}`,
-      category: data.category || "",
-      condition: data.condition || "",
-      createdAt: data.createdAt,
-      viewCount: data.viewCount || 0,
-    };
-  });
-
-  // 2. New Arrivals (Sort by newest)
-  const newArrivals = items
-    .slice()
-    .sort((a: any, b: any) => {
-      const aTime =
-        a.createdAt && typeof a.createdAt.toMillis === "function"
-          ? a.createdAt.toMillis()
-          : 0;
-      const bTime =
-        b.createdAt && typeof b.createdAt.toMillis === "function"
-          ? b.createdAt.toMillis()
-          : 0;
-      return bTime - aTime;
-    })
-    .slice(0, 8);
-
-  // 3. Trending (Sort by viewCount)
-  let trending = items
-    .slice()
-    .sort((a: any, b: any) => (b.viewCount || 0) - (a.viewCount || 0))
-    .slice(0, 8);
-
-  if (!trending.length) {
-    trending = newArrivals;
-  }
-
-  // 4. Featured Designers
-  const uniqueBrands = Array.from(
-    new Set(items.map((i) => i.brand).filter(Boolean))
-  );
-  const featuredDesigners = uniqueBrands.sort();
-  if (featuredDesigners.length === 0) {
-    featuredDesigners.push(
-      "Chanel",
-      "Louis Vuitton",
-      "Hermès",
-      "Gucci",
-      "Prada"
-    );
-  }
-
-  // 5. FETCH ACTIVE MESSAGES
-  let activeMessages: BuyerMessage[] = [];
-
+export const getServerSideProps: GetServerSideProps<Props> = async () => {
   try {
-    const messagesRef = adminDb.collection("buyer_messages");
+    const snap = await adminDb
+      .collection("buyer_messages")
+      .orderBy("createdAt", "desc")
+      .get();
 
-    let snap = await messagesRef.where("active", "==", true).get();
-    if (snap.empty) {
-      snap = await messagesRef.get();
-    }
+    const messages: BuyerMessage[] = snap.docs.map((d) => {
+      const data = d.data() as any;
+      return {
+        id: d.id,
+        text: data.text || "",
+        linkText: data.linkText || "",
+        linkUrl: data.linkUrl || "",
+        imageUrl: data.imageUrl || "",
+        videoUrl: data.videoUrl || "",
+        active: data.active ?? true,
+        type: (data.type as BuyerMessage["type"]) || "info",
+        createdAt: data.createdAt?.toMillis?.() || 0,
+      };
+    });
 
-    activeMessages = snap.docs
-      .map((doc) => {
-        const d = doc.data() as any;
-        return {
-          id: doc.id,
-          text: d.text || "",
-          linkText: d.linkText || "",
-          linkUrl: d.linkUrl || "",
-          imageUrl: d.imageUrl || "",
-          videoUrl: d.videoUrl || "",
-          type: (d.type as BuyerMessage["type"]) || "info",
-          active: d.active ?? true,
-          createdAt: d.createdAt?.toMillis?.() || 0,
-        } as BuyerMessage;
-      })
-      .filter((m) => m.active !== false && m.text.trim().length > 0)
-      .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
-  } catch (err) {
-    console.error("Error fetching messages:", err);
+    return { props: { initialMessages: messages } };
+  } catch (error) {
+    console.error("Error loading messages for management board:", error);
+    return { props: { initialMessages: [] } };
   }
-
-  return {
-    props: {
-      trending,
-      newArrivals,
-      featuredDesigners: featuredDesigners.slice(0, 15),
-      activeMessages,
-    },
-  };
 };
