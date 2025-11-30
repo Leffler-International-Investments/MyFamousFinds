@@ -20,6 +20,9 @@ type BuyerMessage = {
   text: string;
   linkText?: string;
   linkUrl?: string;
+  // ✅ NEW:
+  imageUrl?: string;
+  videoUrl?: string;
   type: "info" | "promo" | "alert";
   active?: boolean;
   createdAt?: number;
@@ -48,6 +51,26 @@ const pickImage = (data: any): string => {
     return data.imageUrls[0];
   }
   return "";
+};
+
+// ✅ Helper: convert YouTube URL to embed URL
+const getYouTubeEmbedUrl = (url: string): string => {
+  try {
+    if (!url) return "";
+    // watch?v=ID
+    const watchMatch = url.match(/v=([^&]+)/);
+    if (watchMatch?.[1]) {
+      return `https://www.youtube.com/embed/${watchMatch[1]}`;
+    }
+    // youtu.be/ID
+    const shortMatch = url.match(/youtu\.be\/([^?]+)/);
+    if (shortMatch?.[1]) {
+      return `https://www.youtube.com/embed/${shortMatch[1]}`;
+    }
+    return url;
+  } catch {
+    return url;
+  }
 };
 
 // --------------------------------------------------
@@ -181,20 +204,61 @@ const Home: NextPage<HomeProps> = ({
         {/* ✅ DYNAMIC MESSAGE BOARD BANNER */}
         {activeMessages && activeMessages.length > 0 && (
           <section className="buyer-message-board-container">
-            {activeMessages.map((msg) => (
-              <div key={msg.id} className={`buyer-message-board ${msg.type}`}>
-                <div className="message-content">
-                  <p>
-                    {msg.text}{" "}
-                    {msg.linkText && msg.linkUrl && (
-                      <Link href={msg.linkUrl} className="catalogue-link">
-                        {msg.linkText} →
-                      </Link>
+            {activeMessages.map((msg) => {
+              const hasVideo = !!msg.videoUrl;
+              const hasImage = !!msg.imageUrl;
+              const maybeYouTube =
+                hasVideo &&
+                (msg.videoUrl!.includes("youtube.com") ||
+                  msg.videoUrl!.includes("youtu.be"));
+
+              return (
+                <div key={msg.id} className={`buyer-message-board ${msg.type}`}>
+                  <div className="message-content">
+                    <p>
+                      {msg.text}{" "}
+                      {msg.linkText && msg.linkUrl && (
+                        <Link href={msg.linkUrl} className="catalogue-link">
+                          {msg.linkText} →
+                        </Link>
+                      )}
+                    </p>
+
+                    {(hasVideo || hasImage) && (
+                      <div className="message-media">
+                        {hasVideo ? (
+                          maybeYouTube ? (
+                            <div className="video-wrapper">
+                              <iframe
+                                src={getYouTubeEmbedUrl(msg.videoUrl!)}
+                                title="Announcement video"
+                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                allowFullScreen
+                              />
+                            </div>
+                          ) : (
+                            <video
+                              className="message-media-video"
+                              src={msg.videoUrl!}
+                              controls
+                              playsInline
+                            />
+                          )
+                        ) : (
+                          hasImage && (
+                            <img
+                              className="message-media-image"
+                              src={msg.imageUrl!}
+                              alt=""
+                            />
+                          )
+                        )}
+                      </div>
                     )}
-                  </p>
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </section>
         )}
 
@@ -428,6 +492,37 @@ const Home: NextPage<HomeProps> = ({
           line-height: 1.5;
         }
 
+        /* ✅ NEW: media styles */
+        .message-media {
+          margin-top: 16px;
+        }
+        .message-media-image,
+        .message-media-video,
+        .video-wrapper iframe {
+          max-width: 100%;
+          border-radius: 12px;
+          display: block;
+          margin: 0 auto;
+        }
+        .message-media-video,
+        .video-wrapper iframe {
+          max-height: 320px;
+        }
+        .video-wrapper {
+          position: relative;
+          padding-bottom: 56.25%;
+          height: 0;
+          overflow: hidden;
+        }
+        .video-wrapper iframe {
+          position: absolute;
+          top: 0;
+          left: 0;
+          width: 100%;
+          height: 100%;
+          border: 0;
+        }
+
         :global(.catalogue-link) {
           color: inherit;
           font-weight: 700;
@@ -515,16 +610,13 @@ export const getServerSideProps: GetServerSideProps<HomeProps> = async () => {
     );
   }
 
-  // 5. ✅ FETCH ACTIVE MESSAGES (robust)
+  // 5. FETCH ACTIVE MESSAGES (now includes image + video)
   let activeMessages: BuyerMessage[] = [];
 
   try {
     const messagesRef = adminDb.collection("buyer_messages");
 
-    // First try: only active
     let snap = await messagesRef.where("active", "==", true).get();
-
-    // Fallback: if admin created messages without `active` field yet
     if (snap.empty) {
       snap = await messagesRef.get();
     }
@@ -537,14 +629,14 @@ export const getServerSideProps: GetServerSideProps<HomeProps> = async () => {
           text: d.text || "",
           linkText: d.linkText || "",
           linkUrl: d.linkUrl || "",
+          imageUrl: d.imageUrl || "",
+          videoUrl: d.videoUrl || "",
           type: (d.type as BuyerMessage["type"]) || "info",
           active: d.active ?? true,
           createdAt: d.createdAt?.toMillis?.() || 0,
         } as BuyerMessage;
       })
-      // keep only those that should be visible + have text
       .filter((m) => m.active !== false && m.text.trim().length > 0)
-      // newest first
       .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
   } catch (err) {
     console.error("Error fetching messages:", err);
