@@ -52,11 +52,9 @@ export default function SellerBulkUploadPage() {
       return;
     }
 
-    // First non-empty row is header
     const headerLine = lines[0];
     const headerParts = headerLine.split(",").map((h) => h.trim().toLowerCase());
 
-    // Map of header index → field key
     const headerIndex: Record<string, number> = {};
     headerParts.forEach((h, i) => {
       headerIndex[h] = i;
@@ -67,7 +65,7 @@ export default function SellerBulkUploadPage() {
       setErrors(
         `Missing required columns: ${missing.join(
           ", "
-        )}. Please download the Format/Details CSV and use that header row.`
+        )}. Please download the Format / Details Form and use that header row.`
       );
       return;
     }
@@ -93,7 +91,6 @@ export default function SellerBulkUploadPage() {
         serial: parts[headerIndex["serial"]] || "",
       };
 
-      // Skip completely empty rows
       const nonEmpty = Object.values(row).some((v) => v && v.length > 0);
       if (!nonEmpty) continue;
 
@@ -161,26 +158,20 @@ export default function SellerBulkUploadPage() {
           {/* STEP 1 */}
           <section className="section-card">
             <h2 className="section-title">1. Paste your items (CSV)</h2>
+
             <p className="section-subtitle">
-              Download the ready-made CSV, fill it in, then paste the rows below.
-              Do not use commas inside any single field.
+              Download the ready-made CSV, fill it in (one row per item), then
+              paste the rows below.
             </p>
 
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                marginBottom: 16,
-                gap: 16,
-                flexWrap: "wrap",
-              }}
-            >
-              <span style={{ fontSize: 14, color: "#4b5563" }}>
-                Need the correct headings and options?
+            <div className="section-top-row">
+              <span className="section-note">
+                Need the correct headings and spelling?
               </span>
+
+              {/* UPDATED BUTTON */}
               <a
-                href="/bulk-upload-template.csv"
+                href="/bulk-upload-template (1).csv"
                 className="btn-primary-dark"
                 download
               >
@@ -188,12 +179,26 @@ export default function SellerBulkUploadPage() {
               </a>
             </div>
 
+            {/* NEW - HOW TO COMPLETE FORM */}
+            <div className="help-box">
+              <strong>How to complete the CSV form</strong>
+              <ol>
+                <li>Download the CSV and open it in Excel or Google Sheets.</li>
+                <li>One item = one row only.</li>
+                <li>Do NOT change the header spellings.</li>
+                <li>Do NOT use commas inside any cell.</li>
+                <li>Use clean text: “Black leather”, NOT “Black, leather”.</li>
+                <li>Price = numbers only, no symbols.</li>
+                <li>When done, copy all rows including header and paste below.</li>
+              </ol>
+            </div>
+
             <textarea
               value={raw}
               onChange={(e) => setRaw(e.target.value)}
               rows={8}
               className="form-textarea"
-              placeholder="Paste the CSV rows here, including the header line (title,brand,category,condition,size,color,price,source,proof,serial)…"
+              placeholder="Paste the CSV rows here including the header..."
             />
 
             <button
@@ -209,11 +214,9 @@ export default function SellerBulkUploadPage() {
           {/* STEP 2 */}
           <section className="section-card">
             <h2 className="section-title">2. Review parsed items</h2>
+
             {rows.length === 0 && (
-              <p style={{ fontSize: 14, color: "#6b7280" }}>
-                Nothing parsed yet. Paste your items above and click{" "}
-                <strong>Parse Items</strong>.
-              </p>
+              <p className="muted">Nothing parsed yet.</p>
             )}
 
             {rows.length > 0 && (
@@ -222,15 +225,15 @@ export default function SellerBulkUploadPage() {
                   <thead>
                     <tr>
                       <th>Title</th>
-                      <th>Brand / Designer</th>
+                      <th>Brand</th>
                       <th>Category</th>
                       <th>Condition</th>
                       <th>Size</th>
                       <th>Color</th>
-                      <th>Price (USD)</th>
+                      <th>Price</th>
                       <th>Source</th>
                       <th>Proof</th>
-                      <th>Serial / Ref</th>
+                      <th>Serial</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -256,12 +259,14 @@ export default function SellerBulkUploadPage() {
 
           {/* STEP 3 */}
           <section className="section-card">
-            <h2 className="section-title">3. Confirm and submit</h2>
+            <h2 className="section-title">3. Confirm & Submit</h2>
+
             {errors && (
               <div className="form-message error">
                 <strong>Error:</strong> {errors}
               </div>
             )}
+
             {successMsg && (
               <div className="form-message success">
                 <strong>Done:</strong> {successMsg}
@@ -275,95 +280,14 @@ export default function SellerBulkUploadPage() {
               onClick={handleSubmit}
             >
               {isSubmitting
-                ? "Creating listings..."
+                ? "Creating listings…"
                 : `Create ${rows.length} listing(s)`}
             </button>
           </section>
         </main>
+
         <Footer />
       </div>
-
-      <style jsx>{`
-        .section-card {
-          background: #ffffff;
-          border-radius: 16px;
-          padding: 20px;
-          margin-bottom: 24px;
-          box-shadow: 0 10px 30px rgba(15, 23, 42, 0.06);
-        }
-        .section-title {
-          font-size: 18px;
-          margin-bottom: 4px;
-        }
-        .section-subtitle {
-          font-size: 14px;
-          color: #6b7280;
-          margin-bottom: 16px;
-        }
-        .form-textarea {
-          width: 100%;
-          border-radius: 12px;
-          border: 1px solid #e5e7eb;
-          padding: 10px 12px;
-          font-size: 14px;
-          font-family: inherit;
-          resize: vertical;
-        }
-        .table-wrapper {
-          margin-top: 16px;
-          overflow-x: auto;
-        }
-        .data-table {
-          width: 100%;
-          border-collapse: collapse;
-          font-size: 13px;
-        }
-        .data-table th,
-        .data-table td {
-          padding: 8px 10px;
-          border-bottom: 1px solid #e5e7eb;
-          text-align: left;
-        }
-        .data-table thead th {
-          font-size: 11px;
-          text-transform: uppercase;
-          letter-spacing: 0.05em;
-          color: #6b7280;
-          background: #f9fafb;
-        }
-        .form-message {
-          margin-top: 12px;
-          margin-bottom: 12px;
-          padding: 10px 12px;
-          border-radius: 10px;
-          font-size: 14px;
-        }
-        .form-message.error {
-          background: #fef2f2;
-          color: #b91c1c;
-        }
-        .form-message.success {
-          background: #ecfdf3;
-          color: #166534;
-        }
-        .btn-primary-dark {
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-          padding: 8px 16px;
-          border-radius: 999px;
-          background: #111827;
-          color: #ffffff;
-          font-size: 14px;
-          border: none;
-          cursor: pointer;
-          text-decoration: none;
-        }
-        .btn-primary-dark:disabled {
-          opacity: 0.6;
-          cursor: default;
-        }
-      `}</style>
     </>
   );
 }
