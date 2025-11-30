@@ -12,16 +12,23 @@ export default async function handler(
   res: NextApiResponse
 ) {
   try {
-    // 👉 If you want, you can later add a real admin check here,
-    // e.g. verify a session cookie / token. For now we trust the dashboard.
     const { method } = req;
 
     if (method === "POST") {
       // CREATE
-      const { text, linkText = "", linkUrl = "", type = "info" } = req.body as {
+      const {
+        text,
+        linkText = "",
+        linkUrl = "",
+        imageUrl = "",
+        videoUrl = "",
+        type = "info",
+      } = req.body as {
         text?: string;
         linkText?: string;
         linkUrl?: string;
+        imageUrl?: string;
+        videoUrl?: string;
         type?: MessageType;
       };
 
@@ -33,6 +40,8 @@ export default async function handler(
         text: text.trim(),
         linkText: linkText.trim(),
         linkUrl: linkUrl.trim(),
+        imageUrl: imageUrl.trim(),
+        videoUrl: videoUrl.trim(),
         type: (type as MessageType) || "info",
         active: true,
         createdAt: FieldValue.serverTimestamp(),
@@ -40,22 +49,28 @@ export default async function handler(
       };
 
       const ref = await collectionRef.add(payload);
-      return res.status(200).json({
-        ok: true,
-        id: ref.id,
-      });
+      return res.status(200).json({ ok: true, id: ref.id });
     }
 
     if (method === "PUT") {
       // UPDATE
-      const { id, text, linkText = "", linkUrl = "", type = "info" } =
-        req.body as {
-          id?: string;
-          text?: string;
-          linkText?: string;
-          linkUrl?: string;
-          type?: MessageType;
-        };
+      const {
+        id,
+        text,
+        linkText = "",
+        linkUrl = "",
+        imageUrl = "",
+        videoUrl = "",
+        type = "info",
+      } = req.body as {
+        id?: string;
+        text?: string;
+        linkText?: string;
+        linkUrl?: string;
+        imageUrl?: string;
+        videoUrl?: string;
+        type?: MessageType;
+      };
 
       if (!id || !text || !text.trim()) {
         return res
@@ -68,6 +83,8 @@ export default async function handler(
         text: text.trim(),
         linkText: linkText.trim(),
         linkUrl: linkUrl.trim(),
+        imageUrl: imageUrl.trim(),
+        videoUrl: videoUrl.trim(),
         type: (type as MessageType) || "info",
         updatedAt: FieldValue.serverTimestamp(),
       });
@@ -94,13 +111,13 @@ export default async function handler(
     }
 
     if (method === "DELETE") {
-      // DELETE
       const { id } = req.query as { id?: string };
       if (!id) {
         return res.status(400).json({ ok: false, error: "ID is required" });
       }
 
-      await collectionRef.doc(id).delete();
+      const docRef = collectionRef.doc(String(id));
+      await docRef.delete();
       return res.status(200).json({ ok: true });
     }
 
