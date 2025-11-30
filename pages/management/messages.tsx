@@ -8,15 +8,6 @@ import Header from "../../components/Header";
 import Footer from "../../components/Footer";
 import { useRequireAdmin } from "../../hooks/useRequireAdmin";
 import { adminDb } from "../../utils/firebaseAdmin";
-import { db } from "../../utils/firebaseClient";
-import {
-  collection,
-  addDoc,
-  updateDoc,
-  deleteDoc,
-  doc,
-  serverTimestamp,
-} from "firebase/firestore";
 
 export type BuyerMessage = {
   id: string;
@@ -35,7 +26,7 @@ type Props = {
 export default function MessageBoardManagement({ initialMessages }: Props) {
   const { loading } = useRequireAdmin();
   const [messages, setMessages] = useState<BuyerMessage[]>(initialMessages);
-  
+
   // Form State
   const [isEditing, setIsEditing] = useState<string | null>(null);
   const [formText, setFormText] = useState("");
@@ -70,38 +61,48 @@ export default function MessageBoardManagement({ initialMessages }: Props) {
         linkText: formLinkText.trim(),
         linkUrl: formLinkUrl.trim(),
         type: formType,
-        updatedAt: serverTimestamp(),
       };
 
       if (isEditing) {
-        // Update existing
-        const ref = doc(db, "buyer_messages", isEditing);
-        await updateDoc(ref, payload);
-        
+        // UPDATE via API (PUT)
+        const res = await fetch("/api/management/messages", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id: isEditing, ...payload }),
+        });
+        const json = await res.json();
+        if (!res.ok || !json.ok) {
+          throw new Error(json?.error || "Failed to update message");
+        }
+
         setMessages((prev) =>
           prev.map((m) => (m.id === isEditing ? { ...m, ...payload } : m))
         );
       } else {
-        // Create new
-        const ref = await addDoc(collection(db, "buyer_messages"), {
-          ...payload,
-          active: true,
-          createdAt: serverTimestamp(),
+        // CREATE via API (POST)
+        const res = await fetch("/api/management/messages", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
         });
+        const json = await res.json();
+        if (!res.ok || !json.ok || !json.id) {
+          throw new Error(json?.error || "Failed to create message");
+        }
 
-        setMessages((prev) => [
-          {
-            id: ref.id,
-            text: formText.trim(),
-            linkText: formLinkText.trim(),
-            linkUrl: formLinkUrl.trim(),
-            active: true,
-            type: formType,
-            createdAt: Date.now(),
-          },
-          ...prev,
-        ]);
+        const newMessage: BuyerMessage = {
+          id: json.id,
+          text: payload.text,
+          linkText: payload.linkText,
+          linkUrl: payload.linkUrl,
+          type: payload.type,
+          active: true,
+          createdAt: Date.now(),
+        };
+
+        setMessages((prev) => [newMessage, ...prev]);
       }
+
       cancelEdit();
     } catch (error) {
       console.error("Error saving message:", error);
@@ -111,23 +112,40 @@ export default function MessageBoardManagement({ initialMessages }: Props) {
 
   const toggleActive = async (id: string, currentStatus: boolean) => {
     try {
-      const ref = doc(db, "buyer_messages", id);
-      await updateDoc(ref, { active: !currentStatus });
+      const res = await fetch("/api/management/messages", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, active: !currentStatus }),
+      });
+      const json = await res.json();
+      if (!res.ok || !json.ok) {
+        throw new Error(json?.error || "Failed to toggle status");
+      }
+
       setMessages((prev) =>
         prev.map((m) => (m.id === id ? { ...m, active: !currentStatus } : m))
       );
     } catch (error) {
       console.error("Error toggling status:", error);
+      alert("Failed to update message status.");
     }
   };
 
   const handleDelete = async (id: string) => {
     if (!window.confirm("Delete this message permanently?")) return;
     try {
-      await deleteDoc(doc(db, "buyer_messages", id));
+      const res = await fetch(`/api/management/messages?id=${id}`, {
+        method: "DELETE",
+      });
+      const json = await res.json();
+      if (!res.ok || !json.ok) {
+        throw new Error(json?.error || "Failed to delete message");
+      }
+
       setMessages((prev) => prev.filter((m) => m.id !== id));
     } catch (error) {
       console.error("Error deleting message:", error);
+      alert("Failed to delete message.");
     }
   };
 
@@ -155,19 +173,18 @@ export default function MessageBoardManagement({ initialMessages }: Props) {
           <div className="form-grid">
             <label className="span-2">
               Message Text
-              {/* ✅ CHANGED TO TEXTAREA + ADDED AUTO-CORRECT FLAGS */}
               <textarea
                 value={formText}
                 onChange={(e) => setFormText(e.target.value)}
                 placeholder="e.g. Boker Tov Ariel - Enjoy Your New Shop"
                 rows={2}
-                // These 3 attributes force the browser to help you write better:
                 spellCheck={true}
                 autoCorrect="on"
                 autoCapitalize="sentences"
               />
               <span className="hint">
-                <span style={{ color: "#059669" }}>✓</span> Spellcheck &amp; Auto-correct enabled.
+                <span style={{ color: "#059669" }}>✓</span> Spellcheck &amp;
+                Auto-correct enabled.
               </span>
             </label>
 
@@ -223,7 +240,10 @@ export default function MessageBoardManagement({ initialMessages }: Props) {
           ) : (
             <div className="list-grid">
               {messages.map((m) => (
-                <div key={m.id} className={`message-item ${m.active ? "active" : "inactive"}`}>
+                <div
+                  key={m.id}
+                  className={`message-item ${m.active ? "active" : "inactive"}`}
+                >
                   <div className="message-content">
                     <span className={`type-badge ${m.type}`}>{m.type}</span>
                     <p className="text">
@@ -236,13 +256,16 @@ export default function MessageBoardManagement({ initialMessages }: Props) {
                       {m.active ? "● Live on site" : "○ Hidden"}
                     </span>
                   </div>
-                  
+
                   <div className="message-actions">
                     <button onClick={() => toggleActive(m.id, m.active)}>
                       {m.active ? "Hide" : "Publish"}
                     </button>
                     <button onClick={() => startEdit(m)}>Edit</button>
-                    <button className="delete" onClick={() => handleDelete(m.id)}>
+                    <button
+                      className="delete"
+                      onClick={() => handleDelete(m.id)}
+                    >
                       Delete
                     </button>
                   </div>
@@ -289,7 +312,9 @@ export default function MessageBoardManagement({ initialMessages }: Props) {
           color: #6b7280;
           font-weight: 400;
         }
-        input, select, textarea {
+        input,
+        select,
+        textarea {
           padding: 10px;
           border-radius: 8px;
           border: 1px solid #d1d5db;
@@ -356,9 +381,18 @@ export default function MessageBoardManagement({ initialMessages }: Props) {
           border-radius: 4px;
           font-weight: 700;
         }
-        .type-badge.info { background: #e5e7eb; color: #374151; }
-        .type-badge.promo { background: #fef08a; color: #854d0e; }
-        .type-badge.alert { background: #fecaca; color: #991b1b; }
+        .type-badge.info {
+          background: #e5e7eb;
+          color: #374151;
+        }
+        .type-badge.promo {
+          background: #fef08a;
+          color: #854d0e;
+        }
+        .type-badge.alert {
+          background: #fecaca;
+          color: #991b1b;
+        }
 
         .text {
           font-size: 14px;
@@ -414,20 +448,21 @@ export const getServerSideProps: GetServerSideProps<Props> = async () => {
       .get();
 
     const messages = snap.docs.map((d) => {
-      const data = d.data();
+      const data = d.data() as any;
       return {
         id: d.id,
         text: data.text || "",
         linkText: data.linkText || "",
         linkUrl: data.linkUrl || "",
         active: data.active ?? true,
-        type: data.type || "info",
+        type: (data.type as BuyerMessage["type"]) || "info",
         createdAt: data.createdAt?.toMillis?.() || 0,
       };
     });
 
     return { props: { initialMessages: messages } };
   } catch (error) {
+    console.error("Error loading messages for management board:", error);
     return { props: { initialMessages: [] } };
   }
 };
