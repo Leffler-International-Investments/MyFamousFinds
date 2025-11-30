@@ -1,566 +1,369 @@
 // FILE: /pages/seller/bulk-upload.tsx
-import { useState, useRef, useMemo } from "react";
 import Head from "next/head";
-import Link from "next/link";
+import { useState } from "react";
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
-import { useRequireSeller } from "../../hooks/useRequireSeller";
 
-type RawRow = {
-  id?: string;
-  title?: string;
-  brand?: string;
-  category?: string;
-  condition?: string;
-  size?: string;
-  color?: string;
-  price?: string | number;
-  purchase_source?: string;
-  purchase_proof?: string;
-  serial_number?: string;
-  authenticity_confirmed?: string | boolean;
-  imageUrls?: string[];
+type ParsedRow = {
+  title: string;
+  brand: string;
+  category: string;
+  condition: string;
+  size: string;
+  color: string;
+  price: string;
+  source: string;
+  proof: string;
+  serial: string;
 };
 
-type ParsedRow = RawRow & {
-  _row: number;
-  _status: "ok" | "missing_field" | "invalid_price" | "auth_missing";
-  _reason?: string;
-};
-
-type ApiResult = {
-  ok: boolean;
-  created: number;
-  skipped: number;
-  error?: string;
-};
-
-export default function SellerBulkUpload() {
-  const { loading } = useRequireSeller();
-  const [step, setStep] = useState<1 | 2 | 3>(1);
-  const [rawText, setRawText] = useState("");
+export default function SellerBulkUploadPage() {
+  const [raw, setRaw] = useState("");
   const [rows, setRows] = useState<ParsedRow[]>([]);
-  const [busy, setBusy] = useState(false);
-  const [committing, setCommitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [result, setResult] = useState<ApiResult | null>(null);
-  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const [errors, setErrors] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
-  const okRows = useMemo(
-    () => rows.filter((r) => r._status === "ok"),
-    [rows]
-  );
+  const requiredHeaders = [
+    "title",
+    "brand",
+    "category",
+    "condition",
+    "size",
+    "color",
+    "price",
+    "source",
+    "proof",
+    "serial",
+  ];
 
-  if (loading) return <div className="page-loading"></div>;
+  function parseCsv() {
+    setErrors(null);
+    setSuccessMsg(null);
+    setRows([]);
 
-  const handleParse = () => {
-    setError(null);
-    setResult(null);
+    const lines = raw
+      .split(/\r?\n/)
+      .map((l) => l.trim())
+      .filter((l) => l.length > 0);
 
-    const trimmed = rawText.trim();
-    if (!trimmed) {
-      setRows([]);
-      setStep(2);
+    if (lines.length === 0) {
+      setErrors("Nothing to parse. Paste your CSV first.");
       return;
     }
 
-    const lines = trimmed
-      .split(/\r?\n/)
-      .map((l) => l.trim())
-      .filter(Boolean);
+    // First non-empty row is header
+    const headerLine = lines[0];
+    const headerParts = headerLine.split(",").map((h) => h.trim().toLowerCase());
 
-    const parsed: ParsedRow[] = [];
-    lines.forEach((line, idx) => {
-      // Note: content cannot contain commas
-      const parts = line.split(",").map((p) => p.trim());
-      
-      // We need exactly 10 fields based on the instruction
-      if (parts.length < 10) {
-        parsed.push({
-          _row: idx + 1,
-          _status: "missing_field",
-          _reason:
-            "Expected 10 fields. Do not use commas inside titles or names.",
-        });
-        return;
-      }
-
-      const [
-        title,
-        brand,
-        category,
-        condition,
-        size,
-        color,
-        price,
-        purchase_source,
-        purchase_proof,
-        serial_number,
-      ] = parts;
-
-      const priceNum = Number(price);
-      if (!price || !isFinite(priceNum) || priceNum <= 0) {
-        parsed.push({
-          _row: idx + 1,
-          _status: "invalid_price",
-          _reason: "Price must be a positive number.",
-        });
-        return;
-      }
-
-      parsed.push({
-        _row: idx + 1,
-        _status: "ok",
-        title,
-        brand,
-        category,
-        condition,
-        size,
-        color,
-        price: priceNum,
-        purchase_source,
-        purchase_proof,
-        serial_number,
-      });
+    // Map of header index → field key
+    const headerIndex: Record<string, number> = {};
+    headerParts.forEach((h, i) => {
+      headerIndex[h] = i;
     });
 
-    setRows(parsed);
-    setStep(2);
-  };
+    const missing = requiredHeaders.filter((h) => headerIndex[h] == null);
+    if (missing.length > 0) {
+      setErrors(
+        `Missing required columns: ${missing.join(
+          ", "
+        )}. Please download the Format/Details CSV and use that header row.`
+      );
+      return;
+    }
 
-  const handleCommit = async () => {
-    setError(null);
-    setResult(null);
-    setCommitting(true);
+    const parsed: ParsedRow[] = [];
+
+    for (let i = 1; i < lines.length; i++) {
+      const line = lines[i];
+      if (!line.trim()) continue;
+
+      const parts = line.split(",").map((p) => p.trim());
+
+      const row: ParsedRow = {
+        title: parts[headerIndex["title"]] || "",
+        brand: parts[headerIndex["brand"]] || "",
+        category: parts[headerIndex["category"]] || "",
+        condition: parts[headerIndex["condition"]] || "",
+        size: parts[headerIndex["size"]] || "",
+        color: parts[headerIndex["color"]] || "",
+        price: parts[headerIndex["price"]] || "",
+        source: parts[headerIndex["source"]] || "",
+        proof: parts[headerIndex["proof"]] || "",
+        serial: parts[headerIndex["serial"]] || "",
+      };
+
+      // Skip completely empty rows
+      const nonEmpty = Object.values(row).some((v) => v && v.length > 0);
+      if (!nonEmpty) continue;
+
+      parsed.push(row);
+    }
+
+    if (parsed.length === 0) {
+      setErrors("No valid item rows found under the header.");
+      return;
+    }
+
+    setRows(parsed);
+  }
+
+  async function handleSubmit() {
+    if (rows.length === 0) {
+      setErrors("Nothing to submit. Parse your CSV first.");
+      return;
+    }
+
+    setIsSubmitting(true);
+    setErrors(null);
+    setSuccessMsg(null);
 
     try {
-      const res = await fetch("/api/seller/bulk-commit", {
+      const res = await fetch("/api/seller/bulk-upload", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ rows: okRows }),
+        body: JSON.stringify({ rows }),
       });
-      const json: ApiResult = await res.json();
-      if (!res.ok || !json.ok) {
-        throw new Error(json.error || "Unable to create listings.");
-      }
-      setResult(json);
-      setStep(3);
-    } catch (err: any) {
-      console.error(err);
-      setError(err?.message || "Unable to create listings.");
-    } finally {
-      setCommitting(false);
-    }
-  };
 
-  const exampleLines = [
-    "Chanel Classic Flap,Chanel,bags,Like New,M,Black,5200,Neiman Marcus,Original receipt,12345-ABCD",
-    "Gucci Marmont Belt,Gucci,accessories,Good,M,Black,480,Saks,PDF invoice,GG-778899",
-  ];
+      const json = await res.json();
+
+      if (!res.ok) {
+        throw new Error(json.error || "Bulk upload failed");
+      }
+
+      setSuccessMsg(
+        `Created ${json.count || rows.length} listings in the review queue.`
+      );
+      setRows([]);
+      setRaw("");
+    } catch (err: any) {
+      setErrors(err?.message || "Something went wrong while submitting.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
 
   return (
-    <div className="page-container">
+    <>
       <Head>
-        <title>Seller — Bulk Upload | Famous Finds</title>
+        <title>Bulk Upload Listings — Seller</title>
       </Head>
+      <div className="dashboard-page">
+        <Header />
+        <main className="dashboard-main">
+          <div className="dashboard-header">
+            <div>
+              <h1>Bulk Upload Listings</h1>
+              <p>Paste multiple items in one go. All prices are treated as USD.</p>
+            </div>
+          </div>
 
-      <Header />
-
-      <main className="section">
-        <div className="back-link">
-          <Link href="/seller/dashboard">← Back to Dashboard</Link>
-        </div>
-
-        <div className="page-header">
-          <div>
-            <h1>Bulk Upload Listings</h1>
-            <p className="subtitle">
-              Paste multiple items in one go. All prices are treated as USD.
+          {/* STEP 1 */}
+          <section className="section-card">
+            <h2 className="section-title">1. Paste your items (CSV)</h2>
+            <p className="section-subtitle">
+              Download the ready-made CSV, fill it in, then paste the rows below.
+              Do not use commas inside any single field.
             </p>
-          </div>
-        </div>
 
-        <ol className="steps-grid">
-          <li className={step >= 1 ? "step-active" : ""}>
-            <span className="step-num">1</span> Paste your items
-          </li>
-          <li className={step >= 2 ? "step-active" : ""}>
-            <span className="step-num">2</span> Review and fix
-          </li>
-          <li className={step >= 3 ? "step-active" : ""}>
-            <span className="step-num">3</span> Confirm
-          </li>
-        </ol>
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                marginBottom: 16,
+                gap: 16,
+                flexWrap: "wrap",
+              }}
+            >
+              <span style={{ fontSize: 14, color: "#4b5563" }}>
+                Need the correct headings and options?
+              </span>
+              <a
+                href="/bulk-upload-template.csv"
+                className="btn-primary-dark"
+                download
+              >
+                Format / Details Form (CSV)
+              </a>
+            </div>
 
-        <section className="card">
-          <h2>1. Paste your items (USD)</h2>
-          <p className="card-subtitle">
-            One item per line, fields separated by commas. <strong>Do not use commas inside the product title or brand name.</strong>
-          </p>
-          <p className="card-subtitle">
-            Format:<br/>
-            <code>
-              title, brand, category, condition, size, color, price,
-              source, proof, serial
-            </code>
-          </p>
+            <textarea
+              value={raw}
+              onChange={(e) => setRaw(e.target.value)}
+              rows={8}
+              className="form-textarea"
+              placeholder="Paste the CSV rows here, including the header line (title,brand,category,condition,size,color,price,source,proof,serial)…"
+            />
 
-          <div className="example-box">
-            <p>Example (Copy & Paste):</p>
-            {exampleLines.map((line) => (
-              <div key={line} className="example-mono">
-                {line}
-              </div>
-            ))}
-          </div>
-
-          <textarea
-            ref={textareaRef}
-            className="form-textarea"
-            placeholder="Paste your CSV data here..."
-            value={rawText}
-            onChange={(e) => setRawText(e.target.value)}
-          />
-
-          <div className="button-row">
             <button
-              onClick={handleParse}
-              disabled={busy}
-              className="btn-primary"
+              type="button"
+              onClick={parseCsv}
+              className="btn-primary-dark"
+              style={{ marginTop: 12 }}
             >
               Parse Items
             </button>
-          </div>
-        </section>
+          </section>
 
-        <section className="card">
-          <h2>2. Review parsed items</h2>
-
-          {!rows.length ? (
-            <p className="muted-text">
-              Nothing parsed yet. Paste your items above and click{" "}
-              <strong>Parse Items</strong>.
-            </p>
-          ) : (
-            <>
-              <p className="card-subtitle">
-                Parsed <strong>{rows.length}</strong> lines. Valid rows:{" "}
-                <strong className="text-ok">{okRows.length}</strong>.
+          {/* STEP 2 */}
+          <section className="section-card">
+            <h2 className="section-title">2. Review parsed items</h2>
+            {rows.length === 0 && (
+              <p style={{ fontSize: 14, color: "#6b7280" }}>
+                Nothing parsed yet. Paste your items above and click{" "}
+                <strong>Parse Items</strong>.
               </p>
+            )}
 
+            {rows.length > 0 && (
               <div className="table-wrapper">
                 <table className="data-table">
                   <thead>
                     <tr>
-                      <th>Row</th>
                       <th>Title</th>
-                      <th>Brand</th>
+                      <th>Brand / Designer</th>
                       <th>Category</th>
-                      <th>Price</th>
-                      <th>Status</th>
+                      <th>Condition</th>
+                      <th>Size</th>
+                      <th>Color</th>
+                      <th>Price (USD)</th>
+                      <th>Source</th>
+                      <th>Proof</th>
+                      <th>Serial / Ref</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {rows.map((row) => (
-                      <tr key={row._row}>
-                        <td>{row._row}</td>
-                        <td>{row.title || "—"}</td>
-                        <td>{row.brand || "—"}</td>
-                        <td>{row.category || "—"}</td>
-                        <td>
-                          {typeof row.price === "number"
-                            ? `$${row.price.toLocaleString("en-US", {
-                                maximumFractionDigits: 2,
-                              })}`
-                            : "—"}
-                        </td>
-                        <td>
-                          {row._status === "ok" ? (
-                            <span className="status-badge status-ok">
-                              OK
-                            </span>
-                          ) : (
-                            <span className="status-badge status-error">
-                              {row._reason || row._status}
-                            </span>
-                          )}
-                        </td>
+                    {rows.map((row, idx) => (
+                      <tr key={idx}>
+                        <td>{row.title}</td>
+                        <td>{row.brand}</td>
+                        <td>{row.category}</td>
+                        <td>{row.condition}</td>
+                        <td>{row.size}</td>
+                        <td>{row.color}</td>
+                        <td>{row.price}</td>
+                        <td>{row.source}</td>
+                        <td>{row.proof}</td>
+                        <td>{row.serial}</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
-            </>
-          )}
-        </section>
+            )}
+          </section>
 
-        <section className="card">
-          <h2>3. Confirm and submit</h2>
-          <p className="card-subtitle">
-            When you confirm, we will create listings for all{" "}
-            <strong className="text-ok">valid rows</strong> and send
-            them to the vetting queue.
-          </p>
-          {error && <p className="banner error">{error}</p>}
-          {result && (
-            <p className="banner success">
-              Success! Created {result.created} listings.
-            </p>
-          )}
+          {/* STEP 3 */}
+          <section className="section-card">
+            <h2 className="section-title">3. Confirm and submit</h2>
+            {errors && (
+              <div className="form-message error">
+                <strong>Error:</strong> {errors}
+              </div>
+            )}
+            {successMsg && (
+              <div className="form-message success">
+                <strong>Done:</strong> {successMsg}
+              </div>
+            )}
 
-          <div className="button-row">
             <button
-              onClick={handleCommit}
-              disabled={committing || !okRows.length}
-              className="btn-primary"
+              type="button"
+              className="btn-primary-dark"
+              disabled={isSubmitting || rows.length === 0}
+              onClick={handleSubmit}
             >
-              {committing ? "Submitting..." : "Create Listings"}
+              {isSubmitting
+                ? "Creating listings..."
+                : `Create ${rows.length} listing(s)`}
             </button>
-          </div>
-        </section>
-      </main>
-
-      <Footer />
+          </section>
+        </main>
+        <Footer />
+      </div>
 
       <style jsx>{`
-        .page-container {
-          background-color: #f9fafb;
-          color: #111827;
-          min-height: 100vh;
-        }
-        .back-link a {
-          font-size: 13px;
-          color: #4b5563;
-          text-decoration: none;
-          font-weight: 500;
-        }
-        .back-link a:hover {
-          color: #111827;
-        }
-        
-        .page-header {
-          margin-top: 20px;
+        .section-card {
+          background: #ffffff;
+          border-radius: 16px;
+          padding: 20px;
           margin-bottom: 24px;
+          box-shadow: 0 10px 30px rgba(15, 23, 42, 0.06);
         }
-        h1 {
-          font-size: 24px;
-          font-weight: 700;
-          color: #111827;
-          margin: 0;
+        .section-title {
+          font-size: 18px;
+          margin-bottom: 4px;
         }
-        .subtitle {
-          margin-top: 6px;
+        .section-subtitle {
           font-size: 14px;
           color: #6b7280;
-        }
-        
-        .steps-grid {
-          display: grid;
-          gap: 12px;
-          margin-bottom: 24px;
-          padding: 0;
-          list-style: none;
-        }
-        @media (min-width: 768px) {
-          .steps-grid {
-            grid-template-columns: repeat(3, 1fr);
-          }
-        }
-        .steps-grid li {
-          background: #ffffff;
-          border: 1px solid #e5e7eb;
-          border-radius: 8px;
-          padding: 10px 12px;
-          font-size: 13px;
-          color: #9ca3af;
-          display: flex;
-          align-items: center;
-          gap: 8px;
-        }
-        .steps-grid li.step-active {
-          border-color: #111827;
-          color: #111827;
-          font-weight: 600;
-          box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-        }
-        .step-num {
-          background: #f3f4f6;
-          width: 20px;
-          height: 20px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          border-radius: 50%;
-          font-size: 11px;
-          font-weight: 700;
-        }
-        .step-active .step-num {
-          background: #111827;
-          color: #fff;
-        }
-        
-        .card {
-          background: #ffffff;
-          border: 1px solid #e5e7eb;
-          border-radius: 12px;
-          padding: 24px;
-          margin-bottom: 24px;
-          box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-        }
-        .card h2 {
-          font-size: 16px;
-          font-weight: 700;
-          color: #111827;
-          margin: 0 0 12px 0;
-          text-transform: uppercase;
-          letter-spacing: 0.05em;
-        }
-        .card-subtitle {
-          font-size: 14px;
-          color: #4b5563;
-          margin-bottom: 12px;
-          line-height: 1.5;
-        }
-        .card-subtitle code {
-          background: #f3f4f6;
-          padding: 2px 6px;
-          border-radius: 4px;
-          font-family: monospace;
-          font-size: 12px;
-          color: #db2777;
-        }
-        .text-ok {
-          color: #059669;
-        }
-        .muted-text {
-          color: #9ca3af;
-          font-style: italic;
-        }
-        
-        .example-box {
-          background: #f8fafc;
-          border: 1px solid #e2e8f0;
-          border-radius: 8px;
-          padding: 12px;
           margin-bottom: 16px;
         }
-        .example-box p {
-          font-size: 12px;
-          font-weight: 600;
-          color: #64748b;
-          margin: 0 0 8px 0;
-        }
-        .example-mono {
-          font-family: monospace;
-          font-size: 12px;
-          color: #334155;
-          margin-bottom: 4px;
-          white-space: pre-wrap;
-          word-break: break-all;
-        }
-        
         .form-textarea {
           width: 100%;
-          height: 200px;
-          padding: 12px;
-          border: 1px solid #d1d5db;
-          border-radius: 8px;
-          font-family: monospace;
-          font-size: 13px;
-          color: #111827;
-          background: #ffffff;
-        }
-        .form-textarea:focus {
-          outline: none;
-          border-color: #000;
-          box-shadow: 0 0 0 1px #000;
-        }
-        
-        .button-row {
-          margin-top: 16px;
-        }
-        .btn-primary {
-          background: #111827;
-          color: #ffffff;
-          border: none;
-          border-radius: 99px;
-          padding: 10px 24px;
-          font-size: 14px;
-          font-weight: 600;
-          cursor: pointer;
-          transition: opacity 0.2s;
-        }
-        .btn-primary:hover {
-          opacity: 0.9;
-        }
-        .btn-primary:disabled {
-          background: #9ca3af;
-          cursor: not-allowed;
-        }
-        
-        .table-wrapper {
-          overflow-x: auto;
+          border-radius: 12px;
           border: 1px solid #e5e7eb;
-          border-radius: 8px;
+          padding: 10px 12px;
+          font-size: 14px;
+          font-family: inherit;
+          resize: vertical;
+        }
+        .table-wrapper {
           margin-top: 16px;
+          overflow-x: auto;
         }
         .data-table {
           width: 100%;
           border-collapse: collapse;
           font-size: 13px;
+        }
+        .data-table th,
+        .data-table td {
+          padding: 8px 10px;
+          border-bottom: 1px solid #e5e7eb;
           text-align: left;
         }
-        .data-table th {
-          background: #f9fafb;
-          padding: 10px 12px;
-          font-weight: 600;
-          color: #374151;
-          border-bottom: 1px solid #e5e7eb;
-        }
-        .data-table td {
-          padding: 10px 12px;
-          border-bottom: 1px solid #e5e7eb;
-          color: #111827;
-        }
-        .data-table tr:last-child td {
-          border-bottom: none;
-        }
-        
-        .status-badge {
-          display: inline-block;
-          padding: 2px 8px;
-          border-radius: 99px;
+        .data-table thead th {
           font-size: 11px;
-          font-weight: 600;
           text-transform: uppercase;
+          letter-spacing: 0.05em;
+          color: #6b7280;
+          background: #f9fafb;
         }
-        .status-ok {
-          background: #d1fae5;
-          color: #065f46;
-        }
-        .status-error {
-          background: #fee2e2;
-          color: #991b1b;
-        }
-        
-        .banner {
-          padding: 12px;
-          border-radius: 8px;
-          font-size: 14px;
-          font-weight: 500;
+        .form-message {
           margin-top: 12px;
+          margin-bottom: 12px;
+          padding: 10px 12px;
+          border-radius: 10px;
+          font-size: 14px;
         }
-        .banner.error {
-          background: #fee2e2;
+        .form-message.error {
+          background: #fef2f2;
           color: #b91c1c;
-          border: 1px solid #fca5a5;
         }
-        .banner.success {
-          background: #dcfce7;
+        .form-message.success {
+          background: #ecfdf3;
           color: #166534;
-          border: 1px solid #86efac;
+        }
+        .btn-primary-dark {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          padding: 8px 16px;
+          border-radius: 999px;
+          background: #111827;
+          color: #ffffff;
+          font-size: 14px;
+          border: none;
+          cursor: pointer;
+          text-decoration: none;
+        }
+        .btn-primary-dark:disabled {
+          opacity: 0.6;
+          cursor: default;
         }
       `}</style>
-    </div>
+    </>
   );
 }
