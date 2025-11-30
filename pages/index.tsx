@@ -1,3 +1,5 @@
+// FILE: /pages/index.tsx
+
 import Head from "next/head";
 import Link from "next/link";
 import type { GetServerSideProps, NextPage } from "next";
@@ -198,50 +200,57 @@ const Home: NextPage<HomeProps> = ({
           </div>
         </section>
 
-        {/* ✅ DYNAMIC MESSAGE BOARD BANNER */}
+        {/* ✅ DYNAMIC MESSAGE BILLBOARD – ONE BOX WITH ALL MESSAGES */}
         {activeMessages && activeMessages.length > 0 && (
           <section className="buyer-message-board-container">
-            {activeMessages.map((msg) => (
-              <div key={msg.id} className={`buyer-message-board ${msg.type}`}>
-                <div className="message-content">
-                  <p>
-                    {msg.text}{" "}
-                    {msg.linkText && msg.linkUrl && (
-                      <Link href={msg.linkUrl} className="catalogue-link">
-                        {msg.linkText} →
-                      </Link>
-                    )}
-                  </p>
-
-                  {/* ✅ VIDEO / IMAGE */}
-                  {(msg.videoUrl || msg.imageUrl) && (
-                    <div className="message-media">
-                      {/* VIDEO LINK */}
-                      {msg.videoUrl && (
-                        <p className="video-link">
-                          <a
-                            href={msg.videoUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                          >
-                            Watch video →
-                          </a>
-                        </p>
-                      )}
-
-                      {/* OPTIONAL IMAGE */}
-                      {msg.imageUrl && (
-                        <img
-                          src={msg.imageUrl}
-                          alt=""
-                          className="message-media-image"
-                        />
-                      )}
-                    </div>
-                  )}
-                </div>
+            <div className="buyer-message-board billboard">
+              <div className="billboard-header">
+                <h2>Announcements</h2>
+                <p>Latest messages from Famous Finds</p>
               </div>
-            ))}
+
+              <div className="billboard-body">
+                {activeMessages.map((msg) => (
+                  <div
+                    key={msg.id}
+                    className={`billboard-item ${msg.type}`}
+                  >
+                    <p className="billboard-text">
+                      {msg.text}{" "}
+                      {msg.linkText && msg.linkUrl && (
+                        <Link href={msg.linkUrl} className="catalogue-link">
+                          {msg.linkText} →
+                        </Link>
+                      )}
+                    </p>
+
+                    {(msg.videoUrl || msg.imageUrl) && (
+                      <div className="message-media">
+                        {msg.videoUrl && (
+                          <p className="video-link">
+                            <a
+                              href={msg.videoUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                            >
+                              Watch video →
+                            </a>
+                          </p>
+                        )}
+
+                        {msg.imageUrl && (
+                          <img
+                            src={msg.imageUrl}
+                            alt=""
+                            className="message-media-image"
+                          />
+                        )}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
           </section>
         )}
 
@@ -434,50 +443,78 @@ const Home: NextPage<HomeProps> = ({
           scrollbar-width: none;
         }
 
-        /* --- MESSAGE BOARD STYLES --- */
+        /* --- MESSAGE BILLBOARD STYLES --- */
+
         .buyer-message-board-container {
           margin-top: 36px;
           display: flex;
-          flex-direction: column;
-          gap: 16px;
+          justify-content: center;
         }
 
-        .buyer-message-board {
+        .buyer-message-board.billboard {
+          width: 100%;
+          max-width: 960px; /* ✅ not full page width */
           background: #ffffff;
+          border-radius: 24px;
           border: 1px solid #e5e7eb;
-          border-radius: 12px;
-          padding: 24px;
-          text-align: center;
-          box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
-          transition: transform 0.2s;
+          padding: 20px 24px 24px;
+          box-shadow: 0 16px 40px rgba(15, 23, 42, 0.08);
         }
 
-        .buyer-message-board.promo {
-          background: #fffbeb;
-          border-color: #fcd34d;
-          color: #92400e;
+        .billboard-header h2 {
+          font-size: 18px;
+          margin: 0;
+          font-family: "Georgia", serif;
         }
-        .buyer-message-board.alert {
-          background: #fef2f2;
-          border-color: #fecaca;
+
+        .billboard-header p {
+          margin: 4px 0 0;
+          font-size: 13px;
+          color: #6b7280;
+        }
+
+        .billboard-body {
+          margin-top: 16px;
+          display: flex;
+          flex-direction: column;
+          gap: 10px;
+        }
+
+        .billboard-item {
+          border-radius: 999px;
+          padding: 10px 18px;
+          font-size: 15px;
+          display: flex;
+          flex-direction: column;
+        }
+
+        .billboard-item.info {
+          background: #f3f4f6;
+          border: 1px solid #e5e7eb;
+          color: #111827;
+        }
+
+        .billboard-item.promo {
+          background: #fef3c7;
+          border: 1px solid #facc15;
+          color: #78350f;
+        }
+
+        .billboard-item.alert {
+          background: #fee2e2;
+          border: 1px solid #fca5a5;
           color: #991b1b;
         }
-        .buyer-message-board.info {
-          background: #f9fafb;
-          border-color: #e5e7eb;
-          color: #374151;
-        }
 
-        .message-content p {
-          font-family: "Georgia", serif;
-          font-size: 19px;
+        .billboard-text {
           margin: 0;
           line-height: 1.5;
+          font-family: "Georgia", serif;
         }
 
-        /* ====== NEW ======= */
+        /* ====== MEDIA INSIDE BILLBOARD ======= */
         .message-media {
-          margin-top: 12px;
+          margin-top: 8px;
         }
 
         .video-link a {
@@ -491,7 +528,7 @@ const Home: NextPage<HomeProps> = ({
           max-width: 100%;
           border-radius: 12px;
           display: block;
-          margin-top: 8px;
+          margin-top: 6px;
           margin-left: auto;
           margin-right: auto;
         }
@@ -602,8 +639,8 @@ export const getServerSideProps: GetServerSideProps<HomeProps> = async () => {
           text: d.text || "",
           linkText: d.linkText || "",
           linkUrl: d.linkUrl || "",
-          imageUrl: d.imageUrl || "", // ✅
-          videoUrl: d.videoUrl || "", // ✅
+          imageUrl: d.imageUrl || "",
+          videoUrl: d.videoUrl || "",
           type: (d.type as BuyerMessage["type"]) || "info",
           active: d.active ?? true,
           createdAt: d.createdAt?.toMillis?.() || 0,
