@@ -3,7 +3,15 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { adminDb, FieldValue } from "../../../utils/firebaseAdmin";
 
-type MessageType = "info" | "promo" | "alert";
+// ✅ UPDATED: Added new vivid types here
+type MessageType = 
+  | "info" 
+  | "promo" 
+  | "alert" 
+  | "success" 
+  | "warning" 
+  | "brand" 
+  | "luxury";
 
 const collectionRef = adminDb.collection("buyer_messages");
 
@@ -35,8 +43,8 @@ export default async function handler(
         text: text.trim(),
         linkText: (linkText || "").trim(),
         linkUrl: (linkUrl || "").trim(),
-        imageUrl: (imageUrl || "").trim(), // ✅ NEW
-        videoUrl: (videoUrl || "").trim(), // ✅ NEW
+        imageUrl: (imageUrl || "").trim(),
+        videoUrl: (videoUrl || "").trim(),
         type: (type as MessageType) || "info",
         active: true,
         createdAt: FieldValue.serverTimestamp(),
@@ -70,8 +78,8 @@ export default async function handler(
         text: text.trim(),
         linkText: (linkText || "").trim(),
         linkUrl: (linkUrl || "").trim(),
-        imageUrl: (imageUrl || "").trim(), // ✅ NEW
-        videoUrl: (videoUrl || "").trim(), // ✅ NEW
+        imageUrl: (imageUrl || "").trim(),
+        videoUrl: (videoUrl || "").trim(),
         type: (type as MessageType) || "info",
         updatedAt: FieldValue.serverTimestamp(),
       });
