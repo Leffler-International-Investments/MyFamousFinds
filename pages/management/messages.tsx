@@ -226,6 +226,7 @@ export default function MessageBoardManagement({ initialMessages }: Props) {
             <label>
               Type
               <select
+                className="type-select"
                 value={formType}
                 onChange={(e) =>
                   setFormType(e.target.value as BuyerMessage["type"])
@@ -394,6 +395,46 @@ export default function MessageBoardManagement({ initialMessages }: Props) {
           cursor: pointer;
         }
 
+        /* VIVID TYPE DROPDOWN */
+        .type-select {
+          padding: 8px 10px;
+          border-radius: 999px;
+          border: 1px solid #d1d5db;
+          font-size: 14px;
+          font-weight: 600;
+          background: linear-gradient(135deg, #ffffff, #f3f4f6);
+        }
+        .type-select:focus {
+          outline: none;
+          border-color: #111827;
+          box-shadow: 0 0 0 2px rgba(15, 23, 42, 0.2);
+        }
+        .type-select option[value="info"] {
+          background: #dbeafe; /* bright blue */
+          color: #1e3a8a;
+          font-weight: 700;
+        }
+        .type-select option[value="promo"] {
+          background: #fef3c7; /* gold */
+          color: #78350f;
+          font-weight: 700;
+        }
+        .type-select option[value="alert"] {
+          background: #fecaca; /* vivid red/pink */
+          color: #7f1d1d;
+          font-weight: 700;
+        }
+
+        /* MESSAGE LIST IN A NICE FULL-WIDTH BOX */
+        .message-list {
+          background: #ffffff;
+          border-radius: 20px;
+          border: 1px solid #e5e7eb;
+          padding: 24px 24px 28px;
+          margin-top: 32px;
+          box-shadow: 0 10px 25px rgba(15, 23, 42, 0.08);
+          width: 100%;
+        }
         .message-list h3 {
           font-size: 18px;
           margin-bottom: 16px;
