@@ -10,6 +10,7 @@ import Footer from "../../components/Footer";
 import { useRequireAdmin } from "../../hooks/useRequireAdmin";
 import { adminDb } from "../../utils/firebaseAdmin";
 
+// ✅ UPDATED TYPE DEFINITION
 export type BuyerMessage = {
   id: string;
   text: string;
@@ -18,7 +19,7 @@ export type BuyerMessage = {
   imageUrl?: string;
   videoUrl?: string;
   active: boolean;
-  type: "info" | "promo" | "alert";
+  type: "info" | "promo" | "alert" | "success" | "warning" | "brand" | "luxury";
   createdAt?: number;
 };
 
@@ -37,7 +38,9 @@ export default function MessageBoardManagement({ initialMessages }: Props) {
   const [formLinkUrl, setFormLinkUrl] = useState("");
   const [formImageUrl, setFormImageUrl] = useState("");
   const [formVideoUrl, setFormVideoUrl] = useState("");
-  const [formType, setFormType] = useState<"info" | "promo" | "alert">("info");
+  
+  // ✅ UPDATED DEFAULT STATE
+  const [formType, setFormType] = useState<BuyerMessage["type"]>("info");
 
   const startEdit = (m: BuyerMessage) => {
     setIsEditing(m.id);
@@ -223,6 +226,7 @@ export default function MessageBoardManagement({ initialMessages }: Props) {
               />
             </label>
 
+            {/* ✅ UPDATED DROPDOWN */}
             <label>
               Type
               <select
@@ -231,9 +235,13 @@ export default function MessageBoardManagement({ initialMessages }: Props) {
                   setFormType(e.target.value as BuyerMessage["type"])
                 }
               >
-                <option value="info">Info (Gray/Neutral)</option>
-                <option value="promo">Promo (Green/Gold)</option>
-                <option value="alert">Alert (Red/Important)</option>
+                <option value="info">Info (Gray)</option>
+                <option value="success">Success (Vivid Green)</option>
+                <option value="warning">Warning (Vivid Orange)</option>
+                <option value="alert">Alert (Vivid Red)</option>
+                <option value="promo">Promo (Gold/Yellow)</option>
+                <option value="brand">Brand (Blue)</option>
+                <option value="luxury">Luxury (Black)</option>
               </select>
             </label>
 
@@ -430,17 +438,35 @@ export default function MessageBoardManagement({ initialMessages }: Props) {
           font-weight: 700;
           margin-top: 3px;
         }
+
+        /* ✅ UPDATED VIVID COLOR CLASSES */
         .type-badge.info {
-          background: #e5e7eb;
-          color: #374151;
+          background: #f3f4f6;
+          color: #1f2937;
         }
-        .type-badge.promo {
-          background: #fef08a;
-          color: #854d0e;
+        .type-badge.success {
+          background: #86efac;
+          color: #14532d;
+        }
+        .type-badge.warning {
+          background: #fdba74;
+          color: #7c2d12;
         }
         .type-badge.alert {
-          background: #fecaca;
+          background: #fca5a5;
           color: #991b1b;
+        }
+        .type-badge.promo {
+          background: #fde047;
+          color: #854d0e;
+        }
+        .type-badge.brand {
+          background: #93c5fd;
+          color: #1e3a8a;
+        }
+        .type-badge.luxury {
+          background: #111827;
+          color: #ffffff;
         }
 
         .text {
