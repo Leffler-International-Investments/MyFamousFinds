@@ -6,46 +6,72 @@ const clientEmail = process.env.FB_CLIENT_EMAIL;
 let rawPrivateKey = process.env.FB_PRIVATE_KEY;
 const databaseURL = process.env.FB_DATABASE_URL || undefined;
 
-// 1. Check for missing keys (Safety check)
-if (!projectId || !clientEmail || !rawPrivateKey) {
-  if (process.env.NODE_ENV !== "production") {
-    console.warn(
-      "⚠️ Missing Firebase Admin variables in .env.local (FB_PROJECT_ID, FB_CLIENT_EMAIL, FB_PRIVATE_KEY)"
-    );
-  }
-}
+let app: admin.app.App | undefined;
 
-// 2. Format Private Key (Handle Vercel's newline formatting)
-if (rawPrivateKey) {
-  // Remove wrapping quotes if they exist
-  if (rawPrivateKey.startsWith('"') && rawPrivateKey.endsWith('"')) {
-    rawPrivateKey = rawPrivateKey.slice(1, -1);
-  }
-  // Convert escaped \n to real newlines
-  rawPrivateKey = rawPrivateKey.replace(/\\n/g, "\n");
-}
-
-const serviceAccount: ServiceAccount = {
-  projectId,
-  clientEmail,
-  privateKey: rawPrivateKey,
-};
-
-// 3. Initialize App (Singleton pattern)
 if (!admin.apps.length) {
   try {
-    admin.initializeApp({
-      credential: admin.credential.cert(serviceAccount),
-      ...(databaseURL ? { databaseURL } : {}),
-    });
+    if (projectId && clientEmail && rawPrivateKey) {
+      // fix escaped line breaks from env
+      const privateKey = rawPrivateKey.replace(/\\n/g, "\n");
+
+      const serviceAccount: ServiceAccount = {
+        projectId,
+        clientEmail,
+        privateKey,
+      };
+
+      app = admin.initializeApp({
+        credential: admin.credential.cert(serviceAccount),
+        ...(databaseURL ? { databaseURL } : {}),
+      });
+    } else {
+      console.warn(
+        "⚠️ Firebase Admin NOT initialized – missing FB_PROJECT_ID / FB_CLIENT_EMAIL / FB_PRIVATE_KEY"
+      );
+    }
   } catch (error) {
     console.error("Firebase Admin Initialization Error:", error);
   }
+} else {
+  app = admin.app();
 }
 
-// 4. Export services for use in API routes
-export const adminDb = admin.firestore();
-export const adminAuth = admin.auth();
-export const FieldValue = admin.firestore.FieldValue;
+// ---- exports ----
 
+// if Admin is initialized → real Firestore/Auth
+// if not → light stubs so build/pages don’t crash
+let adminDb: admin.firestore.Firestore;
+let adminAuth: admin.auth.Auth;
+let FieldValue: typeof admin.firestore.FieldValue;
+
+if (app) {
+  adminDb = admin.firestore();
+  adminAuth = admin.auth();
+  FieldValue = admin.firestore.FieldValue;
+} else {
+  const stubDb: any = {
+    collection: () => ({
+      doc: () => ({
+        get: async () => ({ exists: false, data: () => null }),
+        set: async () => {},
+        update: async () => {},
+        delete: async () => {},
+      }),
+      get: async () => ({ docs: [] }),
+    }),
+  };
+
+  const stubAuth: any = {
+    getUser: async () => null,
+    getUserByEmail: async () => null,
+  };
+
+  adminDb = stubDb;
+  adminAuth = stubAuth;
+  FieldValue = {
+    serverTimestamp: () => new Date(),
+  } as any;
+}
+
+export { adminDb, adminAuth, FieldValue };
 export default admin;
