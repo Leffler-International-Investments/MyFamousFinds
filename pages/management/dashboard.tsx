@@ -167,13 +167,20 @@ export default function ManagementDashboard({ stats }: Props) {
 
         <DashboardSection
           title="VIP Club Management"
-          subtitle="Manage 'Front Row' VIP members, points, and reward tiers."
+          subtitle="Manage 'Front Row' VIP members, points, reward tiers, and VIP-only drops."
         >
           <DashboardTile
             title="VIP Member Directory"
             description="View all VIP members, search by email, and see their points and tier status."
             href="/management/vip-members"
             linkText="Manage Members"
+            linkColor="gold"
+          />
+          <DashboardTile
+            title="VIP-Only Drops"
+            description="Upload diamonds, jewellery, and other decks visible only to VIP members."
+            href="/management/vip-drops"
+            linkText="Manage VIP Drops"
             linkColor="gold"
           />
         </DashboardSection>
@@ -271,7 +278,6 @@ export default function ManagementDashboard({ stats }: Props) {
           title="Platform, Support & Analytics"
           subtitle="Support customers, track performance, and manage internal access."
         >
-          {/* ✅ ADDED: Message Board Management Tile */}
           <DashboardTile
             title="Message Board"
             description="Create or update public announcements visible to buyers on the homepage."
