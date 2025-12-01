@@ -5,7 +5,7 @@ import Head from "next/head";
 import Link from "next/link";
 import Header from "../components/Header";
 
-// Simple, elegant SVG icons for the benefits
+// Simple SVG icons for the benefits
 const TicketIcon = () => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
@@ -74,7 +74,7 @@ export default function VipWelcomePage() {
         <title>The Front Row — Famous Finds VIP Club</title>
       </Head>
 
-      {/* Google Fonts Import + VIP layout overrides */}
+      {/* VIP styles */}
       <style jsx global>{`
         @import url("https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600;700&family=Inter:wght@300;400&display=swap");
 
@@ -96,7 +96,7 @@ export default function VipWelcomePage() {
           padding: 48px 16px 80px;
           display: flex;
           flex-direction: column;
-          align-items: center; /* center main block */
+          align-items: center;
         }
 
         .hero-section,
@@ -134,11 +134,25 @@ export default function VipWelcomePage() {
           margin-top: 2rem;
         }
 
-        .benefits-section .benefits-grid {
-          justify-items: center;
-          width: fit-content; /* shrink grid to content */
-          margin: 0 auto; /* center grid */
-          max-width: 100%;
+        /* ✅ Center the three boxes perfectly */
+        .benefits-wrapper {
+          width: 100%;
+          display: flex;
+          justify-content: center;
+        }
+
+        .benefits-grid {
+          display: grid;
+          grid-template-columns: repeat(3, 1fr);
+          gap: 32px;
+          width: max-content;
+          margin: 0 auto;
+        }
+
+        @media (max-width: 900px) {
+          .benefits-grid {
+            grid-template-columns: 1fr;
+          }
         }
 
         .benefit-card {
@@ -170,7 +184,6 @@ export default function VipWelcomePage() {
           margin-bottom: 0.75rem;
         }
 
-        /* Big luxurious pill button for Join the Club */
         .cta-button {
           display: inline-flex;
           align-items: center;
@@ -223,32 +236,34 @@ export default function VipWelcomePage() {
 
           {/* Benefits Section */}
           <section className="benefits-section px-6 pb-20">
-            <div className="benefits-grid grid grid-cols-1 md:grid-cols-3 gap-8">
-              <div className="benefit-card">
-                <TicketIcon />
-                <h2 className="benefit-title">Exclusive Access</h2>
-                <p className="benefit-description">
-                  Get early access to our most sought-after arrivals and private
-                  sales before they&apos;re available to the public.
-                </p>
-              </div>
+            <div className="benefits-wrapper">
+              <div className="benefits-grid">
+                <div className="benefit-card">
+                  <TicketIcon />
+                  <h2 className="benefit-title">Exclusive Access</h2>
+                  <p className="benefit-description">
+                    Get early access to our most sought-after arrivals and
+                    private sales before they&apos;re available to the public.
+                  </p>
+                </div>
 
-              <div className="benefit-card">
-                <GemIcon />
-                <h2 className="benefit-title">Earn Loyalty Rewards</h2>
-                <p className="benefit-description">
-                  Earn loyalty points on every single purchase. Unlock new tiers
-                  and convert your points into exclusive rewards.
-                </p>
-              </div>
+                <div className="benefit-card">
+                  <GemIcon />
+                  <h2 className="benefit-title">Earn Loyalty Rewards</h2>
+                  <p className="benefit-description">
+                    Earn loyalty points on every single purchase. Unlock new
+                    tiers and convert your points into exclusive rewards.
+                  </p>
+                </div>
 
-              <div className="benefit-card">
-                <TagIcon />
-                <h2 className="benefit-title">Member-Only Perks</h2>
-                <p className="benefit-description">
-                  Enjoy complimentary shipping, member-only discounts, saved
-                  carts, and a dedicated quick-checkout experience.
-                </p>
+                <div className="benefit-card">
+                  <TagIcon />
+                  <h2 className="benefit-title">Member-Only Perks</h2>
+                  <p className="benefit-description">
+                    Enjoy complimentary shipping, member-only discounts, saved
+                    carts, and a dedicated quick-checkout experience.
+                  </p>
+                </div>
               </div>
             </div>
           </section>
