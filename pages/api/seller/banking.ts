@@ -1,88 +1,38 @@
-// FILE: /pages/api/seller/banking.ts
+// FILE: /pages/seller/banking.tsx
+// ⬇️ inside the component, replace your current `handleOpenStripeSetup` function:
 
-import type { NextApiRequest, NextApiResponse } from "next";
-import { adminDb } from "../../../utils/firebaseAdmin";
-
-type Ok = { ok: true; prefs?: any };
-type Err = { error: string };
-type Data = Ok | Err;
-
-export default async function handler(
-  req: NextApiRequest,
-  res: NextApiResponse<Data>
-) {
-  const emailParam =
-    (req.method === "GET"
-      ? req.query.email
-      : (req.body && req.body.email)) || "";
-
-  const email =
-    typeof emailParam === "string" ? emailParam.toLowerCase() : "";
-
-  if (!email) {
-    return res.status(400).json({ error: "Missing seller email" });
-  }
-
-  const docRef = adminDb.collection("sellerPayoutPrefs").doc(email);
-
+const handleOpenStripeSetup = async () => {
   try {
-    if (req.method === "GET") {
-      const snap = await docRef.get();
-      if (!snap.exists) {
-        return res.status(200).json({ ok: true, prefs: null });
-      }
-      return res.status(200).json({ ok: true, prefs: snap.data() });
+    // Basic env sanity check – these ENV NAMES must match your .env & Vercel
+    if (!process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY ||
+        !process.env.STRIPE_SECRET_KEY ||
+        !process.env.STRIPE_CONNECT_CLIENT_ID) {
+      alert("Stripe Connect is missing configuration on the server. Please contact Famous Finds support.");
+      return;
     }
 
-    if (req.method === "POST") {
-      const {
-        legalName,
-        sellingAs,
-        addressLine1,
-        addressLine2,
-        city,
-        state,
-        postalCode,
-        country,
-        phone,
-        pausePayouts,
-        payoutSchedule,
-        notes,
-        confirmAccuracy,
-        consentElectronic,
-      } = req.body || {};
+    setLoading(true);
 
-      await docRef.set(
-        {
-          email,
-          legalName: legalName || "",
-          sellingAs:
-            sellingAs === "business" ? "business" : ("individual" as const),
-          addressLine1: addressLine1 || "",
-          addressLine2: addressLine2 || "",
-          city: city || "",
-          state: state || "",
-          postalCode: postalCode || "",
-          country: country || "",
-          phone: phone || "",
-          pausePayouts: Boolean(pausePayouts),
-          payoutSchedule: payoutSchedule || "Weekly",
-          notes: notes || "",
-          confirmAccuracy: Boolean(confirmAccuracy),
-          consentElectronic: Boolean(consentElectronic),
-          updatedAt: new Date(),
-        },
-        { merge: true }
-      );
+    const res = await fetch("/api/seller/onboard", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({}), // seller is taken from auth / session on the backend
+    });
 
-      return res.status(200).json({ ok: true });
+    const data = await res.json();
+
+    if (!res.ok || !data?.url) {
+      console.error("Onboard error", data);
+      alert("Could not start Stripe onboarding. Please try again or contact support.");
+      setLoading(false);
+      return;
     }
 
-    return res.status(405).json({ error: "Method not allowed" });
-  } catch (err: any) {
-    console.error("seller_banking_error", err);
-    return res
-      .status(500)
-      .json({ error: err?.message || "Internal server error" });
+    window.location.href = data.url;
+  } catch (err) {
+    console.error("Onboard error", err);
+    alert("Could not start Stripe onboarding. Please try again later.");
+  } finally {
+    setLoading(false);
   }
-}
+};
