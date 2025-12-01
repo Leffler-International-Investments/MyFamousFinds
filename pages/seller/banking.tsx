@@ -97,29 +97,15 @@ export default function SellerBankingPage() {
     setPrefs((prev) => ({ ...prev, [key]: value }));
   }
 
-  // --- UPDATED FUNCTION START ---
+  // OPEN STRIPE ONBOARDING (FINAL)
   const handleOpenStripeSetup = async () => {
     try {
-      // Note: STRIPE_SECRET_KEY and STRIPE_CONNECT_CLIENT_ID are usually server-side only.
-      // If these checks fail in the browser, ensure they are exposed via NEXT_PUBLIC_ or
-      // rely on the server API to handle the validation.
-      if (
-        !process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
-        // !process.env.STRIPE_SECRET_KEY ||        // Often undefined on client
-        // !process.env.STRIPE_CONNECT_CLIENT_ID    // Often undefined on client
-      ) {
-        // Keeping alert as requested, but commenting out server-only keys to prevent client-side blocking
-        // if your environment variables aren't explicitly exposed to the browser.
-        // alert("Stripe Connect is missing configuration on the server. Please contact Famous Finds support.");
-        // return;
-      }
-
-      setStripeBusy(true); // Mapped from setLoading to stripeBusy
+      setStripeBusy(true);
 
       const res = await fetch("/api/seller/onboard", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({}),
+        body: JSON.stringify({ email }), // <-- send seller email to API
       });
 
       const data = await res.json();
@@ -141,7 +127,6 @@ export default function SellerBankingPage() {
       setStripeBusy(false);
     }
   };
-  // --- UPDATED FUNCTION END ---
 
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -354,7 +339,6 @@ export default function SellerBankingPage() {
             </p>
 
             <div className="form-field">
-              {/* --- UPDATED BUTTON START --- */}
               <button
                 type="button"
                 onClick={handleOpenStripeSetup}
@@ -365,7 +349,6 @@ export default function SellerBankingPage() {
                   ? "Opening Stripe Connect…"
                   : "Open Stripe secure setup"}
               </button>
-              {/* --- UPDATED BUTTON END --- */}
               <p className="form-note">
                 Use this to add or update your payout bank account and tax
                 details.
@@ -402,7 +385,7 @@ export default function SellerBankingPage() {
             </div>
           </section>
 
-          {/* Payout preferences (owner controls pause / schedule) */}
+          {/* Payout preferences */}
           <section className="form-card">
             <h2>Payout preferences</h2>
             <p className="form-subtitle">
