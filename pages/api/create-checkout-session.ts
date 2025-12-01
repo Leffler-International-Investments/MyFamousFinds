@@ -4,26 +4,38 @@ import type { NextApiRequest, NextApiResponse } from "next";
 import Stripe from "stripe";
 import { adminDb } from "../../utils/firebaseAdmin";
 
-type SuccessResponse = { ok: true; sessionId: string; url?: string };
-type ErrorResponse = { ok: false; error: string };
+type SuccessResponse = {
+  ok: true;
+  sessionId: string;
+  url: string;
+};
 
-const stripeSecretKey = process.env.STRIPE_SECRET_KEY as string;
-
-if (!stripeSecretKey) {
-  throw new Error("STRIPE_SECRET_KEY env var is missing");
-}
-
-const stripe = new Stripe(stripeSecretKey, {
-  apiVersion: "2024-06-20",
-});
+type ErrorResponse = {
+  ok: false;
+  error: string;
+};
 
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse<SuccessResponse | ErrorResponse>
 ) {
   if (req.method !== "POST") {
+    res.setHeader("Allow", "POST");
     return res.status(405).json({ ok: false, error: "Method not allowed" });
   }
+
+  const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
+  if (!stripeSecretKey) {
+    console.error("Missing STRIPE_SECRET_KEY env var");
+    return res
+      .status(500)
+      .json({ ok: false, error: "Stripe is not configured on the server." });
+  }
+
+  const stripe = new Stripe(stripeSecretKey, {
+    // ⚠️ Do NOT set apiVersion here – the type in this SDK only allows
+    // "2025-10-29.clover", so we rely on the default to avoid TS build errors.
+  });
 
   try {
     const { listingId, quantity = 1 } = req.body as {
@@ -34,95 +46,109 @@ export default async function handler(
     if (!listingId) {
       return res
         .status(400)
-        .json({ ok: false, error: "Missing listingId in request body" });
+        .json({ ok: false, error: "Missing listingId in request body." });
     }
 
-    // 1) Load listing + seller from Firestore
-    const listingSnap = await adminDb.collection("listings").doc(listingId).get();
+    // ─────────────────────────────────────────────
+    // 1) Fetch listing from Firestore
+    // ─────────────────────────────────────────────
+    const listingSnap = await adminDb
+      .collection("listings")
+      .doc(listingId)
+      .get();
+
     if (!listingSnap.exists) {
-      return res.status(404).json({ ok: false, error: "Listing not found" });
+      return res
+        .status(404)
+        .json({ ok: false, error: "Listing not found for checkout." });
     }
 
-    const listingData = listingSnap.data() as any;
-    const price = listingData.price; // assume in USD cents or dollars – adjust below
-    const title = listingData.title || "Famous Finds item";
-    const sellerId = listingData.sellerId;
-
-    if (!sellerId) {
+    const listing = listingSnap.data() || {};
+    const price = Number(listing.price || 0);
+    if (!price || Number.isNaN(price)) {
       return res
         .status(400)
-        .json({ ok: false, error: "Listing has no sellerId" });
+        .json({ ok: false, error: "Listing has no valid price." });
     }
 
-    const sellerSnap = await adminDb.collection("sellers").doc(sellerId).get();
-    const stripeAccountId = sellerSnap.get("stripeAccountId") as
-      | string
-      | undefined;
+    const title: string =
+      listing.title || listing.name || "Famous Finds item";
+    const currency: string = (listing.currency || "usd").toLowerCase();
+    const sellerStripeAccountId: string | undefined =
+      listing.sellerStripeAccountId || listing.stripeAccountId;
 
-    if (!stripeAccountId) {
-      return res.status(400).json({
-        ok: false,
-        error: "Seller is not onboarded with Stripe yet.",
-      });
-    }
+    const unitAmount = Math.round(price * 100); // convert to cents
 
-    // 2) Calculate amounts
-    const unitAmountInCents =
-      typeof price === "number" ? Math.round(price * 100) : 0;
-
-    if (!unitAmountInCents || unitAmountInCents <= 0) {
-      return res
-        .status(400)
-        .json({ ok: false, error: "Invalid price for listing" });
-    }
-
-    const quantitySafe = quantity > 0 ? quantity : 1;
-    const lineTotal = unitAmountInCents * quantitySafe;
-
-    // Platform fee — e.g. 15%
-    const platformFeePercent = 15;
-    const applicationFeeAmount = Math.round(
-      (lineTotal * platformFeePercent) / 100
-    );
-
+    // ─────────────────────────────────────────────
+    // 2) Build success / cancel URLs
+    // ─────────────────────────────────────────────
     const origin =
-      (req.headers.origin as string | undefined) ??
-      process.env.NEXT_PUBLIC_SITE_URL ??
+      process.env.NEXT_PUBLIC_SITE_URL ||
+      (req.headers.origin as string | undefined) ||
       "https://myfamousfinds.com";
 
-    // 3) Create Checkout Session (destination charge)
-    const session = await stripe.checkout.sessions.create({
+    const successUrl = `${origin}/checkout/success?session_id={CHECKOUT_SESSION_ID}`;
+    const cancelUrl = `${origin}/product/${listingId}?canceled=1`;
+
+    // ─────────────────────────────────────────────
+    // 3) Create Checkout Session
+    // ─────────────────────────────────────────────
+    const sessionParams: Stripe.Checkout.SessionCreateParams = {
       mode: "payment",
       payment_method_types: ["card"],
       line_items: [
         {
+          quantity,
           price_data: {
-            currency: "usd",
+            currency,
+            unit_amount: unitAmount,
             product_data: {
               name: title,
+              metadata: {
+                listingId,
+              },
             },
-            unit_amount: unitAmountInCents,
           },
-          quantity: quantitySafe,
         },
       ],
-      success_url: `${origin}/checkout-success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${origin}/checkout-cancelled`,
-      payment_intent_data: {
-        application_fee_amount: applicationFeeAmount,
-        transfer_data: {
-          destination: stripeAccountId,
-        },
+      success_url: successUrl,
+      cancel_url: cancelUrl,
+      metadata: {
+        listingId,
       },
-    });
+    };
 
-    return res
-      .status(200)
-      .json({ ok: true, sessionId: session.id, url: session.url || undefined });
+    // If we have a connected account for the seller, route funds via Connect
+    if (sellerStripeAccountId) {
+      sessionParams.payment_intent_data = {
+        transfer_data: {
+          destination: sellerStripeAccountId,
+        },
+        // optional: platform fee logic can go here
+        // application_fee_amount: Math.round(unitAmount * 0.15),
+      };
+    }
+
+    const session = await stripe.checkout.sessions.create(sessionParams);
+
+    if (!session.id || !session.url) {
+      console.error("Stripe session missing id or url", session);
+      return res
+        .status(500)
+        .json({ ok: false, error: "Unable to create Stripe session." });
+    }
+
+    return res.status(200).json({
+      ok: true,
+      sessionId: session.id,
+      url: session.url,
+    });
   } catch (err: any) {
-    console.error("Stripe checkout error", err);
-    return res
-      .status(500)
-      .json({ ok: false, error: err?.message || "Internal server error" });
+    console.error("create-checkout-session-error", err);
+    return res.status(500).json({
+      ok: false,
+      error:
+        err?.message || "Unexpected error while creating checkout session.",
+    });
   }
 }
