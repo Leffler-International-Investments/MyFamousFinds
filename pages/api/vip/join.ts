@@ -7,15 +7,13 @@ type VipMember = {
   uid: string;
   email: string | null;
   fullName: string | null;
-  joinedAt: FirebaseFirestore.FieldValue;
+  joinedAt: Date;
   points: number;
   tier: "Member" | "Silver" | "Gold" | "Platinum";
   lifetimeSpend: number;
 };
 
-type ApiResponse =
-  | { ok: true }
-  | { ok: false; error: string };
+type ApiResponse = { ok: true } | { ok: false; error: string };
 
 export default async function handler(
   req: NextApiRequest,
@@ -27,6 +25,7 @@ export default async function handler(
 
   try {
     const { uid, email, fullName } = req.body || {};
+
     if (!uid || !email) {
       return res
         .status(400)
@@ -39,7 +38,8 @@ export default async function handler(
       uid,
       email,
       fullName: fullName || null,
-      joinedAt: adminDb.fieldValues.serverTimestamp(),
+      // use plain Date so we don't depend on FieldValue helpers
+      joinedAt: new Date(),
       points: 0,
       tier: "Member",
       lifetimeSpend: 0,
