@@ -15,6 +15,7 @@ type StripeSettingsResponse =
   | { ok: true; settings: StripeSettings | null }
   | { ok: false; error: string };
 
+// Firestore doc for admin Stripe settings
 const STRIPE_SETTINGS_DOC = adminDb
   .collection("admin")
   .doc("stripe_settings");
@@ -23,80 +24,83 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse<StripeSettingsResponse>
 ) {
-  // GET SETTINGS
+  // ─────────────────────────────────────────────
+  // GET  → read current Stripe settings
+  // ─────────────────────────────────────────────
   if (req.method === "GET") {
     try {
       const snap = await STRIPE_SETTINGS_DOC.get();
 
       if (!snap.exists) {
-        return res.status(200).json({ ok: true, settings: null });
+        // No settings saved yet
+        return res.status(200).json({
+          ok: true,
+          settings: null,
+        });
       }
 
-      const data = snap.data() as StripeSettings;
+      const data = snap.data() || {};
+
+      const settings: StripeSettings = {
+        publishableKey: String(data.publishableKey || ""),
+        secretKey: String(data.secretKey || ""),
+        platformCommission: Number(data.platformCommission || 0),
+        minPayout: Number(data.minPayout || 0),
+        testMode: Boolean(data.testMode),
+      };
 
       return res.status(200).json({
         ok: true,
-        settings: {
-          publishableKey: data.publishableKey || "",
-          secretKey: data.secretKey || "",
-          platformCommission: Number(data.platformCommission) || 0,
-          minPayout: Number(data.minPayout) || 0,
-          testMode: Boolean(data.testMode),
-        },
+        settings,
       });
     } catch (err) {
       console.error("stripe_settings_get_error", err);
-      return res.status(500).json({ ok: false, error: "server_error" });
+      return res
+        .status(500)
+        .json({ ok: false, error: "server_error" });
     }
   }
 
-  // SAVE SETTINGS
+  // ─────────────────────────────────────────────
+  // POST → save Stripe settings
+  // ─────────────────────────────────────────────
   if (req.method === "POST") {
     try {
       const {
-        publishableKey,
-        secretKey,
-        platformCommission,
-        minPayout,
-        testMode,
-      } = req.body as Partial<StripeSettings>;
+        publishableKey = "",
+        secretKey = "",
+        platformCommission = 0,
+        minPayout = 0,
+        testMode = false,
+      } = req.body || {};
 
-      if (!publishableKey || !secretKey) {
-        return res.status(400).json({
-          ok: false,
-          error: "missing_keys",
-        });
-      }
+      const settings: StripeSettings = {
+        publishableKey: String(publishableKey || ""),
+        secretKey: String(secretKey || ""),
+        platformCommission: Number(platformCommission || 0),
+        minPayout: Number(minPayout || 0),
+        testMode: Boolean(testMode),
+      };
 
-      const commissionNumber = Number(platformCommission ?? 0);
-      const minPayoutNumber = Number(minPayout ?? 0);
+      await STRIPE_SETTINGS_DOC.set(settings, { merge: true });
 
-      if (Number.isNaN(commissionNumber) || Number.isNaN(minPayoutNumber)) {
-        return res.status(400).json({
-          ok: false,
-          error: "invalid_number_fields",
-        });
-      }
-
-      await STRIPE_SETTINGS_DOC.set(
-        {
-          publishableKey,
-          secretKey,
-          platformCommission: commissionNumber,
-          minPayout: minPayoutNumber,
-          testMode: Boolean(testMode),
-          updatedAt: new Date().toISOString(),
-        },
-        { merge: true }
-      );
-
-      return res.status(200).json({ ok: true });
+      // ✅ FIX: always return an object that matches StripeSettingsResponse
+      return res.status(200).json({
+        ok: true,
+        settings,
+      });
     } catch (err) {
       console.error("stripe_settings_post_error", err);
-      return res.status(500).json({ ok: false, error: "server_error" });
+      return res
+        .status(500)
+        .json({ ok: false, error: "server_error" });
     }
   }
 
+  // ─────────────────────────────────────────────
   // Unsupported method
-  return res.status(405).json({ ok: false, error: "method_not_allowed" });
+  // ─────────────────────────────────────────────
+  return res
+    .status(405)
+    .json({ ok: false, error: "method_not_allowed" });
 }
