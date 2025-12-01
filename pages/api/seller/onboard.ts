@@ -14,7 +14,7 @@ if (!stripeSecretKey) {
   throw new Error("STRIPE_SECRET_KEY env var is missing");
 }
 
-// IMPORTANT: no apiVersion here → avoids the "2025-10-29.clover" TS error
+// IMPORTANT: no apiVersion here → avoids the "2025-10-29.clover" TS type issue
 const stripe = new Stripe(stripeSecretKey, {});
 
 export default async function handler(
