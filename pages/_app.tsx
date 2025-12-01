@@ -35,3 +35,4 @@ export default function MyFamousFindsApp({ Component, pageProps }: AppProps) {
     </>
   );
 }
+
