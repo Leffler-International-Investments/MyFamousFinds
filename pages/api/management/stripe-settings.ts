@@ -15,7 +15,6 @@ type StripeSettingsResponse =
   | { ok: true; settings: StripeSettings | null }
   | { ok: false; error: string };
 
-// ✅ Adjust this path ONLY if your Firestore doc is different
 const STRIPE_SETTINGS_DOC = adminDb
   .collection("admin")
   .doc("stripe_settings");
@@ -24,15 +23,12 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse<StripeSettingsResponse>
 ) {
-  // ─────────────────────────────────────────────
-  // GET  → read current Stripe settings
-  // ─────────────────────────────────────────────
+  // GET SETTINGS
   if (req.method === "GET") {
     try {
       const snap = await STRIPE_SETTINGS_DOC.get();
 
       if (!snap.exists) {
-        // No settings saved yet
         return res.status(200).json({ ok: true, settings: null });
       }
 
@@ -54,10 +50,7 @@ export default async function handler(
     }
   }
 
-  // ─────────────────────────────────────────────
-  // POST → save/update Stripe settings
-  // body: { publishableKey, secretKey, platformCommission, minPayout, testMode }
-  // ─────────────────────────────────────────────
+  // SAVE SETTINGS
   if (req.method === "POST") {
     try {
       const {
@@ -104,8 +97,6 @@ export default async function handler(
     }
   }
 
-  // ─────────────────────────────────────────────
   // Unsupported method
-  // ─────────────────────────────────────────────
   return res.status(405).json({ ok: false, error: "method_not_allowed" });
 }
