@@ -96,7 +96,7 @@ export default function VipWelcomePage() {
           padding: 48px 16px 80px;
           display: flex;
           flex-direction: column;
-          align-items: center;
+          align-items: center; /* center content block */
         }
 
         .hero-section,
@@ -136,6 +136,9 @@ export default function VipWelcomePage() {
 
         .benefits-section .benefits-grid {
           justify-items: center;
+          width: fit-content;     /* shrink to content */
+          margin: 0 auto;         /* center whole grid */
+          max-width: 100%;
         }
 
         .benefit-card {
@@ -225,50 +228,3 @@ export default function VipWelcomePage() {
                 <TicketIcon />
                 <h2 className="benefit-title">Exclusive Access</h2>
                 <p className="benefit-description">
-                  Get early access to our most sought-after arrivals and private
-                  sales before they're available to the public.
-                </p>
-              </div>
-
-              <div className="benefit-card">
-                <GemIcon />
-                <h2 className="benefit-title">Earn Loyalty Rewards</h2>
-                <p className="benefit-description">
-                  Earn loyalty points on every single purchase. Unlock new tiers
-                  and convert your points into exclusive rewards.
-                </p>
-              </div>
-
-              <div className="benefit-card">
-                <TagIcon />
-                <h2 className="benefit-title">Member-Only Perks</h2>
-                <p className="benefit-description">
-                  Enjoy complimentary shipping, members-only discounts, saved
-                  carts, and a dedicated quick-checkout experience.
-                </p>
-              </div>
-            </div>
-          </section>
-
-          {/* CTA Section */}
-          <section className="cta-section pb-24 px-6 text-center">
-            <h2 className="text-2xl font-semibold text-white">
-              Your Front Row seat is waiting.
-            </h2>
-
-            <Link href="/club-register" className="cta-button">
-              Join the Club
-            </Link>
-
-            <div className="secondary-link">
-              <Link href="/club-login">
-                Already a member?{" "}
-                <span className="font-semibold underline">Sign In</span>
-              </Link>
-            </div>
-          </section>
-        </main>
-      </div>
-    </>
-  );
-}
