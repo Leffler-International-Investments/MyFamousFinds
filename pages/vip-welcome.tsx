@@ -96,7 +96,7 @@ export default function VipWelcomePage() {
           padding: 48px 16px 80px;
           display: flex;
           flex-direction: column;
-          align-items: center; /* center content block */
+          align-items: center; /* center main block */
         }
 
         .hero-section,
@@ -136,8 +136,8 @@ export default function VipWelcomePage() {
 
         .benefits-section .benefits-grid {
           justify-items: center;
-          width: fit-content;     /* shrink to content */
-          margin: 0 auto;         /* center whole grid */
+          width: fit-content; /* shrink grid to content */
+          margin: 0 auto; /* center grid */
           max-width: 100%;
         }
 
@@ -228,3 +228,50 @@ export default function VipWelcomePage() {
                 <TicketIcon />
                 <h2 className="benefit-title">Exclusive Access</h2>
                 <p className="benefit-description">
+                  Get early access to our most sought-after arrivals and private
+                  sales before they&apos;re available to the public.
+                </p>
+              </div>
+
+              <div className="benefit-card">
+                <GemIcon />
+                <h2 className="benefit-title">Earn Loyalty Rewards</h2>
+                <p className="benefit-description">
+                  Earn loyalty points on every single purchase. Unlock new tiers
+                  and convert your points into exclusive rewards.
+                </p>
+              </div>
+
+              <div className="benefit-card">
+                <TagIcon />
+                <h2 className="benefit-title">Member-Only Perks</h2>
+                <p className="benefit-description">
+                  Enjoy complimentary shipping, member-only discounts, saved
+                  carts, and a dedicated quick-checkout experience.
+                </p>
+              </div>
+            </div>
+          </section>
+
+          {/* CTA Section */}
+          <section className="cta-section text-center">
+            <h2 className="text-xl text-gray-200">
+              Your Front Row seat is waiting.
+            </h2>
+
+            <Link href="/vip-signup" className="cta-button">
+              Join the Club
+            </Link>
+
+            <p className="secondary-link">
+              Already a member?{" "}
+              <Link href="/vip-login" className="underline">
+                Sign in
+              </Link>
+            </p>
+          </section>
+        </main>
+      </div>
+    </>
+  );
+}
