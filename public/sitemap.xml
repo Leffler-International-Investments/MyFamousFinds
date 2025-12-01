@@ -1,34 +1,52 @@
+<!-- FILE: /public/sitemap.xml -->
+
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-
   <url>
-    <loc>https://famous-finds.com/</loc>
+    <loc>https://myfamousfinds.com/</loc>
     <changefreq>daily</changefreq>
     <priority>1.0</priority>
   </url>
 
   <url>
-    <loc>https://famous-finds.com/login</loc>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
+    <loc>https://myfamousfinds.com/about</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
   </url>
 
   <url>
-    <loc>https://famous-finds.com/register</loc>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
+    <loc>https://myfamousfinds.com/auth/login</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.4</priority>
   </url>
 
   <url>
-    <loc>https://famous-finds.com/sell</loc>
-    <changefreq>weekly</changefreq>
-    <priority>0.9</priority>
+    <loc>https://myfamousfinds.com/auth/register</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
   </url>
 
   <url>
-    <loc>https://famous-finds.com/shop</loc>
-    <changefreq>daily</changefreq>
-    <priority>0.9</priority>
+    <loc>https://myfamousfinds.com/vip</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
   </url>
 
+  <url>
+    <loc>https://myfamousfinds.com/management</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.5</priority>
+  </url>
+
+  <url>
+    <loc>https://myfamousfinds.com/privacy</loc>
+    <changefreq>yearly</changefreq>
+    <priority>0.3</priority>
+  </url>
+
+  <url>
+    <loc>https://myfamousfinds.com/authenticity</loc>
+    <changefreq>yearly</changefreq>
+    <priority>0.3</priority>
+  </url>
 </urlset>
