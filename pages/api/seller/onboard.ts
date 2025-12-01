@@ -4,14 +4,15 @@ import type { NextApiRequest, NextApiResponse } from "next";
 import Stripe from "stripe";
 import { adminDb } from "../../../utils/firebaseAdmin";
 
-const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
-
+// Load Stripe secret key
+const stripeSecretKey = process.env.STRIPE_SECRET_KEY as string;
 if (!stripeSecretKey) {
-  throw new Error("Missing STRIPE_SECRET_KEY env var");
+  throw new Error("❌ Missing STRIPE_SECRET_KEY");
 }
 
+// Stripe init — FIXED API VERSION
 const stripe = new Stripe(stripeSecretKey, {
-  apiVersion: "2024-06-20",
+  apiVersion: "2025-10-29.clover",
 });
 
 export default async function handler(
@@ -19,60 +20,67 @@ export default async function handler(
   res: NextApiResponse
 ) {
   if (req.method !== "POST") {
-    return res.status(405).json({ error: "method_not_allowed" });
+    return res.status(405).json({ ok: false, error: "Method not allowed" });
   }
 
   try {
-    const { userId, email } = req.body || {};
+    const { uid } = req.body;
 
-    if (!userId || !email) {
-      return res.status(400).json({ error: "missing_userId_or_email" });
+    if (!uid) {
+      return res.status(400).json({ ok: false, error: "Missing uid" });
     }
 
-    // 1) Load seller user doc
-    const userRef = adminDb.collection("users").doc(userId);
+    // Retrieve Firestore user
+    const userRef = adminDb.collection("users").doc(uid);
     const userSnap = await userRef.get();
-    const userData = userSnap.data() || {};
 
-    let stripeAccountId: string | undefined =
-      userData.stripeAccountId ||
-      userData.stripeConnectId ||
-      userData.sellerStripeId;
+    if (!userSnap.exists) {
+      return res.status(404).json({ ok: false, error: "User not found" });
+    }
 
-    // 2) Create EXPRESS account if missing
-    if (!stripeAccountId) {
-      const account = await stripe.accounts.create({
-        type: "express",
-        email,
-        capabilities: {
-          transfers: { requested: true },
-        },
+    const user = userSnap.data();
+
+    // If seller already has a Stripe account — return existing link
+    if (user?.stripeAccountId) {
+      const link = await stripe.accountLinks.create({
+        account: user.stripeAccountId,
+        refresh_url: `${process.env.NEXT_PUBLIC_BASE_URL}/seller/banking`,
+        return_url: `${process.env.NEXT_PUBLIC_BASE_URL}/seller/banking`,
+        type: "account_onboarding",
       });
 
-      stripeAccountId = account.id;
-
-      await userRef.set(
-        { stripeAccountId },
-        { merge: true }
-      );
+      return res.status(200).json({ ok: true, url: link.url });
     }
 
-    // 3) Create onboarding link
-    const origin =
-      (req.headers.origin as string) || process.env.NEXT_PUBLIC_SITE_URL || "https://myfamousfinds.com";
+    // Create new Stripe Express account
+    const account = await stripe.accounts.create({
+      type: "express",
+      country: "AU",
+      email: user.email,
+      capabilities: {
+        transfers: { requested: true },
+        card_payments: { requested: true },
+      },
+    });
 
-    const link = await stripe.accountLinks.create({
-      account: stripeAccountId,
+    // Save Stripe account ID in Firestore
+    await userRef.update({
+      stripeAccountId: account.id,
+    });
+
+    // Create onboarding link
+    const onboardingLink = await stripe.accountLinks.create({
+      account: account.id,
+      refresh_url: `${process.env.NEXT_PUBLIC_BASE_URL}/seller/banking`,
+      return_url: `${process.env.NEXT_PUBLIC_BASE_URL}/seller/banking`,
       type: "account_onboarding",
-      refresh_url: `${origin}/seller/banking`,
-      return_url: `${origin}/seller/banking`,
     });
 
-    return res.status(200).json({ url: link.url });
-  } catch (err: any) {
-    console.error("seller_onboard_error", err);
-    return res.status(500).json({
-      error: err?.message || "stripe_onboarding_failed",
-    });
+    return res.status(200).json({ ok: true, url: onboardingLink.url });
+  } catch (error: any) {
+    console.error("Stripe Seller Onboarding Error:", error);
+    return res
+      .status(500)
+      .json({ ok: false, error: error.message || "Stripe error" });
   }
 }
