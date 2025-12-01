@@ -4,69 +4,145 @@ import type { NextApiRequest, NextApiResponse } from "next";
 import Stripe from "stripe";
 import { adminDb } from "../../utils/firebaseAdmin";
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: "2023-10-16" as any, // keep your version, bypass TS type '"2025-10-29.clover"'
+const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
+
+if (!stripeSecretKey) {
+  throw new Error(
+    "Missing STRIPE_SECRET_KEY env var. Set it in Vercel before using checkout."
+  );
+}
+
+const stripe = new Stripe(stripeSecretKey, {
+  apiVersion: "2024-06-20",
 });
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+type Data =
+  | {
+      ok: true;
+      url: string;
+    }
+  | {
+      ok: false;
+      error: string;
+    };
+
+export default async function handler(
+  req: NextApiRequest,
+  res: NextApiResponse<Data>
+) {
+  if (req.method !== "POST") {
+    return res
+      .status(405)
+      .json({ ok: false, error: "Method not allowed. Use POST." });
+  }
+
   try {
-    if (req.method !== "POST") {
-      return res.status(405).json({ error: "Method Not Allowed" });
+    const { productId, email } = req.body || {};
+
+    if (!productId || typeof productId !== "string") {
+      return res
+        .status(400)
+        .json({ ok: false, error: "Missing or invalid productId" });
     }
 
-    const { productId } = req.body;
-
-    if (!productId) {
-      return res.status(400).json({ error: "Missing productId" });
+    if (!email || typeof email !== "string") {
+      return res
+        .status(400)
+        .json({ ok: false, error: "Missing or invalid email" });
     }
 
-    // Fetch product from Firestore
-    const doc = await adminDb.collection("listings").doc(productId).get();
+    // Load the listing from Firestore
+    const productRef = adminDb.collection("listings").doc(productId);
+    const productSnap = await productRef.get();
 
-    if (!doc.exists) {
-      return res.status(404).json({ error: "Product not found" });
+    if (!productSnap.exists) {
+      return res
+        .status(404)
+        .json({ ok: false, error: "Listing not found in Firestore" });
     }
 
-    const product = doc.data();
+    const product: any = productSnap.data() || {};
+    const price = Number(product.price || 0);
 
-    // Check if seller has a Stripe Connected Account
-    if (!product.sellerStripeId) {
-      return res.status(400).json({ error: "Seller has no Stripe account" });
+    if (!price || price <= 0) {
+      return res
+        .status(400)
+        .json({
+          ok: false,
+          error: "Invalid price configured for this listing.",
+        });
     }
 
-    // Format price correctly (Stripe needs cents)
-    const amount = Math.round(Number(product.price) * 100);
+    const amount = Math.round(price * 100); // cents
 
-    // Create Stripe session
-    const session = await stripe.checkout.sessions.create(
-      {
-        mode: "payment",
-        payment_method_types: ["card"],
-        line_items: [
-          {
-            price_data: {
-              currency: "usd",
-              unit_amount: amount,
-              product_data: {
-                name: product.title,
-                description: product.description || "",
-              },
+    const siteUrl =
+      (process.env.NEXT_PUBLIC_SITE_URL as string) ||
+      (req.headers.origin as string) ||
+      "https://myfamousfinds.com";
+
+    const sessionParams: Stripe.Checkout.SessionCreateParams = {
+      mode: "payment",
+      payment_method_types: ["card"],
+      customer_email: email,
+      line_items: [
+        {
+          quantity: 1,
+          price_data: {
+            currency: "usd",
+            unit_amount: amount,
+            product_data: {
+              name:
+                product.title ||
+                product.name ||
+                "Famous Finds marketplace listing",
+              description: product.description || "",
             },
-            quantity: 1,
           },
-        ],
-        success_url: `${req.headers.origin}/success?session_id={CHECKOUT_SESSION_ID}`,
-        cancel_url: `${req.headers.origin}/product/${productId}`,
+        },
+      ],
+      success_url: `${siteUrl}/orders/success?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${siteUrl}/product/${productId}`,
+      metadata: {
+        productId,
+        sellerId: product.sellerId || "",
       },
-      {
-        stripeAccount: product.sellerStripeId,
-      }
-    );
+    };
 
-    return res.status(200).json({ url: session.url });
+    // ─────────────────────────────────────────────
+    // CONNECT HANDLING (SAFE FALLBACK)
+    // If sellerStripeId exists => send payment to that connected account.
+    // If it does NOT exist => charge on the platform account so checkout still works.
+    // ─────────────────────────────────────────────
+    const sellerStripeId: string | undefined =
+      (product as any).sellerStripeId || undefined;
 
-  } catch (error: any) {
-    console.error("STRIPE CHECKOUT ERROR:", error);
-    return res.status(500).json({ error: error.message });
+    let session: Stripe.Checkout.Session;
+
+    if (sellerStripeId) {
+      // Full Connect flow (money goes straight to seller's connected account)
+      session = await stripe.checkout.sessions.create(sessionParams, {
+        stripeAccount: sellerStripeId,
+      });
+    } else {
+      // Fallback: process on the platform account
+      // (you can manually pay out the seller later)
+      session = await stripe.checkout.sessions.create(sessionParams);
+    }
+
+    if (!session.url) {
+      return res
+        .status(500)
+        .json({ ok: false, error: "Stripe did not return a checkout URL." });
+    }
+
+    return res.status(200).json({ ok: true, url: session.url });
+  } catch (err: any) {
+    console.error("Error creating checkout session:", err);
+    return res.status(500).json({
+      ok: false,
+      error:
+        err?.message ||
+        "Unable to create Stripe checkout session. Please try again.",
+    });
   }
 }
