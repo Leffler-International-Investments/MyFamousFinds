@@ -1,159 +1,135 @@
-/* FILE: styles/parts/luxury.css */
+/* ========================================================= */
+/* VIP BENEFIT DETAIL PAGES (Exclusive Access, Loyalty, etc) */
+/* ========================================================= */
 
-/* Overall page spacing for hero/auth */
-.page-content,
-.auth-main {
-  max-width: 1080px;
-  margin: 0 auto;
-  padding: 0 18px;
-}
-
-/* Elegant luxury headings */
-h1, h2, h3 {
-  font-family: ui-serif, "Times New Roman", serif;
-  letter-spacing: -0.3px;
-}
-
-/* Hero title improvement */
-.hero-main-title {
-  font-size: 28px;
-  line-height: 1.25;
-  font-weight: 700;
-}
-
-/* Soft luxury body text */
-body {
-  font-family: -apple-system, BlinkMacSystemFont, "Inter", sans-serif;
-  font-size: 15px;
-  color: #111;
-}
-
-/* Cards and shells */
-.home-hero,
-.auth-card {
-  background: #ffffff;
-  border-radius: 22px;
-  border: 1px solid #e5e7eb;
-  box-shadow: 0 12px 35px rgba(0,0,0,0.06);
-}
-
-/* Section headings: clean, elegant */
-.section-header h2 {
-  font-size: 20px;
-  font-weight: 700;
-  margin-bottom: 4px;
-  color: #111;
-}
-
-.section-header p {
-  font-size: 14px;
-  color: #6b7280;
-  margin-bottom: 12px;
-}
-
-/* Improve spacing between sections */
-.section {
-  margin-top: 36px;
-}
-
-/* Improve homepage stat bubbles */
-.number-badge {
-  padding: 3px 8px;
-  border-radius: 999px;
-  font-size: 11px;
-}
-
-/* Links subtle hover - EXCLUDING pills */
-a:not(.luxury-pill):hover {
-  opacity: 0.85;
-}
-
-/* ==== Products / Designer listing page ==== */
-
-.luxury-products-main {
+.vip-benefits-page {
   background: #f7f5f1;
   padding: 48px 0 72px;
 }
 
-.luxury-products-inner {
+.vip-benefits-inner {
   max-width: 1120px;
   margin: 0 auto;
   padding: 0 24px;
 }
 
-.luxury-products-title {
-  margin: 0 0 8px;
+/* Top text: "VIP BENEFITS" + big title */
+.vip-benefits-kicker {
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: #6b7280;
+  margin-bottom: 6px;
+  text-align: center;
+}
+
+.vip-benefits-title {
+  margin: 0;
   font-size: 32px;
   line-height: 1.1;
   font-weight: 600;
   letter-spacing: -0.02em;
+  text-align: center;
 }
 
-.luxury-products-subtitle {
-  margin: 0 0 24px;
+.vip-benefits-intro {
+  max-width: 720px;
+  margin: 16px auto 32px auto;
+  font-size: 15px;
+  color: #4b5563;
+  text-align: center;
+}
+
+/* Section headings inside the page */
+.vip-benefits-section-title {
+  margin: 32px 0 12px;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.vip-benefits-section-subtitle {
+  margin: 0 0 16px;
   font-size: 14px;
   color: #6b7280;
 }
 
-.luxury-products-empty {
-  margin: 0 0 24px;
-  font-size: 14px;
-  color: #6b7280;
-}
-
-.luxury-products-section {
-  margin-bottom: 32px;
-}
-
-.luxury-products-category {
-  margin: 0 0 12px;
-  font-size: 20px;
-  font-weight: 500;
-  text-transform: capitalize;
-}
-
-.luxury-products-grid {
+/* GRID OF BENEFIT BOXES (4 columns on desktop, stacked on mobile) */
+.vip-benefits-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
-  gap: 24px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 18px;
+  margin-bottom: 24px;
 }
 
-/* ========================================= */
-/* LUXURY PILL BUTTONS (UPDATED: WIDER)      */
-/* ========================================= */
+@media (max-width: 1024px) {
+  .vip-benefits-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
 
-.luxury-pill {
+@media (max-width: 640px) {
+  .vip-benefits-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Individual benefit box */
+.vip-benefit-card {
+  background: #ffffff;
+  border-radius: 18px;
+  border: 1px solid #e5e7eb;
+  padding: 16px 18px;
+  box-shadow: 0 10px 25px rgba(15, 23, 42, 0.04);
+}
+
+.vip-benefit-card h3 {
+  margin: 0 0 6px;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.vip-benefit-card p {
+  margin: 0;
+  font-size: 14px;
+  color: #4b5563;
+}
+
+/* CTA at bottom of page */
+.vip-benefits-cta {
+  margin-top: 32px;
+  text-align: center;
+  font-size: 14px;
+  color: #374151;
+}
+
+.vip-benefits-cta-button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  white-space: nowrap;
-  
-  /* SIZING - Much larger to prevent "squashed" look */
-  padding: 14px 42px; /* Very wide padding */
-  min-width: 160px;   /* Force a minimum width regardless of text length */
-  font-size: 15px;
-  font-weight: 500;
-  letter-spacing: 0.02em;
-  
-  /* Borders & Shape */
+  margin-top: 12px;
+  padding: 10px 34px;
   border-radius: 9999px;
-  border: 1px solid #e5e7eb;
-  background-color: #ffffff;
-  color: #111827; 
+  background: #111827;
+  color: #ffffff;
   text-decoration: none;
-  text-align: center;
-  
-  /* Polish */
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: 0 2px 5px rgba(0,0,0,0.03);
-  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
-/* Premium Hover State: Solid Black */
-.luxury-pill:hover {
-  border-color: #000000;
-  background-color: #000000;
-  color: #ffffff;
-  box-shadow: 0 8px 20px rgba(0,0,0,0.12);
-  transform: translateY(-2px);
+.vip-benefits-cta-button:hover {
+  opacity: 0.9;
+}
+
+/* Small link-style CTA */
+.vip-benefits-cta-small {
+  margin-top: 16px;
+  font-size: 13px;
+  color: #6b7280;
+}
+
+.vip-benefits-cta-small a {
+  text-decoration: underline;
+  color: #111827;
 }
