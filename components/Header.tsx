@@ -30,8 +30,7 @@ export default function Header() {
       {/* TOP BAR */}
       <div className="ff-header-top">
         <div className="ff-header-left">
-
-          {/* 👉 LOGO WAS HERE — REMOVED, NOTHING ELSE CHANGED */}
+          {/* logo removed */}
 
           <Link
             href={vipUser ? "/club-profile" : "/vip-welcome"}
@@ -227,6 +226,7 @@ export default function Header() {
           font-size: 11px;
           letter-spacing: 0.18em;
           text-transform: uppercase;
+          justify-content: center; /* CENTERED */
         }
 
         .ff-cat-link {
@@ -243,4 +243,3 @@ export default function Header() {
     </header>
   );
 }
-
