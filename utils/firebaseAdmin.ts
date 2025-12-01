@@ -11,7 +11,6 @@ let app: admin.app.App | undefined;
 if (!admin.apps.length) {
   try {
     if (projectId && clientEmail && rawPrivateKey) {
-      // fix escaped line breaks from env
       const privateKey = rawPrivateKey.replace(/\\n/g, "\n");
 
       const serviceAccount: ServiceAccount = {
@@ -26,7 +25,7 @@ if (!admin.apps.length) {
       });
     } else {
       console.warn(
-        "⚠️ Firebase Admin NOT initialized – missing FB_PROJECT_ID / FB_CLIENT_EMAIL / FB_PRIVATE_KEY"
+        "Firebase Admin NOT initialized – missing FB_PROJECT_ID / FB_CLIENT_EMAIL / FB_PRIVATE_KEY"
       );
     }
   } catch (error) {
@@ -36,29 +35,40 @@ if (!admin.apps.length) {
   app = admin.app();
 }
 
-// ---- exports ----
+// ─────────────────────────────────────────────
+// REAL vs STUB EXPORTS
+// ─────────────────────────────────────────────
 
-// if Admin is initialized → real Firestore/Auth
-// if not → light stubs so build/pages don’t crash
 let adminDb: admin.firestore.Firestore;
 let adminAuth: admin.auth.Auth;
 let FieldValue: typeof admin.firestore.FieldValue;
 
 if (app) {
+  // ✅ REAL Firestore/Auth when env vars are present
   adminDb = admin.firestore();
   adminAuth = admin.auth();
   FieldValue = admin.firestore.FieldValue;
 } else {
-  const stubDb: any = {
-    collection: () => ({
+  // ✅ SAFE STUBS so build/pages don't crash when Admin isn't configured
+
+  const makeQuery = () => {
+    const query: any = {
+      where: () => query,
+      orderBy: () => query,
+      limit: () => query,
+      get: async () => ({ docs: [] }),
       doc: () => ({
         get: async () => ({ exists: false, data: () => null }),
         set: async () => {},
         update: async () => {},
         delete: async () => {},
       }),
-      get: async () => ({ docs: [] }),
-    }),
+    };
+    return query;
+  };
+
+  const stubDb: any = {
+    collection: () => makeQuery(),
   };
 
   const stubAuth: any = {
