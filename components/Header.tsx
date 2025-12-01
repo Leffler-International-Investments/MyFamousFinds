@@ -1,7 +1,6 @@
 // FILE: /components/Header.tsx
 
 import Link from "next/link";
-import Image from "next/image";
 import { useEffect, useState } from "react";
 import { onAuthStateChanged, User } from "firebase/auth";
 import { auth } from "../utils/firebaseClient";
@@ -30,8 +29,7 @@ export default function Header() {
       {/* TOP BAR */}
       <div className="ff-header-top">
         <div className="ff-header-left">
-          {/* logo removed */}
-
+          {/* VIP GREEN PILL */}
           <Link
             href={vipUser ? "/club-profile" : "/vip-welcome"}
             className="admin-button vip"
@@ -157,6 +155,7 @@ export default function Header() {
           flex-wrap: wrap;
         }
 
+        /* Layout-only; colors come from global components.css */
         .admin-button {
           padding: 6px 10px;
           border-radius: 999px;
@@ -179,10 +178,9 @@ export default function Header() {
           background: #eef2ff;
         }
 
+        /* VIP pill: rely on global green styles but keep border radius etc */
         .admin-button.vip {
-          border-color: #f97316;
-          color: #9a3412;
-          background: #fffbeb;
+          border-radius: 999px;
         }
 
         .ff-header-middle {
@@ -226,7 +224,7 @@ export default function Header() {
           font-size: 11px;
           letter-spacing: 0.18em;
           text-transform: uppercase;
-          justify-content: center; /* CENTERED */
+          justify-content: center;
         }
 
         .ff-cat-link {
