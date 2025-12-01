@@ -130,10 +130,6 @@ export default function VipWelcomePage() {
           margin: 1.5rem auto 0 auto;
         }
 
-        .benefits-section {
-          margin-top: 2rem;
-        }
-
         /* Center the three boxes */
         .benefits-wrapper {
           width: 100%;
@@ -170,18 +166,11 @@ export default function VipWelcomePage() {
             border-color 0.18s ease;
         }
 
-        .benefit-card:hover {
-          transform: translateY(-4px);
-          box-shadow: 0 18px 45px rgba(0, 0, 0, 0.6);
-          border-color: rgba(250, 204, 21, 0.8);
-        }
-
         .benefit-title {
           font-family: "Cormorant Garamond", serif;
           font-weight: 600;
           font-size: 1.75rem;
           color: #fff;
-          margin-bottom: 0.5rem;
         }
 
         .benefit-description {
@@ -197,48 +186,10 @@ export default function VipWelcomePage() {
           color: #fde68a;
         }
 
-        .benefit-card:hover .benefit-card-link {
-          color: #ffffff;
-        }
-
         .cta-section h2 {
-          margin-bottom: 0.75rem;
-        }
-
-        .cta-button {
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-          margin-top: 2rem;
-          padding: 14px 42px;
-          border-radius: 9999px;
-          font-size: 1.25rem;
-          font-weight: 600;
-          letter-spacing: 0.08em;
-          text-transform: uppercase;
-          background-color: #facc15;
-          color: #111827;
-          border: none;
-          text-decoration: none;
-          box-shadow: 0 12px 30px rgba(0, 0, 0, 0.45);
-          transition: all 0.18s ease;
-        }
-
-        .cta-button:hover {
-          transform: translateY(-2px);
-          box-shadow: 0 18px 45px rgba(0, 0, 0, 0.6);
-          background-color: #fde047;
-        }
-
-        .secondary-link {
-          margin-top: 1.5rem;
-          font-size: 0.875rem;
-          color: #9ca3af;
-          transition: color 0.2s ease;
-        }
-
-        .secondary-link:hover {
-          color: #f9fafb;
+          color: #ffffff; /* FIX – NOW WHITE */
+          font-size: 1.3rem;
+          margin-bottom: 1rem;
         }
       `}</style>
 
@@ -246,7 +197,7 @@ export default function VipWelcomePage() {
         <Header />
 
         <main className="vip-main">
-          {/* Hero Section */}
+          {/* Hero */}
           <section className="hero-section py-20 px-6 text-center">
             <h1 className="hero-title">Welcome to the Front Row.</h1>
             <p className="hero-subtitle">
@@ -255,7 +206,7 @@ export default function VipWelcomePage() {
             </p>
           </section>
 
-          {/* Benefits Section */}
+          {/* Benefits */}
           <section className="benefits-section px-6 pb-20">
             <div className="benefits-wrapper">
               <div className="benefits-grid">
@@ -273,8 +224,7 @@ export default function VipWelcomePage() {
                   <GemIcon />
                   <h2 className="benefit-title">Earn Loyalty Rewards</h2>
                   <p className="benefit-description">
-                    Earn loyalty points on every single purchase. Unlock new
-                    tiers and convert your points into exclusive rewards.
+                    Earn points on every purchase and unlock high-value rewards.
                   </p>
                   <span className="benefit-card-link">Click here →</span>
                 </Link>
@@ -283,8 +233,8 @@ export default function VipWelcomePage() {
                   <TagIcon />
                   <h2 className="benefit-title">Member-Only Perks</h2>
                   <p className="benefit-description">
-                    Enjoy complimentary shipping, member-only discounts, saved
-                    carts, and a dedicated quick-checkout experience.
+                    Complimentary shipping, member-only discounts, saved carts,
+                    and a priority checkout experience.
                   </p>
                   <span className="benefit-card-link">Click here →</span>
                 </Link>
@@ -292,11 +242,9 @@ export default function VipWelcomePage() {
             </div>
           </section>
 
-          {/* CTA Section */}
+          {/* CTA */}
           <section className="cta-section text-center">
-            <h2 className="text-xl text-gray-200">
-              Your Front Row seat is waiting.
-            </h2>
+            <h2>Your Front Row seat is waiting</h2>
 
             <Link href="/vip-signup" className="cta-button">
               Join the Club
