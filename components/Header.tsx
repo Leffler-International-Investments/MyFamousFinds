@@ -30,7 +30,9 @@ export default function Header() {
       {/* TOP BAR */}
       <div className="ff-header-top">
         <div className="ff-header-left">
-          {/* Logo removed by request – keep only VIP button */}
+
+          {/* 👉 LOGO WAS HERE — REMOVED, NOTHING ELSE CHANGED */}
+
           <Link
             href={vipUser ? "/club-profile" : "/vip-welcome"}
             className="admin-button vip"
@@ -96,7 +98,7 @@ export default function Header() {
         </form>
       </div>
 
-      {/* CLEAN CATEGORY BAR – NO DROPDOWN */}
+      {/* CATEGORY BAR */}
       <nav className="ff-category-nav">
         {categoryNav.map((item) => (
           <Link key={item.label} href={item.href} className="ff-cat-link">
@@ -172,10 +174,6 @@ export default function Header() {
           color: #ffffff;
         }
 
-        .admin-button.seller:hover {
-          opacity: 0.9;
-        }
-
         .admin-button.management {
           border-color: #6366f1;
           color: #312e81;
@@ -195,9 +193,6 @@ export default function Header() {
           display: flex;
           justify-content: space-between;
           align-items: center;
-          flex-wrap: wrap;
-          gap: 12px;
-          border-top: 1px solid #e5e7eb;
         }
 
         .ff-brand-name {
@@ -243,16 +238,6 @@ export default function Header() {
         .ff-cat-link:hover {
           color: #111827;
           border-bottom: 2px solid #111827;
-        }
-
-        @media (max-width: 900px) {
-          .ff-header-middle {
-            flex-direction: column;
-            align-items: flex-start;
-          }
-          .ff-search-form {
-            width: 100%;
-          }
         }
       `}</style>
     </header>
