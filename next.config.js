@@ -4,11 +4,11 @@ const path = require("path");
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // ❌ REMOVE invalid turbo option
-  // experimental: { turbo: false },
-
-  // ✅ Keep experimental section empty or delete it entirely
+  // ✅ No invalid experimental.turbo here
   experimental: {},
+
+  // ✅ Tell Next 16: “yes, I know I’m using Turbopack”
+  turbopack: {},
 
   images: {
     remotePatterns: [
@@ -18,6 +18,7 @@ const nextConfig = {
     ],
   },
 
+  // ✅ Keep your alias config
   webpack: (config) => {
     config.resolve.alias["@"] = path.resolve(__dirname);
     return config;
