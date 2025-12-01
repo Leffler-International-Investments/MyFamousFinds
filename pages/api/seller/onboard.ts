@@ -14,7 +14,7 @@ if (!stripeSecretKey) {
   throw new Error("STRIPE_SECRET_KEY env var is missing");
 }
 
-// Do NOT set apiVersion explicitly to avoid the "2025-10-29.clover" TS error
+// IMPORTANT: no apiVersion here → avoids the "2025-10-29.clover" TS error
 const stripe = new Stripe(stripeSecretKey, {});
 
 export default async function handler(
@@ -36,7 +36,7 @@ export default async function handler(
 
     const lowerEmail = email.toLowerCase();
 
-    // 1) Look up seller doc in Firestore
+    // 1) Look up seller doc in Firestore (collection: sellers, id = email)
     const sellerRef = adminDb.collection("sellers").doc(lowerEmail);
     const sellerSnap = await sellerRef.get();
     const sellerData = sellerSnap.data() || {};
@@ -66,7 +66,7 @@ export default async function handler(
       );
     }
 
-    // 3) Create onboarding link
+    // 3) Create onboarding link (Stripe Connect)
     const origin =
       (req.headers.origin as string | undefined) ||
       process.env.NEXT_PUBLIC_SITE_URL ||
