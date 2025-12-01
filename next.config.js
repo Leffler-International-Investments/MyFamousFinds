@@ -1,12 +1,14 @@
 // FILE: /next.config.js
+
 const path = require("path");
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // 🔴 IMPORTANT: force Webpack, disable Turbopack
-  experimental: {
-    turbo: false,
-  },
+  // ❌ REMOVE invalid turbo option
+  // experimental: { turbo: false },
+
+  // ✅ Keep experimental section empty or delete it entirely
+  experimental: {},
 
   images: {
     remotePatterns: [
