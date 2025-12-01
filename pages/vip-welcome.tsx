@@ -134,7 +134,7 @@ export default function VipWelcomePage() {
           margin-top: 2rem;
         }
 
-        /* ✅ Center the three boxes perfectly */
+        /* Center the three boxes */
         .benefits-wrapper {
           width: 100%;
           display: flex;
@@ -165,6 +165,15 @@ export default function VipWelcomePage() {
           flex-direction: column;
           align-items: center;
           text-align: center;
+          text-decoration: none;
+          transition: transform 0.18s ease, box-shadow 0.18s ease,
+            border-color 0.18s ease;
+        }
+
+        .benefit-card:hover {
+          transform: translateY(-4px);
+          box-shadow: 0 18px 45px rgba(0, 0, 0, 0.6);
+          border-color: rgba(250, 204, 21, 0.8);
         }
 
         .benefit-title {
@@ -178,6 +187,18 @@ export default function VipWelcomePage() {
         .benefit-description {
           font-weight: 300;
           color: #d1d5db;
+        }
+
+        .benefit-card-link {
+          margin-top: 1.25rem;
+          font-size: 0.8rem;
+          letter-spacing: 0.18em;
+          text-transform: uppercase;
+          color: #fde68a;
+        }
+
+        .benefit-card:hover .benefit-card-link {
+          color: #ffffff;
         }
 
         .cta-section h2 {
@@ -238,32 +259,35 @@ export default function VipWelcomePage() {
           <section className="benefits-section px-6 pb-20">
             <div className="benefits-wrapper">
               <div className="benefits-grid">
-                <div className="benefit-card">
+                <Link href="/vip-exclusive-access" className="benefit-card">
                   <TicketIcon />
                   <h2 className="benefit-title">Exclusive Access</h2>
                   <p className="benefit-description">
                     Get early access to our most sought-after arrivals and
                     private sales before they&apos;re available to the public.
                   </p>
-                </div>
+                  <span className="benefit-card-link">Click here →</span>
+                </Link>
 
-                <div className="benefit-card">
+                <Link href="/vip-loyalty-rewards" className="benefit-card">
                   <GemIcon />
                   <h2 className="benefit-title">Earn Loyalty Rewards</h2>
                   <p className="benefit-description">
                     Earn loyalty points on every single purchase. Unlock new
                     tiers and convert your points into exclusive rewards.
                   </p>
-                </div>
+                  <span className="benefit-card-link">Click here →</span>
+                </Link>
 
-                <div className="benefit-card">
+                <Link href="/vip-member-perks" className="benefit-card">
                   <TagIcon />
                   <h2 className="benefit-title">Member-Only Perks</h2>
                   <p className="benefit-description">
                     Enjoy complimentary shipping, member-only discounts, saved
                     carts, and a dedicated quick-checkout experience.
                   </p>
-                </div>
+                  <span className="benefit-card-link">Click here →</span>
+                </Link>
               </div>
             </div>
           </section>
