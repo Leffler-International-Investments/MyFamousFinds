@@ -1,0 +1,9 @@
+{
+  "name": "MyFamousFinds",
+  "domain": "https://myfamousfinds.com",
+  "logo": "/myfamousfinds_logo.png",
+  "playStore": "https://play.google.com/store/apps/details?id=app.placeholder.myfamousfinds",
+  "appStore": "https://apps.apple.com/app/id1000000005",
+  "seoSlug": "myfamousfinds",
+  "seoPath": "/seo/myfamousfinds"
+}
