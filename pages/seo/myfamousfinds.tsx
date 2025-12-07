@@ -2,40 +2,37 @@
 
 import Head from "next/head";
 import Link from "next/link";
-
-const SITE_URL = "https://myfamousfinds.com";
+import config from "../../config/myfamousfinds.json";
 
 export default function MyFamousFindsSeoPage() {
-  const title =
-    "MyFamousFinds – Curated Marketplace for Designer Fashion, Bags & Watches";
-  const description =
-    "MyFamousFinds is a curated resale marketplace for authenticated designer fashion, handbags, watches, and accessories, with tools for serious sellers.";
+  const title = `${config.name} – Curated Marketplace for Designer Fashion, Bags & Watches`;
+  const description = `${config.name} is a curated resale marketplace for authenticated designer fashion, handbags, watches, and accessories, with tools for serious sellers.`;
 
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "WebApplication",
-    name: "MyFamousFinds",
+    name: config.name,
     applicationCategory: "ShoppingApplication",
     operatingSystem: "Web",
-    url: SITE_URL,
+    url: config.domain,
     description,
     offers: {
       "@type": "Offer",
       price: "0",
-      priceCurrency: "USD",
+      priceCurrency: "USD"
     },
     featureList: [
       "Curated categories for designers, bags, watches and more",
       "Seller dashboards and bulk upload tools",
       "Management-level review and approval flow",
       "High-quality photography and listing standards",
-      "Buyer wishlists and saved searches",
+      "Buyer wishlists and saved searches"
     ],
     creator: {
       "@type": "Organization",
-      name: "MyFamousFinds",
-      url: SITE_URL,
-    },
+      name: config.name,
+      url: config.domain
+    }
   };
 
   return (
@@ -47,28 +44,19 @@ export default function MyFamousFindsSeoPage() {
           name="keywords"
           content="MyFamousFinds, luxury resale, designer bags marketplace, watches marketplace, authenticated fashion"
         />
-        <link rel="canonical" href={`${SITE_URL}/seo/myfamousfinds`} />
+        <link rel="canonical" href={`${config.domain}${config.seoPath}`} />
 
         <meta property="og:type" content="website" />
-        <meta
-          property="og:title"
-          content="MyFamousFinds – Designer Fashion Marketplace"
-        />
+        <meta property="og:title" content={title} />
         <meta property="og:description" content={description} />
-        <meta property="og:url" content={`${SITE_URL}/seo/myfamousfinds`} />
-        <meta property="og:site_name" content="MyFamousFinds" />
-        <meta property="og:image" content={`${SITE_URL}/myfamousfinds_logo.png`} />
+        <meta property="og:url" content={`${config.domain}${config.seoPath}`} />
+        <meta property="og:site_name" content={config.name} />
+        <meta property="og:image" content={`${config.domain}${config.logo}`} />
 
         <meta name="twitter:card" content="summary_large_image" />
-        <meta
-          name="twitter:title"
-          content="MyFamousFinds – Designer Fashion Marketplace"
-        />
+        <meta name="twitter:title" content={title} />
         <meta name="twitter:description" content={description} />
-        <meta
-          name="twitter:image"
-          content={`${SITE_URL}/myfamousfinds_logo.png`}
-        />
+        <meta name="twitter:image" content={`${config.domain}${config.logo}`} />
 
         <script
           type="application/ld+json"
@@ -77,10 +65,10 @@ export default function MyFamousFindsSeoPage() {
       </Head>
 
       <main className="mx-auto max-w-3xl px-4 py-10 prose prose-slate">
-        <h1>MyFamousFinds – Curated Designer Resale Marketplace</h1>
+        <h1>{config.name} – Curated Designer Resale Marketplace</h1>
 
         <p>
-          <strong>MyFamousFinds</strong> connects buyers with authenticated
+          <strong>{config.name}</strong> connects buyers with authenticated
           designer fashion, handbags, watches, and accessories, and gives
           professional sellers powerful tools to manage their stock.
         </p>
@@ -102,7 +90,7 @@ export default function MyFamousFindsSeoPage() {
         <p>
           Start exploring:{" "}
           <Link href="/">
-            <a>visit the MyFamousFinds homepage</a>
+            <a>visit the {config.name} homepage</a>
           </Link>
         </p>
       </main>
