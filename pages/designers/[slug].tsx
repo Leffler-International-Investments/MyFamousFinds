@@ -6,11 +6,9 @@ import type { GetServerSideProps } from "next";
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
 import { adminDb } from "../../utils/firebaseAdmin";
-import ProductCard, {
-  ProductLike,
-} from "../../components/ProductCard";
+import ProductCard, { ProductLike } from "../../components/ProductCard";
 
-// same helper as before
+/* ---------- helpers ---------- */
 const slugify = (s: string) =>
   s
     .toLowerCase()
@@ -20,17 +18,24 @@ const slugify = (s: string) =>
     .replace(/(^-|-$)/g, "");
 
 type DesignerProps = {
-  designer: { id: string; name: string; slug?: string } | null;
+  designer: { id: string; name: string; slug?: string };
   items: ProductLike[];
 };
 
+/* ---------- page ---------- */
 export default function DesignerPage({ designer, items }: DesignerProps) {
   return (
     <div className="page">
       <Head>
-        <title>
-          {designer ? designer.name : "Designer"} – Famous Finds
-        </title>
+        <title>{designer.name} – Famous Finds</title>
+        <meta
+          name="description"
+          content={`Shop authenticated ${designer.name} items available on Famous Finds.`}
+        />
+        <link
+          rel="canonical"
+          href={`https://www.myfamousfinds.com/designers/${designer.slug}`}
+        />
       </Head>
 
       <Header />
@@ -40,35 +45,29 @@ export default function DesignerPage({ designer, items }: DesignerProps) {
           ← All designers
         </Link>
 
-        {designer ? (
-          <>
-            <header className="header-block">
-              <h1>{designer.name}</h1>
-              <p className="hint">
-                All live, authenticated pieces currently available from this
-                designer.
-              </p>
-              <p className="count">
-                {items.length === 1
-                  ? "1 item available"
-                  : `${items.length} items available`}
-              </p>
-            </header>
+        <header className="header-block">
+          <h1>{designer.name}</h1>
+          <p className="hint">
+            All live, authenticated pieces currently available from this
+            designer.
+          </p>
+          <p className="count">
+            {items.length === 1
+              ? "1 item available"
+              : `${items.length} items available`}
+          </p>
+        </header>
 
-            {items.length === 0 ? (
-              <p className="empty">
-                No live items yet for this designer. Please check back soon.
-              </p>
-            ) : (
-              <section className="grid">
-                {items.map((p) => (
-                  <ProductCard key={p.id} {...p} />
-                ))}
-              </section>
-            )}
-          </>
+        {items.length === 0 ? (
+          <p className="empty">
+            No live items yet for this designer. Please check back soon.
+          </p>
         ) : (
-          <p className="error">Designer not found.</p>
+          <section className="grid">
+            {items.map((p) => (
+              <ProductCard key={p.id} {...p} />
+            ))}
+          </section>
         )}
       </main>
 
@@ -124,62 +123,49 @@ export default function DesignerPage({ designer, items }: DesignerProps) {
           font-size: 14px;
           color: #6b7280;
         }
-        .error {
-          margin-top: 16px;
-          color: #b91c1c;
-          font-size: 14px;
-        }
       `}</style>
     </div>
   );
 }
 
+/* ---------- server ---------- */
 export const getServerSideProps: GetServerSideProps<DesignerProps> = async (
   ctx
 ) => {
   try {
     const raw = String(ctx.params?.slug || "");
     const decoded = decodeURIComponent(raw);
-    const slugFromName = slugify(decoded);
+    const slug = slugify(decoded);
 
-    // 1. Find designer document (same robust logic as original file)
-    let docSnap = await adminDb.collection("designers").doc(raw).get(); // :contentReference[oaicite:1]{index=1}
+    let docSnap = await adminDb.collection("designers").doc(raw).get();
 
     if (!docSnap.exists) {
-      docSnap = await adminDb.collection("designers").doc(slugFromName).get();
+      docSnap = await adminDb.collection("designers").doc(slug).get();
     }
+
     if (!docSnap.exists) {
       const bySlug = await adminDb
         .collection("designers")
-        .where("slug", "==", raw.toLowerCase())
+        .where("slug", "==", slug)
         .limit(1)
         .get();
       if (!bySlug.empty) docSnap = bySlug.docs[0];
     }
+
+    // ✅ REAL 404 (fixes Soft 404 in Google Search Console)
     if (!docSnap.exists) {
-      const byName = await adminDb
-        .collection("designers")
-        .where("name", "==", decoded)
-        .limit(1)
-        .get();
-      if (!byName.empty) docSnap = byName.docs[0];
+      return { notFound: true };
     }
 
-    if (!docSnap.exists) {
-      return { props: { designer: null, items: [] } };
-    }
-
-    const d = docSnap;
-    const data: any = d.data() || {};
+    const data: any = docSnap.data() || {};
     const designer = {
-      id: d.id,
-      name: data.name || decoded || d.id,
-      slug: data.slug || raw,
+      id: docSnap.id,
+      name: data.name || decoded || docSnap.id,
+      slug: data.slug || slug,
     };
 
     const allowedStatuses = ["Live", "Active", "Approved"];
 
-    // 2. Fetch listings for this designer (try "brand" first, then "designer")
     let listingSnap = await adminDb
       .collection("listings")
       .where("brand", "==", designer.name)
@@ -197,7 +183,7 @@ export const getServerSideProps: GetServerSideProps<DesignerProps> = async (
     const items: ProductLike[] = listingSnap.docs.map((doc) => {
       const l: any = doc.data() || {};
       const priceNumber = Number(l.price) || 0;
-      const image: string =
+      const image =
         l.image_url ||
         l.imageUrl ||
         l.image ||
@@ -216,8 +202,8 @@ export const getServerSideProps: GetServerSideProps<DesignerProps> = async (
     });
 
     return { props: { designer, items } };
-  } catch (error) {
-    console.error("Error loading designer page", error);
-    return { props: { designer: null, items: [] } };
+  } catch (e) {
+    console.error("Designer page error:", e);
+    return { notFound: true };
   }
 };
