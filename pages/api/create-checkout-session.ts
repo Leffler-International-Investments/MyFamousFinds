@@ -85,7 +85,7 @@ export default async function handler(
     const origin =
       process.env.NEXT_PUBLIC_SITE_URL ||
       (req.headers.origin as string | undefined) ||
-      "https://myfamousfinds.com";
+      "https://www.myfamousfinds.com";
 
     const successUrl = `${origin}/checkout/success?session_id={CHECKOUT_SESSION_ID}`;
     const cancelUrl = `${origin}/product/${listingId}?canceled=1`;
