@@ -1,5 +1,4 @@
 // FILE: /pages/management/content/homepage.tsx
-
 import Head from "next/head";
 import Link from "next/link";
 import { useState, FormEvent, useEffect, ChangeEvent } from "react";
@@ -20,25 +19,27 @@ const defaultContent: HomepageContent = {
   heroSubtitle: "Shop pre-loved designer treasures verified by experts.",
   heroImage: "",
   collections: "Bags,Watches,Jewelry,Clothing",
-  seoDescription:
-    "MyFamousFinds: your destination for authenticated luxury resale.",
+  seoDescription: "Famous-Finds: your destination for authenticated luxury resale.",
 };
 
 export default function ManagementContentHomepage() {
   const { loading: authLoading } = useRequireAdmin();
   const [content, setContent] = useState<HomepageContent>(defaultContent);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(true); // Page loading state
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  // --- NEW: Load existing data ---
   useEffect(() => {
     if (authLoading) return;
     setLoading(true);
     fetch("/api/management/content/homepage")
       .then((res) => res.json())
       .then((data) => {
-        if (data.content) setContent(data.content);
+        if (data.content) {
+          setContent(data.content);
+        }
       })
       .catch((err) => {
         console.error(err);
@@ -47,13 +48,18 @@ export default function ManagementContentHomepage() {
       .finally(() => setLoading(false));
   }, [authLoading]);
 
+  // --- NEW: Handle changes to controlled inputs ---
   function handleChange(
     e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
   ) {
     const { name, value } = e.target;
-    setContent((prev) => ({ ...prev, [name]: value }));
+    setContent((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
   }
 
+  // --- UPDATED: Send state object instead of FormData ---
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setSaving(true);
@@ -65,7 +71,7 @@ export default function ManagementContentHomepage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify(content),
+        body: JSON.stringify(content), // Send the state object
       });
 
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -144,7 +150,7 @@ export default function ManagementContentHomepage() {
               type="url"
               value={content.heroImage}
               onChange={handleChange}
-              placeholder="https://www.myfamousfinds.com/banner.jpg"
+              placeholder="https://cdn.famous-finds.com/banner.jpg"
               className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-gray-900 focus:outline-none"
             />
           </div>
