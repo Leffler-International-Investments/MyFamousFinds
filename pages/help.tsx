@@ -8,7 +8,7 @@ export default function HelpPage() {
   return (
     <div className="page">
       <Head>
-        <title>Help Center – Famous Finds</title>
+        <title>Help Center – MyFamousFinds</title>
       </Head>
       <Header />
 
@@ -20,25 +20,23 @@ export default function HelpPage() {
         <h1>Help Center</h1>
         <p className="intro">
           Answers to the most common questions about buying, selling, shipping
-          and returns on Famous Finds.
+          and returns on MyFamousFinds.
         </p>
 
         <div className="card-grid">
           <section className="card">
-            <h2>Buying on Famous Finds</h2>
+            <h2>Buying on MyFamousFinds</h2>
             <p>
               All items are reviewed before they go live. Orders are paid
               securely and your item is delivered to your chosen address.
             </p>
-            <p className="more">
-              Need more detail? See our Buying guide.
-            </p>
+            <p className="more">Need more detail? See our Buying guide.</p>
           </section>
 
           <section className="card">
             <h2>Shipping &amp; delivery</h2>
             <p>
-              Shipping is organised by either the seller or Famous Finds,
+              Shipping is organised by either the seller or MyFamousFinds,
               depending on the listing. Tracking details are provided where
               available.
             </p>
@@ -55,7 +53,7 @@ export default function HelpPage() {
           </section>
 
           <section className="card">
-            <h2>Selling on Famous Finds</h2>
+            <h2>Selling on MyFamousFinds</h2>
             <p>
               Sellers submit items for review. We check photos, descriptions and
               condition before items appear in the storefront. Payouts are sent
@@ -74,8 +72,8 @@ export default function HelpPage() {
               <li>Send us a message on the Contact page</li>
               <li>
                 Or email{" "}
-                <a href="mailto:support@famous-finds.com">
-                  support@famous-finds.com
+                <a href="mailto:support@myfamousfinds.com">
+                  support@myfamousfinds.com
                 </a>
               </li>
             </ul>
@@ -123,7 +121,7 @@ export default function HelpPage() {
           gap: 16px;
         }
         .card {
-          background: #ffffff; /* WHITE */
+          background: #ffffff;
           color: #111827;
           border-radius: 18px;
           border: 1px solid #e5e7eb;
