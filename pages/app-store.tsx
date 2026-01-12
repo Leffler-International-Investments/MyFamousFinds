@@ -3,7 +3,7 @@
 import Head from "next/head";
 import Link from "next/link";
 
-const SITE_URL = "https://myfamousfinds.com";
+const SITE_URL = "https://www.myfamousfinds.com";
 
 // TODO: if you later ship native apps, replace with real URLs
 const PLAY_STORE_URL =
