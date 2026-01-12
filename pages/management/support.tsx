@@ -9,7 +9,7 @@ export default function ManagementSupport() {
   return (
     <div className="dashboard-page">
       <Head>
-        <title>Support – Management Console | Famous Finds</title>
+        <title>Support – Management Console | MyFamousFinds</title>
       </Head>
 
       <Header />
@@ -19,7 +19,7 @@ export default function ManagementSupport() {
           <div>
             <h1>Support</h1>
             <p>
-              Internal support hub for the Famous Finds management team. Use
+              Internal support hub for the MyFamousFinds management team. Use
               this page to find the right place to raise issues, request help,
               or report urgent problems.
             </p>
@@ -40,7 +40,7 @@ export default function ManagementSupport() {
           </ul>
           <p className="support-note">
             Email:{" "}
-            <a href="mailto:ops@famous-finds.com">ops@famous-finds.com</a>
+            <a href="mailto:admin@myfamousfinds.com">admin@myfamousfinds.com</a>
           </p>
         </section>
 
@@ -58,7 +58,7 @@ export default function ManagementSupport() {
           </ul>
           <p className="support-note">
             Email:{" "}
-            <a href="mailto:tech@famous-finds.com">tech@famous-finds.com</a>
+            <a href="mailto:admin@myfamousfinds.com">admin@myfamousfinds.com</a>
           </p>
         </section>
 
@@ -66,12 +66,12 @@ export default function ManagementSupport() {
           <h2>Seller / buyer support</h2>
           <p>
             For questions from sellers or buyers that you can&apos;t resolve
-            directly, forward the conversation to the customer support queue.
+            directly, forward the conversation to customer support.
           </p>
           <p className="support-note">
             Email:{" "}
-            <a href="mailto:support@famous-finds.com">
-              support@famous-finds.com
+            <a href="mailto:support@myfamousfinds.com">
+              support@myfamousfinds.com
             </a>
           </p>
           <p className="support-note">
@@ -90,13 +90,11 @@ export default function ManagementSupport() {
           <ul>
             <li>Freeze the affected account(s) where possible</li>
             <li>Capture screenshots and any relevant IDs (order, user, listing)</li>
-            <li>Notify the security / tech contact</li>
+            <li>Notify the admin contact</li>
           </ul>
           <p className="support-note">
             Email:{" "}
-            <a href="mailto:security@famous-finds.com">
-              security@famous-finds.com
-            </a>
+            <a href="mailto:admin@myfamousfinds.com">admin@myfamousfinds.com</a>
           </p>
         </section>
       </main>
