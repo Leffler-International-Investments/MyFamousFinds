@@ -1,4 +1,6 @@
+# FILE: /public/robots.txt
+
 User-agent: *
 Allow: /
 
-Sitemap: https://myfamousfinds.com/sitemap.xml
+Sitemap: https://www.myfamousfinds.com/sitemap.xml
