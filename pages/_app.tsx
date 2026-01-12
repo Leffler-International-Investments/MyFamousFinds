@@ -8,7 +8,7 @@ import "../styles/globals.css";
 import Layout from "../components/Layout";
 
 const SITE_URL =
-  process.env.NEXT_PUBLIC_SITE_URL || "https://myfamousfinds.com";
+  process.env.NEXT_PUBLIC_SITE_URL || "https://www.myfamousfinds.com";
 
 export default function MyFamousFindsApp({ Component, pageProps }: AppProps) {
   const router = useRouter();

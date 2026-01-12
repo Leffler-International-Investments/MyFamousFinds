@@ -3,7 +3,9 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 
 export default function handler(req: NextApiRequest, res: NextApiResponse) {
-  const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://www.myfamousfinds.com";
+  // Canonical domain (Vercel env var should be: https://www.myfamousfinds.com)
+  const SITE_URL =
+    process.env.NEXT_PUBLIC_SITE_URL || "https://www.myfamousfinds.com";
 
   const jsonLd = {
     "@context": "https://schema.org",
