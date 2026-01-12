@@ -1,12 +1,13 @@
-// FILE: pages/api/checkout.ts
+// FILE: /pages/api/checkout.ts
+
 import type { NextApiRequest, NextApiResponse } from "next";
 import { stripe } from "../../lib/stripe";
 
 type RequestBody = {
-  id: string;       // listing id
-  title: string;    // product title
-  price: number;    // in major units (e.g. 1111 for 1111 USD)
-  image?: string;   // optional image URL
+  id: string; // listing id
+  title: string; // product title
+  price: number; // in major units (e.g. 1111 for 1111 USD)
+  image?: string; // optional image URL
 };
 
 type SuccessResponse = { ok: true; sessionId: string };
@@ -28,9 +29,9 @@ export default async function handler(
     }
 
     const baseUrl =
-      req.headers.origin ||
+      (req.headers.origin as string | undefined) ||
       process.env.NEXT_PUBLIC_SITE_URL ||
-      "http://localhost:3000";
+      "https://www.myfamousfinds.com";
 
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
