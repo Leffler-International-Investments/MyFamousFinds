@@ -70,7 +70,7 @@ export default async function handler(
     const origin =
       (req.headers.origin as string | undefined) ||
       process.env.NEXT_PUBLIC_SITE_URL ||
-      "https://myfamousfinds.com";
+      "https://www.myfamousfinds.com";
 
     const link = await stripe.accountLinks.create({
       account: stripeAccountId,
