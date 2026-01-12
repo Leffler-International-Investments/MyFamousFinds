@@ -3,6 +3,8 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 
 export default function handler(req: NextApiRequest, res: NextApiResponse) {
+  const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://www.myfamousfinds.com";
+
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": ["SoftwareApplication", "WebApplication"],
@@ -10,11 +12,11 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
     alternateName: "My Famous Finds",
     applicationCategory: "ShoppingApplication",
     operatingSystem: "Web",
-    url: "https://myfamousfinds.com/",
+    url: `${SITE_URL}/`,
     description:
       "MyFamousFinds is a curated marketplace for authenticated designer fashion, bags, watches, and accessories, with seller and management dashboards.",
-    downloadUrl: "https://myfamousfinds.com/app-store",
-    installUrl: "https://myfamousfinds.com/app-store",
+    downloadUrl: `${SITE_URL}/app-store`,
+    installUrl: `${SITE_URL}/app-store`,
     offers: {
       "@type": "Offer",
       price: "0",
@@ -36,15 +38,13 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
     creator: {
       "@type": "Organization",
       name: "MyFamousFinds",
-      url: "https://myfamousfinds.com/",
+      url: `${SITE_URL}/`,
     },
     brand: {
       "@type": "Brand",
       name: "MyFamousFinds",
     },
-    sameAs: [
-      "https://myfamousfinds.com/",
-    ],
+    sameAs: [`${SITE_URL}/`],
   };
 
   res.setHeader("Content-Type", "application/ld+json; charset=utf-8");
