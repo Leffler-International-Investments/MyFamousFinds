@@ -8,7 +8,7 @@ export default function ContactPage() {
   return (
     <div className="page">
       <Head>
-        <title>Contact – Famous Finds</title>
+        <title>Contact – MyFamousFinds</title>
       </Head>
       <Header />
       <main className="wrap">
@@ -23,13 +23,13 @@ export default function ContactPage() {
             <h2>Email</h2>
             <p>
               General support:{" "}
-              <a href="mailto:support@famous-finds.com">
-                support@famous-finds.com
+              <a href="mailto:support@myfamousfinds.com">
+                support@myfamousfinds.com
               </a>
             </p>
             <p>
-              Brand &amp; IP:{" "}
-              <a href="mailto:ip@famousfinds.com">ip@famousfinds.com</a>
+              Admin:{" "}
+              <a href="mailto:admin@myfamousfinds.com">admin@myfamousfinds.com</a>
             </p>
           </section>
 
