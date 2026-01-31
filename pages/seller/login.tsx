@@ -117,10 +117,9 @@ export default function SellerLoginPage() {
 
       setChallengeId(twofaJson.challengeId);
       setStep("verify");
-      let message = "We've sent a 6-digit code to your email address.";
-      if ((twofaJson as Start2faSuccess).devCode) {
-        message += ` (Dev code: ${(twofaJson as Start2faSuccess).devCode})`;
-      }
+      const message = (twofaJson as Start2faSuccess).devCode
+        ? `Your 6-digit code is: ${(twofaJson as Start2faSuccess).devCode}`
+        : "Your 6-digit code has been sent to your email.";
       setInfo(message);
     } catch (err) {
       console.error("seller_login_error", err);
