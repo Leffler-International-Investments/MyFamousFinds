@@ -3,19 +3,46 @@ import { initializeApp, getApps, getApp } from "firebase/app";
 import { getFirestore } from "firebase/firestore";
 import { getAuth } from "firebase/auth";
 
+/**
+ * Firebase CLIENT (browser) configuration.
+ *
+ * - Uses ONLY environment variables
+ * - NO hardcoded keys
+ * - NO fallback
+ * - Safe after transfer (Dan → Ariel)
+ *
+ * REQUIRED env vars (Vercel):
+ * NEXT_PUBLIC_FIREBASE_API_KEY
+ * NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN
+ * NEXT_PUBLIC_FIREBASE_PROJECT_ID
+ * NEXT_PUBLIC_FIREBASE_APP_ID
+ */
+
 const firebaseConfig = {
-  apiKey: "AIzaSyDddxs7XqxDhkfzvFxZigUQlZJu0fZ7VJQ",
-  authDomain: "famous-finds.firebaseapp.com",
-  projectId: "famous-finds",
-  storageBucket: "famous-finds.firebasestorage.app",
-  messagingSenderId: "825808501537",
-  appId: "1:825808501537:web:a0516661171712bd2c9c60",
-  measurementId: "G-NHM648X2ZR",
+  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY!,
+  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN!,
+  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID!,
+  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID!,
+  measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID,
 };
 
-const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
+if (
+  !firebaseConfig.apiKey ||
+  !firebaseConfig.authDomain ||
+  !firebaseConfig.projectId ||
+  !firebaseConfig.appId
+) {
+  throw new Error(
+    "Firebase client env vars missing. Set NEXT_PUBLIC_FIREBASE_* in Vercel."
+  );
+}
+
+const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
 
 export const db = getFirestore(app);
 export const auth = getAuth(app);
 export default app;
+;
 
