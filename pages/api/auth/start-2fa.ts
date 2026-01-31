@@ -14,12 +14,15 @@ type Start2faBody = {
 };
 
 type Start2faResponse =
-  | { ok: true; challengeId: string; via: "email"; devCode?: string }
+  | {
+      ok: true;
+      challengeId: string;
+      message: string;
+      devCode?: string;
+    }
   | { ok: false; error: string; message?: string };
 
 function canSendEmail() {
-  // If you configure SMTP, sendLoginCode will work. Otherwise we fall back to devCode.
-  // Add EMAIL_DISABLED=1 to force devCode mode.
   if (process.env.EMAIL_DISABLED === "1") return false;
   return true;
 }
@@ -46,10 +49,9 @@ export default async function handler(
   const normalizedRole: "seller" | "management" =
     role === "seller" ? "seller" : "management";
 
-  // 6-digit code
   const code = Math.floor(100000 + Math.random() * 900000).toString();
 
-  // 1) Store challenge (Firestore if configured, otherwise in-memory)
+  // 1) Store challenge
   let challengeId: string | null = null;
 
   if (isFirebaseAdminReady && adminDb) {
@@ -63,10 +65,7 @@ export default async function handler(
       });
       challengeId = docRef.id;
     } catch (err) {
-      console.error(
-        "[start-2fa] Firestore write failed; using in-memory fallback",
-        err
-      );
+      console.error("[start-2fa] Firestore failed, using memory", err);
     }
   }
 
@@ -79,25 +78,32 @@ export default async function handler(
     challengeId = ch.id;
   }
 
-  // 2) Send code via email when possible; otherwise return devCode
-  let devCode: string | undefined = undefined;
+  // 2) Email or dev mode
+  let devCode: string | undefined;
 
   if (canSendEmail()) {
     try {
       await sendLoginCode(normalizedEmail, code);
-    } catch (emailErr) {
-      console.error("[start-2fa] sendLoginCode failed; returning devCode", emailErr);
+    } catch {
       devCode = code;
     }
   } else {
     devCode = code;
   }
 
-  // 3) Respond
+  // 3) FINAL RESPONSE WITH CORRECT WORDING
+  if (devCode) {
+    return res.status(200).json({
+      ok: true,
+      challengeId,
+      devCode,
+      message: `Your 6-digit code is: ${devCode}`,
+    });
+  }
+
   return res.status(200).json({
     ok: true,
     challengeId,
-    via: "email",
-    ...(devCode ? { devCode } : {}),
+    message: "We've sent a 6-digit code to your email address.",
   });
 }
