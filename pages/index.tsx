@@ -20,8 +20,8 @@ type BuyerMessage = {
   text: string;
   linkText?: string;
   linkUrl?: string;
-  imageUrl?: string; // ✅ new
-  videoUrl?: string; // ✅ new
+  imageUrl?: string; 
+  videoUrl?: string; 
   type: "info" | "promo" | "alert";
   active?: boolean;
   createdAt?: number;
@@ -34,14 +34,12 @@ type HomeProps = {
   activeMessages: BuyerMessage[];
 };
 
-// Helper to normalise price
 const formatPrice = (raw: any): string => {
   const num = typeof raw === "number" ? raw : Number(raw || 0);
   if (!num) return "";
   return `US$${num.toLocaleString()}`;
 };
 
-// Helper to pick first usable image
 const pickImage = (data: any): string => {
   if (data.image_url) return data.image_url;
   if (data.imageUrl) return data.imageUrl;
@@ -52,16 +50,13 @@ const pickImage = (data: any): string => {
   return "";
 };
 
-// ✅ Helper: convert YouTube URL to embed URL (currently unused but kept)
 const getYouTubeEmbedUrl = (url: string): string => {
   try {
     if (!url) return "";
-    // watch?v=ID
     const watchMatch = url.match(/v=([^&]+)/);
     if (watchMatch?.[1]) {
       return `https://www.youtube.com/embed/${watchMatch[1]}`;
     }
-    // youtu.be/ID
     const shortMatch = url.match(/youtu\.be\/([^?]+)/);
     if (shortMatch?.[1]) {
       return `https://www.youtube.com/embed/${shortMatch[1]}`;
@@ -105,34 +100,6 @@ const Home: NextPage<HomeProps> = ({
               ready-to-wear from trusted sellers. Every piece is vetted so you
               can shop with confidence.
             </p>
-
-            {/* STAT CARDS */}
-            <div className="hero-stats">
-              <div className="stat-card">
-                <p className="stat-label">Live listings</p>
-                <p className="stat-value">
-                  {newArrivals.length > 20 ? "20+" : newArrivals.length}
-                </p>
-                <p className="stat-note">Updated in real time</p>
-              </div>
-              <div className="stat-card">
-                <p className="stat-label">New this week</p>
-                <p className="stat-value">
-                  {newArrivals.length > 10 ? "10+" : newArrivals.length}
-                </p>
-                <p className="stat-note">Fresh drops &amp; finds</p>
-              </div>
-              <div className="stat-card">
-                <p className="stat-label">Designers</p>
-                <p className="stat-value">{featuredDesigners.length}+</p>
-                <p className="stat-note">From Chanel to Rolex</p>
-              </div>
-              <div className="stat-card">
-                <p className="stat-label">Authentication</p>
-                <p className="stat-value">100%</p>
-                <p className="stat-note">Every piece reviewed</p>
-              </div>
-            </div>
 
             <div className="hero-actions">
               <Link href="/category/new-arrivals" className="btn-primary">
@@ -200,7 +167,7 @@ const Home: NextPage<HomeProps> = ({
           </div>
         </section>
 
-        {/* ✅ DYNAMIC MESSAGE BILLBOARD – ONE BOX WITH ALL MESSAGES */}
+        {/* DYNAMIC MESSAGE BILLBOARD */}
         {activeMessages && activeMessages.length > 0 && (
           <section className="buyer-message-board-container">
             <div className="buyer-message-board billboard">
@@ -312,39 +279,7 @@ const Home: NextPage<HomeProps> = ({
         .hero-sub {
           color: #4b5563;
           max-width: 520px;
-          margin-bottom: 20px;
-        }
-        .hero-stats {
-          display: grid;
-          grid-template-columns: repeat(4, minmax(0, 1fr));
-          gap: 12px;
-          margin-bottom: 20px;
-        }
-        @media (max-width: 900px) {
-          .hero-stats {
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-          }
-        }
-        .stat-card {
-          background: #ffffff;
-          border-radius: 16px;
-          padding: 12px 14px;
-          border: 1px solid #e5e7eb;
-        }
-        .stat-label {
-          font-size: 11px;
-          text-transform: uppercase;
-          letter-spacing: 0.08em;
-          color: #6b7280;
-        }
-        .stat-value {
-          font-size: 18px;
-          font-weight: 600;
-          margin: 4px 0;
-        }
-        .stat-note {
-          font-size: 12px;
-          color: #9ca3af;
+          margin-bottom: 24px;
         }
         .hero-actions {
           display: flex;
@@ -435,15 +370,6 @@ const Home: NextPage<HomeProps> = ({
           overflow-x: auto;
           padding-bottom: 8px;
         }
-        .home-featured-designers .flex::-webkit-scrollbar {
-          display: none;
-        }
-        .home-featured-designers .flex {
-          -ms-overflow-style: none;
-          scrollbar-width: none;
-        }
-
-        /* --- MESSAGE BILLBOARD STYLES --- */
 
         .buyer-message-board-container {
           margin-top: 36px;
@@ -453,7 +379,7 @@ const Home: NextPage<HomeProps> = ({
 
         .buyer-message-board.billboard {
           width: 100%;
-          max-width: 960px; /* ✅ not full page width */
+          max-width: 960px;
           background: #ffffff;
           border-radius: 24px;
           border: 1px solid #e5e7eb;
@@ -512,7 +438,6 @@ const Home: NextPage<HomeProps> = ({
           font-family: "Georgia", serif;
         }
 
-        /* ====== MEDIA INSIDE BILLBOARD ======= */
         .message-media {
           margin-top: 8px;
         }
@@ -552,12 +477,7 @@ const Home: NextPage<HomeProps> = ({
 
 export default Home;
 
-// --------------------------------------------------
-// Server-side data
-// --------------------------------------------------
-
 export const getServerSideProps: GetServerSideProps<HomeProps> = async () => {
-  // 1. Fetch Listings
   const snapshot = await adminDb
     .collection("listings")
     .where("status", "==", "Live")
@@ -579,7 +499,6 @@ export const getServerSideProps: GetServerSideProps<HomeProps> = async () => {
     };
   });
 
-  // 2. New Arrivals (Sort by newest)
   const newArrivals = items
     .slice()
     .sort((a: any, b: any) => {
@@ -595,7 +514,6 @@ export const getServerSideProps: GetServerSideProps<HomeProps> = async () => {
     })
     .slice(0, 8);
 
-  // 3. Trending (Sort by viewCount)
   let trending = items
     .slice()
     .sort((a: any, b: any) => (b.viewCount || 0) - (a.viewCount || 0))
@@ -605,7 +523,6 @@ export const getServerSideProps: GetServerSideProps<HomeProps> = async () => {
     trending = newArrivals;
   }
 
-  // 4. Featured Designers
   const uniqueBrands = Array.from(
     new Set(items.map((i) => i.brand).filter(Boolean))
   );
@@ -620,12 +537,10 @@ export const getServerSideProps: GetServerSideProps<HomeProps> = async () => {
     );
   }
 
-  // 5. FETCH ACTIVE MESSAGES (now includes image + video)
   let activeMessages: BuyerMessage[] = [];
 
   try {
     const messagesRef = adminDb.collection("buyer_messages");
-
     let snap = await messagesRef.where("active", "==", true).get();
     if (snap.empty) {
       snap = await messagesRef.get();
