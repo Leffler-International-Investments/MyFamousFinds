@@ -1,6 +1,11 @@
 // FILE: /pages/api/auth/verify-2fa.ts
 import type { NextApiRequest, NextApiResponse } from "next";
-import { adminDb, FieldValue } from "../../../utils/firebaseAdmin";
+import {
+  adminDb,
+  FieldValue,
+  isFirebaseAdminReady,
+} from "../../../utils/firebaseAdmin";
+import { verifyChallenge } from "../../../utils/twofaStore";
 
 type Verify2faBody = {
   challengeId?: string;
@@ -24,16 +29,8 @@ export default async function handler(
   const { challengeId, code } = (req.body || {}) as Verify2faBody;
   const backdoorCode = process.env.ADMIN_BACKDOOR_CODE || "";
 
-  // ✅ 1. Immediate backdoor: if code matches env, always succeed
+  // ✅ Immediate backdoor: if code matches env, always succeed
   if (code && backdoorCode && code === backdoorCode) {
-    return res.status(200).json({ ok: true });
-  }
-
-  // If no Firestore admin, just allow (temporary fallback)
-  if (!adminDb) {
-    console.warn(
-      "[verify-2fa] adminDb missing, bypassing verification (fallback)"
-    );
     return res.status(200).json({ ok: true });
   }
 
@@ -45,45 +42,59 @@ export default async function handler(
     });
   }
 
-  try {
-    const docRef = adminDb.collection("loginChallenges").doc(challengeId);
-    const snap = await docRef.get();
+  // 1) Try Firestore when configured
+  if (isFirebaseAdminReady && adminDb) {
+    try {
+      const docRef = adminDb.collection("loginChallenges").doc(challengeId);
+      const snap = await docRef.get();
 
-    if (!snap.exists) {
-      return res.status(400).json({
-        ok: false,
-        error: "not_found",
-        message: "Challenge not found",
-      });
+      if (snap.exists) {
+        const data = snap.data() as { code: string; used?: boolean };
+
+        if (data.used) {
+          return res.status(400).json({
+            ok: false,
+            error: "already_used",
+            message: "Code already used",
+          });
+        }
+
+        if (data.code !== code) {
+          return res.status(400).json({
+            ok: false,
+            error: "invalid_code",
+            message: "Invalid code",
+          });
+        }
+
+        await docRef.update({
+          used: true,
+          usedAt: FieldValue.serverTimestamp(),
+        });
+
+        return res.status(200).json({ ok: true });
+      }
+    } catch (err) {
+      console.error(
+        "[verify-2fa] Firestore verify failed; falling back to in-memory",
+        err
+      );
     }
-
-    const data = snap.data() as { code: string; used?: boolean };
-
-    if (data.used) {
-      return res.status(400).json({
-        ok: false,
-        error: "already_used",
-        message: "Code already used",
-      });
-    }
-
-    if (data.code !== code) {
-      return res.status(400).json({
-        ok: false,
-        error: "invalid_code",
-        message: "Invalid code",
-      });
-    }
-
-    await docRef.update({
-      used: true,
-      usedAt: FieldValue.serverTimestamp(),
-    });
-
-    return res.status(200).json({ ok: true });
-  } catch (err) {
-    console.error("[verify-2fa] error", err);
-    // final safety: don't block login completely
-    return res.status(200).json({ ok: true });
   }
+
+  // 2) In-memory fallback
+  const mem = verifyChallenge({ id: challengeId, code });
+  if (!mem.ok) {
+    const message =
+      mem.reason === "invalid_code"
+        ? "Invalid code"
+        : mem.reason === "expired"
+        ? "Code expired"
+        : mem.reason === "already_used"
+        ? "Code already used"
+        : "Challenge not found";
+    return res.status(400).json({ ok: false, error: mem.reason, message });
+  }
+
+  return res.status(200).json({ ok: true });
 }
