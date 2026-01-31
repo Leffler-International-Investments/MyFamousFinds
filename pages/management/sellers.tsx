@@ -25,17 +25,89 @@ export default function ManagementSellers({ sellers }: Props) {
   const { loading } = useRequireAdmin();
   const [query, setQuery] = useState("");
 
+  // NEW: optimistic UI state (so you don't need a full refresh)
+  const [rows, setRows] = useState<SellerRow[]>(sellers);
+
   const visible = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return sellers;
-    return sellers.filter((s) => {
+    if (!q) return rows;
+    return rows.filter((s) => {
       return (
-        s.name.toLowerCase().includes(q) ||
-        s.email.toLowerCase().includes(q) ||
-        s.id.toLowerCase().includes(q)
+        (s.name || "").toLowerCase().includes(q) ||
+        (s.email || "").toLowerCase().includes(q) ||
+        (s.id || "").toLowerCase().includes(q)
       );
     });
-  }, [sellers, query]);
+  }, [rows, query]);
+
+  // NEW: Disable/Enable seller (updates sellers/{sellerId}.status)
+  const onToggleDisable = async (seller: SellerRow) => {
+    const isDisabled = (seller.status || "").toLowerCase() === "disabled";
+    const nextStatus = isDisabled ? "Active" : "Disabled";
+
+    const ok = window.confirm(
+      `${isDisabled ? "Enable" : "Disable"} seller:\n\n${seller.name} (${seller.email})\n\nProceed?`
+    );
+    if (!ok) return;
+
+    // optimistic update
+    setRows((prev) =>
+      prev.map((r) => (r.id === seller.id ? { ...r, status: nextStatus } : r))
+    );
+
+    try {
+      // Use API route so this works even if Firestore client is locked down.
+      const res = await fetch("/api/admin/sellers/toggle", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sellerId: seller.id, status: nextStatus }),
+      });
+
+      if (!res.ok) {
+        const msg = await res.text();
+        throw new Error(msg || "Failed to update seller status");
+      }
+    } catch (e) {
+      // rollback on error
+      setRows((prev) =>
+        prev.map((r) =>
+          r.id === seller.id ? { ...r, status: seller.status } : r
+        )
+      );
+      alert("Could not update seller status. Check admin permissions/rules.");
+      console.error(e);
+    }
+  };
+
+  // NEW: Delete seller doc (admin-only)
+  const onDeleteSeller = async (seller: SellerRow) => {
+    const ok = window.confirm(
+      `DELETE seller permanently?\n\n${seller.name} (${seller.email})\nID: ${seller.id}\n\nThis cannot be undone.`
+    );
+    if (!ok) return;
+
+    // optimistic remove
+    const snapshotBefore = rows;
+    setRows((prev) => prev.filter((r) => r.id !== seller.id));
+
+    try {
+      const res = await fetch("/api/admin/sellers/delete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sellerId: seller.id }),
+      });
+
+      if (!res.ok) {
+        const msg = await res.text();
+        throw new Error(msg || "Failed to delete seller");
+      }
+    } catch (e) {
+      // rollback on error
+      setRows(snapshotBefore);
+      alert("Could not delete seller. Check admin permissions/rules.");
+      console.error(e);
+    }
+  };
 
   if (loading) return <div className="dashboard-page" />; // Light theme skeleton
 
@@ -44,22 +116,17 @@ export default function ManagementSellers({ sellers }: Props) {
       <Head>
         <title>Seller Directory — Admin</title>
       </Head>
-      {/* Use light theme classes from globals.css */}
+
       <div className="dashboard-page">
         <Header />
 
         <main className="dashboard-main">
-          {/* Use light theme classes from globals.css */}
           <div className="dashboard-header">
             <div>
               <h1>Seller Directory</h1>
-              <p>
-                View and manage all active sellers on Famous-Finds.
-              </p>
+              <p>View and manage all active sellers on Famous-Finds.</p>
             </div>
-            <Link href="/management/dashboard">
-              ← Back to Management Dashboard
-            </Link>
+            <Link href="/management/dashboard">← Back to Management Dashboard</Link>
           </div>
 
           <div className="filters-bar">
@@ -78,25 +145,51 @@ export default function ManagementSellers({ sellers }: Props) {
                   <th>Seller</th>
                   <th>Email</th>
                   <th>Status</th>
-                  <th style={{textAlign: "right"}}>Listings</th>
+                  <th style={{ textAlign: "right" }}>Listings</th>
                   <th>Created</th>
+                  {/* NEW */}
+                  <th style={{ textAlign: "right" }}>Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {visible.map((s) => (
-                  <tr key={s.id}>
-                    <td>{s.name}</td>
-                    <td>{s.email}</td>
-                    <td>{s.status}</td>
-                    <td style={{textAlign: "right"}}>
-                      {s.totalListings.toLocaleString("en-US")}
-                    </td>
-                    <td>{s.createdAt}</td>
-                  </tr>
-                ))}
+                {visible.map((s) => {
+                  const isDisabled = (s.status || "").toLowerCase() === "disabled";
+                  return (
+                    <tr key={s.id}>
+                      <td>{s.name}</td>
+                      <td>{s.email}</td>
+                      <td>{s.status}</td>
+                      <td style={{ textAlign: "right" }}>
+                        {s.totalListings.toLocaleString("en-US")}
+                      </td>
+                      <td>{s.createdAt}</td>
+
+                      {/* NEW ACTIONS (no layout changes elsewhere) */}
+                      <td style={{ textAlign: "right" }}>
+                        <div className="actions">
+                          <button
+                            type="button"
+                            className="btn-action btn-secondary"
+                            onClick={() => onToggleDisable(s)}
+                          >
+                            {isDisabled ? "Enable" : "Disable"}
+                          </button>
+                          <button
+                            type="button"
+                            className="btn-action btn-danger"
+                            onClick={() => onDeleteSeller(s)}
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+
                 {visible.length === 0 && (
                   <tr>
-                    <td colSpan={5} className="table-message">
+                    <td colSpan={6} className="table-message">
                       No sellers match this search.
                     </td>
                   </tr>
@@ -108,8 +201,7 @@ export default function ManagementSellers({ sellers }: Props) {
 
         <Footer />
       </div>
-      
-      {/* Styles for the light theme table and forms */}
+
       <style jsx>{`
         .filters-bar {
           margin-bottom: 16px;
@@ -128,13 +220,13 @@ export default function ManagementSellers({ sellers }: Props) {
           border-color: #111827; /* gray-900 */
           outline: none;
         }
-        
+
         .table-wrapper {
           overflow-x: auto;
           border-radius: 8px;
           border: 1px solid #e5e7eb; /* gray-200 */
           background: #ffffff;
-          box-shadow: 0 1px 2px 0 rgba(0,0,0,0.05);
+          box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
         }
         .data-table {
           min-width: 100%;
@@ -168,6 +260,36 @@ export default function ManagementSellers({ sellers }: Props) {
           text-align: center;
           color: #6b7280; /* gray-500 */
         }
+
+        /* NEW (small, safe additions) */
+        .actions {
+          display: inline-flex;
+          gap: 8px;
+          justify-content: flex-end;
+          align-items: center;
+          white-space: nowrap;
+        }
+        .btn-action {
+          border: 1px solid #d1d5db;
+          background: #fff;
+          padding: 6px 10px;
+          border-radius: 6px;
+          font-size: 13px;
+          cursor: pointer;
+        }
+        .btn-action:hover {
+          border-color: #9ca3af;
+        }
+        .btn-secondary {
+          color: #111827;
+        }
+        .btn-danger {
+          color: #b91c1c;
+          border-color: #fca5a5;
+        }
+        .btn-danger:hover {
+          border-color: #ef4444;
+        }
       `}</style>
     </>
   );
@@ -197,8 +319,7 @@ export const getServerSideProps: GetServerSideProps<Props> = async () => {
         email: d.email || "",
         status: d.status || "Active",
         totalListings: listingsBySeller[id] || 0,
-        createdAt:
-          d.createdAt?.toDate?.().toLocaleString("en-US") || "",
+        createdAt: d.createdAt?.toDate?.().toLocaleString("en-US") || "",
       };
     });
 
@@ -208,4 +329,3 @@ export const getServerSideProps: GetServerSideProps<Props> = async () => {
     return { props: { sellers: [] } };
   }
 };
-
