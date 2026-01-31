@@ -1,7 +1,12 @@
 // FILE: /pages/api/auth/start-2fa.ts
 import type { NextApiRequest, NextApiResponse } from "next";
-import { adminDb, FieldValue } from "../../../utils/firebaseAdmin";
+import {
+  adminDb,
+  FieldValue,
+  isFirebaseAdminReady,
+} from "../../../utils/firebaseAdmin";
 import { sendLoginCode } from "../../../utils/email";
+import { createChallenge } from "../../../utils/twofaStore";
 
 type Start2faBody = {
   email?: string;
@@ -9,8 +14,15 @@ type Start2faBody = {
 };
 
 type Start2faResponse =
-  | { ok: true; challengeId: string }
+  | { ok: true; challengeId: string; via: "email"; devCode?: string }
   | { ok: false; error: string; message?: string };
+
+function canSendEmail() {
+  // If you configure SMTP, sendLoginCode will work. Otherwise we fall back to devCode.
+  // Add EMAIL_DISABLED=1 to force devCode mode.
+  if (process.env.EMAIL_DISABLED === "1") return false;
+  return true;
+}
 
 export default async function handler(
   req: NextApiRequest,
@@ -30,49 +42,62 @@ export default async function handler(
       .json({ ok: false, error: "missing_email", message: "Email required" });
   }
 
+  const normalizedEmail = email.trim().toLowerCase();
   const normalizedRole: "seller" | "management" =
     role === "seller" ? "seller" : "management";
 
   // 6-digit code
   const code = Math.floor(100000 + Math.random() * 900000).toString();
 
-  // Fallback challenge id
-  let challengeId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  // 1) Store challenge (Firestore if configured, otherwise in-memory)
+  let challengeId: string | null = null;
 
-  try {
-    // 1) Store challenge in Firestore if adminDb is available
-    if (adminDb) {
+  if (isFirebaseAdminReady && adminDb) {
+    try {
       const docRef = await adminDb.collection("loginChallenges").add({
-        email,
+        email: normalizedEmail,
         role: normalizedRole,
         code,
         createdAt: FieldValue.serverTimestamp(),
         used: false,
       });
       challengeId = docRef.id;
-    } else {
-      console.warn(
-        "[start-2fa] adminDb not available – skipping Firestore challenge store"
+    } catch (err) {
+      console.error(
+        "[start-2fa] Firestore write failed; using in-memory fallback",
+        err
       );
     }
-
-    // 2) Send email with login code (will throw if SMTP not configured)
-    try {
-      await sendLoginCode(email, code);
-    } catch (emailErr) {
-      console.error("[start-2fa] sendLoginCode failed:", emailErr);
-      // We still allow flow to continue; the UI can show generic error if needed
-    }
-
-    // 3) Always respond ok so the front-end can continue
-    return res.status(200).json({ ok: true, challengeId });
-  } catch (err: any) {
-    console.error("start-2fa error", err);
-
-    // FINAL FALLBACK: do not break login completely
-    return res.status(200).json({
-      ok: true,
-      challengeId,
-    });
   }
+
+  if (!challengeId) {
+    const ch = createChallenge({
+      email: normalizedEmail,
+      role: normalizedRole,
+      code,
+    });
+    challengeId = ch.id;
+  }
+
+  // 2) Send code via email when possible; otherwise return devCode
+  let devCode: string | undefined = undefined;
+
+  if (canSendEmail()) {
+    try {
+      await sendLoginCode(normalizedEmail, code);
+    } catch (emailErr) {
+      console.error("[start-2fa] sendLoginCode failed; returning devCode", emailErr);
+      devCode = code;
+    }
+  } else {
+    devCode = code;
+  }
+
+  // 3) Respond
+  return res.status(200).json({
+    ok: true,
+    challengeId,
+    via: "email",
+    ...(devCode ? { devCode } : {}),
+  });
 }
