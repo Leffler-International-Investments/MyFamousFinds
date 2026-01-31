@@ -1,6 +1,10 @@
 // FILE: /pages/api/seller/login.ts
 import type { NextApiRequest, NextApiResponse } from "next";
-import { adminDb, FieldValue } from "../../../utils/firebaseAdmin";
+import {
+  adminDb,
+  FieldValue,
+  isFirebaseAdminReady,
+} from "../../../utils/firebaseAdmin";
 
 type LoginPayload = {
   email?: string;
@@ -11,14 +15,18 @@ type LoginResponse =
   | { ok: true; sellerId: string }
   | {
       ok: false;
-      code: "apply_first" | "pending" | "bad_credentials";
+      code:
+        | "apply_first"
+        | "pending"
+        | "bad_credentials"
+        | "server_not_configured";
       message: string;
     };
 
 // Ariel & Dan are always allowed full seller access.
 const SUPER_SELLER_EMAILS = new Set<string>([
   "leffleryd@gmail.com", // Dan
-  "arich1114@aol.com",   // Ariel
+  "arich1114@aol.com", // Ariel
 ]);
 
 export default async function handler(
@@ -45,6 +53,20 @@ export default async function handler(
 
   const trimmedEmail = email.trim().toLowerCase();
   const isSuperSeller = SUPER_SELLER_EMAILS.has(trimmedEmail);
+
+  // ✅ If Firebase Admin is not configured, still allow SUPER sellers to log in
+  // so they can access /management and fix env vars.
+  if (!isFirebaseAdminReady || !adminDb) {
+    if (isSuperSeller) {
+      return res.status(200).json({ ok: true, sellerId: "super-seller" });
+    }
+    return res.status(500).json({
+      ok: false,
+      code: "server_not_configured",
+      message:
+        "Server is not configured (missing Firebase Admin env vars). Please set FB_PROJECT_ID / FB_CLIENT_EMAIL / FB_PRIVATE_KEY in Vercel.",
+    });
+  }
 
   try {
     const snap = await adminDb
@@ -112,7 +134,6 @@ export default async function handler(
       });
     }
 
-    // Success
     return res.status(200).json({
       ok: true,
       sellerId: doc.id,
