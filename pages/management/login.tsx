@@ -114,10 +114,9 @@ export default function ManagementLoginPage() {
       setChallengeId(twofaJson.challengeId);
       setStep("verify");
 
-      let message = "We've sent a 6-digit code to your email address.";
-      if (twofaJson.devCode) {
-        message += ` (Dev code: ${twofaJson.devCode})`;
-      }
+      const message = twofaJson.devCode
+        ? `Your 6-digit code is: ${twofaJson.devCode}`
+        : "Your 6-digit code has been sent to your email.";
       setInfo(message);
     } catch (err) {
       console.error("management_login_error", err);
