@@ -139,7 +139,7 @@ export default function CategoryPage({ slug, label, items }: CategoryProps) {
     setSelectedConditions((prev) => toggleInList(prev, name));
   }
 
-  function resetFilters() {
+  function clearAllFilters() {
     setSelectedCategories([]);
     setSelectedDesigners([]);
     setSelectedConditions([]);
@@ -147,34 +147,33 @@ export default function CategoryPage({ slug, label, items }: CategoryProps) {
     setMaxPrice(10000);
   }
 
-  // Apply filters + sort
   const filteredItems: ItemWithPrice[] = useMemo(() => {
     let result = [...itemsWithPrice];
 
     // 1) Category
     if (selectedCategories.length > 0) {
       result = result.filter((item) =>
-        item.category ? selectedCategories.includes(item.category) : false
+        selectedCategories.includes((item.category || "").trim())
       );
     }
 
-    // 2) Designer
+    // 2) Designer (brand)
     if (selectedDesigners.length > 0) {
       result = result.filter((item) =>
-        item.brand ? selectedDesigners.includes(item.brand) : false
+        selectedDesigners.includes((item.brand || "").trim())
       );
     }
 
     // 3) Condition
     if (selectedConditions.length > 0) {
       result = result.filter((item) =>
-        item.condition ? selectedConditions.includes(item.condition) : false
+        selectedConditions.includes((item.condition || "").trim())
       );
     }
 
     // 4) Price
     result = result.filter((item) => {
-      const price = item.priceValue;
+      const price = item.priceValue || 0;
       if (typeof minPrice === "number" && price < minPrice) return false;
       if (typeof maxPrice === "number" && price > maxPrice) return false;
       return true;
@@ -182,11 +181,10 @@ export default function CategoryPage({ slug, label, items }: CategoryProps) {
 
     // 5) Sort
     if (sortBy === "price-asc") {
-      result.sort((a, b) => a.priceValue - b.priceValue);
-    } else if (sortBy === "price-desc") {
-      result.sort((a, b) => b.priceValue - a.priceValue);
-    } else {
-      // "newest" – keep server order (createdAt desc)
+      result.sort((a, b) => (a.priceValue || 0) - (b.priceValue || 0));
+    }
+    if (sortBy === "price-desc") {
+      result.sort((a, b) => (b.priceValue || 0) - (a.priceValue || 0));
     }
 
     return result;
@@ -202,319 +200,333 @@ export default function CategoryPage({ slug, label, items }: CategoryProps) {
 
   const resultsCount = filteredItems.length;
 
-  const breadcrumbLabel =
-    label || slug.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
-
   return (
-    <div className="category-page">
+    <div className="page">
       <Head>
-        <title>{breadcrumbLabel} – All Products | Famous Finds</title>
+        <title>{label} – Famous Finds</title>
+        <meta
+          name="description"
+          content={`Browse ${label} items available on Famous Finds.`}
+        />
+        <link rel="canonical" href={`https://www.myfamousfinds.com/category/${slug}`} />
       </Head>
 
       <Header />
 
-      <main className="page-main">
-        <div className="page-inner">
-          {/* Breadcrumb */}
-          <div className="breadcrumb">
-            <Link href="/">Home</Link>
-            <span>/</span>
-            <span>{breadcrumbLabel}</span>
-          </div>
+      <main className="wrap">
+        <div className="breadcrumb">
+          <Link href="/">Home</Link> / <span>{label}</span>
+        </div>
 
-          <div className="layout">
-            {/* LEFT – Filters */}
-            <aside className="filters">
-              <div className="filters-header">
-                <h2>Filters</h2>
-                <button type="button" onClick={resetFilters}>
-                  Clear All
-                </button>
-              </div>
+        <div className="layout">
+          {/* LEFT – Filters */}
+          <aside className="filters">
+            <div className="filters-header">
+              <h2>Filters</h2>
+              <button type="button" className="clear-btn" onClick={clearAllFilters}>
+                Clear All
+              </button>
+            </div>
 
-              <div className="filter-block">
-                <h3>Category</h3>
-                <div className="filter-list">
-                  {CATEGORY_OPTIONS.map((cat) => (
-                    <label key={cat} className="filter-option">
-                      <input
-                        type="checkbox"
-                        checked={selectedCategories.includes(cat)}
-                        onChange={() => onCategoryChange(cat)}
-                      />
-                      <span>{cat}</span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-
-              <div className="filter-block">
-                <h3>Designer</h3>
-                <div className="filter-list">
-                  {designerOptions.map((name) => (
-                    <label key={name} className="filter-option">
-                      <input
-                        type="checkbox"
-                        checked={selectedDesigners.includes(name)}
-                        onChange={() => onDesignerChange(name)}
-                      />
-                      <span>{name}</span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-
-              <div className="filter-block">
-                <h3>Condition</h3>
-                <div className="filter-list">
-                  {CONDITION_OPTIONS.map((cond) => (
-                    <label key={cond} className="filter-option">
-                      <input
-                        type="checkbox"
-                        checked={selectedConditions.includes(cond)}
-                        onChange={() => onConditionChange(cond)}
-                      />
-                      <span>{cond}</span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-
-              <div className="filter-block">
-                <h3>Price</h3>
-                <div className="price-row">
-                  <div className="price-input">
-                    <span>Min</span>
+            <div className="filter-block">
+              <h3>Category</h3>
+              <div className="filter-list">
+                {CATEGORY_OPTIONS.map((cat) => (
+                  <label key={cat} className="filter-option">
                     <input
-                      type="number"
-                      value={minPrice}
-                      onChange={(e) =>
-                        setMinPrice(
-                          e.target.value === "" ? "" : Number(e.target.value) || 0
-                        )
-                      }
+                      type="checkbox"
+                      checked={selectedCategories.includes(cat)}
+                      onChange={() => onCategoryChange(cat)}
                     />
-                  </div>
-                  <span className="price-separator">–</span>
-                  <div className="price-input">
-                    <span>Max</span>
-                    <input
-                      type="number"
-                      value={maxPrice}
-                      onChange={(e) =>
-                        setMaxPrice(
-                          e.target.value === "" ? "" : Number(e.target.value) || 0
-                        )
-                      }
-                    />
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  className="apply-btn"
-                  onClick={() => {
-                    // Filters are already live – button is just for UX
-                  }}
-                >
-                  Apply Filters
-                </button>
-              </div>
-            </aside>
-
-            {/* RIGHT – Results */}
-            <section className="results">
-              <div className="results-header">
-                <div>
-                  <h1>All Products</h1>
-                  <p className="results-count">
-                    {resultsCount} {resultsCount === 1 ? "result" : "results"}
-                  </p>
-                </div>
-                <div className="sort">
-                  <label>
-                    Sort
-                    <select
-                      value={sortBy}
-                      onChange={(e) =>
-                        setSortBy(e.target.value as "newest" | "price-asc" | "price-desc")
-                      }
-                    >
-                      <option value="newest">Newest</option>
-                      <option value="price-asc">Price: Low to High</option>
-                      <option value="price-desc">Price: High to Low</option>
-                    </select>
+                    <span>{cat}</span>
                   </label>
+                ))}
+              </div>
+            </div>
+
+            <div className="filter-block">
+              <h3>Designer</h3>
+              <div className="filter-list">
+                {designerOptions.map((name) => (
+                  <label key={name} className="filter-option">
+                    <input
+                      type="checkbox"
+                      checked={selectedDesigners.includes(name)}
+                      onChange={() => onDesignerChange(name)}
+                    />
+                    <span>{name}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            <div className="filter-block">
+              <h3>Condition</h3>
+              <div className="filter-list">
+                {CONDITION_OPTIONS.map((cond) => (
+                  <label key={cond} className="filter-option">
+                    <input
+                      type="checkbox"
+                      checked={selectedConditions.includes(cond)}
+                      onChange={() => onConditionChange(cond)}
+                    />
+                    <span>{cond}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            <div className="filter-block">
+              <h3>Price</h3>
+
+              {/* ✅ FIXED: Max stays inside the filter frame (stacked under Min) */}
+              <div className="price-stack">
+                <div className="price-input">
+                  <span>Min</span>
+                  <input
+                    type="number"
+                    inputMode="numeric"
+                    value={minPrice}
+                    onChange={(e) =>
+                      setMinPrice(e.target.value === "" ? "" : Number(e.target.value) || 0)
+                    }
+                  />
+                </div>
+
+                <div className="price-input">
+                  <span>Max</span>
+                  <input
+                    type="number"
+                    inputMode="numeric"
+                    value={maxPrice}
+                    onChange={(e) =>
+                      setMaxPrice(e.target.value === "" ? "" : Number(e.target.value) || 0)
+                    }
+                  />
                 </div>
               </div>
 
-              {resultsCount === 0 ? (
-                <div className="empty-state">
-                  <h2>No items match these filters yet.</h2>
-                  <p>Try adjusting your filters or checking back soon.</p>
-                </div>
-              ) : (
-                <div className="grid">
-                  {filteredItems.map((item) => (
-                    <ProductCard key={item.id} {...item} />
-                  ))}
-                </div>
-              )}
-            </section>
-          </div>
+              <button
+                type="button"
+                className="apply-btn"
+                onClick={() => {
+                  // Filters are already live – button is just for UX
+                }}
+              >
+                Apply Filters
+              </button>
+            </div>
+          </aside>
+
+          {/* RIGHT – Results */}
+          <section className="results">
+            <div className="results-header">
+              <div>
+                <h1>All Products</h1>
+                <p className="results-count">
+                  {resultsCount} {resultsCount === 1 ? "result" : "results"}
+                </p>
+              </div>
+              <div className="sort">
+                <label>
+                  Sort
+                  <select
+                    value={sortBy}
+                    onChange={(e) =>
+                      setSortBy(e.target.value as "newest" | "price-asc" | "price-desc")
+                    }
+                  >
+                    <option value="newest">Newest</option>
+                    <option value="price-asc">Price: Low to High</option>
+                    <option value="price-desc">Price: High to Low</option>
+                  </select>
+                </label>
+              </div>
+            </div>
+
+            {filteredItems.length === 0 ? (
+              <div className="empty-state">
+                <h2>No results</h2>
+                <p>Try clearing filters or adjusting your selection.</p>
+              </div>
+            ) : (
+              <div className="grid">
+                {filteredItems.map((p) => (
+                  <ProductCard key={p.id} {...p} />
+                ))}
+              </div>
+            )}
+          </section>
         </div>
       </main>
 
       <Footer />
 
       <style jsx>{`
-        .category-page {
+        .page {
           background: #ffffff;
           color: #111827;
           min-height: 100vh;
+          display: flex;
+          flex-direction: column;
         }
-        .page-main {
-          padding: 24px 0 64px;
-        }
-        .page-inner {
+
+        .wrap {
           max-width: 1200px;
           margin: 0 auto;
-          padding: 0 16px;
+          padding: 20px 16px 70px;
+          width: 100%;
         }
+
         .breadcrumb {
-          font-size: 13px;
+          font-size: 12px;
           color: #6b7280;
-          margin-bottom: 16px;
-          display: flex;
-          align-items: center;
-          gap: 6px;
+          margin-bottom: 14px;
         }
         .breadcrumb a {
-          color: inherit;
+          color: #6b7280;
           text-decoration: none;
         }
+        .breadcrumb a:hover {
+          color: #111827;
+          text-decoration: underline;
+        }
+
         .layout {
           display: grid;
-          grid-template-columns: 260px minmax(0, 1fr);
-          gap: 24px;
+          grid-template-columns: 280px 1fr;
+          gap: 18px;
+          align-items: start;
         }
-        @media (max-width: 900px) {
-          .layout {
-            grid-template-columns: 1fr;
-          }
-        }
+
         .filters {
-          border-radius: 16px;
+          min-width: 0;
+          overflow: hidden;
           border: 1px solid #e5e7eb;
-          padding: 16px 18px 20px;
-          background: #fafafa;
+          border-radius: 14px;
+          padding: 14px;
+          background: #fbfbfb;
         }
+
         .filters-header {
           display: flex;
           align-items: center;
           justify-content: space-between;
-          margin-bottom: 12px;
+          margin-bottom: 10px;
         }
-        .filters-header h2 {
-          font-size: 18px;
-          font-weight: 600;
+
+        .filters h2 {
+          margin: 0;
+          font-size: 16px;
         }
-        .filters-header button {
+
+        .clear-btn {
           border: none;
-          background: none;
-          font-size: 13px;
-          text-decoration: underline;
-          cursor: pointer;
+          background: transparent;
           color: #6b7280;
+          cursor: pointer;
+          font-size: 12px;
+          text-decoration: underline;
         }
+
         .filter-block {
-          border-top: 1px solid #e5e7eb;
-          padding-top: 12px;
-          margin-top: 12px;
+          margin-top: 14px;
         }
-        .filter-block:first-of-type {
-          border-top: none;
-          padding-top: 0;
-          margin-top: 0;
-        }
+
         .filter-block h3 {
-          font-size: 14px;
-          font-weight: 600;
-          margin-bottom: 6px;
+          margin: 0 0 8px;
+          font-size: 13px;
+          color: #111827;
         }
+
         .filter-list {
           display: flex;
           flex-direction: column;
-          gap: 4px;
-          font-size: 14px;
+          gap: 8px;
+          max-height: 220px;
+          overflow: auto;
+          padding-right: 6px;
         }
+
         .filter-option {
           display: flex;
           align-items: center;
-          gap: 8px;
+          gap: 10px;
+          font-size: 13px;
+          color: #111827;
         }
-        .filter-option input {
-          accent-color: #111827;
-        }
-        .price-row {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          margin-bottom: 10px;
-        }
-        .price-input {
-          flex: 1;
+
+        .price-stack {
           display: flex;
           flex-direction: column;
-          gap: 4px;
-          font-size: 13px;
+          gap: 10px;
+          margin-bottom: 10px;
+          width: 100%;
         }
+
+        .price-input {
+          display: flex;
+          flex-direction: column;
+          gap: 6px;
+          width: 100%;
+        }
+
+        .price-input span {
+          font-size: 12px;
+          color: #6b7280;
+        }
+
         .price-input input {
+          width: 100%;
+          min-width: 0;
+          box-sizing: border-box;
           border-radius: 999px;
           border: 1px solid #d1d5db;
           padding: 6px 10px;
           font-size: 14px;
         }
-        .price-separator {
-          font-size: 14px;
-          color: #6b7280;
-        }
+
         .apply-btn {
           width: 100%;
-          margin-top: 4px;
           border-radius: 999px;
-          background: #111827;
-          color: white;
-          padding: 8px 12px;
           border: none;
-          font-size: 14px;
-          font-weight: 500;
+          background: #111827;
+          color: #ffffff;
+          padding: 10px 12px;
+          font-weight: 700;
           cursor: pointer;
         }
+
         .results {
-          min-height: 200px;
+          min-width: 0;
         }
+
         .results-header {
           display: flex;
           align-items: flex-end;
           justify-content: space-between;
           gap: 12px;
-          margin-bottom: 12px;
+          margin-bottom: 14px;
         }
-        .results-header h1 {
-          font-family: Georgia, "Times New Roman", serif;
-          font-size: 26px;
+
+        .results h1 {
           margin: 0;
+          font-size: 28px;
+          font-family: "Georgia", serif;
         }
+
         .results-count {
+          margin: 3px 0 0;
           font-size: 13px;
           color: #6b7280;
-          margin-top: 2px;
         }
+
         .sort label {
-          font-size: 13px;
           display: flex;
           flex-direction: column;
-          gap: 4px;
+          gap: 6px;
+          font-size: 12px;
+          color: #6b7280;
         }
         .sort select {
           border-radius: 999px;
@@ -523,12 +535,14 @@ export default function CategoryPage({ slug, label, items }: CategoryProps) {
           font-size: 14px;
           background: #ffffff;
         }
+
         .grid {
           display: grid;
           grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
           gap: 18px;
           margin-top: 12px;
         }
+
         .empty-state {
           margin-top: 32px;
           border-radius: 16px;
@@ -545,6 +559,18 @@ export default function CategoryPage({ slug, label, items }: CategoryProps) {
           margin: 0;
           color: #6b7280;
           font-size: 14px;
+        }
+
+        @media (max-width: 980px) {
+          .layout {
+            grid-template-columns: 1fr;
+          }
+          .filters {
+            order: 2;
+          }
+          .results {
+            order: 1;
+          }
         }
       `}</style>
     </div>
@@ -585,6 +611,17 @@ export const getServerSideProps: GetServerSideProps<CategoryProps> = async (ctx)
       category?: string;
       condition?: string;
       createdAt?: any;
+      // extra possible fields (no harm if undefined)
+      categoryName?: string;
+      categoryLabel?: string;
+      categorySlug?: string;
+      menuCategory?: string;
+      menuCategorySlug?: string;
+      topCategory?: string;
+      mainCategory?: string;
+      parentCategory?: string;
+      department?: string;
+      type?: string;
     })[] = snap.docs.map((doc) => {
       const d = doc.data() as any;
 
@@ -609,11 +646,22 @@ export const getServerSideProps: GetServerSideProps<CategoryProps> = async (ctx)
         brand: d.brand || "",
         category: d.category || "",
         condition: d.condition || "",
+        // pass-through possible category fields used by other parts of the app
+        categoryName: d.categoryName || "",
+        categoryLabel: d.categoryLabel || "",
+        categorySlug: d.categorySlug || "",
+        menuCategory: d.menuCategory || "",
+        menuCategorySlug: d.menuCategorySlug || "",
+        topCategory: d.topCategory || "",
+        mainCategory: d.mainCategory || "",
+        parentCategory: d.parentCategory || "",
+        department: d.department || "",
+        type: d.type || "",
         price: priceNum ? `US$${priceNum.toLocaleString()}` : "",
         image,
         href: `/product/${doc.id}`,
         createdAt: d.createdAt || null,
-      } as ProductLike & { category?: string; condition?: string };
+      } as any;
     });
 
     // Helpers
@@ -624,20 +672,63 @@ export const getServerSideProps: GetServerSideProps<CategoryProps> = async (ctx)
     // 2) Filter items per category page
     let filtered = rawItems;
 
+    // Slug aliases to match how categories may be stored in Firestore
+    const slugAliases: Record<string, string[]> = {
+      women: ["women", "womens", "ladies", "lady", "female"],
+      men: ["men", "mens", "man's", "man", "male"],
+      bags: ["bags", "bag", "handbags", "handbag", "purses", "purse"],
+      shoes: ["shoes", "shoe", "footwear"],
+      accessories: ["accessories", "accessory"],
+      jewelry: ["jewelry", "jewellery"],
+      watches: ["watches", "watch"],
+      "new-arrivals": ["new-arrivals", "new", "new arrivals"],
+    };
+
+    const wantedSlug = normalized;
+    const wantedSlugs = Array.from(
+      new Set([wantedSlug, ...(slugAliases[wantedSlug] || [])].map((s) => normSlug(s)))
+    );
+
+    const wantedLabel = norm(categoryLabel);
+
+    const pickCategoryCandidates = (it: any): string[] => {
+      const vals = [
+        it.category,
+        it.categoryName,
+        it.categoryLabel,
+        it.categorySlug,
+        it.menuCategory,
+        it.menuCategorySlug,
+        it.topCategory,
+        it.mainCategory,
+        it.parentCategory,
+        it.department,
+        it.type,
+      ];
+      return vals.map((v) => String(v || "").trim()).filter(Boolean);
+    };
+
     if (normalized === "new-arrivals") {
       // nothing else, just sort
     } else {
-      const wantedLabel = norm(categoryLabel);
-      const wantedSlug = normalized;
+      filtered = rawItems.filter((it: any) => {
+        const candidates = pickCategoryCandidates(it);
+        if (candidates.length === 0) return false;
 
-      filtered = rawItems.filter((it) => {
-        const cat = norm((it as any).category);
-        if (!cat) return false;
-        return (
-          cat === wantedLabel ||
-          normSlug(cat) === wantedSlug ||
-          cat.replace(/\s|-/g, "") === wantedLabel.replace(/\s|-/g, "")
-        );
+        return candidates.some((c) => {
+          const cNorm = norm(c);
+          const cSlug = normSlug(c);
+
+          // Exact label or slug match
+          if (cNorm === wantedLabel) return true;
+          if (wantedSlugs.includes(cSlug)) return true;
+
+          // Loose match: "Men's" vs "Mens" vs "men"
+          const compact = (x: string) => x.replace(/[\s\-']/g, "");
+          if (compact(cNorm) === compact(wantedLabel)) return true;
+
+          return false;
+        });
       });
     }
 
