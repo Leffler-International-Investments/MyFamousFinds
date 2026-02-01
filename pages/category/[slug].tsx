@@ -35,14 +35,11 @@ function parsePrice(price?: string | null): number {
   return Number.isFinite(asNumber) ? asNumber : 0;
 }
 
-// You can EDIT these lists any time.
-// Add / remove entries and the filters will update automatically.
+// FIXED: Selection strictly matches the header categories
 const CATEGORY_OPTIONS = [
   "Women",
-  "Men",
   "Bags",
-  "Shoes",
-  "Accessories",
+  "Men",
   "Jewelry",
   "Watches",
 ];
@@ -78,7 +75,7 @@ export default function CategoryPage({ slug, label, items }: CategoryProps) {
   const [selectedDesigners, setSelectedDesigners] = useState<string[]>([]);
   const [selectedConditions, setSelectedConditions] = useState<string[]>([]);
   const [minPrice, setMinPrice] = useState<number | "">(0);
-  const [maxPrice, setMaxPrice] = useState<number | "">(10000);
+  const [maxPrice, setMaxPrice] = useState<number | "">(1000000); // FIXED: Default increased to show high-end items
 
   // Designers list for the filter
   const [designerOptions, setDesignerOptions] =
@@ -144,7 +141,7 @@ export default function CategoryPage({ slug, label, items }: CategoryProps) {
     setSelectedDesigners([]);
     setSelectedConditions([]);
     setMinPrice(0);
-    setMaxPrice(10000);
+    setMaxPrice(1000000); // FIXED: Default increased here as well
   }
 
   const filteredItems: ItemWithPrice[] = useMemo(() => {
@@ -599,28 +596,12 @@ export const getServerSideProps: GetServerSideProps<CategoryProps> = async (ctx)
     String(v || "").trim().toLowerCase().replace(/\s+/g, " ");
   const normSlug = (v: any) =>
     norm(v).replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
-  const compact = (v: string) => v.replace(/[\s\-']/g, "");
 
-  // Slug aliases to match how categories may be stored in Firestore
-  const slugAliases: Record<string, string[]> = {
-    women: ["women", "womens", "ladies", "lady", "female"],
-    men: ["men", "mens", "man's", "man", "male"],
-    bags: ["bags", "bag", "handbags", "handbag", "purses", "purse"],
-    jewelry: ["jewelry", "jewellery"],
-    watches: ["watches", "watch"],
-    "new-arrivals": ["new-arrivals", "new", "new arrivals"],
-  };
-
+  // FIXED: Strictly uses header categories only
   const wantedSlug = normalized;
-  const wantedSlugs = Array.from(
-    new Set([wantedSlug, ...(slugAliases[wantedSlug] || [])].map((s) => normSlug(s)))
-  );
-  const wantedLabel = norm(categoryLabel);
+  const wantedLabel = labelMap[normalized] || categoryLabel;
 
   try {
-    // ✅ IMPORTANT FIX:
-    // Do NOT require status == "Live".
-    // Your system treats "Approved", "Active", and even empty status as Live items.
     const allowedStatuses = ["Live", "Active", "Approved"];
 
     let snap;
@@ -631,37 +612,17 @@ export const getServerSideProps: GetServerSideProps<CategoryProps> = async (ctx)
         .limit(500)
         .get();
     } catch {
-      // fallback if createdAt is missing on some docs
       snap = await adminDb.collection("listings").limit(500).get();
     }
 
     const allItems: any[] = snap.docs.map((doc) => {
       const d: any = doc.data() || {};
-
-      const image =
-        d.image_url ||
-        d.imageUrl ||
-        d.image ||
-        (Array.isArray(d.imageUrls) && d.imageUrls[0]) ||
-        (Array.isArray(d.auth_photos) && d.auth_photos[0]) ||
-        "";
-
+      const image = d.image_url || d.imageUrl || d.image || (Array.isArray(d.imageUrls) && d.imageUrls[0]) || "";
       const rawStatus = (d.status || "").toString().trim();
-      const isExcluded =
-        /pending/i.test(rawStatus) || /reject/i.test(rawStatus) || /sold/i.test(rawStatus);
-
-      const isPublic =
-        !rawStatus || allowedStatuses.includes(rawStatus);
-
-      const category =
-        d.category || d.categoryLabel || d.categoryName || "";
-
-      const condition =
-        d.condition || d.conditionLabel || d.itemCondition || d.conditionText || "";
-
-      const brand =
-        d.brand || d.designer || d.designerName || d.brandName || "";
-
+      const isExcluded = /pending/i.test(rawStatus) || /reject/i.test(rawStatus) || /sold/i.test(rawStatus);
+      const isPublic = !rawStatus || allowedStatuses.includes(rawStatus);
+      const category = d.category || d.categoryLabel || d.categoryName || "";
+      const brand = d.brand || d.designer || d.designerName || d.brandName || "";
       const priceNumber = Number(d.price) || 0;
       const price = priceNumber ? `US$${priceNumber.toLocaleString("en-US")}` : "";
 
@@ -670,7 +631,7 @@ export const getServerSideProps: GetServerSideProps<CategoryProps> = async (ctx)
         title: d.title || "Untitled listing",
         brand: String(brand),
         category: String(category),
-        condition: String(condition),
+        condition: String(d.condition || ""),
         price,
         image,
         href: `/product/${doc.id}`,
@@ -689,14 +650,10 @@ export const getServerSideProps: GetServerSideProps<CategoryProps> = async (ctx)
         const c = String(it.category || "").trim();
         if (!c) return false;
 
-        const cNorm = norm(c);
-        const cSlug = normSlug(c);
+        const cSlug = normSlug(c); // FIXED: Use slug for strict comparison
+        const pageSlug = normSlug(wantedLabel);
 
-        if (cNorm === wantedLabel) return true;
-        if (wantedSlugs.includes(cSlug)) return true;
-        if (compact(cNorm) === compact(wantedLabel)) return true;
-
-        return false;
+        return cSlug === pageSlug;
       });
     }
 
