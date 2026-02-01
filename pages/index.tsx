@@ -157,7 +157,7 @@ const Home: NextPage<HomeProps> = ({
           </aside>
         </section>
 
-        {/* FEATURED DESIGNERS SECTION - RE-STABILIZED */}
+        {/* FEATURED DESIGNERS SECTION - TWO-ROW GRID */}
         <section className="home-featured-designers mt-10">
           <header className="home-feed-header">
             <h2 className="home-feed-title">Featured Designers</h2>
@@ -292,6 +292,7 @@ export const getServerSideProps: GetServerSideProps<HomeProps> = async () => {
     const data = doc.data() as any;
     return {
       id: doc.id,
+      title: data.title || "", // ✅ Restored: Required by ProductLike type
       brand: data.brand || "",
       price: formatPrice(data.price),
       image: pickImage(data),
@@ -301,7 +302,7 @@ export const getServerSideProps: GetServerSideProps<HomeProps> = async () => {
     };
   });
 
-  // Correctly extract and sort unique brands for the list
+  // Extract all dynamic brands from the retrieved items
   const featuredDesigners = Array.from(new Set(allItems.map((i) => i.brand).filter(Boolean))).sort();
 
   const newArrivals = [...allItems]
