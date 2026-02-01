@@ -19,7 +19,7 @@ type MgmtStats = {
   pendingListings: number;
   orders: number;
   pendingOrders: number;
-};
+  };
 
 type Props = {
   stats: MgmtStats;
@@ -82,14 +82,11 @@ export default function ManagementDashboard({ stats }: Props) {
           <div>
             <h1>Management dashboard</h1>
             <p>
-              Control centre for sellers, listings, orders, payouts, and
-              support.
+              Control centre for sellers, listings, orders, payouts, and support.
             </p>
           </div>
           <Link href="/">Back to marketplace</Link>
         </div>
-
-        <ManagementDashboardTutorial />
 
         <section className="dashboard-welcome-banner">
           <h2>Team payouts setup</h2>
@@ -110,15 +107,10 @@ export default function ManagementDashboard({ stats }: Props) {
         <section className="dashboard-summary-section">
           <h2>Live Summary</h2>
           <div className="dashboard-summary-grid">
-            <Link
-              href="/management/sellers"
-              className="dashboard-summary-tile"
-            >
+            <Link href="/management/sellers" className="dashboard-summary-tile">
               <p className="label">Sellers</p>
               <p className="stat">{stats.sellers.toLocaleString("en-US")}</p>
-              <p className="sub-stat">
-                {stats.pendingSellers} pending vetting
-              </p>
+              <p className="sub-stat">{stats.pendingSellers} pending vetting</p>
             </Link>
             <Link
               href="/management/listings"
@@ -126,9 +118,7 @@ export default function ManagementDashboard({ stats }: Props) {
             >
               <p className="label">Listings</p>
               <p className="stat">{stats.listings.toLocaleString("en-US")}</p>
-              <p className="sub-stat">
-                {stats.pendingListings} awaiting review
-              </p>
+              <p className="sub-stat">{stats.pendingListings} awaiting review</p>
             </Link>
             <Link href="/management/orders" className="dashboard-summary-tile">
               <p className="label">Orders</p>
@@ -164,6 +154,9 @@ export default function ManagementDashboard({ stats }: Props) {
             linkColor="gray"
           />
         </DashboardSection>
+
+        {/* MOVED HERE (below the Product Approval buttons/tiles) */}
+        <ManagementDashboardTutorial />
 
         <DashboardSection
           title="VIP Club Management"
@@ -285,7 +278,6 @@ export default function ManagementDashboard({ stats }: Props) {
             linkText="Manage Messages"
             linkColor="blue"
           />
-
           <DashboardTile
             title="Analytics & Reports"
             description="High-level sales and traffic insights across Famous Finds."
