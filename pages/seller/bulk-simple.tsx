@@ -236,7 +236,7 @@ export default function BulkSimple() {
           color: it.color || "",
           price: numericPrice,
           purchase_source: it.purchaseSource || "",
-          purchase_proof: it.purchase_proof || "",
+          purchase_proof: it.purchaseProof || "", // FIXED: it.purchaseProof instead of it.purchase_proof
           serial_number: it.serial || "",
           imageDataUrl: it.imageDataUrl || null,
         };
@@ -321,7 +321,6 @@ export default function BulkSimple() {
               Add several listings at once. Prices are in USD.
             </p>
           </div>
-          {/* Link removed here */}
         </div>
 
         {submitError && <p className="banner error">⚠ {submitError}</p>}
