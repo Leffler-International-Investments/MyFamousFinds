@@ -18,6 +18,7 @@ import {
   doc,
   query,
   orderBy,
+  where,
 } from "firebase/firestore";
 
 type DesignerRecord = {
@@ -39,38 +40,59 @@ function slugify(name: string): string {
     .replace(/^-+|-+$/g, "");
 }
 
+function extractDesignerNameFromListing(d: any): string {
+  return String(
+    d?.brand ||
+      d?.designer ||
+      d?.designerName ||
+      d?.brandName ||
+      d?.otherDesignerName ||
+      ""
+  )
+    .trim()
+    .replace(/\s+/g, " ");
+}
+
 export default function ManagementDesigners() {
   const [designers, setDesigners] = useState<DesignerRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [seeding, setSeeding] = useState(false);
+
+  const [syncing, setSyncing] = useState(false);
+  const [syncReport, setSyncReport] = useState<string | null>(null);
+
   const [newName, setNewName] = useState("");
   const [newItemTypes, setNewItemTypes] = useState("B,S,J,C...");
   const [newNotes, setNewNotes] = useState("");
 
   const db = useMemo(() => getFirestore(firebaseApp), []);
 
+  const loadDesigners = async () => {
+    const qRef = query(collection(db, "designers"), orderBy("name"));
+    const snap = await getDocs(qRef);
+    const data: DesignerRecord[] = snap.docs
+      .map((d) => ({ id: d.id, ...(d.data() as any) }))
+      .map((d) => ({
+        id: d.id,
+        name: d.name || d.id,
+        slug: d.slug || slugify(d.name || d.id),
+        top: !!d.top,
+        upcoming: !!d.upcoming,
+        active: d.active !== false,
+        itemTypes: d.itemTypes || d.item_types || "B,S,J,C...",
+        notes: d.notes || "",
+      }));
+    setDesigners(data);
+  };
+
   useEffect(() => {
     const fetchDesigners = async () => {
       try {
         setLoading(true);
         setError(null);
-        const qRef = query(collection(db, "designers"), orderBy("name"));
-        const snap = await getDocs(qRef);
-        const data: DesignerRecord[] = snap.docs
-          .map((d) => ({ id: d.id, ...(d.data() as any) }))
-          .map((d) => ({
-            id: d.id,
-            name: d.name || d.id,
-            slug: d.slug || slugify(d.name || d.id),
-            top: !!d.top,
-            upcoming: !!d.upcoming,
-            active: d.active !== false,
-            itemTypes: d.itemTypes || d.item_types || "B,S,J,C...",
-            notes: d.notes || "",
-          }));
-        setDesigners(data);
+        await loadDesigners();
       } catch (err: any) {
         console.error("Error loading designers", err);
         setError("Could not load designers. Please refresh and try again.");
@@ -80,6 +102,7 @@ export default function ManagementDesigners() {
     };
 
     fetchDesigners();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [db]);
 
   const filteredDesigners = useMemo(() => {
@@ -141,6 +164,8 @@ export default function ManagementDesigners() {
     if (!name) return;
     try {
       setError(null);
+      setSyncReport(null);
+
       const slug = slugify(name);
       const payload = {
         name,
@@ -177,6 +202,7 @@ export default function ManagementDesigners() {
 
     setSeeding(true);
     setError(null);
+    setSyncReport(null);
 
     try {
       const defaults = [
@@ -216,26 +242,81 @@ export default function ManagementDesigners() {
         await addDoc(collection(db, "designers"), payload);
       }
 
-      const qRef = query(collection(db, "designers"), orderBy("name"));
-      const snap = await getDocs(qRef);
-      const refreshed: DesignerRecord[] = snap.docs
-        .map((d) => ({ id: d.id, ...(d.data() as any) }))
-        .map((d) => ({
-          id: d.id,
-          name: d.name || d.id,
-          slug: d.slug || slugify(d.name || d.id),
-          top: !!d.top,
-          upcoming: !!d.upcoming,
-          active: d.active !== false,
-          itemTypes: d.itemTypes || d.item_types || "B,S,J,C...",
-          notes: d.notes || "",
-        }));
-      setDesigners(refreshed);
+      await loadDesigners();
     } catch (err) {
       console.error("Error seeding defaults", err);
       setError("Could not seed defaults. Please try again.");
     } finally {
       setSeeding(false);
+    }
+  };
+
+  // ✅ NEW: Sync designers collection from Live listings (Ariel's real listing data)
+  const onSyncFromLiveListings = async () => {
+    if (
+      !window.confirm(
+        "Sync designers from LIVE listings?\n\nThis will add missing designers into the Designers collection (no deletions)."
+      )
+    )
+      return;
+
+    setSyncing(true);
+    setError(null);
+    setSyncReport(null);
+
+    try {
+      // current designers (by normalized name)
+      const designerSnap = await getDocs(collection(db, "designers"));
+      const existing = new Set<string>();
+      designerSnap.docs.forEach((dd) => {
+        const data = dd.data() as any;
+        const name = String(data?.name ?? dd.id).trim().toLowerCase();
+        if (name) existing.add(name);
+      });
+
+      // live listings
+      const listingsQ = query(
+        collection(db, "listings"),
+        where("status", "==", "Live")
+      );
+      const listingsSnap = await getDocs(listingsQ);
+
+      const found = new Set<string>();
+      listingsSnap.docs.forEach((ld) => {
+        const data = ld.data() as any;
+        const name = extractDesignerNameFromListing(data).trim();
+        if (!name) return;
+        found.add(name);
+      });
+
+      const toAdd = Array.from(found).filter(
+        (name) => !existing.has(name.toLowerCase())
+      );
+
+      let added = 0;
+      for (const name of toAdd) {
+        const payload = {
+          name,
+          slug: slugify(name),
+          top: false,
+          upcoming: false,
+          active: true,
+          itemTypes: "B,S,J,C...",
+          notes: "Auto-added from LIVE listings",
+        };
+        await addDoc(collection(db, "designers"), payload);
+        added += 1;
+      }
+
+      await loadDesigners();
+      setSyncReport(
+        `Sync complete: scanned ${listingsSnap.size} LIVE listings. Added ${added} missing designer(s).`
+      );
+    } catch (err) {
+      console.error("Sync from listings failed:", err);
+      setError("Could not sync from listings. Please try again.");
+    } finally {
+      setSyncing(false);
     }
   };
 
@@ -249,9 +330,7 @@ export default function ManagementDesigners() {
 
       <main className="section">
         <div className="back-link">
-          <Link href="/management/dashboard">
-            ← Back to Management Dashboard
-          </Link>
+          <Link href="/management/dashboard">← Back to Management Dashboard</Link>
         </div>
 
         <h1 className="page-title">Designers Directory</h1>
@@ -269,6 +348,7 @@ export default function ManagementDesigners() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
+
           <button
             type="button"
             className="seed-btn"
@@ -277,7 +357,20 @@ export default function ManagementDesigners() {
           >
             {seeding ? "Seeding…" : "Seed defaults / bulk add"}
           </button>
+
+          <button
+            type="button"
+            className="sync-btn"
+            onClick={onSyncFromLiveListings}
+            disabled={syncing}
+            title="Add missing designers from LIVE listings into the designers collection"
+          >
+            {syncing ? "Syncing…" : "Sync from LIVE listings"}
+          </button>
         </div>
+
+        {syncReport && <p className="success">{syncReport}</p>}
+        {error && <p className="error">{error}</p>}
 
         <section className="card">
           <div className="card-header">
@@ -292,8 +385,6 @@ export default function ManagementDesigners() {
               seller drop-downs and upload pages.
             </p>
           </div>
-
-          {error && <p className="error">{error}</p>}
 
           {loading ? (
             <p className="muted">Loading designers…</p>
@@ -492,9 +583,42 @@ export default function ManagementDesigners() {
           white-space: nowrap;
         }
 
-        .seed-btn[disabled] {
+        .sync-btn {
+          border-radius: 999px;
+          border: 1px solid #1f2937;
+          padding: 8px 14px;
+          font-size: 13px;
+          font-weight: 600;
+          background: #ffffff;
+          color: #111827;
+          cursor: pointer;
+          white-space: nowrap;
+        }
+
+        .seed-btn[disabled],
+        .sync-btn[disabled] {
           opacity: 0.6;
           cursor: default;
+        }
+
+        .success {
+          background: #ecfdf5;
+          border: 1px solid #10b981;
+          color: #065f46;
+          padding: 10px 12px;
+          border-radius: 12px;
+          font-size: 13px;
+          margin: 10px 0 14px;
+        }
+
+        .error {
+          background: #fef2f2;
+          border: 1px solid #ef4444;
+          color: #991b1b;
+          padding: 10px 12px;
+          border-radius: 12px;
+          font-size: 13px;
+          margin: 10px 0 14px;
         }
 
         .card {
@@ -522,136 +646,121 @@ export default function ManagementDesigners() {
         .count {
           font-size: 12px;
           color: #6b7280;
-          font-weight: 400;
+          font-weight: 500;
+          margin-left: 8px;
         }
 
         .muted {
-          font-size: 12px;
           color: #6b7280;
-        }
-
-        .error {
-          font-size: 12px;
-          color: #b91c1c;
+          font-size: 13px;
+          margin: 0;
         }
 
         .table-wrap {
           overflow-x: auto;
-          margin-top: 6px;
+          padding-top: 6px;
         }
 
         .table {
           width: 100%;
           border-collapse: collapse;
-          font-size: 12px;
+          font-size: 13px;
         }
 
-        th,
-        td {
-          padding: 6px 8px;
-          border-bottom: 1px solid #e5e7eb;
+        .table th,
+        .table td {
+          padding: 10px 8px;
+          border-top: 1px solid #f3f4f6;
+          vertical-align: top;
+        }
+
+        .table th {
           text-align: left;
-        }
-
-        thead th {
-          font-weight: 600;
           color: #111827;
-          background: #f9fafb;
-          white-space: nowrap;
-        }
-
-        tbody tr:hover {
-          background: #f3f4f6;
+          font-size: 12px;
+          letter-spacing: 0.08em;
+          text-transform: uppercase;
         }
 
         .name-col {
-          min-width: 160px;
-          font-weight: 500;
+          min-width: 200px;
+          font-weight: 600;
         }
 
         .small-input {
-          width: 180px;
-          max-width: 100%;
-          background: #ffffff;
-          border-radius: 8px;
-          border: 1px solid #d1d5db;
-          padding: 4px 6px;
-          color: #111827;
-          font-size: 12px;
+          width: 100%;
+          min-width: 140px;
+          border: 1px solid #e5e7eb;
+          border-radius: 10px;
+          padding: 8px 10px;
+          font-size: 13px;
         }
 
         .hint {
           font-size: 11px;
-          color: #6b7280;
-          margin-top: 2px;
-        }
-
-        td input[type="checkbox"] {
-          transform: scale(1.1);
+          color: #9ca3af;
+          margin-top: 6px;
         }
 
         .delete-btn {
-          background: #b91c1c;
-          color: #fef2f2;
+          border: 1px solid #ef4444;
+          color: #ef4444;
+          background: #ffffff;
           border-radius: 999px;
-          border: none;
-          padding: 4px 10px;
-          font-size: 11px;
+          padding: 8px 12px;
+          font-size: 12px;
+          font-weight: 600;
           cursor: pointer;
+          white-space: nowrap;
         }
 
         .delete-btn:hover {
-          background: #7f1d1d;
-        }
-
-        .add-section {
-          margin-top: 24px;
+          background: #fef2f2;
         }
 
         .add-section h2 {
-          font-size: 15px;
-          margin-bottom: 6px;
-        }
-
-        .add-section p {
-          font-size: 12px;
-          color: #6b7280;
+          margin: 0 0 6px;
         }
 
         .add-form {
           display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
-          gap: 10px 16px;
+          grid-template-columns: repeat(3, minmax(0, 1fr)) auto;
+          gap: 12px;
+          align-items: end;
           margin-top: 10px;
-          align-items: flex-end;
+        }
+
+        @media (max-width: 900px) {
+          .add-form {
+            grid-template-columns: 1fr;
+          }
         }
 
         .add-form label {
           display: flex;
           flex-direction: column;
-          gap: 4px;
-          font-size: 13px;
+          gap: 6px;
+          font-size: 12px;
+          color: #374151;
         }
 
-        .add-form input[type="text"] {
-          background: #ffffff;
-          border-radius: 8px;
-          border: 1px solid #d1d5db;
-          padding: 8px 10px;
-          color: #111827;
+        .add-form input {
+          border: 1px solid #e5e7eb;
+          border-radius: 12px;
+          padding: 10px 12px;
+          font-size: 13px;
         }
 
         .add-btn {
-          margin-top: 4px;
           border-radius: 999px;
-          border: none;
-          padding: 8px 14px;
+          border: 1px solid #111827;
+          padding: 10px 14px;
           font-size: 13px;
-          font-weight: 600;
+          font-weight: 700;
           background: #111827;
           color: #ffffff;
           cursor: pointer;
-          justify-self: flex-start;
+          white-space: nowrap;
         }
 
         .add-btn[disabled] {
