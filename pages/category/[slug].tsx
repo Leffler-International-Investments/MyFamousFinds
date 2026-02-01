@@ -279,7 +279,6 @@ export default function CategoryPage({ slug, label, items }: CategoryProps) {
             <div className="filter-block">
               <h3>Price</h3>
 
-              {/* ✅ FIXED: Max stays inside the filter frame (stacked under Min) */}
               <div className="price-stack">
                 <div className="price-input">
                   <span>Min</span>
@@ -322,7 +321,7 @@ export default function CategoryPage({ slug, label, items }: CategoryProps) {
           <section className="results">
             <div className="results-header">
               <div>
-                <h1>All Products</h1>
+                <h1>{label}</h1>
                 <p className="results-count">
                   {resultsCount} {resultsCount === 1 ? "result" : "results"}
                 </p>
@@ -591,10 +590,6 @@ export const getServerSideProps: GetServerSideProps<CategoryProps> = async (ctx)
   const rawSlug = String(ctx.params?.slug || "");
   const normalized = rawSlug.toLowerCase();
 
-  // NOTE: keep category pages index-free.
-  // We intentionally avoid compound Firestore queries (e.g. status IN + orderBy createdAt)
-  // because they require composite indexes and were causing empty results.
-
   const categoryLabel =
     labelMap[normalized] ||
     normalized.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
@@ -611,6 +606,8 @@ export const getServerSideProps: GetServerSideProps<CategoryProps> = async (ctx)
       category?: string;
       condition?: string;
       createdAt?: any;
+      // derived category slug for reliable filtering
+      __categorySlug?: string;
       // extra possible fields (no harm if undefined)
       categoryName?: string;
       categoryLabel?: string;
@@ -640,13 +637,43 @@ export const getServerSideProps: GetServerSideProps<CategoryProps> = async (ctx)
           ? parsePrice(d.price)
           : 0;
 
+      // Helpers
+      const norm = (v: any) => String(v || "").trim().toLowerCase().replace(/\s+/g, " ");
+      const normSlug = (v: any) =>
+        norm(v).replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
+
+      // Derive a single category slug for this listing. This avoids false-positives
+      // from many legacy fields (department/type/etc.)
+      const rawCatCandidates = [
+        d.menuCategorySlug,
+        d.categorySlug,
+        d.menuCategory,
+        d.category,
+        d.categoryName,
+        d.categoryLabel,
+        d.topCategory,
+        d.mainCategory,
+        d.parentCategory,
+        d.department,
+      ]
+        .map((v: any) => String(v || "").trim())
+        .filter(Boolean);
+
+      const derivedCategorySlug = (() => {
+        for (const c of rawCatCandidates) {
+          const s = normSlug(c);
+          if (s) return s;
+        }
+        return "";
+      })();
+
       return {
         id: doc.id,
         title: d.title || "",
         brand: d.brand || "",
         category: d.category || "",
         condition: d.condition || "",
-        // pass-through possible category fields used by other parts of the app
+        __categorySlug: derivedCategorySlug,
         categoryName: d.categoryName || "",
         categoryLabel: d.categoryLabel || "",
         categorySlug: d.categorySlug || "",
@@ -664,7 +691,7 @@ export const getServerSideProps: GetServerSideProps<CategoryProps> = async (ctx)
       } as any;
     });
 
-    // Helpers
+    // Helpers (page-level)
     const norm = (v: any) => String(v || "").trim().toLowerCase().replace(/\s+/g, " ");
     const normSlug = (v: any) =>
       norm(v).replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
@@ -691,42 +718,37 @@ export const getServerSideProps: GetServerSideProps<CategoryProps> = async (ctx)
 
     const wantedLabel = norm(categoryLabel);
 
-    const pickCategoryCandidates = (it: any): string[] => {
-      const vals = [
-        it.category,
-        it.categoryName,
-        it.categoryLabel,
-        it.categorySlug,
-        it.menuCategory,
-        it.menuCategorySlug,
-        it.topCategory,
-        it.mainCategory,
-        it.parentCategory,
-        it.department,
-        it.type,
-      ];
-      return vals.map((v) => String(v || "").trim()).filter(Boolean);
-    };
-
     if (normalized === "new-arrivals") {
       // nothing else, just sort
     } else {
+      // ✅ Reliable filtering: match by a single derived slug.
+      // This prevents items from leaking into all category pages due to
+      // legacy/extra fields that may contain broad values.
       filtered = rawItems.filter((it: any) => {
-        const candidates = pickCategoryCandidates(it);
-        if (candidates.length === 0) return false;
+        const derived = normSlug(it.__categorySlug || "");
+        if (derived && wantedSlugs.includes(derived)) return true;
 
-        return candidates.some((c) => {
+        // Fallback: check explicit category fields only (not department/type)
+        const directCandidates = [
+          it.menuCategorySlug,
+          it.categorySlug,
+          it.menuCategory,
+          it.category,
+          it.categoryName,
+          it.categoryLabel,
+        ]
+          .map((v: any) => String(v || "").trim())
+          .filter(Boolean);
+
+        if (directCandidates.length === 0) return false;
+
+        return directCandidates.some((c: string) => {
           const cNorm = norm(c);
           const cSlug = normSlug(c);
-
-          // Exact label or slug match
           if (cNorm === wantedLabel) return true;
           if (wantedSlugs.includes(cSlug)) return true;
-
-          // Loose match: "Men's" vs "Mens" vs "men"
           const compact = (x: string) => x.replace(/[\s\-']/g, "");
           if (compact(cNorm) === compact(wantedLabel)) return true;
-
           return false;
         });
       });
@@ -742,12 +764,14 @@ export const getServerSideProps: GetServerSideProps<CategoryProps> = async (ctx)
       })
       .slice(0, 60);
 
-    const items: ProductLike[] = filtered.map(({ createdAt, ...rest }: any) => rest);
+    const items: ProductLike[] = filtered.map(
+      ({ createdAt, __categorySlug, ...rest }: any) => rest
+    );
 
     return {
       props: {
         slug: normalized,
-        label: labelMap[normalized] || normalized.toUpperCase(),
+        label: categoryLabel,
         items,
       },
     };
@@ -756,7 +780,7 @@ export const getServerSideProps: GetServerSideProps<CategoryProps> = async (ctx)
     return {
       props: {
         slug: normalized,
-        label: labelMap[normalized] || normalized.toUpperCase(),
+        label: categoryLabel,
         items: [],
       },
     };
