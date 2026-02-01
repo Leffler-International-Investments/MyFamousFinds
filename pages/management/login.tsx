@@ -7,13 +7,13 @@ import Header from "../../components/Header";
 import Footer from "../../components/Footer";
 import PasswordInput from "../../components/PasswordInput";
 
-type SellerLoginOk = { ok: true; sellerId: string };
-type SellerLoginError = {
+type ManagementLoginOk = { ok: true; managementId: string };
+type ManagementLoginError = {
   ok: false;
-  code: "apply_first" | "pending" | "bad_credentials" | string;
+  code: "pending" | "not_authorised" | "bad_credentials" | string;
   message: string;
 };
-type SellerLoginResponse = SellerLoginOk | SellerLoginError;
+type ManagementLoginResponse = ManagementLoginOk | ManagementLoginError;
 
 type TwoFactorStep = "credentials" | "verify";
 
@@ -52,8 +52,8 @@ export default function ManagementLoginPage() {
     setLoading(true);
 
     try {
-      // 🔐 USE EXISTING SELLER LOGIN API (no Firebase Auth here)
-      const res = await fetch("/api/seller/login", {
+      // 🔐 USE MANAGEMENT LOGIN API (managementAdmins collection + env super emails)
+      const res = await fetch("/api/management/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -62,14 +62,14 @@ export default function ManagementLoginPage() {
         }),
       });
 
-      const json = (await res.json()) as SellerLoginResponse;
+      const json = (await res.json()) as ManagementLoginResponse;
 
       if (!json.ok) {
-        const errJson = json as SellerLoginError;
+        const errJson = json as ManagementLoginError;
 
-        if (errJson.code === "apply_first") {
+        if (errJson.code === "not_authorised") {
           setError(
-            "This email is not registered yet. Please complete the seller application first."
+            "This email is not registered for management access. Please contact the site owner."
           );
           return;
         }
@@ -77,7 +77,7 @@ export default function ManagementLoginPage() {
         if (errJson.code === "pending") {
           setError("");
           setInfo(
-            "Your access is still under review. We'll email you as soon as it is approved."
+            "Your management access is still under review. We'll email you as soon as it is approved."
           );
           return;
         }
