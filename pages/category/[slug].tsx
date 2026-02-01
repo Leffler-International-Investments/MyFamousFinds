@@ -134,7 +134,7 @@ export default function CategoryPage({ slug, label, items }: CategoryProps) {
       try {
         const listings = await getPublicListings({
           category: pageSlug === "new-arrivals" ? "" : pageSlug,
-          max: 500,
+          take: 500,
         });
 
         const mapped: ProductLike[] = (listings || []).map((l: any) => ({
@@ -588,9 +588,10 @@ export const getServerSideProps: GetServerSideProps = async (ctx) => {
     const wantsCategory = slug !== "new-arrivals";
 
     // For SSR: use tolerant loader so you don't need perfect Firestore category equality
+    // ✅ Updated: Using 'take' instead of 'max'
     const listings = await getPublicListings({
       category: wantsCategory ? slug : "",
-      max: 500,
+      take: 500,
     });
 
     const mapped: ProductLike[] = (listings || []).map((l: any) => ({
