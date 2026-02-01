@@ -35,7 +35,8 @@ function parsePrice(price?: string | null): number {
   return Number.isFinite(asNumber) ? asNumber : 0;
 }
 
-// FIXED: Selection strictly matches the header categories
+// You can EDIT these lists any time.
+// Add / remove entries and the filters will update automatically.
 const CATEGORY_OPTIONS = [
   "Women",
   "Bags",
@@ -75,7 +76,7 @@ export default function CategoryPage({ slug, label, items }: CategoryProps) {
   const [selectedDesigners, setSelectedDesigners] = useState<string[]>([]);
   const [selectedConditions, setSelectedConditions] = useState<string[]>([]);
   const [minPrice, setMinPrice] = useState<number | "">(0);
-  const [maxPrice, setMaxPrice] = useState<number | "">(1000000); // FIXED: Default increased to show high-end items
+  const [maxPrice, setMaxPrice] = useState<number | "">(1000000);
 
   // Designers list for the filter
   const [designerOptions, setDesignerOptions] =
@@ -141,23 +142,27 @@ export default function CategoryPage({ slug, label, items }: CategoryProps) {
     setSelectedDesigners([]);
     setSelectedConditions([]);
     setMinPrice(0);
-    setMaxPrice(1000000); // FIXED: Default increased here as well
+    setMaxPrice(1000000);
   }
 
   const filteredItems: ItemWithPrice[] = useMemo(() => {
     let result = [...itemsWithPrice];
 
-    // 1) Category
+    // 1) Category - Fix: Case-insensitive matching
     if (selectedCategories.length > 0) {
       result = result.filter((item) =>
-        selectedCategories.includes((item.category || "").trim())
+        selectedCategories.some(cat => 
+          cat.toLowerCase() === (item.category || "").trim().toLowerCase()
+        )
       );
     }
 
-    // 2) Designer (brand)
+    // 2) Designer (brand) - Fix: Case-insensitive matching
     if (selectedDesigners.length > 0) {
       result = result.filter((item) =>
-        selectedDesigners.includes((item.brand || "").trim())
+        selectedDesigners.some(des => 
+          des.toLowerCase() === (item.brand || "").trim().toLowerCase()
+        )
       );
     }
 
@@ -597,8 +602,6 @@ export const getServerSideProps: GetServerSideProps<CategoryProps> = async (ctx)
   const normSlug = (v: any) =>
     norm(v).replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
 
-  // FIXED: Strictly uses header categories only
-  const wantedSlug = normalized;
   const wantedLabel = labelMap[normalized] || categoryLabel;
 
   try {
@@ -644,15 +647,13 @@ export const getServerSideProps: GetServerSideProps<CategoryProps> = async (ctx)
     // 1) Filter to public/live items
     let filtered = allItems.filter((it) => it._isPublic && !it._isExcluded);
 
-    // 2) Category page filter
+    // 2) Category page filter - Fix: Strict slug matching
     if (normalized !== "new-arrivals") {
       filtered = filtered.filter((it) => {
         const c = String(it.category || "").trim();
         if (!c) return false;
-
-        const cSlug = normSlug(c); // FIXED: Use slug for strict comparison
+        const cSlug = normSlug(c);
         const pageSlug = normSlug(wantedLabel);
-
         return cSlug === pageSlug;
       });
     }
