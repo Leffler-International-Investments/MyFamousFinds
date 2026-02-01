@@ -1,48 +1,60 @@
 // FILE: /utils/firebaseClient.ts
-import { initializeApp, getApps, getApp } from "firebase/app";
-import { getFirestore } from "firebase/firestore";
-import { getAuth } from "firebase/auth";
+import { initializeApp, getApps, getApp, type FirebaseApp } from "firebase/app";
+import { getFirestore, type Firestore } from "firebase/firestore";
+import { getAuth, type Auth } from "firebase/auth";
 
 /**
  * Firebase CLIENT (browser) configuration.
  *
- * - Uses ONLY environment variables
- * - NO hardcoded keys
- * - NO fallback
- * - Safe after transfer (Dan → Ariel)
+ * IMPORTANT:
+ * - Do NOT throw at import-time if env vars are missing.
+ *   Throwing here crashes the entire site with "client-side exception".
+ * - Instead, export nulls and let UI/features degrade gracefully.
  *
- * REQUIRED env vars (Vercel):
- * NEXT_PUBLIC_FIREBASE_API_KEY
- * NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN
- * NEXT_PUBLIC_FIREBASE_PROJECT_ID
- * NEXT_PUBLIC_FIREBASE_APP_ID
+ * Required (Vercel / .env.local):
+ * NEXT_PUBLIC_FB_API_KEY
+ * NEXT_PUBLIC_FB_AUTH_DOMAIN
+ * NEXT_PUBLIC_FB_PROJECT_ID
+ * NEXT_PUBLIC_FB_STORAGE_BUCKET
+ * NEXT_PUBLIC_FB_MESSAGING_SENDER_ID
+ * NEXT_PUBLIC_FB_APP_ID
  */
 
-const firebaseConfig = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY!,
-  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN!,
-  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID!,
-  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID!,
-  measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID,
-};
+const cfg = {
+  apiKey: process.env.NEXT_PUBLIC_FB_API_KEY,
+  authDomain: process.env.NEXT_PUBLIC_FB_AUTH_DOMAIN,
+  projectId: process.env.NEXT_PUBLIC_FB_PROJECT_ID,
+  storageBucket: process.env.NEXT_PUBLIC_FB_STORAGE_BUCKET,
+  messagingSenderId: process.env.NEXT_PUBLIC_FB_MESSAGING_SENDER_ID,
+  appId: process.env.NEXT_PUBLIC_FB_APP_ID,
+} as const;
 
-if (
-  !firebaseConfig.apiKey ||
-  !firebaseConfig.authDomain ||
-  !firebaseConfig.projectId ||
-  !firebaseConfig.appId
-) {
-  throw new Error(
-    "Firebase client env vars missing. Set NEXT_PUBLIC_FIREBASE_* in Vercel."
+function hasAllFirebaseClientEnv() {
+  return Boolean(
+    cfg.apiKey &&
+      cfg.authDomain &&
+      cfg.projectId &&
+      cfg.storageBucket &&
+      cfg.messagingSenderId &&
+      cfg.appId
   );
 }
 
-const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
+export const firebaseClientReady = hasAllFirebaseClientEnv();
 
-export const db = getFirestore(app);
-export const auth = getAuth(app);
-export default app;
-;
+let app: FirebaseApp | null = null;
+let db: Firestore | null = null;
+let auth: Auth | null = null;
 
+if (firebaseClientReady) {
+  app = getApps().length ? getApp() : initializeApp(cfg as any);
+  db = getFirestore(app);
+  auth = getAuth(app);
+} else {
+  // eslint-disable-next-line no-console
+  console.warn(
+    "[firebaseClient] Missing NEXT_PUBLIC_FB_* env vars. Firebase client features disabled."
+  );
+}
+
+export { app, db, auth };
