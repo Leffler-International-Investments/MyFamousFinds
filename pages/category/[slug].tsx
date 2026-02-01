@@ -594,179 +594,123 @@ export const getServerSideProps: GetServerSideProps<CategoryProps> = async (ctx)
     labelMap[normalized] ||
     normalized.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 
-  try {
-    // 1) Pull live items (single-condition query = no composite index needed)
-    const snap = await adminDb
-      .collection("listings")
-      .where("status", "==", "Live")
-      .limit(250)
-      .get();
+  // helpers
+  const norm = (v: any) =>
+    String(v || "").trim().toLowerCase().replace(/\s+/g, " ");
+  const normSlug = (v: any) =>
+    norm(v).replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
+  const compact = (v: string) => v.replace(/[\s\-']/g, "");
 
-    const rawItems: (ProductLike & {
-      category?: string;
-      condition?: string;
-      createdAt?: any;
-      // derived category slug for reliable filtering
-      __categorySlug?: string;
-      // extra possible fields (no harm if undefined)
-      categoryName?: string;
-      categoryLabel?: string;
-      categorySlug?: string;
-      menuCategory?: string;
-      menuCategorySlug?: string;
-      topCategory?: string;
-      mainCategory?: string;
-      parentCategory?: string;
-      department?: string;
-      type?: string;
-    })[] = snap.docs.map((doc) => {
-      const d = doc.data() as any;
+  // Slug aliases to match how categories may be stored in Firestore
+  const slugAliases: Record<string, string[]> = {
+    women: ["women", "womens", "ladies", "lady", "female"],
+    men: ["men", "mens", "man's", "man", "male"],
+    bags: ["bags", "bag", "handbags", "handbag", "purses", "purse"],
+    jewelry: ["jewelry", "jewellery"],
+    watches: ["watches", "watch"],
+    "new-arrivals": ["new-arrivals", "new", "new arrivals"],
+  };
+
+  const wantedSlug = normalized;
+  const wantedSlugs = Array.from(
+    new Set([wantedSlug, ...(slugAliases[wantedSlug] || [])].map((s) => normSlug(s)))
+  );
+  const wantedLabel = norm(categoryLabel);
+
+  try {
+    // ✅ IMPORTANT FIX:
+    // Do NOT require status == "Live".
+    // Your system treats "Approved", "Active", and even empty status as Live items.
+    const allowedStatuses = ["Live", "Active", "Approved"];
+
+    let snap;
+    try {
+      snap = await adminDb
+        .collection("listings")
+        .orderBy("createdAt", "desc")
+        .limit(500)
+        .get();
+    } catch {
+      // fallback if createdAt is missing on some docs
+      snap = await adminDb.collection("listings").limit(500).get();
+    }
+
+    const allItems: any[] = snap.docs.map((doc) => {
+      const d: any = doc.data() || {};
 
       const image =
         d.image_url ||
         d.imageUrl ||
         d.image ||
         (Array.isArray(d.imageUrls) && d.imageUrls[0]) ||
+        (Array.isArray(d.auth_photos) && d.auth_photos[0]) ||
         "";
 
-      // Price can be stored as number or string. Normalize to number.
-      const priceNum =
-        typeof d.price === "number"
-          ? d.price
-          : typeof d.price === "string"
-          ? parsePrice(d.price)
-          : 0;
+      const rawStatus = (d.status || "").toString().trim();
+      const isExcluded =
+        /pending/i.test(rawStatus) || /reject/i.test(rawStatus) || /sold/i.test(rawStatus);
 
-      // Helpers
-      const norm = (v: any) => String(v || "").trim().toLowerCase().replace(/\s+/g, " ");
-      const normSlug = (v: any) =>
-        norm(v).replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
+      const isPublic =
+        !rawStatus || allowedStatuses.includes(rawStatus);
 
-      // Derive a single category slug for this listing. This avoids false-positives
-      // from many legacy fields (department/type/etc.)
-      const rawCatCandidates = [
-        d.menuCategorySlug,
-        d.categorySlug,
-        d.menuCategory,
-        d.category,
-        d.categoryName,
-        d.categoryLabel,
-        d.topCategory,
-        d.mainCategory,
-        d.parentCategory,
-        d.department,
-      ]
-        .map((v: any) => String(v || "").trim())
-        .filter(Boolean);
+      const category =
+        d.category || d.categoryLabel || d.categoryName || "";
 
-      const derivedCategorySlug = (() => {
-        for (const c of rawCatCandidates) {
-          const s = normSlug(c);
-          if (s) return s;
-        }
-        return "";
-      })();
+      const condition =
+        d.condition || d.conditionLabel || d.itemCondition || d.conditionText || "";
+
+      const brand =
+        d.brand || d.designer || d.designerName || d.brandName || "";
+
+      const priceNumber = Number(d.price) || 0;
+      const price = priceNumber ? `US$${priceNumber.toLocaleString("en-US")}` : "";
 
       return {
         id: doc.id,
-        title: d.title || "",
-        brand: d.brand || "",
-        category: d.category || "",
-        condition: d.condition || "",
-        __categorySlug: derivedCategorySlug,
-        categoryName: d.categoryName || "",
-        categoryLabel: d.categoryLabel || "",
-        categorySlug: d.categorySlug || "",
-        menuCategory: d.menuCategory || "",
-        menuCategorySlug: d.menuCategorySlug || "",
-        topCategory: d.topCategory || "",
-        mainCategory: d.mainCategory || "",
-        parentCategory: d.parentCategory || "",
-        department: d.department || "",
-        type: d.type || "",
-        price: priceNum ? `US$${priceNum.toLocaleString()}` : "",
+        title: d.title || "Untitled listing",
+        brand: String(brand),
+        category: String(category),
+        condition: String(condition),
+        price,
         image,
         href: `/product/${doc.id}`,
         createdAt: d.createdAt || null,
-      } as any;
+        _isExcluded: isExcluded,
+        _isPublic: isPublic,
+      };
     });
 
-    // Helpers (page-level)
-    const norm = (v: any) => String(v || "").trim().toLowerCase().replace(/\s+/g, " ");
-    const normSlug = (v: any) =>
-      norm(v).replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
+    // 1) Filter to public/live items
+    let filtered = allItems.filter((it) => it._isPublic && !it._isExcluded);
 
-    // 2) Filter items per category page
-    let filtered = rawItems;
+    // 2) Category page filter
+    if (normalized !== "new-arrivals") {
+      filtered = filtered.filter((it) => {
+        const c = String(it.category || "").trim();
+        if (!c) return false;
 
-    // Slug aliases to match how categories may be stored in Firestore
-    const slugAliases: Record<string, string[]> = {
-      women: ["women", "womens", "ladies", "lady", "female"],
-      men: ["men", "mens", "man's", "man", "male"],
-      bags: ["bags", "bag", "handbags", "handbag", "purses", "purse"],
-      shoes: ["shoes", "shoe", "footwear"],
-      accessories: ["accessories", "accessory"],
-      jewelry: ["jewelry", "jewellery"],
-      watches: ["watches", "watch"],
-      "new-arrivals": ["new-arrivals", "new", "new arrivals"],
-    };
+        const cNorm = norm(c);
+        const cSlug = normSlug(c);
 
-    const wantedSlug = normalized;
-    const wantedSlugs = Array.from(
-      new Set([wantedSlug, ...(slugAliases[wantedSlug] || [])].map((s) => normSlug(s)))
-    );
+        if (cNorm === wantedLabel) return true;
+        if (wantedSlugs.includes(cSlug)) return true;
+        if (compact(cNorm) === compact(wantedLabel)) return true;
 
-    const wantedLabel = norm(categoryLabel);
-
-    if (normalized === "new-arrivals") {
-      // nothing else, just sort
-    } else {
-      // ✅ Reliable filtering: match by a single derived slug.
-      // This prevents items from leaking into all category pages due to
-      // legacy/extra fields that may contain broad values.
-      filtered = rawItems.filter((it: any) => {
-        const derived = normSlug(it.__categorySlug || "");
-        if (derived && wantedSlugs.includes(derived)) return true;
-
-        // Fallback: check explicit category fields only (not department/type)
-        const directCandidates = [
-          it.menuCategorySlug,
-          it.categorySlug,
-          it.menuCategory,
-          it.category,
-          it.categoryName,
-          it.categoryLabel,
-        ]
-          .map((v: any) => String(v || "").trim())
-          .filter(Boolean);
-
-        if (directCandidates.length === 0) return false;
-
-        return directCandidates.some((c: string) => {
-          const cNorm = norm(c);
-          const cSlug = normSlug(c);
-          if (cNorm === wantedLabel) return true;
-          if (wantedSlugs.includes(cSlug)) return true;
-          const compact = (x: string) => x.replace(/[\s\-']/g, "");
-          if (compact(cNorm) === compact(wantedLabel)) return true;
-          return false;
-        });
+        return false;
       });
     }
 
-    // 3) Sort newest first (server didn't order)
+    // 3) Newest first, cap to 60
     filtered = filtered
       .slice()
-      .sort((a: any, b: any) => {
+      .sort((a, b) => {
         const aTime = a.createdAt?.toMillis?.() || 0;
         const bTime = b.createdAt?.toMillis?.() || 0;
         return bTime - aTime;
       })
       .slice(0, 60);
 
-    const items: ProductLike[] = filtered.map(
-      ({ createdAt, __categorySlug, ...rest }: any) => rest
-    );
+    const items: ProductLike[] = filtered.map(({ _isExcluded, _isPublic, createdAt, ...rest }) => rest);
 
     return {
       props: {
