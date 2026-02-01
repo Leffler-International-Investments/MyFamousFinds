@@ -1,4 +1,5 @@
 // FILE: /pages/category/[slug].tsx
+
 import Head from "next/head";
 import Link from "next/link";
 import type { GetServerSideProps } from "next";
@@ -6,15 +7,13 @@ import { useEffect, useMemo, useState } from "react";
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
 import ProductCard, { ProductLike } from "../../components/ProductCard";
-import { adminDb } from "../../utils/firebaseAdmin";
+import { getPublicListings } from "../../lib/publicListings";
 
 type CategoryProps = {
   slug: string;
   label: string;
-  items: ProductLike[];
 };
 
-// NOTE: we add category + condition as optionals on top of ProductLike
 type ItemWithPrice = ProductLike & {
   priceValue: number;
   category?: string;
@@ -35,24 +34,41 @@ function parsePrice(price?: string | null): number {
   return Number.isFinite(asNumber) ? asNumber : 0;
 }
 
-// You can EDIT these lists any time.
-// Add / remove entries and the filters will update automatically.
 const CATEGORY_OPTIONS = ["Women", "Bags", "Men", "Jewelry", "Watches"];
 const CONDITION_OPTIONS = ["New", "Excellent", "Very good", "Good"];
-
-// Fallback list if /api/public/designers has none
 const DEFAULT_DESIGNERS = ["Chanel", "Hermès", "Louis Vuitton", "Gucci", "Prada", "Dior", "Rolex"];
 
-export default function CategoryPage({ slug, label, items }: CategoryProps) {
-  // Pre-compute numeric prices once
-  const [itemsWithPrice] = useState<ItemWithPrice[]>(() =>
-    (items || []).map((item: any) => ({
-      ...item,
-      priceValue: parsePrice(item.price),
-      category: item.category || "",
-      condition: item.condition || "",
-    }))
-  );
+function toUsdString(n?: number): string {
+  if (typeof n !== "number") return "";
+  return `US$${n.toLocaleString("en-US")}`;
+}
+
+function canonicalSlug(slug: string): string {
+  const s = (slug || "").toLowerCase().trim();
+  if (s === "mens") return "men";
+  if (s === "jewellery") return "jewelry";
+  if (s === "watch") return "watches";
+  return s;
+}
+
+function labelFromSlug(slug: string): string {
+  const s = canonicalSlug(slug);
+  const map: Record<string, string> = {
+    "new-arrivals": "New Arrivals",
+    women: "Women",
+    bags: "Bags",
+    men: "Men",
+    jewelry: "Jewelry",
+    watches: "Watches",
+  };
+  return map[s] || s.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+export default function CategoryPage({ slug, label }: CategoryProps) {
+  // IMPORTANT: we no longer depend on firebase-admin / server env vars.
+  // We load listings from Firestore client-side using /lib/publicListings.ts
+  const [loading, setLoading] = useState(true);
+  const [items, setItems] = useState<ProductLike[]>([]);
 
   const [sortBy, setSortBy] = useState<"newest" | "price-asc" | "price-desc">("newest");
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
@@ -61,10 +77,65 @@ export default function CategoryPage({ slug, label, items }: CategoryProps) {
   const [minPrice, setMinPrice] = useState<number | "">(0);
   const [maxPrice, setMaxPrice] = useState<number | "">(1000000);
 
-  // Designers list for the filter
   const [designerOptions, setDesignerOptions] = useState<string[]>(DEFAULT_DESIGNERS);
 
-  // Load designers from your public API once on mount
+  useEffect(() => {
+    let alive = true;
+
+    async function load() {
+      setLoading(true);
+      try {
+        const cat = canonicalSlug(slug);
+
+        const listings = await getPublicListings({
+          category: cat === "new-arrivals" ? "" : cat,
+          max: 200,
+        });
+
+        const mapped: ProductLike[] = listings.map((l) => ({
+          id: l.id,
+          title: l.title,
+          brand: l.brand || "",
+          category: l.category || "",
+          condition: l.condition || "",
+          price: toUsdString(l.price ?? l.priceUsd),
+          image:
+            (Array.isArray(l.images) && l.images[0]) ? l.images[0] : "",
+          href: `/product/${l.id}`,
+        }));
+
+        if (!alive) return;
+
+        // NEW ARRIVALS: just newest 60
+        if (cat === "new-arrivals") {
+          setItems(mapped.slice(0, 60));
+        } else {
+          setItems(mapped);
+        }
+      } catch (e) {
+        console.error("Category load failed", e);
+        if (alive) setItems([]);
+      } finally {
+        if (alive) setLoading(false);
+      }
+    }
+
+    load();
+    return () => {
+      alive = false;
+    };
+  }, [slug]);
+
+  const itemsWithPrice: ItemWithPrice[] = useMemo(() => {
+    return (items || []).map((item: any) => ({
+      ...item,
+      priceValue: parsePrice(item.price),
+      category: item.category || "",
+      condition: item.condition || "",
+    }));
+  }, [items]);
+
+  // Designers list for the filter
   useEffect(() => {
     async function loadDesigners() {
       try {
@@ -80,28 +151,26 @@ export default function CategoryPage({ slug, label, items }: CategoryProps) {
                 .filter(Boolean)
             )
           ).sort((a, b) => a.localeCompare(b));
+
           if (names.length > 0) {
             setDesignerOptions(names);
             return;
           }
         }
-      } catch (err) {
-        console.error("Failed to load designers for filters", err);
+      } catch {
+        // ignore
       }
 
-      // Fallback: use brands from items or DEFAULT_DESIGNERS
       const fromItems = Array.from(
         new Set(itemsWithPrice.map((i) => (i.brand || "").trim()).filter(Boolean))
       ).sort((a, b) => a.localeCompare(b));
 
-      if (fromItems.length > 0) setDesignerOptions(fromItems);
-      else setDesignerOptions(DEFAULT_DESIGNERS);
+      setDesignerOptions(fromItems.length > 0 ? fromItems : DEFAULT_DESIGNERS);
     }
 
     loadDesigners();
   }, [itemsWithPrice]);
 
-  // Simple helpers to toggle filters
   function toggleInList(list: string[], value: string): string[] {
     return list.includes(value) ? list.filter((v) => v !== value) : [...list, value];
   }
@@ -127,7 +196,7 @@ export default function CategoryPage({ slug, label, items }: CategoryProps) {
   const filteredItems: ItemWithPrice[] = useMemo(() => {
     let result = [...itemsWithPrice];
 
-    // 1) Category - Case-insensitive matching
+    // Category (checkbox filters only)
     if (selectedCategories.length > 0) {
       result = result.filter((item) =>
         selectedCategories.some(
@@ -136,7 +205,7 @@ export default function CategoryPage({ slug, label, items }: CategoryProps) {
       );
     }
 
-    // 2) Designer (brand) - Case-insensitive matching
+    // Designer
     if (selectedDesigners.length > 0) {
       result = result.filter((item) =>
         selectedDesigners.some(
@@ -145,12 +214,14 @@ export default function CategoryPage({ slug, label, items }: CategoryProps) {
       );
     }
 
-    // 3) Condition
+    // Condition
     if (selectedConditions.length > 0) {
-      result = result.filter((item) => selectedConditions.includes((item.condition || "").trim()));
+      result = result.filter((item) =>
+        selectedConditions.includes((item.condition || "").trim())
+      );
     }
 
-    // 4) Price
+    // Price
     result = result.filter((item) => {
       const price = item.priceValue || 0;
       if (typeof minPrice === "number" && price < minPrice) return false;
@@ -158,7 +229,7 @@ export default function CategoryPage({ slug, label, items }: CategoryProps) {
       return true;
     });
 
-    // 5) Sort
+    // Sort
     if (sortBy === "price-asc") result.sort((a, b) => (a.priceValue || 0) - (b.priceValue || 0));
     if (sortBy === "price-desc") result.sort((a, b) => (b.priceValue || 0) - (a.priceValue || 0));
 
@@ -277,7 +348,7 @@ export default function CategoryPage({ slug, label, items }: CategoryProps) {
               <div>
                 <h1>{label}</h1>
                 <p className="results-count">
-                  {resultsCount} {resultsCount === 1 ? "result" : "results"}
+                  {loading ? "Loading…" : `${resultsCount} ${resultsCount === 1 ? "result" : "results"}`}
                 </p>
               </div>
               <div className="sort">
@@ -295,7 +366,12 @@ export default function CategoryPage({ slug, label, items }: CategoryProps) {
               </div>
             </div>
 
-            {filteredItems.length === 0 ? (
+            {loading ? (
+              <div className="empty-state">
+                <h2>Loading listings…</h2>
+                <p>Please wait a moment.</p>
+              </div>
+            ) : filteredItems.length === 0 ? (
               <div className="empty-state">
                 <h2>No results</h2>
                 <p>Try clearing filters or adjusting your selection.</p>
@@ -528,151 +604,13 @@ export default function CategoryPage({ slug, label, items }: CategoryProps) {
   );
 }
 
-// Map pretty labels for slug -> heading (includes common variants)
-const labelMap: Record<string, string> = {
-  "new-arrivals": "New Arrivals",
-  women: "Women",
-  mens: "Men",
-  men: "Men",
-  bags: "Bags",
-  jewelry: "Jewelry",
-  jewellery: "Jewelry",
-  watches: "Watches",
-  watch: "Watches",
-};
-
 export const getServerSideProps: GetServerSideProps<CategoryProps> = async (ctx) => {
-  const rawSlug = String(ctx.params?.slug || "");
-  const normalized = rawSlug.toLowerCase().trim();
-
-  const categoryLabel =
-    labelMap[normalized] ||
-    normalized.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
-
-  // Normalizers
-  const norm = (v: any) => String(v || "").trim().toLowerCase().replace(/\s+/g, " ");
-  const slugify = (v: any) =>
-    norm(v)
-      .replace(/&/g, "and")
-      .replace(/['’]/g, "")
-      .replace(/\s+/g, "-")
-      .replace(/[^a-z0-9-]/g, "");
-
-  // ✅ Robust matcher: tolerate common category naming variants in Firestore
-  const categoryAliases: Record<string, string[]> = {
-    women: ["women", "womens", "womenswear", "woman", "ready-to-wear", "rtw"],
-    bags: ["bags", "bag", "handbags", "handbag"],
-    men: ["men", "mens", "menswear", "man"],
-    jewelry: ["jewelry", "jewellery", "jewels"],
-    watches: ["watches", "watch", "timepieces", "timepiece"],
+  const raw = String(ctx.params?.slug || "");
+  const slug = canonicalSlug(raw);
+  return {
+    props: {
+      slug,
+      label: labelFromSlug(slug),
+    },
   };
-
-  const canonicalSlug =
-    normalized === "new-arrivals"
-      ? "new-arrivals"
-      : normalized === "jewellery"
-      ? "jewelry"
-      : normalized === "mens"
-      ? "men"
-      : normalized === "watch"
-      ? "watches"
-      : normalized;
-
-  const allowedTargets =
-    canonicalSlug === "new-arrivals"
-      ? []
-      : Array.from(
-          new Set([
-            canonicalSlug,
-            ...(categoryAliases[canonicalSlug] || []),
-            slugify(labelMap[canonicalSlug] || categoryLabel),
-          ])
-        );
-
-  try {
-    const allowedStatuses = ["Live", "Active", "Approved"];
-
-    let snap;
-    try {
-      snap = await adminDb.collection("listings").orderBy("createdAt", "desc").limit(500).get();
-    } catch {
-      snap = await adminDb.collection("listings").limit(500).get();
-    }
-
-    const allItems: any[] = snap.docs.map((doc) => {
-      const d: any = doc.data() || {};
-      const image =
-        d.image_url ||
-        d.imageUrl ||
-        d.image ||
-        (Array.isArray(d.imageUrls) && d.imageUrls[0]) ||
-        "";
-      const rawStatus = (d.status || "").toString().trim();
-      const isExcluded = /pending/i.test(rawStatus) || /reject/i.test(rawStatus) || /sold/i.test(rawStatus);
-      const isPublic = !rawStatus || allowedStatuses.includes(rawStatus);
-      const category = d.category || d.categoryLabel || d.categoryName || "";
-      const brand = d.brand || d.designer || d.designerName || d.brandName || "";
-      const priceNumber = Number(d.price) || 0;
-      const price = priceNumber ? `US$${priceNumber.toLocaleString("en-US")}` : "";
-
-      return {
-        id: doc.id,
-        title: d.title || "Untitled listing",
-        brand: String(brand),
-        category: String(category),
-        condition: String(d.condition || ""),
-        price,
-        image,
-        href: `/product/${doc.id}`,
-        createdAt: d.createdAt || null,
-        _isExcluded: isExcluded,
-        _isPublic: isPublic,
-      };
-    });
-
-    // 1) Public/live only
-    let filtered = allItems.filter((it) => it._isPublic && !it._isExcluded);
-
-    // 2) Category filter (robust)
-    if (canonicalSlug !== "new-arrivals") {
-      filtered = filtered.filter((it) => {
-        const rawCat = String(it.category || "").trim();
-        if (!rawCat) return false;
-
-        const catSlug = slugify(rawCat);
-
-        // exact match to canonical, OR any alias match
-        return allowedTargets.includes(catSlug);
-      });
-    }
-
-    // 3) Newest first, cap to 60
-    filtered = filtered
-      .slice()
-      .sort((a, b) => {
-        const aTime = a.createdAt?.toMillis?.() || 0;
-        const bTime = b.createdAt?.toMillis?.() || 0;
-        return bTime - aTime;
-      })
-      .slice(0, 60);
-
-    const items: ProductLike[] = filtered.map(({ _isExcluded, _isPublic, createdAt, ...rest }) => rest);
-
-    return {
-      props: {
-        slug: canonicalSlug,
-        label: categoryLabel,
-        items,
-      },
-    };
-  } catch (err) {
-    console.error("Error loading category page", err);
-    return {
-      props: {
-        slug: canonicalSlug,
-        label: categoryLabel,
-        items: [],
-      },
-    };
-  }
 };
