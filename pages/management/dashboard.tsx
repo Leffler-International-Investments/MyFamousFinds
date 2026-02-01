@@ -19,7 +19,7 @@ type MgmtStats = {
   pendingListings: number;
   orders: number;
   pendingOrders: number;
-  };
+};
 
 type Props = {
   stats: MgmtStats;
@@ -154,9 +154,6 @@ export default function ManagementDashboard({ stats }: Props) {
             linkColor="gray"
           />
         </DashboardSection>
-
-        {/* MOVED HERE (below the Product Approval buttons/tiles) */}
-        <ManagementDashboardTutorial />
 
         <DashboardSection
           title="VIP Club Management"
@@ -314,6 +311,9 @@ export default function ManagementDashboard({ stats }: Props) {
             linkColor="gray"
           />
         </DashboardSection>
+
+        {/* ✅ MOVED TO BOTTOM (under Platform, Support & Analytics) */}
+        <ManagementDashboardTutorial />
       </main>
 
       {!isChatOpen && (
