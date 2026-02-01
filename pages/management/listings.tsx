@@ -14,7 +14,8 @@ type Listing = {
   seller: string;
   status: "Live" | "Pending" | "Rejected" | "Sold";
   price: number;
-  // Added fields to match public page data
+
+  // existing fields
   brand: string;
   category: string;
   condition: string;
@@ -23,6 +24,8 @@ type Listing = {
 type Props = {
   items: Listing[];
 };
+
+const CATEGORIES = ["WOMEN", "BAGS", "MEN", "JEWELRY", "WATCHES"] as const;
 
 export default function ManagementListings({ items }: Props) {
   const { loading } = useRequireAdmin();
@@ -33,6 +36,16 @@ export default function ManagementListings({ items }: Props) {
     useState<"All" | "Live" | "Pending" | "Rejected" | "Sold">("All");
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [sellingId, setSellingId] = useState<string | null>(null);
+
+  // NEW: category edit state per row
+  const [editedCategory, setEditedCategory] = useState<Record<string, string>>(
+    () => {
+      const init: Record<string, string> = {};
+      for (const l of items) init[l.id] = (l.category || "").toString();
+      return init;
+    }
+  );
+  const [updatingId, setUpdatingId] = useState<string | null>(null);
 
   const visible = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -46,9 +59,9 @@ export default function ManagementListings({ items }: Props) {
         l.title.toLowerCase().includes(q) ||
         l.seller.toLowerCase().includes(q) ||
         l.id.toLowerCase().includes(q) ||
-        l.brand.toLowerCase().includes(q) ||
-        l.category.toLowerCase().includes(q) ||
-        l.condition.toLowerCase().includes(q)
+        (l.brand || "").toLowerCase().includes(q) ||
+        (l.category || "").toLowerCase().includes(q) ||
+        (l.condition || "").toLowerCase().includes(q)
       );
     });
   }, [rows, query, statusFilter]);
@@ -62,9 +75,7 @@ export default function ManagementListings({ items }: Props) {
 
     try {
       setDeletingId(id);
-      const res = await fetch(`/api/admin/delete/${id}`, {
-        method: "POST",
-      });
+      const res = await fetch(`/api/admin/delete/${id}`, { method: "POST" });
       const json = await res.json();
       if (!res.ok || !json?.ok) {
         throw new Error(json?.error || "Failed to delete listing");
@@ -88,9 +99,7 @@ export default function ManagementListings({ items }: Props) {
 
     try {
       setSellingId(id);
-      const res = await fetch(`/api/admin/mark-sold/${id}`, {
-        method: "POST",
-      });
+      const res = await fetch(`/api/admin/mark-sold/${id}`, { method: "POST" });
       const json = await res.json();
       if (!res.ok || !json?.ok) {
         throw new Error(json?.error || "Failed to mark listing as sold");
@@ -98,20 +107,56 @@ export default function ManagementListings({ items }: Props) {
 
       // Update status locally so admin sees change immediately
       setRows((prev) =>
-        prev.map((l) =>
-          l.id === id
-            ? {
-                ...l,
-                status: "Sold",
-              }
-            : l
-        )
+        prev.map((l) => (l.id === id ? { ...l, status: "Sold" } : l))
       );
     } catch (err: any) {
       console.error("Mark sold error", err);
       alert(err?.message || "Unable to mark listing as sold");
     } finally {
       setSellingId(null);
+    }
+  }
+
+  // NEW: Update listing category (writes to Firestore via API)
+  async function handleUpdateCategory(id: string, title: string) {
+    if (updatingId) return;
+
+    const nextCat = (editedCategory[id] || "").trim().toUpperCase();
+    if (!nextCat) {
+      alert("Please select a category first.");
+      return;
+    }
+    if (!CATEGORIES.includes(nextCat as any)) {
+      alert("Invalid category. Use: WOMEN, BAGS, MEN, JEWELRY, WATCHES");
+      return;
+    }
+
+    try {
+      setUpdatingId(id);
+
+      // IMPORTANT:
+      // This endpoint must exist in your project.
+      // Create /pages/api/admin/update-category/[id].ts (or adjust URL to your existing endpoint).
+      const res = await fetch(`/api/admin/update-category/${id}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ category: nextCat }),
+      });
+
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok || !json?.ok) {
+        throw new Error(json?.error || "Failed to update category");
+      }
+
+      // Update locally
+      setRows((prev) =>
+        prev.map((l) => (l.id === id ? { ...l, category: nextCat } : l))
+      );
+    } catch (err: any) {
+      console.error("Update category error", err);
+      alert(err?.message || "Unable to update category");
+    } finally {
+      setUpdatingId(null);
     }
   }
 
@@ -132,9 +177,7 @@ export default function ManagementListings({ items }: Props) {
               <h1>All Listings</h1>
               <p>Search, review, and moderate every item on Famous-Finds.</p>
             </div>
-            <Link href="/management/dashboard">
-              ← Back to Management Dashboard
-            </Link>
+            <Link href="/management/dashboard">← Back to Management Dashboard</Link>
           </div>
 
           <div className="filters-bar">
@@ -147,9 +190,7 @@ export default function ManagementListings({ items }: Props) {
             />
             <select
               value={statusFilter}
-              onChange={(e) =>
-                setStatusFilter(e.target.value as any)
-              }
+              onChange={(e) => setStatusFilter(e.target.value as any)}
               className="form-input"
               style={{ maxWidth: "220px" }}
             >
@@ -171,78 +212,121 @@ export default function ManagementListings({ items }: Props) {
                   <th>Seller</th>
                   <th>Price (US$)</th>
                   <th>Status</th>
+
+                  {/* NEW */}
+                  <th>Category</th>
+
                   <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {visible.map((l) => (
-                  <tr key={l.id}>
-                    <td>
-                      <div className="listing-title">{l.title}</div>
-                      <div className="listing-id">ID: {l.id}</div>
-                    </td>
-                    <td>{l.brand || "—"}</td>
-                    <td>{l.condition || "—"}</td>
-                    <td>{l.seller}</td>
-                    <td>
-                      {l.price
-                        ? l.price.toLocaleString("en-US", {
-                            style: "currency",
-                            currency: "USD",
-                          })
-                        : "—"}
-                    </td>
-                    <td>
-                      <span
-                        className={
-                          "status-badge " +
-                          (l.status === "Live"
-                            ? "status-active"
-                            : l.status === "Pending"
-                            ? "status-pending"
-                            : l.status === "Rejected"
-                            ? "status-rejected"
-                            : "status-sold")
-                        }
-                      >
-                        {l.status}
-                      </span>
-                    </td>
-                    <td>
-                      <Link
-                        href={`/product/${l.id}`}
-                        className="btn-table-view"
-                      >
-                        View
-                      </Link>
+                {visible.map((l) => {
+                  const current = (l.category || "").trim().toUpperCase();
+                  const edited = (editedCategory[l.id] || "").trim().toUpperCase();
+                  const dirty = edited && edited !== current;
 
-                      {/* Mark sold (hide from homepage) */}
-                      {l.status !== "Sold" && (
+                  return (
+                    <tr key={l.id}>
+                      <td>
+                        <div className="listing-title">{l.title}</div>
+                        <div className="listing-id">ID: {l.id}</div>
+                      </td>
+
+                      <td>{l.brand || "—"}</td>
+                      <td>{l.condition || "—"}</td>
+                      <td>{l.seller}</td>
+
+                      <td>
+                        {l.price
+                          ? l.price.toLocaleString("en-US", {
+                              style: "currency",
+                              currency: "USD",
+                            })
+                          : "—"}
+                      </td>
+
+                      <td>
+                        <span
+                          className={
+                            "status-badge " +
+                            (l.status === "Live"
+                              ? "status-active"
+                              : l.status === "Pending"
+                              ? "status-pending"
+                              : l.status === "Rejected"
+                              ? "status-rejected"
+                              : "status-sold")
+                          }
+                        >
+                          {l.status}
+                        </span>
+                      </td>
+
+                      {/* NEW: Category editor */}
+                      <td>
+                        <div className="cat-cell">
+                          <select
+                            className={`cat-select ${dirty ? "cat-select-dirty" : ""}`}
+                            value={editedCategory[l.id] ?? l.category ?? ""}
+                            onChange={(e) =>
+                              setEditedCategory((prev) => ({
+                                ...prev,
+                                [l.id]: e.target.value,
+                              }))
+                            }
+                          >
+                            <option value="">— Pick —</option>
+                            {CATEGORIES.map((c) => (
+                              <option key={c} value={c}>
+                                {c}
+                              </option>
+                            ))}
+                          </select>
+
+                          <button
+                            type="button"
+                            className="btn-table-update"
+                            onClick={() => handleUpdateCategory(l.id, l.title)}
+                            disabled={!dirty || updatingId === l.id}
+                            title={!dirty ? "No changes to save" : "Save category"}
+                          >
+                            {updatingId === l.id ? "Updating…" : "Update"}
+                          </button>
+                        </div>
+                      </td>
+
+                      <td>
+                        <Link href={`/product/${l.id}`} className="btn-table-view">
+                          View
+                        </Link>
+
+                        {l.status !== "Sold" && (
+                          <button
+                            type="button"
+                            className="btn-table-sold"
+                            onClick={() => handleMarkSold(l.id, l.title)}
+                            disabled={sellingId === l.id}
+                          >
+                            {sellingId === l.id ? "Marking…" : "Mark sold"}
+                          </button>
+                        )}
+
                         <button
                           type="button"
-                          className="btn-table-sold"
-                          onClick={() => handleMarkSold(l.id, l.title)}
-                          disabled={sellingId === l.id}
+                          className="btn-table-delete"
+                          onClick={() => handleDelete(l.id, l.title)}
+                          disabled={deletingId === l.id}
                         >
-                          {sellingId === l.id ? "Marking…" : "Mark sold"}
+                          {deletingId === l.id ? "Deleting…" : "Delete"}
                         </button>
-                      )}
+                      </td>
+                    </tr>
+                  );
+                })}
 
-                      {/* Delete permanently */}
-                      <button
-                        type="button"
-                        className="btn-table-delete"
-                        onClick={() => handleDelete(l.id, l.title)}
-                        disabled={deletingId === l.id}
-                      >
-                        {deletingId === l.id ? "Deleting…" : "Delete"}
-                      </button>
-                    </td>
-                  </tr>
-                ))}
                 {visible.length === 0 && (
                   <tr>
-                    <td colSpan={7} className="table-message">
+                    <td colSpan={8} className="table-message">
                       No listings match this filter.
                     </td>
                   </tr>
@@ -394,6 +478,46 @@ export default function ManagementListings({ items }: Props) {
         .btn-table-delete:hover:not(:disabled) {
           background: #fecaca;
         }
+
+        /* NEW: Category editor styles */
+        .cat-cell {
+          display: flex;
+          gap: 8px;
+          align-items: center;
+          flex-wrap: wrap;
+        }
+        .cat-select {
+          border-radius: 999px;
+          border: 1px solid #d1d5db;
+          padding: 6px 10px;
+          font-size: 12px;
+          background: white;
+          min-width: 150px;
+        }
+        .cat-select-dirty {
+          border: 2px solid #047857;
+        }
+
+        .btn-table-update {
+          font-size: 12px;
+          font-weight: 500;
+          border-radius: 999px;
+          padding: 4px 10px;
+          border: 1px solid #0a7;
+          background: #ecfdf5;
+          color: #047857;
+          cursor: pointer;
+        }
+        .btn-table-update:disabled {
+          opacity: 0.6;
+          cursor: not-allowed;
+          background: #f3f4f6;
+          border-color: #d1d5db;
+          color: #6b7280;
+        }
+        .btn-table-update:hover:not(:disabled) {
+          background: #d1fae5;
+        }
       `}</style>
     </>
   );
@@ -412,11 +536,8 @@ export const getServerSideProps: GetServerSideProps<Props> = async () => {
       else if (/reject/i.test(rawStatus)) status = "Rejected";
       else if (/sold/i.test(rawStatus)) status = "Sold";
 
-      // Match the same logic used in the public catalog
-      const brand =
-        d.brand || d.designer || d.designerName || d.brandName || "";
-      const category =
-        d.category || d.categoryLabel || d.categoryName || "";
+      const brand = d.brand || d.designer || d.designerName || d.brandName || "";
+      const category = d.category || d.categoryLabel || d.categoryName || "";
       const condition =
         d.condition ||
         d.conditionLabel ||
