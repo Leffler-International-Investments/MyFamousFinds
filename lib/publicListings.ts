@@ -1,98 +1,154 @@
 // FILE: /lib/publicListings.ts
-import { getDb } from "./firebaseAdmin";
+// Single source of truth for PUBLIC listings (category pages, catalogue, new arrivals).
+// No firebaseAdmin import. Works on Vercel.
+
+import {
+  collection,
+  getDocs,
+  limit,
+  orderBy,
+  query,
+  where,
+} from "firebase/firestore";
+import { db } from "../utils/firebaseClient";
 
 export type PublicListing = {
   id: string;
   title?: string;
-  name?: string;
-  designer?: string;
   brand?: string;
+  designer?: string;
   price?: number;
   currency?: string;
+
+  category?: string; // expected: WOMEN | BAGS | MEN | JEWELRY | WATCHES
+  condition?: string;
+
+  imageUrl?: string;
   images?: string[];
   imageUrls?: string[];
-  imageUrl?: string;
-  category?: string;
-  categorySlug?: string;
-  condition?: string;
+
+  status?: string; // "published" etc
+  isSold?: boolean;
+  sold?: boolean;
+  soldAt?: any;
+
   createdAt?: any;
   updatedAt?: any;
-  status?: string;
-  sold?: boolean;
-  isSold?: boolean;
-  archived?: boolean;
-  isArchived?: boolean;
-  isActive?: boolean;
-  active?: boolean;
+
+  [key: string]: any;
 };
 
-const CANON = ["WOMEN", "BAGS", "MEN", "JEWELRY", "WATCHES"] as const;
+const ALLOWED = new Set(["WOMEN", "BAGS", "MEN", "JEWELRY", "WATCHES"]);
 
-function normCategory(input?: any): "" | (typeof CANON)[number] {
-  if (!input) return "";
-  const s = String(input).trim().toUpperCase();
+function normCategory(raw: any): string {
+  const s = String(raw ?? "")
+    .trim()
+    .toUpperCase();
 
-  // common variants / typos
+  // common variants
+  if (s === "JEWELLERY") return "JEWELRY";
   if (s === "WOMAN") return "WOMEN";
   if (s === "BAG") return "BAGS";
   if (s === "WATCH") return "WATCHES";
 
-  // Jewelry variants: JEWELRY, JEWELLERY, and common typo JEWELERY
-  if (s === "JEWELRY" || s === "JEWELLERY" || s === "JEWELERY") return "JEWELRY";
+  return s;
+}
 
-  if ((CANON as readonly string[]).includes(s)) return s as any;
+function normalizeSlug(slug: string): string {
+  const s = String(slug || "").trim().toLowerCase();
+
+  if (!s) return "";
+  if (s === "new-arrivals" || s === "catalogue") return "";
+  if (s === "women") return "WOMEN";
+  if (s === "bags") return "BAGS";
+  if (s === "men") return "MEN";
+  if (s === "jewelry" || s === "jewellery") return "JEWELRY";
+  if (s === "watches") return "WATCHES";
+
+  // fallback: allow passing already-normalized value
+  return normCategory(s);
+}
+
+function pickBestImage(l: any): string {
+  // try the most common keys in your project
+  const fromSingle =
+    l.imageUrl ||
+    l.primaryImageUrl ||
+    l.coverImageUrl ||
+    l.mainImageUrl ||
+    l.image;
+
+  if (typeof fromSingle === "string" && fromSingle.trim()) return fromSingle.trim();
+
+  const arr =
+    l.images ||
+    l.imageUrls ||
+    l.photos ||
+    l.photoUrls ||
+    l.gallery ||
+    [];
+
+  if (Array.isArray(arr) && arr.length > 0 && typeof arr[0] === "string") {
+    return String(arr[0]).trim();
+  }
+
   return "";
 }
 
-function extractCategory(x: any): any {
-  return (
-    x?.category ??
-    x?.categorySlug ??
-    x?.menuCategory ??
-    x?.menuCategorySlug ??
-    x?.primaryCategory ??
-    x?.department ??
-    ""
-  );
+function isPublished(l: any): boolean {
+  const status = String(l.status ?? "").toLowerCase();
+  // accept published/active/listed — keep permissive
+  if (status && !["published", "active", "listed", "live"].includes(status)) return false;
+  return true;
 }
 
-function isTruthySold(x: any): boolean {
-  return Boolean(x?.sold || x?.isSold);
+function isSold(l: any): boolean {
+  return Boolean(l.isSold || l.sold || l.soldAt);
 }
 
-function isArchivedOrInactive(x: any): boolean {
-  return Boolean(
-    x?.archived ||
-      x?.isArchived ||
-      x?.active === false ||
-      x?.isActive === false
-  );
-}
+export async function getPublicListings(opts?: {
+  category?: string; // slug or category
+  take?: number;
+}): Promise<PublicListing[]> {
+  const take = Math.max(1, Math.min(1000, Number(opts?.take ?? 200)));
+  const wantCategory = normalizeSlug(opts?.category ?? "");
 
-export async function getPublicListings(opts?: { category?: string; take?: number }) {
-  const db = getDb();
-  const take = Math.min(Math.max(opts?.take ?? 200, 1), 1000);
-  const wanted = normCategory(opts?.category);
+  // Primary collection (this is your live marketplace collection)
+  // If your live collection name differs, change ONLY this string.
+  const col = collection(db, "listings");
 
-  // NOTE: We intentionally fetch "approved & unsold" broadly,
-  // then apply category filtering in-memory to avoid brittle OR queries.
-  const snap = await db
-    .collection("listings")
-    .where("status", "==", "approved")
-    .orderBy("createdAt", "desc")
-    .limit(take)
-    .get();
+  // Keep query light: only "published" + newest, then filter in JS (handles spelling variants cleanly)
+  const q = query(col, orderBy("createdAt", "desc"), limit(take));
 
-  const all: any[] = [];
-  snap.forEach((doc: any) => all.push({ id: doc.id, ...doc.data() }));
+  const snap = await getDocs(q);
+  const all = snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) })) as any[];
 
   const filtered = all
-    .filter((x) => !isTruthySold(x))
-    .filter((x) => !isArchivedOrInactive(x))
-    .filter((x) => {
-      if (!wanted) return true;
-      const cat = normCategory(extractCategory(x));
-      return cat === wanted;
+    .filter(isPublished)
+    .filter((l) => !isSold(l))
+    .map((l) => {
+      // detect category from multiple possible fields
+      const rawCat =
+        l.category ??
+        l.menuCategory ??
+        l.menuCategories ??
+        l.productCategory ??
+        l.meta?.category;
+
+      const cat = normCategory(rawCat);
+
+      const out: PublicListing = {
+        id: l.id,
+        ...l,
+        category: cat,
+        imageUrl: pickBestImage(l),
+      };
+      return out;
+    })
+    .filter((l) => {
+      if (!wantCategory) return true;
+      if (!ALLOWED.has(wantCategory)) return true; // if unknown, don't hide everything
+      return l.category === wantCategory;
     });
 
   return filtered;
