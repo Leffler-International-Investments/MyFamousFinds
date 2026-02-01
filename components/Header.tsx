@@ -13,7 +13,7 @@ export default function Header() {
     return () => unsub();
   }, []);
 
-  // ✅ Each category points to its own correct slug (no accidental watches routing)
+  // ✅ Each category points to its own correct slug
   const categoryNav = [
     { label: "NEW ARRIVALS", href: "/category/new-arrivals" },
     { label: "CATALOGUE", href: "/catalogue" },
@@ -30,7 +30,6 @@ export default function Header() {
       {/* TOP BAR */}
       <div className="ff-header-top">
         <div className="ff-header-left">
-          {/* VIP GREEN PILL */}
           <Link
             href={vipUser ? "/club-profile" : "/vip-welcome"}
             className="admin-button vip"
