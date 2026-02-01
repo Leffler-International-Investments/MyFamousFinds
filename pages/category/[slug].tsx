@@ -37,26 +37,11 @@ function parsePrice(price?: string | null): number {
 
 // You can EDIT these lists any time.
 // Add / remove entries and the filters will update automatically.
-const CATEGORY_OPTIONS = [
-  "Women",
-  "Bags",
-  "Men",
-  "Jewelry",
-  "Watches",
-];
-
+const CATEGORY_OPTIONS = ["Women", "Bags", "Men", "Jewelry", "Watches"];
 const CONDITION_OPTIONS = ["New", "Excellent", "Very good", "Good"];
 
 // Fallback list if /api/public/designers has none
-const DEFAULT_DESIGNERS = [
-  "Chanel",
-  "Hermès",
-  "Louis Vuitton",
-  "Gucci",
-  "Prada",
-  "Dior",
-  "Rolex",
-];
+const DEFAULT_DESIGNERS = ["Chanel", "Hermès", "Louis Vuitton", "Gucci", "Prada", "Dior", "Rolex"];
 
 export default function CategoryPage({ slug, label, items }: CategoryProps) {
   // Pre-compute numeric prices once
@@ -69,9 +54,7 @@ export default function CategoryPage({ slug, label, items }: CategoryProps) {
     }))
   );
 
-  const [sortBy, setSortBy] = useState<"newest" | "price-asc" | "price-desc">(
-    "newest"
-  );
+  const [sortBy, setSortBy] = useState<"newest" | "price-asc" | "price-desc">("newest");
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [selectedDesigners, setSelectedDesigners] = useState<string[]>([]);
   const [selectedConditions, setSelectedConditions] = useState<string[]>([]);
@@ -79,8 +62,7 @@ export default function CategoryPage({ slug, label, items }: CategoryProps) {
   const [maxPrice, setMaxPrice] = useState<number | "">(1000000);
 
   // Designers list for the filter
-  const [designerOptions, setDesignerOptions] =
-    useState<string[]>(DEFAULT_DESIGNERS);
+  const [designerOptions, setDesignerOptions] = useState<string[]>(DEFAULT_DESIGNERS);
 
   // Load designers from your public API once on mount
   useEffect(() => {
@@ -112,11 +94,8 @@ export default function CategoryPage({ slug, label, items }: CategoryProps) {
         new Set(itemsWithPrice.map((i) => (i.brand || "").trim()).filter(Boolean))
       ).sort((a, b) => a.localeCompare(b));
 
-      if (fromItems.length > 0) {
-        setDesignerOptions(fromItems);
-      } else {
-        setDesignerOptions(DEFAULT_DESIGNERS);
-      }
+      if (fromItems.length > 0) setDesignerOptions(fromItems);
+      else setDesignerOptions(DEFAULT_DESIGNERS);
     }
 
     loadDesigners();
@@ -148,29 +127,27 @@ export default function CategoryPage({ slug, label, items }: CategoryProps) {
   const filteredItems: ItemWithPrice[] = useMemo(() => {
     let result = [...itemsWithPrice];
 
-    // 1) Category - Fix: Case-insensitive matching
+    // 1) Category - Case-insensitive matching
     if (selectedCategories.length > 0) {
       result = result.filter((item) =>
-        selectedCategories.some(cat => 
-          cat.toLowerCase() === (item.category || "").trim().toLowerCase()
+        selectedCategories.some(
+          (cat) => cat.toLowerCase() === (item.category || "").trim().toLowerCase()
         )
       );
     }
 
-    // 2) Designer (brand) - Fix: Case-insensitive matching
+    // 2) Designer (brand) - Case-insensitive matching
     if (selectedDesigners.length > 0) {
       result = result.filter((item) =>
-        selectedDesigners.some(des => 
-          des.toLowerCase() === (item.brand || "").trim().toLowerCase()
+        selectedDesigners.some(
+          (des) => des.toLowerCase() === (item.brand || "").trim().toLowerCase()
         )
       );
     }
 
     // 3) Condition
     if (selectedConditions.length > 0) {
-      result = result.filter((item) =>
-        selectedConditions.includes((item.condition || "").trim())
-      );
+      result = result.filter((item) => selectedConditions.includes((item.condition || "").trim()));
     }
 
     // 4) Price
@@ -182,23 +159,11 @@ export default function CategoryPage({ slug, label, items }: CategoryProps) {
     });
 
     // 5) Sort
-    if (sortBy === "price-asc") {
-      result.sort((a, b) => (a.priceValue || 0) - (b.priceValue || 0));
-    }
-    if (sortBy === "price-desc") {
-      result.sort((a, b) => (b.priceValue || 0) - (a.priceValue || 0));
-    }
+    if (sortBy === "price-asc") result.sort((a, b) => (a.priceValue || 0) - (b.priceValue || 0));
+    if (sortBy === "price-desc") result.sort((a, b) => (b.priceValue || 0) - (a.priceValue || 0));
 
     return result;
-  }, [
-    itemsWithPrice,
-    selectedCategories,
-    selectedDesigners,
-    selectedConditions,
-    minPrice,
-    maxPrice,
-    sortBy,
-  ]);
+  }, [itemsWithPrice, selectedCategories, selectedDesigners, selectedConditions, minPrice, maxPrice, sortBy]);
 
   const resultsCount = filteredItems.length;
 
@@ -206,10 +171,7 @@ export default function CategoryPage({ slug, label, items }: CategoryProps) {
     <div className="page">
       <Head>
         <title>{label} – Famous Finds</title>
-        <meta
-          name="description"
-          content={`Browse ${label} items available on Famous Finds.`}
-        />
+        <meta name="description" content={`Browse ${label} items available on Famous Finds.`} />
         <link rel="canonical" href={`https://www.myfamousfinds.com/category/${slug}`} />
       </Head>
 
@@ -288,9 +250,7 @@ export default function CategoryPage({ slug, label, items }: CategoryProps) {
                     type="number"
                     inputMode="numeric"
                     value={minPrice}
-                    onChange={(e) =>
-                      setMinPrice(e.target.value === "" ? "" : Number(e.target.value) || 0)
-                    }
+                    onChange={(e) => setMinPrice(e.target.value === "" ? "" : Number(e.target.value) || 0)}
                   />
                 </div>
 
@@ -300,20 +260,12 @@ export default function CategoryPage({ slug, label, items }: CategoryProps) {
                     type="number"
                     inputMode="numeric"
                     value={maxPrice}
-                    onChange={(e) =>
-                      setMaxPrice(e.target.value === "" ? "" : Number(e.target.value) || 0)
-                    }
+                    onChange={(e) => setMaxPrice(e.target.value === "" ? "" : Number(e.target.value) || 0)}
                   />
                 </div>
               </div>
 
-              <button
-                type="button"
-                className="apply-btn"
-                onClick={() => {
-                  // Filters are already live – button is just for UX
-                }}
-              >
+              <button type="button" className="apply-btn" onClick={() => {}}>
                 Apply Filters
               </button>
             </div>
@@ -333,9 +285,7 @@ export default function CategoryPage({ slug, label, items }: CategoryProps) {
                   Sort
                   <select
                     value={sortBy}
-                    onChange={(e) =>
-                      setSortBy(e.target.value as "newest" | "price-asc" | "price-desc")
-                    }
+                    onChange={(e) => setSortBy(e.target.value as "newest" | "price-asc" | "price-desc")}
                   >
                     <option value="newest">Newest</option>
                     <option value="price-asc">Price: Low to High</option>
@@ -578,49 +528,85 @@ export default function CategoryPage({ slug, label, items }: CategoryProps) {
   );
 }
 
-// Map pretty labels for slug -> heading
+// Map pretty labels for slug -> heading (includes common variants)
 const labelMap: Record<string, string> = {
   "new-arrivals": "New Arrivals",
   women: "Women",
+  mens: "Men",
   men: "Men",
   bags: "Bags",
   jewelry: "Jewelry",
+  jewellery: "Jewelry",
   watches: "Watches",
+  watch: "Watches",
 };
 
 export const getServerSideProps: GetServerSideProps<CategoryProps> = async (ctx) => {
   const rawSlug = String(ctx.params?.slug || "");
-  const normalized = rawSlug.toLowerCase();
+  const normalized = rawSlug.toLowerCase().trim();
 
   const categoryLabel =
     labelMap[normalized] ||
     normalized.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 
-  // helpers
-  const norm = (v: any) =>
-    String(v || "").trim().toLowerCase().replace(/\s+/g, " ");
-  const normSlug = (v: any) =>
-    norm(v).replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
+  // Normalizers
+  const norm = (v: any) => String(v || "").trim().toLowerCase().replace(/\s+/g, " ");
+  const slugify = (v: any) =>
+    norm(v)
+      .replace(/&/g, "and")
+      .replace(/['’]/g, "")
+      .replace(/\s+/g, "-")
+      .replace(/[^a-z0-9-]/g, "");
 
-  const wantedLabel = labelMap[normalized] || categoryLabel;
+  // ✅ Robust matcher: tolerate common category naming variants in Firestore
+  const categoryAliases: Record<string, string[]> = {
+    women: ["women", "womens", "womenswear", "woman", "ready-to-wear", "rtw"],
+    bags: ["bags", "bag", "handbags", "handbag"],
+    men: ["men", "mens", "menswear", "man"],
+    jewelry: ["jewelry", "jewellery", "jewels"],
+    watches: ["watches", "watch", "timepieces", "timepiece"],
+  };
+
+  const canonicalSlug =
+    normalized === "new-arrivals"
+      ? "new-arrivals"
+      : normalized === "jewellery"
+      ? "jewelry"
+      : normalized === "mens"
+      ? "men"
+      : normalized === "watch"
+      ? "watches"
+      : normalized;
+
+  const allowedTargets =
+    canonicalSlug === "new-arrivals"
+      ? []
+      : Array.from(
+          new Set([
+            canonicalSlug,
+            ...(categoryAliases[canonicalSlug] || []),
+            slugify(labelMap[canonicalSlug] || categoryLabel),
+          ])
+        );
 
   try {
     const allowedStatuses = ["Live", "Active", "Approved"];
 
     let snap;
     try {
-      snap = await adminDb
-        .collection("listings")
-        .orderBy("createdAt", "desc")
-        .limit(500)
-        .get();
+      snap = await adminDb.collection("listings").orderBy("createdAt", "desc").limit(500).get();
     } catch {
       snap = await adminDb.collection("listings").limit(500).get();
     }
 
     const allItems: any[] = snap.docs.map((doc) => {
       const d: any = doc.data() || {};
-      const image = d.image_url || d.imageUrl || d.image || (Array.isArray(d.imageUrls) && d.imageUrls[0]) || "";
+      const image =
+        d.image_url ||
+        d.imageUrl ||
+        d.image ||
+        (Array.isArray(d.imageUrls) && d.imageUrls[0]) ||
+        "";
       const rawStatus = (d.status || "").toString().trim();
       const isExcluded = /pending/i.test(rawStatus) || /reject/i.test(rawStatus) || /sold/i.test(rawStatus);
       const isPublic = !rawStatus || allowedStatuses.includes(rawStatus);
@@ -644,17 +630,19 @@ export const getServerSideProps: GetServerSideProps<CategoryProps> = async (ctx)
       };
     });
 
-    // 1) Filter to public/live items
+    // 1) Public/live only
     let filtered = allItems.filter((it) => it._isPublic && !it._isExcluded);
 
-    // 2) Category page filter - Fix: Strict slug matching
-    if (normalized !== "new-arrivals") {
+    // 2) Category filter (robust)
+    if (canonicalSlug !== "new-arrivals") {
       filtered = filtered.filter((it) => {
-        const c = String(it.category || "").trim();
-        if (!c) return false;
-        const cSlug = normSlug(c);
-        const pageSlug = normSlug(wantedLabel);
-        return cSlug === pageSlug;
+        const rawCat = String(it.category || "").trim();
+        if (!rawCat) return false;
+
+        const catSlug = slugify(rawCat);
+
+        // exact match to canonical, OR any alias match
+        return allowedTargets.includes(catSlug);
       });
     }
 
@@ -672,7 +660,7 @@ export const getServerSideProps: GetServerSideProps<CategoryProps> = async (ctx)
 
     return {
       props: {
-        slug: normalized,
+        slug: canonicalSlug,
         label: categoryLabel,
         items,
       },
@@ -681,7 +669,7 @@ export const getServerSideProps: GetServerSideProps<CategoryProps> = async (ctx)
     console.error("Error loading category page", err);
     return {
       props: {
-        slug: normalized,
+        slug: canonicalSlug,
         label: categoryLabel,
         items: [],
       },
