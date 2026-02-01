@@ -50,23 +50,6 @@ const pickImage = (data: any): string => {
   return "";
 };
 
-const getYouTubeEmbedUrl = (url: string): string => {
-  try {
-    if (!url) return "";
-    const watchMatch = url.match(/v=([^&]+)/);
-    if (watchMatch?.[1]) {
-      return `https://www.youtube.com/embed/${watchMatch[1]}`;
-    }
-    const shortMatch = url.match(/youtu\.be\/([^?]+)/);
-    if (shortMatch?.[1]) {
-      return `https://www.youtube.com/embed/${shortMatch[1]}`;
-    }
-    return url;
-  } catch {
-    return url;
-  }
-};
-
 // --------------------------------------------------
 // Component
 // --------------------------------------------------
@@ -355,28 +338,17 @@ const Home: NextPage<HomeProps> = ({
           font-family: "Georgia", serif;
           margin: 0;
         }
-        .home-feed-header a {
-          font-size: 13px;
-          color: #6b7280;
-          text-decoration: none;
-        }
-        .home-feed-header a:hover {
-          color: #111827;
-          text-decoration: underline;
-        }
         .home-featured-designers .flex {
           display: flex;
           gap: 12px;
           overflow-x: auto;
           padding-bottom: 8px;
         }
-
         .buyer-message-board-container {
           margin-top: 36px;
           display: flex;
           justify-content: center;
         }
-
         .buyer-message-board.billboard {
           width: 100%;
           max-width: 960px;
@@ -386,26 +358,22 @@ const Home: NextPage<HomeProps> = ({
           padding: 20px 24px 24px;
           box-shadow: 0 16px 40px rgba(15, 23, 42, 0.08);
         }
-
         .billboard-header h2 {
           font-size: 18px;
           margin: 0;
           font-family: "Georgia", serif;
         }
-
         .billboard-header p {
           margin: 4px 0 0;
           font-size: 13px;
           color: #6b7280;
         }
-
         .billboard-body {
           margin-top: 16px;
           display: flex;
           flex-direction: column;
           gap: 10px;
         }
-
         .billboard-item {
           border-radius: 999px;
           padding: 10px 18px;
@@ -413,42 +381,29 @@ const Home: NextPage<HomeProps> = ({
           display: flex;
           flex-direction: column;
         }
-
         .billboard-item.info {
           background: #f3f4f6;
           border: 1px solid #e5e7eb;
           color: #111827;
         }
-
         .billboard-item.promo {
           background: #fef3c7;
           border: 1px solid #facc15;
           color: #78350f;
         }
-
         .billboard-item.alert {
           background: #fee2e2;
           border: 1px solid #fca5a5;
           color: #991b1b;
         }
-
         .billboard-text {
           margin: 0;
           line-height: 1.5;
           font-family: "Georgia", serif;
         }
-
         .message-media {
           margin-top: 8px;
         }
-
-        .video-link a {
-          font-size: 14px;
-          text-decoration: underline;
-          text-underline-offset: 3px;
-          font-weight: 600;
-        }
-
         .message-media-image {
           max-width: 100%;
           border-radius: 12px;
@@ -457,7 +412,6 @@ const Home: NextPage<HomeProps> = ({
           margin-left: auto;
           margin-right: auto;
         }
-
         :global(.catalogue-link) {
           color: inherit;
           font-weight: 700;
@@ -465,10 +419,6 @@ const Home: NextPage<HomeProps> = ({
           text-underline-offset: 4px;
           transition: opacity 0.2s;
           margin-left: 4px;
-        }
-
-        :global(.catalogue-link:hover) {
-          opacity: 0.7;
         }
       `}</style>
     </div>
@@ -502,14 +452,8 @@ export const getServerSideProps: GetServerSideProps<HomeProps> = async () => {
   const newArrivals = items
     .slice()
     .sort((a: any, b: any) => {
-      const aTime =
-        a.createdAt && typeof a.createdAt.toMillis === "function"
-          ? a.createdAt.toMillis()
-          : 0;
-      const bTime =
-        b.createdAt && typeof b.createdAt.toMillis === "function"
-          ? b.createdAt.toMillis()
-          : 0;
+      const aTime = a.createdAt?.toMillis?.() || 0;
+      const bTime = b.createdAt?.toMillis?.() || 0;
       return bTime - aTime;
     })
     .slice(0, 8);
@@ -519,32 +463,32 @@ export const getServerSideProps: GetServerSideProps<HomeProps> = async () => {
     .sort((a: any, b: any) => (b.viewCount || 0) - (a.viewCount || 0))
     .slice(0, 8);
 
-  if (!trending.length) {
-    trending = newArrivals;
-  }
+  if (!trending.length) trending = newArrivals;
 
-  const uniqueBrands = Array.from(
-    new Set(items.map((i) => i.brand).filter(Boolean))
-  );
-  const featuredDesigners = uniqueBrands.sort();
-  if (featuredDesigners.length === 0) {
-    featuredDesigners.push(
-      "Chanel",
-      "Louis Vuitton",
-      "Hermès",
-      "Gucci",
-      "Prada"
-    );
-  }
+  // Added all designers from database screenshot
+  const featuredDesigners = [
+    "Alexander McQueen",
+    "Balenciaga",
+    "Bottega Veneta",
+    "Burberry",
+    "Chanel",
+    "Dior",
+    "Fendi",
+    "Givenchy",
+    "Gucci",
+    "Hermès",
+    "Louis Vuitton",
+    "Prada",
+    "Saint Laurent",
+    "Valentino",
+    "Versace"
+  ];
 
   let activeMessages: BuyerMessage[] = [];
-
   try {
     const messagesRef = adminDb.collection("buyer_messages");
     let snap = await messagesRef.where("active", "==", true).get();
-    if (snap.empty) {
-      snap = await messagesRef.get();
-    }
+    if (snap.empty) snap = await messagesRef.get();
 
     activeMessages = snap.docs
       .map((doc) => {
@@ -571,7 +515,7 @@ export const getServerSideProps: GetServerSideProps<HomeProps> = async () => {
     props: {
       trending,
       newArrivals,
-      featuredDesigners: featuredDesigners.slice(0, 15),
+      featuredDesigners,
       activeMessages,
     },
   };
