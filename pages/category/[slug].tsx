@@ -402,7 +402,7 @@ export default function CategoryPage({ slug, label, items }: CategoryProps) {
             ) : (
               <div className="ff-grid">
                 {filteredItems.map((p) => (
-                  <ProductCard key={p.id} product={p as any} />
+                  <ProductCard key={p.id} {...(p as any)} />
                 ))}
               </div>
             )}
