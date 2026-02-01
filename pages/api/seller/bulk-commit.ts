@@ -1,19 +1,10 @@
 // FILE: /pages/api/seller/bulk-commit.ts
-// Accepts rows from seller bulk upload / bulk-simple and creates
-// docs in the "listings" collection.
-//
-// FEATURES:
-// - Sharp Image Processing (Resize, Compress, White Background)
-// - Auto-Brightening (Fixes gray backgrounds using .modulate)
-// - 20MB Payload Support
-
 import type { NextApiRequest, NextApiResponse } from "next";
 import { adminDb } from "../../../utils/firebaseAdmin";
 import { FieldValue } from "firebase-admin/firestore";
 import { getSellerId } from "../../../utils/authServer";
 import sharp from "sharp";
 
-// ✅ CONFIG: Allow large uploads (20MB) to prevent 413 errors
 export const config = {
   api: {
     bodyParser: {
@@ -22,7 +13,6 @@ export const config = {
   },
 };
 
-// ---------- Types ----------
 type IncomingRow = {
   title?: string;
   brand?: string;
@@ -57,16 +47,27 @@ type CleanRow = {
 type ApiOk = { ok: true; created: number; skipped: number };
 type ApiErr = { ok: false; error: string };
 
-// ---------- Helpers ----------
+const CANON = ["WOMEN", "BAGS", "MEN", "JEWELRY", "WATCHES"] as const;
+type Canon = (typeof CANON)[number];
+
+function canonCategory(v: any): Canon | "" {
+  const s = String(v || "").trim().toUpperCase();
+  if (s === "WATCH" || s === "WATCHES") return "WATCHES";
+  if (s === "WOMAN" || s === "WOMEN") return "WOMEN";
+  if (s === "BAG" || s === "BAGS") return "BAGS";
+  if (s === "MAN" || s === "MEN" || s === "MENS") return "MEN";
+  if (s === "JEWELLERY" || s === "JEWELRY") return "JEWELRY";
+  if ((CANON as readonly string[]).includes(s)) return s as Canon;
+  return "";
+}
+
 function isFinitePositiveNumber(v: unknown): v is number {
   return typeof v === "number" && Number.isFinite(v) && v > 0;
 }
-
 function toStr(v: unknown): string {
   if (v == null) return "";
   return String(v).trim();
 }
-
 function coercePrice(v: unknown): number | null {
   if (typeof v === "number") return isFinitePositiveNumber(v) ? v : null;
   if (typeof v === "string") {
@@ -76,52 +77,33 @@ function coercePrice(v: unknown): number | null {
   return null;
 }
 
-// ---------- IMAGE ENGINE (Sharp) ----------
 async function processImage(base64Str: string): Promise<string | null> {
   try {
-    // 1. Strip the "data:image/xyz;base64," prefix if present
     const match = base64Str.match(/^data:image\/([a-zA-Z]*);base64,([^"]*)/);
     const rawBase64 = match ? match[2] : base64Str;
-    
-    // 2. Convert to Buffer
     const buffer = Buffer.from(rawBase64, "base64");
 
-    // 3. Process with Sharp (Luxury Standard)
     const optimizedBuffer = await sharp(buffer)
-      .rotate() // Fixes iPhone rotation
-      
-      // ✅ BRIGHTNESS BOOST: This turns light gray backgrounds white
-      .modulate({
-        brightness: 1.1, // Increases brightness by 10%
-        saturation: 1.05 // Slight color boost to keep the product popping
-      })
-
-      .resize(1080, 1080, {
-        fit: "contain",
-        background: { r: 255, g: 255, b: 255, alpha: 1 },
-      })
-      .flatten({ background: "#ffffff" }) // Removes transparency
-      .toFormat("jpeg", { quality: 85, mozjpeg: true }) // High quality JPEG
+      .rotate()
+      .modulate({ brightness: 1.1, saturation: 1.05 })
+      .resize(1080, 1080, { fit: "contain", background: { r: 255, g: 255, b: 255, alpha: 1 } })
+      .flatten({ background: "#ffffff" })
+      .toFormat("jpeg", { quality: 85, mozjpeg: true })
       .toBuffer();
 
-    // 4. Return as Data URL
     return `data:image/jpeg;base64,${optimizedBuffer.toString("base64")}`;
   } catch (error) {
     console.error("Image processing failed:", error);
-    // If optimization fails, return null so we don't save a broken image
     return null;
   }
 }
 
-// ---------- CLEAN ROW ----------
 function cleanRow(r: IncomingRow): CleanRow | null {
   const rawBrand = toStr(r.brand);
   const brand = rawBrand || "Unknown designer";
+  const title = toStr(r.title) || (brand ? `${brand} listing` : "Untitled listing");
 
-  const title =
-    toStr(r.title) || (brand ? `${brand} listing` : "Untitled listing");
-
-  const category = toStr(r.category);
+  const cat = canonCategory(r.category);
   const condition = toStr(r.condition);
   const size = toStr(r.size);
   const color = toStr(r.color);
@@ -135,7 +117,7 @@ function cleanRow(r: IncomingRow): CleanRow | null {
   return {
     title,
     brand,
-    category,
+    category: cat || "", // ✅ ONE SOURCE OF TRUTH
     condition,
     size,
     color,
@@ -150,7 +132,6 @@ function cleanRow(r: IncomingRow): CleanRow | null {
   };
 }
 
-// ---------- Approved Designers (flag only) ----------
 async function getApprovedDesigners(): Promise<Set<string>> {
   const snap = await adminDb.collection("designers").get();
   const set = new Set<string>();
@@ -167,24 +148,12 @@ async function getApprovedDesigners(): Promise<Set<string>> {
   return set;
 }
 
-// ---------- Handler ----------
-export default async function handler(
-  req: NextApiRequest,
-  res: NextApiResponse<ApiOk | ApiErr>
-) {
+export default async function handler(req: NextApiRequest, res: NextApiResponse<ApiOk | ApiErr>) {
   try {
-    if (req.method !== "POST") {
-      return res
-        .status(405)
-        .json({ ok: false, error: "Method not allowed" });
-    }
+    if (req.method !== "POST") return res.status(405).json({ ok: false, error: "Method not allowed" });
 
     const { rows } = (req.body || {}) as { rows?: IncomingRow[] };
-    if (!Array.isArray(rows)) {
-      return res
-        .status(400)
-        .json({ ok: false, error: "Body must include array 'rows'" });
-    }
+    if (!Array.isArray(rows)) return res.status(400).json({ ok: false, error: "Body must include array 'rows'" });
 
     const sellerId = getSellerId(req) || "seller-demo-001";
 
@@ -199,7 +168,6 @@ export default async function handler(
 
     const batch = adminDb.batch();
 
-    // Use a standard for loop to handle async/await correctly
     for (const raw of slice as IncomingRow[]) {
       const cleaned = cleanRow(raw);
       if (!cleaned) {
@@ -207,16 +175,10 @@ export default async function handler(
         continue;
       }
 
-      // --- 🎨 IMAGE PROCESSING ENGINE ---
-      if (cleaned.image_url) {
-        // This converts the raw upload into a standardized, compressed PRO image
-        cleaned.image_url = await processImage(cleaned.image_url);
-      }
-      // ----------------------------------
+      if (cleaned.image_url) cleaned.image_url = await processImage(cleaned.image_url);
 
       const brandKey = cleaned.brand.toLowerCase();
-      const isApprovedDesigner =
-        enforceDesigners && approvedDesigners.has(brandKey);
+      const isApprovedDesigner = enforceDesigners && approvedDesigners.has(brandKey);
 
       const ref = adminDb.collection("listings").doc();
 
@@ -224,19 +186,9 @@ export default async function handler(
         ...cleaned,
         sellerId,
         designerStatus: isApprovedDesigner ? "approved" : "unlisted",
-        pricing: {
-          amount: cleaned.price,
-          currency: "USD",
-        },
-        visibility: {
-          public: false,
-          searchable: false,
-        },
-        vetting: {
-          stage: "intake",
-          by: "bulk-upload",
-          at: FieldValue.serverTimestamp(),
-        },
+        pricing: { amount: cleaned.price, currency: "USD" },
+        visibility: { public: false, searchable: false },
+        vetting: { stage: "intake", by: "bulk-upload", at: FieldValue.serverTimestamp() },
         createdAt: FieldValue.serverTimestamp(),
         updatedAt: FieldValue.serverTimestamp(),
       };
@@ -245,15 +197,11 @@ export default async function handler(
       created++;
     }
 
-    if (created > 0) {
-      await batch.commit();
-    }
+    if (created > 0) await batch.commit();
 
     return res.status(200).json({ ok: true, created, skipped });
   } catch (err: any) {
     console.error("bulk-commit error:", err);
-    return res
-      .status(500)
-      .json({ ok: false, error: err?.message || "Internal error" });
+    return res.status(500).json({ ok: false, error: err?.message || "Internal error" });
   }
 }
