@@ -7,7 +7,7 @@ import Header from "../../components/Header";
 import Footer from "../../components/Footer";
 import ProductCard, { ProductLike } from "../../components/ProductCard";
 import { adminDb } from "../../utils/firebaseAdmin";
-import { getPublicListings } from "../../lib/publicListings"; // ✅ client fallback only
+import { getPublicListings } from "../../lib/publicListings";
 
 type CategoryProps = {
   slug: string;
@@ -15,7 +15,6 @@ type CategoryProps = {
   items: ProductLike[];
 };
 
-// NOTE: we add category + condition as optionals on top of ProductLike
 type ItemWithPrice = ProductLike & {
   priceValue: number;
   category?: string;
@@ -28,7 +27,6 @@ type PublicDesignersResponse = {
   error?: string;
 };
 
-// ---- Helper: "US$1,200" -> 1200 ----
 function parsePrice(price?: string | null): number {
   if (!price) return 0;
   const cleaned = price.replace(/[^0-9.,]/g, "").replace(/,/g, "");
@@ -36,7 +34,6 @@ function parsePrice(price?: string | null): number {
   return Number.isFinite(asNumber) ? asNumber : 0;
 }
 
-// ✅ normalize URL slugs to avoid refresh issues
 function canonicalSlug(slug: string): string {
   const s = (slug || "").toLowerCase().trim();
   if (s === "mens") return "men";
@@ -50,40 +47,54 @@ function toUsdString(n?: number): string {
   return `US$${n.toLocaleString("en-US")}`;
 }
 
-// You can EDIT these lists any time.
-// Add / remove entries and the filters will update automatically.
 const CATEGORY_OPTIONS = ["Women", "Bags", "Men", "Jewelry", "Watches"];
-
 const CONDITION_OPTIONS = ["New", "Excellent", "Very good", "Good"];
+const DEFAULT_DESIGNERS = ["Chanel", "Hermès", "Louis Vuitton", "Gucci", "Prada", "Dior", "Rolex"];
 
-// Fallback list if /api/public/designers has none
-const DEFAULT_DESIGNERS = [
-  "Chanel",
-  "Hermès",
-  "Louis Vuitton",
-  "Gucci",
-  "Prada",
-  "Dior",
-  "Rolex",
-];
+const labelMap: Record<string, string> = {
+  "new-arrivals": "New Arrivals",
+  women: "Women",
+  men: "Men",
+  bags: "Bags",
+  jewelry: "Jewelry",
+  watches: "Watches",
+};
 
 export default function CategoryPage({ slug, label, items }: CategoryProps) {
-  // ✅ Keep SSR items, but allow client fallback to replace them if SSR returns empty
   const [liveItems, setLiveItems] = useState<ProductLike[]>(items || []);
+  const [loading, setLoading] = useState<boolean>((items || []).length === 0);
   const [clientLoaded, setClientLoaded] = useState(false);
 
-  // ✅ Client fallback loader: ONLY if SSR delivered empty
+  // ✅ Client fallback loader
+  // Runs if SSR returned empty OR SSR returned items that don't match this category (common during migrations)
   useEffect(() => {
     let alive = true;
 
     async function loadFallback() {
+      const pageSlug = canonicalSlug(slug);
+
+      const pageLabel = labelMap[pageSlug] || label;
+      const wantsCategory = pageSlug !== "new-arrivals";
+
+      const ssrHasItems = (items || []).length > 0;
+
+      const ssrLooksWrong =
+        ssrHasItems &&
+        wantsCategory &&
+        (items || []).every((it: any) => {
+          const c = String(it?.category || "").trim().toLowerCase();
+          return c !== String(pageLabel).trim().toLowerCase();
+        });
+
+      // If SSR has good-looking items, keep them and skip fallback
+      if (ssrHasItems && !ssrLooksWrong) {
+        setLoading(false);
+        return;
+      }
+
+      setLoading(true);
+
       try {
-        // If SSR already has items, do nothing
-        if ((items || []).length > 0) return;
-
-        const pageSlug = canonicalSlug(slug);
-
-        // "new-arrivals" -> no category filter (we will slice newest)
         const listings = await getPublicListings({
           category: pageSlug === "new-arrivals" ? "" : pageSlug,
           max: 500,
@@ -96,19 +107,21 @@ export default function CategoryPage({ slug, label, items }: CategoryProps) {
           category: l.category || "",
           condition: l.condition || "",
           price: toUsdString(l.price ?? l.priceUsd),
-          image: (Array.isArray(l.images) && l.images[0]) ? l.images[0] : "",
+          image: Array.isArray(l.images) && l.images[0] ? l.images[0] : "",
           href: `/product/${l.id}`,
         }));
 
-        const finalItems =
-          pageSlug === "new-arrivals" ? mapped.slice(0, 60) : mapped.slice(0, 60);
-
         if (!alive) return;
+
+        // New Arrivals: newest 60. Category pages: show up to 60 (change if you want more).
+        const finalItems = pageSlug === "new-arrivals" ? mapped.slice(0, 60) : mapped.slice(0, 60);
 
         setLiveItems(finalItems);
         setClientLoaded(true);
       } catch (e) {
         console.error("Client fallback category load failed", e);
+      } finally {
+        if (alive) setLoading(false);
       }
     }
 
@@ -117,34 +130,26 @@ export default function CategoryPage({ slug, label, items }: CategoryProps) {
     return () => {
       alive = false;
     };
-  }, [slug, items]);
+  }, [slug, label, items]);
 
-  // Pre-compute numeric prices once (but based on liveItems)
-  const itemsWithPrice: ItemWithPrice[] = useMemo(
-    () =>
-      (liveItems || []).map((item: any) => ({
-        ...item,
-        priceValue: parsePrice(item.price),
-        category: item.category || "",
-        condition: item.condition || "",
-      })),
-    [liveItems]
-  );
+  const itemsWithPrice: ItemWithPrice[] = useMemo(() => {
+    return (liveItems || []).map((item: any) => ({
+      ...item,
+      priceValue: parsePrice(item.price),
+      category: item.category || "",
+      condition: item.condition || "",
+    }));
+  }, [liveItems]);
 
-  const [sortBy, setSortBy] = useState<"newest" | "price-asc" | "price-desc">(
-    "newest"
-  );
+  const [sortBy, setSortBy] = useState<"newest" | "price-asc" | "price-desc">("newest");
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [selectedDesigners, setSelectedDesigners] = useState<string[]>([]);
   const [selectedConditions, setSelectedConditions] = useState<string[]>([]);
   const [minPrice, setMinPrice] = useState<number | "">(0);
   const [maxPrice, setMaxPrice] = useState<number | "">(1000000);
 
-  // Designers list for the filter
-  const [designerOptions, setDesignerOptions] =
-    useState<string[]>(DEFAULT_DESIGNERS);
+  const [designerOptions, setDesignerOptions] = useState<string[]>(DEFAULT_DESIGNERS);
 
-  // Load designers from your public API once on mount
   useEffect(() => {
     async function loadDesigners() {
       try {
@@ -160,43 +165,28 @@ export default function CategoryPage({ slug, label, items }: CategoryProps) {
                 .filter(Boolean)
             )
           ).sort((a, b) => a.localeCompare(b));
+
           if (names.length > 0) {
             setDesignerOptions(names);
             return;
           }
         }
-      } catch (err) {
-        console.error("Failed to load designers for filters", err);
+      } catch {
+        // ignore
       }
 
-      // Fallback: use brands from items or DEFAULT_DESIGNERS
       const fromItems = Array.from(
         new Set(itemsWithPrice.map((i) => (i.brand || "").trim()).filter(Boolean))
       ).sort((a, b) => a.localeCompare(b));
 
-      if (fromItems.length > 0) {
-        setDesignerOptions(fromItems);
-      } else {
-        setDesignerOptions(DEFAULT_DESIGNERS);
-      }
+      setDesignerOptions(fromItems.length > 0 ? fromItems : DEFAULT_DESIGNERS);
     }
 
     loadDesigners();
   }, [itemsWithPrice]);
 
-  // Simple helpers to toggle filters
   function toggleInList(list: string[], value: string): string[] {
     return list.includes(value) ? list.filter((v) => v !== value) : [...list, value];
-  }
-
-  function onCategoryChange(name: string) {
-    setSelectedCategories((prev) => toggleInList(prev, name));
-  }
-  function onDesignerChange(name: string) {
-    setSelectedDesigners((prev) => toggleInList(prev, name));
-  }
-  function onConditionChange(name: string) {
-    setSelectedConditions((prev) => toggleInList(prev, name));
   }
 
   function clearAllFilters() {
@@ -210,7 +200,6 @@ export default function CategoryPage({ slug, label, items }: CategoryProps) {
   const filteredItems: ItemWithPrice[] = useMemo(() => {
     let result = [...itemsWithPrice];
 
-    // 1) Category - Fix: Case-insensitive matching
     if (selectedCategories.length > 0) {
       result = result.filter((item) =>
         selectedCategories.some(
@@ -219,7 +208,6 @@ export default function CategoryPage({ slug, label, items }: CategoryProps) {
       );
     }
 
-    // 2) Designer (brand) - Fix: Case-insensitive matching
     if (selectedDesigners.length > 0) {
       result = result.filter((item) =>
         selectedDesigners.some(
@@ -228,14 +216,12 @@ export default function CategoryPage({ slug, label, items }: CategoryProps) {
       );
     }
 
-    // 3) Condition
     if (selectedConditions.length > 0) {
       result = result.filter((item) =>
         selectedConditions.includes((item.condition || "").trim())
       );
     }
 
-    // 4) Price
     result = result.filter((item) => {
       const price = item.priceValue || 0;
       if (typeof minPrice === "number" && price < minPrice) return false;
@@ -243,24 +229,11 @@ export default function CategoryPage({ slug, label, items }: CategoryProps) {
       return true;
     });
 
-    // 5) Sort
-    if (sortBy === "price-asc") {
-      result.sort((a, b) => (a.priceValue || 0) - (b.priceValue || 0));
-    }
-    if (sortBy === "price-desc") {
-      result.sort((a, b) => (b.priceValue || 0) - (a.priceValue || 0));
-    }
+    if (sortBy === "price-asc") result.sort((a, b) => (a.priceValue || 0) - (b.priceValue || 0));
+    if (sortBy === "price-desc") result.sort((a, b) => (b.priceValue || 0) - (a.priceValue || 0));
 
     return result;
-  }, [
-    itemsWithPrice,
-    selectedCategories,
-    selectedDesigners,
-    selectedConditions,
-    minPrice,
-    maxPrice,
-    sortBy,
-  ]);
+  }, [itemsWithPrice, selectedCategories, selectedDesigners, selectedConditions, minPrice, maxPrice, sortBy]);
 
   const resultsCount = filteredItems.length;
 
@@ -268,14 +241,8 @@ export default function CategoryPage({ slug, label, items }: CategoryProps) {
     <div className="page">
       <Head>
         <title>{label} – Famous Finds</title>
-        <meta
-          name="description"
-          content={`Browse ${label} items available on Famous Finds.`}
-        />
-        <link
-          rel="canonical"
-          href={`https://www.myfamousfinds.com/category/${slug}`}
-        />
+        <meta name="description" content={`Browse ${label} items available on Famous Finds.`} />
+        <link rel="canonical" href={`https://www.myfamousfinds.com/category/${slug}`} />
       </Head>
 
       <Header />
@@ -286,7 +253,6 @@ export default function CategoryPage({ slug, label, items }: CategoryProps) {
         </div>
 
         <div className="layout">
-          {/* LEFT – Filters */}
           <aside className="filters">
             <div className="filters-header">
               <h2>Filters</h2>
@@ -303,7 +269,7 @@ export default function CategoryPage({ slug, label, items }: CategoryProps) {
                     <input
                       type="checkbox"
                       checked={selectedCategories.includes(cat)}
-                      onChange={() => onCategoryChange(cat)}
+                      onChange={() => setSelectedCategories((prev) => toggleInList(prev, cat))}
                     />
                     <span>{cat}</span>
                   </label>
@@ -319,7 +285,7 @@ export default function CategoryPage({ slug, label, items }: CategoryProps) {
                     <input
                       type="checkbox"
                       checked={selectedDesigners.includes(name)}
-                      onChange={() => onDesignerChange(name)}
+                      onChange={() => setSelectedDesigners((prev) => toggleInList(prev, name))}
                     />
                     <span>{name}</span>
                   </label>
@@ -335,7 +301,7 @@ export default function CategoryPage({ slug, label, items }: CategoryProps) {
                     <input
                       type="checkbox"
                       checked={selectedConditions.includes(cond)}
-                      onChange={() => onConditionChange(cond)}
+                      onChange={() => setSelectedConditions((prev) => toggleInList(prev, cond))}
                     />
                     <span>{cond}</span>
                   </label>
@@ -353,9 +319,7 @@ export default function CategoryPage({ slug, label, items }: CategoryProps) {
                     type="number"
                     inputMode="numeric"
                     value={minPrice}
-                    onChange={(e) =>
-                      setMinPrice(e.target.value === "" ? "" : Number(e.target.value) || 0)
-                    }
+                    onChange={(e) => setMinPrice(e.target.value === "" ? "" : Number(e.target.value) || 0)}
                   />
                 </div>
 
@@ -365,33 +329,24 @@ export default function CategoryPage({ slug, label, items }: CategoryProps) {
                     type="number"
                     inputMode="numeric"
                     value={maxPrice}
-                    onChange={(e) =>
-                      setMaxPrice(e.target.value === "" ? "" : Number(e.target.value) || 0)
-                    }
+                    onChange={(e) => setMaxPrice(e.target.value === "" ? "" : Number(e.target.value) || 0)}
                   />
                 </div>
               </div>
 
-              <button
-                type="button"
-                className="apply-btn"
-                onClick={() => {
-                  // Filters are already live – button is just for UX
-                }}
-              >
+              <button type="button" className="apply-btn" onClick={() => {}}>
                 Apply Filters
               </button>
             </div>
           </aside>
 
-          {/* RIGHT – Results */}
           <section className="results">
             <div className="results-header">
               <div>
                 <h1>{label}</h1>
                 <p className="results-count">
-                  {resultsCount} {resultsCount === 1 ? "result" : "results"}
-                  {clientLoaded ? " (synced)" : ""}
+                  {loading ? "Loading…" : `${resultsCount} ${resultsCount === 1 ? "result" : "results"}`}
+                  {!loading && clientLoaded ? " (synced)" : ""}
                 </p>
               </div>
               <div className="sort">
@@ -399,9 +354,7 @@ export default function CategoryPage({ slug, label, items }: CategoryProps) {
                   Sort
                   <select
                     value={sortBy}
-                    onChange={(e) =>
-                      setSortBy(e.target.value as "newest" | "price-asc" | "price-desc")
-                    }
+                    onChange={(e) => setSortBy(e.target.value as any)}
                   >
                     <option value="newest">Newest</option>
                     <option value="price-asc">Price: Low to High</option>
@@ -411,7 +364,12 @@ export default function CategoryPage({ slug, label, items }: CategoryProps) {
               </div>
             </div>
 
-            {filteredItems.length === 0 ? (
+            {loading ? (
+              <div className="empty-state">
+                <h2>Loading listings…</h2>
+                <p>Please wait a moment.</p>
+              </div>
+            ) : filteredItems.length === 0 ? (
               <div className="empty-state">
                 <h2>No results</h2>
                 <p>Try clearing filters or adjusting your selection.</p>
@@ -437,14 +395,12 @@ export default function CategoryPage({ slug, label, items }: CategoryProps) {
           display: flex;
           flex-direction: column;
         }
-
         .wrap {
           max-width: 1200px;
           margin: 0 auto;
           padding: 20px 16px 70px;
           width: 100%;
         }
-
         .breadcrumb {
           font-size: 12px;
           color: #6b7280;
@@ -458,14 +414,12 @@ export default function CategoryPage({ slug, label, items }: CategoryProps) {
           color: #111827;
           text-decoration: underline;
         }
-
         .layout {
           display: grid;
           grid-template-columns: 280px 1fr;
           gap: 18px;
           align-items: start;
         }
-
         .filters {
           min-width: 0;
           overflow: hidden;
@@ -474,19 +428,16 @@ export default function CategoryPage({ slug, label, items }: CategoryProps) {
           padding: 14px;
           background: #fbfbfb;
         }
-
         .filters-header {
           display: flex;
           align-items: center;
           justify-content: space-between;
           margin-bottom: 10px;
         }
-
         .filters h2 {
           margin: 0;
           font-size: 16px;
         }
-
         .clear-btn {
           border: none;
           background: transparent;
@@ -495,17 +446,14 @@ export default function CategoryPage({ slug, label, items }: CategoryProps) {
           font-size: 12px;
           text-decoration: underline;
         }
-
         .filter-block {
           margin-top: 14px;
         }
-
         .filter-block h3 {
           margin: 0 0 8px;
           font-size: 13px;
           color: #111827;
         }
-
         .filter-list {
           display: flex;
           flex-direction: column;
@@ -514,7 +462,6 @@ export default function CategoryPage({ slug, label, items }: CategoryProps) {
           overflow: auto;
           padding-right: 6px;
         }
-
         .filter-option {
           display: flex;
           align-items: center;
@@ -522,7 +469,6 @@ export default function CategoryPage({ slug, label, items }: CategoryProps) {
           font-size: 13px;
           color: #111827;
         }
-
         .price-stack {
           display: flex;
           flex-direction: column;
@@ -530,19 +476,16 @@ export default function CategoryPage({ slug, label, items }: CategoryProps) {
           margin-bottom: 10px;
           width: 100%;
         }
-
         .price-input {
           display: flex;
           flex-direction: column;
           gap: 6px;
           width: 100%;
         }
-
         .price-input span {
           font-size: 12px;
           color: #6b7280;
         }
-
         .price-input input {
           width: 100%;
           min-width: 0;
@@ -552,7 +495,6 @@ export default function CategoryPage({ slug, label, items }: CategoryProps) {
           padding: 6px 10px;
           font-size: 14px;
         }
-
         .apply-btn {
           width: 100%;
           border-radius: 999px;
@@ -563,11 +505,9 @@ export default function CategoryPage({ slug, label, items }: CategoryProps) {
           font-weight: 700;
           cursor: pointer;
         }
-
         .results {
           min-width: 0;
         }
-
         .results-header {
           display: flex;
           align-items: flex-end;
@@ -575,19 +515,16 @@ export default function CategoryPage({ slug, label, items }: CategoryProps) {
           gap: 12px;
           margin-bottom: 14px;
         }
-
         .results h1 {
           margin: 0;
           font-size: 28px;
           font-family: "Georgia", serif;
         }
-
         .results-count {
           margin: 3px 0 0;
           font-size: 13px;
           color: #6b7280;
         }
-
         .sort label {
           display: flex;
           flex-direction: column;
@@ -602,14 +539,12 @@ export default function CategoryPage({ slug, label, items }: CategoryProps) {
           font-size: 14px;
           background: #ffffff;
         }
-
         .grid {
           display: grid;
           grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
           gap: 18px;
           margin-top: 12px;
         }
-
         .empty-state {
           margin-top: 32px;
           border-radius: 16px;
@@ -627,7 +562,6 @@ export default function CategoryPage({ slug, label, items }: CategoryProps) {
           color: #6b7280;
           font-size: 14px;
         }
-
         @media (max-width: 980px) {
           .layout {
             grid-template-columns: 1fr;
@@ -644,16 +578,6 @@ export default function CategoryPage({ slug, label, items }: CategoryProps) {
   );
 }
 
-// Map pretty labels for slug -> heading
-const labelMap: Record<string, string> = {
-  "new-arrivals": "New Arrivals",
-  women: "Women",
-  men: "Men",
-  bags: "Bags",
-  jewelry: "Jewelry",
-  watches: "Watches",
-};
-
 export const getServerSideProps: GetServerSideProps<CategoryProps> = async (ctx) => {
   const rawSlug = String(ctx.params?.slug || "");
   const normalized = canonicalSlug(rawSlug);
@@ -662,24 +586,18 @@ export const getServerSideProps: GetServerSideProps<CategoryProps> = async (ctx)
     labelMap[normalized] ||
     normalized.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 
-  // helpers
-  const norm = (v: any) =>
-    String(v || "").trim().toLowerCase().replace(/\s+/g, " ");
-  const normSlug = (v: any) =>
-    norm(v).replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
+  const norm = (v: any) => String(v || "").trim().toLowerCase().replace(/\s+/g, " ");
+  const normSlug = (v: any) => norm(v).replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
 
   const wantedLabel = labelMap[normalized] || categoryLabel;
 
   try {
-    const allowedStatuses = ["Live", "Active", "Approved"];
+    // ✅ FIX: case-insensitive status allowlist
+    const allowedStatuses = ["live", "active", "approved", "published"];
 
     let snap;
     try {
-      snap = await adminDb
-        .collection("listings")
-        .orderBy("createdAt", "desc")
-        .limit(500)
-        .get();
+      snap = await adminDb.collection("listings").orderBy("createdAt", "desc").limit(500).get();
     } catch {
       snap = await adminDb.collection("listings").limit(500).get();
     }
@@ -692,13 +610,16 @@ export const getServerSideProps: GetServerSideProps<CategoryProps> = async (ctx)
         d.image ||
         (Array.isArray(d.imageUrls) && d.imageUrls[0]) ||
         "";
-      const rawStatus = (d.status || "").toString().trim();
-      const isExcluded =
-        /pending/i.test(rawStatus) || /reject/i.test(rawStatus) || /sold/i.test(rawStatus);
-      const isPublic = !rawStatus || allowedStatuses.includes(rawStatus);
-      const category = d.category || d.categoryLabel || d.categoryName || "";
+
+      const rawStatus = String(d.status ?? d.moderationStatus ?? d.listingStatus ?? "").trim();
+      const rawStatusLc = rawStatus.toLowerCase();
+
+      const isExcluded = /pending/i.test(rawStatus) || /reject/i.test(rawStatus) || /sold/i.test(rawStatus);
+      const isPublic = !rawStatus || allowedStatuses.includes(rawStatusLc);
+
+      const category = d.category || d.categoryLabel || d.categoryName || d.menuCategory || "";
       const brand = d.brand || d.designer || d.designerName || d.brandName || "";
-      const priceNumber = Number(d.price) || 0;
+      const priceNumber = Number(d.price) || Number(d.priceUsd) || 0;
       const price = priceNumber ? `US$${priceNumber.toLocaleString("en-US")}` : "";
 
       return {
@@ -716,28 +637,19 @@ export const getServerSideProps: GetServerSideProps<CategoryProps> = async (ctx)
       };
     });
 
-    // 1) Filter to public/live items
     let filtered = allItems.filter((it) => it._isPublic && !it._isExcluded);
 
-    // 2) Category page filter - Fix: Strict slug matching
     if (normalized !== "new-arrivals") {
       filtered = filtered.filter((it) => {
         const c = String(it.category || "").trim();
         if (!c) return false;
-        const cSlug = normSlug(c);
-        const pageSlug = normSlug(wantedLabel);
-        return cSlug === pageSlug;
+        return normSlug(c) === normSlug(wantedLabel);
       });
     }
 
-    // 3) Newest first, cap to 60
     filtered = filtered
       .slice()
-      .sort((a, b) => {
-        const aTime = a.createdAt?.toMillis?.() || 0;
-        const bTime = b.createdAt?.toMillis?.() || 0;
-        return bTime - aTime;
-      })
+      .sort((a, b) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0))
       .slice(0, 60);
 
     const items: ProductLike[] = filtered.map(({ _isExcluded, _isPublic, createdAt, ...rest }) => rest);
