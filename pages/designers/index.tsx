@@ -363,6 +363,8 @@ const DesignersPage: NextPage<DesignersPageProps> = ({ items }) => {
 
               <div className="filter-block">
                 <h3>Price</h3>
+
+                {/* ✅ FIXED: stack Min and Max vertically (Max under Price) */}
                 <div className="price-row">
                   <div className="price-input">
                     <span>Min</span>
@@ -378,7 +380,7 @@ const DesignersPage: NextPage<DesignersPageProps> = ({ items }) => {
                       }
                     />
                   </div>
-                  <span className="price-separator">-</span>
+
                   <div className="price-input">
                     <span>Max</span>
                     <input
@@ -394,6 +396,7 @@ const DesignersPage: NextPage<DesignersPageProps> = ({ items }) => {
                     />
                   </div>
                 </div>
+
                 <button
                   type="button"
                   className="apply-btn"
@@ -543,29 +546,29 @@ const DesignersPage: NextPage<DesignersPageProps> = ({ items }) => {
         .filter-option input {
           accent-color: #111827;
         }
+
+        /* ✅ FIXED: vertical layout so Max never spills out */
         .price-row {
           display: flex;
-          align-items: center;
-          gap: 8px;
+          flex-direction: column;
+          gap: 10px;
           margin-bottom: 10px;
         }
         .price-input {
-          flex: 1;
           display: flex;
           flex-direction: column;
           gap: 4px;
           font-size: 13px;
         }
         .price-input input {
+          width: 100%;
+          box-sizing: border-box;
           border-radius: 999px;
           border: 1px solid #d1d5db;
           padding: 6px 10px;
           font-size: 14px;
         }
-        .price-separator {
-          font-size: 14px;
-          color: #6b7280;
-        }
+
         .apply-btn {
           width: 100%;
           margin-top: 4px;
