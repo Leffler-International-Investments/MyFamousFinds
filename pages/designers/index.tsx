@@ -547,7 +547,6 @@ const DesignersPage: NextPage<DesignersPageProps> = ({ items }) => {
           accent-color: #111827;
         }
 
-        /* ✅ FIXED: vertical layout so Max never spills out */
         .price-row {
           display: flex;
           flex-direction: column;
