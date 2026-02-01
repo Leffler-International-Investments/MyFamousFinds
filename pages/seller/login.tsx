@@ -35,6 +35,9 @@ type Verify2faResponse = Verify2faSuccess | Verify2faError;
 
 type TwoFactorStep = "credentials" | "verify";
 
+// ✅ EXTENDED SESSION (8 hours)
+const SESSION_TTL_MS = 8 * 60 * 60 * 1000;
+
 export default function SellerLoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState("");
@@ -182,6 +185,12 @@ export default function SellerLoginPage() {
       if (typeof window !== "undefined") {
         window.localStorage.setItem("ff-role", "seller");
         window.localStorage.setItem("ff-email", email.toLowerCase().trim());
+
+        // ✅ EXTEND SESSION
+        window.localStorage.setItem(
+          "ff-session-exp",
+          String(Date.now() + SESSION_TTL_MS)
+        );
       }
 
       if (from) router.push(from);
