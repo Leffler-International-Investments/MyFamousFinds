@@ -55,13 +55,13 @@ const CONDITIONS = [
   "Fair",
 ];
 
+// FIXED: Categories updated to match header navigation exactly
 const CATEGORIES = [
+  "Women",
   "Bags",
-  "Shoes",
+  "Men",
   "Jewelry",
   "Watches",
-  "Clothing",
-  "Accessories",
 ];
 
 const SOURCES = [
