@@ -13,6 +13,7 @@ export default function Header() {
     return () => unsub();
   }, []);
 
+  // ✅ FIXED: each category points to its own correct page
   const categoryNav = [
     { label: "NEW ARRIVALS", href: "/category/new-arrivals" },
     { label: "CATALOGUE", href: "/catalogue" },
@@ -140,102 +141,103 @@ export default function Header() {
         }
 
         .ff-main-link {
+          color: #111827;
           text-decoration: none;
-          color: #4b5563;
-          white-space: nowrap;
+          opacity: 0.9;
         }
         .ff-main-link:hover {
-          color: #111827;
+          opacity: 1;
+          text-decoration: underline;
         }
 
         .ff-admin-ports {
           display: flex;
           align-items: center;
           gap: 10px;
-          flex-wrap: wrap;
         }
 
-        /* Layout-only; colors come from global components.css */
         .admin-button {
-          padding: 6px 10px;
           border-radius: 999px;
-          border: 1px solid #d1d5db;
-          font-size: 11px;
+          padding: 8px 12px;
+          font-size: 12px;
           text-decoration: none;
-          color: #374151;
-          background: #f9fafb;
+          border: 1px solid #e5e7eb;
+          background: #ffffff;
+          color: #111827;
+          font-weight: 600;
+          line-height: 1;
+          white-space: nowrap;
         }
 
-        .admin-button.seller {
-          border-color: #111827;
-          background: #111827;
+        .admin-button.vip {
+          background: #22c55e;
+          border-color: #22c55e;
           color: #ffffff;
         }
 
         .admin-button.management {
-          border-color: #6366f1;
-          color: #312e81;
-          background: #eef2ff;
+          background: #e5e7eb;
+          border-color: #e5e7eb;
         }
 
-        /* VIP pill: rely on global green styles but keep border radius etc */
-        .admin-button.vip {
-          border-radius: 999px;
+        .admin-button.seller {
+          background: #111827;
+          border-color: #111827;
+          color: #ffffff;
         }
 
         .ff-header-middle {
           max-width: 1280px;
           margin: 0 auto;
-          padding: 6px 18px 4px;
+          padding: 12px 18px 8px;
           display: flex;
-          justify-content: space-between;
           align-items: center;
+          justify-content: space-between;
+          gap: 16px;
         }
 
         .ff-brand-name {
-          font-size: 16px;
-          letter-spacing: 0.25em;
-          text-transform: uppercase;
+          letter-spacing: 0.22em;
+          font-size: 18px;
+          font-weight: 500;
         }
 
         .ff-search-form {
-          border: 1px solid #d1d5db;
-          border-radius: 999px;
-          padding: 4px 10px;
-          min-width: 180px;
+          flex: 1;
           display: flex;
-          align-items: center;
+          justify-content: flex-end;
         }
 
         .ff-search-input {
-          border: none;
-          outline: none;
-          width: 100%;
-          font-size: 13px;
+          width: min(420px, 100%);
+          border-radius: 999px;
+          border: 1px solid #d1d5db;
+          padding: 8px 12px;
+          font-size: 14px;
         }
 
         .ff-category-nav {
           max-width: 1280px;
           margin: 0 auto;
-          padding: 6px 18px 8px;
+          padding: 10px 18px 14px;
           display: flex;
-          flex-wrap: wrap;
-          gap: 20px;
-          font-size: 11px;
-          letter-spacing: 0.18em;
-          text-transform: uppercase;
+          align-items: center;
           justify-content: center;
+          gap: 18px;
+          flex-wrap: wrap;
         }
 
         .ff-cat-link {
+          font-size: 12px;
+          letter-spacing: 0.12em;
+          color: #111827;
           text-decoration: none;
-          color: #374151;
-          white-space: nowrap;
+          opacity: 0.85;
         }
 
         .ff-cat-link:hover {
-          color: #111827;
-          border-bottom: 2px solid #111827;
+          opacity: 1;
+          text-decoration: underline;
         }
       `}</style>
     </header>
