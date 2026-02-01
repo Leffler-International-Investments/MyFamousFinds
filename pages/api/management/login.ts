@@ -1,33 +1,31 @@
 // FILE: /pages/api/management/login.ts
 import type { NextApiRequest, NextApiResponse } from "next";
-import { adminDb, FieldValue } from "../../../utils/firebaseAdmin";
+import { adminDb, isFirebaseAdminReady } from "../../../utils/firebaseAdmin";
 
-type LoginPayload = {
-  email?: string;
-  password?: string;
+type Ok = { ok: true; managementId: string };
+type Err = {
+  ok: false;
+  code: "not_authorised" | "pending" | "bad_credentials" | "server_not_configured";
+  message: string;
 };
+type Resp = Ok | Err;
 
-type LoginResponse =
-  | { ok: true; managementId: string }
-  | {
-      ok: false;
-      code: "pending" | "not_authorised" | "bad_credentials";
-      message: string;
-    };
+function parseAllowList(raw: string | undefined) {
+  return new Set(
+    (raw || "")
+      .split(",")
+      .map((s) => s.trim().toLowerCase())
+      .filter(Boolean)
+  );
+}
 
-// Example env:
-// MANAGEMENT_SUPER_EMAILS="leffleryd@gmail.com,owner@famousfinds.com"
-const SUPER_EMAILS = (process.env.MANAGEMENT_SUPER_EMAILS || "")
-  .split(",")
-  .map((e) => e.trim().toLowerCase())
-  .filter(Boolean);
+function isApprovedStatus(status: unknown) {
+  const s = String(status || "").trim().toLowerCase();
+  return s === "approved";
+}
 
-export default async function handler(
-  req: NextApiRequest,
-  res: NextApiResponse<LoginResponse>
-) {
+export default async function handler(req: NextApiRequest, res: NextApiResponse<Resp>) {
   if (req.method !== "POST") {
-    res.setHeader("Allow", "POST");
     return res.status(405).json({
       ok: false,
       code: "bad_credentials",
@@ -35,86 +33,55 @@ export default async function handler(
     });
   }
 
-  const { email, password } = (req.body || {}) as LoginPayload;
-
-  const trimmedEmail = (email || "").toLowerCase().trim();
-  const trimmedPassword = (password || "").trim();
-
-  if (!trimmedEmail || !trimmedPassword) {
+  const email = String(req.body?.email || "").trim().toLowerCase();
+  if (!email) {
     return res.status(400).json({
       ok: false,
       code: "bad_credentials",
-      message: "Email and password are required.",
+      message: "Email is required.",
     });
   }
 
-  const isSuperAdmin = SUPER_EMAILS.includes(trimmedEmail);
+  const superEmails = parseAllowList(process.env.MANAGEMENT_SUPER_EMAILS);
+
+  // ✅ Owners bypass database checks (recommended)
+  if (superEmails.has(email)) {
+    return res.status(200).json({ ok: true, managementId: email });
+  }
+
+  if (!isFirebaseAdminReady || !adminDb) {
+    return res.status(500).json({
+      ok: false,
+      code: "server_not_configured",
+      message:
+        "Server is not configured (missing Firebase Admin env vars). Please set FB_PROJECT_ID / FB_CLIENT_EMAIL / FB_PRIVATE_KEY in Vercel.",
+    });
+  }
 
   try {
-    const snap = await adminDb
-      .collection("managementAdmins")
-      .where("email", "==", trimmedEmail)
-      .limit(1)
-      .get();
+    // Optional: allow “managementAdmins” collection if you use it
+    const snap = await adminDb.collection("managementAdmins").doc(email).get();
 
-    if (snap.empty) {
-      if (!isSuperAdmin) {
-        return res.status(400).json({
-          ok: false,
-          code: "not_authorised",
-          message:
-            "We couldn’t find a management admin account for that email.",
-        });
-      }
-
-      // Auto-create approved management record for super admins.
-      const docRef = adminDb.collection("managementAdmins").doc();
-      await docRef.set({
-        email: trimmedEmail,
-        status: "approved",
-        isSuperAdmin: true,
-        password: trimmedPassword,
-        createdAt: FieldValue.serverTimestamp(),
-        notes:
-          "Bootstrap management admin created automatically from /api/management/login.",
-      });
-
-      return res.status(200).json({
-        ok: true,
-        managementId: docRef.id,
-      });
-    }
-
-    const doc = snap.docs[0];
-    const data = doc.data() as {
-      status?: string;
-      password?: string;
-      isSuperAdmin?: boolean;
-    };
-
-    if (!data.password || data.password !== trimmedPassword) {
-      return res.status(400).json({
+    if (!snap.exists) {
+      return res.status(403).json({
         ok: false,
-        code: "bad_credentials",
-        message: "Incorrect email or password.",
+        code: "not_authorised",
+        message: "This email is not authorised for management access.",
       });
     }
 
-    if (data.status && data.status !== "approved") {
-      return res.status(400).json({
+    const data = snap.data() || {};
+    if (!isApprovedStatus(data.status)) {
+      return res.status(403).json({
         ok: false,
         code: "pending",
-        message:
-          "Your management access is still under review. We'll email you as soon as it is approved.",
+        message: "Your management access is not approved yet.",
       });
     }
 
-    return res.status(200).json({
-      ok: true,
-      managementId: doc.id,
-    });
-  } catch (err) {
-    console.error("management_login_api_error", err);
+    return res.status(200).json({ ok: true, managementId: email });
+  } catch (e) {
+    console.error("management_login_api_error", e);
     return res.status(500).json({
       ok: false,
       code: "bad_credentials",
