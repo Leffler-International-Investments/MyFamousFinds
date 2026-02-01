@@ -111,11 +111,7 @@ export default function CategoryPage({ slug, label, items }: CategoryProps) {
 
       // Fallback: use brands from items or DEFAULT_DESIGNERS
       const fromItems = Array.from(
-        new Set(
-          itemsWithPrice
-            .map((i) => (i.brand || "").trim())
-            .filter(Boolean)
-        )
+        new Set(itemsWithPrice.map((i) => (i.brand || "").trim()).filter(Boolean))
       ).sort((a, b) => a.localeCompare(b));
 
       if (fromItems.length > 0) {
@@ -130,9 +126,7 @@ export default function CategoryPage({ slug, label, items }: CategoryProps) {
 
   // Simple helpers to toggle filters
   function toggleInList(list: string[], value: string): string[] {
-    return list.includes(value)
-      ? list.filter((v) => v !== value)
-      : [...list, value];
+    return list.includes(value) ? list.filter((v) => v !== value) : [...list, value];
   }
 
   function onCategoryChange(name: string) {
@@ -153,16 +147,14 @@ export default function CategoryPage({ slug, label, items }: CategoryProps) {
     setMaxPrice(10000);
   }
 
-  // Apply filters + sort ------------- FIXED -------------
+  // Apply filters + sort
   const filteredItems: ItemWithPrice[] = useMemo(() => {
     let result = [...itemsWithPrice];
 
     // 1) Category
     if (selectedCategories.length > 0) {
       result = result.filter((item) =>
-        item.category
-          ? selectedCategories.includes(item.category)
-          : false
+        item.category ? selectedCategories.includes(item.category) : false
       );
     }
 
@@ -176,9 +168,7 @@ export default function CategoryPage({ slug, label, items }: CategoryProps) {
     // 3) Condition
     if (selectedConditions.length > 0) {
       result = result.filter((item) =>
-        item.condition
-          ? selectedConditions.includes(item.condition)
-          : false
+        item.condition ? selectedConditions.includes(item.condition) : false
       );
     }
 
@@ -213,8 +203,7 @@ export default function CategoryPage({ slug, label, items }: CategoryProps) {
   const resultsCount = filteredItems.length;
 
   const breadcrumbLabel =
-    label ||
-    slug.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+    label || slug.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 
   return (
     <div className="category-page">
@@ -301,9 +290,7 @@ export default function CategoryPage({ slug, label, items }: CategoryProps) {
                       value={minPrice}
                       onChange={(e) =>
                         setMinPrice(
-                          e.target.value === ""
-                            ? ""
-                            : Number(e.target.value) || 0
+                          e.target.value === "" ? "" : Number(e.target.value) || 0
                         )
                       }
                     />
@@ -316,9 +303,7 @@ export default function CategoryPage({ slug, label, items }: CategoryProps) {
                       value={maxPrice}
                       onChange={(e) =>
                         setMaxPrice(
-                          e.target.value === ""
-                            ? ""
-                            : Number(e.target.value) || 0
+                          e.target.value === "" ? "" : Number(e.target.value) || 0
                         )
                       }
                     />
@@ -342,8 +327,7 @@ export default function CategoryPage({ slug, label, items }: CategoryProps) {
                 <div>
                   <h1>All Products</h1>
                   <p className="results-count">
-                    {resultsCount}{" "}
-                    {resultsCount === 1 ? "result" : "results"}
+                    {resultsCount} {resultsCount === 1 ? "result" : "results"}
                   </p>
                 </div>
                 <div className="sort">
@@ -352,21 +336,12 @@ export default function CategoryPage({ slug, label, items }: CategoryProps) {
                     <select
                       value={sortBy}
                       onChange={(e) =>
-                        setSortBy(
-                          e.target.value as
-                            | "newest"
-                            | "price-asc"
-                            | "price-desc"
-                        )
+                        setSortBy(e.target.value as "newest" | "price-asc" | "price-desc")
                       }
                     >
                       <option value="newest">Newest</option>
-                      <option value="price-asc">
-                        Price: Low to High
-                      </option>
-                      <option value="price-desc">
-                        Price: High to Low
-                      </option>
+                      <option value="price-asc">Price: Low to High</option>
+                      <option value="price-desc">Price: High to Low</option>
                     </select>
                   </label>
                 </div>
@@ -586,34 +561,31 @@ const labelMap: Record<string, string> = {
   watches: "Watches",
 };
 
-export const getServerSideProps: GetServerSideProps<CategoryProps> = async (
-  ctx
-) => {
+export const getServerSideProps: GetServerSideProps<CategoryProps> = async (ctx) => {
   const rawSlug = String(ctx.params?.slug || "");
   const normalized = rawSlug.toLowerCase();
 
-  const allowedStatuses = ["Live", "Active", "Approved"];
+  // NOTE: keep category pages index-free.
+  // We intentionally avoid compound Firestore queries (e.g. status IN + orderBy createdAt)
+  // because they require composite indexes and were causing empty results.
 
   const categoryLabel =
     labelMap[normalized] ||
     normalized.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 
   try {
-    let query = adminDb
+    // 1) Pull live items (single-condition query = no composite index needed)
+    const snap = await adminDb
       .collection("listings")
-      .where("status", "in", allowedStatuses);
+      .where("status", "==", "Live")
+      .limit(250)
+      .get();
 
-    // NEW ARRIVALS = just newest
-    if (normalized === "new-arrivals") {
-      query = query.orderBy("createdAt", "desc");
-    } else {
-      // ALL OTHER CATEGORY PAGES FILTER BY category FIELD
-      query = query.where("category", "==", categoryLabel);
-    }
-
-    const snap = await query.limit(60).get();
-
-    const items: ProductLike[] = snap.docs.map((doc) => {
+    const rawItems: (ProductLike & {
+      category?: string;
+      condition?: string;
+      createdAt?: any;
+    })[] = snap.docs.map((doc) => {
       const d = doc.data() as any;
 
       const image =
@@ -623,7 +595,13 @@ export const getServerSideProps: GetServerSideProps<CategoryProps> = async (
         (Array.isArray(d.imageUrls) && d.imageUrls[0]) ||
         "";
 
-      const priceNum = Number(d.price) || 0;
+      // Price can be stored as number or string. Normalize to number.
+      const priceNum =
+        typeof d.price === "number"
+          ? d.price
+          : typeof d.price === "string"
+          ? parsePrice(d.price)
+          : 0;
 
       return {
         id: doc.id,
@@ -634,8 +612,46 @@ export const getServerSideProps: GetServerSideProps<CategoryProps> = async (
         price: priceNum ? `US$${priceNum.toLocaleString()}` : "",
         image,
         href: `/product/${doc.id}`,
+        createdAt: d.createdAt || null,
       } as ProductLike & { category?: string; condition?: string };
     });
+
+    // Helpers
+    const norm = (v: any) => String(v || "").trim().toLowerCase().replace(/\s+/g, " ");
+    const normSlug = (v: any) =>
+      norm(v).replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
+
+    // 2) Filter items per category page
+    let filtered = rawItems;
+
+    if (normalized === "new-arrivals") {
+      // nothing else, just sort
+    } else {
+      const wantedLabel = norm(categoryLabel);
+      const wantedSlug = normalized;
+
+      filtered = rawItems.filter((it) => {
+        const cat = norm((it as any).category);
+        if (!cat) return false;
+        return (
+          cat === wantedLabel ||
+          normSlug(cat) === wantedSlug ||
+          cat.replace(/\s|-/g, "") === wantedLabel.replace(/\s|-/g, "")
+        );
+      });
+    }
+
+    // 3) Sort newest first (server didn't order)
+    filtered = filtered
+      .slice()
+      .sort((a: any, b: any) => {
+        const aTime = a.createdAt?.toMillis?.() || 0;
+        const bTime = b.createdAt?.toMillis?.() || 0;
+        return bTime - aTime;
+      })
+      .slice(0, 60);
+
+    const items: ProductLike[] = filtered.map(({ createdAt, ...rest }: any) => rest);
 
     return {
       props: {
