@@ -9,15 +9,13 @@ import Header from "../../components/Header";
 import Footer from "../../components/Footer";
 import PasswordInput from "../../components/PasswordInput";
 
+import { auth } from "../../utils/firebaseClient";
+import { signInWithEmailAndPassword } from "firebase/auth";
+
 type LoginSuccess = { ok: true; sellerId: string };
 type LoginError = {
   ok: false;
-  code:
-    | "apply_first"
-    | "pending"
-    | "bad_credentials"
-    | "server_not_configured"
-    | string;
+  code: "apply_first" | "pending" | "bad_credentials" | "server_not_configured" | string;
   message: string;
 };
 type LoginResponse = LoginSuccess | LoginError;
@@ -55,6 +53,7 @@ export default function SellerLoginPage() {
     e.preventDefault();
     setError(null);
     setInfo(null);
+
     const trimmedEmail = email.trim().toLowerCase();
     const trimmedPassword = password;
 
@@ -65,11 +64,21 @@ export default function SellerLoginPage() {
 
     setLoading(true);
     try {
+      // ✅ 1) Authenticate via Firebase Auth (real password check)
+      try {
+        await signInWithEmailAndPassword(auth, trimmedEmail, trimmedPassword);
+      } catch (authErr) {
+        setError("Incorrect email or password. Please try again.");
+        return;
+      }
+
+      // ✅ 2) Server check: seller exists + approved
       const res = await fetch("/api/seller/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: trimmedEmail, password: trimmedPassword }),
+        body: JSON.stringify({ email: trimmedEmail }),
       });
+
       const json = (await res.json()) as LoginResponse;
 
       if (!json.ok) {
@@ -91,17 +100,9 @@ export default function SellerLoginPage() {
           return;
         }
 
-        if (errJson.code === "bad_credentials") {
-          setError("Incorrect email or password. Please try again.");
-          return;
-        }
-
         if (errJson.code === "server_not_configured") {
           setError("");
-          setInfo(
-            errJson.message ||
-              "Server is not configured yet. Please contact admin."
-          );
+          setInfo(errJson.message || "Server not configured.");
           return;
         }
 
@@ -112,7 +113,7 @@ export default function SellerLoginPage() {
         return;
       }
 
-      // Start 2FA (email)
+      // ✅ 3) Start 2FA
       const twofaRes = await fetch("/api/auth/start-2fa", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -135,17 +136,10 @@ export default function SellerLoginPage() {
 
       setChallengeId(twofaJson.challengeId);
       setStep("verify");
-
       const message = (twofaJson as Start2faSuccess).devCode
         ? `Your 6-digit code is: ${(twofaJson as Start2faSuccess).devCode}`
         : "Your 6-digit code has been sent to your email.";
       setInfo(message);
-
-      // ✅ Store normalized email immediately (so it matches server lookups)
-      if (typeof window !== "undefined") {
-        window.localStorage.setItem("ff-role", "seller");
-        window.localStorage.setItem("ff-email", trimmedEmail);
-      }
     } catch (err) {
       console.error("seller_login_error", err);
       setError("Unexpected error. Please try again.");
@@ -157,8 +151,6 @@ export default function SellerLoginPage() {
   async function handleVerifySubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError(null);
-
-    const trimmedEmail = email.trim().toLowerCase();
 
     if (!challengeId) {
       setError("Your verification session has expired. Please log in again.");
@@ -187,17 +179,13 @@ export default function SellerLoginPage() {
         return;
       }
 
-      // ✅ Ensure normalized email persists (no whitespace/case mismatch)
       if (typeof window !== "undefined") {
         window.localStorage.setItem("ff-role", "seller");
-        window.localStorage.setItem("ff-email", trimmedEmail);
+        window.localStorage.setItem("ff-email", email.toLowerCase().trim());
       }
 
-      if (from) {
-        router.push(from);
-      } else {
-        router.push("/seller/dashboard");
-      }
+      if (from) router.push(from);
+      else router.push("/seller/dashboard");
     } catch (err) {
       console.error("seller_verify_2fa_error", err);
       setError("Unable to verify the code. Please try again.");
@@ -376,7 +364,6 @@ export default function SellerLoginPage() {
           font-weight: 500;
           color: #374151;
         }
-        /* Luxury Input Style */
         :global(.auth-input) {
           width: 100%;
           border-radius: 14px !important;
@@ -434,7 +421,6 @@ export default function SellerLoginPage() {
           letter-spacing: 0.2em;
           font-weight: 600;
         }
-
         .auth-apply-button-wrapper {
           margin-top: 20px;
         }
@@ -456,7 +442,6 @@ export default function SellerLoginPage() {
           border-color: #111;
           background: #fafafa;
         }
-
         .auth-secondary-link {
           margin-top: 12px;
           text-align: center;
