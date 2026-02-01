@@ -36,7 +36,15 @@ function isLiveStatus(v: any): boolean {
   const s = String(v || "").trim().toLowerCase();
   // ✅ tolerate missing status (treat as live) — IMPORTANT for migrations
   if (!s) return true;
-  return s === "live" || s === "published" || s === "active" || s === "approved";
+  // During build/test, allow "pending" so freshly uploaded items are visible.
+  // When you are ready for strict moderation, remove "pending" from this list.
+  return (
+    s === "live" ||
+    s === "published" ||
+    s === "active" ||
+    s === "approved" ||
+    s === "pending"
+  );
 }
 
 function isSoldStatus(v: any): boolean {
@@ -47,6 +55,7 @@ function isSoldStatus(v: any): boolean {
 function pickPrice(x: any): number | undefined {
   if (typeof x?.priceUsd === "number") return x.priceUsd;
   if (typeof x?.price === "number") return x.price;
+
   // tolerate price stored as string
   if (typeof x?.priceUsd === "string") {
     const n = Number(String(x.priceUsd).replace(/[^0-9.]/g, ""));
@@ -56,26 +65,73 @@ function pickPrice(x: any): number | undefined {
     const n = Number(String(x.price).replace(/[^0-9.]/g, ""));
     if (Number.isFinite(n)) return n;
   }
+
+  // tolerate nested pricing shape
+  if (typeof x?.pricing?.amount === "number") return x.pricing.amount;
+  if (typeof x?.pricing?.amount === "string") {
+    const n = Number(String(x.pricing.amount).replace(/[^0-9.]/g, ""));
+    if (Number.isFinite(n)) return n;
+  }
+
   return undefined;
 }
 
-function toMillis(createdAt: any): number {
-  try {
-    if (!createdAt) return 0;
-    if (typeof createdAt?.toMillis === "function") return createdAt.toMillis();
-    if (typeof createdAt === "number") return createdAt;
-    if (typeof createdAt === "string") {
-      const t = Date.parse(createdAt);
-      return Number.isFinite(t) ? t : 0;
-    }
-    if (typeof createdAt?.seconds === "number") return createdAt.seconds * 1000;
-    return 0;
-  } catch {
-    return 0;
+function extractImages(x: any): string[] {
+  // Prefer explicit arrays if present
+  const arr =
+    Array.isArray(x?.images) ? x.images :
+    Array.isArray(x?.imageUrls) ? x.imageUrls :
+    Array.isArray(x?.image_urls) ? x.image_urls :
+    Array.isArray(x?.photos) ? x.photos :
+    Array.isArray(x?.photoUrls) ? x.photoUrls :
+    Array.isArray(x?.photo_urls) ? x.photo_urls :
+    [];
+
+  const out: string[] = [];
+
+  // 1) Array-based
+  for (const u of arr) {
+    if (typeof u === "string" && u.trim().length > 0) out.push(u.trim());
   }
+
+  // 2) Single URL fields (common in this codebase: image_url)
+  const singles = [
+    x?.image_url,
+    x?.imageUrl,
+    x?.mainImage,
+    x?.mainImageUrl,
+    x?.thumbnail,
+    x?.thumbnailUrl,
+    x?.coverImage,
+    x?.coverImageUrl,
+    // nested item payloads (bulk + older docs)
+    x?.item?.image_url,
+    x?.item?.imageUrl,
+    x?.item?.mainImageUrl,
+    x?.item?.thumbnailUrl,
+  ];
+
+  for (const u of singles) {
+    if (typeof u === "string" && u.trim().length > 0) out.push(u.trim());
+  }
+
+  // 3) Fallback to proof photos if no public image exists (keeps cards from being blank)
+  if (out.length === 0) {
+    const proof = Array.isArray(x?.auth_photos)
+      ? x.auth_photos
+      : Array.isArray(x?.item?.auth_photos)
+      ? x.item.auth_photos
+      : [];
+
+    for (const u of proof) {
+      if (typeof u === "string" && u.trim().length > 0) out.push(u.trim());
+    }
+  }
+
+  // De-dupe while keeping order
+  return Array.from(new Set(out));
 }
 
-// ✅ find category from multiple possible fields
 function extractCategory(x: any): CanonCategory | "" {
   return normCategory(
     x?.category ??
@@ -83,97 +139,67 @@ function extractCategory(x: any): CanonCategory | "" {
       x?.categoryName ??
       x?.menuCategory ??
       x?.menu_category ??
-      x?.category_name
+      x?.category_name ??
+      // nested item payloads (older/imported docs)
+      x?.item?.category ??
+      x?.item?.categoryLabel ??
+      x?.item?.categoryName ??
+      x?.item?.menuCategory ??
+      x?.item?.menu_category ??
+      x?.item?.category_name
   );
 }
 
-// ✅ find status from multiple possible fields
-function extractStatus(x: any): string {
-  return String(x?.status ?? x?.moderationStatus ?? x?.listingStatus ?? "").trim();
+function isSoldFlag(x: any): boolean {
+  if (x?.isSold === true) return true;
+  if (x?.sold === true) return true;
+  if (x?.status && isSoldStatus(x.status)) return true;
+  return false;
 }
 
-// ✅ find images from multiple possible fields
-function extractImages(x: any): string[] {
-  const imgs =
-    Array.isArray(x?.images) ? x.images :
-    Array.isArray(x?.imageUrls) ? x.imageUrls :
-    Array.isArray(x?.image_urls) ? x.image_urls :
-    Array.isArray(x?.photos) ? x.photos :
-    [];
-  return imgs.filter((u: any) => typeof u === "string" && u.trim().length > 0);
-}
+export async function getPublicListings(opts?: {
+  category?: string;
+  take?: number;
+}): Promise<PublicListing[]> {
+  const take = Math.min(Math.max(opts?.take ?? 200, 1), 500);
 
-function toPublic(id: string, x: any): PublicListing {
-  const category = extractCategory(x);
-  const status = extractStatus(x);
+  const q = query(collection(db, "listings"), orderBy("createdAt", "desc"), limit(take));
+  const snap = await getDocs(q);
 
-  const isSold =
-    x?.isSold === true ||
-    x?.sold === true ||
-    x?.is_sold === true ||
-    isSoldStatus(status);
+  const items: PublicListing[] = [];
 
-  return {
-    id,
-    title: String(x?.title ?? x?.name ?? x?.listingTitle ?? "Untitled"),
-    brand: String(x?.brand ?? x?.designer ?? x?.designerName ?? x?.brandName ?? ""),
-    price: pickPrice(x),
-    priceUsd: typeof x?.priceUsd === "number" ? x.priceUsd : undefined,
-    currency: String(x?.currency ?? "USD"),
-    category,
-    condition: String(x?.condition ?? x?.conditionLabel ?? x?.itemCondition ?? ""),
-    status,
-    isSold,
-    images: extractImages(x),
-    createdAt: x?.createdAt ?? x?.created_at ?? x?.created ?? x?.timestamp ?? null,
-  };
-}
+  snap.forEach((doc) => {
+    const d: any = doc.data() || {};
 
-async function safeGetDocs(qy: any) {
-  try {
-    return await getDocs(qy);
-  } catch (e) {
-    return null;
-  }
-}
+    const cat = extractCategory(d);
+    const imgs = extractImages(d);
 
-/**
- * Tolerant public loader:
- * - Works even if createdAt is missing
- * - Works even if where+orderBy index is missing
- * - Works even if category isn't stored as exact "WOMEN" in Firestore
- * - Filters OUT sold and non-live (missing status allowed by default)
- */
-export async function getPublicListings(opts?: { category?: string; max?: number }): Promise<PublicListing[]> {
-  const max = Math.min(Math.max(opts?.max ?? 200, 1), 500);
-  const wantedCat = normCategory(opts?.category);
-  const base = collection(db, "listings");
+    // Live filter
+    if (!isLiveStatus(d?.status)) return;
 
-  let snap: any = null;
+    // Sold filter
+    if (isSoldFlag(d)) return;
 
-  // Try the "best" query first ONLY if we can reasonably expect it to work.
-  // NOTE: We do NOT rely on Firestore "category" equality because your data can vary.
-  // Instead we fetch a bigger set and filter in-memory safely.
+    const price = pickPrice(d);
 
-  // 1) best: orderBy createdAt
-  snap = await safeGetDocs(query(base, orderBy("createdAt", "desc"), limit(max)));
+    items.push({
+      id: doc.id,
+      title: String(d?.title || d?.name || "Untitled"),
+      brand: String(d?.brand || d?.designer || d?.maker || "").trim() || undefined,
+      price: typeof price === "number" ? price : undefined,
+      currency: String(d?.currency || d?.pricing?.currency || "USD"),
+      category: cat || undefined,
+      condition: String(d?.condition || "").trim() || undefined,
+      status: String(d?.status || "").trim() || undefined,
+      isSold: false,
+      images: imgs,
+      createdAt: d?.createdAt,
+    });
+  });
 
-  // 2) fallback: plain limit (always works)
-  if (!snap) snap = await safeGetDocs(query(base, limit(max)));
-
-  const docs = snap ? snap.docs : [];
-  const all = docs.map((d: any) => toPublic(d.id, d.data()));
-
-  // ✅ in-memory filtering is the key fix
-  const filtered = all
-    .filter((l) => {
-      const c = normCategory(l.category);
-      if (wantedCat && c !== wantedCat) return false;
-      if (l.isSold) return false;
-      if (!isLiveStatus(l.status)) return false;
-      return true;
-    })
-    .sort((a, b) => toMillis(b.createdAt) - toMillis(a.createdAt));
+  // Optional category filter at the end (safe, normalized)
+  const wanted = normCategory(opts?.category);
+  const filtered = wanted ? items.filter((x) => normCategory(x.category) === wanted) : items;
 
   return filtered;
 }
