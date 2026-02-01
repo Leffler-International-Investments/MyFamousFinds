@@ -1,627 +1,370 @@
 // FILE: /pages/category/[slug].tsx
 import Head from "next/head";
 import Link from "next/link";
-import type { GetServerSideProps } from "next";
-import { useEffect, useMemo, useState } from "react";
+import { GetServerSideProps } from "next";
+import { useMemo, useState } from "react";
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
-import ProductCard, { ProductLike } from "../../components/ProductCard";
-import { adminDb } from "../../utils/firebaseAdmin";
+import ProductCard from "../../components/ProductCard";
 import { getPublicListings } from "../../lib/publicListings";
 
-type CategoryProps = {
-  slug: string;
-  label: string;
-  items: ProductLike[];
-};
-
-type ItemWithPrice = ProductLike & {
-  priceValue: number;
+type ProductLike = {
+  id: string;
+  title: string;
+  brand?: string;
+  designer?: string;
+  price?: number;
+  currency?: string;
+  images?: string[];
+  imageUrls?: string[];
+  imageUrl?: string;
   category?: string;
+  categorySlug?: string;
   condition?: string;
+  createdAt?: any;
 };
 
-type PublicDesignersResponse = {
-  ok: boolean;
-  designers?: { id: string; name: string; slug: string; active?: boolean }[];
-  error?: string;
-};
-
-function parsePrice(price?: string | null): number {
-  if (!price) return 0;
-  const cleaned = price.replace(/[^0-9.,]/g, "").replace(/,/g, "");
-  const asNumber = Number(cleaned);
-  return Number.isFinite(asNumber) ? asNumber : 0;
-}
-
-function canonicalSlug(slug: string): string {
-  const s = (slug || "").toLowerCase().trim();
-  if (s === "mens") return "men";
-  if (s === "jewellery") return "jewelry";
-  if (s === "watch") return "watches";
-  return s;
-}
-
-function toUsdString(n?: number): string {
-  if (typeof n !== "number") return "";
-  return `US$${n.toLocaleString("en-US")}`;
-}
-
-const CATEGORY_OPTIONS = ["Women", "Bags", "Men", "Jewelry", "Watches"];
-const CONDITION_OPTIONS = ["New", "Excellent", "Very good", "Good"];
-const DEFAULT_DESIGNERS = ["Chanel", "Hermès", "Louis Vuitton", "Gucci", "Prada", "Dior", "Rolex"];
-
-const labelMap: Record<string, string> = {
+const CATEGORY_LABELS: Record<string, string> = {
   "new-arrivals": "New Arrivals",
+  catalogue: "Catalogue",
   women: "Women",
-  men: "Men",
   bags: "Bags",
+  men: "Men",
   jewelry: "Jewelry",
   watches: "Watches",
 };
 
-export default function CategoryPage({ slug, label, items }: CategoryProps) {
-  const [liveItems, setLiveItems] = useState<ProductLike[]>(items || []);
-  const [loading, setLoading] = useState<boolean>((items || []).length === 0);
-  const [clientLoaded, setClientLoaded] = useState(false);
+const CANON_CATS = ["women", "bags", "men", "jewelry", "watches"] as const;
 
-  const itemsWithPrice: ItemWithPrice[] = useMemo(() => {
-    return (liveItems || []).map((item: any) => ({
-      ...item,
-      priceValue: parsePrice(item.price),
-      category: item.category || "",
-      condition: item.condition || "",
-    }));
-  }, [liveItems]);
+function titleCase(s: string) {
+  return s
+    .split("-")
+    .map((w) => (w ? w[0].toUpperCase() + w.slice(1) : w))
+    .join(" ");
+}
 
-  const [sortBy, setSortBy] = useState<"newest" | "price-asc" | "price-desc">("newest");
-  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
-  const [selectedDesigners, setSelectedDesigners] = useState<string[]>([]);
-  const [selectedConditions, setSelectedConditions] = useState<string[]>([]);
-  const [minPrice, setMinPrice] = useState<number | "">(0);
-  const [maxPrice, setMaxPrice] = useState<number | "">(1000000);
+function safeNumber(n: any, fallback = 0) {
+  const v = Number(n);
+  return Number.isFinite(v) ? v : fallback;
+}
 
-  const [designerOptions, setDesignerOptions] = useState<string[]>(DEFAULT_DESIGNERS);
+export const getServerSideProps: GetServerSideProps = async (ctx) => {
+  const slug = String(ctx.params?.slug || "").toLowerCase();
 
-  // ✅ CRITICAL FIX:
-  // When navigating between /category/* pages, Next.js will update props,
-  // but React state does NOT auto-sync. Without this, the previous category's
-  // items/filters can "stick" (e.g. Women items showing on Men, then "No Results").
-  useEffect(() => {
-    // Sync items from SSR to state on every slug change
-    setLiveItems(items || []);
-    setLoading((items || []).length === 0);
-    setClientLoaded(false);
+  // allow only known slugs
+  const pageSlug = slug;
 
-    // Reset any filters from the previous category page
-    setSortBy("newest");
-    setSelectedCategories([]);
-    setSelectedDesigners([]);
-    setSelectedConditions([]);
-    setMinPrice(0);
-    setMaxPrice(1000000);
-  }, [slug]);
+  // category param to loader: blank for "new-arrivals" and "catalogue"
+  const listings = await getPublicListings({
+    category: pageSlug === "new-arrivals" || pageSlug === "catalogue" ? "" : pageSlug,
+    take: 500,
+  });
 
-  // ✅ Client fallback loader
-  // Runs if SSR returned empty OR SSR returned items that don't match this category (common during migrations)
-  useEffect(() => {
-    let alive = true;
+  const mapped: ProductLike[] = (listings || []).map((l: any) => ({
+    id: l.id,
+    title: String(l.title || l.name || "Untitled"),
+    brand: l.brand || l.designer || "",
+    designer: l.designer || l.brand || "",
+    price: safeNumber(l.price, 0),
+    currency: l.currency || "USD",
+    images: Array.isArray(l.images) ? l.images : undefined,
+    imageUrls: Array.isArray(l.imageUrls) ? l.imageUrls : undefined,
+    imageUrl: l.imageUrl || "",
+    category: l.category || "",
+    categorySlug: l.categorySlug || "",
+    condition: l.condition || "",
+    createdAt: l.createdAt || null,
+  }));
 
-    async function loadFallback() {
-      const pageSlug = canonicalSlug(slug);
+  return {
+    props: {
+      pageSlug,
+      items: mapped,
+    },
+  };
+};
 
-      const pageLabel = labelMap[pageSlug] || label;
-      const wantsCategory = pageSlug !== "new-arrivals";
+export default function CategoryPage({
+  pageSlug,
+  items,
+}: {
+  pageSlug: string;
+  items: ProductLike[];
+}) {
+  const pageTitle = CATEGORY_LABELS[pageSlug] || titleCase(pageSlug);
 
-      const ssrHasItems = (items || []).length > 0;
+  const [q, setQ] = useState("");
+  const [selectedCats, setSelectedCats] = useState<Record<string, boolean>>({});
+  const [selectedDesigners, setSelectedDesigners] = useState<Record<string, boolean>>({});
+  const [selectedConds, setSelectedConds] = useState<Record<string, boolean>>({});
+  const [minPrice, setMinPrice] = useState(0);
+  const [maxPrice, setMaxPrice] = useState(1000000);
+  const [sort, setSort] = useState<"newest" | "price_asc" | "price_desc">("newest");
 
-      const ssrLooksWrong =
-        ssrHasItems &&
-        wantsCategory &&
-        (items || []).every((it: any) => {
-          const c = String(it?.category || "").trim().toLowerCase();
-          return c !== String(pageLabel).trim().toLowerCase();
-        });
+  const normalizedItems = useMemo(() => {
+    return (items || []).map((p) => {
+      const catSlug =
+        (p.categorySlug || p.category || "")
+          .toString()
+          .trim()
+          .toLowerCase()
+          .replace(/\s+/g, "-") || "";
+      const designer = (p.designer || p.brand || "").toString().trim();
+      const condition = (p.condition || "").toString().trim();
+      const price = safeNumber(p.price, 0);
 
-      // If SSR has good-looking items, keep them and skip fallback
-      if (ssrHasItems && !ssrLooksWrong) {
-        setLoading(false);
-        return;
-      }
+      return {
+        ...p,
+        _catSlug: catSlug,
+        _designer: designer,
+        _condition: condition,
+        _price: price,
+      } as any;
+    });
+  }, [items]);
 
-      setLoading(true);
-
-      try {
-        const listings = await getPublicListings({
-          category: pageSlug === "new-arrivals" ? "" : pageSlug,
-          take: 500,
-        });
-
-        const mapped: ProductLike[] = (listings || []).map((l: any) => ({
-          id: l.id,
-          title: l.title,
-          brand: l.brand || "",
-          category: l.category || "",
-          condition: l.condition || "",
-          price: toUsdString(l.price ?? l.priceUsd),
-          image: Array.isArray(l.images) && l.images[0] ? l.images[0] : "",
-          href: `/product/${l.id}`,
-        }));
-
-        if (!alive) return;
-
-        // New Arrivals: newest 60. Category pages: show up to 60 (change if you want more).
-        const finalItems = pageSlug === "new-arrivals" ? mapped.slice(0, 60) : mapped.slice(0, 60);
-
-        setLiveItems(finalItems);
-        setClientLoaded(true);
-      } catch (e) {
-        console.error("Client fallback category load failed", e);
-      } finally {
-        if (alive) setLoading(false);
-      }
-    }
-
-    loadFallback();
-
-    return () => {
-      alive = false;
-    };
-  }, [slug, label, items]);
-
-  useEffect(() => {
-    async function loadDesigners() {
-      try {
-        const res = await fetch("/api/public/designers");
-        const data: PublicDesignersResponse = await res.json();
-
-        if (data.ok && data.designers && data.designers.length > 0) {
-          const names = Array.from(
-            new Set(
-              data.designers
-                .filter((d) => d.active !== false)
-                .map((d) => d.name.trim())
-                .filter(Boolean)
-            )
-          ).sort((a, b) => a.localeCompare(b));
-
-          if (names.length > 0) {
-            setDesignerOptions(names);
-            return;
-          }
-        }
-      } catch {
-        // ignore
-      }
-
-      const fromItems = Array.from(
-        new Set(itemsWithPrice.map((i) => (i.brand || "").trim()).filter(Boolean))
-      ).sort((a, b) => a.localeCompare(b));
-
-      setDesignerOptions(fromItems.length > 0 ? fromItems : DEFAULT_DESIGNERS);
-    }
-
-    loadDesigners();
-  }, [itemsWithPrice]);
-
-  function toggleInList(list: string[], value: string): string[] {
-    return list.includes(value) ? list.filter((x) => x !== value) : [...list, value];
-  }
-
-  function resetFilters() {
-    setSortBy("newest");
-    setSelectedCategories([]);
-    setSelectedDesigners([]);
-    setSelectedConditions([]);
-    setMinPrice(0);
-    setMaxPrice(1000000);
-  }
-
-  const filteredItems: ItemWithPrice[] = useMemo(() => {
-    let result = [...itemsWithPrice];
-
-    if (selectedCategories.length > 0) {
-      result = result.filter((item) =>
-        selectedCategories.some(
-          (cat) => cat.toLowerCase() === (item.category || "").trim().toLowerCase()
-        )
-      );
-    }
-
-    if (selectedDesigners.length > 0) {
-      result = result.filter((item) =>
-        selectedDesigners.some(
-          (des) => des.toLowerCase() === (item.brand || "").trim().toLowerCase()
-        )
-      );
-    }
-
-    if (selectedConditions.length > 0) {
-      result = result.filter((item) => selectedConditions.includes((item.condition || "").trim()));
-    }
-
-    result = result.filter((item) => {
-      const price = item.priceValue || 0;
-      if (typeof minPrice === "number" && price < minPrice) return false;
-      if (typeof maxPrice === "number" && price > maxPrice) return false;
-      return true;
+  const availableCategories = useMemo(() => {
+    const set = new Set<string>();
+    normalizedItems.forEach((p: any) => {
+      if (p._catSlug) set.add(p._catSlug);
     });
 
-    if (sortBy === "price-asc") result.sort((a, b) => (a.priceValue || 0) - (b.priceValue || 0));
-    if (sortBy === "price-desc") result.sort((a, b) => (b.priceValue || 0) - (a.priceValue || 0));
+    // keep stable order
+    const ordered = CANON_CATS.filter((c) => set.has(c));
+    const extras = Array.from(set).filter((c) => !ordered.includes(c as any)).sort();
+    return [...ordered, ...extras];
+  }, [normalizedItems]);
 
-    return result;
+  const availableDesigners = useMemo(() => {
+    const set = new Set<string>();
+    normalizedItems.forEach((p: any) => {
+      if (p._designer) set.add(p._designer);
+    });
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
+  }, [normalizedItems]);
+
+  const availableConditions = useMemo(() => {
+    const set = new Set<string>();
+    normalizedItems.forEach((p: any) => {
+      if (p._condition) set.add(p._condition);
+    });
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
+  }, [normalizedItems]);
+
+  const filteredItems = useMemo(() => {
+    let list = [...normalizedItems];
+
+    // hard page category (except catalogue / new-arrivals)
+    if (pageSlug !== "catalogue" && pageSlug !== "new-arrivals") {
+      list = list.filter((p: any) => p._catSlug === pageSlug);
+    }
+
+    // search
+    const query = q.trim().toLowerCase();
+    if (query) {
+      list = list.filter((p: any) => {
+        const hay = `${p.title || ""} ${p._designer || ""} ${p._catSlug || ""}`.toLowerCase();
+        return hay.includes(query);
+      });
+    }
+
+    // category checkboxes
+    const activeCats = Object.keys(selectedCats).filter((k) => selectedCats[k]);
+    if (activeCats.length) {
+      list = list.filter((p: any) => activeCats.includes(p._catSlug));
+    }
+
+    // designer checkboxes
+    const activeDesigners = Object.keys(selectedDesigners).filter((k) => selectedDesigners[k]);
+    if (activeDesigners.length) {
+      list = list.filter((p: any) => activeDesigners.includes(p._designer));
+    }
+
+    // condition checkboxes
+    const activeConds = Object.keys(selectedConds).filter((k) => selectedConds[k]);
+    if (activeConds.length) {
+      list = list.filter((p: any) => activeConds.includes(p._condition));
+    }
+
+    // price range
+    list = list.filter((p: any) => p._price >= minPrice && p._price <= maxPrice);
+
+    // sort
+    if (sort === "price_asc") list.sort((a: any, b: any) => a._price - b._price);
+    if (sort === "price_desc") list.sort((a: any, b: any) => b._price - a._price);
+
+    // newest (default): already ordered by createdAt desc from loader
+    return list;
   }, [
-    itemsWithPrice,
-    selectedCategories,
+    normalizedItems,
+    pageSlug,
+    q,
+    selectedCats,
     selectedDesigners,
-    selectedConditions,
+    selectedConds,
     minPrice,
     maxPrice,
-    sortBy,
+    sort,
   ]);
 
-  const resultsCount = filteredItems.length;
+  function resetFilters() {
+    setQ("");
+    setSelectedCats({});
+    setSelectedDesigners({});
+    setSelectedConds({});
+    setMinPrice(0);
+    setMaxPrice(1000000);
+    setSort("newest");
+  }
 
   return (
-    <div className="ff-page">
+    <>
       <Head>
-        <title>{label} | My Famous Finds</title>
-        <meta name="description" content={`Browse ${label} on My Famous Finds`} />
+        <title>{pageTitle} • Famous Finds</title>
       </Head>
 
       <Header />
 
-      <main className="ff-category">
-        <div className="ff-category-head">
-          <div>
-            <h1 className="ff-category-title">{label}</h1>
-            <div className="ff-category-sub">
-              {loading ? "Loading..." : `${resultsCount.toLocaleString()} results`}
-              {clientLoaded ? " (refreshed)" : ""}
-            </div>
-          </div>
+      <main className="ff-page">
+        <div className="ff-top">
+          <Link href="/dashboard" className="ff-back">
+            ← Back to Dashboard
+          </Link>
+        </div>
 
-          <div className="ff-category-actions">
-            <Link href="/catalogue" className="admin-button">
+        <div className="ff-headerRow">
+          <h1 className="ff-title">{pageTitle}</h1>
+          <div className="ff-titleMeta">
+            <span>{filteredItems.length} results</span>
+            <Link href="/category/catalogue" className="ff-backCatalogue">
               Back to Catalogue
             </Link>
           </div>
         </div>
 
-        <div className="ff-category-layout">
-          {/* LEFT FILTER PANEL */}
+        <div className="ff-searchRow">
+          <input
+            className="ff-search"
+            placeholder="Search"
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+          />
+        </div>
+
+        <div className="ff-layout">
           <aside className="ff-filters">
-            <div className="filters-head">
-              <div className="filters-title">Filters</div>
-              <button className="filters-reset" onClick={resetFilters}>
+            <div className="ff-filtersHeader">
+              <div className="ff-filtersTitle">Filters</div>
+              <button className="ff-reset" onClick={resetFilters}>
                 Reset
               </button>
             </div>
 
-            <div className="filter-block">
-              <h3>Sort</h3>
+            <div className="ff-block">
+              <div className="ff-blockTitle">Sort</div>
               <select
                 className="ff-select"
-                value={sortBy}
-                onChange={(e) => setSortBy(e.target.value as any)}
+                value={sort}
+                onChange={(e) => setSort(e.target.value as any)}
               >
                 <option value="newest">Newest</option>
-                <option value="price-asc">Price (Low → High)</option>
-                <option value="price-desc">Price (High → Low)</option>
+                <option value="price_asc">Price (Low → High)</option>
+                <option value="price_desc">Price (High → Low)</option>
               </select>
             </div>
 
-            <div className="filter-block">
-              <h3>Category</h3>
-              <div className="filter-list">
-                {CATEGORY_OPTIONS.map((c) => (
-                  <label key={c} className="filter-option">
-                    <input
-                      type="checkbox"
-                      checked={selectedCategories.includes(c)}
-                      onChange={() => setSelectedCategories((prev) => toggleInList(prev, c))}
-                    />
-                    <span>{c}</span>
-                  </label>
-                ))}
-              </div>
-            </div>
-
-            <div className="filter-block">
-              <h3>Designer</h3>
-              <div className="filter-list">
-                {designerOptions.map((d) => (
-                  <label key={d} className="filter-option">
-                    <input
-                      type="checkbox"
-                      checked={selectedDesigners.includes(d)}
-                      onChange={() => setSelectedDesigners((prev) => toggleInList(prev, d))}
-                    />
-                    <span>{d}</span>
-                  </label>
-                ))}
-              </div>
-            </div>
-
-            <div className="filter-block">
-              <h3>Condition</h3>
-              <div className="filter-list">
-                {CONDITION_OPTIONS.map((c) => (
-                  <label key={c} className="filter-option">
-                    <input
-                      type="checkbox"
-                      checked={selectedConditions.includes(c)}
-                      onChange={() => setSelectedConditions((prev) => toggleInList(prev, c))}
-                    />
-                    <span>{c}</span>
-                  </label>
-                ))}
-              </div>
-            </div>
-
-            <div className="filter-block">
-              <h3>Price (USD)</h3>
-              <div className="price-stack">
-                <div className="price-input">
-                  <span>Min</span>
+            <div className="ff-block">
+              <div className="ff-blockTitle">Category</div>
+              {availableCategories.map((c) => (
+                <label key={c} className="ff-check">
                   <input
-                    type="number"
+                    type="checkbox"
+                    checked={Boolean(selectedCats[c])}
+                    onChange={(e) =>
+                      setSelectedCats((prev) => ({ ...prev, [c]: e.target.checked }))
+                    }
+                  />
+                  <span>{titleCase(c)}</span>
+                </label>
+              ))}
+            </div>
+
+            <div className="ff-block">
+              <div className="ff-blockTitle">Designer</div>
+              {availableDesigners.map((d) => (
+                <label key={d} className="ff-check">
+                  <input
+                    type="checkbox"
+                    checked={Boolean(selectedDesigners[d])}
+                    onChange={(e) =>
+                      setSelectedDesigners((prev) => ({ ...prev, [d]: e.target.checked }))
+                    }
+                  />
+                  <span>{d}</span>
+                </label>
+              ))}
+            </div>
+
+            <div className="ff-block">
+              <div className="ff-blockTitle">Condition</div>
+              {availableConditions.map((c) => (
+                <label key={c} className="ff-check">
+                  <input
+                    type="checkbox"
+                    checked={Boolean(selectedConds[c])}
+                    onChange={(e) =>
+                      setSelectedConds((prev) => ({ ...prev, [c]: e.target.checked }))
+                    }
+                  />
+                  <span>{c}</span>
+                </label>
+              ))}
+            </div>
+
+            <div className="ff-block">
+              <div className="ff-blockTitle">Price (USD)</div>
+              <div className="ff-price">
+                <div>
+                  <div className="ff-priceLabel">Min</div>
+                  <input
+                    className="ff-input"
                     value={minPrice}
-                    onChange={(e) => setMinPrice(e.target.value === "" ? "" : Number(e.target.value))}
-                    placeholder="0"
+                    onChange={(e) => setMinPrice(safeNumber(e.target.value, 0))}
                   />
                 </div>
-                <div className="price-input">
-                  <span>Max</span>
+                <div>
+                  <div className="ff-priceLabel">Max</div>
                   <input
-                    type="number"
+                    className="ff-input"
                     value={maxPrice}
-                    onChange={(e) => setMaxPrice(e.target.value === "" ? "" : Number(e.target.value))}
-                    placeholder="1000000"
+                    onChange={(e) => setMaxPrice(safeNumber(e.target.value, 1000000))}
                   />
                 </div>
               </div>
             </div>
           </aside>
 
-          {/* RESULTS GRID */}
           <section className="ff-results">
-            {loading ? (
-              <div className="ff-loading">Loading items...</div>
-            ) : filteredItems.length === 0 ? (
+            {filteredItems.length === 0 ? (
               <div className="ff-empty">
-                <div className="ff-empty-title">No Results</div>
-                <div className="ff-empty-sub">
-                  Try removing filters or changing category.
-                </div>
-                <button className="admin-button" onClick={resetFilters}>
+                <h3>No Results</h3>
+                <p>Try removing filters or changing category.</p>
+                <button className="ff-emptyBtn" onClick={resetFilters}>
                   Reset filters
                 </button>
               </div>
             ) : (
               <div className="ff-grid">
-                {filteredItems.map((p) => (
-                  <ProductCard key={p.id} {...(p as any)} />
+                {filteredItems.map((p: any) => (
+                  <ProductCard key={p.id} {...p} />
                 ))}
               </div>
             )}
           </section>
         </div>
-
-        <style jsx>{`
-          .ff-category {
-            max-width: 1300px;
-            margin: 0 auto;
-            padding: 20px 16px 60px;
-          }
-          .ff-category-head {
-            display: flex;
-            align-items: flex-end;
-            justify-content: space-between;
-            gap: 16px;
-            margin-bottom: 18px;
-          }
-          .ff-category-title {
-            margin: 0;
-            font-size: 34px;
-            letter-spacing: -0.02em;
-          }
-          .ff-category-sub {
-            margin-top: 6px;
-            color: #6b7280;
-            font-size: 13px;
-          }
-          .ff-category-layout {
-            display: grid;
-            grid-template-columns: 280px 1fr;
-            gap: 18px;
-          }
-          .ff-filters {
-            border: 1px solid #e5e7eb;
-            border-radius: 14px;
-            padding: 14px;
-            background: #fff;
-            height: fit-content;
-            position: sticky;
-            top: 14px;
-          }
-          .filters-head {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            margin-bottom: 12px;
-          }
-          .filters-title {
-            font-weight: 700;
-            font-size: 14px;
-          }
-          .filters-reset {
-            background: transparent;
-            border: none;
-            color: #111827;
-            font-size: 12px;
-            text-decoration: underline;
-            cursor: pointer;
-          }
-          .filter-block {
-            border-top: 1px solid #f3f4f6;
-            padding-top: 12px;
-            margin-top: 12px;
-          }
-          .filter-block h3 {
-            margin: 0 0 8px;
-            font-size: 13px;
-            color: #111827;
-          }
-          .filter-list {
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-            max-height: 220px;
-            overflow: auto;
-            padding-right: 6px;
-          }
-          .filter-option {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            font-size: 13px;
-            color: #111827;
-          }
-          .price-stack {
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-            margin-bottom: 10px;
-            width: 100%;
-          }
-          .price-input {
-            display: flex;
-            flex-direction: column;
-            gap: 6px;
-            width: 100%;
-          }
-          .price-input span {
-            font-size: 12px;
-            color: #6b7280;
-          }
-          .price-input input {
-            width: 100%;
-            min-width: 0;
-            box-sizing: border-box;
-            border-radius: 999px;
-            border: 1px solid #d1d5db;
-            padding: 6px 10px;
-            font-size: 14px;
-          }
-          .ff-results {
-            min-height: 300px;
-          }
-          .ff-grid {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 14px;
-          }
-          .ff-loading {
-            padding: 28px;
-            border: 1px dashed #e5e7eb;
-            border-radius: 14px;
-            background: #fff;
-            color: #6b7280;
-          }
-          .ff-empty {
-            padding: 28px;
-            border: 1px dashed #e5e7eb;
-            border-radius: 14px;
-            background: #fff;
-          }
-          .ff-empty-title {
-            font-size: 18px;
-            font-weight: 800;
-            margin-bottom: 6px;
-          }
-          .ff-empty-sub {
-            font-size: 13px;
-            color: #6b7280;
-            margin-bottom: 12px;
-          }
-
-          @media (max-width: 1100px) {
-            .ff-grid {
-              grid-template-columns: repeat(3, 1fr);
-            }
-          }
-          @media (max-width: 860px) {
-            .ff-category-layout {
-              grid-template-columns: 1fr;
-            }
-            .ff-filters {
-              position: relative;
-              top: auto;
-            }
-            .ff-grid {
-              grid-template-columns: repeat(2, 1fr);
-            }
-          }
-          @media (max-width: 420px) {
-            .ff-grid {
-              grid-template-columns: 1fr;
-            }
-          }
-        `}</style>
       </main>
 
       <Footer />
-    </div>
+    </>
   );
 }
-
-export const getServerSideProps: GetServerSideProps = async (ctx) => {
-  const raw = String(ctx.params?.slug || "");
-  const slug = canonicalSlug(raw);
-  const label = labelMap[slug] || raw;
-
-  // Use Firestore directly for SSR where possible
-  // (but we still have client fallback via getPublicListings if SSR misses/looks wrong).
-  try {
-    const wantsCategory = slug !== "new-arrivals";
-
-    // For SSR: use tolerant loader so you don't need perfect Firestore category equality
-    // ✅ Updated: Using 'take' instead of 'max'
-    const listings = await getPublicListings({
-      category: wantsCategory ? slug : "",
-      take: 500,
-    });
-
-    const mapped: ProductLike[] = (listings || []).map((l: any) => ({
-      id: l.id,
-      title: l.title,
-      brand: l.brand || "",
-      category: l.category || "",
-      condition: l.condition || "",
-      price: toUsdString(l.price ?? l.priceUsd),
-      image: Array.isArray(l.images) && l.images[0] ? l.images[0] : "",
-      href: `/product/${l.id}`,
-    }));
-
-    const items = slug === "new-arrivals" ? mapped.slice(0, 60) : mapped.slice(0, 60);
-
-    return {
-      props: {
-        slug,
-        label,
-        items,
-      },
-    };
-  } catch (e) {
-    // SSR fail-safe
-    return {
-      props: {
-        slug,
-        label,
-        items: [],
-      },
-    };
-  }
-};
