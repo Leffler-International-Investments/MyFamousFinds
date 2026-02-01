@@ -1,3 +1,4 @@
+// FILE: /pages/api/seller/bulk-upload.ts
 import type { NextApiRequest, NextApiResponse } from "next";
 import { adminDb } from "../../../utils/firebaseAdmin";
 
@@ -14,19 +15,25 @@ type CsvRow = {
   serial?: string;
 };
 
-export default async function handler(
-  req: NextApiRequest,
-  res: NextApiResponse
-) {
-  if (req.method !== "POST") {
-    return res.status(405).json({ error: "Method not allowed" });
-  }
+const CANON = ["WOMEN", "BAGS", "MEN", "JEWELRY", "WATCHES"] as const;
+type Canon = (typeof CANON)[number];
+
+function canonCategory(v: any): Canon | "" {
+  const s = String(v || "").trim().toUpperCase();
+  if (s === "WATCH" || s === "WATCHES") return "WATCHES";
+  if (s === "WOMAN" || s === "WOMEN") return "WOMEN";
+  if (s === "BAG" || s === "BAGS") return "BAGS";
+  if (s === "MAN" || s === "MEN" || s === "MENS") return "MEN";
+  if (s === "JEWELLERY" || s === "JEWELRY") return "JEWELRY";
+  if ((CANON as readonly string[]).includes(s)) return s as Canon;
+  return "";
+}
+
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
 
   const { rows } = req.body as { rows?: CsvRow[] };
-
-  if (!rows || !Array.isArray(rows) || rows.length === 0) {
-    return res.status(400).json({ error: "No rows supplied" });
-  }
+  if (!rows || !Array.isArray(rows) || rows.length === 0) return res.status(400).json({ error: "No rows supplied" });
 
   try {
     const batch = adminDb.batch();
@@ -37,11 +44,16 @@ export default async function handler(
       const priceNumber = parseFloat(row.price || "0");
       const safePrice = Number.isFinite(priceNumber) ? priceNumber : 0;
 
+      const cat = canonCategory(row.category);
+
       batch.set(ref, {
         title: (row.title || "").trim() || "Untitled listing",
         brand: (row.brand || "").trim(),
         designer: (row.brand || "").trim(),
-        category: (row.category || "").trim(),
+
+        // ✅ ONE SOURCE OF TRUTH
+        category: cat || "",
+
         condition: (row.condition || "").trim(),
         size: (row.size || "").trim(),
         color: (row.color || "").trim(),
@@ -51,6 +63,7 @@ export default async function handler(
         serial_number: (row.serial || "").trim(),
         status: "Pending",
         createdAt: new Date(),
+        updatedAt: new Date(),
         source: "bulk-upload-csv",
       });
     });
@@ -64,8 +77,6 @@ export default async function handler(
     });
   } catch (err: any) {
     console.error("Bulk upload failed", err);
-    return res
-      .status(500)
-      .json({ error: err?.message || "Bulk upload failed" });
+    return res.status(500).json({ error: err?.message || "Bulk upload failed" });
   }
 }
