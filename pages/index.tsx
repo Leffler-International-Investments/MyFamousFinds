@@ -20,8 +20,8 @@ type BuyerMessage = {
   text: string;
   linkText?: string;
   linkUrl?: string;
-  imageUrl?: string; // ✅ new
-  videoUrl?: string; // ✅ new
+  imageUrl?: string;
+  videoUrl?: string;
   type: "info" | "promo" | "alert";
   active?: boolean;
   createdAt?: number;
@@ -50,26 +50,6 @@ const pickImage = (data: any): string => {
     return data.imageUrls[0];
   }
   return "";
-};
-
-// ✅ Helper: convert YouTube URL to embed URL (currently unused but kept)
-const getYouTubeEmbedUrl = (url: string): string => {
-  try {
-    if (!url) return "";
-    // watch?v=ID
-    const watchMatch = url.match(/v=([^&]+)/);
-    if (watchMatch?.[1]) {
-      return `https://www.youtube.com/embed/${watchMatch[1]}`;
-    }
-    // youtu.be/ID
-    const shortMatch = url.match(/youtu\.be\/([^?]+)/);
-    if (shortMatch?.[1]) {
-      return `https://www.youtube.com/embed/${shortMatch[1]}`;
-    }
-    return url;
-  } catch {
-    return url;
-  }
 };
 
 // --------------------------------------------------
@@ -105,34 +85,6 @@ const Home: NextPage<HomeProps> = ({
               ready-to-wear from trusted sellers. Every piece is vetted so you
               can shop with confidence.
             </p>
-
-            {/* STAT CARDS */}
-            <div className="hero-stats">
-              <div className="stat-card">
-                <p className="stat-label">Live listings</p>
-                <p className="stat-value">
-                  {newArrivals.length > 20 ? "20+" : newArrivals.length}
-                </p>
-                <p className="stat-note">Updated in real time</p>
-              </div>
-              <div className="stat-card">
-                <p className="stat-label">New this week</p>
-                <p className="stat-value">
-                  {newArrivals.length > 10 ? "10+" : newArrivals.length}
-                </p>
-                <p className="stat-note">Fresh drops &amp; finds</p>
-              </div>
-              <div className="stat-card">
-                <p className="stat-label">Designers</p>
-                <p className="stat-value">{featuredDesigners.length}+</p>
-                <p className="stat-note">From Chanel to Rolex</p>
-              </div>
-              <div className="stat-card">
-                <p className="stat-label">Authentication</p>
-                <p className="stat-value">100%</p>
-                <p className="stat-note">Every piece reviewed</p>
-              </div>
-            </div>
 
             <div className="hero-actions">
               <Link href="/category/new-arrivals" className="btn-primary">
@@ -177,13 +129,13 @@ const Home: NextPage<HomeProps> = ({
           </aside>
         </section>
 
-        {/* FEATURED DESIGNERS CAROUSEL */}
-        <section className="home-featured-designers mt-10">
+        {/* FEATURED DESIGNERS - DYNAMIC MULTI-ROW GRID */}
+        <section className="home-featured-designers">
           <header className="home-feed-header">
             <h2 className="home-feed-title">Featured Designers</h2>
           </header>
 
-          <div className="mt-4 flex gap-3 overflow-x-auto pb-4 pt-1">
+          <div className="designers-flex-container">
             {featuredDesigners.length > 0 ? (
               featuredDesigners.map((name) => (
                 <Link
@@ -200,7 +152,7 @@ const Home: NextPage<HomeProps> = ({
           </div>
         </section>
 
-        {/* ✅ DYNAMIC MESSAGE BILLBOARD – ONE BOX WITH ALL MESSAGES */}
+        {/* DYNAMIC MESSAGE BILLBOARD */}
         {activeMessages && activeMessages.length > 0 && (
           <section className="buyer-message-board-container">
             <div className="buyer-message-board billboard">
@@ -211,10 +163,7 @@ const Home: NextPage<HomeProps> = ({
 
               <div className="billboard-body">
                 {activeMessages.map((msg) => (
-                  <div
-                    key={msg.id}
-                    className={`billboard-item ${msg.type}`}
-                  >
+                  <div key={msg.id} className={`billboard-item ${msg.type}`}>
                     <p className="billboard-text">
                       {msg.text}{" "}
                       {msg.linkText && msg.linkUrl && (
@@ -312,39 +261,7 @@ const Home: NextPage<HomeProps> = ({
         .hero-sub {
           color: #4b5563;
           max-width: 520px;
-          margin-bottom: 20px;
-        }
-        .hero-stats {
-          display: grid;
-          grid-template-columns: repeat(4, minmax(0, 1fr));
-          gap: 12px;
-          margin-bottom: 20px;
-        }
-        @media (max-width: 900px) {
-          .hero-stats {
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-          }
-        }
-        .stat-card {
-          background: #ffffff;
-          border-radius: 16px;
-          padding: 12px 14px;
-          border: 1px solid #e5e7eb;
-        }
-        .stat-label {
-          font-size: 11px;
-          text-transform: uppercase;
-          letter-spacing: 0.08em;
-          color: #6b7280;
-        }
-        .stat-value {
-          font-size: 18px;
-          font-weight: 600;
-          margin: 4px 0;
-        }
-        .stat-note {
-          font-size: 12px;
-          color: #9ca3af;
+          margin-bottom: 24px;
         }
         .hero-actions {
           display: flex;
@@ -356,12 +273,12 @@ const Home: NextPage<HomeProps> = ({
           display: inline-flex;
           align-items: center;
           justify-content: center;
-          padding: 10px 18px;
+          padding: 12px 24px;
           border-radius: 999px;
           font-size: 14px;
           font-weight: 500;
           text-decoration: none;
-          border: 1px solid transparent;
+          transition: all 0.2s ease;
         }
         .btn-primary {
           background: #111827;
@@ -369,7 +286,7 @@ const Home: NextPage<HomeProps> = ({
         }
         .btn-secondary {
           background: #ffffff;
-          border-color: #d1d5db;
+          border: 1px solid #d1d5db;
           color: #111827;
         }
         .snapshot-card {
@@ -403,15 +320,12 @@ const Home: NextPage<HomeProps> = ({
           margin-bottom: 14px;
         }
         .home-section {
-          margin-top: 40px;
+          margin-top: 48px;
         }
         .home-featured-designers {
-          margin-top: 40px;
+          margin-top: 20px;
         }
         .home-feed-header {
-          display: flex;
-          justify-content: space-between;
-          align-items: baseline;
           margin-bottom: 16px;
         }
         .home-feed-title {
@@ -420,130 +334,100 @@ const Home: NextPage<HomeProps> = ({
           font-family: "Georgia", serif;
           margin: 0;
         }
-        .home-feed-header a {
-          font-size: 13px;
-          color: #6b7280;
-          text-decoration: none;
-        }
-        .home-feed-header a:hover {
-          color: #111827;
-          text-decoration: underline;
-        }
-        .home-featured-designers .flex {
+        
+        /* DESIGNERS FLEX WRAP - Dynamic rows for all sizes */
+        .designers-flex-container {
           display: flex;
+          flex-wrap: wrap;
           gap: 12px;
-          overflow-x: auto;
-          padding-bottom: 8px;
-        }
-        .home-featured-designers .flex::-webkit-scrollbar {
-          display: none;
-        }
-        .home-featured-designers .flex {
-          -ms-overflow-style: none;
-          scrollbar-width: none;
+          padding-top: 4px;
         }
 
-        /* --- MESSAGE BILLBOARD STYLES --- */
+        :global(.luxury-pill) {
+          display: inline-block;
+          background: #ffffff;
+          border: 1px solid #e5e7eb;
+          border-radius: 999px;
+          padding: 8px 20px;
+          font-size: 14px;
+          color: #374151;
+          text-decoration: none;
+          white-space: nowrap;
+          transition: all 0.2s ease;
+        }
+
+        :global(.luxury-pill:hover) {
+          border-color: #111827;
+          background: #f9fafb;
+        }
 
         .buyer-message-board-container {
-          margin-top: 36px;
+          margin-top: 48px;
           display: flex;
           justify-content: center;
         }
-
         .buyer-message-board.billboard {
           width: 100%;
-          max-width: 960px; /* ✅ not full page width */
+          max-width: 960px;
           background: #ffffff;
           border-radius: 24px;
           border: 1px solid #e5e7eb;
           padding: 20px 24px 24px;
           box-shadow: 0 16px 40px rgba(15, 23, 42, 0.08);
         }
-
         .billboard-header h2 {
           font-size: 18px;
           margin: 0;
           font-family: "Georgia", serif;
         }
-
         .billboard-header p {
           margin: 4px 0 0;
           font-size: 13px;
           color: #6b7280;
         }
-
         .billboard-body {
           margin-top: 16px;
           display: flex;
           flex-direction: column;
           gap: 10px;
         }
-
         .billboard-item {
-          border-radius: 999px;
-          padding: 10px 18px;
+          border-radius: 16px;
+          padding: 12px 20px;
           font-size: 15px;
-          display: flex;
-          flex-direction: column;
         }
-
         .billboard-item.info {
           background: #f3f4f6;
           border: 1px solid #e5e7eb;
           color: #111827;
         }
-
         .billboard-item.promo {
           background: #fef3c7;
           border: 1px solid #facc15;
           color: #78350f;
         }
-
         .billboard-item.alert {
           background: #fee2e2;
           border: 1px solid #fca5a5;
           color: #991b1b;
         }
-
         .billboard-text {
           margin: 0;
           line-height: 1.5;
           font-family: "Georgia", serif;
         }
-
-        /* ====== MEDIA INSIDE BILLBOARD ======= */
-        .message-media {
-          margin-top: 8px;
-        }
-
-        .video-link a {
-          font-size: 14px;
-          text-decoration: underline;
-          text-underline-offset: 3px;
-          font-weight: 600;
-        }
-
         .message-media-image {
           max-width: 100%;
           border-radius: 12px;
           display: block;
-          margin-top: 6px;
-          margin-left: auto;
-          margin-right: auto;
+          margin-top: 10px;
         }
-
         :global(.catalogue-link) {
           color: inherit;
           font-weight: 700;
           text-decoration: underline;
           text-underline-offset: 4px;
-          transition: opacity 0.2s;
           margin-left: 4px;
-        }
-
-        :global(.catalogue-link:hover) {
-          opacity: 0.7;
         }
       `}</style>
     </div>
@@ -579,57 +463,48 @@ export const getServerSideProps: GetServerSideProps<HomeProps> = async () => {
     };
   });
 
-  // 2. New Arrivals (Sort by newest)
+  // 2. New Arrivals
   const newArrivals = items
     .slice()
     .sort((a: any, b: any) => {
-      const aTime =
-        a.createdAt && typeof a.createdAt.toMillis === "function"
-          ? a.createdAt.toMillis()
-          : 0;
-      const bTime =
-        b.createdAt && typeof b.createdAt.toMillis === "function"
-          ? b.createdAt.toMillis()
-          : 0;
+      const aTime = a.createdAt?.toMillis?.() || 0;
+      const bTime = b.createdAt?.toMillis?.() || 0;
       return bTime - aTime;
     })
     .slice(0, 8);
 
-  // 3. Trending (Sort by viewCount)
+  // 3. Trending
   let trending = items
     .slice()
     .sort((a: any, b: any) => (b.viewCount || 0) - (a.viewCount || 0))
     .slice(0, 8);
 
-  if (!trending.length) {
-    trending = newArrivals;
+  if (!trending.length) trending = newArrivals;
+
+  // 4. FETCH ALL DESIGNERS FROM DATABASE
+  let featuredDesigners: string[] = [];
+  try {
+    const designerSnap = await adminDb.collection("designers").get();
+    featuredDesigners = designerSnap.docs
+      .map(doc => doc.id)
+      // Filter out long technical IDs or empty strings
+      .filter(name => name && name.length < 30 && !/\d/.test(name.substring(0,3)))
+      .sort();
+  } catch (err) {
+    console.error("Error fetching designer collection:", err);
   }
 
-  // 4. Featured Designers
-  const uniqueBrands = Array.from(
-    new Set(items.map((i) => i.brand).filter(Boolean))
-  );
-  const featuredDesigners = uniqueBrands.sort();
+  // Fallback if collection is empty
   if (featuredDesigners.length === 0) {
-    featuredDesigners.push(
-      "Chanel",
-      "Louis Vuitton",
-      "Hermès",
-      "Gucci",
-      "Prada"
-    );
+    featuredDesigners = ["Alexander McQueen", "Balenciaga", "Bottega Veneta", "Burberry", "Dior", "Fendi", "Givenchy", "Hermès", "Louis Vuitton", "Prada", "Saint Laurent", "Valentino", "Versace", "Chanel", "Gucci"];
   }
 
-  // 5. FETCH ACTIVE MESSAGES (now includes image + video)
+  // 5. Active Messages
   let activeMessages: BuyerMessage[] = [];
-
   try {
     const messagesRef = adminDb.collection("buyer_messages");
-
     let snap = await messagesRef.where("active", "==", true).get();
-    if (snap.empty) {
-      snap = await messagesRef.get();
-    }
+    if (snap.empty) snap = await messagesRef.get();
 
     activeMessages = snap.docs
       .map((doc) => {
@@ -656,7 +531,7 @@ export const getServerSideProps: GetServerSideProps<HomeProps> = async () => {
     props: {
       trending,
       newArrivals,
-      featuredDesigners: featuredDesigners.slice(0, 15),
+      featuredDesigners,
       activeMessages,
     },
   };
