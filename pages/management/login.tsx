@@ -52,7 +52,7 @@ export default function ManagementLoginPage() {
     setLoading(true);
 
     try {
-      // 🔐 USE MANAGEMENT LOGIN API (managementAdmins collection + env super emails)
+      // 🔐 Check credentials via management-specific API
       const res = await fetch("/api/management/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -68,17 +68,12 @@ export default function ManagementLoginPage() {
         const errJson = json as ManagementLoginError;
 
         if (errJson.code === "not_authorised") {
-          setError(
-            "This email is not registered for management access. Please contact the site owner."
-          );
+          setError("This email is not registered for management access. Please contact the site owner.");
           return;
         }
 
         if (errJson.code === "pending") {
-          setError("");
-          setInfo(
-            "Your management access is still under review. We'll email you as soon as it is approved."
-          );
+          setInfo("Your management access is still under review. We'll email you as soon as it is approved.");
           return;
         }
 
@@ -91,23 +86,21 @@ export default function ManagementLoginPage() {
         return;
       }
 
-      // ✅ Password OK → start 2FA as MANAGEMENT
+      // ✅ Credentials OK → Start 2FA strictly with "management" role
       const twofaRes = await fetch("/api/auth/start-2fa", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           email: trimmedEmail,
-          role: "management", // <— important
+          role: "management", // <— Critical for management dashboard access
+          method: "email",
         }),
       });
 
       const twofaJson = await twofaRes.json();
 
       if (!twofaJson.ok) {
-        setError(
-          twofaJson.message ||
-            "We couldn't start the verification process. Please try again."
-        );
+        setError(twofaJson.message || "We couldn't start the verification process. Please try again.");
         return;
       }
 
@@ -165,7 +158,7 @@ export default function ManagementLoginPage() {
         return;
       }
 
-      // Mark this browser as management
+      // ✅ Mark session as management
       if (typeof window !== "undefined") {
         window.localStorage.setItem("ff-role", "management");
         window.localStorage.setItem("ff-email", email.toLowerCase().trim());
@@ -182,9 +175,6 @@ export default function ManagementLoginPage() {
 
   const disabled = loading;
 
-  // ---------------------------
-  // UI
-  // ---------------------------
   return (
     <>
       <Head>
@@ -379,21 +369,23 @@ export default function ManagementLoginPage() {
           opacity: 0.5;
           cursor: default;
         }
-        .auth-error,
-        .auth-info {
+        .auth-error {
+          background: #fef2f2;
+          color: #b91c1c;
           border-radius: 12px;
           padding: 10px;
           font-size: 13px;
           margin-bottom: 16px;
           text-align: center;
         }
-        .auth-error {
-          background: #fef2f2;
-          color: #b91c1c;
-        }
         .auth-info {
           background: #eff6ff;
           color: #1d4ed8;
+          border-radius: 12px;
+          padding: 10px;
+          font-size: 13px;
+          margin-bottom: 16px;
+          text-align: center;
         }
         .auth-code-input {
           text-align: center;
