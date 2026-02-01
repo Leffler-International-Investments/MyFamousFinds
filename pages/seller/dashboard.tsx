@@ -115,13 +115,6 @@ export default function SellerDashboard() {
               description="Add several items with dropdowns and image uploads."
               accentColor="blue"
             />
-            {/* Keep legacy CSV/paste tool for power users */}
-            <DashboardLink
-              href="/seller/bulk-upload"
-              title="Bulk Upload (CSV/Paste)"
-              description="Paste many items at once using the template."
-              accentColor="blue"
-            />
           </DashboardSection>
 
           <DashboardSection title="Orders & Performance">
