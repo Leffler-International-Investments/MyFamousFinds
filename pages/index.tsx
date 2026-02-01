@@ -30,7 +30,6 @@ type BuyerMessage = {
 type HomeProps = {
   trending: ProductLike[];
   newArrivals: ProductLike[];
-  featuredDesigners: string[];
   activeMessages: BuyerMessage[];
 };
 
@@ -56,12 +55,7 @@ const pickImage = (data: any): string => {
 // Component
 // --------------------------------------------------
 
-const Home: NextPage<HomeProps> = ({
-  trending,
-  newArrivals,
-  featuredDesigners,
-  activeMessages,
-}) => {
+const Home: NextPage<HomeProps> = ({ trending, newArrivals, activeMessages }) => {
   return (
     <div className="home-wrapper">
       <Head>
@@ -129,28 +123,7 @@ const Home: NextPage<HomeProps> = ({
           </aside>
         </section>
 
-        {/* FEATURED DESIGNERS - DYNAMIC MULTI-ROW GRID */}
-        <section className="home-featured-designers">
-          <header className="home-feed-header">
-            <h2 className="home-feed-title">Featured Designers</h2>
-          </header>
-
-          <div className="designers-flex-container">
-            {featuredDesigners.length > 0 ? (
-              featuredDesigners.map((name) => (
-                <Link
-                  href={`/designers?designer=${encodeURIComponent(name)}`}
-                  key={name}
-                  className="luxury-pill"
-                >
-                  {name}
-                </Link>
-              ))
-            ) : (
-              <p className="text-sm text-gray-400">Loading designers...</p>
-            )}
-          </div>
-        </section>
+        {/* ✅ REMOVED: Featured Designers pills from homepage (avoid duplication) */}
 
         {/* DYNAMIC MESSAGE BILLBOARD */}
         {activeMessages && activeMessages.length > 0 && (
@@ -322,45 +295,6 @@ const Home: NextPage<HomeProps> = ({
         .home-section {
           margin-top: 48px;
         }
-        .home-featured-designers {
-          margin-top: 20px;
-        }
-        .home-feed-header {
-          margin-bottom: 16px;
-        }
-        .home-feed-title {
-          font-size: 24px;
-          font-weight: 500;
-          font-family: "Georgia", serif;
-          margin: 0;
-        }
-        
-        /* DESIGNERS FLEX WRAP - Dynamic rows for all sizes */
-        .designers-flex-container {
-          display: flex;
-          flex-wrap: wrap;
-          gap: 12px;
-          padding-top: 4px;
-        }
-
-        :global(.luxury-pill) {
-          display: inline-block;
-          background: #ffffff;
-          border: 1px solid #e5e7eb;
-          border-radius: 999px;
-          padding: 8px 20px;
-          font-size: 14px;
-          color: #374151;
-          text-decoration: none;
-          white-space: nowrap;
-          transition: all 0.2s ease;
-        }
-
-        :global(.luxury-pill:hover) {
-          border-color: #111827;
-          background: #f9fafb;
-        }
-
         .buyer-message-board-container {
           margin-top: 48px;
           display: flex;
@@ -481,25 +415,7 @@ export const getServerSideProps: GetServerSideProps<HomeProps> = async () => {
 
   if (!trending.length) trending = newArrivals;
 
-  // 4. FETCH ALL DESIGNERS FROM DATABASE
-  let featuredDesigners: string[] = [];
-  try {
-    const designerSnap = await adminDb.collection("designers").get();
-    featuredDesigners = designerSnap.docs
-      .map(doc => doc.id)
-      // Filter out long technical IDs or empty strings
-      .filter(name => name && name.length < 30 && !/\d/.test(name.substring(0,3)))
-      .sort();
-  } catch (err) {
-    console.error("Error fetching designer collection:", err);
-  }
-
-  // Fallback if collection is empty
-  if (featuredDesigners.length === 0) {
-    featuredDesigners = ["Alexander McQueen", "Balenciaga", "Bottega Veneta", "Burberry", "Dior", "Fendi", "Givenchy", "Hermès", "Louis Vuitton", "Prada", "Saint Laurent", "Valentino", "Versace", "Chanel", "Gucci"];
-  }
-
-  // 5. Active Messages
+  // 4. Active Messages
   let activeMessages: BuyerMessage[] = [];
   try {
     const messagesRef = adminDb.collection("buyer_messages");
@@ -531,7 +447,6 @@ export const getServerSideProps: GetServerSideProps<HomeProps> = async () => {
     props: {
       trending,
       newArrivals,
-      featuredDesigners,
       activeMessages,
     },
   };
