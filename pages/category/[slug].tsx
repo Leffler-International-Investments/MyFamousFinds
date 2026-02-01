@@ -348,7 +348,7 @@ export default function CategoryPage({
     const sizeQ = normalize(size);
     if (sizeQ) list = list.filter((p: any) => normalize(p._size).includes(sizeQ));
 
-    const colorQ = normalize(colorl;
+    const colorQ = normalize(color);
     if (colorQ) list = list.filter((p: any) => normalize(p._color).includes(colorQ));
 
     // price range
