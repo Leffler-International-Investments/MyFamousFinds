@@ -156,13 +156,13 @@ function createdAtMs(d: any): number {
   return 0;
 }
 
-// Slug aliases for category routes
+// FIXED: Only including categories found on the header
 const CATEGORY_ALIASES: Record<string, string[]> = {
-  women: ["women", "womens", "ladies", "lady", "female"],
-  men: ["men", "mens", "man's", "man", "male"],
-  bags: ["bags", "bag", "handbags", "handbag", "purses", "purse"],
-  jewelry: ["jewelry", "jewellery"],
-  watches: ["watches", "watch"],
+  women: ["women"],
+  men: ["men"],
+  bags: ["bags"],
+  jewelry: ["jewelry"],
+  watches: ["watches"],
 };
 
 // ---------- core normalization ----------
