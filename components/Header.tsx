@@ -13,7 +13,7 @@ export default function Header() {
     return () => unsub();
   }, []);
 
-  // ✅ FIXED: each category points to its own correct page
+  // ✅ Each category points to its own correct slug (no accidental watches routing)
   const categoryNav = [
     { label: "NEW ARRIVALS", href: "/category/new-arrivals" },
     { label: "CATALOGUE", href: "/catalogue" },
