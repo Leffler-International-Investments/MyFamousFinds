@@ -1,33 +1,34 @@
 // FILE: /pages/api/seller/login.ts
 import type { NextApiRequest, NextApiResponse } from "next";
-import {
-  adminDb,
-  FieldValue,
-  isFirebaseAdminReady,
-} from "../../../utils/firebaseAdmin";
+import { adminDb, isFirebaseAdminReady } from "../../../utils/firebaseAdmin";
 
 type LoginPayload = {
   email?: string;
-  password?: string;
+  password?: string; // kept for backward compatibility (ignored)
 };
 
 type LoginResponse =
   | { ok: true; sellerId: string }
   | {
       ok: false;
-      code:
-        | "apply_first"
-        | "pending"
-        | "bad_credentials"
-        | "server_not_configured";
+      code: "apply_first" | "pending" | "bad_credentials" | "server_not_configured";
       message: string;
     };
 
-// Ariel & Dan are always allowed full seller access.
+// Owners / super sellers (always allowed)
 const SUPER_SELLER_EMAILS = new Set<string>([
   "leffleryd@gmail.com", // Dan
   "arich1114@aol.com", // Ariel
+  "arichspot@gmail.com",
+  "ariel@arichwines.com",
+  "arielspot@gmail.com",
+  "itai.leff@gmail.com",
 ]);
+
+function isApprovedStatus(status: unknown) {
+  const s = String(status || "").trim().toLowerCase();
+  return s === "approved";
+}
 
 export default async function handler(
   req: NextApiRequest,
@@ -41,21 +42,20 @@ export default async function handler(
     });
   }
 
-  const { email, password } = req.body as LoginPayload;
+  const { email } = req.body as LoginPayload;
 
-  if (!email || !password) {
+  if (!email) {
     return res.status(400).json({
       ok: false,
       code: "bad_credentials",
-      message: "Email and password are required.",
+      message: "Email is required.",
     });
   }
 
   const trimmedEmail = email.trim().toLowerCase();
   const isSuperSeller = SUPER_SELLER_EMAILS.has(trimmedEmail);
 
-  // ✅ If Firebase Admin is not configured, still allow SUPER sellers to log in
-  // so they can access /management and fix env vars.
+  // If Firebase Admin is not configured, still allow SUPER sellers
   if (!isFirebaseAdminReady || !adminDb) {
     if (isSuperSeller) {
       return res.status(200).json({ ok: true, sellerId: "super-seller" });
@@ -69,54 +69,68 @@ export default async function handler(
   }
 
   try {
-    const snap = await adminDb
+    // Find seller in sellers collection (doc id could be email, or stored in fields)
+    let sellerSnap: any = await adminDb
       .collection("sellers")
-      .where("email", "==", trimmedEmail)
-      .limit(1)
+      .doc(trimmedEmail)
       .get();
 
-    if (snap.empty) {
+    if (!sellerSnap.exists) {
+      const byEmail = await adminDb
+        .collection("sellers")
+        .where("email", "==", trimmedEmail)
+        .limit(1)
+        .get();
+      if (!byEmail.empty) sellerSnap = byEmail.docs[0];
+    }
+
+    if (!sellerSnap.exists) {
+      const byContactEmail = await adminDb
+        .collection("sellers")
+        .where("contactEmail", "==", trimmedEmail)
+        .limit(1)
+        .get();
+      if (!byContactEmail.empty) sellerSnap = byContactEmail.docs[0];
+    }
+
+    // If not found:
+    if (!sellerSnap.exists) {
       if (!isSuperSeller) {
         return res.status(400).json({
           ok: false,
           code: "apply_first",
           message:
-            "We couldn’t find a seller account for that email. Please apply to become a seller first.",
+            "We couldn’t find a seller application for that email. Please apply to become a seller first.",
         });
       }
 
-      // Auto-create approved seller record for super sellers.
-      const docRef = adminDb.collection("sellers").doc();
-      await docRef.set({
-        email: trimmedEmail,
-        status: "approved",
-        isSuperSeller: true,
-        password,
-        createdAt: FieldValue.serverTimestamp(),
-        vettingNotes:
-          "Bootstrap super seller created automatically from /api/seller/login.",
-      });
+      // Super seller fallback: create approved doc so login can proceed
+      await adminDb.collection("sellers").doc(trimmedEmail).set(
+        {
+          email: trimmedEmail,
+          contactEmail: trimmedEmail,
+          status: "Approved",
+          isSuperSeller: true,
+        },
+        { merge: true }
+      );
 
-      return res.status(200).json({
-        ok: true,
-        sellerId: docRef.id,
-      });
+      return res.status(200).json({ ok: true, sellerId: trimmedEmail });
     }
 
-    const doc = snap.docs[0];
-    const data = doc.data() as any;
+    const data = sellerSnap.data ? sellerSnap.data() : {};
+    const sellerId = sellerSnap.id || trimmedEmail;
 
-    // Ensure super sellers are always approved
-    if (isSuperSeller && data.status !== "approved") {
-      await doc.ref.update({
-        status: "approved",
-        isSuperSeller: true,
-        updatedAt: FieldValue.serverTimestamp(),
-      });
-      data.status = "approved";
+    // Super sellers are always approved
+    if (isSuperSeller && !isApprovedStatus(data.status)) {
+      await sellerSnap.ref.set(
+        { status: "Approved", isSuperSeller: true },
+        { merge: true }
+      );
+      data.status = "Approved";
     }
 
-    if (!data.status || data.status !== "approved") {
+    if (!isApprovedStatus(data.status)) {
       return res.status(403).json({
         ok: false,
         code: "pending",
@@ -125,19 +139,9 @@ export default async function handler(
       });
     }
 
-    // For normal sellers, enforce password; super sellers bypass this check.
-    if (!isSuperSeller && (!data.password || data.password !== password)) {
-      return res.status(401).json({
-        ok: false,
-        code: "bad_credentials",
-        message: "Incorrect email or password.",
-      });
-    }
-
-    return res.status(200).json({
-      ok: true,
-      sellerId: doc.id,
-    });
+    // ✅ IMPORTANT CHANGE:
+    // We do NOT verify passwords here anymore (Firebase Auth handles that on the client).
+    return res.status(200).json({ ok: true, sellerId });
   } catch (err) {
     console.error("seller_login_api_error", err);
     return res.status(500).json({
