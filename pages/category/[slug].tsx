@@ -2,11 +2,12 @@
 import Head from "next/head";
 import Link from "next/link";
 import { GetServerSideProps } from "next";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
 import ProductCard from "../../components/ProductCard";
 import { getPublicListings } from "../../lib/publicListings";
+import { adminDb } from "../../utils/firebaseAdmin";
 
 type ProductLike = {
   id: string;
@@ -21,6 +22,9 @@ type ProductLike = {
   category?: string;
   categorySlug?: string;
   condition?: string;
+  material?: string;
+  size?: string;
+  color?: string;
   createdAt?: any;
 };
 
@@ -36,6 +40,7 @@ const CATEGORY_LABELS: Record<string, string> = {
 
 const CANON_CATS = ["women", "bags", "men", "jewelry", "watches"] as const;
 
+// Used ONLY for UI text.
 function titleCase(s: string) {
   return s
     .split("-")
@@ -48,40 +53,121 @@ function safeNumber(n: any, fallback = 0) {
   return Number.isFinite(v) ? v : fallback;
 }
 
-export const getServerSideProps: GetServerSideProps = async (ctx) => {
-  const slug = String(ctx.params?.slug || "").toLowerCase();
+function normalize(raw: any): string {
+  if (raw == null) return "";
+  return String(raw)
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
+}
 
-  // allow only known slugs
-  const pageSlug = slug;
+function canonicalSlug(slug: string): string {
+  const s = normalize(slug);
+  if (s === "mens") return "men";
+  if (s === "jewellery") return "jewelry";
+  if (s === "watch") return "watches";
+  return s;
+}
+
+// Kept deliberately short so it doesn’t change your layout dramatically.
+const MATERIAL_OPTIONS = [
+  "Leather",
+  "Exotic Leather",
+  "Silk",
+  "Cashmere",
+  "Wool",
+  "Linen",
+  "Cotton",
+  "Denim",
+  "Velvet",
+  "Suede",
+  "Canvas",
+  "Metal",
+  "Gold",
+  "Silver",
+  "Ceramic",
+  "Crystal",
+  "Synthetic",
+  "Other",
+];
+
+type PublicDesignersResponse = {
+  ok: boolean;
+  designers?: { id: string; name: string; slug: string; active?: boolean }[];
+  error?: string;
+};
+
+export const getServerSideProps: GetServerSideProps = async (ctx) => {
+  const rawSlug = String(ctx.params?.slug || "");
+  const pageSlug = canonicalSlug(rawSlug);
 
   // category param to loader: blank for "new-arrivals" and "catalogue"
-  const listings = await getPublicListings({
-    category: pageSlug === "new-arrivals" || pageSlug === "catalogue" ? "" : pageSlug,
-    take: 500,
-  });
+  try {
+    const listings = await getPublicListings({
+      category: pageSlug === "new-arrivals" || pageSlug === "catalogue" ? "" : pageSlug,
+      take: 500,
+    });
 
-  const mapped: ProductLike[] = (listings || []).map((l: any) => ({
-    id: l.id,
-    title: String(l.title || l.name || "Untitled"),
-    brand: l.brand || l.designer || "",
-    designer: l.designer || l.brand || "",
-    price: safeNumber(l.price, 0),
-    currency: l.currency || "USD",
-    images: Array.isArray(l.images) ? l.images : undefined,
-    imageUrls: Array.isArray(l.imageUrls) ? l.imageUrls : undefined,
-    imageUrl: l.imageUrl || "",
-    category: l.category || "",
-    categorySlug: l.categorySlug || "",
-    condition: l.condition || "",
-    createdAt: l.createdAt || null,
-  }));
+    const mapped: ProductLike[] = (listings || []).map((l: any) => ({
+      id: l.id,
+      title: String(l.title || l.name || "Untitled"),
+      brand: l.brand || l.designer || "",
+      designer: l.designer || l.brand || "",
+      price: safeNumber(l.price, 0),
+      currency: l.currency || "USD",
+      images: Array.isArray(l.images) ? l.images : undefined,
+      imageUrls: Array.isArray(l.imageUrls) ? l.imageUrls : undefined,
+      imageUrl: l.imageUrl || "",
+      category: l.category || "",
+      categorySlug: l.categorySlug || "",
+      condition: l.condition || "",
+      material: l.material || "",
+      size: l.size || "",
+      color: l.color || "",
+      createdAt: l.createdAt || null,
+    }));
 
-  return {
-    props: {
-      pageSlug,
-      items: mapped,
-    },
-  };
+    return {
+      props: {
+        pageSlug,
+        items: mapped,
+      },
+    };
+  } catch (e) {
+    // ✅ Safe fallback (keeps the page working even if loader errors)
+    try {
+      const snap = await adminDb.collection("listings").where("status", "==", "Live").get();
+
+      const mapped: ProductLike[] = snap.docs.map((doc) => {
+        const d: any = doc.data() || {};
+        const priceNum = typeof d.price === "number" ? d.price : safeNumber(d.price, 0);
+
+        return {
+          id: doc.id,
+          title: String(d.title || "Untitled"),
+          brand: String(d.brand || ""),
+          designer: String(d.designer || d.brand || ""),
+          price: priceNum,
+          currency: String(d.currency || "USD"),
+          images: Array.isArray(d.images) ? d.images : undefined,
+          imageUrls: Array.isArray(d.imageUrls) ? d.imageUrls : undefined,
+          imageUrl: String(d.imageUrl || d.image_url || d.image || (d.imageUrls?.[0] || "")),
+          category: String(d.category || ""),
+          categorySlug: String(d.categorySlug || ""),
+          condition: String(d.condition || ""),
+          material: String(d.material || ""),
+          size: String(d.size || ""),
+          color: String(d.color || ""),
+          createdAt: d.createdAt || null,
+        };
+      });
+
+      return { props: { pageSlug, items: mapped } };
+    } catch {
+      return { props: { pageSlug, items: [] } };
+    }
+  }
 };
 
 export default function CategoryPage({
@@ -94,6 +180,8 @@ export default function CategoryPage({
   const pageTitle = CATEGORY_LABELS[pageSlug] || titleCase(pageSlug);
 
   const [q, setQ] = useState("");
+
+  // Existing checkbox filters
   const [selectedCats, setSelectedCats] = useState<Record<string, boolean>>({});
   const [selectedDesigners, setSelectedDesigners] = useState<Record<string, boolean>>({});
   const [selectedConds, setSelectedConds] = useState<Record<string, boolean>>({});
@@ -101,27 +189,86 @@ export default function CategoryPage({
   const [maxPrice, setMaxPrice] = useState(1000000);
   const [sort, setSort] = useState<"newest" | "price_asc" | "price_desc">("newest");
 
+  // ✅ Missing bulk-simple fields added (without changing your layout structure)
+  const [material, setMaterial] = useState("");
+  const [size, setSize] = useState("");
+  const [color, setColor] = useState("");
+
+  // ✅ Designers source-of-truth from Firestore via your API (synced list)
+  const [designerOptions, setDesignerOptions] = useState<string[] | null>(null);
+
   const normalizedItems = useMemo(() => {
     return (items || []).map((p) => {
-      const catSlug =
-        (p.categorySlug || p.category || "")
+      // Build a stable category slug from either categorySlug or category label
+      const rawCat = p.categorySlug || p.category || "";
+      let catSlug =
+        rawCat
           .toString()
           .trim()
           .toLowerCase()
           .replace(/\s+/g, "-") || "";
-      const designer = (p.designer || p.brand || "").toString().trim();
+
+      // Normalize common variants so filtering doesn’t “drift”
+      catSlug = canonicalSlug(catSlug);
+
+      const designerName = (p.designer || p.brand || "").toString().trim();
       const condition = (p.condition || "").toString().trim();
+      const mat = (p.material || "").toString().trim();
+      const sz = (p.size || "").toString().trim();
+      const col = (p.color || "").toString().trim();
       const price = safeNumber(p.price, 0);
 
       return {
         ...p,
         _catSlug: catSlug,
-        _designer: designer,
+        _designer: designerName,
         _condition: condition,
+        _material: mat,
+        _size: sz,
+        _color: col,
         _price: price,
       } as any;
     });
   }, [items]);
+
+  // ✅ Load designers list from your API (Firestore-synced)
+  useEffect(() => {
+    let alive = true;
+
+    async function loadDesigners() {
+      try {
+        const res = await fetch("/api/public/designers");
+        const data: PublicDesignersResponse = await res.json();
+
+        if (!alive) return;
+
+        if (data.ok && Array.isArray(data.designers) && data.designers.length > 0) {
+          const names = Array.from(
+            new Set(
+              data.designers
+                .filter((d) => d && d.active !== false)
+                .map((d) => (d.name || "").trim())
+                .filter(Boolean)
+            )
+          ).sort((a, b) => a.localeCompare(b));
+
+          setDesignerOptions(names.length ? names : null);
+          return;
+        }
+
+        setDesignerOptions(null);
+      } catch {
+        if (!alive) return;
+        setDesignerOptions(null);
+      }
+    }
+
+    loadDesigners();
+
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   const availableCategories = useMemo(() => {
     const set = new Set<string>();
@@ -131,17 +278,25 @@ export default function CategoryPage({
 
     // keep stable order
     const ordered = CANON_CATS.filter((c) => set.has(c));
-    const extras = Array.from(set).filter((c) => !ordered.includes(c as any)).sort();
+    const extras = Array.from(set)
+      .filter((c) => !ordered.includes(c as any))
+      .sort();
     return [...ordered, ...extras];
   }, [normalizedItems]);
 
+  // ✅ Designers: union of Firestore-synced list + what exists in items
   const availableDesigners = useMemo(() => {
-    const set = new Set<string>();
+    const fromItems = new Set<string>();
     normalizedItems.forEach((p: any) => {
-      if (p._designer) set.add(p._designer);
+      if (p._designer) fromItems.add(p._designer);
     });
-    return Array.from(set).sort((a, b) => a.localeCompare(b));
-  }, [normalizedItems]);
+
+    const merged = new Set<string>();
+    (designerOptions || []).forEach((d) => merged.add(d));
+    Array.from(fromItems).forEach((d) => merged.add(d));
+
+    return Array.from(merged).sort((a, b) => a.localeCompare(b));
+  }, [normalizedItems, designerOptions]);
 
   const availableConditions = useMemo(() => {
     const set = new Set<string>();
@@ -163,7 +318,7 @@ export default function CategoryPage({
     const query = q.trim().toLowerCase();
     if (query) {
       list = list.filter((p: any) => {
-        const hay = `${p.title || ""} ${p._designer || ""} ${p._catSlug || ""}`.toLowerCase();
+        const hay = `${p.title || ""} ${p._designer || ""} ${p._catSlug || ""} ${p._material || ""} ${p._size || ""} ${p._color || ""}`.toLowerCase();
         return hay.includes(query);
       });
     }
@@ -186,6 +341,16 @@ export default function CategoryPage({
       list = list.filter((p: any) => activeConds.includes(p._condition));
     }
 
+    // ✅ Material / Size / Color (bulk-simple fields)
+    const matQ = normalize(material);
+    if (matQ) list = list.filter((p: any) => normalize(p._material).includes(matQ));
+
+    const sizeQ = normalize(size);
+    if (sizeQ) list = list.filter((p: any) => normalize(p._size).includes(sizeQ));
+
+    const colorQ = normalize(colorl;
+    if (colorQ) list = list.filter((p: any) => normalize(p._color).includes(colorQ));
+
     // price range
     list = list.filter((p: any) => p._price >= minPrice && p._price <= maxPrice);
 
@@ -202,6 +367,9 @@ export default function CategoryPage({
     selectedCats,
     selectedDesigners,
     selectedConds,
+    material,
+    size,
+    color,
     minPrice,
     maxPrice,
     sort,
@@ -212,6 +380,9 @@ export default function CategoryPage({
     setSelectedCats({});
     setSelectedDesigners({});
     setSelectedConds({});
+    setMaterial("");
+    setSize("");
+    setColor("");
     setMinPrice(0);
     setMaxPrice(1000000);
     setSort("newest");
@@ -303,6 +474,42 @@ export default function CategoryPage({
                   <span>{d}</span>
                 </label>
               ))}
+            </div>
+
+            <div className="ff-block">
+              <div className="ff-blockTitle">Material</div>
+              <input
+                className="ff-input"
+                list="ff-materials"
+                placeholder="Select or type…"
+                value={material}
+                onChange={(e) => setMaterial(e.target.value)}
+              />
+              <datalist id="ff-materials">
+                {MATERIAL_OPTIONS.map((m) => (
+                  <option key={m} value={m} />
+                ))}
+              </datalist>
+            </div>
+
+            <div className="ff-block">
+              <div className="ff-blockTitle">Size</div>
+              <input
+                className="ff-input"
+                placeholder="Type size…"
+                value={size}
+                onChange={(e) => setSize(e.target.value)}
+              />
+            </div>
+
+            <div className="ff-block">
+              <div className="ff-blockTitle">Color</div>
+              <input
+                className="ff-input"
+                placeholder="Type color…"
+                value={color}
+                onChange={(e) => setColor(e.target.value)}
+              />
             </div>
 
             <div className="ff-block">
