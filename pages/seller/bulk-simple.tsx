@@ -55,7 +55,6 @@ const CONDITIONS = [
   "Fair",
 ];
 
-// FIXED: Categories updated to match header navigation exactly
 const CATEGORIES = [
   "Women",
   "Bags",
@@ -237,7 +236,7 @@ export default function BulkSimple() {
           color: it.color || "",
           price: numericPrice,
           purchase_source: it.purchaseSource || "",
-          purchase_proof: it.purchaseProof || "",
+          purchase_proof: it.purchase_proof || "",
           serial_number: it.serial || "",
           imageDataUrl: it.imageDataUrl || null,
         };
@@ -322,9 +321,7 @@ export default function BulkSimple() {
               Add several listings at once. Prices are in USD.
             </p>
           </div>
-          <Link href="/seller/bulk-upload" className="alt-link">
-            Prefer CSV Paste? Use Bulk Upload →
-          </Link>
+          {/* Link removed here */}
         </div>
 
         {submitError && <p className="banner error">⚠ {submitError}</p>}
@@ -612,15 +609,6 @@ export default function BulkSimple() {
           justify-content: space-between;
           flex-wrap: wrap;
           gap: 16px;
-        }
-        .alt-link {
-          color: #2563eb;
-          font-size: 14px;
-          text-decoration: none;
-          font-weight: 500;
-        }
-        .alt-link:hover {
-          text-decoration: underline;
         }
         .banner {
           margin: 16px 0;
