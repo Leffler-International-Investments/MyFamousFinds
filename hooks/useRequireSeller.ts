@@ -1,6 +1,7 @@
 // FILE: /hooks/useRequireSeller.ts
 import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
+import { isRoleSessionValid, touchRoleSession } from "../utils/roleSession";
 
 export function useRequireSeller() {
   const router = useRouter();
@@ -10,8 +11,9 @@ export function useRequireSeller() {
   useEffect(() => {
     if (typeof window === "undefined") return;
 
-    const role = window.localStorage.getItem("ff-role");
-    if (role === "seller") {
+    if (isRoleSessionValid("seller")) {
+      // Sliding session: extend on every protected page load
+      touchRoleSession();
       setIsSeller(true);
       setChecking(false);
     } else {
@@ -24,4 +26,3 @@ export function useRequireSeller() {
 
   return { loading: checking, isSeller };
 }
-
