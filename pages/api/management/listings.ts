@@ -1,35 +1,46 @@
 // FILE: /pages/api/management/listings.ts
 import type { NextApiRequest, NextApiResponse } from "next";
+import { adminDb, isFirebaseAdminReady } from "../../../utils/firebaseAdmin";
 
-// This is mock data. Later, you will replace this with a real database query.
-const mockListings = [
-  { id: "L-1001", title: "Hermès Kelly 28", seller: "VintageLux Boutique", status: "Live", price: 8900 },
-  { id: "L-1002", title: "Rolex Submariner 16610", seller: "Classic Timepieces", status: "Pending", price: 10500 },
-  { id: "L-1003", title: "Chanel Classic Flap", seller: "Paris Finds", status: "Rejected", price: 6200 },
-];
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  try {
+    if (!isFirebaseAdminReady || !adminDb) {
+      return res.status(500).json({
+        message:
+          "Firebase Admin is not initialized. Check your Firebase Admin env vars in Vercel.",
+      });
+    }
 
-export default async function handler(
-  req: NextApiRequest,
-  res: NextApiResponse
-) {
-  // TODO: Add admin security check here
-  
-  const { search } = req.query;
+    // Grab recent-ish listings (adjust as needed)
+    // If some docs don't have createdAt, this orderBy can fail.
+    // We keep it because it's the cleanest; if you have missing createdAt, tell me and I'll switch to a safe fallback.
+    const snap = await adminDb
+      .collection("listings")
+      .orderBy("createdAt", "desc")
+      .limit(200)
+      .get();
 
-  // Simulate a database search
-  let items = mockListings;
-  if (typeof search === 'string' && search.trim()) {
-    const s = search.toLowerCase();
-    items = mockListings.filter(
-      (item) =>
-        item.title.toLowerCase().includes(s) ||
-        item.seller.toLowerCase().includes(s) ||
-        item.id.toLowerCase().includes(s)
-    );
+    const rows = snap.docs.map((d) => {
+      const x: any = d.data() || {};
+      return {
+        id: d.id,
+        title: x.title ?? x.name ?? x.listingTitle ?? "",
+        brand: x.brand ?? x.designer ?? "",
+        condition: x.condition ?? "",
+        sellerId: x.sellerId ?? x.seller ?? "",
+        priceUsd:
+          typeof x.priceUsd === "number"
+            ? x.priceUsd
+            : typeof x.price === "number"
+            ? x.price
+            : undefined,
+        status: (x.status ?? x.moderationStatus ?? "").toString().toLowerCase() || "",
+        category: (x.category ?? x.menuCategory ?? "").toString().toUpperCase() || "",
+      };
+    });
+
+    return res.status(200).json({ rows });
+  } catch (e: any) {
+    return res.status(500).json({ message: e?.message || "Server error" });
   }
-
-  // Simulate a network delay
-  await new Promise((res) => setTimeout(res, 500));
-
-  res.status(200).json({ items });
 }
