@@ -20,14 +20,18 @@ type ItemWithMeta = ProductLike & {
   category?: string;
   condition?: string;
   brand?: string;
+  material?: string;
+  size?: string;
+  color?: string;
 };
 
 type DesignersPageProps = {
   items: ItemWithMeta[];
+  designerOptions: string[];
 };
 
 // --------------------------------------------------
-// Filter options
+// Filter options (aligned with Bulk Simple)
 // --------------------------------------------------
 
 const CATEGORY_OPTIONS = [
@@ -40,7 +44,6 @@ const CATEGORY_OPTIONS = [
   "Watches",
 ];
 
-// ✅ MATCHED TO /pages/seller/bulk-simple.tsx CONDITIONS
 const CONDITION_OPTIONS = [
   "New with tags",
   "New (never used)",
@@ -50,22 +53,28 @@ const CONDITION_OPTIONS = [
   "Fair",
 ];
 
-const DESIGNER_OPTIONS = [
-  "Alexander McQueen",
-  "Balenciaga",
-  "Bottega Veneta",
-  "Burberry",
-  "Dior",
-  "Fendi",
-  "Givenchy",
-  "Goyard",
-  "Gucci",
-  "Hermès",
-  "Louis Vuitton",
-  "Prada",
-  "Saint Laurent",
-  "Valentino",
-  "Versace",
+const MATERIAL_OPTIONS = [
+  "Leather",
+  "Exotic Leather",
+  "Silk",
+  "Cashmere",
+  "Wool",
+  "Linen",
+  "Cotton",
+  "Cotton Blend",
+  "Denim",
+  "Velvet",
+  "Suede",
+  "Canvas",
+  "Metal",
+  "Gold",
+  "Silver",
+  "Plated Metal",
+  "Ceramic",
+  "Crystal",
+  "Resin",
+  "Synthetic",
+  "Other",
 ];
 
 // --------------------------------------------------
@@ -86,76 +95,7 @@ function normalize(raw: string | undefined | null): string {
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9]+/g, "");
-}
-
-function levenshtein(a: string, b: string): number {
-  if (a === b) return 0;
-  const aLen = a.length;
-  const bLen = b.length;
-  if (aLen === 0) return bLen;
-  if (bLen === 0) return aLen;
-
-  const matrix: number[][] = [];
-  for (let i = 0; i <= bLen; i++) matrix[i] = [i];
-  for (let j = 0; j <= aLen; j++) matrix[0][j] = j;
-
-  for (let i = 1; i <= bLen; i++) {
-    for (let j = 1; j <= aLen; j++) {
-      if (b.charAt(i - 1) === a.charAt(j - 1)) {
-        matrix[i][j] = matrix[i - 1][j - 1];
-      } else {
-        matrix[i][j] = Math.min(
-          matrix[i - 1][j] + 1,
-          matrix[i][j - 1] + 1,
-          matrix[i - 1][j - 1] + 1
-        );
-      }
-    }
-  }
-
-  return matrix[bLen][aLen];
-}
-
-// canonical tokens used for matching
-function canonCategory(raw: string): string {
-  const n = normalize(raw);
-  if (!n) return "";
-  if (n === "women") return "women";
-  if (n === "men") return "men";
-  if (n === "bags" || n === "bag") return "bags";
-  if (n === "shoes" || n === "shoe" || n === "footwear") return "shoes";
-  if (n === "accessories" || n === "accessory") return "accessories";
-  if (n === "jewelry" || n === "jewellery") return "jewelry";
-  if (n === "watches" || n === "watch") return "watches";
-  return n;
-}
-
-// ✅ SIMPLIFIED: just normalise, so the exact labels match
-function canonCondition(raw: string): string {
-  return normalize(raw);
-}
-
-function canonBrand(raw: string): string {
-  return normalize(raw);
-}
-
-// MUCH SMARTER BRAND MATCHING:
-// - exact
-// - substring (e.g. "louis vuitton heels")
-// - small typo distance
-function brandMatches(selected: string, actual: string): boolean {
-  const sel = canonBrand(selected);
-  const act = canonBrand(actual);
-  if (!sel || !act) return false;
-
-  // substring match first
-  if (act.includes(sel) || sel.includes(act)) return true;
-
-  // fuzzy match for typos / small differences
-  const dist = levenshtein(sel, act);
-  return dist <= 4;
+    .trim();
 }
 
 const pickImage = (data: any): string => {
@@ -172,7 +112,10 @@ const pickImage = (data: any): string => {
 // Component
 // --------------------------------------------------
 
-const DesignersPage: NextPage<DesignersPageProps> = ({ items }) => {
+const DesignersPage: NextPage<DesignersPageProps> = ({
+  items,
+  designerOptions,
+}) => {
   const router = useRouter();
 
   const baseItems: ItemWithMeta[] = (items || []).map((it: any) => ({
@@ -181,42 +124,47 @@ const DesignersPage: NextPage<DesignersPageProps> = ({ items }) => {
     category: it.category || "",
     condition: it.condition || "",
     brand: it.brand || "",
+    material: it.material || "",
+    size: it.size || "",
+    color: it.color || "",
   }));
 
-  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
-  const [selectedDesigners, setSelectedDesigners] = useState<string[]>([]);
-  const [selectedConditions, setSelectedConditions] = useState<string[]>([]);
+  // ✅ Compact dropdown-style filters
+  const [titleQuery, setTitleQuery] = useState("");
+  const [category, setCategory] = useState("");
+  const [designer, setDesigner] = useState("");
+  const [condition, setCondition] = useState("");
+  const [material, setMaterial] = useState("");
+  const [size, setSize] = useState("");
+  const [color, setColor] = useState("");
   const [minPrice, setMinPrice] = useState<number | "">(0);
   const [maxPrice, setMaxPrice] = useState<number | "">(100000);
   const [sortBy, setSortBy] = useState<"newest" | "price-asc" | "price-desc">(
     "newest"
   );
 
-  const toggleInList = (list: string[], value: string): string[] =>
-    list.includes(value) ? list.filter((v) => v !== value) : [...list, value];
-
-  const onCategoryChange = (name: string) =>
-    setSelectedCategories((prev) => toggleInList(prev, name));
-  const onDesignerChange = (name: string) =>
-    setSelectedDesigners((prev) => toggleInList(prev, name));
-  const onConditionChange = (name: string) =>
-    setSelectedConditions((prev) => toggleInList(prev, name));
-
   const resetFilters = () => {
-    setSelectedCategories([]);
-    setSelectedDesigners([]);
-    setSelectedConditions([]);
+    setTitleQuery("");
+    setCategory("");
+    setDesigner("");
+    setCondition("");
+    setMaterial("");
+    setSize("");
+    setColor("");
     setMinPrice(0);
     setMaxPrice(100000);
   };
 
-  // keep URL in sync (optional – real filtering is client-side below)
   const applyFiltersToUrl = () => {
     const query: Record<string, string> = {};
 
-    if (selectedCategories[0]) query.category = selectedCategories[0];
-    if (selectedDesigners[0]) query.designer = selectedDesigners[0];
-    if (selectedConditions[0]) query.condition = selectedConditions[0];
+    if (titleQuery.trim()) query.title = titleQuery.trim();
+    if (category) query.category = category;
+    if (designer) query.designer = designer;
+    if (condition) query.condition = condition;
+    if (material.trim()) query.material = material.trim();
+    if (size.trim()) query.size = size.trim();
+    if (color.trim()) query.color = color.trim();
     if (typeof minPrice === "number") query.minPrice = String(minPrice);
     if (typeof maxPrice === "number") query.maxPrice = String(maxPrice);
 
@@ -228,36 +176,34 @@ const DesignersPage: NextPage<DesignersPageProps> = ({ items }) => {
   const filteredItems = useMemo(() => {
     let result = [...baseItems];
 
-    const normSelectedCats = selectedCategories.map((c) => canonCategory(c));
-    const normSelectedConds = selectedConditions.map((c) => canonCondition(c));
+    const tq = normalize(titleQuery);
+    const cat = normalize(category);
+    const des = normalize(designer);
+    const cond = normalize(condition);
+    const mat = normalize(material);
+    const sz = normalize(size);
+    const col = normalize(color);
 
-    // CATEGORY FILTER – smart, partial match
-    if (selectedCategories.length > 0) {
-      result = result.filter((item) => {
-        const itemCatNorm = normalize(item.category || "");
-        if (!itemCatNorm) return false;
-        return normSelectedCats.some((sel) =>
-          itemCatNorm.includes(canonCategory(sel))
-        );
-      });
+    if (tq) {
+      result = result.filter((i) => normalize(i.title).includes(tq));
     }
-
-    // DESIGNER FILTER – uses brandMatches
-    if (selectedDesigners.length > 0) {
-      result = result.filter((item) => {
-        const actualBrand = item.brand || "";
-        if (!actualBrand) return false;
-        return selectedDesigners.some((sel) => brandMatches(sel, actualBrand));
-      });
+    if (cat) {
+      result = result.filter((i) => normalize(i.category).includes(cat));
     }
-
-    // CONDITION FILTER – smart, matches the *normalised* labels
-    if (selectedConditions.length > 0) {
-      result = result.filter((item) => {
-        const itemCondNorm = canonCondition(item.condition || "");
-        if (!itemCondNorm) return false;
-        return normSelectedConds.some((sel) => itemCondNorm === sel);
-      });
+    if (des) {
+      result = result.filter((i) => normalize(i.brand).includes(des));
+    }
+    if (cond) {
+      result = result.filter((i) => normalize(i.condition) === cond);
+    }
+    if (mat) {
+      result = result.filter((i) => normalize(i.material).includes(mat));
+    }
+    if (sz) {
+      result = result.filter((i) => normalize(i.size).includes(sz));
+    }
+    if (col) {
+      result = result.filter((i) => normalize(i.color).includes(col));
     }
 
     // PRICE FILTER
@@ -278,9 +224,13 @@ const DesignersPage: NextPage<DesignersPageProps> = ({ items }) => {
     return result;
   }, [
     baseItems,
-    selectedCategories,
-    selectedDesigners,
-    selectedConditions,
+    titleQuery,
+    category,
+    designer,
+    condition,
+    material,
+    size,
+    color,
     minPrice,
     maxPrice,
     sortBy,
@@ -313,98 +263,160 @@ const DesignersPage: NextPage<DesignersPageProps> = ({ items }) => {
                 </button>
               </div>
 
-              <div className="filter-block">
-                <h3>Category</h3>
-                <div className="filter-list">
-                  {CATEGORY_OPTIONS.map((cat) => (
-                    <label key={cat} className="filter-option">
-                      <input
-                        type="checkbox"
-                        checked={selectedCategories.includes(cat)}
-                        onChange={() => onCategoryChange(cat)}
-                      />
-                      <span>{cat}</span>
-                    </label>
-                  ))}
+              {/* ✅ Dropdown style: collapsible blocks (saves space) */}
+              <details className="filter-block" open>
+                <summary>Title</summary>
+                <div className="filter-body">
+                  <input
+                    className="text-input"
+                    placeholder="Search title..."
+                    value={titleQuery}
+                    onChange={(e) => setTitleQuery(e.target.value)}
+                  />
                 </div>
-              </div>
+              </details>
 
-              <div className="filter-block">
-                <h3>Designer</h3>
-                <div className="filter-list">
-                  {DESIGNER_OPTIONS.map((name) => (
-                    <label key={name} className="filter-option">
-                      <input
-                        type="checkbox"
-                        checked={selectedDesigners.includes(name)}
-                        onChange={() => onDesignerChange(name)}
-                      />
-                      <span>{name}</span>
-                    </label>
-                  ))}
+              <details className="filter-block">
+                <summary>Category</summary>
+                <div className="filter-body">
+                  <select
+                    className="select"
+                    value={category}
+                    onChange={(e) => setCategory(e.target.value)}
+                  >
+                    <option value="">Any</option>
+                    {CATEGORY_OPTIONS.map((c) => (
+                      <option key={c} value={c}>
+                        {c}
+                      </option>
+                    ))}
+                  </select>
                 </div>
-              </div>
+              </details>
 
-              <div className="filter-block">
-                <h3>Condition</h3>
-                <div className="filter-list">
-                  {CONDITION_OPTIONS.map((cond) => (
-                    <label key={cond} className="filter-option">
-                      <input
-                        type="checkbox"
-                        checked={selectedConditions.includes(cond)}
-                        onChange={() => onConditionChange(cond)}
-                      />
-                      <span>{cond}</span>
-                    </label>
-                  ))}
+              <details className="filter-block">
+                <summary>Designer</summary>
+                <div className="filter-body">
+                  <select
+                    className="select"
+                    value={designer}
+                    onChange={(e) => setDesigner(e.target.value)}
+                  >
+                    <option value="">Any</option>
+                    {(designerOptions || []).map((d) => (
+                      <option key={d} value={d}>
+                        {d}
+                      </option>
+                    ))}
+                  </select>
                 </div>
-              </div>
+              </details>
 
-              <div className="filter-block">
-                <h3>Price</h3>
+              <details className="filter-block">
+                <summary>Material</summary>
+                <div className="filter-body">
+                  {/* ✅ allow typing anything not in list */}
+                  <input
+                    className="text-input"
+                    list="materials-list"
+                    placeholder="Select or type material..."
+                    value={material}
+                    onChange={(e) => setMaterial(e.target.value)}
+                  />
+                  <datalist id="materials-list">
+                    {MATERIAL_OPTIONS.map((m) => (
+                      <option key={m} value={m} />
+                    ))}
+                  </datalist>
+                </div>
+              </details>
 
-                {/* ✅ FIXED: stack Min and Max vertically (Max under Price) */}
-                <div className="price-row">
-                  <div className="price-input">
-                    <span>Min</span>
-                    <input
-                      type="number"
-                      value={minPrice}
-                      onChange={(e) =>
-                        setMinPrice(
-                          e.target.value === ""
-                            ? ""
-                            : Number(e.target.value) || 0
-                        )
-                      }
-                    />
+              <details className="filter-block">
+                <summary>Condition</summary>
+                <div className="filter-body">
+                  <select
+                    className="select"
+                    value={condition}
+                    onChange={(e) => setCondition(e.target.value)}
+                  >
+                    <option value="">Any</option>
+                    {CONDITION_OPTIONS.map((c) => (
+                      <option key={c} value={c}>
+                        {c}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </details>
+
+              <details className="filter-block">
+                <summary>Size</summary>
+                <div className="filter-body">
+                  <input
+                    className="text-input"
+                    placeholder="Type size..."
+                    value={size}
+                    onChange={(e) => setSize(e.target.value)}
+                  />
+                </div>
+              </details>
+
+              <details className="filter-block">
+                <summary>Color</summary>
+                <div className="filter-body">
+                  <input
+                    className="text-input"
+                    placeholder="Type color..."
+                    value={color}
+                    onChange={(e) => setColor(e.target.value)}
+                  />
+                </div>
+              </details>
+
+              <details className="filter-block">
+                <summary>Price</summary>
+                <div className="filter-body">
+                  <div className="price-row">
+                    <div className="price-input">
+                      <span>Min</span>
+                      <input
+                        type="number"
+                        value={minPrice}
+                        onChange={(e) =>
+                          setMinPrice(
+                            e.target.value === ""
+                              ? ""
+                              : Number(e.target.value) || 0
+                          )
+                        }
+                      />
+                    </div>
+
+                    <div className="price-input">
+                      <span>Max</span>
+                      <input
+                        type="number"
+                        value={maxPrice}
+                        onChange={(e) =>
+                          setMaxPrice(
+                            e.target.value === ""
+                              ? ""
+                              : Number(e.target.value) || 0
+                          )
+                        }
+                      />
+                    </div>
                   </div>
 
-                  <div className="price-input">
-                    <span>Max</span>
-                    <input
-                      type="number"
-                      value={maxPrice}
-                      onChange={(e) =>
-                        setMaxPrice(
-                          e.target.value === ""
-                            ? ""
-                            : Number(e.target.value) || 0
-                        )
-                      }
-                    />
-                  </div>
+                  <button
+                    type="button"
+                    className="apply-btn"
+                    onClick={applyFiltersToUrl}
+                  >
+                    Apply Filters
+                  </button>
                 </div>
-
-                <button
-                  type="button"
-                  className="apply-btn"
-                  onClick={applyFiltersToUrl}
-                >
-                  Apply Filters
-                </button>
-              </div>
+              </details>
             </aside>
 
             <section className="results">
@@ -517,124 +529,118 @@ const DesignersPage: NextPage<DesignersPageProps> = ({ items }) => {
           cursor: pointer;
           color: #6b7280;
         }
+
+        /* ✅ dropdown/collapsible filter blocks */
         .filter-block {
           border-top: 1px solid #e5e7eb;
-          padding-top: 12px;
-          margin-top: 12px;
+          padding-top: 10px;
+          margin-top: 10px;
         }
-        .filter-block:first-of-type {
-          border-top: none;
-          padding-top: 0;
-          margin-top: 0;
-        }
-        .filter-block h3 {
-          font-size: 14px;
+        .filter-block summary {
+          cursor: pointer;
           font-weight: 600;
-          margin-bottom: 6px;
+          font-size: 13px;
+          color: #111827;
+          list-style: none;
         }
-        .filter-list {
-          display: flex;
-          flex-direction: column;
-          gap: 4px;
-          font-size: 14px;
+        .filter-block summary::-webkit-details-marker {
+          display: none;
         }
-        .filter-option {
-          display: flex;
-          align-items: center;
-          gap: 8px;
+        .filter-body {
+          margin-top: 10px;
         }
-        .filter-option input {
-          accent-color: #111827;
+        .text-input,
+        .select {
+          width: 100%;
+          border-radius: 12px;
+          border: 1px solid #d1d5db;
+          background: #ffffff;
+          color: #111827;
+          padding: 10px 12px;
+          font-size: 13px;
         }
 
         .price-row {
-          display: flex;
-          flex-direction: column;
+          display: grid;
+          grid-template-columns: 1fr;
           gap: 10px;
-          margin-bottom: 10px;
         }
-        .price-input {
-          display: flex;
-          flex-direction: column;
-          gap: 4px;
-          font-size: 13px;
+        .price-input span {
+          display: block;
+          font-size: 12px;
+          color: #6b7280;
+          margin-bottom: 6px;
         }
         .price-input input {
           width: 100%;
-          box-sizing: border-box;
-          border-radius: 999px;
+          border-radius: 12px;
           border: 1px solid #d1d5db;
-          padding: 6px 10px;
-          font-size: 14px;
+          padding: 10px 12px;
+          font-size: 13px;
+          background: #ffffff;
         }
-
         .apply-btn {
           width: 100%;
-          margin-top: 4px;
+          margin-top: 12px;
           border-radius: 999px;
+          padding: 10px 12px;
+          font-size: 13px;
+          font-weight: 700;
+          border: 1px solid #111827;
           background: #111827;
-          color: white;
-          padding: 8px 12px;
-          border: none;
-          font-size: 14px;
-          font-weight: 500;
+          color: #ffffff;
           cursor: pointer;
         }
-        .results {
-          min-height: 200px;
-        }
+
         .results-header {
           display: flex;
-          align-items: flex-end;
           justify-content: space-between;
+          align-items: flex-end;
           gap: 12px;
-          margin-bottom: 12px;
+          margin-bottom: 18px;
         }
-        .results-header h1 {
-          font-family: Georgia, "Times New Roman", serif;
-          font-size: 26px;
+        h1 {
+          font-family: "Georgia", serif;
+          font-size: 28px;
           margin: 0;
         }
         .results-count {
+          margin: 6px 0 0;
           font-size: 13px;
           color: #6b7280;
-          margin-top: 2px;
         }
         .sort label {
-          font-size: 13px;
           display: flex;
           flex-direction: column;
-          gap: 4px;
+          gap: 6px;
+          font-size: 12px;
+          color: #374151;
         }
         .sort select {
-          border-radius: 999px;
+          border-radius: 12px;
           border: 1px solid #d1d5db;
-          padding: 6px 10px;
-          font-size: 14px;
+          padding: 10px 12px;
+          font-size: 13px;
           background: #ffffff;
         }
         .grid {
           display: grid;
           grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
           gap: 18px;
-          margin-top: 12px;
         }
         .empty-state {
-          margin-top: 32px;
-          border-radius: 16px;
           border: 1px solid #e5e7eb;
+          border-radius: 16px;
           padding: 24px;
-          text-align: center;
-          background: #f9fafb;
+          background: #fafafa;
         }
         .empty-state h2 {
-          margin: 0 0 4px;
-          font-size: 18px;
+          margin: 0 0 6px;
+          font-family: "Georgia", serif;
         }
         .empty-state p {
           margin: 0;
           color: #6b7280;
-          font-size: 14px;
         }
       `}</style>
     </div>
@@ -643,58 +649,71 @@ const DesignersPage: NextPage<DesignersPageProps> = ({ items }) => {
 
 export default DesignersPage;
 
-// --------------------------------------------------
-// SERVER-SIDE DATA LOAD
-// --------------------------------------------------
+export const getServerSideProps: GetServerSideProps<DesignersPageProps> =
+  async () => {
+    try {
+      // listings
+      const snapshot = await adminDb
+        .collection("listings")
+        .where("status", "==", "Live")
+        .get();
 
-export const getServerSideProps: GetServerSideProps<
-  DesignersPageProps
-> = async () => {
-  try {
-    const snapshot = await adminDb
-      .collection("listings")
-      .where("status", "==", "Live")
-      .get();
+      const items: ItemWithMeta[] = snapshot.docs.map((doc) => {
+        const d: any = doc.data() || {};
 
-    const items: ItemWithMeta[] = snapshot.docs.map((doc) => {
-      const d: any = doc.data() || {};
+        const brandRaw =
+          d.brand || d.designer || d.designerName || d.brandName || "";
+        const categoryRaw = d.category || d.categoryLabel || d.categoryName || "";
+        const conditionRaw =
+          d.condition || d.conditionLabel || d.itemCondition || d.conditionText || "";
+        const materialRaw =
+          d.material || d.fabric || d.fabrication || d.materialName || "";
+        const sizeRaw = d.size || d.itemSize || "";
+        const colorRaw = d.color || d.colour || "";
 
-      // try all possible field names used in forms
-      const brandRaw =
-        d.brand || d.designer || d.designerName || d.brandName || "";
-      const categoryRaw =
-        d.category || d.categoryLabel || d.categoryName || "";
-      const conditionRaw =
-        d.condition ||
-        d.conditionLabel ||
-        d.itemCondition ||
-        d.conditionText ||
-        "";
+        const priceNum =
+          typeof d.price === "number" ? d.price : Number(d.price || 0);
+        const price = priceNum ? `US$${priceNum.toLocaleString("en-US")}` : "";
 
-      const priceNum =
-        typeof d.price === "number" ? d.price : Number(d.price || 0);
-      const price = priceNum
-        ? `US$${priceNum.toLocaleString("en-US")}`
-        : "";
+        return {
+          id: doc.id,
+          title: d.title || "",
+          brand: brandRaw,
+          category: categoryRaw,
+          condition: conditionRaw,
+          material: materialRaw,
+          size: sizeRaw,
+          color: colorRaw,
+          price,
+          image: pickImage(d),
+          href: `/product/${doc.id}`,
+          priceValue: priceNum || 0,
+        };
+      });
 
-      const image = pickImage(d);
+      // designers list (source of truth = designers collection)
+      let designerOptions: string[] = [];
+      try {
+        const ds = await adminDb.collection("designers").get();
+        designerOptions = ds.docs
+          .map((x) => {
+            const data = x.data() as any;
+            const name = String(data?.name ?? x.id).trim();
+            const active = data?.active !== false;
+            return active ? name : "";
+          })
+          .filter(Boolean)
+          .sort((a, b) => a.localeCompare(b));
+      } catch {
+        // fallback: unique brands from items
+        designerOptions = Array.from(
+          new Set(items.map((i) => (i.brand || "").trim()).filter(Boolean))
+        ).sort((a, b) => a.localeCompare(b));
+      }
 
-      return {
-        id: doc.id,
-        title: d.title || "",
-        brand: brandRaw,
-        category: categoryRaw,
-        condition: conditionRaw,
-        price,
-        image,
-        href: `/product/${doc.id}`,
-        priceValue: priceNum || 0,
-      };
-    });
-
-    return { props: { items } };
-  } catch (err) {
-    console.error("Error loading designers listings", err);
-    return { props: { items: [] } };
-  }
-};
+      return { props: { items, designerOptions } };
+    } catch (err) {
+      console.error("Error loading designers listings", err);
+      return { props: { items: [], designerOptions: [] } };
+    }
+  };
