@@ -1,6 +1,7 @@
 // FILE: /hooks/useRequireAdmin.ts
 import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
+import { isRoleSessionValid, touchRoleSession } from "../utils/roleSession";
 
 type AdminGuardState = "checking" | "allowed" | "denied";
 
@@ -15,12 +16,11 @@ export function useRequireAdmin() {
   useEffect(() => {
     if (typeof window === "undefined") return;
 
-    const role = window.localStorage.getItem("ff-role");
-
-    if (role === "management") {
+    if (isRoleSessionValid("management")) {
+      // Sliding session: extend on every protected page load
+      touchRoleSession();
       setState("allowed");
     } else {
-      // If not an admin, redirect to the login page
       setState("denied");
       const from = encodeURIComponent(router.asPath);
       router.replace(`/management/login?from=${from}`);
