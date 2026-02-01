@@ -20,8 +20,8 @@ type BuyerMessage = {
   text: string;
   linkText?: string;
   linkUrl?: string;
-  imageUrl?: string; 
-  videoUrl?: string; 
+  imageUrl?: string;
+  videoUrl?: string;
   type: "info" | "promo" | "alert";
   active?: boolean;
   createdAt?: number;
@@ -34,12 +34,14 @@ type HomeProps = {
   activeMessages: BuyerMessage[];
 };
 
+// Helper to normalise price
 const formatPrice = (raw: any): string => {
   const num = typeof raw === "number" ? raw : Number(raw || 0);
   if (!num) return "";
   return `US$${num.toLocaleString()}`;
 };
 
+// Helper to pick first usable image
 const pickImage = (data: any): string => {
   if (data.image_url) return data.image_url;
   if (data.imageUrl) return data.imageUrl;
@@ -84,6 +86,34 @@ const Home: NextPage<HomeProps> = ({
               can shop with confidence.
             </p>
 
+            {/* STAT CARDS */}
+            <div className="hero-stats">
+              <div className="stat-card">
+                <p className="stat-label">Live listings</p>
+                <p className="stat-value">
+                  {newArrivals.length > 20 ? "20+" : newArrivals.length}
+                </p>
+                <p className="stat-note">Updated in real time</p>
+              </div>
+              <div className="stat-card">
+                <p className="stat-label">New this week</p>
+                <p className="stat-value">
+                  {newArrivals.length > 10 ? "10+" : newArrivals.length}
+                </p>
+                <p className="stat-note">Fresh drops &amp; finds</p>
+              </div>
+              <div className="stat-card">
+                <p className="stat-label">Designers</p>
+                <p className="stat-value">{featuredDesigners.length}+</p>
+                <p className="stat-note">From Chanel to Rolex</p>
+              </div>
+              <div className="stat-card">
+                <p className="stat-label">Authentication</p>
+                <p className="stat-value">100%</p>
+                <p className="stat-note">Every piece reviewed</p>
+              </div>
+            </div>
+
             <div className="hero-actions">
               <Link href="/category/new-arrivals" className="btn-primary">
                 Browse New Arrivals
@@ -94,6 +124,7 @@ const Home: NextPage<HomeProps> = ({
             </div>
           </div>
 
+          {/* SNAPSHOT CARD */}
           <aside className="snapshot-card">
             <h2>Your Famous Finds Snapshot</h2>
             <p className="snapshot-view">Guest view</p>
@@ -126,13 +157,13 @@ const Home: NextPage<HomeProps> = ({
           </aside>
         </section>
 
-        {/* TWO-ROW DYNAMIC DESIGNER GRID */}
+        {/* FEATURED DESIGNERS SECTION - RE-STABILIZED */}
         <section className="home-featured-designers mt-10">
           <header className="home-feed-header">
             <h2 className="home-feed-title">Featured Designers</h2>
           </header>
 
-          <div className="designer-grid-layout">
+          <div className="designer-scroll-container">
             {featuredDesigners.length > 0 ? (
               featuredDesigners.map((name) => (
                 <Link
@@ -144,12 +175,12 @@ const Home: NextPage<HomeProps> = ({
                 </Link>
               ))
             ) : (
-              <p className="text-sm text-gray-400">No designers found.</p>
+              <p className="text-sm text-gray-400">Loading designers...</p>
             )}
           </div>
         </section>
 
-        {/* DYNAMIC MESSAGE BILLBOARD */}
+        {/* MESSAGE BOARD */}
         {activeMessages && activeMessages.length > 0 && (
           <section className="buyer-message-board-container">
             <div className="buyer-message-board billboard">
@@ -157,7 +188,6 @@ const Home: NextPage<HomeProps> = ({
                 <h2>Announcements</h2>
                 <p>Latest messages from Famous Finds</p>
               </div>
-
               <div className="billboard-body">
                 {activeMessages.map((msg) => (
                   <div key={msg.id} className={`billboard-item ${msg.type}`}>
@@ -178,7 +208,9 @@ const Home: NextPage<HomeProps> = ({
                             </a>
                           </p>
                         )}
-                        {msg.imageUrl && <img src={msg.imageUrl} alt="" className="message-media-image" />}
+                        {msg.imageUrl && (
+                          <img src={msg.imageUrl} alt="" className="message-media-image" />
+                        )}
                       </div>
                     )}
                   </div>
@@ -189,19 +221,11 @@ const Home: NextPage<HomeProps> = ({
         )}
 
         <section className="home-section">
-          <DemoGrid
-            title="New Arrivals"
-            subtitle="Just in – freshly listed pieces from our vetted sellers."
-            products={newArrivals}
-          />
+          <DemoGrid title="New Arrivals" products={newArrivals} />
         </section>
 
         <section className="home-section">
-          <DemoGrid
-            title="Trending Now"
-            subtitle="Most-viewed and most-saved listings this week."
-            products={trending}
-          />
+          <DemoGrid title="Trending Now" products={trending} />
         </section>
       </main>
 
@@ -213,30 +237,29 @@ const Home: NextPage<HomeProps> = ({
         .wrap { max-width: 1200px; margin: 0 auto; padding: 32px 16px 64px; }
         .hero { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 32px; margin-bottom: 40px; }
         @media (max-width: 900px) { .hero { grid-template-columns: 1fr; } }
-        
+        .eyebrow { text-transform: uppercase; letter-spacing: 0.12em; font-size: 11px; color: #6b7280; margin-bottom: 8px; }
         h1 { font-size: 36px; line-height: 1.1; margin: 0 0 12px; font-family: "Georgia", serif; }
-        .hero-sub { color: #4b5563; max-width: 520px; margin-bottom: 24px; }
+        .hero-sub { color: #4b5563; max-width: 520px; margin-bottom: 20px; }
+        .hero-stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 20px; }
+        @media (max-width: 900px) { .hero-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+        .stat-card { background: #ffffff; border-radius: 16px; padding: 12px 14px; border: 1px solid #e5e7eb; }
+        .stat-label { font-size: 11px; text-transform: uppercase; color: #6b7280; }
+        .stat-value { font-size: 18px; font-weight: 600; margin: 4px 0; }
+        .stat-note { font-size: 12px; color: #9ca3af; }
         
-        /* Two-Row Grid Implementation */
-        .designer-grid-layout {
+        /* TWO-ROW GRID LAYOUT */
+        .designer-scroll-container {
           display: flex;
-          flex-wrap: wrap;
+          flex-flow: column wrap;
           gap: 12px;
           margin-top: 16px;
-          max-height: 104px; /* Fixed height to force exactly 2 rows */
-          overflow-y: hidden;
+          height: 110px; 
           overflow-x: auto;
-          padding-bottom: 8px;
-          scrollbar-width: thin;
+          overflow-y: hidden;
+          padding-bottom: 12px;
         }
-
-        .designer-grid-layout::-webkit-scrollbar {
-          height: 4px;
-        }
-        .designer-grid-layout::-webkit-scrollbar-thumb {
-          background: #e5e7eb;
-          border-radius: 4px;
-        }
+        .designer-scroll-container::-webkit-scrollbar { height: 4px; }
+        .designer-scroll-container::-webkit-scrollbar-thumb { background: #e5e7eb; border-radius: 4px; }
 
         :global(.luxury-pill) {
           white-space: nowrap;
@@ -248,16 +271,10 @@ const Home: NextPage<HomeProps> = ({
           color: #111;
           transition: all 0.2s ease;
         }
-        :global(.luxury-pill:hover) {
-          border-color: #111;
-          box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-        }
 
         .snapshot-card { background: #ffffff; border-radius: 24px; padding: 20px 22px; border: 1px solid #e5e7eb; box-shadow: 0 18px 40px rgba(15, 23, 42, 0.08); align-self: flex-start; }
-        .btn-primary { background: #111827; color: #ffffff; padding: 12px 24px; border-radius: 999px; text-decoration: none; font-size: 14px; font-weight: 500; }
-        .btn-secondary { background: #ffffff; border: 1px solid #d1d5db; color: #111827; padding: 12px 24px; border-radius: 999px; text-decoration: none; font-size: 14px; font-weight: 500; }
-        
-        .home-feed-title { font-size: 24px; font-weight: 500; font-family: "Georgia", serif; margin: 0; }
+        .btn-primary { background: #111827; color: #ffffff; padding: 10px 18px; border-radius: 999px; text-decoration: none; }
+        .btn-secondary { background: #ffffff; border: 1px solid #d1d5db; color: #111827; padding: 10px 18px; border-radius: 999px; text-decoration: none; }
       `}</style>
     </div>
   );
@@ -271,24 +288,27 @@ export const getServerSideProps: GetServerSideProps<HomeProps> = async () => {
     .where("status", "==", "Live")
     .get();
 
-  const items = snapshot.docs.map((doc) => {
+  const allItems = snapshot.docs.map((doc) => {
     const data = doc.data() as any;
     return {
       id: doc.id,
       brand: data.brand || "",
+      price: formatPrice(data.price),
+      image: pickImage(data),
+      href: `/product/${doc.id}`,
       viewCount: data.viewCount || 0,
-      createdAt: data.createdAt
+      createdAt: data.createdAt,
     };
   });
 
-  // Dynamically fetch all unique brands from the database listings
-  const featuredDesigners = Array.from(new Set(items.map((i) => i.brand).filter(Boolean))).sort();
+  // Correctly extract and sort unique brands for the list
+  const featuredDesigners = Array.from(new Set(allItems.map((i) => i.brand).filter(Boolean))).sort();
 
-  const newArrivals = items
+  const newArrivals = [...allItems]
     .sort((a, b) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0))
     .slice(0, 8);
 
-  const trending = items
+  const trending = [...allItems]
     .sort((a, b) => (b.viewCount || 0) - (a.viewCount || 0))
     .slice(0, 8);
 
@@ -301,8 +321,8 @@ export const getServerSideProps: GetServerSideProps<HomeProps> = async () => {
 
   return {
     props: {
-      trending: [], // Simplified for layout check
-      newArrivals: [], // Simplified for layout check
+      trending,
+      newArrivals,
       featuredDesigners,
       activeMessages,
     },
