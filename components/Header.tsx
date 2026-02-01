@@ -15,7 +15,7 @@ export default function Header() {
 
   const categoryNav = [
     { label: "NEW ARRIVALS", href: "/category/new-arrivals" },
-    { label: "CATALOGUE", href: "/designers" },
+    { label: "CATALOGUE", href: "/catalogue" },
     { label: "DESIGNERS", href: "/designers" },
     { label: "WOMEN", href: "/category/women" },
     { label: "BAGS", href: "/category/bags" },
