@@ -22,6 +22,7 @@ type Item = {
   otherDesignerName?: string;
   title?: string;
   category?: string;
+  material?: string;
   condition?: string;
   size?: string;
   color?: string;
@@ -61,6 +62,30 @@ const CATEGORIES = [
   "Men",
   "Jewelry",
   "Watches",
+];
+
+const MATERIALS = [
+  "Leather",
+  "Exotic Leather",
+  "Silk",
+  "Cashmere",
+  "Wool",
+  "Linen",
+  "Cotton",
+  "Cotton Blend",
+  "Denim",
+  "Velvet",
+  "Suede",
+  "Canvas",
+  "Metal",
+  "Gold",
+  "Silver",
+  "Plated Metal",
+  "Ceramic",
+  "Crystal",
+  "Resin",
+  "Synthetic",
+  "Other",
 ];
 
 const SOURCES = [
@@ -231,12 +256,13 @@ export default function BulkSimple() {
           title: it.title?.trim() || "",
           brand,
           category: it.category || "",
+          material: it.material || "",
           condition: it.condition || "",
           size: it.size || "",
           color: it.color || "",
           price: numericPrice,
           purchase_source: it.purchaseSource || "",
-          purchase_proof: it.purchaseProof || "", // FIXED: it.purchaseProof instead of it.purchase_proof
+          purchase_proof: it.purchaseProof || "", 
           serial_number: it.serial || "",
           imageDataUrl: it.imageDataUrl || null,
         };
@@ -245,6 +271,7 @@ export default function BulkSimple() {
       title: string;
       brand: string;
       category: string;
+      material?: string;
       condition: string;
       size?: string;
       color?: string;
@@ -419,6 +446,21 @@ export default function BulkSimple() {
                     </option>
                   ))}
                 </select>
+              </label>
+
+              <label>
+                <span>Material</span>
+                <input
+                  list="materials-list"
+                  value={it.material || ""}
+                  onChange={(e) => update(idx, { material: e.target.value })}
+                  placeholder="Select or type (e.g., Silk, Leather, Alpaca)"
+                />
+                <datalist id="materials-list">
+                  {MATERIALS.map((m) => (
+                    <option key={m} value={m} />
+                  ))}
+                </datalist>
               </label>
 
               <label>
