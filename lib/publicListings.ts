@@ -1,170 +1,175 @@
 // FILE: /lib/publicListings.ts
-// Public listings loader (safe for BOTH server + browser).
-// IMPORTANT: Uses firebaseClient (NOT firebaseAdmin), because pages can call this on the client.
-
-import { collection, getDocs, limit, orderBy, query } from "firebase/firestore";
+// Public listings loader for category pages + homepage
+// Works with Firestore web SDK and performs robust normalization
+import {
+  collection,
+  getDocs,
+  query,
+  where,
+  orderBy,
+  limit,
+} from "firebase/firestore";
 import { db } from "../utils/firebaseClient";
 
 export type PublicListing = {
   id: string;
-  title?: string;
+  title: string;
   brand?: string;
-  designer?: string;
-  price?: number | string;
+  price?: number;
   currency?: string;
-
-  category?: string;
-  condition?: string;
-
   images?: string[];
-  imageUrls?: string[];
-  image_url?: string;
-  imageUrl?: string;
-  mainImageUrl?: string;
-  coverImageUrl?: string;
-  thumbnailUrl?: string;
-
-  status?: string;
-  sold?: boolean;
-  isSold?: boolean;
-  soldAt?: any;
-
+  image?: string;
+  condition?: string;
+  category?: string;
   createdAt?: any;
-  updatedAt?: any;
-
-  [key: string]: any;
+  isSold?: boolean;
+  status?: string;
 };
 
-const CANON = new Set(["WOMEN", "BAGS", "MEN", "JEWELRY", "WATCHES"]);
+type GetPublicListingsOpts = {
+  category?: string; // slug e.g. "women" | "jewelry" | "new-arrivals"
+  take?: number;
+};
 
-function normCategory(v: any): string {
-  const s = String(v ?? "").trim().toUpperCase();
-  if (!s) return "";
+const CATEGORY_ALIASES: Record<string, string> = {
+  women: "WOMEN",
+  woman: "WOMEN",
+  ladies: "WOMEN",
+  bags: "BAGS",
+  bag: "BAGS",
+  men: "MEN",
+  mens: "MEN",
+  jewelry: "JEWELRY",
+  jewellery: "JEWELRY",
+  watches: "WATCHES",
+  watch: "WATCHES",
+  "new-arrivals": "",
+  new: "",
+};
 
-  // common variants / typos
-  if (s === "WOMAN") return "WOMEN";
-  if (s === "BAG") return "BAGS";
-  if (s === "WATCH") return "WATCHES";
-
-  // Jewelry variants + common typo
-  if (s === "JEWELLERY" || s === "JEWELERY" || s === "JEWELRY") return "JEWELRY";
-
-  return s;
-}
-
-function normalizeSlug(slug: string): string {
-  const s = String(slug || "").trim().toLowerCase();
-  if (!s) return "";
-
-  if (s === "new-arrivals" || s === "catalogue") return "";
-
-  if (s === "women") return "WOMEN";
-  if (s === "bags") return "BAGS";
-  if (s === "men" || s === "mens") return "MEN";
-  if (s === "jewelry" || s === "jewellery") return "JEWELRY";
-  if (s === "watches" || s === "watch") return "WATCHES";
-
-  // allow already-normalized values too
-  return normCategory(s);
-}
-
-function pickBestImage(l: any): string {
-  const single =
-    l.image_url ||
-    l.imageUrl ||
-    l.mainImageUrl ||
-    l.coverImageUrl ||
-    l.thumbnailUrl ||
-    l.image;
-
-  if (typeof single === "string" && single.trim()) return single.trim();
-
-  const arr =
-    (Array.isArray(l.images) && l.images) ||
-    (Array.isArray(l.imageUrls) && l.imageUrls) ||
-    (Array.isArray(l.image_urls) && l.image_urls) ||
-    (Array.isArray(l.photos) && l.photos) ||
-    (Array.isArray(l.photoUrls) && l.photoUrls) ||
-    [];
-
-  if (arr.length > 0 && typeof arr[0] === "string") return String(arr[0]).trim();
+function normCategory(input: any): string {
+  if (!input) return "";
+  if (typeof input === "string") {
+    const trimmed = input.trim();
+    if (!trimmed) return "";
+    const lowered = trimmed.toLowerCase();
+    const aliased = CATEGORY_ALIASES[lowered] ?? trimmed.toUpperCase();
+    // Handle British spelling:
+    if (aliased === "JEWELLERY") return "JEWELRY";
+    return aliased;
+  }
+  if (typeof input === "object") {
+    // handle select { value, label } or { name }
+    const v = (input.value || input.label || input.name || "").toString();
+    return normCategory(v);
+  }
   return "";
 }
 
-function isSold(l: any): boolean {
-  return Boolean(l?.isSold || l?.sold || l?.soldAt);
-}
-
-function isPublicStatus(l: any): boolean {
-  const s = String(l?.status ?? "").trim().toLowerCase();
-
-  // IMPORTANT: we allow missing status + pending during your migration/testing
-  if (!s) return true;
-
-  // allow common "live" statuses
-  if (["approved", "published", "live", "active", "listed", "pending"].includes(s)) return true;
-
-  return false;
+function normalizeSlug(input: string): string {
+  const c = normCategory(input);
+  if (!c) return "";
+  return c.toLowerCase() === "new arrivals" ? "new-arrivals" : c.toLowerCase();
 }
 
 function extractCategory(l: any): string {
-  const raw =
-    l.category ??
-    l.categorySlug ??
-    l.menuCategory ??
-    l.menu_category ??
-    l.productCategory ??
-    l.department ??
-    l.meta?.category ??
-    l.item?.category ??
-    "";
+  // Prefer the explicit canonical field first.
+  const direct = normCategory(l?.category);
+  if (direct) return direct;
 
-  return normCategory(raw);
+  // Then prefer slug/name variants BEFORE legacy menuCategory (which has historically been wrong).
+  const slugFirst = normCategory(
+    l?.categorySlug ||
+      l?.category_slug ||
+      l?.categoryName ||
+      l?.menu_category_slug ||
+      l?.menuCategorySlug ||
+      l?.menu_category
+  );
+  if (slugFirst) return slugFirst;
+
+  // Legacy fallbacks (can be wrong if old admin UI wrote WATCHES everywhere).
+  const legacy = normCategory(l?.menuCategory);
+  if (legacy) return legacy;
+
+  // Last resort: attempt to derive from title/description keywords.
+  const hint = (l?.title || l?.name || l?.description || "").toString().toLowerCase();
+  if (hint.includes("watch")) return "WATCHES";
+  if (hint.includes("ring") || hint.includes("bracelet") || hint.includes("necklace") || hint.includes("earring"))
+    return "JEWELRY";
+  if (hint.includes("bag") || hint.includes("handbag") || hint.includes("tote") || hint.includes("clutch"))
+    return "BAGS";
+  return "";
 }
 
-function pickPrice(l: any): number {
-  const p = l?.priceUsd ?? l?.price ?? l?.pricing?.amount ?? 0;
-  if (typeof p === "number") return Number.isFinite(p) ? p : 0;
-  if (typeof p === "string") {
-    const n = Number(p.replace(/[^0-9.]/g, ""));
-    return Number.isFinite(n) ? n : 0;
+function pickBestImage(l: any): string | undefined {
+  const imgs = Array.isArray(l?.images) ? l.images : [];
+  if (imgs.length) return imgs[0];
+  if (typeof l?.image === "string" && l.image) return l.image;
+  return undefined;
+}
+
+function isVisibleListing(l: any): boolean {
+  // Sold should NOT appear
+  if (l?.isSold === true) return false;
+  if (typeof l?.status === "string") {
+    const s = l.status.toLowerCase();
+    if (s === "sold" || s === "removed" || s === "deleted") return false;
+    // If you use "active" / "published", keep those
   }
-  return 0;
+  return true;
 }
 
-export async function getPublicListings(opts?: {
-  category?: string;
-  take?: number;
-}): Promise<PublicListing[]> {
-  const take = Math.max(1, Math.min(1000, Number(opts?.take ?? 200)));
-  const want = normalizeSlug(opts?.category ?? "");
+export async function getPublicListings(
+  opts: GetPublicListingsOpts = {}
+): Promise<PublicListing[]> {
+  if (!db) {
+    // Firebase client not configured; return empty list instead of crashing.
+    return [];
+  }
 
-  const col = collection(db, "listings");
-  const q = query(col, orderBy("createdAt", "desc"), limit(take));
+  const categorySlug = normalizeSlug(opts.category || "");
+  const take = typeof opts.take === "number" ? opts.take : 200;
+
+  // We query broadly (published/active) and then normalize/filter client-side.
+  // This avoids Firestore OR queries across legacy fields.
+  let q = query(collection(db, "listings"), orderBy("createdAt", "desc"), limit(take));
+
+  // Optional: If your schema has a strict visibility flag, uncomment:
+  // q = query(collection(db, "listings"), where("isPublished", "==", true), orderBy("createdAt", "desc"), limit(take));
+
   const snap = await getDocs(q);
 
-  const all = snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) })) as any[];
+  const rows: PublicListing[] = [];
+  snap.forEach((doc) => {
+    const d: any = doc.data() || {};
+    const cat = extractCategory(d);
 
-  const normalized = all
-    .filter((l) => isPublicStatus(l))
-    .filter((l) => !isSold(l))
-    .map((l) => {
-      const cat = extractCategory(l);
-      const img = pickBestImage(l);
+    if (!isVisibleListing(d)) return;
 
-      return {
-        ...l,
-        id: l.id,
-        category: cat,
-        imageUrl: img,
-        price: pickPrice(l),
-      } as PublicListing;
+    const normalizedSlug = normalizeSlug(cat);
+    const matchesCategory =
+      !categorySlug || categorySlug === "new-arrivals"
+        ? true
+        : normalizedSlug === categorySlug;
+
+    if (!matchesCategory) return;
+
+    rows.push({
+      id: doc.id,
+      title: d.title || d.name || "Untitled",
+      brand: d.brand || d.designer || d.maker,
+      price: typeof d.price === "number" ? d.price : Number(d.price) || undefined,
+      currency: d.currency || "USD",
+      images: Array.isArray(d.images) ? d.images : undefined,
+      image: pickBestImage(d),
+      condition: d.condition,
+      category: cat,
+      createdAt: d.createdAt,
+      isSold: d.isSold,
+      status: d.status,
     });
+  });
 
-  // Apply category filter safely
-  if (want && CANON.has(want)) {
-    return normalized.filter((l) => normCategory(l.category) === want);
-  }
-
-  return normalized;
+  return rows;
 }
