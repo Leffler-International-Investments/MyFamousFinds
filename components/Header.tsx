@@ -7,6 +7,7 @@ export default function Header() {
   const [vipUser, setVipUser] = useState<User | null>(null);
 
   useEffect(() => {
+    if (!auth) return;
     const unsub = onAuthStateChanged(auth, (user) => setVipUser(user));
     return () => unsub();
   }, []);
