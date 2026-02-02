@@ -8,8 +8,7 @@ import { getAuth } from "firebase/auth";
  *
  * - Uses ONLY environment variables
  * - NO hardcoded keys
- * - NO fallback
- * - Safe after transfer (Dan → Ariel)
+ * - NO throw at import-time (prevents Vercel/SSR build crashes)
  *
  * REQUIRED env vars (Vercel):
  * NEXT_PUBLIC_FIREBASE_API_KEY
@@ -19,29 +18,31 @@ import { getAuth } from "firebase/auth";
  */
 
 const firebaseConfig = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY!,
-  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN!,
-  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID!,
+  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
   storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
   messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID!,
+  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
   measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID,
 };
 
-if (
-  !firebaseConfig.apiKey ||
-  !firebaseConfig.authDomain ||
-  !firebaseConfig.projectId ||
-  !firebaseConfig.appId
-) {
-  throw new Error(
-    "Firebase client env vars missing. Set NEXT_PUBLIC_FIREBASE_* in Vercel."
-  );
-}
+const hasRequired =
+  !!firebaseConfig.apiKey &&
+  !!firebaseConfig.authDomain &&
+  !!firebaseConfig.projectId &&
+  !!firebaseConfig.appId;
 
-const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
+// ✅ Used by pages to avoid crashing when env vars are not configured.
+export const firebaseClientReady: boolean = hasRequired;
 
-export const db = getFirestore(app);
-export const auth = getAuth(app);
+// NOTE: exported as non-null (with any fallback) to avoid TypeScript breakage across the codebase.
+// Pages that run in environments without env vars should check `firebaseClientReady` first.
+const app = hasRequired
+  ? (getApps().length ? getApp() : initializeApp(firebaseConfig as any))
+  : (null as any);
+
+export const db = hasRequired ? getFirestore(app) : (null as any);
+export const auth = hasRequired ? getAuth(app) : (null as any);
+
 export default app;
-;
