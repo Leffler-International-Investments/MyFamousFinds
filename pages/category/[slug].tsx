@@ -37,10 +37,13 @@ export default function CategoryPage({
   pageSlug: string;
   initialItems: ProductLike[];
 }) {
-  const [items, setItems] = useState<ProductLike[]>(initialItems || []);
-  const title = safeTitle(pageSlug);
+  // IMPORTANT:
+  // Keep a MASTER list that never changes.
+  // Filters always run from master, never from already-filtered list.
+  const master = useMemo(() => initialItems || [], [initialItems]);
 
-  const allItems = useMemo(() => items || [], [items]);
+  const [items, setItems] = useState<ProductLike[]>(master);
+  const title = safeTitle(pageSlug);
 
   return (
     <>
@@ -59,16 +62,10 @@ export default function CategoryPage({
         </div>
 
         <div className="grid gap-6 md:grid-cols-[280px_1fr]">
-          <FiltersPanel
-            pageSlug={pageSlug}
-            allItems={allItems}
-            onFiltered={(filtered) => setItems(filtered)}
-          />
+          <FiltersPanel pageSlug={pageSlug} allItems={master} onFiltered={(filtered) => setItems(filtered)} />
 
           <section>
-            <div className="mb-3 text-sm text-gray-600">
-              {items?.length || 0} results (refreshed)
-            </div>
+            <div className="mb-3 text-sm text-gray-600">{items?.length || 0} results</div>
             <ProductGrid items={items} emptyTitle="No Results" />
           </section>
         </div>
@@ -95,7 +92,6 @@ export const getServerSideProps: GetServerSideProps = async (ctx) => {
       },
     };
   } catch (e) {
-    // Keep the page alive even if loader fails (no firebase-admin fallback here).
     return {
       props: {
         pageSlug,
@@ -104,5 +100,3 @@ export const getServerSideProps: GetServerSideProps = async (ctx) => {
     };
   }
 };
-
-
