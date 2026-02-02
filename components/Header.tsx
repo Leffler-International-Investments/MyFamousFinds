@@ -1,12 +1,17 @@
+// FILE: /components/Header.tsx
+
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { onAuthStateChanged, User } from "firebase/auth";
-import { auth } from "../utils/firebaseClient";
+import { auth, firebaseClientReady } from "../utils/firebaseClient";
 
 export default function Header() {
   const [vipUser, setVipUser] = useState<User | null>(null);
 
   useEffect(() => {
+    // ✅ Prevent client-side crash when Firebase client env vars are missing
+    if (!firebaseClientReady || !auth) return;
+
     const unsub = onAuthStateChanged(auth, (user) => setVipUser(user));
     return () => unsub();
   }, []);
@@ -54,12 +59,10 @@ export default function Header() {
         </nav>
 
         <div className="ff-admin-ports">
-          {/* MANAGEMENT LOGIN - UPDATED TO MATCH SELLER STYLE */}
           <Link href="/management/login" className="admin-button management">
             <span>Management Admin Login</span>
           </Link>
 
-          {/* SELLER LOGIN */}
           <Link href="/seller/login" className="admin-button seller">
             <span>Seller Admin Login</span>
             <span className="sub-text">Become a Seller – Click Here</span>
@@ -139,101 +142,110 @@ export default function Header() {
 
         .ff-admin-ports {
           display: flex;
-          align-items: center;
           gap: 10px;
+          align-items: center;
+          flex-wrap: wrap;
+          justify-content: flex-end;
         }
 
         .admin-button {
-          border-radius: 999px;
-          padding: 10px 20px;
-          font-size: 12px;
-          text-decoration: none;
-          font-weight: 600;
-          display: flex;
-          flex-direction: column;
+          display: inline-flex;
           align-items: center;
           justify-content: center;
-          text-align: center;
-          line-height: 1.2;
+          gap: 8px;
+          border-radius: 999px;
+          padding: 9px 12px;
+          font-size: 12px;
+          font-weight: 800;
+          text-decoration: none;
+          border: 1px solid #e5e7eb;
+          background: #ffffff;
+          color: #111827;
           white-space: nowrap;
-          min-width: 180px; /* Ensures identical width */
-          height: 44px;    /* Ensures identical height */
         }
 
-        .admin-button.vip {
-          background: #22c55e;
-          border: 1px solid #22c55e;
-          color: #ffffff;
-          min-width: auto;
-          height: auto;
-          padding: 8px 16px;
-        }
-
-        /* Shared Black Style for Management and Seller */
-        .admin-button.management,
         .admin-button.seller {
-          background: #111827;
-          color: #ffffff;
-          border: 1px solid #111827;
+          border-color: #fb923c;
+          background: #fff7ed;
+        }
+        .admin-button.management {
+          border-color: #60a5fa;
+          background: #eff6ff;
+        }
+        .admin-button.vip {
+          border-color: #10b981;
+          background: #ecfdf5;
         }
 
         .sub-text {
-          font-size: 10px;
-          opacity: 0.9;
-          font-weight: 400;
+          font-weight: 700;
+          opacity: 0.85;
         }
 
         .ff-header-middle {
           max-width: 1280px;
           margin: 0 auto;
-          padding: 20px 18px 15px;
-          display: flex;
+          padding: 12px 18px;
+          display: grid;
+          grid-template-columns: 1fr auto 1fr;
           align-items: center;
-          justify-content: space-between;
-        }
-
-        .ff-middle-spacer, .ff-search-container {
-          flex: 1;
+          gap: 12px;
         }
 
         .ff-brand-name {
-          letter-spacing: 0.25em;
-          font-size: 32px;
-          font-weight: 800;
+          font-size: 22px;
+          letter-spacing: 0.18em;
+          font-weight: 900;
           text-align: center;
-          flex: 2;
         }
 
-        .ff-search-form {
+        .ff-search-container {
           display: flex;
           justify-content: flex-end;
         }
-
+        .ff-search-form {
+          width: min(320px, 100%);
+        }
         .ff-search-input {
-          width: 240px;
+          width: 100%;
+          border: 1px solid #e5e7eb;
           border-radius: 999px;
-          border: 1px solid #d1d5db;
-          padding: 8px 12px;
-          font-size: 14px;
+          padding: 10px 12px;
+          font-size: 13px;
+          outline: none;
         }
 
         .ff-category-nav {
-          max-width: 1280px;
-          margin: 0 auto;
-          padding: 10px 18px 14px;
+          width: 100%;
+          border-top: 1px solid #f1f5f9;
+          background: #ffffff;
           display: flex;
-          align-items: center;
           justify-content: center;
-          gap: 22px;
+          gap: 16px;
           flex-wrap: wrap;
+          padding: 10px 12px;
+        }
+        .ff-cat-link {
+          text-decoration: none;
+          color: #111827;
+          font-weight: 800;
+          font-size: 12px;
+          letter-spacing: 0.06em;
+        }
+        .ff-cat-link:hover {
+          text-decoration: underline;
         }
 
-        .ff-cat-link {
-          font-size: 12px;
-          font-weight: 600;
-          letter-spacing: 0.12em;
-          color: #111827;
-          text-decoration: none;
+        @media (max-width: 760px) {
+          .ff-header-middle {
+            grid-template-columns: 1fr;
+          }
+          .ff-search-container {
+            justify-content: center;
+          }
+          .ff-brand-name {
+            text-align: center;
+          }
         }
       `}</style>
     </header>
