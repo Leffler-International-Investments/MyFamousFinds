@@ -1,14 +1,14 @@
 // FILE: /utils/firebaseClient.ts
-import { initializeApp, getApps, getApp } from "firebase/app";
+import { initializeApp, getApps, getApp, type FirebaseApp } from "firebase/app";
 import { getFirestore } from "firebase/firestore";
 import { getAuth } from "firebase/auth";
 
 /**
  * Firebase CLIENT (browser) configuration.
  *
- * - Uses ONLY environment variables
- * - NO hardcoded keys
- * - NO throw at import-time (prevents Vercel/SSR build crashes)
+ * - Uses ONLY env vars
+ * - Does NOT throw at import-time (prevents Vercel build crashes)
+ * - Exports named `app` AND `firebaseClientReady` (fixes your compile error)
  *
  * REQUIRED env vars (Vercel):
  * NEXT_PUBLIC_FIREBASE_API_KEY
@@ -33,16 +33,17 @@ const hasRequired =
   !!firebaseConfig.projectId &&
   !!firebaseConfig.appId;
 
-// ✅ Used by pages to avoid crashing when env vars are not configured.
+// ✅ used by pages to render a helpful message instead of crashing build
 export const firebaseClientReady: boolean = hasRequired;
 
-// NOTE: exported as non-null (with any fallback) to avoid TypeScript breakage across the codebase.
-// Pages that run in environments without env vars should check `firebaseClientReady` first.
-const app = hasRequired
+// ✅ IMPORTANT: named export `app` (your designers.tsx expects it)
+export const app: FirebaseApp | null = hasRequired
   ? (getApps().length ? getApp() : initializeApp(firebaseConfig as any))
-  : (null as any);
+  : null;
 
-export const db = hasRequired ? getFirestore(app) : (null as any);
-export const auth = hasRequired ? getAuth(app) : (null as any);
+// Keep existing exports used around the codebase
+export const db = app ? getFirestore(app) : (null as any);
+export const auth = app ? getAuth(app) : (null as any);
 
-export default app;
+// Keep default export for any pages that do: import app from ".../firebaseClient"
+export default app as any;
