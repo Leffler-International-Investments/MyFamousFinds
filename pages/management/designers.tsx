@@ -5,7 +5,7 @@ import Head from "next/head";
 import { useMemo, useState } from "react";
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
-import { app as firebaseApp } from "../../utils/firebaseClient";
+import { app as firebaseApp, firebaseClientReady } from "../../utils/firebaseClient";
 import {
   getFirestore,
   collection,
@@ -44,6 +44,20 @@ const ManagementDesigners: NextPage = () => {
   const [newName, setNewName] = useState("");
   const [newGroup, setNewGroup] = useState<"watches" | "fashion">("fashion");
   const [newFeatured, setNewFeatured] = useState(false);
+
+  if (!firebaseClientReady) {
+    return (
+      <>
+        <Header />
+        <main className="mx-auto max-w-4xl px-4 py-8">
+          <div className="rounded-xl border border-gray-200 bg-white p-6">
+            Firebase env vars are not available in this build environment (Preview/Prod mismatch).
+          </div>
+        </main>
+        <Footer />
+      </>
+    );
+  }
 
   async function load() {
     setErr("");
@@ -228,5 +242,9 @@ const ManagementDesigners: NextPage = () => {
     </>
   );
 };
+
+export async function getServerSideProps() {
+  return { props: {} };
+}
 
 export default ManagementDesigners;
