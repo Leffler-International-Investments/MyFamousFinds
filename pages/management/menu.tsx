@@ -4,7 +4,7 @@ import Head from "next/head";
 import Link from "next/link";
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
-import firebaseApp from "../../utils/firebaseClient";
+import { db } from "../../utils/firebaseClient";
 import {
   getFirestore,
   collection,
@@ -44,7 +44,7 @@ const slugify = (s: string) =>
 
 export default function MasterCategoryLibraryPage() {
   const { loading } = useRequireAdmin();
-  const db = useMemo(() => getFirestore(firebaseApp), []);
+  const firestoreDb = useMemo(() => db, []);
   const [categories, setCategories] = useState<Category[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [initialLoading, setInitialLoading] = useState(true);
@@ -65,7 +65,7 @@ export default function MasterCategoryLibraryPage() {
         setInitialLoading(true);
         setError(null);
         // Note: Ensure you have an index for "position" in Firestore if needed
-        const qRef = query(collection(db, "menuCategories"), orderBy("position"));
+        const qRef = query(collection(firestoreDb, "menuCategories"), orderBy("position"));
         const snap = await getDocs(qRef);
         const list: Category[] = snap.docs.map((d) => {
           const data = d.data() as any;
@@ -98,7 +98,7 @@ export default function MasterCategoryLibraryPage() {
     };
 
     load();
-  }, [db, loading]);
+  }, [firestoreDb, loading]);
 
   const handleCategoryFieldChange = async (
     id: string,
@@ -120,7 +120,7 @@ export default function MasterCategoryLibraryPage() {
         )
       );
 
-      const ref = doc(db, "menuCategories", id);
+      const ref = doc(firestoreDb, "menuCategories", id);
       const update: any = {};
       if (field === "name") {
         update.name = value;
@@ -144,7 +144,7 @@ export default function MasterCategoryLibraryPage() {
       setCategories((prev) =>
         prev.map((c) => (c.id === id ? { ...c, active: next } : c))
       );
-      await updateDoc(doc(db, "menuCategories", id), { active: next });
+      await updateDoc(doc(firestoreDb, "menuCategories", id), { active: next });
     } catch (err) {
       console.error("Error toggling active", err);
       setError("Could not update active flag.");
@@ -154,7 +154,7 @@ export default function MasterCategoryLibraryPage() {
   const handleDeleteCategory = async (id: string) => {
     if (!window.confirm("Delete this category and all its sub-menus?")) return;
     try {
-      await deleteDoc(doc(db, "menuCategories", id));
+      await deleteDoc(doc(firestoreDb, "menuCategories", id));
       setCategories((prev) => prev.filter((c) => c.id !== id));
     } catch (err) {
       console.error("Error deleting category", err);
@@ -176,7 +176,7 @@ export default function MasterCategoryLibraryPage() {
         active: true,
         submenus: [] as Submenu[],
       };
-      const ref = await addDoc(collection(db, "menuCategories"), payload);
+      const ref = await addDoc(collection(firestoreDb, "menuCategories"), payload);
       setCategories((prev) =>
         [...prev, { id: ref.id, ...payload }].sort(
           (a, b) => a.position - b.position
@@ -225,7 +225,7 @@ export default function MasterCategoryLibraryPage() {
           c.id === cat.id ? { ...c, submenus: updatedSubs } : c
         )
       );
-      await updateDoc(doc(db, "menuCategories", cat.id), {
+      await updateDoc(doc(firestoreDb, "menuCategories", cat.id), {
         submenus: updatedSubs,
       });
       setSubmenuDrafts((prev) => ({ ...prev, [cat.id]: { label: "", href: "" } }));
@@ -244,7 +244,7 @@ export default function MasterCategoryLibraryPage() {
           c.id === cat.id ? { ...c, submenus: updatedSubs } : c
         )
       );
-      await updateDoc(doc(db, "menuCategories", cat.id), {
+      await updateDoc(doc(firestoreDb, "menuCategories", cat.id), {
         submenus: updatedSubs,
       });
     } catch (err) {
@@ -416,7 +416,7 @@ export default function MasterCategoryLibraryPage() {
           position: s.position,
         }));
 
-        await addDoc(collection(db, "menuCategories"), {
+        await addDoc(collection(firestoreDb, "menuCategories"), {
           name: def.name,
           slug,
           position: def.position,
@@ -426,7 +426,7 @@ export default function MasterCategoryLibraryPage() {
       }
 
       // reload
-      const qRef = query(collection(db, "menuCategories"), orderBy("position"));
+      const qRef = query(collection(firestoreDb, "menuCategories"), orderBy("position"));
       const snap = await getDocs(qRef);
       const list: Category[] = snap.docs.map((d) => {
         const data = d.data() as any;
