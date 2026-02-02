@@ -3,12 +3,14 @@
 import Head from "next/head";
 import Link from "next/link";
 import type { GetServerSideProps, NextPage } from "next";
+import { useMemo, useState } from "react";
 
 import Header from "../components/Header";
 import Footer from "../components/Footer";
 import DemoGrid from "../components/DemoGrid";
 import HomepageButler from "../components/HomepageButler";
-import { ProductLike } from "../components/ProductCard";
+import ProductCard, { ProductLike } from "../components/ProductCard";
+import ListingFilters from "../components/ListingFilters";
 import { adminDb } from "../utils/firebaseAdmin";
 
 // --------------------------------------------------
@@ -33,29 +35,132 @@ type HomeProps = {
   activeMessages: BuyerMessage[];
 };
 
-// Helper to normalise price
-const formatPrice = (raw: any): string => {
-  const num = typeof raw === "number" ? raw : Number(raw || 0);
-  if (!num) return "";
-  return `US$${num.toLocaleString()}`;
-};
+const CATEGORY_OPTIONS = ["Women", "Bags", "Men", "Jewelry", "Watches"];
+const CONDITION_OPTIONS = ["New", "Excellent", "Very good", "Good"];
+const MATERIAL_OPTIONS = [
+  "Leather",
+  "Silk",
+  "Cashmere",
+  "Wool",
+  "Linen",
+  "Cotton",
+  "Denim",
+  "Suede",
+  "Canvas",
+  "Nylon",
+  "Gold",
+  "Silver",
+  "Stainless Steel",
+  "Diamonds",
+  "Pearls",
+];
 
-// Helper to pick first usable image
-const pickImage = (data: any): string => {
-  if (data.image_url) return data.image_url;
-  if (data.imageUrl) return data.imageUrl;
-  if (data.image) return data.image;
-  if (Array.isArray(data.imageUrls) && data.imageUrls.length > 0) {
-    return data.imageUrls[0];
-  }
-  return "";
-};
+function normalize(v: any): string {
+  return String(v || "").trim().toLowerCase();
+}
 
-// --------------------------------------------------
-// Component
-// --------------------------------------------------
+function parseNum(v: any): number {
+  if (typeof v === "number") return v;
+  const n = Number(String(v || "").replace(/[^0-9.]/g, ""));
+  return Number.isFinite(n) ? n : 0;
+}
 
-const Home: NextPage<HomeProps> = ({ trending, newArrivals, activeMessages }) => {
+const HomePage: NextPage<HomeProps> = ({ trending, newArrivals, activeMessages }) => {
+  // Shared filter state
+  const [titleQuery, setTitleQuery] = useState("");
+  const [category, setCategory] = useState("");
+  const [designer, setDesigner] = useState("");
+  const [material, setMaterial] = useState("");
+  const [condition, setCondition] = useState("");
+  const [size, setSize] = useState("");
+  const [color, setColor] = useState("");
+  const [minPrice, setMinPrice] = useState<number | "">(0);
+  const [maxPrice, setMaxPrice] = useState<number | "">(1000000);
+  const [sortBy, setSortBy] = useState<"newest" | "price-asc" | "price-desc">("newest");
+
+  const resetFilters = () => {
+    setTitleQuery("");
+    setCategory("");
+    setDesigner("");
+    setMaterial("");
+    setCondition("");
+    setSize("");
+    setColor("");
+    setMinPrice(0);
+    setMaxPrice(1000000);
+    setSortBy("newest");
+  };
+
+  // Catalogue preview items (no layout change to existing grids)
+  const previewItems = useMemo(() => {
+    const combined = [...(newArrivals || []), ...(trending || [])];
+
+    // de-dupe by id
+    const seen = new Set<string>();
+    const uniq: any[] = [];
+    for (const p of combined) {
+      const id = String((p as any).id || "");
+      if (!id || seen.has(id)) continue;
+      seen.add(id);
+      uniq.push(p);
+    }
+    return uniq.slice(0, 60); // enough for filtering preview
+  }, [newArrivals, trending]);
+
+  const designerOptions = useMemo(() => {
+    const fromItems = Array.from(
+      new Set(previewItems.map((x: any) => String(x.brand || "").trim()).filter(Boolean))
+    ).sort((a, b) => a.localeCompare(b));
+    return fromItems;
+  }, [previewItems]);
+
+  const filteredPreview = useMemo(() => {
+    let result = [...(previewItems as any[])];
+
+    const tq = normalize(titleQuery);
+    const cat = normalize(category);
+    const des = normalize(designer);
+    const cond = normalize(condition);
+    const mat = normalize(material);
+    const sz = normalize(size);
+    const col = normalize(color);
+
+    if (tq) result = result.filter((x) => normalize(x.title).includes(tq));
+    if (cat) result = result.filter((x) => normalize(x.category) === cat);
+    if (des) result = result.filter((x) => normalize(x.brand) === des);
+    if (cond) result = result.filter((x) => normalize(x.condition) === cond);
+
+    if (mat) result = result.filter((x: any) => normalize(x.material).includes(mat));
+    if (sz) result = result.filter((x: any) => normalize(x.size).includes(sz));
+    if (col) result = result.filter((x: any) => normalize(x.color).includes(col));
+
+    result = result.filter((x: any) => {
+      const pv = parseNum(x.priceValue ?? x.price);
+      const min = typeof minPrice === "number" ? minPrice : 0;
+      const max = typeof maxPrice === "number" ? maxPrice : 999999999;
+      return pv >= min && pv <= max;
+    });
+
+    if (sortBy === "price-asc")
+      result.sort((a: any, b: any) => parseNum(a.priceValue ?? a.price) - parseNum(b.priceValue ?? b.price));
+    if (sortBy === "price-desc")
+      result.sort((a: any, b: any) => parseNum(b.priceValue ?? b.price) - parseNum(a.priceValue ?? a.price));
+
+    return result.slice(0, 12);
+  }, [
+    previewItems,
+    titleQuery,
+    category,
+    designer,
+    material,
+    condition,
+    size,
+    color,
+    minPrice,
+    maxPrice,
+    sortBy,
+  ]);
+
   return (
     <div className="home-wrapper">
       <Head>
@@ -123,59 +228,6 @@ const Home: NextPage<HomeProps> = ({ trending, newArrivals, activeMessages }) =>
           </aside>
         </section>
 
-        {/* ✅ REMOVED: Featured Designers pills from homepage (avoid duplication) */}
-
-        {/* DYNAMIC MESSAGE BILLBOARD */}
-        {activeMessages && activeMessages.length > 0 && (
-          <section className="buyer-message-board-container">
-            <div className="buyer-message-board billboard">
-              <div className="billboard-header">
-                <h2>Announcements</h2>
-                <p>Latest messages from Famous Finds</p>
-              </div>
-
-              <div className="billboard-body">
-                {activeMessages.map((msg) => (
-                  <div key={msg.id} className={`billboard-item ${msg.type}`}>
-                    <p className="billboard-text">
-                      {msg.text}{" "}
-                      {msg.linkText && msg.linkUrl && (
-                        <Link href={msg.linkUrl} className="catalogue-link">
-                          {msg.linkText} →
-                        </Link>
-                      )}
-                    </p>
-
-                    {(msg.videoUrl || msg.imageUrl) && (
-                      <div className="message-media">
-                        {msg.videoUrl && (
-                          <p className="video-link">
-                            <a
-                              href={msg.videoUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                            >
-                              Watch video →
-                            </a>
-                          </p>
-                        )}
-
-                        {msg.imageUrl && (
-                          <img
-                            src={msg.imageUrl}
-                            alt=""
-                            className="message-media-image"
-                          />
-                        )}
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-          </section>
-        )}
-
         {/* NEW ARRIVALS GRID */}
         <section className="home-section">
           <DemoGrid
@@ -193,6 +245,61 @@ const Home: NextPage<HomeProps> = ({ trending, newArrivals, activeMessages }) =>
             products={trending}
           />
         </section>
+
+        {/* ✅ Catalogue Preview (uses the same Designers filter UI) */}
+        <section className="home-section">
+          <div className="preview-head">
+            <div>
+              <h2 className="preview-title">Catalogue Preview</h2>
+              <p className="preview-sub">Use the same filters you see on the Designers page.</p>
+            </div>
+            <Link className="preview-link" href="/category/new-arrivals">
+              Open full catalogue
+            </Link>
+          </div>
+
+          <div className="preview-grid">
+            <ListingFilters
+              titleQuery={titleQuery}
+              category={category}
+              designer={designer}
+              material={material}
+              condition={condition}
+              size={size}
+              color={color}
+              minPrice={minPrice}
+              maxPrice={maxPrice}
+              sortBy={sortBy}
+              setTitleQuery={setTitleQuery}
+              setCategory={setCategory}
+              setDesigner={setDesigner}
+              setMaterial={setMaterial}
+              setCondition={setCondition}
+              setSize={setSize}
+              setColor={setColor}
+              setMinPrice={setMinPrice}
+              setMaxPrice={setMaxPrice}
+              setSortBy={setSortBy}
+              categoryOptions={CATEGORY_OPTIONS}
+              designerOptions={designerOptions}
+              conditionOptions={CONDITION_OPTIONS}
+              materialOptions={MATERIAL_OPTIONS}
+              onReset={resetFilters}
+              showApplyButton={false}
+            />
+
+            <div className="preview-cards">
+              {filteredPreview.length === 0 ? (
+                <div className="empty-state">
+                  <h3>No items match these filters.</h3>
+                  <button className="resetBtn" onClick={resetFilters}>Reset filters</button>
+                </div>
+              ) : (
+                filteredPreview.map((p: any) => <ProductCard key={p.id} product={p} />)
+              )}
+            </div>
+          </div>
+        </section>
       </main>
 
       <HomepageButler />
@@ -209,195 +316,212 @@ const Home: NextPage<HomeProps> = ({ trending, newArrivals, activeMessages }) =>
         }
         .hero {
           display: grid;
-          grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
-          gap: 32px;
-          margin-bottom: 40px;
-        }
-        @media (max-width: 900px) {
-          .hero {
-            grid-template-columns: 1fr;
-          }
+          grid-template-columns: minmax(0, 3fr) minmax(0, 1fr);
+          gap: 20px;
+          align-items: start;
+          margin-bottom: 30px;
         }
         .eyebrow {
+          font-size: 12px;
+          letter-spacing: 0.18em;
           text-transform: uppercase;
-          letter-spacing: 0.12em;
-          font-size: 11px;
           color: #6b7280;
-          margin-bottom: 8px;
+          margin: 0 0 8px;
         }
         h1 {
-          font-size: 36px;
-          line-height: 1.1;
-          margin: 0 0 12px;
-          font-family: "Georgia", serif;
+          margin: 0 0 10px;
+          font-size: 44px;
+          letter-spacing: -0.03em;
+          line-height: 1.05;
+          color: #0f172a;
         }
         .hero-sub {
-          color: #4b5563;
-          max-width: 520px;
-          margin-bottom: 24px;
+          margin: 0 0 16px;
+          font-size: 15px;
+          color: #374151;
+          line-height: 1.6;
+          max-width: 52ch;
         }
         .hero-actions {
           display: flex;
+          gap: 10px;
           flex-wrap: wrap;
-          gap: 12px;
         }
         .btn-primary,
         .btn-secondary {
           display: inline-flex;
           align-items: center;
           justify-content: center;
-          padding: 12px 24px;
           border-radius: 999px;
-          font-size: 14px;
-          font-weight: 500;
+          padding: 12px 16px;
+          font-weight: 700;
+          font-size: 13px;
           text-decoration: none;
-          transition: all 0.2s ease;
         }
         .btn-primary {
-          background: #111827;
-          color: #ffffff;
+          background: #0f172a;
+          color: #fff;
+          border: 1px solid #0f172a;
         }
         .btn-secondary {
-          background: #ffffff;
-          border: 1px solid #d1d5db;
-          color: #111827;
+          background: #fff;
+          color: #0f172a;
+          border: 1px solid #cbd5e1;
         }
+
         .snapshot-card {
-          background: #ffffff;
-          border-radius: 24px;
-          padding: 20px 22px;
+          background: #fff;
           border: 1px solid #e5e7eb;
-          box-shadow: 0 18px 40px rgba(15, 23, 42, 0.08);
-          align-self: flex-start;
+          border-radius: 18px;
+          padding: 16px;
         }
         .snapshot-card h2 {
-          margin: 0 0 4px;
-          font-size: 18px;
+          margin: 0 0 6px;
+          font-size: 16px;
+          color: #0f172a;
         }
         .snapshot-view {
-          font-size: 11px;
-          text-transform: uppercase;
-          letter-spacing: 0.12em;
-          color: #9ca3af;
-          margin-bottom: 12px;
+          margin: 0 0 12px;
+          color: #6b7280;
+          font-size: 12px;
         }
         .snapshot-row {
           display: flex;
+          align-items: center;
           justify-content: space-between;
-          font-size: 14px;
-          padding: 6px 0;
-          border-bottom: 1px solid #f3f4f6;
+          padding: 8px 0;
+          border-bottom: 1px solid #eef2f7;
+          font-size: 13px;
+          color: #111827;
         }
         .snapshot-row:last-of-type {
-          border-bottom: none;
-          margin-bottom: 14px;
+          border-bottom: 0;
         }
+
         .home-section {
-          margin-top: 48px;
+          margin-top: 18px;
         }
-        .buyer-message-board-container {
-          margin-top: 48px;
+
+        .preview-head {
           display: flex;
-          justify-content: center;
+          align-items: flex-end;
+          justify-content: space-between;
+          gap: 12px;
+          margin: 10px 0 12px;
         }
-        .buyer-message-board.billboard {
-          width: 100%;
-          max-width: 960px;
-          background: #ffffff;
-          border-radius: 24px;
-          border: 1px solid #e5e7eb;
-          padding: 20px 24px 24px;
-          box-shadow: 0 16px 40px rgba(15, 23, 42, 0.08);
-        }
-        .billboard-header h2 {
-          font-size: 18px;
+        .preview-title {
           margin: 0;
-          font-family: "Georgia", serif;
+          font-size: 20px;
+          color: #0f172a;
         }
-        .billboard-header p {
-          margin: 4px 0 0;
+        .preview-sub {
+          margin: 6px 0 0;
           font-size: 13px;
           color: #6b7280;
         }
-        .billboard-body {
-          margin-top: 16px;
-          display: flex;
-          flex-direction: column;
-          gap: 10px;
-        }
-        .billboard-item {
-          border-radius: 16px;
-          padding: 12px 20px;
-          font-size: 15px;
-        }
-        .billboard-item.info {
-          background: #f3f4f6;
-          border: 1px solid #e5e7eb;
-          color: #111827;
-        }
-        .billboard-item.promo {
-          background: #fef3c7;
-          border: 1px solid #facc15;
-          color: #78350f;
-        }
-        .billboard-item.alert {
-          background: #fee2e2;
-          border: 1px solid #fca5a5;
-          color: #991b1b;
-        }
-        .billboard-text {
-          margin: 0;
-          line-height: 1.5;
-          font-family: "Georgia", serif;
-        }
-        .message-media-image {
-          max-width: 100%;
-          border-radius: 12px;
-          display: block;
-          margin-top: 10px;
-        }
-        :global(.catalogue-link) {
-          color: inherit;
-          font-weight: 700;
+        .preview-link {
+          font-size: 13px;
           text-decoration: underline;
-          text-underline-offset: 4px;
-          margin-left: 4px;
+          color: #0f172a;
+        }
+
+        .preview-grid {
+          display: grid;
+          grid-template-columns: 320px minmax(0, 1fr);
+          gap: 18px;
+          align-items: start;
+        }
+
+        .preview-cards {
+          display: grid;
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+          gap: 16px;
+        }
+
+        .empty-state {
+          border: 1px dashed #e5e7eb;
+          border-radius: 16px;
+          padding: 22px;
+          background: #fafafa;
+        }
+        .resetBtn {
+          margin-top: 10px;
+          border: 1px solid #111827;
+          background: #fff;
+          border-radius: 999px;
+          padding: 10px 14px;
+          cursor: pointer;
+          font-weight: 600;
+        }
+
+        @media (max-width: 980px) {
+          .hero {
+            grid-template-columns: 1fr;
+          }
+          .preview-grid {
+            grid-template-columns: 1fr;
+          }
+          .preview-cards {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+          }
+        }
+
+        @media (max-width: 560px) {
+          h1 {
+            font-size: 34px;
+          }
+          .preview-cards {
+            grid-template-columns: 1fr;
+          }
         }
       `}</style>
     </div>
   );
 };
 
-export default Home;
+export default HomePage;
 
-// --------------------------------------------------
-// Server-side data
-// --------------------------------------------------
+export const getServerSideProps: GetServerSideProps = async () => {
+  // 1. All items (for demo grids)
+  const listings = await adminDb.collection("listings").limit(200).get();
 
-export const getServerSideProps: GetServerSideProps<HomeProps> = async () => {
-  // 1. Fetch Listings
-  const snapshot = await adminDb
-    .collection("listings")
-    .where("status", "==", "Live")
-    .get();
+  const pickImage = (d: any): string => {
+    const fromArray =
+      Array.isArray(d.images) ? d.images :
+      Array.isArray(d.imageUrls) ? d.imageUrls :
+      Array.isArray(d.photos) ? d.photos :
+      [];
+    if (Array.isArray(fromArray) && fromArray[0]) return String(fromArray[0]);
 
-  const items = snapshot.docs.map((doc) => {
-    const data = doc.data() as any;
+    return (
+      d.image_url ||
+      d.imageUrl ||
+      d.image ||
+      d.coverImage ||
+      d.coverImageUrl ||
+      ""
+    );
+  };
+
+  const items: any[] = listings.docs.map((doc) => {
+    const data: any = doc.data() || {};
+    const priceNum = typeof data.price === "number" ? data.price : Number(data.price || 0);
+
     return {
       id: doc.id,
-      title: data.title || "",
-      brand: data.brand || "",
-      price: formatPrice(data.price),
+      title: data.title || data.name || "Untitled",
+      brand: data.brand || data.designer || "",
+      price: priceNum ? `US$${priceNum.toLocaleString("en-US")}` : "",
+      priceValue: priceNum || 0,
       image: pickImage(data),
       href: `/product/${doc.id}`,
-      category: data.category || "",
+      category: data.category || data.categoryLabel || data.menuCategory || "",
       condition: data.condition || "",
-      createdAt: data.createdAt,
+      createdAt: data.createdAt || null,
       viewCount: data.viewCount || 0,
     };
   });
 
-  // 2. New Arrivals
   const newArrivals = items
     .slice()
     .sort((a: any, b: any) => {
@@ -407,7 +531,6 @@ export const getServerSideProps: GetServerSideProps<HomeProps> = async () => {
     })
     .slice(0, 8);
 
-  // 3. Trending
   let trending = items
     .slice()
     .sort((a: any, b: any) => (b.viewCount || 0) - (a.viewCount || 0))
@@ -415,7 +538,7 @@ export const getServerSideProps: GetServerSideProps<HomeProps> = async () => {
 
   if (!trending.length) trending = newArrivals;
 
-  // 4. Active Messages
+  // active messages
   let activeMessages: BuyerMessage[] = [];
   try {
     const messagesRef = adminDb.collection("buyer_messages");
