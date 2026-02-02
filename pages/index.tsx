@@ -428,15 +428,15 @@ const HomePage: NextPage<HomeProps> = ({ trending, newArrivals, activeMessages }
 
         .preview-grid {
           display: grid;
-          grid-template-columns: 320px minmax(0, 1fr);
-          gap: 18px;
+          grid-template-columns: 260px minmax(0, 1fr);
+          gap: 24px;
           align-items: start;
         }
 
         .preview-cards {
           display: grid;
-          grid-template-columns: repeat(3, minmax(0, 1fr));
-          gap: 16px;
+          grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+          gap: 18px;
         }
 
         .empty-state {
@@ -455,24 +455,18 @@ const HomePage: NextPage<HomeProps> = ({ trending, newArrivals, activeMessages }
           font-weight: 600;
         }
 
-        @media (max-width: 980px) {
+        @media (max-width: 900px) {
           .hero {
             grid-template-columns: 1fr;
           }
           .preview-grid {
             grid-template-columns: 1fr;
           }
-          .preview-cards {
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-          }
         }
 
         @media (max-width: 560px) {
           h1 {
             font-size: 34px;
-          }
-          .preview-cards {
-            grid-template-columns: 1fr;
           }
         }
       `}</style>
