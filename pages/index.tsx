@@ -91,7 +91,7 @@ const HomePage: NextPage<HomeProps> = ({ trending, newArrivals, activeMessages }
     setSortBy("newest");
   };
 
-  // Catalogue preview items (no layout change to existing grids)
+  // Catalogue preview items
   const previewItems = useMemo(() => {
     const combined = [...(newArrivals || []), ...(trending || [])];
 
@@ -104,7 +104,7 @@ const HomePage: NextPage<HomeProps> = ({ trending, newArrivals, activeMessages }
       seen.add(id);
       uniq.push(p);
     }
-    return uniq.slice(0, 60); // enough for filtering preview
+    return uniq.slice(0, 60);
   }, [newArrivals, trending]);
 
   const designerOptions = useMemo(() => {
@@ -246,7 +246,7 @@ const HomePage: NextPage<HomeProps> = ({ trending, newArrivals, activeMessages }
           />
         </section>
 
-        {/* ✅ Catalogue Preview (uses the same Designers filter UI) */}
+        {/* Catalogue Preview */}
         <section className="home-section">
           <div className="preview-head">
             <div>
@@ -295,7 +295,8 @@ const HomePage: NextPage<HomeProps> = ({ trending, newArrivals, activeMessages }
                   <button className="resetBtn" onClick={resetFilters}>Reset filters</button>
                 </div>
               ) : (
-                filteredPreview.map((p: any) => <ProductCard key={p.id} product={p} />)
+                /* ✅ FIX: Spread product fields as props */
+                filteredPreview.map((p: any) => <ProductCard key={p.id} {...p} />)
               )}
             </div>
           </div>
@@ -482,7 +483,6 @@ const HomePage: NextPage<HomeProps> = ({ trending, newArrivals, activeMessages }
 export default HomePage;
 
 export const getServerSideProps: GetServerSideProps = async () => {
-  // 1. All items (for demo grids)
   const listings = await adminDb.collection("listings").limit(200).get();
 
   const pickImage = (d: any): string => {
@@ -538,7 +538,6 @@ export const getServerSideProps: GetServerSideProps = async () => {
 
   if (!trending.length) trending = newArrivals;
 
-  // active messages
   let activeMessages: BuyerMessage[] = [];
   try {
     const messagesRef = adminDb.collection("buyer_messages");
