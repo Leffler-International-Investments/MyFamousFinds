@@ -7,7 +7,6 @@ import { useMemo, useState } from "react";
 
 import Header from "../components/Header";
 import Footer from "../components/Footer";
-import DemoGrid from "../components/DemoGrid";
 import HomepageButler from "../components/HomepageButler";
 import ProductCard, { ProductLike } from "../components/ProductCard";
 import { adminDb } from "../utils/firebaseAdmin";
@@ -191,14 +190,6 @@ const HomePage: NextPage<HomeProps> = ({
               Browse a hand-picked selection of bags, jewelry, watches and ready-to-wear from trusted sellers. Every piece is vetted so you can shop with confidence.
             </p>
 
-            <div className="hero-actions">
-              <Link href="/category/new-arrivals" className="btn-primary">
-                Browse New Arrivals
-              </Link>
-              <Link href="/designers" className="btn-secondary">
-                View Designers
-              </Link>
-            </div>
           </div>
 
           {/* SNAPSHOT CARD */}
@@ -399,15 +390,6 @@ const HomePage: NextPage<HomeProps> = ({
           </div>
         </section>
 
-        {/* NEW ARRIVALS GRID */}
-        <section className="home-section">
-          <DemoGrid title="New Arrivals" subtitle="Just in – freshly listed pieces from our vetted sellers." products={newArrivals} />
-        </section>
-
-        {/* TRENDING GRID */}
-        <section className="home-section">
-          <DemoGrid title="Trending Now" subtitle="Most-viewed and most-saved listings this week." products={trending} />
-        </section>
       </main>
 
       <HomepageButler />
@@ -449,32 +431,6 @@ const HomePage: NextPage<HomeProps> = ({
           color: #374151;
           line-height: 1.6;
           max-width: 52ch;
-        }
-        .hero-actions {
-          display: flex;
-          gap: 10px;
-          flex-wrap: wrap;
-        }
-        .btn-primary,
-        .btn-secondary {
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-          border-radius: 999px;
-          padding: 12px 16px;
-          font-weight: 700;
-          font-size: 13px;
-          text-decoration: none;
-        }
-        .btn-primary {
-          background: #0f172a;
-          color: #fff;
-          border: 1px solid #0f172a;
-        }
-        .btn-secondary {
-          background: #fff;
-          color: #0f172a;
-          border: 1px solid #cbd5e1;
         }
 
         .snapshot-card {

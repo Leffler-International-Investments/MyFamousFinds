@@ -255,6 +255,56 @@ function looksLikeJewelry(x: PublicListing): boolean {
   return keywords.some((k) => t.includes(k));
 }
 
+function looksLikeBag(x: PublicListing): boolean {
+  const t = `${x.title || ""} ${x.brand || ""}`.toLowerCase();
+  const keywords = [
+    "bag",
+    "handbag",
+    "tote",
+    "satchel",
+    "crossbody",
+    "cross-body",
+    "shoulder",
+    "pouch",
+    "clutch",
+    "backpack",
+    "bucket",
+    "hobo",
+    "duffle",
+    "briefcase",
+    "luggage",
+    "trunk",
+    "wallet",
+  ];
+  return keywords.some((k) => t.includes(k));
+}
+
+function looksLikeApparel(x: PublicListing): boolean {
+  const t = `${x.title || ""} ${x.brand || ""}`.toLowerCase();
+  const keywords = [
+    "jacket",
+    "coat",
+    "parka",
+    "blazer",
+    "suit",
+    "shirt",
+    "tee",
+    "t-shirt",
+    "sweater",
+    "hoodie",
+    "pants",
+    "trouser",
+    "jeans",
+    "skirt",
+    "dress",
+    "shorts",
+    "top",
+    "cardigan",
+    "vest",
+  ];
+  return keywords.some((k) => t.includes(k));
+}
+
 export async function getPublicListings(opts?: {
   category?: string;
   take?: number;
@@ -309,6 +359,14 @@ export async function getPublicListings(opts?: {
     return items.filter((x) => {
       const n = normCategory(x.category);
       return n === "JEWELRY" || (n === "" && looksLikeJewelry(x));
+    });
+  }
+
+  if (wanted === "BAGS") {
+    return items.filter((x) => {
+      const n = normCategory(x.category);
+      const isBag = n === "BAGS" || (n === "" && looksLikeBag(x));
+      return isBag && !looksLikeApparel(x);
     });
   }
 

@@ -20,6 +20,7 @@ export default function Header() {
     { label: "NEW ARRIVALS", href: "/category/new-arrivals" },
     { label: "CATALOGUE", href: "/catalogue" },
     { label: "DESIGNERS", href: "/designers" },
+    { label: "CONSIGN", href: "/consign" },
     { label: "WOMEN", href: "/category/women" },
     { label: "BAGS", href: "/category/bags" },
     { label: "MEN", href: "/category/men" },
