@@ -7,7 +7,6 @@ import { useMemo, useState } from "react";
 
 import Header from "../components/Header";
 import Footer from "../components/Footer";
-import DemoGrid from "../components/DemoGrid";
 import HomepageButler from "../components/HomepageButler";
 import ProductCard, { ProductLike } from "../components/ProductCard";
 import { adminDb } from "../utils/firebaseAdmin";
@@ -32,6 +31,7 @@ type HomeProps = {
   trending: ProductLike[];
   newArrivals: ProductLike[];
   activeMessages: BuyerMessage[];
+  designerOptions: string[];
 };
 
 const CATEGORY_OPTIONS = ["Women", "Men", "Bags", "Shoes", "Accessories", "Jewelry", "Watches"];
@@ -80,7 +80,11 @@ function parseNum(v: any): number {
   return Number.isFinite(n) ? n : 0;
 }
 
-const HomePage: NextPage<HomeProps> = ({ trending, newArrivals }) => {
+const HomePage: NextPage<HomeProps> = ({
+  trending,
+  newArrivals,
+  designerOptions: serverDesignerOptions,
+}) => {
   // Same filter UX as /pages/designers/index.tsx
   const [titleQuery, setTitleQuery] = useState("");
   const [category, setCategory] = useState("");
@@ -122,10 +126,13 @@ const HomePage: NextPage<HomeProps> = ({ trending, newArrivals }) => {
   }, [newArrivals, trending]);
 
   const designerOptions = useMemo(() => {
-    return Array.from(new Set(poolItems.map((x: any) => String(x.brand || "").trim()).filter(Boolean))).sort((a, b) =>
-      a.localeCompare(b)
-    );
-  }, [poolItems]);
+    if (Array.isArray(serverDesignerOptions) && serverDesignerOptions.length > 0) {
+      return serverDesignerOptions;
+    }
+    return Array.from(
+      new Set(poolItems.map((x: any) => String(x.brand || "").trim()).filter(Boolean))
+    ).sort((a, b) => a.localeCompare(b));
+  }, [poolItems, serverDesignerOptions]);
 
   const filteredItems = useMemo(() => {
     let result = [...(poolItems as any[])];
@@ -183,14 +190,6 @@ const HomePage: NextPage<HomeProps> = ({ trending, newArrivals }) => {
               Browse a hand-picked selection of bags, jewelry, watches and ready-to-wear from trusted sellers. Every piece is vetted so you can shop with confidence.
             </p>
 
-            <div className="hero-actions">
-              <Link href="/category/new-arrivals" className="btn-primary">
-                Browse New Arrivals
-              </Link>
-              <Link href="/designers" className="btn-secondary">
-                View Designers
-              </Link>
-            </div>
           </div>
 
           {/* SNAPSHOT CARD */}
@@ -391,15 +390,6 @@ const HomePage: NextPage<HomeProps> = ({ trending, newArrivals }) => {
           </div>
         </section>
 
-        {/* NEW ARRIVALS GRID */}
-        <section className="home-section">
-          <DemoGrid title="New Arrivals" subtitle="Just in – freshly listed pieces from our vetted sellers." products={newArrivals} />
-        </section>
-
-        {/* TRENDING GRID */}
-        <section className="home-section">
-          <DemoGrid title="Trending Now" subtitle="Most-viewed and most-saved listings this week." products={trending} />
-        </section>
       </main>
 
       <HomepageButler />
@@ -441,32 +431,6 @@ const HomePage: NextPage<HomeProps> = ({ trending, newArrivals }) => {
           color: #374151;
           line-height: 1.6;
           max-width: 52ch;
-        }
-        .hero-actions {
-          display: flex;
-          gap: 10px;
-          flex-wrap: wrap;
-        }
-        .btn-primary,
-        .btn-secondary {
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-          border-radius: 999px;
-          padding: 12px 16px;
-          font-weight: 700;
-          font-size: 13px;
-          text-decoration: none;
-        }
-        .btn-primary {
-          background: #0f172a;
-          color: #fff;
-          border: 1px solid #0f172a;
-        }
-        .btn-secondary {
-          background: #fff;
-          color: #0f172a;
-          border: 1px solid #cbd5e1;
         }
 
         .snapshot-card {
@@ -659,6 +623,7 @@ export const getServerSideProps: GetServerSideProps = async () => {
         trending: [],
         newArrivals: [],
         activeMessages: [],
+        designerOptions: [],
       },
     };
   }
@@ -740,11 +705,31 @@ export const getServerSideProps: GetServerSideProps = async () => {
     console.error("Error fetching messages:", err);
   }
 
+  let designerOptions: string[] = [];
+  try {
+    const ds = await adminDb.collection("designers").get();
+    designerOptions = ds.docs
+      .map((doc) => {
+        const data = doc.data() as any;
+        const name = String(data?.name ?? doc.id).trim();
+        const active = data?.active !== false;
+        return active ? name : "";
+      })
+      .filter(Boolean)
+      .sort((a, b) => a.localeCompare(b));
+  } catch (err) {
+    console.error("Error fetching designers for homepage:", err);
+    designerOptions = Array.from(
+      new Set(items.map((i) => String(i.brand || "").trim()).filter(Boolean))
+    ).sort((a, b) => a.localeCompare(b));
+  }
+
   return {
     props: {
       trending,
       newArrivals,
       activeMessages,
+      designerOptions,
     },
   };
 };

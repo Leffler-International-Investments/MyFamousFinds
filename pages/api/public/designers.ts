@@ -10,6 +10,39 @@ export default async function handler(
   res: NextApiResponse
 ) {
   try {
+    if (!adminDb) {
+      return res.status(200).json({ ok: true, designers: [] });
+    }
+
+    // 0. Prefer full designer library if available
+    try {
+      const designersSnap = await adminDb.collection("designers").get();
+      const designers = designersSnap.docs
+        .map((doc) => {
+          const data = doc.data() as any;
+          const name = String(data?.name ?? doc.id).trim();
+          const active = data?.active !== false;
+          return active
+            ? {
+                id: doc.id,
+                name,
+                slug: String(data?.slug ?? name)
+                  .toLowerCase()
+                  .replace(/\s+/g, "-"),
+                active: true,
+              }
+            : null;
+        })
+        .filter(Boolean) as { id: string; name: string; slug: string; active: boolean }[];
+
+      if (designers.length > 0) {
+        designers.sort((a, b) => a.name.localeCompare(b.name));
+        return res.status(200).json({ ok: true, designers });
+      }
+    } catch (error) {
+      console.warn("Designer library fallback to listings:", error);
+    }
+
     // 1. Fetch all Live listings
     // We scan the actual inventory to see who is "in stock"
     const snapshot = await adminDb

@@ -15,6 +15,12 @@ export default function SellerBulkTemplatePage() {
         <Header />
 
         <main className="mx-auto max-w-4xl px-4 py-10">
+          <Link
+            href="/seller/dashboard"
+            className="mb-4 inline-flex text-sm text-gray-600 hover:text-gray-900"
+          >
+            ← Back to Seller Dashboard
+          </Link>
           <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
             <h1 className="mb-2 text-xl font-semibold">
               Bulk Upload Instructions
