@@ -246,18 +246,8 @@ const HomePage: NextPage<HomeProps> = ({ trending, newArrivals, activeMessages }
           />
         </section>
 
-        {/* Catalogue Preview */}
+        {/* Filtered Products */}
         <section className="home-section">
-          <div className="preview-head">
-            <div>
-              <h2 className="preview-title">Catalogue Preview</h2>
-              <p className="preview-sub">Use the same filters you see on the Designers page.</p>
-            </div>
-            <Link className="preview-link" href="/category/new-arrivals">
-              Open full catalogue
-            </Link>
-          </div>
-
           <div className="preview-grid">
             <ListingFilters
               titleQuery={titleQuery}
@@ -403,29 +393,6 @@ const HomePage: NextPage<HomeProps> = ({ trending, newArrivals, activeMessages }
           margin-top: 18px;
         }
 
-        .preview-head {
-          display: flex;
-          align-items: flex-end;
-          justify-content: space-between;
-          gap: 12px;
-          margin: 10px 0 12px;
-        }
-        .preview-title {
-          margin: 0;
-          font-size: 20px;
-          color: #0f172a;
-        }
-        .preview-sub {
-          margin: 6px 0 0;
-          font-size: 13px;
-          color: #6b7280;
-        }
-        .preview-link {
-          font-size: 13px;
-          text-decoration: underline;
-          color: #0f172a;
-        }
-
         .preview-grid {
           display: grid;
           grid-template-columns: 320px minmax(0, 1fr);
@@ -517,7 +484,7 @@ export const getServerSideProps: GetServerSideProps = async () => {
       href: `/product/${doc.id}`,
       category: data.category || data.categoryLabel || data.menuCategory || "",
       condition: data.condition || "",
-      createdAt: data.createdAt || null,
+      createdAt: data.createdAt?.toMillis?.() || null,
       viewCount: data.viewCount || 0,
     };
   });
