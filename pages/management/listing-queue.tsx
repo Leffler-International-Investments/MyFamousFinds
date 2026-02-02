@@ -97,7 +97,7 @@ function ManagementListingQueue({ items: initialItems }: Props) {
               </p>
             </div>
             <Link href="/management/dashboard" className="btn-primary-dark">
-              ← Back to admin home
+              ← Back to Management Dashboard
             </Link>
           </div>
 
