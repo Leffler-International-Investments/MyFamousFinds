@@ -5,14 +5,11 @@ import Link from "next/link";
 import Header from "../components/Header";
 import Footer from "../components/Footer";
 import { FormEvent, useState, useEffect } from "react";
-import firebaseApp from "../utils/firebaseClient";
+import { db } from "../utils/firebaseClient";
 import {
-  getFirestore,
   collection,
   getDocs,
 } from "firebase/firestore";
-
-const db = getFirestore(firebaseApp);
 
 type Designer = {
   id: string;
@@ -102,7 +99,8 @@ export default function Sell() {
         uploadBytes,
         getDownloadURL,
       } = await import("firebase/storage");
-      const storage = getStorage(firebaseApp);
+      // Use db as the reference point for the Firebase instance
+      const storage = getStorage();
 
       const storageRef = ref(storage, path);
       const snapshot = await uploadBytes(storageRef, file as File);
