@@ -517,7 +517,7 @@ export const getServerSideProps: GetServerSideProps = async () => {
       href: `/product/${doc.id}`,
       category: data.category || data.categoryLabel || data.menuCategory || "",
       condition: data.condition || "",
-      createdAt: data.createdAt || null,
+      createdAt: data.createdAt?.toMillis?.() || 0,
       viewCount: data.viewCount || 0,
     };
   });
@@ -525,8 +525,8 @@ export const getServerSideProps: GetServerSideProps = async () => {
   const newArrivals = items
     .slice()
     .sort((a: any, b: any) => {
-      const aTime = a.createdAt?.toMillis?.() || 0;
-      const bTime = b.createdAt?.toMillis?.() || 0;
+      const aTime = a.createdAt || 0;
+      const bTime = b.createdAt || 0;
       return bTime - aTime;
     })
     .slice(0, 8);
