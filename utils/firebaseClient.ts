@@ -3,16 +3,9 @@ import { initializeApp, getApps, getApp, type FirebaseApp } from "firebase/app";
 import { getFirestore, type Firestore } from "firebase/firestore";
 import { getAuth, type Auth } from "firebase/auth";
 
-/**
- * Firebase CLIENT (browser) configuration.
- *
- * Supports BOTH env naming schemes:
- * - NEXT_PUBLIC_FB_*
- * - NEXT_PUBLIC_FIREBASE_*
- */
-
-function env(nameA: string, nameB: string) {
-  return process.env[nameA] || process.env[nameB] || "";
+// Read env var from either naming scheme
+function env(a: string, b: string) {
+  return (process.env[a] || process.env[b] || "").trim();
 }
 
 const cfg = {
@@ -27,35 +20,38 @@ const cfg = {
   appId: env("NEXT_PUBLIC_FB_APP_ID", "NEXT_PUBLIC_FIREBASE_APP_ID"),
 } as const;
 
-function missingKeys() {
-  const out: string[] = [];
-  if (!cfg.apiKey) out.push("API_KEY");
-  if (!cfg.authDomain) out.push("AUTH_DOMAIN");
-  if (!cfg.projectId) out.push("PROJECT_ID");
-  if (!cfg.storageBucket) out.push("STORAGE_BUCKET");
-  if (!cfg.messagingSenderId) out.push("MESSAGING_SENDER_ID");
-  if (!cfg.appId) out.push("APP_ID");
-  return out;
+function hasAll() {
+  return Boolean(
+    cfg.apiKey &&
+      cfg.authDomain &&
+      cfg.projectId &&
+      cfg.storageBucket &&
+      cfg.messagingSenderId &&
+      cfg.appId
+  );
 }
 
-export const firebaseClientMissing = missingKeys();
-export const firebaseClientReady = firebaseClientMissing.length === 0;
+export let firebaseClientReady = hasAll();
 
 let app: FirebaseApp | null = null;
 let db: Firestore | null = null;
 let auth: Auth | null = null;
 
 if (firebaseClientReady) {
-  app = getApps().length ? getApp() : initializeApp(cfg as any);
-  db = getFirestore(app);
-  auth = getAuth(app);
+  try {
+    app = getApps().length ? getApp() : initializeApp(cfg as any);
+    db = getFirestore(app);
+    auth = getAuth(app);
+  } catch (err) {
+    firebaseClientReady = false;
+    app = null;
+    db = null;
+    auth = null;
+    console.error("[firebaseClient] Firebase init failed. Client disabled.", err);
+  }
 } else {
-  // Show exactly what is missing (helps you verify Vercel env scope)
-  // eslint-disable-next-line no-console
   console.warn(
-    `[firebaseClient] Missing env vars: ${firebaseClientMissing.join(
-      ", "
-    )}. Firebase client disabled.`
+    "[firebaseClient] Missing Firebase NEXT_PUBLIC env vars (FB_* or FIREBASE_*). Client disabled."
   );
 }
 
