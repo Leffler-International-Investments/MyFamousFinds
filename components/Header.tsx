@@ -1,5 +1,3 @@
-// FILE: /components/Header.tsx
-
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { onAuthStateChanged, User } from "firebase/auth";
@@ -13,7 +11,6 @@ export default function Header() {
     return () => unsub();
   }, []);
 
-  // ✅ FIX: each category points to its own correct page
   const categoryNav = [
     { label: "NEW ARRIVALS", href: "/category/new-arrivals" },
     { label: "CATALOGUE", href: "/catalogue" },
@@ -30,7 +27,6 @@ export default function Header() {
       {/* TOP BAR */}
       <div className="ff-header-top">
         <div className="ff-header-left">
-          {/* VIP GREEN PILL */}
           <Link
             href={vipUser ? "/club-profile" : "/vip-welcome"}
             className="admin-button vip"
@@ -58,42 +54,33 @@ export default function Header() {
         </nav>
 
         <div className="ff-admin-ports">
+          {/* MANAGEMENT LOGIN - UPDATED TO MATCH SELLER STYLE */}
           <Link href="/management/login" className="admin-button management">
-            Management Admin Login
+            <span>Management Admin Login</span>
           </Link>
 
-          <Link
-            href="/seller/login"
-            className="admin-button seller"
-            style={{
-              padding: "10px 12px",
-              display: "flex",
-              flexDirection: "column",
-              lineHeight: "1.1",
-              textAlign: "center",
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
+          {/* SELLER LOGIN */}
+          <Link href="/seller/login" className="admin-button seller">
             <span>Seller Admin Login</span>
-            <span style={{ fontSize: "10px", opacity: 0.9 }}>
-              Become a Seller – Click Here
-            </span>
+            <span className="sub-text">Become a Seller – Click Here</span>
           </Link>
         </div>
       </div>
 
       {/* BRAND + SEARCH */}
       <div className="ff-header-middle">
+        <div className="ff-middle-spacer"></div>
         <div className="ff-brand-name">FAMOUS FINDS</div>
-        <form action="/search" className="ff-search-form">
-          <input
-            type="text"
-            name="q"
-            placeholder="Search"
-            className="ff-search-input"
-          />
-        </form>
+        <div className="ff-search-container">
+          <form action="/search" className="ff-search-form">
+            <input
+              type="text"
+              name="q"
+              placeholder="Search"
+              className="ff-search-input"
+            />
+          </form>
+        </div>
       </div>
 
       {/* CATEGORY BAR */}
@@ -158,58 +145,72 @@ export default function Header() {
 
         .admin-button {
           border-radius: 999px;
-          padding: 8px 12px;
+          padding: 10px 20px;
           font-size: 12px;
           text-decoration: none;
-          border: 1px solid #e5e7eb;
-          background: #ffffff;
-          color: #111827;
           font-weight: 600;
-          line-height: 1;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          text-align: center;
+          line-height: 1.2;
           white-space: nowrap;
+          min-width: 180px; /* Ensures identical width */
+          height: 44px;    /* Ensures identical height */
         }
 
         .admin-button.vip {
           background: #22c55e;
-          border-color: #22c55e;
+          border: 1px solid #22c55e;
           color: #ffffff;
+          min-width: auto;
+          height: auto;
+          padding: 8px 16px;
         }
 
-        .admin-button.management {
-          background: #e5e7eb;
-          border-color: #e5e7eb;
-        }
-
+        /* Shared Black Style for Management and Seller */
+        .admin-button.management,
         .admin-button.seller {
           background: #111827;
-          border-color: #111827;
           color: #ffffff;
+          border: 1px solid #111827;
+        }
+
+        .sub-text {
+          font-size: 10px;
+          opacity: 0.9;
+          font-weight: 400;
         }
 
         .ff-header-middle {
           max-width: 1280px;
           margin: 0 auto;
-          padding: 12px 18px 8px;
+          padding: 20px 18px 15px;
           display: flex;
           align-items: center;
           justify-content: space-between;
-          gap: 16px;
+        }
+
+        .ff-middle-spacer, .ff-search-container {
+          flex: 1;
         }
 
         .ff-brand-name {
-          letter-spacing: 0.22em;
-          font-size: 18px;
-          font-weight: 500;
+          letter-spacing: 0.25em;
+          font-size: 32px;
+          font-weight: 800;
+          text-align: center;
+          flex: 2;
         }
 
         .ff-search-form {
-          flex: 1;
           display: flex;
           justify-content: flex-end;
         }
 
         .ff-search-input {
-          width: min(420px, 100%);
+          width: 240px;
           border-radius: 999px;
           border: 1px solid #d1d5db;
           padding: 8px 12px;
@@ -223,21 +224,16 @@ export default function Header() {
           display: flex;
           align-items: center;
           justify-content: center;
-          gap: 18px;
+          gap: 22px;
           flex-wrap: wrap;
         }
 
         .ff-cat-link {
           font-size: 12px;
+          font-weight: 600;
           letter-spacing: 0.12em;
           color: #111827;
           text-decoration: none;
-          opacity: 0.85;
-        }
-
-        .ff-cat-link:hover {
-          opacity: 1;
-          text-decoration: underline;
         }
       `}</style>
     </header>
