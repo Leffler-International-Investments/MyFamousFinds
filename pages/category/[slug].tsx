@@ -6,7 +6,7 @@ import { useEffect, useMemo, useState } from "react";
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
 import ProductCard, { ProductLike } from "../../components/ProductCard";
-import { adminDb } from "../../utils/firebaseAdmin";
+import ListingFilters from "../../components/ListingFilters";
 import { getPublicListings } from "../../lib/publicListings";
 
 type CategoryProps = {
@@ -47,8 +47,47 @@ function toUsdString(n?: number): string {
   return `US$${n.toLocaleString("en-US")}`;
 }
 
-const CATEGORY_OPTIONS = ["Women", "Bags", "Men", "Jewelry", "Watches"];
-const CONDITION_OPTIONS = ["New", "Excellent", "Very good", "Good"];
+// ✅ Unified filter options (consistent across all pages)
+const CATEGORY_OPTIONS = [
+  "Women",
+  "Men",
+  "Bags",
+  "Shoes",
+  "Accessories",
+  "Jewelry",
+  "Watches",
+];
+const CONDITION_OPTIONS = [
+  "New with tags",
+  "New (never used)",
+  "Excellent",
+  "Very good",
+  "Good",
+  "Fair",
+];
+const MATERIAL_OPTIONS = [
+  "Leather",
+  "Exotic Leather",
+  "Silk",
+  "Cashmere",
+  "Wool",
+  "Linen",
+  "Cotton",
+  "Cotton Blend",
+  "Denim",
+  "Velvet",
+  "Suede",
+  "Canvas",
+  "Metal",
+  "Gold",
+  "Silver",
+  "Plated Metal",
+  "Ceramic",
+  "Crystal",
+  "Resin",
+  "Synthetic",
+  "Other",
+];
 const DEFAULT_DESIGNERS = ["Chanel", "Hermès", "Louis Vuitton", "Gucci", "Prada", "Dior", "Rolex"];
 
 const labelMap: Record<string, string> = {
@@ -74,12 +113,17 @@ export default function CategoryPage({ slug, label, items }: CategoryProps) {
     }));
   }, [liveItems]);
 
-  const [sortBy, setSortBy] = useState<"newest" | "price-asc" | "price-desc">("newest");
-  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
-  const [selectedDesigners, setSelectedDesigners] = useState<string[]>([]);
-  const [selectedConditions, setSelectedConditions] = useState<string[]>([]);
+  // ✅ Unified filter state (compatible with ListingFilters)
+  const [titleQuery, setTitleQuery] = useState("");
+  const [category, setCategory] = useState("");
+  const [designer, setDesigner] = useState("");
+  const [material, setMaterial] = useState("");
+  const [condition, setCondition] = useState("");
+  const [size, setSize] = useState("");
+  const [color, setColor] = useState("");
   const [minPrice, setMinPrice] = useState<number | "">(0);
   const [maxPrice, setMaxPrice] = useState<number | "">(1000000);
+  const [sortBy, setSortBy] = useState<"newest" | "price-asc" | "price-desc">("newest");
 
   const [designerOptions, setDesignerOptions] = useState<string[]>(DEFAULT_DESIGNERS);
 
@@ -94,12 +138,16 @@ export default function CategoryPage({ slug, label, items }: CategoryProps) {
     setClientLoaded(false);
 
     // Reset any filters from the previous category page
-    setSortBy("newest");
-    setSelectedCategories([]);
-    setSelectedDesigners([]);
-    setSelectedConditions([]);
+    setTitleQuery("");
+    setCategory("");
+    setDesigner("");
+    setMaterial("");
+    setCondition("");
+    setSize("");
+    setColor("");
     setMinPrice(0);
     setMaxPrice(1000000);
+    setSortBy("newest");
   }, [slug]);
 
   // ✅ Client fallback loader
@@ -204,41 +252,44 @@ export default function CategoryPage({ slug, label, items }: CategoryProps) {
     loadDesigners();
   }, [itemsWithPrice]);
 
-  function toggleInList(list: string[], value: string): string[] {
-    return list.includes(value) ? list.filter((x) => x !== value) : [...list, value];
-  }
-
   function resetFilters() {
-    setSortBy("newest");
-    setSelectedCategories([]);
-    setSelectedDesigners([]);
-    setSelectedConditions([]);
+    setTitleQuery("");
+    setCategory("");
+    setDesigner("");
+    setMaterial("");
+    setCondition("");
+    setSize("");
+    setColor("");
     setMinPrice(0);
     setMaxPrice(1000000);
+    setSortBy("newest");
+  }
+
+  // ✅ Normalize function for consistent filtering
+  function normalize(v: any): string {
+    return String(v || "").trim().toLowerCase();
   }
 
   const filteredItems: ItemWithPrice[] = useMemo(() => {
     let result = [...itemsWithPrice];
 
-    if (selectedCategories.length > 0) {
-      result = result.filter((item) =>
-        selectedCategories.some(
-          (cat) => cat.toLowerCase() === (item.category || "").trim().toLowerCase()
-        )
-      );
-    }
+    const tq = normalize(titleQuery);
+    const cat = normalize(category);
+    const des = normalize(designer);
+    const cond = normalize(condition);
+    const mat = normalize(material);
+    const sz = normalize(size);
+    const col = normalize(color);
 
-    if (selectedDesigners.length > 0) {
-      result = result.filter((item) =>
-        selectedDesigners.some(
-          (des) => des.toLowerCase() === (item.brand || "").trim().toLowerCase()
-        )
-      );
-    }
+    if (tq) result = result.filter((item) => normalize(item.title).includes(tq));
+    if (cat) result = result.filter((item) => normalize(item.category) === cat);
+    if (des) result = result.filter((item) => normalize(item.brand) === des);
+    if (cond) result = result.filter((item) => normalize(item.condition) === cond);
 
-    if (selectedConditions.length > 0) {
-      result = result.filter((item) => selectedConditions.includes((item.condition || "").trim()));
-    }
+    // Material, size, color use includes for partial matching
+    if (mat) result = result.filter((item: any) => normalize(item.material).includes(mat));
+    if (sz) result = result.filter((item: any) => normalize(item.size).includes(sz));
+    if (col) result = result.filter((item: any) => normalize(item.color).includes(col));
 
     result = result.filter((item) => {
       const price = item.priceValue || 0;
@@ -253,9 +304,13 @@ export default function CategoryPage({ slug, label, items }: CategoryProps) {
     return result;
   }, [
     itemsWithPrice,
-    selectedCategories,
-    selectedDesigners,
-    selectedConditions,
+    titleQuery,
+    category,
+    designer,
+    condition,
+    material,
+    size,
+    color,
     minPrice,
     maxPrice,
     sortBy,
@@ -290,100 +345,35 @@ export default function CategoryPage({ slug, label, items }: CategoryProps) {
         </div>
 
         <div className="ff-category-layout">
-          {/* LEFT FILTER PANEL */}
-          <aside className="ff-filters">
-            <div className="filters-head">
-              <div className="filters-title">Filters</div>
-              <button className="filters-reset" onClick={resetFilters}>
-                Reset
-              </button>
-            </div>
-
-            <div className="filter-block">
-              <h3>Sort</h3>
-              <select
-                className="ff-select"
-                value={sortBy}
-                onChange={(e) => setSortBy(e.target.value as any)}
-              >
-                <option value="newest">Newest</option>
-                <option value="price-asc">Price (Low → High)</option>
-                <option value="price-desc">Price (High → Low)</option>
-              </select>
-            </div>
-
-            <div className="filter-block">
-              <h3>Category</h3>
-              <div className="filter-list">
-                {CATEGORY_OPTIONS.map((c) => (
-                  <label key={c} className="filter-option">
-                    <input
-                      type="checkbox"
-                      checked={selectedCategories.includes(c)}
-                      onChange={() => setSelectedCategories((prev) => toggleInList(prev, c))}
-                    />
-                    <span>{c}</span>
-                  </label>
-                ))}
-              </div>
-            </div>
-
-            <div className="filter-block">
-              <h3>Designer</h3>
-              <div className="filter-list">
-                {designerOptions.map((d) => (
-                  <label key={d} className="filter-option">
-                    <input
-                      type="checkbox"
-                      checked={selectedDesigners.includes(d)}
-                      onChange={() => setSelectedDesigners((prev) => toggleInList(prev, d))}
-                    />
-                    <span>{d}</span>
-                  </label>
-                ))}
-              </div>
-            </div>
-
-            <div className="filter-block">
-              <h3>Condition</h3>
-              <div className="filter-list">
-                {CONDITION_OPTIONS.map((c) => (
-                  <label key={c} className="filter-option">
-                    <input
-                      type="checkbox"
-                      checked={selectedConditions.includes(c)}
-                      onChange={() => setSelectedConditions((prev) => toggleInList(prev, c))}
-                    />
-                    <span>{c}</span>
-                  </label>
-                ))}
-              </div>
-            </div>
-
-            <div className="filter-block">
-              <h3>Price (USD)</h3>
-              <div className="price-stack">
-                <div className="price-input">
-                  <span>Min</span>
-                  <input
-                    type="number"
-                    value={minPrice}
-                    onChange={(e) => setMinPrice(e.target.value === "" ? "" : Number(e.target.value))}
-                    placeholder="0"
-                  />
-                </div>
-                <div className="price-input">
-                  <span>Max</span>
-                  <input
-                    type="number"
-                    value={maxPrice}
-                    onChange={(e) => setMaxPrice(e.target.value === "" ? "" : Number(e.target.value))}
-                    placeholder="1000000"
-                  />
-                </div>
-              </div>
-            </div>
-          </aside>
+          {/* ✅ UNIFIED FILTER PANEL */}
+          <ListingFilters
+            titleQuery={titleQuery}
+            category={category}
+            designer={designer}
+            material={material}
+            condition={condition}
+            size={size}
+            color={color}
+            minPrice={minPrice}
+            maxPrice={maxPrice}
+            sortBy={sortBy}
+            setTitleQuery={setTitleQuery}
+            setCategory={setCategory}
+            setDesigner={setDesigner}
+            setMaterial={setMaterial}
+            setCondition={setCondition}
+            setSize={setSize}
+            setColor={setColor}
+            setMinPrice={setMinPrice}
+            setMaxPrice={setMaxPrice}
+            setSortBy={setSortBy}
+            categoryOptions={CATEGORY_OPTIONS}
+            designerOptions={designerOptions}
+            conditionOptions={CONDITION_OPTIONS}
+            materialOptions={MATERIAL_OPTIONS}
+            onReset={resetFilters}
+            showApplyButton={false}
+          />
 
           {/* RESULTS GRID */}
           <section className="ff-results">
@@ -436,84 +426,6 @@ export default function CategoryPage({ slug, label, items }: CategoryProps) {
             display: grid;
             grid-template-columns: 280px 1fr;
             gap: 18px;
-          }
-          .ff-filters {
-            border: 1px solid #e5e7eb;
-            border-radius: 14px;
-            padding: 14px;
-            background: #fff;
-            height: fit-content;
-            position: sticky;
-            top: 14px;
-          }
-          .filters-head {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            margin-bottom: 12px;
-          }
-          .filters-title {
-            font-weight: 700;
-            font-size: 14px;
-          }
-          .filters-reset {
-            background: transparent;
-            border: none;
-            color: #111827;
-            font-size: 12px;
-            text-decoration: underline;
-            cursor: pointer;
-          }
-          .filter-block {
-            border-top: 1px solid #f3f4f6;
-            padding-top: 12px;
-            margin-top: 12px;
-          }
-          .filter-block h3 {
-            margin: 0 0 8px;
-            font-size: 13px;
-            color: #111827;
-          }
-          .filter-list {
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-            max-height: 220px;
-            overflow: auto;
-            padding-right: 6px;
-          }
-          .filter-option {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            font-size: 13px;
-            color: #111827;
-          }
-          .price-stack {
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-            margin-bottom: 10px;
-            width: 100%;
-          }
-          .price-input {
-            display: flex;
-            flex-direction: column;
-            gap: 6px;
-            width: 100%;
-          }
-          .price-input span {
-            font-size: 12px;
-            color: #6b7280;
-          }
-          .price-input input {
-            width: 100%;
-            min-width: 0;
-            box-sizing: border-box;
-            border-radius: 999px;
-            border: 1px solid #d1d5db;
-            padding: 6px 10px;
-            font-size: 14px;
           }
           .ff-results {
             min-height: 300px;

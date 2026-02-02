@@ -9,7 +9,9 @@ import type { GetServerSideProps, NextPage } from "next";
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
 import ProductCard, { ProductLike } from "../../components/ProductCard";
+import ListingFilters from "../../components/ListingFilters";
 import { adminDb } from "../../utils/firebaseAdmin";
+import { getPublicListings } from "../../lib/publicListings";
 
 // --------------------------------------------------
 // Types
@@ -97,16 +99,6 @@ function normalize(raw: string | undefined | null): string {
     .toLowerCase()
     .trim();
 }
-
-const pickImage = (data: any): string => {
-  if (data.image_url) return data.image_url;
-  if (data.imageUrl) return data.imageUrl;
-  if (data.image) return data.image;
-  if (Array.isArray(data.imageUrls) && data.imageUrls.length > 0) {
-    return data.imageUrls[0];
-  }
-  return "";
-};
 
 // --------------------------------------------------
 // Component
@@ -255,169 +247,35 @@ const DesignersPage: NextPage<DesignersPageProps> = ({
           </div>
 
           <div className="layout">
-            <aside className="filters">
-              <div className="filters-header">
-                <h2>Filters</h2>
-                <button type="button" onClick={resetFilters}>
-                  Clear All
-                </button>
-              </div>
-
-              {/* ✅ Dropdown style: collapsible blocks (saves space) */}
-              <details className="filter-block" open>
-                <summary>Title</summary>
-                <div className="filter-body">
-                  <input
-                    className="text-input"
-                    placeholder="Search title..."
-                    value={titleQuery}
-                    onChange={(e) => setTitleQuery(e.target.value)}
-                  />
-                </div>
-              </details>
-
-              <details className="filter-block">
-                <summary>Category</summary>
-                <div className="filter-body">
-                  <select
-                    className="select"
-                    value={category}
-                    onChange={(e) => setCategory(e.target.value)}
-                  >
-                    <option value="">Any</option>
-                    {CATEGORY_OPTIONS.map((c) => (
-                      <option key={c} value={c}>
-                        {c}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </details>
-
-              <details className="filter-block">
-                <summary>Designer</summary>
-                <div className="filter-body">
-                  <select
-                    className="select"
-                    value={designer}
-                    onChange={(e) => setDesigner(e.target.value)}
-                  >
-                    <option value="">Any</option>
-                    {(designerOptions || []).map((d) => (
-                      <option key={d} value={d}>
-                        {d}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </details>
-
-              <details className="filter-block">
-                <summary>Material</summary>
-                <div className="filter-body">
-                  {/* ✅ allow typing anything not in list */}
-                  <input
-                    className="text-input"
-                    list="materials-list"
-                    placeholder="Select or type material..."
-                    value={material}
-                    onChange={(e) => setMaterial(e.target.value)}
-                  />
-                  <datalist id="materials-list">
-                    {MATERIAL_OPTIONS.map((m) => (
-                      <option key={m} value={m} />
-                    ))}
-                  </datalist>
-                </div>
-              </details>
-
-              <details className="filter-block">
-                <summary>Condition</summary>
-                <div className="filter-body">
-                  <select
-                    className="select"
-                    value={condition}
-                    onChange={(e) => setCondition(e.target.value)}
-                  >
-                    <option value="">Any</option>
-                    {CONDITION_OPTIONS.map((c) => (
-                      <option key={c} value={c}>
-                        {c}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </details>
-
-              <details className="filter-block">
-                <summary>Size</summary>
-                <div className="filter-body">
-                  <input
-                    className="text-input"
-                    placeholder="Type size..."
-                    value={size}
-                    onChange={(e) => setSize(e.target.value)}
-                  />
-                </div>
-              </details>
-
-              <details className="filter-block">
-                <summary>Color</summary>
-                <div className="filter-body">
-                  <input
-                    className="text-input"
-                    placeholder="Type color..."
-                    value={color}
-                    onChange={(e) => setColor(e.target.value)}
-                  />
-                </div>
-              </details>
-
-              <details className="filter-block">
-                <summary>Price</summary>
-                <div className="filter-body">
-                  <div className="price-row">
-                    <div className="price-input">
-                      <span>Min</span>
-                      <input
-                        type="number"
-                        value={minPrice}
-                        onChange={(e) =>
-                          setMinPrice(
-                            e.target.value === ""
-                              ? ""
-                              : Number(e.target.value) || 0
-                          )
-                        }
-                      />
-                    </div>
-
-                    <div className="price-input">
-                      <span>Max</span>
-                      <input
-                        type="number"
-                        value={maxPrice}
-                        onChange={(e) =>
-                          setMaxPrice(
-                            e.target.value === ""
-                              ? ""
-                              : Number(e.target.value) || 0
-                          )
-                        }
-                      />
-                    </div>
-                  </div>
-
-                  <button
-                    type="button"
-                    className="apply-btn"
-                    onClick={applyFiltersToUrl}
-                  >
-                    Apply Filters
-                  </button>
-                </div>
-              </details>
-            </aside>
+            <ListingFilters
+              titleQuery={titleQuery}
+              category={category}
+              designer={designer}
+              material={material}
+              condition={condition}
+              size={size}
+              color={color}
+              minPrice={minPrice}
+              maxPrice={maxPrice}
+              sortBy={sortBy}
+              setTitleQuery={setTitleQuery}
+              setCategory={setCategory}
+              setDesigner={setDesigner}
+              setMaterial={setMaterial}
+              setCondition={setCondition}
+              setSize={setSize}
+              setColor={setColor}
+              setMinPrice={setMinPrice}
+              setMaxPrice={setMaxPrice}
+              setSortBy={setSortBy}
+              categoryOptions={CATEGORY_OPTIONS}
+              designerOptions={designerOptions || []}
+              conditionOptions={CONDITION_OPTIONS}
+              materialOptions={MATERIAL_OPTIONS}
+              onReset={resetFilters}
+              onApply={applyFiltersToUrl}
+              showApplyButton={true}
+            />
 
             <section className="results">
               <div className="results-header">
@@ -505,93 +363,6 @@ const DesignersPage: NextPage<DesignersPageProps> = ({
             grid-template-columns: 1fr;
           }
         }
-        .filters {
-          border-radius: 16px;
-          border: 1px solid #e5e7eb;
-          padding: 16px 18px 20px;
-          background: #fafafa;
-        }
-        .filters-header {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          margin-bottom: 12px;
-        }
-        .filters-header h2 {
-          font-size: 18px;
-          font-weight: 600;
-        }
-        .filters-header button {
-          border: none;
-          background: none;
-          font-size: 13px;
-          text-decoration: underline;
-          cursor: pointer;
-          color: #6b7280;
-        }
-
-        /* ✅ dropdown/collapsible filter blocks */
-        .filter-block {
-          border-top: 1px solid #e5e7eb;
-          padding-top: 10px;
-          margin-top: 10px;
-        }
-        .filter-block summary {
-          cursor: pointer;
-          font-weight: 600;
-          font-size: 13px;
-          color: #111827;
-          list-style: none;
-        }
-        .filter-block summary::-webkit-details-marker {
-          display: none;
-        }
-        .filter-body {
-          margin-top: 10px;
-        }
-        .text-input,
-        .select {
-          width: 100%;
-          border-radius: 12px;
-          border: 1px solid #d1d5db;
-          background: #ffffff;
-          color: #111827;
-          padding: 10px 12px;
-          font-size: 13px;
-        }
-
-        .price-row {
-          display: grid;
-          grid-template-columns: 1fr;
-          gap: 10px;
-        }
-        .price-input span {
-          display: block;
-          font-size: 12px;
-          color: #6b7280;
-          margin-bottom: 6px;
-        }
-        .price-input input {
-          width: 100%;
-          border-radius: 12px;
-          border: 1px solid #d1d5db;
-          padding: 10px 12px;
-          font-size: 13px;
-          background: #ffffff;
-        }
-        .apply-btn {
-          width: 100%;
-          margin-top: 12px;
-          border-radius: 999px;
-          padding: 10px 12px;
-          font-size: 13px;
-          font-weight: 700;
-          border: 1px solid #111827;
-          background: #111827;
-          color: #ffffff;
-          cursor: pointer;
-        }
-
         .results-header {
           display: flex;
           justify-content: space-between;
@@ -652,42 +423,27 @@ export default DesignersPage;
 export const getServerSideProps: GetServerSideProps<DesignersPageProps> =
   async () => {
     try {
-      // listings
-      const snapshot = await adminDb
-        .collection("listings")
-        .where("status", "==", "Live")
-        .get();
+      // ✅ Use getPublicListings for consistent data loading (same as category pages)
+      // This ensures proper status filtering, category normalization, and image extraction
+      const listings = await getPublicListings({ take: 500 });
 
-      const items: ItemWithMeta[] = snapshot.docs.map((doc) => {
-        const d: any = doc.data() || {};
-
-        const brandRaw =
-          d.brand || d.designer || d.designerName || d.brandName || "";
-        const categoryRaw = d.category || d.categoryLabel || d.categoryName || "";
-        const conditionRaw =
-          d.condition || d.conditionLabel || d.itemCondition || d.conditionText || "";
-        const materialRaw =
-          d.material || d.fabric || d.fabrication || d.materialName || "";
-        const sizeRaw = d.size || d.itemSize || "";
-        const colorRaw = d.color || d.colour || "";
-
-        const priceNum =
-          typeof d.price === "number" ? d.price : Number(d.price || 0);
+      const items: ItemWithMeta[] = listings.map((l) => {
+        const priceNum = typeof l.price === "number" ? l.price : 0;
         const price = priceNum ? `US$${priceNum.toLocaleString("en-US")}` : "";
 
         return {
-          id: doc.id,
-          title: d.title || "",
-          brand: brandRaw,
-          category: categoryRaw,
-          condition: conditionRaw,
-          material: materialRaw,
-          size: sizeRaw,
-          color: colorRaw,
+          id: l.id,
+          title: l.title || "",
+          brand: l.brand || "",
+          category: l.category || "",
+          condition: l.condition || "",
+          material: "", // publicListings doesn't extract material yet
+          size: "",
+          color: "",
           price,
-          image: pickImage(d),
-          href: `/product/${doc.id}`,
-          priceValue: priceNum || 0,
+          image: Array.isArray(l.images) && l.images[0] ? l.images[0] : "",
+          href: `/product/${l.id}`,
+          priceValue: priceNum,
         };
       });
 

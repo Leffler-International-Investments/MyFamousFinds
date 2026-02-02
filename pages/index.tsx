@@ -35,24 +35,46 @@ type HomeProps = {
   activeMessages: BuyerMessage[];
 };
 
-const CATEGORY_OPTIONS = ["Women", "Bags", "Men", "Jewelry", "Watches"];
-const CONDITION_OPTIONS = ["New", "Excellent", "Very good", "Good"];
+// ✅ Unified filter options (consistent across all pages)
+const CATEGORY_OPTIONS = [
+  "Women",
+  "Men",
+  "Bags",
+  "Shoes",
+  "Accessories",
+  "Jewelry",
+  "Watches",
+];
+const CONDITION_OPTIONS = [
+  "New with tags",
+  "New (never used)",
+  "Excellent",
+  "Very good",
+  "Good",
+  "Fair",
+];
 const MATERIAL_OPTIONS = [
   "Leather",
+  "Exotic Leather",
   "Silk",
   "Cashmere",
   "Wool",
   "Linen",
   "Cotton",
+  "Cotton Blend",
   "Denim",
+  "Velvet",
   "Suede",
   "Canvas",
-  "Nylon",
+  "Metal",
   "Gold",
   "Silver",
-  "Stainless Steel",
-  "Diamonds",
-  "Pearls",
+  "Plated Metal",
+  "Ceramic",
+  "Crystal",
+  "Resin",
+  "Synthetic",
+  "Other",
 ];
 
 function normalize(v: any): string {
