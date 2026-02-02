@@ -1,82 +1,159 @@
 // FILE: /lib/publicListings.ts
-// Public listings loader used by category pages and homepage.
-// IMPORTANT: This file must NOT import firebase-admin.
 
-import {
-  collection,
-  getDocs,
-  limit,
-  orderBy,
-  query,
-  where,
-  QueryConstraint,
-} from "firebase/firestore";
-
-import { db as clientDb } from "@/utils/firebaseClient";
+import { collection, getDocs, limit, orderBy, query, where } from "firebase/firestore";
+import { db } from "../utils/firebaseClient";
 
 export type PublicListing = {
   id: string;
+  title: string;
+  brand?: string;
+  price?: number;
+  priceUsd?: number;
+  currency?: string;
   category?: string;
-  categorySlug?: string;
+  condition?: string;
   status?: string;
-  sold?: boolean;
   isSold?: boolean;
+  images?: string[];
   createdAt?: any;
-  updatedAt?: any;
-  [key: string]: any;
 };
 
-const CATEGORY_CANON: Record<string, string> = {
-  women: "WOMEN",
-  bags: "BAGS",
-  men: "MEN",
-  jewelry: "JEWELRY",
-  watches: "WATCHES",
-};
+const CANON = ["WOMEN", "BAGS", "MEN", "JEWELRY", "WATCHES"] as const;
+type CanonCategory = (typeof CANON)[number];
 
-function canonSlug(input: any): string {
-  if (!input) return "";
-  return String(input).trim().toLowerCase();
+function normCategory(v: any): CanonCategory | "" {
+  const s = String(v || "").trim().toUpperCase();
+  if (s === "WATCH" || s === "WATCHES") return "WATCHES";
+  if (s === "WOMAN" || s === "WOMEN") return "WOMEN";
+  if (s === "BAG" || s === "BAGS") return "BAGS";
+  if (s === "MAN" || s === "MEN" || s === "MENS") return "MEN";
+  if (s === "JEWELRY" || s === "JEWELLERY") return "JEWELRY";
+  if (CANON.includes(s as any)) return s as CanonCategory;
+  return "";
 }
 
-function canonUpperCategoryFromSlug(slug: string): string {
-  return CATEGORY_CANON[canonSlug(slug)] || "";
-}
-
-function looksSold(d: any): boolean {
-  if (!d) return false;
-  const status = String(d.status || "").toLowerCase();
-  if (status === "sold") return true;
-  if (d.sold === true) return true;
-  if (d.isSold === true) return true;
-  return false;
-}
-
-function looksLive(d: any): boolean {
-  const status = String(d?.status || "").toLowerCase();
-  // Common “live/active” values observed in this repo:
-  if (status === "live") return true;
-  if (status === "active") return true;
-  if (status === "approved") return true;
-  if (status === "") return true; // tolerate missing status
-  return false;
-}
-
-function matchesCategory(d: any, slug: string): boolean {
-  const s = canonSlug(slug);
+function isLiveStatus(v: any): boolean {
+  const s = String(v || "").trim().toLowerCase();
+  // ✅ tolerate missing status (treat as live) — IMPORTANT for migrations
   if (!s) return true;
+  // During build/test, allow "pending" so freshly uploaded items are visible.
+  // When you are ready for strict moderation, remove "pending" from this list.
+  return (
+    s === "live" ||
+    s === "published" ||
+    s === "active" ||
+    s === "approved" ||
+    s === "pending"
+  );
+}
 
-  const wantUpper = canonUpperCategoryFromSlug(s);
+function isSoldStatus(v: any): boolean {
+  const s = String(v || "").trim().toLowerCase();
+  return s === "sold" || s === "inactive_sold";
+}
 
-  const cat = String(d?.category || "").trim();
-  const catSlug = canonSlug(d?.categorySlug);
+function pickPrice(x: any): number | undefined {
+  if (typeof x?.priceUsd === "number") return x.priceUsd;
+  if (typeof x?.price === "number") return x.price;
 
-  if (catSlug && catSlug === s) return true;
-  if (wantUpper && cat.toUpperCase() === wantUpper) return true;
+  // tolerate price stored as string
+  if (typeof x?.priceUsd === "string") {
+    const n = Number(String(x.priceUsd).replace(/[^0-9.]/g, ""));
+    if (Number.isFinite(n)) return n;
+  }
+  if (typeof x?.price === "string") {
+    const n = Number(String(x.price).replace(/[^0-9.]/g, ""));
+    if (Number.isFinite(n)) return n;
+  }
 
-  // Tolerate “Jewelry” vs “JEWELRY” etc
-  if (cat && canonSlug(cat) === s) return true;
+  // tolerate nested pricing shape
+  if (typeof x?.pricing?.amount === "number") return x.pricing.amount;
+  if (typeof x?.pricing?.amount === "string") {
+    const n = Number(String(x.pricing.amount).replace(/[^0-9.]/g, ""));
+    if (Number.isFinite(n)) return n;
+  }
 
+  return undefined;
+}
+
+function extractImages(x: any): string[] {
+  // Prefer explicit arrays if present
+  const arr =
+    Array.isArray(x?.images) ? x.images :
+    Array.isArray(x?.imageUrls) ? x.imageUrls :
+    Array.isArray(x?.image_urls) ? x.image_urls :
+    Array.isArray(x?.photos) ? x.photos :
+    Array.isArray(x?.photoUrls) ? x.photoUrls :
+    Array.isArray(x?.photo_urls) ? x.photo_urls :
+    [];
+
+  const out: string[] = [];
+
+  // 1) Array-based
+  for (const u of arr) {
+    if (typeof u === "string" && u.trim().length > 0) out.push(u.trim());
+  }
+
+  // 2) Single URL fields (common in this codebase: image_url)
+  const singles = [
+    x?.image_url,
+    x?.imageUrl,
+    x?.mainImage,
+    x?.mainImageUrl,
+    x?.thumbnail,
+    x?.thumbnailUrl,
+    x?.coverImage,
+    x?.coverImageUrl,
+    // nested item payloads (bulk + older docs)
+    x?.item?.image_url,
+    x?.item?.imageUrl,
+    x?.item?.mainImageUrl,
+    x?.item?.thumbnailUrl,
+  ];
+
+  for (const u of singles) {
+    if (typeof u === "string" && u.trim().length > 0) out.push(u.trim());
+  }
+
+  // 3) Fallback to proof photos if no public image exists (keeps cards from being blank)
+  if (out.length === 0) {
+    const proof = Array.isArray(x?.auth_photos)
+      ? x.auth_photos
+      : Array.isArray(x?.item?.auth_photos)
+      ? x.item.auth_photos
+      : [];
+
+    for (const u of proof) {
+      if (typeof u === "string" && u.trim().length > 0) out.push(u.trim());
+    }
+  }
+
+  // De-dupe while keeping order
+  return Array.from(new Set(out));
+}
+
+function extractCategory(x: any): CanonCategory | "" {
+  return normCategory(
+    x?.category ??
+      x?.categoryLabel ??
+      x?.categoryName ??
+      x?.menuCategory ??
+      x?.menu_category ??
+      x?.category_name ??
+      // nested item payloads (older/imported docs)
+      x?.item?.category ??
+      x?.item?.categoryLabel ??
+      x?.item?.categoryName ??
+      x?.item?.menuCategory ??
+      x?.item?.menu_category ??
+      x?.item?.category_name
+  );
+}
+
+function isSoldFlag(x: any): boolean {
+  if (x?.isSold === true) return true;
+  if (x?.sold === true) return true;
+  if (x?.status && isSoldStatus(x.status)) return true;
   return false;
 }
 
@@ -84,52 +161,45 @@ export async function getPublicListings(opts?: {
   category?: string;
   take?: number;
 }): Promise<PublicListing[]> {
-  const take = Math.max(1, Math.min(Number(opts?.take || 200), 500));
-  const categorySlug = canonSlug(opts?.category);
+  const take = Math.min(Math.max(opts?.take ?? 200, 1), 500);
 
-  // If Firebase client isn't configured, return empty list (prevents crashes)
-  if (!clientDb) return [];
-
-  const baseConstraints: QueryConstraint[] = [
-    orderBy("createdAt", "desc"),
-    limit(take),
-  ];
-
-  // Primary strategy: keep Firestore query simple (avoid composite index problems)
-  // 1) Fetch recent items
-  // 2) Filter in-memory to enforce “live” and correct category matching
-  const q = query(collection(clientDb, "listings"), ...baseConstraints);
+  const q = query(collection(db, "listings"), orderBy("createdAt", "desc"), limit(take));
   const snap = await getDocs(q);
 
-  const items: PublicListing[] = snap.docs.map((doc) => ({
-    id: doc.id,
-    ...(doc.data() as any),
-  }));
+  const items: PublicListing[] = [];
 
-  const filtered = items
-    .filter((d) => looksLive(d))
-    .filter((d) => !looksSold(d))
-    .filter((d) => matchesCategory(d, categorySlug));
+  snap.forEach((doc) => {
+    const d: any = doc.data() || {};
 
-  // If category page and nothing matched, do one targeted query attempt
-  // (for deployments where category is reliably stored as uppercase field).
-  if (categorySlug && filtered.length === 0) {
-    const wantUpper = canonUpperCategoryFromSlug(categorySlug);
-    if (wantUpper) {
-      const q2 = query(
-        collection(clientDb, "listings"),
-        where("category", "==", wantUpper),
-        orderBy("createdAt", "desc"),
-        limit(take)
-      );
-      const snap2 = await getDocs(q2);
-      const items2: PublicListing[] = snap2.docs.map((doc) => ({
-        id: doc.id,
-        ...(doc.data() as any),
-      }));
-      return items2.filter((d) => looksLive(d)).filter((d) => !looksSold(d));
-    }
-  }
+    const cat = extractCategory(d);
+    const imgs = extractImages(d);
+
+    // Live filter
+    if (!isLiveStatus(d?.status)) return;
+
+    // Sold filter
+    if (isSoldFlag(d)) return;
+
+    const price = pickPrice(d);
+
+    items.push({
+      id: doc.id,
+      title: String(d?.title || d?.name || "Untitled"),
+      brand: String(d?.brand || d?.designer || d?.maker || "").trim() || undefined,
+      price: typeof price === "number" ? price : undefined,
+      currency: String(d?.currency || d?.pricing?.currency || "USD"),
+      category: cat || undefined,
+      condition: String(d?.condition || "").trim() || undefined,
+      status: String(d?.status || "").trim() || undefined,
+      isSold: false,
+      images: imgs,
+      createdAt: d?.createdAt,
+    });
+  });
+
+  // Optional category filter at the end (safe, normalized)
+  const wanted = normCategory(opts?.category);
+  const filtered = wanted ? items.filter((x) => normCategory(x.category) === wanted) : items;
 
   return filtered;
 }
