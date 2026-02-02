@@ -1,6 +1,6 @@
  // FILE: pages/buyer/dashboard.tsx
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Head from "next/head";
 import { useRouter } from "next/router";
 import Header from "../../components/Header";
@@ -20,14 +20,36 @@ type ItemRow = {
 
 export default function BuyerDashboardPage() {
   const router = useRouter();
+  const previewMode = useMemo(
+    () => router.isReady && String(router.query.preview || "") === "1",
+    [router.isReady, router.query.preview]
+  );
   const [user, setUser] = useState<User | null>(null);
 
   const [savedItems, setSavedItems] = useState<ItemRow[]>([]);
   const [viewedItems, setViewedItems] = useState<ItemRow[]>([]);
   const [activeOffers, setActiveOffers] = useState<ItemRow[]>([]);
+  const [purchasedItems, setPurchasedItems] = useState<ItemRow[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (previewMode) {
+      setUser(null);
+      setSavedItems([
+        { id: "preview-1", title: "Vintage Chanel Classic Flap", brand: "Chanel" },
+        { id: "preview-2", title: "Hermès Birkin 30", brand: "Hermès" },
+      ]);
+      setViewedItems([
+        { id: "preview-3", title: "Louis Vuitton Speedy 25", brand: "Louis Vuitton" },
+      ]);
+      setActiveOffers([{ id: "preview-4", title: "Rolex Datejust 36", brand: "Rolex" }]);
+      setPurchasedItems([
+        { id: "preview-5", title: "Cartier Love Bracelet", brand: "Cartier" },
+      ]);
+      setLoading(false);
+      return;
+    }
+
     // ✅ Prevent build-time crash / SSR crash when env vars aren’t configured
     if (!firebaseClientReady || !auth || !db) {
       setLoading(false);
@@ -40,15 +62,15 @@ export default function BuyerDashboardPage() {
         return;
       }
       setUser(u);
-      await loadData(u.uid);
+      await loadData(u.uid, u.email || "");
       setLoading(false);
     });
 
     return () => unsub();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [router]);
+  }, [previewMode, router]);
 
-  const loadData = async (uid: string) => {
+  const loadData = async (uid: string, email: string) => {
     if (!db) return;
 
     const loadCollection = async (name: string) => {
@@ -63,15 +85,49 @@ export default function BuyerDashboardPage() {
     setSavedItems(await loadCollection("buyerSavedItems"));
     setViewedItems(await loadCollection("buyerRecentlyViewed"));
     setActiveOffers(await loadCollection("buyerOffers"));
+
+    const orders: ItemRow[] = [];
+    if (email) {
+      const ordersByEmail = await getDocs(
+        query(collection(db, "orders"), where("buyerEmail", "==", email))
+      );
+      ordersByEmail.forEach((doc) => {
+        const d: any = doc.data() || {};
+        orders.push({
+          id: doc.id,
+          title: d.listingTitle || d.title || "Purchased item",
+          brand: d.listingBrand || d.brand || "",
+        });
+      });
+    }
+
+    const ordersByUid = await getDocs(
+      query(collection(db, "orders"), where("buyerUid", "==", uid))
+    );
+    ordersByUid.forEach((doc) => {
+      if (orders.find((o) => o.id === doc.id)) return;
+      const d: any = doc.data() || {};
+      orders.push({
+        id: doc.id,
+        title: d.listingTitle || d.title || "Purchased item",
+        brand: d.listingBrand || d.brand || "",
+      });
+    });
+
+    setPurchasedItems(orders);
   };
 
   const handleSignOut = async () => {
+    if (previewMode) {
+      router.push("/");
+      return;
+    }
     if (auth) await signOut(auth);
     router.push("/");
   };
 
   // ✅ If Firebase isn’t configured, don’t crash — show a clear message
-  if (!firebaseClientReady) {
+  if (!firebaseClientReady && !previewMode) {
     return (
       <>
         <Head>
@@ -107,11 +163,15 @@ export default function BuyerDashboardPage() {
           <div className="buyer-dashboard-header">
             <div>
               <h1 className="buyer-dashboard-title">Your Famous Finds Snapshot</h1>
-              {user && <p className="buyer-dashboard-meta">Signed in as {user.email}</p>}
+              {previewMode ? (
+                <p className="buyer-dashboard-meta">Preview mode (developer access)</p>
+              ) : (
+                user && <p className="buyer-dashboard-meta">Signed in as {user.email}</p>
+              )}
             </div>
 
             <button type="button" onClick={handleSignOut} className="buyer-dashboard-signout">
-              Sign out
+              {previewMode ? "Exit preview" : "Sign out"}
             </button>
           </div>
 
@@ -137,6 +197,11 @@ export default function BuyerDashboardPage() {
                   <div className="buyer-snapshot-item">
                     <div className="buyer-snapshot-number">{activeOffers.length}</div>
                     <div className="buyer-snapshot-text">Active Offers</div>
+                  </div>
+
+                  <div className="buyer-snapshot-item">
+                    <div className="buyer-snapshot-number">{purchasedItems.length}</div>
+                    <div className="buyer-snapshot-text">Purchased Items</div>
                   </div>
                 </div>
               </section>
@@ -185,6 +250,21 @@ export default function BuyerDashboardPage() {
                     </ul>
                   ) : (
                     <p className="buyer-dashboard-empty">No active offers yet.</p>
+                  )}
+                </div>
+
+                <div className="buyer-dashboard-list">
+                  <h2 className="buyer-dashboard-list-title">Purchased Items</h2>
+                  {purchasedItems.length ? (
+                    <ul className="buyer-dashboard-list-items">
+                      {purchasedItems.map((item) => (
+                        <li key={item.id} className="buyer-dashboard-list-row">
+                          {item.title}
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="buyer-dashboard-empty">No purchases yet.</p>
                   )}
                 </div>
               </section>
