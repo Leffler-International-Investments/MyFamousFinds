@@ -1,6 +1,6 @@
 // FILE: /lib/publicListings.ts
 
-import { collection, getDocs, limit, orderBy, query, where } from "firebase/firestore";
+import { collection, getDocs, limit, orderBy, query } from "firebase/firestore";
 import { db } from "../utils/firebaseClient";
 
 export type PublicListing = {
@@ -27,7 +27,17 @@ function normCategory(v: any): CanonCategory | "" {
   if (s === "WOMAN" || s === "WOMEN") return "WOMEN";
   if (s === "BAG" || s === "BAGS") return "BAGS";
   if (s === "MAN" || s === "MEN" || s === "MENS") return "MEN";
-  if (s === "JEWELRY" || s === "JEWELLERY") return "JEWELRY";
+
+  // ✅ IMPORTANT: tolerate common misspellings/variants so Jewelry actually shows
+  if (
+    s === "JEWELRY" ||
+    s === "JEWELLERY" ||
+    s === "JEWELERY" ||
+    s === "JEWELS" ||
+    s === "JEWEL"
+  )
+    return "JEWELRY";
+
   if (CANON.includes(s as any)) return s as CanonCategory;
   return "";
 }
@@ -77,68 +87,37 @@ function pickPrice(x: any): number | undefined {
 }
 
 function extractImages(x: any): string[] {
-  // Prefer explicit arrays if present
-  const arr =
-    Array.isArray(x?.images) ? x.images :
-    Array.isArray(x?.imageUrls) ? x.imageUrls :
-    Array.isArray(x?.image_urls) ? x.image_urls :
-    Array.isArray(x?.photos) ? x.photos :
-    Array.isArray(x?.photoUrls) ? x.photoUrls :
-    Array.isArray(x?.photo_urls) ? x.photo_urls :
-    [];
+  const a =
+    x?.images ??
+    x?.imageUrls ??
+    x?.image_urls ??
+    x?.photos ??
+    x?.photoUrls ??
+    x?.photo_urls ??
+    x?.item?.images ??
+    x?.item?.imageUrls ??
+    x?.item?.image_urls ??
+    x?.item?.photos ??
+    x?.item?.photoUrls ??
+    x?.item?.photo_urls;
 
-  const out: string[] = [];
+  if (Array.isArray(a)) return a.filter(Boolean).map(String);
 
-  // 1) Array-based
-  for (const u of arr) {
-    if (typeof u === "string" && u.trim().length > 0) out.push(u.trim());
-  }
+  if (typeof x?.image === "string" && x.image) return [x.image];
+  if (typeof x?.coverImage === "string" && x.coverImage) return [x.coverImage];
+  if (typeof x?.item?.image === "string" && x.item.image) return [x.item.image];
+  if (typeof x?.item?.coverImage === "string" && x.item.coverImage)
+    return [x.item.coverImage];
 
-  // 2) Single URL fields (common in this codebase: image_url)
-  const singles = [
-    x?.image_url,
-    x?.imageUrl,
-    x?.mainImage,
-    x?.mainImageUrl,
-    x?.thumbnail,
-    x?.thumbnailUrl,
-    x?.coverImage,
-    x?.coverImageUrl,
-    // nested item payloads (bulk + older docs)
-    x?.item?.image_url,
-    x?.item?.imageUrl,
-    x?.item?.mainImageUrl,
-    x?.item?.thumbnailUrl,
-  ];
-
-  for (const u of singles) {
-    if (typeof u === "string" && u.trim().length > 0) out.push(u.trim());
-  }
-
-  // 3) Fallback to proof photos if no public image exists (keeps cards from being blank)
-  if (out.length === 0) {
-    const proof = Array.isArray(x?.auth_photos)
-      ? x.auth_photos
-      : Array.isArray(x?.item?.auth_photos)
-      ? x.item.auth_photos
-      : [];
-
-    for (const u of proof) {
-      if (typeof u === "string" && u.trim().length > 0) out.push(u.trim());
-    }
-  }
-
-  // De-dupe while keeping order
-  return Array.from(new Set(out));
+  return [];
 }
 
-function extractCategory(x: any): CanonCategory | "" {
-  return normCategory(
+function extractCategory(x: any): string {
+  return String(
     x?.category ??
-      x?.categoryLabel ??
-      x?.categoryName ??
       x?.menuCategory ??
       x?.menu_category ??
+      x?.categoryName ??
       x?.category_name ??
       // nested item payloads (older/imported docs)
       x?.item?.category ??
@@ -146,8 +125,9 @@ function extractCategory(x: any): CanonCategory | "" {
       x?.item?.categoryName ??
       x?.item?.menuCategory ??
       x?.item?.menu_category ??
-      x?.item?.category_name
-  );
+      x?.item?.category_name ??
+      ""
+  ).trim();
 }
 
 function isSoldFlag(x: any): boolean {
