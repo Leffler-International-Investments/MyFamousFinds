@@ -28,7 +28,6 @@ function normCategory(v: any): CanonCategory | "" {
   if (s === "BAG" || s === "BAGS") return "BAGS";
   if (s === "MAN" || s === "MEN" || s === "MENS") return "MEN";
 
-  // tolerate common variants/misspellings
   if (
     s === "JEWELRY" ||
     s === "JEWELLERY" ||
@@ -50,14 +49,20 @@ function isLiveStatus(v: any): boolean {
     s === "published" ||
     s === "active" ||
     s === "approved" ||
-    s === "pending" ||
-    s === "Pending".toLowerCase()
+    s === "pending"
   );
 }
 
 function isSoldStatus(v: any): boolean {
   const s = String(v || "").trim().toLowerCase();
   return s === "sold" || s === "inactive_sold";
+}
+
+function isSoldFlag(x: any): boolean {
+  if (x?.isSold === true) return true;
+  if (x?.sold === true) return true;
+  if (x?.status && isSoldStatus(x.status)) return true;
+  return false;
 }
 
 function pickPrice(x: any): number | undefined {
@@ -82,7 +87,7 @@ function pickPrice(x: any): number | undefined {
   return undefined;
 }
 
-// ✅ FIX #1: restore FULL image extraction (includes image_url)
+// ✅ restore full image extraction (includes image_url)
 function extractImages(x: any): string[] {
   const arr =
     Array.isArray(x?.images)
@@ -118,7 +123,6 @@ function extractImages(x: any): string[] {
   }
 
   const singles = [
-    // common in your codebase
     x?.image_url,
     x?.imageUrl,
     x?.image,
@@ -129,7 +133,6 @@ function extractImages(x: any): string[] {
     x?.coverImage,
     x?.coverImageUrl,
 
-    // nested bulk/legacy
     x?.item?.image_url,
     x?.item?.imageUrl,
     x?.item?.image,
@@ -142,22 +145,26 @@ function extractImages(x: any): string[] {
     if (typeof u === "string" && u.trim().length > 0) out.push(u.trim());
   }
 
-  // last resort: auth/proof photos (prevents blank cards)
   if (out.length === 0) {
     const proof =
-      Array.isArray(x?.auth_photos) ? x.auth_photos :
-      Array.isArray(x?.authPhotos) ? x.authPhotos :
-      Array.isArray(x?.proofPhotos) ? x.proofPhotos :
-      Array.isArray(x?.item?.auth_photos) ? x.item.auth_photos :
-      Array.isArray(x?.item?.authPhotos) ? x.item.authPhotos :
-      Array.isArray(x?.item?.proofPhotos) ? x.item.proofPhotos :
-      [];
+      Array.isArray(x?.auth_photos)
+        ? x.auth_photos
+        : Array.isArray(x?.authPhotos)
+        ? x.authPhotos
+        : Array.isArray(x?.proofPhotos)
+        ? x.proofPhotos
+        : Array.isArray(x?.item?.auth_photos)
+        ? x.item.auth_photos
+        : Array.isArray(x?.item?.authPhotos)
+        ? x.item.authPhotos
+        : Array.isArray(x?.item?.proofPhotos)
+        ? x.item.proofPhotos
+        : [];
     for (const u of proof) {
       if (typeof u === "string" && u.trim().length > 0) out.push(u.trim());
     }
   }
 
-  // de-dupe
   return Array.from(new Set(out));
 }
 
@@ -174,8 +181,7 @@ function firstNonEmpty(...vals: any[]): string {
   return "";
 }
 
-// ✅ FIX #2: category extraction must prefer legacy fields over `category`
-// because you still have conflicting fields on some docs
+// Prefer legacy fields (you have conflicts in docs)
 function extractCategory(x: any): string {
   return firstNonEmpty(
     x?.categoryLabel,
@@ -183,25 +189,59 @@ function extractCategory(x: any): string {
     x?.menuCategory,
     x?.menuCategories,
     x?.category_name,
+    x?.department,
+    x?.productType,
+    x?.type,
 
-    // nested item payloads
     x?.item?.categoryLabel,
     x?.item?.categoryName,
     x?.item?.menuCategory,
     x?.item?.menuCategories,
     x?.item?.category_name,
+    x?.item?.department,
+    x?.item?.productType,
+    x?.item?.type,
 
-    // category LAST (only if nothing else exists)
     x?.category,
     x?.item?.category
   );
 }
 
-function isSoldFlag(x: any): boolean {
-  if (x?.isSold === true) return true;
-  if (x?.sold === true) return true;
-  if (x?.status && isSoldStatus(x.status)) return true;
-  return false;
+// ✅ Jewelry fallback: if DB category is wrong/missing, infer from title/fields.
+// This is only used when the user is viewing the JEWELRY category, so it won't pollute other categories.
+function looksLikeJewelry(x: PublicListing): boolean {
+  const t = `${x.title || ""} ${x.brand || ""}`.toLowerCase();
+  const keywords = [
+    "ring",
+    "bracelet",
+    "bangle",
+    "necklace",
+    "earring",
+    "earrings",
+    "pendant",
+    "brooch",
+    "cuff",
+    "chain",
+    "charm",
+    "diamond",
+    "gold",
+    "silver",
+    "platinum",
+    "pearl",
+    "sapphire",
+    "emerald",
+    "ruby",
+    "gem",
+    "jewel",
+    "jewelry",
+    "jewellery",
+    "cartier",
+    "tiffany",
+    "bvlgari",
+    "bulgari",
+    "van cleef",
+  ];
+  return keywords.some((k) => t.includes(k));
 }
 
 export async function getPublicListings(opts?: {
@@ -210,7 +250,11 @@ export async function getPublicListings(opts?: {
 }): Promise<PublicListing[]> {
   const take = Math.min(Math.max(opts?.take ?? 200, 1), 500);
 
-  const q = query(collection(db, "listings"), orderBy("createdAt", "desc"), limit(take));
+  const q = query(
+    collection(db, "listings"),
+    orderBy("createdAt", "desc"),
+    limit(take)
+  );
   const snap = await getDocs(q);
 
   const items: PublicListing[] = [];
@@ -228,7 +272,9 @@ export async function getPublicListings(opts?: {
     items.push({
       id: doc.id,
       title: String(d?.title || d?.name || "Untitled"),
-      brand: String(d?.brand || d?.designer || d?.maker || "").trim() || undefined,
+      brand: String(d?.brand || d?.designer || d?.maker || "")
+        .trim()
+        || undefined,
       price: typeof price === "number" ? price : undefined,
       currency: String(d?.currency || d?.pricing?.currency || "USD"),
       category: categoryRaw || undefined,
@@ -241,9 +287,16 @@ export async function getPublicListings(opts?: {
   });
 
   const wanted = normCategory(opts?.category);
-  const filtered = wanted
-    ? items.filter((x) => normCategory(x.category) === wanted)
-    : items;
 
-  return filtered;
+  if (!wanted) return items;
+
+  // ✅ If user wants Jewelry: include "true Jewelry" and "Jewelry-like titles"
+  if (wanted === "JEWELRY") {
+    return items.filter((x) => {
+      const n = normCategory(x.category);
+      return n === "JEWELRY" || (n === "" && looksLikeJewelry(x));
+    });
+  }
+
+  return items.filter((x) => normCategory(x.category) === wanted);
 }
