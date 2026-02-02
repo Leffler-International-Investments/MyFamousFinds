@@ -483,95 +483,117 @@ const HomePage: NextPage<HomeProps> = ({ trending, newArrivals, activeMessages }
 export default HomePage;
 
 export const getServerSideProps: GetServerSideProps = async () => {
-  const listings = await adminDb.collection("listings").limit(200).get();
+  try {
+    if (!adminDb) {
+      console.error("Firebase Admin DB is not initialized");
+      return {
+        props: {
+          trending: [],
+          newArrivals: [],
+          activeMessages: [],
+        },
+      };
+    }
 
-  const pickImage = (d: any): string => {
-    const fromArray =
-      Array.isArray(d.images) ? d.images :
-      Array.isArray(d.imageUrls) ? d.imageUrls :
-      Array.isArray(d.photos) ? d.photos :
-      [];
-    if (Array.isArray(fromArray) && fromArray[0]) return String(fromArray[0]);
+    const listings = await adminDb.collection("listings").limit(200).get();
 
-    return (
-      d.image_url ||
-      d.imageUrl ||
-      d.image ||
-      d.coverImage ||
-      d.coverImageUrl ||
-      ""
-    );
-  };
+    const pickImage = (d: any): string => {
+      const fromArray =
+        Array.isArray(d.images) ? d.images :
+        Array.isArray(d.imageUrls) ? d.imageUrls :
+        Array.isArray(d.photos) ? d.photos :
+        [];
+      if (Array.isArray(fromArray) && fromArray[0]) return String(fromArray[0]);
 
-  const items: any[] = listings.docs.map((doc) => {
-    const data: any = doc.data() || {};
-    const priceNum = typeof data.price === "number" ? data.price : Number(data.price || 0);
+      return (
+        d.image_url ||
+        d.imageUrl ||
+        d.image ||
+        d.coverImage ||
+        d.coverImageUrl ||
+        ""
+      );
+    };
+
+    const items: any[] = listings.docs.map((doc) => {
+      const data: any = doc.data() || {};
+      const priceNum = typeof data.price === "number" ? data.price : Number(data.price || 0);
+
+      return {
+        id: doc.id,
+        title: data.title || data.name || "Untitled",
+        brand: data.brand || data.designer || "",
+        price: priceNum ? `US$${priceNum.toLocaleString("en-US")}` : "",
+        priceValue: priceNum || 0,
+        image: pickImage(data),
+        href: `/product/${doc.id}`,
+        category: data.category || data.categoryLabel || data.menuCategory || "",
+        condition: data.condition || "",
+        createdAt: data.createdAt || null,
+        viewCount: data.viewCount || 0,
+      };
+    });
+
+    const newArrivals = items
+      .slice()
+      .sort((a: any, b: any) => {
+        const aTime = a.createdAt?.toMillis?.() || 0;
+        const bTime = b.createdAt?.toMillis?.() || 0;
+        return bTime - aTime;
+      })
+      .slice(0, 8);
+
+    let trending = items
+      .slice()
+      .sort((a: any, b: any) => (b.viewCount || 0) - (a.viewCount || 0))
+      .slice(0, 8);
+
+    if (!trending.length) trending = newArrivals;
+
+    let activeMessages: BuyerMessage[] = [];
+    try {
+      const messagesRef = adminDb.collection("buyer_messages");
+      let snap = await messagesRef.where("active", "==", true).get();
+      if (snap.empty) snap = await messagesRef.get();
+
+      activeMessages = snap.docs
+        .map((doc) => {
+          const d = doc.data() as any;
+          return {
+            id: doc.id,
+            text: d.text || "",
+            linkText: d.linkText || "",
+            linkUrl: d.linkUrl || "",
+            imageUrl: d.imageUrl || "",
+            videoUrl: d.videoUrl || "",
+            type: (d.type as BuyerMessage["type"]) || "info",
+            active: d.active ?? true,
+            createdAt: d.createdAt?.toMillis?.() || 0,
+          } as BuyerMessage;
+        })
+        .filter((m) => m.active !== false && m.text.trim().length > 0)
+        .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+    } catch (err) {
+      console.error("Error fetching messages:", err);
+    }
 
     return {
-      id: doc.id,
-      title: data.title || data.name || "Untitled",
-      brand: data.brand || data.designer || "",
-      price: priceNum ? `US$${priceNum.toLocaleString("en-US")}` : "",
-      priceValue: priceNum || 0,
-      image: pickImage(data),
-      href: `/product/${doc.id}`,
-      category: data.category || data.categoryLabel || data.menuCategory || "",
-      condition: data.condition || "",
-      createdAt: data.createdAt || null,
-      viewCount: data.viewCount || 0,
+      props: {
+        trending,
+        newArrivals,
+        activeMessages,
+      },
     };
-  });
-
-  const newArrivals = items
-    .slice()
-    .sort((a: any, b: any) => {
-      const aTime = a.createdAt?.toMillis?.() || 0;
-      const bTime = b.createdAt?.toMillis?.() || 0;
-      return bTime - aTime;
-    })
-    .slice(0, 8);
-
-  let trending = items
-    .slice()
-    .sort((a: any, b: any) => (b.viewCount || 0) - (a.viewCount || 0))
-    .slice(0, 8);
-
-  if (!trending.length) trending = newArrivals;
-
-  let activeMessages: BuyerMessage[] = [];
-  try {
-    const messagesRef = adminDb.collection("buyer_messages");
-    let snap = await messagesRef.where("active", "==", true).get();
-    if (snap.empty) snap = await messagesRef.get();
-
-    activeMessages = snap.docs
-      .map((doc) => {
-        const d = doc.data() as any;
-        return {
-          id: doc.id,
-          text: d.text || "",
-          linkText: d.linkText || "",
-          linkUrl: d.linkUrl || "",
-          imageUrl: d.imageUrl || "",
-          videoUrl: d.videoUrl || "",
-          type: (d.type as BuyerMessage["type"]) || "info",
-          active: d.active ?? true,
-          createdAt: d.createdAt?.toMillis?.() || 0,
-        } as BuyerMessage;
-      })
-      .filter((m) => m.active !== false && m.text.trim().length > 0)
-      .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
   } catch (err) {
-    console.error("Error fetching messages:", err);
+    console.error("Error in getServerSideProps for homepage:", err);
+    return {
+      props: {
+        trending: [],
+        newArrivals: [],
+        activeMessages: [],
+      },
+    };
   }
-
-  return {
-    props: {
-      trending,
-      newArrivals,
-      activeMessages,
-    },
-  };
 };
 
 
