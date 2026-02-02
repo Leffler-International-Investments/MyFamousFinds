@@ -33,7 +33,10 @@ function normCategory(v: any): CanonCategory | "" {
     s === "JEWELLERY" ||
     s === "JEWELERY" ||
     s === "JEWELS" ||
-    s === "JEWEL"
+    s === "JEWEL" ||
+    s.includes("JEWELRY") ||
+    s.includes("JEWELLERY") ||
+    s.includes("JEWEL")
   )
     return "JEWELRY";
 
