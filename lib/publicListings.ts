@@ -28,7 +28,7 @@ function normCategory(v: any): CanonCategory | "" {
   if (s === "BAG" || s === "BAGS") return "BAGS";
   if (s === "MAN" || s === "MEN" || s === "MENS") return "MEN";
 
-  // ✅ IMPORTANT: tolerate common misspellings/variants so Jewelry actually shows
+  // tolerate common variants/misspellings
   if (
     s === "JEWELRY" ||
     s === "JEWELLERY" ||
@@ -38,22 +38,20 @@ function normCategory(v: any): CanonCategory | "" {
   )
     return "JEWELRY";
 
-  if (CANON.includes(s as any)) return s as CanonCategory;
+  if ((CANON as readonly string[]).includes(s)) return s as CanonCategory;
   return "";
 }
 
 function isLiveStatus(v: any): boolean {
   const s = String(v || "").trim().toLowerCase();
-  // ✅ tolerate missing status (treat as live) — IMPORTANT for migrations
   if (!s) return true;
-  // During build/test, allow "pending" so freshly uploaded items are visible.
-  // When you are ready for strict moderation, remove "pending" from this list.
   return (
     s === "live" ||
     s === "published" ||
     s === "active" ||
     s === "approved" ||
-    s === "pending"
+    s === "pending" ||
+    s === "Pending".toLowerCase()
   );
 }
 
@@ -66,7 +64,6 @@ function pickPrice(x: any): number | undefined {
   if (typeof x?.priceUsd === "number") return x.priceUsd;
   if (typeof x?.price === "number") return x.price;
 
-  // tolerate price stored as string
   if (typeof x?.priceUsd === "string") {
     const n = Number(String(x.priceUsd).replace(/[^0-9.]/g, ""));
     if (Number.isFinite(n)) return n;
@@ -76,7 +73,6 @@ function pickPrice(x: any): number | undefined {
     if (Number.isFinite(n)) return n;
   }
 
-  // tolerate nested pricing shape
   if (typeof x?.pricing?.amount === "number") return x.pricing.amount;
   if (typeof x?.pricing?.amount === "string") {
     const n = Number(String(x.pricing.amount).replace(/[^0-9.]/g, ""));
@@ -86,48 +82,119 @@ function pickPrice(x: any): number | undefined {
   return undefined;
 }
 
+// ✅ FIX #1: restore FULL image extraction (includes image_url)
 function extractImages(x: any): string[] {
-  const a =
-    x?.images ??
-    x?.imageUrls ??
-    x?.image_urls ??
-    x?.photos ??
-    x?.photoUrls ??
-    x?.photo_urls ??
-    x?.item?.images ??
-    x?.item?.imageUrls ??
-    x?.item?.image_urls ??
-    x?.item?.photos ??
-    x?.item?.photoUrls ??
-    x?.item?.photo_urls;
+  const arr =
+    Array.isArray(x?.images)
+      ? x.images
+      : Array.isArray(x?.imageUrls)
+      ? x.imageUrls
+      : Array.isArray(x?.image_urls)
+      ? x.image_urls
+      : Array.isArray(x?.photos)
+      ? x.photos
+      : Array.isArray(x?.photoUrls)
+      ? x.photoUrls
+      : Array.isArray(x?.photo_urls)
+      ? x.photo_urls
+      : Array.isArray(x?.item?.images)
+      ? x.item.images
+      : Array.isArray(x?.item?.imageUrls)
+      ? x.item.imageUrls
+      : Array.isArray(x?.item?.image_urls)
+      ? x.item.image_urls
+      : Array.isArray(x?.item?.photos)
+      ? x.item.photos
+      : Array.isArray(x?.item?.photoUrls)
+      ? x.item.photoUrls
+      : Array.isArray(x?.item?.photo_urls)
+      ? x.item.photo_urls
+      : [];
 
-  if (Array.isArray(a)) return a.filter(Boolean).map(String);
+  const out: string[] = [];
 
-  if (typeof x?.image === "string" && x.image) return [x.image];
-  if (typeof x?.coverImage === "string" && x.coverImage) return [x.coverImage];
-  if (typeof x?.item?.image === "string" && x.item.image) return [x.item.image];
-  if (typeof x?.item?.coverImage === "string" && x.item.coverImage)
-    return [x.item.coverImage];
+  for (const u of arr) {
+    if (typeof u === "string" && u.trim().length > 0) out.push(u.trim());
+  }
 
-  return [];
+  const singles = [
+    // common in your codebase
+    x?.image_url,
+    x?.imageUrl,
+    x?.image,
+    x?.mainImage,
+    x?.mainImageUrl,
+    x?.thumbnail,
+    x?.thumbnailUrl,
+    x?.coverImage,
+    x?.coverImageUrl,
+
+    // nested bulk/legacy
+    x?.item?.image_url,
+    x?.item?.imageUrl,
+    x?.item?.image,
+    x?.item?.mainImageUrl,
+    x?.item?.thumbnailUrl,
+    x?.item?.coverImageUrl,
+  ];
+
+  for (const u of singles) {
+    if (typeof u === "string" && u.trim().length > 0) out.push(u.trim());
+  }
+
+  // last resort: auth/proof photos (prevents blank cards)
+  if (out.length === 0) {
+    const proof =
+      Array.isArray(x?.auth_photos) ? x.auth_photos :
+      Array.isArray(x?.authPhotos) ? x.authPhotos :
+      Array.isArray(x?.proofPhotos) ? x.proofPhotos :
+      Array.isArray(x?.item?.auth_photos) ? x.item.auth_photos :
+      Array.isArray(x?.item?.authPhotos) ? x.item.authPhotos :
+      Array.isArray(x?.item?.proofPhotos) ? x.item.proofPhotos :
+      [];
+    for (const u of proof) {
+      if (typeof u === "string" && u.trim().length > 0) out.push(u.trim());
+    }
+  }
+
+  // de-dupe
+  return Array.from(new Set(out));
 }
 
+function firstNonEmpty(...vals: any[]): string {
+  for (const v of vals) {
+    if (Array.isArray(v)) {
+      const s = v.map((x) => String(x || "").trim()).find((x) => x);
+      if (s) return s;
+    } else {
+      const s = String(v || "").trim();
+      if (s) return s;
+    }
+  }
+  return "";
+}
+
+// ✅ FIX #2: category extraction must prefer legacy fields over `category`
+// because you still have conflicting fields on some docs
 function extractCategory(x: any): string {
-  return String(
-    x?.category ??
-      x?.menuCategory ??
-      x?.menu_category ??
-      x?.categoryName ??
-      x?.category_name ??
-      // nested item payloads (older/imported docs)
-      x?.item?.category ??
-      x?.item?.categoryLabel ??
-      x?.item?.categoryName ??
-      x?.item?.menuCategory ??
-      x?.item?.menu_category ??
-      x?.item?.category_name ??
-      ""
-  ).trim();
+  return firstNonEmpty(
+    x?.categoryLabel,
+    x?.categoryName,
+    x?.menuCategory,
+    x?.menuCategories,
+    x?.category_name,
+
+    // nested item payloads
+    x?.item?.categoryLabel,
+    x?.item?.categoryName,
+    x?.item?.menuCategory,
+    x?.item?.menuCategories,
+    x?.item?.category_name,
+
+    // category LAST (only if nothing else exists)
+    x?.category,
+    x?.item?.category
+  );
 }
 
 function isSoldFlag(x: any): boolean {
@@ -151,15 +218,11 @@ export async function getPublicListings(opts?: {
   snap.forEach((doc) => {
     const d: any = doc.data() || {};
 
-    const cat = extractCategory(d);
-    const imgs = extractImages(d);
-
-    // Live filter
     if (!isLiveStatus(d?.status)) return;
-
-    // Sold filter
     if (isSoldFlag(d)) return;
 
+    const categoryRaw = extractCategory(d);
+    const images = extractImages(d);
     const price = pickPrice(d);
 
     items.push({
@@ -168,18 +231,19 @@ export async function getPublicListings(opts?: {
       brand: String(d?.brand || d?.designer || d?.maker || "").trim() || undefined,
       price: typeof price === "number" ? price : undefined,
       currency: String(d?.currency || d?.pricing?.currency || "USD"),
-      category: cat || undefined,
+      category: categoryRaw || undefined,
       condition: String(d?.condition || "").trim() || undefined,
       status: String(d?.status || "").trim() || undefined,
       isSold: false,
-      images: imgs,
+      images,
       createdAt: d?.createdAt,
     });
   });
 
-  // Optional category filter at the end (safe, normalized)
   const wanted = normCategory(opts?.category);
-  const filtered = wanted ? items.filter((x) => normCategory(x.category) === wanted) : items;
+  const filtered = wanted
+    ? items.filter((x) => normCategory(x.category) === wanted)
+    : items;
 
   return filtered;
 }
