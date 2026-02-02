@@ -588,6 +588,7 @@ export const getServerSideProps: GetServerSideProps = async (ctx) => {
     const wantsCategory = slug !== "new-arrivals";
 
     // For SSR: use tolerant loader so you don't need perfect Firestore category equality
+    // ✅ Updated: Using 'take' instead of 'max'
     const listings = await getPublicListings({
       category: wantsCategory ? slug : "",
       take: 500,
