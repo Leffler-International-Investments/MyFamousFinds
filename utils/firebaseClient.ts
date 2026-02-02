@@ -6,41 +6,40 @@ import { getAuth, type Auth } from "firebase/auth";
 /**
  * Firebase CLIENT (browser) configuration.
  *
- * IMPORTANT:
- * - Do NOT throw at import-time if env vars are missing.
- *   Throwing here crashes the entire site with "client-side exception".
- * - Instead, export nulls and let UI/features degrade gracefully.
- *
- * Required (Vercel / .env.local):
- * NEXT_PUBLIC_FB_API_KEY
- * NEXT_PUBLIC_FB_AUTH_DOMAIN
- * NEXT_PUBLIC_FB_PROJECT_ID
- * NEXT_PUBLIC_FB_STORAGE_BUCKET
- * NEXT_PUBLIC_FB_MESSAGING_SENDER_ID
- * NEXT_PUBLIC_FB_APP_ID
+ * Supports BOTH env naming schemes:
+ * - NEXT_PUBLIC_FB_*
+ * - NEXT_PUBLIC_FIREBASE_*
  */
 
-const cfg = {
-  apiKey: process.env.NEXT_PUBLIC_FB_API_KEY,
-  authDomain: process.env.NEXT_PUBLIC_FB_AUTH_DOMAIN,
-  projectId: process.env.NEXT_PUBLIC_FB_PROJECT_ID,
-  storageBucket: process.env.NEXT_PUBLIC_FB_STORAGE_BUCKET,
-  messagingSenderId: process.env.NEXT_PUBLIC_FB_MESSAGING_SENDER_ID,
-  appId: process.env.NEXT_PUBLIC_FB_APP_ID,
-} as const;
-
-function hasAllFirebaseClientEnv() {
-  return Boolean(
-    cfg.apiKey &&
-      cfg.authDomain &&
-      cfg.projectId &&
-      cfg.storageBucket &&
-      cfg.messagingSenderId &&
-      cfg.appId
-  );
+function env(nameA: string, nameB: string) {
+  return process.env[nameA] || process.env[nameB] || "";
 }
 
-export const firebaseClientReady = hasAllFirebaseClientEnv();
+const cfg = {
+  apiKey: env("NEXT_PUBLIC_FB_API_KEY", "NEXT_PUBLIC_FIREBASE_API_KEY"),
+  authDomain: env("NEXT_PUBLIC_FB_AUTH_DOMAIN", "NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN"),
+  projectId: env("NEXT_PUBLIC_FB_PROJECT_ID", "NEXT_PUBLIC_FIREBASE_PROJECT_ID"),
+  storageBucket: env("NEXT_PUBLIC_FB_STORAGE_BUCKET", "NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET"),
+  messagingSenderId: env(
+    "NEXT_PUBLIC_FB_MESSAGING_SENDER_ID",
+    "NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID"
+  ),
+  appId: env("NEXT_PUBLIC_FB_APP_ID", "NEXT_PUBLIC_FIREBASE_APP_ID"),
+} as const;
+
+function missingKeys() {
+  const out: string[] = [];
+  if (!cfg.apiKey) out.push("API_KEY");
+  if (!cfg.authDomain) out.push("AUTH_DOMAIN");
+  if (!cfg.projectId) out.push("PROJECT_ID");
+  if (!cfg.storageBucket) out.push("STORAGE_BUCKET");
+  if (!cfg.messagingSenderId) out.push("MESSAGING_SENDER_ID");
+  if (!cfg.appId) out.push("APP_ID");
+  return out;
+}
+
+export const firebaseClientMissing = missingKeys();
+export const firebaseClientReady = firebaseClientMissing.length === 0;
 
 let app: FirebaseApp | null = null;
 let db: Firestore | null = null;
@@ -51,9 +50,12 @@ if (firebaseClientReady) {
   db = getFirestore(app);
   auth = getAuth(app);
 } else {
+  // Show exactly what is missing (helps you verify Vercel env scope)
   // eslint-disable-next-line no-console
   console.warn(
-    "[firebaseClient] Missing NEXT_PUBLIC_FB_* env vars. Firebase client features disabled."
+    `[firebaseClient] Missing env vars: ${firebaseClientMissing.join(
+      ", "
+    )}. Firebase client disabled.`
   );
 }
 
