@@ -6,8 +6,9 @@ import { getUserId } from "../../../utils/authServer";
 export default async function handler(req:NextApiRequest,res:NextApiResponse){
   if (req.method!=="POST") return res.status(405).end();
   const buyerId = getUserId(req);
-  const { productId, price, message } = req.body || {};
-  if (!productId || !price) return res.status(400).json({ ok:false, error:"missing_fields" });
+  const { productId, price, offerValue, buyerEmail, message } = req.body || {};
+  const resolvedPrice = price ?? offerValue;
+  if (!productId || !resolvedPrice) return res.status(400).json({ ok:false, error:"missing_fields" });
 
   // Read listing → get sellerId & title
   const listing = await adminDb.collection("listings").doc(String(productId)).get();
@@ -19,7 +20,11 @@ export default async function handler(req:NextApiRequest,res:NextApiResponse){
     productId: String(productId),
     sellerId,
     buyerId,
-    offerPrice: Number(price),
+    buyerEmail: String(buyerEmail || ""),
+    listingTitle: String(L.title || L.name || ""),
+    listingBrand: String(L.brand || L.designer || ""),
+    offerPrice: Number(resolvedPrice),
+    currency: String(L.currency || "USD"),
     message: String(message||""),
     status: "OPEN", // OPEN | ACCEPTED | REJECTED | COUNTERED
     createdAt: FieldValue.serverTimestamp(),

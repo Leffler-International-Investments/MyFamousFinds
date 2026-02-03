@@ -1,6 +1,6 @@
  // FILE: pages/buyer/dashboard.tsx
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Head from "next/head";
 import { useRouter } from "next/router";
 import Header from "../../components/Header";
@@ -16,18 +16,54 @@ type ItemRow = {
   id: string;
   title: string;
   brand?: string;
+  price?: number;
+  currency?: string;
+  status?: string;
+  createdAt?: string;
 };
 
 export default function BuyerDashboardPage() {
   const router = useRouter();
+  const previewMode = useMemo(
+    () => router.isReady && String(router.query.preview || "") === "1",
+    [router.isReady, router.query.preview]
+  );
   const [user, setUser] = useState<User | null>(null);
 
   const [savedItems, setSavedItems] = useState<ItemRow[]>([]);
   const [viewedItems, setViewedItems] = useState<ItemRow[]>([]);
   const [activeOffers, setActiveOffers] = useState<ItemRow[]>([]);
+  const [purchasedItems, setPurchasedItems] = useState<ItemRow[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (previewMode) {
+      setUser(null);
+      setSavedItems([
+        { id: "preview-1", title: "Vintage Chanel Classic Flap", brand: "Chanel", price: 4200, currency: "USD" },
+        { id: "preview-2", title: "Hermès Birkin 30", brand: "Hermès" },
+      ]);
+      setViewedItems([
+        { id: "preview-3", title: "Louis Vuitton Speedy 25", brand: "Louis Vuitton" },
+      ]);
+      setActiveOffers([
+        { id: "preview-4", title: "Rolex Datejust 36", brand: "Rolex", price: 5200, currency: "USD", status: "OPEN" },
+      ]);
+      setPurchasedItems([
+        {
+          id: "preview-5",
+          title: "Cartier Love Bracelet",
+          brand: "Cartier",
+          price: 6900,
+          currency: "USD",
+          status: "Paid",
+          createdAt: "Today",
+        },
+      ]);
+      setLoading(false);
+      return;
+    }
+
     // ✅ Prevent build-time crash / SSR crash when env vars aren’t configured
     if (!firebaseClientReady || !auth || !db) {
       setLoading(false);
@@ -40,15 +76,15 @@ export default function BuyerDashboardPage() {
         return;
       }
       setUser(u);
-      await loadData(u.uid);
+      await loadData(u.uid, u.email || "");
       setLoading(false);
     });
 
     return () => unsub();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [router]);
+  }, [previewMode, router]);
 
-  const loadData = async (uid: string) => {
+  const loadData = async (uid: string, email: string) => {
     if (!db) return;
 
     const loadCollection = async (name: string) => {
@@ -62,16 +98,92 @@ export default function BuyerDashboardPage() {
 
     setSavedItems(await loadCollection("buyerSavedItems"));
     setViewedItems(await loadCollection("buyerRecentlyViewed"));
-    setActiveOffers(await loadCollection("buyerOffers"));
+    const offers: ItemRow[] = [];
+    const offersByUid = await getDocs(
+      query(collection(db, "offers"), where("buyerId", "==", uid))
+    );
+    offersByUid.forEach((doc) => {
+      const d: any = doc.data() || {};
+      offers.push({
+        id: doc.id,
+        title: d.listingTitle || "Offer",
+        brand: d.listingBrand || "",
+        price: Number(d.offerPrice || 0),
+        currency: String(d.currency || "USD"),
+        status: d.status || "OPEN",
+      });
+    });
+
+    if (email) {
+      const offersByEmail = await getDocs(
+        query(collection(db, "offers"), where("buyerEmail", "==", email))
+      );
+      offersByEmail.forEach((doc) => {
+        if (offers.find((o) => o.id === doc.id)) return;
+        const d: any = doc.data() || {};
+        offers.push({
+          id: doc.id,
+          title: d.listingTitle || "Offer",
+          brand: d.listingBrand || "",
+          price: Number(d.offerPrice || 0),
+          currency: String(d.currency || "USD"),
+          status: d.status || "OPEN",
+        });
+      });
+    }
+
+    setActiveOffers(offers);
+
+    const orders: ItemRow[] = [];
+    if (email) {
+      const ordersByEmail = await getDocs(
+        query(collection(db, "orders"), where("buyerEmail", "==", email))
+      );
+      ordersByEmail.forEach((doc) => {
+        const d: any = doc.data() || {};
+        orders.push({
+          id: doc.id,
+          title: d.listingTitle || d.title || "Purchased item",
+          brand: d.listingBrand || d.brand || "",
+          price: Number(d.total || d.price || 0),
+          currency: String(d.currency || "USD"),
+          status: d.status || "Paid",
+          createdAt: d.createdAt?.toDate?.().toLocaleDateString?.("en-US") || "",
+        });
+      });
+    }
+
+    const ordersByUid = await getDocs(
+      query(collection(db, "orders"), where("buyerUid", "==", uid))
+    );
+    ordersByUid.forEach((doc) => {
+      if (orders.find((o) => o.id === doc.id)) return;
+      const d: any = doc.data() || {};
+      orders.push({
+        id: doc.id,
+        title: d.listingTitle || d.title || "Purchased item",
+        brand: d.listingBrand || d.brand || "",
+        price: Number(d.total || d.price || 0),
+        currency: String(d.currency || "USD"),
+        status: d.status || "Paid",
+        createdAt: d.createdAt?.toDate?.().toLocaleDateString?.("en-US") || "",
+      });
+    });
+
+    setPurchasedItems(orders);
   };
 
   const handleSignOut = async () => {
+    if (previewMode) {
+      router.push("/");
+      return;
+    }
     if (auth) await signOut(auth);
     router.push("/");
   };
 
   // ✅ If Firebase isn’t configured, don’t crash — show a clear message
-  if (!firebaseClientReady) {
+  if (!firebaseClientReady && !previewMode) {
     return (
       <>
         <Head>
@@ -107,11 +219,15 @@ export default function BuyerDashboardPage() {
           <div className="buyer-dashboard-header">
             <div>
               <h1 className="buyer-dashboard-title">Your Famous Finds Snapshot</h1>
-              {user && <p className="buyer-dashboard-meta">Signed in as {user.email}</p>}
+              {previewMode ? (
+                <p className="buyer-dashboard-meta">Preview mode (developer access)</p>
+              ) : (
+                user && <p className="buyer-dashboard-meta">Signed in as {user.email}</p>
+              )}
             </div>
 
             <button type="button" onClick={handleSignOut} className="buyer-dashboard-signout">
-              Sign out
+              {previewMode ? "Exit preview" : "Sign out"}
             </button>
           </div>
 
@@ -121,7 +237,7 @@ export default function BuyerDashboardPage() {
             <div className="buyer-dashboard-body">
               {/* Snapshot card on the right (similar look to homepage) */}
               <section className="buyer-snapshot-card">
-                <div className="buyer-snapshot-label">GUEST VIEW</div>
+                <div className="buyer-snapshot-label">SNAPSHOT</div>
 
                 <div className="buyer-snapshot-grid">
                   <div className="buyer-snapshot-item">
@@ -138,7 +254,17 @@ export default function BuyerDashboardPage() {
                     <div className="buyer-snapshot-number">{activeOffers.length}</div>
                     <div className="buyer-snapshot-text">Active Offers</div>
                   </div>
+
+                  <div className="buyer-snapshot-item">
+                    <div className="buyer-snapshot-number">{purchasedItems.length}</div>
+                    <div className="buyer-snapshot-text">Purchased Items</div>
+                  </div>
                 </div>
+
+                <p className="buyer-snapshot-note">
+                  Saved items are not reserved and remain available until another
+                  customer completes a purchase.
+                </p>
               </section>
 
               {/* Lists */}
@@ -149,7 +275,8 @@ export default function BuyerDashboardPage() {
                     <ul className="buyer-dashboard-list-items">
                       {savedItems.map((item) => (
                         <li key={item.id} className="buyer-dashboard-list-row">
-                          {item.title}
+                          <span>{item.title}</span>
+                          {item.brand && <span className="buyer-dashboard-meta-line">{item.brand}</span>}
                         </li>
                       ))}
                     </ul>
@@ -164,7 +291,8 @@ export default function BuyerDashboardPage() {
                     <ul className="buyer-dashboard-list-items">
                       {viewedItems.map((item) => (
                         <li key={item.id} className="buyer-dashboard-list-row">
-                          {item.title}
+                          <span>{item.title}</span>
+                          {item.brand && <span className="buyer-dashboard-meta-line">{item.brand}</span>}
                         </li>
                       ))}
                     </ul>
@@ -179,12 +307,48 @@ export default function BuyerDashboardPage() {
                     <ul className="buyer-dashboard-list-items">
                       {activeOffers.map((item) => (
                         <li key={item.id} className="buyer-dashboard-list-row">
-                          {item.title}
+                          <span>{item.title}</span>
+                          <span className="buyer-dashboard-meta-line">
+                            {item.brand ? `${item.brand} • ` : ""}
+                            {typeof item.price === "number" && item.price > 0
+                              ? item.price.toLocaleString("en-US", {
+                                  style: "currency",
+                                  currency: item.currency || "USD",
+                                })
+                              : ""}
+                            {item.status ? ` • ${item.status}` : ""}
+                          </span>
                         </li>
                       ))}
                     </ul>
                   ) : (
                     <p className="buyer-dashboard-empty">No active offers yet.</p>
+                  )}
+                </div>
+
+                <div className="buyer-dashboard-list">
+                  <h2 className="buyer-dashboard-list-title">Purchased Items</h2>
+                  {purchasedItems.length ? (
+                    <ul className="buyer-dashboard-list-items">
+                      {purchasedItems.map((item) => (
+                        <li key={item.id} className="buyer-dashboard-list-row">
+                          <span>{item.title}</span>
+                          <span className="buyer-dashboard-meta-line">
+                            {item.brand ? `${item.brand} • ` : ""}
+                            {typeof item.price === "number" && item.price > 0
+                              ? item.price.toLocaleString("en-US", {
+                                  style: "currency",
+                                  currency: item.currency || "USD",
+                                })
+                              : ""}
+                            {item.status ? ` • ${item.status}` : ""}
+                            {item.createdAt ? ` • ${item.createdAt}` : ""}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="buyer-dashboard-empty">No purchases yet.</p>
                   )}
                 </div>
               </section>
@@ -194,6 +358,23 @@ export default function BuyerDashboardPage() {
       </main>
 
       <Footer />
+
+      <style jsx>{`
+        .buyer-snapshot-note {
+          margin-top: 12px;
+          font-size: 12px;
+          color: #6b7280;
+        }
+        .buyer-dashboard-list-row {
+          display: flex;
+          flex-direction: column;
+          gap: 4px;
+        }
+        .buyer-dashboard-meta-line {
+          font-size: 12px;
+          color: #6b7280;
+        }
+      `}</style>
     </>
   );
 }
