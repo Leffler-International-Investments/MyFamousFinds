@@ -72,7 +72,7 @@ export default function ProductCard(p: ProductLike) {
         .thumb {
           position: relative;
           aspect-ratio: 1 / 1;      
-          background: #f3f4f6;
+          background: #ffffff;
           display: flex;
           align-items: center;
           justify-content: center;

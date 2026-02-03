@@ -17,6 +17,8 @@ const formatPrice = (raw: any): string => {
 };
 
 const pickImage = (data: any): string => {
+  if (data.displayImageUrl) return data.displayImageUrl;
+  if (data.display_image_url) return data.display_image_url;
   if (data.image_url) return data.image_url;
   if (data.imageUrl) return data.imageUrl;
   if (data.image) return data.image;

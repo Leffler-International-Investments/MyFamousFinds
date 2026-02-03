@@ -114,6 +114,7 @@ export default function StorePage({
           width: 100%;
           height: 220px;
           object-fit: cover;
+          background: #ffffff;
         }
         .cardBody {
           padding: 10px 12px 12px;
@@ -157,6 +158,8 @@ export async function getServerSideProps(ctx: any) {
       title: d.title || "Listing",
       price: typeof d.price === "number" ? d.price : 0,
       imageUrl:
+        d.displayImageUrl ||
+        d.display_image_url ||
         d.image_url ||
         d.imageUrl ||
         d.image ||

@@ -18,6 +18,7 @@ export type PublicListing = {
   status?: string;
   isSold?: boolean;
   images?: string[];
+  displayImageUrl?: string;
   createdAt?: any;
 };
 
@@ -101,7 +102,9 @@ function pickPrice(x: any): number | undefined {
 // ✅ restore full image extraction (includes image_url)
 function extractImages(x: any): string[] {
   const arr =
-    Array.isArray(x?.images)
+    Array.isArray(x?.displayImageUrls)
+      ? x.displayImageUrls
+      : Array.isArray(x?.images)
       ? x.images
       : Array.isArray(x?.imageUrls)
       ? x.imageUrls
@@ -113,6 +116,8 @@ function extractImages(x: any): string[] {
       ? x.photoUrls
       : Array.isArray(x?.photo_urls)
       ? x.photo_urls
+      : Array.isArray(x?.item?.displayImageUrls)
+      ? x.item.displayImageUrls
       : Array.isArray(x?.item?.images)
       ? x.item.images
       : Array.isArray(x?.item?.imageUrls)
@@ -134,6 +139,8 @@ function extractImages(x: any): string[] {
   }
 
   const singles = [
+    x?.displayImageUrl,
+    x?.display_image_url,
     x?.image_url,
     x?.imageUrl,
     x?.image,
@@ -144,6 +151,8 @@ function extractImages(x: any): string[] {
     x?.coverImage,
     x?.coverImageUrl,
 
+    x?.item?.displayImageUrl,
+    x?.item?.display_image_url,
     x?.item?.image_url,
     x?.item?.imageUrl,
     x?.item?.image,
@@ -329,6 +338,10 @@ export async function getPublicListings(opts?: {
     const categoryRaw = extractCategory(d);
     const images = extractImages(d);
     const price = pickPrice(d);
+    const displayImageUrl = firstNonEmpty(
+      d?.displayImageUrl,
+      d?.display_image_url
+    );
 
     items.push({
       id: doc.id,
@@ -346,6 +359,7 @@ export async function getPublicListings(opts?: {
       status: String(d?.status || "").trim() || undefined,
       isSold: false,
       images,
+      displayImageUrl: displayImageUrl || images[0],
       createdAt: d?.createdAt,
     });
   });
