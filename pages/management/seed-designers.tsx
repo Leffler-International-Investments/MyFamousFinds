@@ -47,7 +47,7 @@ export default function SeedDesigners() {
       <Header />
       <main className="section">
         <div className="back-link">
-          <Link href="/seller/dashboard">← Back to Dashboard</Link>
+          <Link href="/management/dashboard">← Back to Management Dashboard</Link>
         </div>
 
         <h1>Seed Designers</h1>

@@ -20,6 +20,7 @@ export default function Header() {
     { label: "NEW ARRIVALS", href: "/category/new-arrivals" },
     { label: "CATALOGUE", href: "/catalogue" },
     { label: "DESIGNERS", href: "/designers" },
+    { label: "CONSIGN", href: "/consign" },
     { label: "WOMEN", href: "/category/women" },
     { label: "BAGS", href: "/category/bags" },
     { label: "MEN", href: "/category/men" },
@@ -56,14 +57,15 @@ export default function Header() {
           <Link href="/contact" className="ff-main-link">
             Contact
           </Link>
+          <Link href="/buyer/signin" className="ff-main-link ff-signin">
+            Sign in
+            <span className="ff-tooltip">
+              Sign in to access: Wishlist • Offers • Purchased Items
+            </span>
+          </Link>
         </nav>
 
         <div className="ff-admin-ports">
-          {/* MANAGEMENT LOGIN - UPDATED TO MATCH SELLER STYLE */}
-          <Link href="/management/login" className="admin-button management">
-            <span>Management Admin Login</span>
-          </Link>
-
           {/* SELLER LOGIN */}
           <Link href="/seller/login" className="admin-button seller">
             <span>Seller Admin Login</span>
@@ -140,6 +142,28 @@ export default function Header() {
         .ff-main-link:hover {
           opacity: 1;
           text-decoration: underline;
+        }
+        .ff-signin {
+          position: relative;
+        }
+        .ff-tooltip {
+          position: absolute;
+          bottom: -34px;
+          left: 50%;
+          transform: translateX(-50%);
+          background: #111827;
+          color: #ffffff;
+          padding: 6px 10px;
+          border-radius: 6px;
+          font-size: 11px;
+          white-space: nowrap;
+          opacity: 0;
+          pointer-events: none;
+          transition: opacity 150ms ease;
+          z-index: 10;
+        }
+        .ff-signin:hover .ff-tooltip {
+          opacity: 1;
         }
 
         .ff-admin-ports {

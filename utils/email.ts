@@ -70,16 +70,20 @@ export async function sendSellerInviteEmail(args: {
 }) {
   const { to, businessName, registerUrl } = args;
 
-  const subject = "You’ve been approved as a seller on Famous Finds";
+  const subject = "Welcome to the Famous Finds Sellers Team";
   const text = `Hi${businessName ? " " + businessName : ""},
 
-Your seller account has been approved on Famous Finds.
+Your application as a seller was approved — welcome to the Famous Finds Sellers Team!
 
-Click the link below to complete your setup and create your password:
+Next steps:
+1) Click the link below to complete your setup and create your password.
+2) Sign in to your Seller Dashboard and upload your first listings.
+3) Keep your profile and payout details up to date so we can release funds quickly.
 
+Finish your setup here:
 ${registerUrl ?? ""}
 
-If you weren’t expecting this email, you can ignore it.`;
+If you have any questions, reply to this email and our team will help.`;
 
   await sendMail(to, subject, text);
 }

@@ -97,6 +97,13 @@ export default async function handler(
           listingBrand: listing.brand || "",
           listingCategory: listing.category || "",
           price: listing.price || amountTotal,
+          total: amountTotal,
+          priceLabel: amountTotal
+            ? `${amountTotal.toLocaleString("en-US", {
+                style: "currency",
+                currency,
+              })}`
+            : "",
           currency,
           buyerEmail,
           buyerName,
