@@ -401,6 +401,32 @@ const HomePage: NextPage<HomeProps> = ({
           max-width: 52ch;
         }
 
+        .snapshot-card {
+          background: #fff;
+          border: 1px solid #e5e7eb;
+          border-radius: 18px;
+          padding: 16px;
+        }
+        .snapshot-card h2 {
+          margin: 0 0 6px;
+          font-size: 16px;
+          color: #0f172a;
+        }
+        .snapshot-view {
+          margin: 0 0 12px;
+          color: #6b7280;
+          font-size: 12px;
+        }
+        .snapshot-row {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          padding: 8px 0;
+          border-top: 1px dashed #e5e7eb;
+          font-size: 13px;
+          color: #111827;
+        }
+
         .home-section {
           margin-top: 22px;
         }

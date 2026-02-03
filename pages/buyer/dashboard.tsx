@@ -1,6 +1,6 @@
  // FILE: pages/buyer/dashboard.tsx
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Head from "next/head";
 import { useRouter } from "next/router";
 import Header from "../../components/Header";
@@ -29,6 +29,10 @@ type ItemRow = {
 
 export default function BuyerDashboardPage() {
   const router = useRouter();
+  const previewMode = useMemo(
+    () => router.isReady && String(router.query.preview || "") === "1",
+    [router.isReady, router.query.preview]
+  );
   const [user, setUser] = useState<User | null>(null);
 
   const [savedItems, setSavedItems] = useState<ItemRow[]>([]);
@@ -38,6 +42,23 @@ export default function BuyerDashboardPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (previewMode) {
+      setUser(null);
+      setSavedItems([
+        { id: "preview-1", title: "Vintage Chanel Classic Flap", brand: "Chanel" },
+        { id: "preview-2", title: "Hermès Birkin 30", brand: "Hermès" },
+      ]);
+      setViewedItems([
+        { id: "preview-3", title: "Louis Vuitton Speedy 25", brand: "Louis Vuitton" },
+      ]);
+      setActiveOffers([{ id: "preview-4", title: "Rolex Datejust 36", brand: "Rolex" }]);
+      setPurchasedItems([
+        { id: "preview-5", title: "Cartier Love Bracelet", brand: "Cartier" },
+      ]);
+      setLoading(false);
+      return;
+    }
+
     // ✅ Prevent build-time crash / SSR crash when env vars aren’t configured
     if (!firebaseClientReady || !auth || !db) {
       setLoading(false);
@@ -56,7 +77,7 @@ export default function BuyerDashboardPage() {
 
     return () => unsub();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [router]);
+  }, [previewMode, router]);
 
   const loadData = async (uid: string, email: string) => {
     if (!db) return;
@@ -70,103 +91,52 @@ export default function BuyerDashboardPage() {
       })) as ItemRow[];
     };
 
-    const saved = await loadCollection("buyerSavedItems");
-    setSavedItems(saved);
-
-    const viewedQuery = query(
-      collection(db, "buyerRecentlyViewed"),
-      where("userId", "==", uid),
-      orderBy("viewedAt", "desc"),
-      limit(30)
-    );
-    const viewedSnap = await getDocs(viewedQuery);
-    setViewedItems(
-      viewedSnap.docs.map((d) => ({
-        id: d.id,
-        ...(d.data() as any),
-      }))
-    );
-
-    const offers: ItemRow[] = [];
-    const offersByUid = await getDocs(
-      query(
-        collection(db, "offers"),
-        where("buyerId", "==", uid),
-        where("status", "==", "pending")
-      )
-    );
-    offersByUid.forEach((doc) => {
-      const d: any = doc.data() || {};
-      offers.push({
-        id: doc.id,
-        title: d.listingTitle || "Offer",
-        brand: d.listingBrand || "",
-        price: Number(d.offerAmount || d.offerPrice || 0),
-        currency: String(d.currency || "USD"),
-        status: d.status || "pending",
-      });
-    });
-
-    setActiveOffers(offers);
+    setSavedItems(await loadCollection("buyerSavedItems"));
+    setViewedItems(await loadCollection("buyerRecentlyViewed"));
+    setActiveOffers(await loadCollection("buyerOffers"));
 
     const orders: ItemRow[] = [];
+    if (email) {
+      const ordersByEmail = await getDocs(
+        query(collection(db, "orders"), where("buyerEmail", "==", email))
+      );
+      ordersByEmail.forEach((doc) => {
+        const d: any = doc.data() || {};
+        orders.push({
+          id: doc.id,
+          title: d.listingTitle || d.title || "Purchased item",
+          brand: d.listingBrand || d.brand || "",
+        });
+      });
+    }
+
     const ordersByUid = await getDocs(
       query(collection(db, "orders"), where("buyerUid", "==", uid))
     );
     ordersByUid.forEach((doc) => {
+      if (orders.find((o) => o.id === doc.id)) return;
       const d: any = doc.data() || {};
       orders.push({
         id: doc.id,
         title: d.listingTitle || d.title || "Purchased item",
         brand: d.listingBrand || d.brand || "",
-        price: Number(d.total || d.price || 0),
-        currency: String(d.currency || "USD"),
-        status: d.status || "Paid",
-        createdAt: d.createdAt?.toDate?.().toLocaleDateString?.("en-US") || "",
-        imageUrl: d.listingImage || d.imageUrl || "",
-        sellerName: d.sellerName || "",
-        sellerId: d.sellerId || "",
-        referenceId: d.stripePaymentIntentId || d.stripePaymentIntent || "",
       });
     });
 
     setPurchasedItems(orders);
-
-    if (saved.length) {
-      const updatedSaved = await Promise.all(
-        saved.map(async (item) => {
-          if (!item.listingId) return item;
-          try {
-            const listingRef = doc(db, "listings", String(item.listingId));
-            const listingSnap = await getDoc(listingRef);
-            if (!listingSnap.exists()) return item;
-            const listingData: any = listingSnap.data() || {};
-            const listingStatus = String(listingData.status || "").toLowerCase();
-            const isSold =
-              listingStatus === "sold" ||
-              listingStatus === "inactive_sold" ||
-              listingData.isSold === true;
-            return {
-              ...item,
-              status: isSold ? "Sold" : item.status || "Live",
-            };
-          } catch (err) {
-            console.error("saved_item_status_error", err);
-            return item;
-          }
-        })
-      );
-      setSavedItems(updatedSaved);
-    }
   };
 
   const handleSignOut = async () => {
+    if (previewMode) {
+      router.push("/");
+      return;
+    }
     if (auth) await signOut(auth);
     router.push("/");
   };
 
   // ✅ If Firebase isn’t configured, don’t crash — show a clear message
-  if (!firebaseClientReady) {
+  if (!firebaseClientReady && !previewMode) {
     return (
       <>
         <Head>
@@ -202,11 +172,15 @@ export default function BuyerDashboardPage() {
           <div className="buyer-dashboard-header">
             <div>
               <h1 className="buyer-dashboard-title">Your Famous Finds Snapshot</h1>
-              {user && <p className="buyer-dashboard-meta">Signed in as {user.email}</p>}
+              {previewMode ? (
+                <p className="buyer-dashboard-meta">Preview mode (developer access)</p>
+              ) : (
+                user && <p className="buyer-dashboard-meta">Signed in as {user.email}</p>
+              )}
             </div>
 
             <button type="button" onClick={handleSignOut} className="buyer-dashboard-signout">
-              Sign out
+              {previewMode ? "Exit preview" : "Sign out"}
             </button>
           </div>
 
@@ -321,31 +295,7 @@ export default function BuyerDashboardPage() {
                     <ul className="buyer-dashboard-list-items">
                       {purchasedItems.map((item) => (
                         <li key={item.id} className="buyer-dashboard-list-row">
-                          <div className="buyer-dashboard-row">
-                            {item.imageUrl ? (
-                              <img src={item.imageUrl} alt={item.title} className="buyer-dashboard-thumb" />
-                            ) : null}
-                            <div className="buyer-dashboard-row-content">
-                              <span>{item.title}</span>
-                              <span className="buyer-dashboard-meta-line">
-                                {item.brand ? `${item.brand} • ` : ""}
-                                {typeof item.price === "number" && item.price > 0
-                                  ? item.price.toLocaleString("en-US", {
-                                      style: "currency",
-                                      currency: item.currency || "USD",
-                                    })
-                                  : ""}
-                                {item.status ? ` • ${item.status}` : ""}
-                                {item.createdAt ? ` • ${item.createdAt}` : ""}
-                                {item.referenceId ? ` • Ref: ${item.referenceId}` : ""}
-                                {item.sellerName
-                                  ? ` • Seller: ${item.sellerName}`
-                                  : item.sellerId
-                                  ? ` • Seller ID: ${item.sellerId}`
-                                  : ""}
-                              </span>
-                            </div>
-                          </div>
+                          {item.title}
                         </li>
                       ))}
                     </ul>
