@@ -74,6 +74,11 @@ export default async function handler(
         const listingRef = adminDb.collection("listings").doc(listingId);
         const listingSnap = await listingRef.get();
         const listing = listingSnap.data() || {};
+        const buyerUid = session.metadata?.buyerId || null;
+        const listingImage =
+          listing.imageUrl ||
+          listing.image_url ||
+          (Array.isArray(listing.images) ? listing.images[0] : "");
 
         // Mark listing as Sold
         await listingRef.update({
@@ -97,14 +102,23 @@ export default async function handler(
           listingBrand: listing.brand || "",
           listingCategory: listing.category || "",
           price: listing.price || amountTotal,
+          total: amountTotal,
+          priceLabel: amountTotal
+            ? `${amountTotal.toLocaleString("en-US", {
+                style: "currency",
+                currency,
+              })}`
+            : "",
           currency,
           buyerEmail,
           buyerName,
+          buyerUid,
           sellerId: listing.sellerId || null,
           sellerName:
             listing.sellerName ||
             listing.sellerDisplayName ||
             "Independent seller",
+          listingImage: listingImage || "",
           stripeSessionId: session.id,
           stripePaymentIntentId: session.payment_intent || null,
           status: "Paid",

@@ -181,7 +181,7 @@ const HomePage: NextPage<HomeProps> = ({
       <Header />
 
       <main className="wrap">
-        {/* HERO + SNAPSHOT */}
+        {/* HERO */}
         <section className="hero">
           <div className="hero-copy">
             <p className="eyebrow">Curated pre-loved luxury</p>
@@ -191,38 +191,6 @@ const HomePage: NextPage<HomeProps> = ({
             </p>
 
           </div>
-
-          {/* SNAPSHOT CARD */}
-          <aside className="snapshot-card">
-            <h2>Your Famous Finds Snapshot</h2>
-            <p className="snapshot-view">Guest view</p>
-            <div className="snapshot-row">
-              <span>Saved Items</span>
-              <span>0</span>
-            </div>
-            <div className="snapshot-row">
-              <span>Recently Viewed</span>
-              <span>0</span>
-            </div>
-            <div className="snapshot-row">
-              <span>Active Offers</span>
-              <span>0</span>
-            </div>
-
-            <Link
-              href="/buyer/dashboard"
-              className="block w-full bg-slate-900 text-white rounded-full py-3 text-center text-sm font-medium"
-            >
-              Sign in to view your dashboard
-            </Link>
-
-            <Link
-              href="/buyer/signup"
-              className="block w-full border border-gray-300 text-gray-700 rounded-full py-3 mt-3 text-center text-sm font-medium"
-            >
-              Create a free buyer account
-            </Link>
-          </aside>
         </section>
 
         {/* FILTER + RESULTS (LEFT SIDEBAR ALWAYS ON HOMEPAGE) */}

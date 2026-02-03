@@ -26,6 +26,9 @@ export default function Footer() {
             <Link href="/privacy" className="ff-footer-link">
               Privacy
             </Link>
+            <Link href="/management/login" className="ff-footer-link">
+              Management Admin Login
+            </Link>
           </nav>
         </div>
 

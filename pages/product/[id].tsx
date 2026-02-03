@@ -1,12 +1,17 @@
 // FILE: /pages/product/[id].tsx
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import Head from "next/head";
 import type { GetServerSideProps } from "next";
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
 import { getStripe } from "../../lib/getStripe";
 import { adminDb } from "../../utils/firebaseAdmin";
+import WishlistButton from "../../components/WishlistButton";
+import { auth, db, firebaseClientReady } from "../../utils/firebaseClient";
+import { onAuthStateChanged } from "firebase/auth";
+import { doc, setDoc, serverTimestamp } from "firebase/firestore";
+import { useRouter } from "next/router";
 
 type ProductPageProps = {
   id: string;
@@ -46,13 +51,50 @@ export default function ProductPage(props: ProductPageProps) {
   const [loading, setLoading] = useState(false);
   const [offerSubmitting, setOfferSubmitting] = useState(false);
   const [offerError, setOfferError] = useState<string | null>(null);
+  const [userId, setUserId] = useState<string | null>(null);
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!firebaseClientReady || !auth) return;
+    const unsub = onAuthStateChanged(auth, (user) => {
+      setUserId(user?.uid ?? null);
+    });
+    return () => unsub();
+  }, []);
+
+  useEffect(() => {
+    if (!firebaseClientReady || !db || !userId) return;
+    const docId = `${userId}_${id}`;
+    const ref = doc(db, "buyerRecentlyViewed", docId);
+    setDoc(
+      ref,
+      {
+        userId,
+        listingId: id,
+        title,
+        brand,
+        price,
+        currency,
+        imageUrl,
+        viewedAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+        createdAt: serverTimestamp(),
+      },
+      { merge: true }
+    ).catch((err) => {
+      console.error("recently_viewed_error", err);
+    });
+  }, [brand, currency, db, firebaseClientReady, id, imageUrl, price, title, userId]);
 
   const handleBuyNow = async () => {
     try {
       setLoading(true);
       const res = await fetch("/api/checkout", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(userId ? { "x-user-id": userId } : {}),
+        },
         body: JSON.stringify({
           id,
           title,
@@ -83,6 +125,11 @@ export default function ProductPage(props: ProductPageProps) {
   const handleOfferSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setOfferError(null);
+    if (!userId) {
+      setOfferError("Please sign in to make an offer.");
+      router.push("/buyer/signin");
+      return;
+    }
 
     const form = e.currentTarget;
     const formData = new FormData(form);
@@ -104,7 +151,10 @@ export default function ProductPage(props: ProductPageProps) {
       setOfferSubmitting(true);
       const res = await fetch("/api/offers/create", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(userId ? { "x-user-id": userId } : {}),
+        },
         body: JSON.stringify({
           productId: id,
           offerValue,
@@ -171,6 +221,10 @@ export default function ProductPage(props: ProductPageProps) {
               <p className="price-note">
                 All prices in USD. Taxes and shipping calculated at checkout.
               </p>
+            </div>
+
+            <div className="button-row">
+              <WishlistButton productId={id} />
             </div>
 
             <dl className="details-grid">

@@ -5,7 +5,7 @@ const host = process.env.SMTP_HOST;
 const port = Number(process.env.SMTP_PORT || 587);
 const user = process.env.SMTP_USER;
 const pass = process.env.SMTP_PASS;
-const from = process.env.SMTP_FROM || user;
+const from = process.env.SMTP_FROM || "service@myfamousfinds.com";
 
 // Warn if missing envs (shows in Vercel logs)
 if (!host || !user || !pass) {
@@ -70,16 +70,21 @@ export async function sendSellerInviteEmail(args: {
 }) {
   const { to, businessName, registerUrl } = args;
 
-  const subject = "You’ve been approved as a seller on Famous Finds";
+  const subject = "Your Seller Application is Approved — Welcome to Famous Finds";
   const text = `Hi${businessName ? " " + businessName : ""},
 
-Your seller account has been approved on Famous Finds.
+Welcome to Famous Finds — your seller application has been approved!
 
-Click the link below to complete your setup and create your password:
+Next steps:
+1) Log into the Seller Portal.
+2) Complete your seller profile (name + payout details, if applicable).
+3) Upload your first listing with clear photos and all required fields.
+4) If moderation is required, our team will review and approve listings before they go live.
 
+Seller portal setup link:
 ${registerUrl ?? ""}
 
-If you weren’t expecting this email, you can ignore it.`;
+Need help? Contact us at support@myfamousfinds.com.`;
 
   await sendMail(to, subject, text);
 }
