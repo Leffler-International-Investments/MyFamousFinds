@@ -76,6 +76,8 @@ export default async function handler(
         const listing = listingSnap.data() || {};
         const buyerUid = session.metadata?.buyerId || null;
         const listingImage =
+          listing.displayImageUrl ||
+          listing.display_image_url ||
           listing.imageUrl ||
           listing.image_url ||
           (Array.isArray(listing.images) ? listing.images[0] : "");

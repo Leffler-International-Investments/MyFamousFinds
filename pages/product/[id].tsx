@@ -402,7 +402,7 @@ export default function ProductPage(props: ProductPageProps) {
           overflow: hidden;
           border-radius: 16px;
           border: 1px solid #e5e7eb;
-          background: #f9fafb;
+          background: #ffffff;
         }
         .product-image {
           aspect-ratio: 4 / 5;
@@ -667,6 +667,8 @@ export const getServerSideProps: GetServerSideProps<ProductPageProps> = async (
       d.sellerName || d.sellerDisplayName || "Independent seller";
 
     const imageUrl =
+      d.displayImageUrl ||
+      d.display_image_url ||
       d.image_url ||
       d.imageUrl ||
       d.image ||

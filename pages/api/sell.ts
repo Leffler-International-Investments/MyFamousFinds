@@ -36,6 +36,7 @@ export default async function handler(
       price,
       serial_number,
       image_url,
+      display_image_url,
       purchase_proof,
       details,
       // optional: auth token from client (if you gate submissions)
@@ -79,6 +80,7 @@ export default async function handler(
         price: price ? Number(price) : null,
         serial_number: serial_number || null,
         image_url: image_url || null,
+        displayImageUrl: display_image_url || null,
         purchase_proof: purchase_proof || null,
         details: details || null,
       },

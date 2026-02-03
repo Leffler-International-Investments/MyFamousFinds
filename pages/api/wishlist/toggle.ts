@@ -41,7 +41,13 @@ export default async function handler(req:NextApiRequest,res:NextApiResponse){
       brand: String(listing.brand || listing.designer || ""),
       price: Number(listing.price || 0),
       currency: String(listing.currency || "USD"),
-      imageUrl: String(listing.imageUrl || listing.image_url || ""),
+      imageUrl: String(
+        listing.displayImageUrl ||
+          listing.display_image_url ||
+          listing.imageUrl ||
+          listing.image_url ||
+          ""
+      ),
       updatedAt: FieldValue.serverTimestamp(),
       createdAt: FieldValue.serverTimestamp(),
     },

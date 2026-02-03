@@ -600,7 +600,9 @@ export const getServerSideProps: GetServerSideProps = async () => {
 
   const pickImage = (d: any): string => {
     const fromArray =
-      Array.isArray(d.images)
+      Array.isArray(d.displayImageUrls)
+        ? d.displayImageUrls
+        : Array.isArray(d.images)
         ? d.images
         : Array.isArray(d.imageUrls)
         ? d.imageUrls
@@ -609,7 +611,16 @@ export const getServerSideProps: GetServerSideProps = async () => {
         : [];
     if (Array.isArray(fromArray) && fromArray[0]) return String(fromArray[0]);
 
-    return d.image_url || d.imageUrl || d.image || d.coverImage || d.coverImageUrl || "";
+    return (
+      d.displayImageUrl ||
+      d.display_image_url ||
+      d.image_url ||
+      d.imageUrl ||
+      d.image ||
+      d.coverImage ||
+      d.coverImageUrl ||
+      ""
+    );
   };
 
   const items: any[] = listings.docs.map((doc) => {

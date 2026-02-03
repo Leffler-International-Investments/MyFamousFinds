@@ -4,6 +4,12 @@ import { adminDb } from "../../../utils/firebaseAdmin";
 import { FieldValue } from "firebase-admin/firestore";
 import { getSellerId } from "../../../utils/authServer";
 import sharp from "sharp";
+import {
+  createWhiteDisplayImage,
+  hasStorageBucket,
+  parseDataUrl,
+  storeListingImages,
+} from "../../../utils/listingImageProcessing";
 
 export const config = {
   api: {
@@ -42,6 +48,8 @@ type CleanRow = {
   currency: "USD";
   status: "Pending";
   image_url?: string | null;
+  imageUrl?: string | null;
+  displayImageUrl?: string | null;
 };
 
 type ApiOk = { ok: true; created: number; skipped: number };
@@ -95,6 +103,40 @@ async function processImage(base64Str: string): Promise<string | null> {
   } catch (error) {
     console.error("Image processing failed:", error);
     return null;
+  }
+}
+
+async function processAndStoreImage(base64Str: string) {
+  const parsed = parseDataUrl(base64Str);
+  if (!parsed) return null;
+
+  if (!hasStorageBucket()) {
+    const displayBuffer = await createWhiteDisplayImage(
+      parsed.buffer,
+      parsed.contentType
+    );
+    return {
+      originalUrl: base64Str,
+      displayUrl: `data:image/jpeg;base64,${displayBuffer.toString("base64")}`,
+    };
+  }
+
+  try {
+    const stored = await storeListingImages(parsed, "listing-images");
+    return {
+      originalUrl: stored.originalUrl,
+      displayUrl: stored.displayUrl,
+    };
+  } catch (error) {
+    console.warn("Storage upload failed, falling back to data URLs:", error);
+    const displayBuffer = await createWhiteDisplayImage(
+      parsed.buffer,
+      parsed.contentType
+    );
+    return {
+      originalUrl: base64Str,
+      displayUrl: `data:image/jpeg;base64,${displayBuffer.toString("base64")}`,
+    };
   }
 }
 
@@ -175,7 +217,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
         continue;
       }
 
-      if (cleaned.image_url) cleaned.image_url = await processImage(cleaned.image_url);
+      if (cleaned.image_url) {
+        const stored = await processAndStoreImage(cleaned.image_url);
+        if (stored) {
+          cleaned.image_url = stored.originalUrl;
+          cleaned.imageUrl = stored.originalUrl;
+          cleaned.displayImageUrl = stored.displayUrl;
+        } else {
+          cleaned.image_url = await processImage(cleaned.image_url);
+        }
+      }
 
       const brandKey = cleaned.brand.toLowerCase();
       const isApprovedDesigner = enforceDesigners && approvedDesigners.has(brandKey);

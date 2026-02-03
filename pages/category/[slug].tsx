@@ -225,7 +225,9 @@ export default function CategoryPage({ slug, label, items }: CategoryProps) {
           size: l.size || "",
           color: l.color || "",
           price: toUsdString(l.price ?? l.priceUsd),
-          image: Array.isArray(l.images) && l.images[0] ? l.images[0] : "",
+          image:
+            l.displayImageUrl ||
+            (Array.isArray(l.images) && l.images[0] ? l.images[0] : ""),
           href: `/product/${l.id}`,
         }));
 
@@ -781,7 +783,9 @@ export const getServerSideProps: GetServerSideProps = async (ctx) => {
       size: l.size || "",
       color: l.color || "",
       price: toUsdString(l.price ?? l.priceUsd),
-      image: Array.isArray(l.images) && l.images[0] ? l.images[0] : "",
+      image:
+        l.displayImageUrl ||
+        (Array.isArray(l.images) && l.images[0] ? l.images[0] : ""),
       href: `/product/${l.id}`,
     }));
 
