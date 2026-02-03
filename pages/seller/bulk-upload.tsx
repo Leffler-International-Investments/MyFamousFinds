@@ -1,5 +1,6 @@
 // FILE: /pages/seller/bulk-upload.tsx
 import Head from "next/head";
+import Link from "next/link";
 import { useState } from "react";
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
@@ -153,6 +154,7 @@ export default function SellerBulkUploadPage() {
               <h1>Bulk Upload Listings</h1>
               <p>Paste multiple items in one go. All prices are treated as USD.</p>
             </div>
+            <Link href="/seller/dashboard">← Back to Seller Dashboard</Link>
           </div>
 
           {/* STEP 1 */}

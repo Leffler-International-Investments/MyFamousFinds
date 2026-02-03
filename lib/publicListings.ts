@@ -12,6 +12,9 @@ export type PublicListing = {
   currency?: string;
   category?: string;
   condition?: string;
+  material?: string;
+  size?: string;
+  color?: string;
   status?: string;
   isSold?: boolean;
   images?: string[];
@@ -23,6 +26,7 @@ type CanonCategory = (typeof CANON)[number];
 
 function normCategory(v: any): CanonCategory | "" {
   const s = String(v || "").trim().toUpperCase();
+  const compact = s.replace(/[^A-Z]/g, "");
   if (s === "WATCH" || s === "WATCHES") return "WATCHES";
   if (s === "WOMAN" || s === "WOMEN") return "WOMEN";
   if (s === "BAG" || s === "BAGS") return "BAGS";
@@ -36,6 +40,13 @@ function normCategory(v: any): CanonCategory | "" {
     s === "JEWEL"
   )
     return "JEWELRY";
+
+  if (compact.includes("JEWEL")) return "JEWELRY";
+  if (compact.includes("WATCH")) return "WATCHES";
+  if (compact.includes("BAG")) return "BAGS";
+  if (compact.includes("WOMEN") || compact.includes("WOMAN")) return "WOMEN";
+  if (compact.includes("MEN") || compact.includes("MENS") || compact.includes("MAN"))
+    return "MEN";
 
   if ((CANON as readonly string[]).includes(s)) return s as CanonCategory;
   return "";
@@ -244,6 +255,56 @@ function looksLikeJewelry(x: PublicListing): boolean {
   return keywords.some((k) => t.includes(k));
 }
 
+function looksLikeBag(x: PublicListing): boolean {
+  const t = `${x.title || ""} ${x.brand || ""}`.toLowerCase();
+  const keywords = [
+    "bag",
+    "handbag",
+    "tote",
+    "satchel",
+    "crossbody",
+    "cross-body",
+    "shoulder",
+    "pouch",
+    "clutch",
+    "backpack",
+    "bucket",
+    "hobo",
+    "duffle",
+    "briefcase",
+    "luggage",
+    "trunk",
+    "wallet",
+  ];
+  return keywords.some((k) => t.includes(k));
+}
+
+function looksLikeApparel(x: PublicListing): boolean {
+  const t = `${x.title || ""} ${x.brand || ""}`.toLowerCase();
+  const keywords = [
+    "jacket",
+    "coat",
+    "parka",
+    "blazer",
+    "suit",
+    "shirt",
+    "tee",
+    "t-shirt",
+    "sweater",
+    "hoodie",
+    "pants",
+    "trouser",
+    "jeans",
+    "skirt",
+    "dress",
+    "shorts",
+    "top",
+    "cardigan",
+    "vest",
+  ];
+  return keywords.some((k) => t.includes(k));
+}
+
 export async function getPublicListings(opts?: {
   category?: string;
   take?: number;
@@ -279,6 +340,9 @@ export async function getPublicListings(opts?: {
       currency: String(d?.currency || d?.pricing?.currency || "USD"),
       category: categoryRaw || undefined,
       condition: String(d?.condition || "").trim() || undefined,
+      material: firstNonEmpty(d?.material, d?.fabric, d?.fabrication, d?.item?.material),
+      size: firstNonEmpty(d?.size, d?.itemSize, d?.item?.size),
+      color: firstNonEmpty(d?.color, d?.colour, d?.item?.color),
       status: String(d?.status || "").trim() || undefined,
       isSold: false,
       images,
@@ -295,6 +359,14 @@ export async function getPublicListings(opts?: {
     return items.filter((x) => {
       const n = normCategory(x.category);
       return n === "JEWELRY" || (n === "" && looksLikeJewelry(x));
+    });
+  }
+
+  if (wanted === "BAGS") {
+    return items.filter((x) => {
+      const n = normCategory(x.category);
+      const isBag = n === "BAGS" || (n === "" && looksLikeBag(x));
+      return isBag && !looksLikeApparel(x);
     });
   }
 

@@ -23,6 +23,9 @@ export default async function handler(
 
   try {
     const { id, title, price, image } = req.body as RequestBody;
+    const buyerIdHeader =
+      (req.headers["x-user-id"] as string | undefined) ||
+      (req.headers["x-userid"] as string | undefined);
 
     if (!id || !title || typeof price !== "number") {
       return res.status(400).json({ ok: false, error: "Missing product data" });
@@ -38,6 +41,7 @@ export default async function handler(
       payment_method_types: ["card"],
       metadata: {
         listingId: id,
+        ...(buyerIdHeader ? { buyerId: buyerIdHeader } : {}),
       },
       line_items: [
         {
