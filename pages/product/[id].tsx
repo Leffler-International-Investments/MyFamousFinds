@@ -612,7 +612,9 @@ export const getServerSideProps: GetServerSideProps<ProductPageProps> = async (
     const sellerName =
       d.sellerName || d.sellerDisplayName || "Independent seller";
 
+    // Prefer displayImageUrl (white background processed) over original
     const imageUrl =
+      d.displayImageUrl ||
       d.image_url ||
       d.imageUrl ||
       d.image ||

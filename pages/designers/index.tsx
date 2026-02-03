@@ -99,6 +99,8 @@ function normalize(raw: string | undefined | null): string {
 }
 
 const pickImage = (data: any): string => {
+  // Prefer displayImageUrl (white background processed) over original
+  if (data.displayImageUrl) return data.displayImageUrl;
   if (data.image_url) return data.image_url;
   if (data.imageUrl) return data.imageUrl;
   if (data.image) return data.image;
@@ -106,6 +108,10 @@ const pickImage = (data: any): string => {
     return data.imageUrls[0];
   }
   return "";
+};
+
+const pickDisplayImage = (data: any): string => {
+  return data.displayImageUrl || "";
 };
 
 // --------------------------------------------------
@@ -686,6 +692,7 @@ export const getServerSideProps: GetServerSideProps<DesignersPageProps> =
           color: colorRaw,
           price,
           image: pickImage(d),
+          displayImage: pickDisplayImage(d),
           href: `/product/${doc.id}`,
           priceValue: priceNum || 0,
         };

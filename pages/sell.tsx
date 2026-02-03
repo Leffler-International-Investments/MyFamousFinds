@@ -42,6 +42,7 @@ export default function Sell() {
   const [submitted, setSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
+  const [processingImage, setProcessingImage] = useState(false);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
 
   const [designers, setDesigners] = useState<Designer[]>([]);
@@ -82,13 +83,16 @@ export default function Sell() {
 
   async function uploadImageIfNeeded(
     formData: FormData
-  ): Promise<string | null> {
+  ): Promise<{ imageUrl: string | null; displayImageUrl: string | null }> {
     const file = formData.get("image_file");
     if (!file || !(file instanceof File) || !file.size) {
-      return null;
+      return { imageUrl: null, displayImageUrl: null };
     }
 
     setUploadingImage(true);
+    let imageUrl: string | null = null;
+    let displayImageUrl: string | null = null;
+
     try {
       const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
       const path = `listing-images/${Date.now()}-${safeName}`;
@@ -104,11 +108,33 @@ export default function Sell() {
 
       const storageRef = ref(storage, path);
       const snapshot = await uploadBytes(storageRef, file as File);
-      const url = await getDownloadURL(snapshot.ref);
-      return url;
+      imageUrl = await getDownloadURL(snapshot.ref);
     } finally {
       setUploadingImage(false);
     }
+
+    // Process image for white background
+    if (imageUrl) {
+      setProcessingImage(true);
+      try {
+        const res = await fetch("/api/images/process-background", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ imageUrl }),
+        });
+
+        const json = await res.json();
+        if (res.ok && json.ok && json.displayImageUrl) {
+          displayImageUrl = json.displayImageUrl;
+        }
+      } catch (err) {
+        console.error("Image processing failed (will use original):", err);
+      } finally {
+        setProcessingImage(false);
+      }
+    }
+
+    return { imageUrl, displayImageUrl };
   }
 
   async function onSubmit(e: FormEvent<HTMLFormElement>) {
@@ -157,9 +183,12 @@ export default function Sell() {
 
     setSubmitting(true);
     try {
-      const imageUrl = await uploadImageIfNeeded(formData);
+      const { imageUrl, displayImageUrl } = await uploadImageIfNeeded(formData);
       if (imageUrl) {
         formData.set("image_url", imageUrl);
+      }
+      if (displayImageUrl) {
+        formData.set("display_image_url", displayImageUrl);
       }
 
       const payload: Record<string, any> = {};
@@ -446,11 +475,13 @@ export default function Sell() {
                 </p>
               </div>
 
-              <button type="submit" disabled={submitting || uploadingImage}>
+              <button type="submit" disabled={submitting || uploadingImage || processingImage}>
                 {submitting
                   ? "Submitting…"
                   : uploadingImage
                   ? "Uploading image…"
+                  : processingImage
+                  ? "Processing image…"
                   : "Submit for review"}
               </button>
 

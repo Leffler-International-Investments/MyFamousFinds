@@ -481,6 +481,7 @@ export const getServerSideProps: GetServerSideProps = async () => {
       price: priceNum ? `US$${priceNum.toLocaleString("en-US")}` : "",
       priceValue: priceNum || 0,
       image: pickImage(data),
+      displayImage: data.displayImageUrl || null,  // Processed image with white background
       href: `/product/${doc.id}`,
       category: data.category || data.categoryLabel || data.menuCategory || "",
       condition: data.condition || "",

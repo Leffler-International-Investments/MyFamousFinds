@@ -3,7 +3,7 @@ import type { NextApiRequest, NextApiResponse } from "next";
 import { adminDb } from "../../../utils/firebaseAdmin";
 import { FieldValue } from "firebase-admin/firestore";
 import { getSellerId } from "../../../utils/authServer";
-import sharp from "sharp";
+import { processBase64Image } from "../../../lib/imageProcessing";
 
 export const config = {
   api: {
@@ -42,6 +42,7 @@ type CleanRow = {
   currency: "USD";
   status: "Pending";
   image_url?: string | null;
+  displayImageUrl?: string | null;
 };
 
 type ApiOk = { ok: true; created: number; skipped: number };
@@ -77,24 +78,30 @@ function coercePrice(v: unknown): number | null {
   return null;
 }
 
-async function processImage(base64Str: string): Promise<string | null> {
+/**
+ * Process image with background removal and white background
+ * Returns both original (flattened) and display (bg removed) data URLs
+ */
+async function processImageWithBgRemoval(
+  base64Str: string
+): Promise<{ imageUrl: string | null; displayImageUrl: string | null }> {
   try {
-    const match = base64Str.match(/^data:image\/([a-zA-Z]*);base64,([^"]*)/);
-    const rawBase64 = match ? match[2] : base64Str;
-    const buffer = Buffer.from(rawBase64, "base64");
+    // Process with background removal
+    const result = await processBase64Image(base64Str);
 
-    const optimizedBuffer = await sharp(buffer)
-      .rotate()
-      .modulate({ brightness: 1.1, saturation: 1.05 })
-      .resize(1080, 1080, { fit: "contain", background: { r: 255, g: 255, b: 255, alpha: 1 } })
-      .flatten({ background: "#ffffff" })
-      .toFormat("jpeg", { quality: 85, mozjpeg: true })
-      .toBuffer();
+    if (result.success && result.processedDataUrl) {
+      // Return processed image as both (since we want white bg for display)
+      return {
+        imageUrl: result.processedDataUrl,
+        displayImageUrl: result.processedDataUrl,
+      };
+    }
 
-    return `data:image/jpeg;base64,${optimizedBuffer.toString("base64")}`;
+    // Fallback: return original as-is
+    return { imageUrl: base64Str, displayImageUrl: null };
   } catch (error) {
     console.error("Image processing failed:", error);
-    return null;
+    return { imageUrl: base64Str, displayImageUrl: null };
   }
 }
 
@@ -175,7 +182,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
         continue;
       }
 
-      if (cleaned.image_url) cleaned.image_url = await processImage(cleaned.image_url);
+      // Process image with background removal
+      if (cleaned.image_url) {
+        const processed = await processImageWithBgRemoval(cleaned.image_url);
+        cleaned.image_url = processed.imageUrl;
+        cleaned.displayImageUrl = processed.displayImageUrl;
+      }
 
       const brandKey = cleaned.brand.toLowerCase();
       const isApprovedDesigner = enforceDesigners && approvedDesigners.has(brandKey);

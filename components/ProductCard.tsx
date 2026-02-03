@@ -7,7 +7,8 @@ export type ProductLike = {
   title: string;
   brand?: string;
   price?: string;
-  image: string;   // always the actual listing image
+  image: string;   // original listing image (fallback)
+  displayImage?: string;  // processed image with white background (preferred)
   href: string;
   badge?: string;
   details?: string;
@@ -19,13 +20,15 @@ export type ProductLike = {
 
 export default function ProductCard(p: ProductLike) {
   const [liked, setLiked] = useState(false);
+  // Prefer displayImage (white background) over original image
+  const imageToShow = p.displayImage || p.image;
 
   return (
     <div className="card">
       {/* 1. THUMBNAIL (Unclickable, visual only) */}
       <div className="thumb">
-        {p.image ? (
-          <img src={p.image} alt={p.title} />
+        {imageToShow ? (
+          <img src={imageToShow} alt={p.title} />
         ) : (
           <div className="no-image">No image</div>
         )}

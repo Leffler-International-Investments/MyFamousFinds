@@ -15,6 +15,7 @@ export type PublicListing = {
   status?: string;
   isSold?: boolean;
   images?: string[];
+  displayImageUrl?: string;  // Processed image with white background
   createdAt?: any;
 };
 
@@ -282,6 +283,7 @@ export async function getPublicListings(opts?: {
       status: String(d?.status || "").trim() || undefined,
       isSold: false,
       images,
+      displayImageUrl: d?.displayImageUrl || undefined,
       createdAt: d?.createdAt,
     });
   });

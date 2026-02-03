@@ -145,6 +145,7 @@ export default function CategoryPage({ slug, label, items }: CategoryProps) {
           condition: l.condition || "",
           price: toUsdString(l.price ?? l.priceUsd),
           image: Array.isArray(l.images) && l.images[0] ? l.images[0] : "",
+          displayImage: l.displayImageUrl || "",
           href: `/product/${l.id}`,
         }));
 
@@ -602,6 +603,7 @@ export const getServerSideProps: GetServerSideProps = async (ctx) => {
       condition: l.condition || "",
       price: toUsdString(l.price ?? l.priceUsd),
       image: Array.isArray(l.images) && l.images[0] ? l.images[0] : "",
+      displayImage: l.displayImageUrl || "",
       href: `/product/${l.id}`,
     }));
 

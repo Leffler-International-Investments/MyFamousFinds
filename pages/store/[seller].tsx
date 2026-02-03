@@ -156,7 +156,9 @@ export async function getServerSideProps(ctx: any) {
       id: doc.id,
       title: d.title || "Listing",
       price: typeof d.price === "number" ? d.price : 0,
+      // Prefer displayImageUrl (white background processed) over original
       imageUrl:
+        d.displayImageUrl ||
         d.image_url ||
         d.imageUrl ||
         d.image ||
