@@ -3,32 +3,41 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import Stripe from "stripe";
 
-type Resp =
-  | { ok: true; mode: "live" | "test"; accountId?: string }
-  | { ok: false; error: string };
-
-export default async function handler(
-  _req: NextApiRequest,
-  res: NextApiResponse<Resp>
-) {
+export default async function handler(_req: NextApiRequest, res: NextApiResponse) {
   try {
-    const key = process.env.STRIPE_SECRET_KEY;
+    const key = process.env.STRIPE_SECRET_KEY || "";
+
     if (!key) {
-      return res.status(500).json({ ok: false, error: "STRIPE_SECRET_KEY missing" });
+      return res.status(500).json({ ok: false, where: "env", error: "STRIPE_SECRET_KEY missing" });
     }
 
-    const stripe = new Stripe(key, {});
+    // Detect whitespace/newlines (VERY common)
+    const trimmed = key.trim();
+    const hadWhitespace = trimmed.length !== key.length;
+
+    const stripe = new Stripe(trimmed, {});
+
+    // This call proves the server can authenticate + reach Stripe
     const acct = await stripe.accounts.retrieve();
 
-    // acct has an "id" and indicates the account exists / key works
     return res.status(200).json({
       ok: true,
-      mode: key.includes("_live_") ? "live" : "test",
+      mode: trimmed.includes("_live_") ? "live" : "test",
+      hadWhitespace,
       accountId: acct.id,
+      chargesEnabled: (acct as any).charges_enabled,
+      payoutsEnabled: (acct as any).payouts_enabled,
     });
   } catch (err: any) {
-    const msg = String(err?.message || err || "stripe_error");
-    console.error("stripe_ping_error", msg, err);
-    return res.status(500).json({ ok: false, error: msg });
+    // Return the real Stripe connection diagnostics
+    return res.status(500).json({
+      ok: false,
+      type: err?.type || null,
+      code: err?.code || null,
+      message: err?.message || String(err),
+      errno: err?.errno || null,
+      syscall: err?.syscall || null,
+      hostname: err?.hostname || null,
+    });
   }
 }
