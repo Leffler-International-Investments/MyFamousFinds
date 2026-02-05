@@ -1,12 +1,12 @@
 // FILE: /pages/api/checkout.ts
 
 import type { NextApiRequest, NextApiResponse } from "next";
-import { stripe } from "../../lib/stripe";
+import { createCheckoutSession } from "../../lib/stripe";
 
 type RequestBody = {
   id: string; // listing id
   title: string; // product title
-  price: number; // in major units (e.g. 1111 for 1111 USD)
+  price: number; // in major units (USD dollars)
   image?: string; // optional image URL
 };
 
@@ -36,7 +36,7 @@ export default async function handler(
       process.env.NEXT_PUBLIC_SITE_URL ||
       "https://www.myfamousfinds.com";
 
-    const session = await stripe.checkout.sessions.create({
+    const session = await createCheckoutSession({
       mode: "payment",
       payment_method_types: ["card"],
       metadata: {
@@ -63,9 +63,8 @@ export default async function handler(
 
     return res.status(200).json({ ok: true, sessionId: session.id });
   } catch (err: any) {
-    console.error("Stripe checkout error:", err?.message || err);
-    return res
-      .status(500)
-      .json({ ok: false, error: "Stripe session creation failed" });
+    const msg = String(err?.message || err || "Stripe error");
+    console.error("Stripe checkout error:", msg, err);
+    return res.status(500).json({ ok: false, error: msg });
   }
 }
