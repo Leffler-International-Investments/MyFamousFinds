@@ -1,7 +1,7 @@
 // FILE: pages/api/stripe.ts
 import type { NextApiRequest, NextApiResponse } from "next";
 import Stripe from "stripe";
-import { stripe } from "../../lib/stripe";
+import { getStripeClient } from "../../lib/stripe";
 import { adminDb, FieldValue } from "../../utils/firebaseAdmin";
 import {
   sendOrderConfirmationEmail,
@@ -45,6 +45,7 @@ export default async function handler(
     return;
   }
 
+  const stripe = await getStripeClient();
   if (!stripe) {
     return res.status(500).json({ error: "Stripe is not configured" });
   }

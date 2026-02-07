@@ -2,15 +2,9 @@
 // --- This is the new file provided in your instructions ---
 import type { NextApiRequest, NextApiResponse } from "next";
 import Stripe from "stripe";
+import { getStripeClient } from "../../../lib/stripe";
 import { adminDb, FieldValue } from "../../../utils/firebaseAdmin";
-
-const stripeSecretKey = process.env.STRIPE_SECRET_KEY || "";
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET || "";
-
-let stripe: Stripe | null = null;
-if (stripeSecretKey) {
-  stripe = new Stripe(stripeSecretKey, {});
-}
 
 export const config = {
   api: {
@@ -45,6 +39,7 @@ export default async function handler(
     return;
   }
 
+  const stripe = await getStripeClient();
   if (!stripe) {
     return res.status(500).json({ error: "Stripe is not configured" });
   }
