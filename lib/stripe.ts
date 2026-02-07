@@ -2,12 +2,17 @@
 import Stripe from "stripe";
 
 // Safely initialize Stripe so missing env vars do NOT break the build
-const secretKey = process.env.STRIPE_SECRET_KEY || "";
+const secretKey = (process.env.STRIPE_SECRET_KEY || "").trim();
 
 let stripe: Stripe | null = null;
 
 if (secretKey) {
-  stripe = new Stripe(secretKey, {});
+  stripe = new Stripe(secretKey, {
+    // Vercel serverless functions have limited execution time.
+    // Set a shorter timeout so we get a clear error instead of hanging.
+    timeout: 15000, // 15 seconds
+    maxNetworkRetries: 2,
+  });
 } else {
   // Do NOT throw here – just log. This keeps Vercel builds working
   // even if Stripe is not configured yet.
