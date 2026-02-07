@@ -2,7 +2,7 @@
 
 import type { NextApiRequest, NextApiResponse } from "next";
 import Stripe from "stripe";
-import { createCheckoutSession } from "../../lib/stripe";
+import { createCheckoutSession, getStripeSecretKeyInfo } from "../../lib/stripe";
 
 type RequestBody = {
   id: string; // listing id
@@ -22,10 +22,10 @@ type ErrorResponse = { ok: false; error: string };
 async function createSessionFallback(
   params: Stripe.Checkout.SessionCreateParams
 ) {
-  const key = (process.env.STRIPE_SECRET_KEY || "").trim();
+  const { key } = await getStripeSecretKeyInfo();
   if (!key) {
     throw new Error(
-      "Stripe is not configured. Please set STRIPE_SECRET_KEY in your environment variables."
+      "Stripe is not configured. Please set STRIPE_SECRET_KEY or save Stripe settings in admin."
     );
   }
 

@@ -3,6 +3,7 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import Stripe from "stripe";
 import { adminDb } from "../../utils/firebaseAdmin";
+import { getStripeClient } from "../../lib/stripe";
 
 type SuccessResponse = {
   ok: true;
@@ -24,18 +25,13 @@ export default async function handler(
     return res.status(405).json({ ok: false, error: "Method not allowed" });
   }
 
-  const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
-  if (!stripeSecretKey) {
-    console.error("Missing STRIPE_SECRET_KEY env var");
+  const stripe = await getStripeClient();
+  if (!stripe) {
+    console.error("Missing Stripe secret key (env or admin settings)");
     return res
       .status(500)
       .json({ ok: false, error: "Stripe is not configured on the server." });
   }
-
-  const stripe = new Stripe(stripeSecretKey, {
-    // ⚠️ Do NOT set apiVersion here – the type in this SDK only allows
-    // "2025-10-29.clover", so we rely on the default to avoid TS build errors.
-  });
 
   try {
     const { listingId, quantity = 1 } = req.body as {
