@@ -15,17 +15,23 @@ type SuccessResponse = { ok: true; sessionId: string };
 type ErrorResponse = { ok: false; error: string };
 
 /**
- * Fallback: create a fresh Stripe instance if the shared one fails.
- * Handles edge cases where the module-level instance hits a transient
- * network error on cold start.
+ * Fallback helper: create a checkout session using a fresh Stripe instance.
+ * Useful when the shared stripe instance has stale/invalid config at runtime.
  */
-async function createSessionFallback(
-  params: Stripe.Checkout.SessionCreateParams
-) {
-  const { key } = await getStripeSecretKeyInfo();
+async function createSessionFallback(params: Stripe.Checkout.SessionCreateParams) {
+  const info = getStripeSecretKeyInfo?.();
+  const key = info?.key || process.env.STRIPE_SECRET_KEY || "";
+
   if (!key) {
     throw new Error(
-      "Stripe is not configured. Please set STRIPE_SECRET_KEY or save Stripe settings in admin."
+      "Stripe is not configured. Missing STRIPE_SECRET_KEY. Please set it in Vercel env vars."
+    );
+  }
+
+  // Small safety check
+  if (!key.startsWith("sk_")) {
+    throw new Error(
+      "Stripe secret key looks invalid (must start with sk_). Please verify Vercel env vars."
     );
   }
 
@@ -59,13 +65,20 @@ function resolveBaseUrl(req: NextApiRequest) {
   return "https://www.myfamousfinds.com";
 }
 
-function sanitizeImageUrl(imageUrl?: string) {
-  if (!imageUrl) return "";
-  const trimmed = imageUrl.trim();
-  if (!trimmed || trimmed.length > 2048) return "";
+function sanitizeListingTitle(title: string) {
+  const t = String(title || "").trim();
+  if (!t) return "MyFamousFinds Purchase";
+  // Stripe allows pretty broad text, but keep it sensible
+  return t.slice(0, 120);
+}
+
+function safeImage(image?: string) {
+  const raw = String(image || "").trim();
+  if (!raw) return "";
   try {
-    const url = new URL(trimmed);
-    return url.toString();
+    const u = new URL(raw);
+    if (u.protocol !== "http:" && u.protocol !== "https:") return "";
+    return u.toString();
   } catch {
     return "";
   }
@@ -76,33 +89,35 @@ export default async function handler(
   res: NextApiResponse<SuccessResponse | ErrorResponse>
 ) {
   if (req.method !== "POST") {
-    return res.status(405).json({ ok: false, error: "Method not allowed" });
+    return res.status(405).json({ ok: false, error: "Method Not Allowed" });
   }
 
   try {
-    const { id, title, price, image } = req.body as RequestBody;
-    const buyerIdHeader =
-      (req.headers["x-user-id"] as string | undefined) ||
-      (req.headers["x-userid"] as string | undefined);
+    const body = (req.body || {}) as Partial<RequestBody>;
+    const id = String(body.id || "").trim();
+    const title = sanitizeListingTitle(body.title || "");
+    const price = Number(body.price);
 
-    if (!id || !title || typeof price !== "number") {
-      return res.status(400).json({ ok: false, error: "Missing product data" });
+    if (!id) {
+      return res.status(400).json({ ok: false, error: "Missing listing id" });
+    }
+    if (!Number.isFinite(price) || price <= 0) {
+      return res.status(400).json({ ok: false, error: "Invalid price" });
     }
 
     const baseUrl = resolveBaseUrl(req);
+    const safeImageUrl = safeImage(body.image);
 
-    const safeImageUrl = sanitizeImageUrl(image);
+    const unitAmount = Math.round(price * 100); // USD cents
+
     const sessionParams: Stripe.Checkout.SessionCreateParams = {
       mode: "payment",
-      metadata: {
-        listingId: id,
-        ...(buyerIdHeader ? { buyerId: buyerIdHeader } : {}),
-      },
+      payment_method_types: ["card"],
       line_items: [
         {
           price_data: {
             currency: "usd",
-            unit_amount: Math.round(price * 100),
+            unit_amount: unitAmount,
             product_data: {
               name: title,
               images: safeImageUrl ? [safeImageUrl] : [],
@@ -151,36 +166,17 @@ export default async function handler(
     if (msg.includes("Expired API Key")) {
       userMessage =
         "The Stripe API key has expired. Please update it in Management → Stripe Settings.";
-    } else if (msg.includes("retried") || msg.includes("ECONNREFUSED") || msg.includes("timeout")) {
+    } else if (
+      msg.includes("retried") ||
+      msg.includes("ECONNREFUSED") ||
+      msg.includes("timeout")
+    ) {
       userMessage =
         "We're having trouble connecting to our payment provider. Please try again in a moment.";
     } else if (msg.includes("not configured")) {
-      userMessage =
-        "Payments are not configured yet. Please contact support.";
+      userMessage = "Payments are not configured yet. Please contact support.";
     }
 
     return res.status(500).json({ ok: false, error: userMessage });
   }
-}
-
-function resolveBaseUrl(req: NextApiRequest) {
-  const fromEnv = process.env.NEXT_PUBLIC_SITE_URL || "";
-  const fromHeader = (req.headers.origin as string | undefined) || "";
-
-  const candidates = [fromEnv, fromHeader].filter(Boolean);
-  for (const candidate of candidates) {
-    const trimmed = candidate.trim();
-    if (!trimmed) continue;
-    try {
-      const url = new URL(trimmed);
-      const origin = url.origin;
-      if (origin.length <= 2000) {
-        return origin;
-      }
-    } catch {
-      // ignore invalid URL
-    }
-  }
-
-  return "https://www.myfamousfinds.com";
 }
