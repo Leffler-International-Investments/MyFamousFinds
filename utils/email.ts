@@ -32,6 +32,81 @@ async function sendMail(to: string, subject: string, text: string) {
   console.log("[email] sent", { to, messageId: info.messageId });
 }
 
+/* ─────────────────────────────────────────────────────────────
+   ✅ ADD THESE EXPORTS (required by /pages/api/stripe.ts)
+───────────────────────────────────────────────────────────── */
+
+export type OrderEmailPayload = {
+  id: string;
+  customerName?: string;
+  customerEmail: string;
+  currency: string; // e.g. "USD"
+  items: Array<{
+    name: string;
+    brand?: string;
+    category?: string;
+    quantity: number;
+    price: number; // major units (e.g. 123.45)
+  }>;
+  subtotal: number;
+  shipping?: number;
+  total: number;
+};
+
+export async function sendOrderConfirmationEmail(payload: OrderEmailPayload) {
+  const {
+    id,
+    customerName,
+    customerEmail,
+    currency,
+    items,
+    subtotal,
+    shipping = 0,
+    total,
+  } = payload;
+
+  const subject = `Order Confirmation — MyFamousFinds (Order ${id})`;
+
+  const lines: string[] = [];
+  lines.push(`Hi${customerName ? " " + customerName : ""},`);
+  lines.push("");
+  lines.push(`Thanks for your purchase on MyFamousFinds.`);
+  lines.push("");
+  lines.push(`Order ID: ${id}`);
+  lines.push("");
+  lines.push("Items:");
+  for (const it of items) {
+    const label = [it.brand, it.name].filter(Boolean).join(" — ");
+    lines.push(
+      `• ${label}  x${it.quantity}  (${formatMoney(it.price, currency)})`
+    );
+  }
+  lines.push("");
+  lines.push(`Subtotal: ${formatMoney(subtotal, currency)}`);
+  if (shipping > 0) lines.push(`Shipping: ${formatMoney(shipping, currency)}`);
+  lines.push(`Total: ${formatMoney(total, currency)}`);
+  lines.push("");
+  lines.push("If you have questions, reply to this email.");
+  lines.push("");
+  lines.push("MyFamousFinds Team");
+
+  await sendMail(customerEmail, subject, lines.join("\n"));
+}
+
+function formatMoney(amount: number, currency: string) {
+  const n = Number(amount || 0);
+  const c = String(currency || "USD").toUpperCase();
+  try {
+    return n.toLocaleString("en-US", { style: "currency", currency: c });
+  } catch {
+    return `${c} ${n.toFixed(2)}`;
+  }
+}
+
+/* ─────────────────────────────────────────────────────────────
+   Existing exports (keep as-is)
+───────────────────────────────────────────────────────────── */
+
 export async function sendLoginCode(to: string, code: string) {
   const subject = "Your MyFamousFinds Verification Code";
   const text = `Your login verification code is: ${code}
@@ -66,7 +141,6 @@ Support: support@myfamousfinds.com`;
   await sendMail(to, subject, text);
 }
 
-// ✅ REQUIRED FIX: export the rejection email (build error)
 export async function sendSellerRejectionEmail(args: {
   to: string;
   businessName?: string;
@@ -91,7 +165,6 @@ MyFamousFinds Team`;
   await sendMail(to, subject, text);
 }
 
-// ✅ Sold label email with buyer shipping details
 export async function sendSellerSoldShipNowEmail(args: {
   to: string;
   orderId: string;
@@ -99,7 +172,7 @@ export async function sendSellerSoldShipNowEmail(args: {
   buyerName?: string;
   buyerEmail?: string;
   shippingAddressText: string;
-  shipByText: string; // e.g. "within 72 hours"
+  shipByText: string;
 }) {
   const {
     to,
