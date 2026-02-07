@@ -20,19 +20,6 @@ async function getRawBody(req: NextApiRequest): Promise<Buffer> {
   });
 }
 
-function formatAddress(addr: any) {
-  if (!addr) return "Address not provided";
-  const parts = [
-    addr.line1,
-    addr.line2,
-    addr.city,
-    addr.state,
-    addr.postal_code,
-    addr.country,
-  ].filter(Boolean);
-  return parts.join(", ");
-}
-
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== "POST") {
     res.status(405).setHeader("Allow", "POST").json({ error: "Method not allowed" });
@@ -58,6 +45,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     switch (event.type) {
       case "checkout.session.completed": {
         const session = event.data.object as Stripe.Checkout.Session;
+
         const listingId = session.metadata?.listingId;
         const paymentStatus = session.payment_status;
 
@@ -83,9 +71,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         const buyerEmail = session.customer_details?.email || "";
         const buyerName = session.customer_details?.name || "";
 
-        // Stripe provides shipping_details on checkout session if shipping collection enabled
+        // ✅ FIX: Stripe typings in your installed version do NOT export Session.ShippingDetails
+        // Treat shipping_details as plain object type (safe).
         const shippingDetails = (session as any).shipping_details as
-          | Stripe.Checkout.Session.ShippingDetails
+          | { name?: string; address?: any }
           | undefined;
 
         const shipAddr =
@@ -103,7 +92,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             }
           : null;
 
-        // 4) Create order (this is the “label” record the seller can see)
+        // 4) Create order record (seller label source)
         // Default ship deadline: 72 hours
         const nowMs = Date.now();
         const shipDeadlineAt = new Date(nowMs + 72 * 60 * 60 * 1000);
@@ -128,7 +117,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           },
           payout: {
             status: "NOT_READY",
-            coolingDays: 7, // adjustable later in settings (we’ll wire it)
+            coolingDays: 7, // later adjustable via settings
           },
           totals: { currency, total },
           stripe: {
@@ -139,7 +128,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           updatedAt: FieldValue.serverTimestamp(),
         });
 
-        // 5) Email seller with label details (if sellerId is an email/doc id)
+        // 5) Email seller with label details
         if (sellerId) {
           const sellerDoc = await adminDb.collection("sellers").doc(sellerId).get();
           const sellerData: any = sellerDoc.exists ? sellerDoc.data() : null;
@@ -175,7 +164,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
 
       default:
-        // ignore
         break;
     }
 
