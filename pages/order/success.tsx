@@ -4,7 +4,7 @@ import Link from "next/link";
 import type { GetServerSideProps } from "next";
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
-import { stripe } from "../../lib/stripe";
+import { retrieveCheckoutSession } from "../../lib/stripe";
 import { adminDb } from "../../utils/firebaseAdmin";
 import PostPurchaseButler from "../../components/PostPurchaseButler";
 
@@ -168,13 +168,8 @@ export const getServerSideProps: GetServerSideProps<SuccessProps> = async (
     return { notFound: true };
   }
 
-  if (!stripe) {
-    console.error("Stripe not configured – skipping order success SSR.");
-    return { notFound: true };
-  }
-
   try {
-    const session = await stripe.checkout.sessions.retrieve(sessionId);
+    const session = await retrieveCheckoutSession(sessionId);
 
     const currency = (session.currency || "usd").toUpperCase();
     const amountTotal = (session.amount_total || 0) / 100;
