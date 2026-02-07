@@ -1,43 +1,105 @@
 // FILE: /lib/stripe.ts
 import Stripe from "stripe";
+import { adminDb } from "../utils/firebaseAdmin";
 
-// Safely initialize Stripe so missing env vars do NOT break the build
-const secretKey = (process.env.STRIPE_SECRET_KEY || "").trim();
+// ─── Stripe key resolution ───────────────────────────────────────
+// Priority:
+//   1. Firestore  admin/stripe_settings → secretKey  (set via Management dashboard)
+//   2. process.env.STRIPE_SECRET_KEY                   (set in Vercel env vars)
+// This ensures that when an admin rotates keys in the dashboard the
+// checkout immediately uses the new key without a redeploy.
+// ──────────────────────────────────────────────────────────────────
 
+let cachedKey: string | null = null;
+let cacheExpiry = 0;
+const CACHE_TTL_MS = 60_000; // re-read Firestore at most once per minute
+
+/**
+ * Resolve the Stripe secret key: Firestore first, env var fallback.
+ * Result is cached for 60 s so hot paths don't add a Firestore read
+ * on every single request.
+ */
+export async function getStripeSecretKey(): Promise<string> {
+  const now = Date.now();
+
+  if (cachedKey && now < cacheExpiry) {
+    return cachedKey;
+  }
+
+  // 1) Try Firestore
+  if (adminDb) {
+    try {
+      const snap = await adminDb
+        .collection("admin")
+        .doc("stripe_settings")
+        .get();
+
+      if (snap.exists) {
+        const data = snap.data();
+        const fsKey = (data?.secretKey || "").trim();
+        if (fsKey) {
+          cachedKey = fsKey;
+          cacheExpiry = now + CACHE_TTL_MS;
+          return cachedKey;
+        }
+      }
+    } catch (err) {
+      console.warn("Could not read Stripe key from Firestore:", err);
+    }
+  }
+
+  // 2) Fallback to env var
+  const envKey = (process.env.STRIPE_SECRET_KEY || "").trim();
+  if (envKey) {
+    cachedKey = envKey;
+    cacheExpiry = now + CACHE_TTL_MS;
+    return cachedKey;
+  }
+
+  throw new Error(
+    "Stripe is not configured. Set STRIPE_SECRET_KEY or update keys in Management → Stripe Settings."
+  );
+}
+
+/**
+ * Build a Stripe client from the resolved key.
+ * Each call may return a fresh instance if the key changed.
+ */
+export async function getStripeClient(): Promise<Stripe> {
+  const key = await getStripeSecretKey();
+  return new Stripe(key, {
+    timeout: 15000,
+    maxNetworkRetries: 2,
+  });
+}
+
+// ─── Legacy exports (kept for backward compat) ──────────────────
+// Module-level instance based on the env var only.  Used by files
+// that `import { stripe }` directly.  Prefer getStripeClient() for
+// new code – it picks up Firestore key changes automatically.
+const envKey = (process.env.STRIPE_SECRET_KEY || "").trim();
 let stripe: Stripe | null = null;
 
-if (secretKey) {
-  stripe = new Stripe(secretKey, {
-    // Vercel serverless functions have limited execution time.
-    // Set a shorter timeout so we get a clear error instead of hanging.
-    timeout: 15000, // 15 seconds
+if (envKey) {
+  stripe = new Stripe(envKey, {
+    timeout: 15000,
     maxNetworkRetries: 2,
   });
 } else {
-  // Do NOT throw here – just log. This keeps Vercel builds working
-  // even if Stripe is not configured yet.
   console.warn("Stripe disabled: STRIPE_SECRET_KEY is not set");
 }
 
 export { stripe };
 
-// Helper wrappers that fail clearly at runtime if Stripe is not configured
+// Helper wrappers – now use the dynamic key resolver
 export async function createCheckoutSession(
   params: Stripe.Checkout.SessionCreateParams
 ) {
-  if (!stripe) {
-    throw new Error(
-      "Stripe is not configured on the server. Set STRIPE_SECRET_KEY to enable payments."
-    );
-  }
-  return stripe.checkout.sessions.create(params);
+  const client = await getStripeClient();
+  return client.checkout.sessions.create(params);
 }
 
 export async function retrieveCheckoutSession(id: string) {
-  if (!stripe) {
-    throw new Error(
-      "Stripe is not configured on the server. Set STRIPE_SECRET_KEY to enable payments."
-    );
-  }
-  return stripe.checkout.sessions.retrieve(id);
+  const client = await getStripeClient();
+  return client.checkout.sessions.retrieve(id);
 }
