@@ -1,12 +1,10 @@
-// FILE: pages/api/stripe.ts
+// FILE: /pages/api/stripe.ts
 import type { NextApiRequest, NextApiResponse } from "next";
 import Stripe from "stripe";
 import { getStripeClient } from "../../lib/stripe";
 import { adminDb, FieldValue } from "../../utils/firebaseAdmin";
-import {
-  sendOrderConfirmationEmail,
-  OrderEmailPayload,
-} from "../../utils/email";
+import { getPayoutSettings } from "../../lib/payoutSettings";
+import { sendOrderConfirmationEmail, OrderEmailPayload } from "../../utils/email";
 
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
 
@@ -33,15 +31,9 @@ async function getRawBody(req: NextApiRequest): Promise<Buffer> {
   });
 }
 
-export default async function handler(
-  req: NextApiRequest,
-  res: NextApiResponse
-) {
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== "POST") {
-    res
-      .status(405)
-      .setHeader("Allow", "POST")
-      .json({ error: "Method not allowed" });
+    res.status(405).setHeader("Allow", "POST").json({ error: "Method not allowed" });
     return;
   }
 
@@ -97,10 +89,31 @@ export default async function handler(
         // Create order record
         const buyerEmail = session.customer_details?.email || "";
         const buyerName = session.customer_details?.name || "";
+        const shippingDetails = (session as any).shipping_details as
+          | Stripe.Checkout.Session.ShippingDetails
+          | undefined;
+
+        const shipAddr =
+          shippingDetails?.address || session.customer_details?.address || null;
+
+        const buyerShippingAddress = shipAddr
+          ? {
+              name: shippingDetails?.name || buyerName || "",
+              line1: shipAddr.line1 || "",
+              line2: shipAddr.line2 || "",
+              city: shipAddr.city || "",
+              state: shipAddr.state || "",
+              postal_code: shipAddr.postal_code || "",
+              country: shipAddr.country || "",
+            }
+          : null;
+
         const currency = (session.currency || "usd").toUpperCase();
         const amountTotal = (session.amount_total || 0) / 100;
         const subtotal = (session.amount_subtotal || amountTotal) / 100;
         const shipping = Math.max(0, amountTotal - subtotal);
+
+        const { defaultCoolingDays } = await getPayoutSettings();
 
         const ordersRef = adminDb.collection("orders");
         const orderDoc = {
@@ -122,13 +135,26 @@ export default async function handler(
           buyerUid,
           sellerId: listing.sellerId || null,
           sellerName:
-            listing.sellerName ||
-            listing.sellerDisplayName ||
-            "Independent seller",
+            listing.sellerName || listing.sellerDisplayName || "Independent seller",
           listingImage: listingImage || "",
           stripeSessionId: session.id,
           stripePaymentIntentId: session.payment_intent || null,
+
+          // IMPORTANT: for seller UI filters
           status: "Paid",
+
+          fulfillment: {
+            stage: "PAID",
+            signatureRequired: true,
+          },
+
+          shippingAddress: buyerShippingAddress,
+
+          payout: {
+            coolingDays: defaultCoolingDays,
+            status: "NOT_READY", // NOT_READY | COOLING | ELIGIBLE | PAID
+          },
+
           createdAt: FieldValue.serverTimestamp(),
         };
 
