@@ -5,6 +5,11 @@ import { getUserId } from "../../../utils/authServer";
 
 export default async function handler(req:NextApiRequest,res:NextApiResponse){
   if (req.method!=="POST") return res.status(405).end();
+
+  if (!adminDb) {
+    return res.status(500).json({ ok: false, error: "Firebase not configured" });
+  }
+
   const uid = getUserId(req);
   const { orderId, role, reason, details } = req.body || {};
   if (!orderId || !role || !reason) return res.status(400).json({ ok:false, error:"missing_fields" });

@@ -36,12 +36,12 @@ export default function SellerOrders() {
           throw new Error(json.error || "Failed to fetch orders.");
         }
 
-        // Format data for the table
+        // Format data for the table — use field names returned by the API
         const formattedRows = json.orders.map((order: any) => ({
           id: order.id,
-          item: order.title || "Unknown Item",
-          buyer: order.buyerName || "Private Buyer",
-          total: `$${(order.price || 0).toLocaleString("en-US")}`,
+          item: order.item || order.title || "Unknown Item",
+          buyer: order.buyer || order.buyerName || "Private Buyer",
+          total: order.total || `$${(order.price || 0).toLocaleString("en-US")}`,
           status: order.status || "Unknown",
         }));
         setRows(formattedRows);

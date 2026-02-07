@@ -4,11 +4,13 @@ import type { NextApiRequest, NextApiResponse } from "next";
 import Stripe from "stripe";
 import { adminDb, FieldValue } from "../../../utils/firebaseAdmin";
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: "2025-10-29.clover", // <-- THIS LINE IS THE FIX
-});
+const stripeSecretKey = process.env.STRIPE_SECRET_KEY || "";
+const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET || "";
 
-const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET!;
+let stripe: Stripe | null = null;
+if (stripeSecretKey) {
+  stripe = new Stripe(stripeSecretKey, {});
+}
 
 export const config = {
   api: {
@@ -41,6 +43,10 @@ export default async function handler(
       .setHeader("Allow", "POST")
       .json({ error: "Method not allowed" });
     return;
+  }
+
+  if (!stripe) {
+    return res.status(500).json({ error: "Stripe is not configured" });
   }
 
   let event: Stripe.Event;

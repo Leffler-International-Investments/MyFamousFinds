@@ -3,8 +3,9 @@
 import type { NextApiRequest } from "next";
 
 /**
- * Temporary user identification helper.
- * Replace with real auth (Firebase, cookies, etc.) when ready.
+ * User identification helper.
+ * Reads the x-user-id header set by the client after Firebase Auth login.
+ * Returns null when no valid identity is present.
  */
 export function getUserId(req: NextApiRequest): string | null {
   const header = req.headers["x-user-id"] ?? req.headers["x-userid"];
@@ -13,13 +14,13 @@ export function getUserId(req: NextApiRequest): string | null {
     return header.trim();
   }
 
-  // Fallback so APIs keep working in dev
-  return "user-demo-001";
+  return null;
 }
 
 /**
- * Temporary seller identification helper.
- * Replace with real seller auth later.
+ * Seller identification helper.
+ * Reads the x-seller-id header set by the seller dashboard client.
+ * Returns null when no valid identity is present.
  */
 export function getSellerId(req: NextApiRequest): string | null {
   const header =
@@ -30,6 +31,5 @@ export function getSellerId(req: NextApiRequest): string | null {
     return header.trim();
   }
 
-  // Fallback seller id so seller APIs keep working in dev
-  return "seller-demo-001";
+  return null;
 }

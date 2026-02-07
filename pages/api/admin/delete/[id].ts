@@ -18,6 +18,10 @@ export default async function handler(
       .json({ ok: false, error: "Method not allowed" });
   }
 
+  if (!adminDb) {
+    return res.status(500).json({ ok: false, error: "Firebase not configured" });
+  }
+
   const { id } = req.query;
 
   if (!id || typeof id !== "string") {

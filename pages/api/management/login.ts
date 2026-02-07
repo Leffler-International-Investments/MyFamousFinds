@@ -18,14 +18,31 @@ function parseAllowList(raw: string | undefined) {
   );
 }
 
+type AdminCred = { email: string; password: string };
+
+function getAdminCredentials(): AdminCred[] {
+  return [
+    {
+      email: "arich1114@aol.com",
+      password: process.env.MANAGEMENT_ARIEL_PASSWORD || "",
+    },
+    {
+      email: "leffleryd@gmail.com",
+      password: process.env.MANAGEMENT_DAN_PASSWORD || "",
+    },
+  ];
+}
+
 export default async function handler(req: NextApiRequest, res: NextApiResponse<Resp>) {
   if (req.method !== "POST") {
     return res.status(405).json({ ok: false, code: "bad_credentials", message: "Method not allowed." });
   }
 
   const email = String(req.body?.email || "").trim().toLowerCase();
-  if (!email) {
-    return res.status(400).json({ ok: false, code: "bad_credentials", message: "Email is required." });
+  const password = String(req.body?.password || "");
+
+  if (!email || !password) {
+    return res.status(400).json({ ok: false, code: "bad_credentials", message: "Email and password are required." });
   }
 
   const allow = parseAllowList(process.env.MANAGEMENT_SUPER_EMAILS);
@@ -42,6 +59,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
       ok: false,
       code: "not_authorised",
       message: "This email is not authorised for management access.",
+    });
+  }
+
+  // Validate password against admin credentials
+  const admins = getAdminCredentials();
+  const admin = admins.find((a) => a.email.toLowerCase() === email);
+
+  if (!admin || !admin.password || admin.password !== password) {
+    return res.status(401).json({
+      ok: false,
+      code: "bad_credentials",
+      message: "Incorrect email or password.",
     });
   }
 

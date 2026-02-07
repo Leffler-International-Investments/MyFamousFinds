@@ -15,6 +15,10 @@ export default async function handler(
     return res.status(405).json({ error: "Method not allowed" });
   }
 
+  if (!adminDb) {
+    return res.status(500).json({ error: "Firebase not configured" });
+  }
+
   try {
     const { orderId, carrier, trackingNumber } = req.body || {};
 
