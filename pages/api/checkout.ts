@@ -113,12 +113,14 @@ export default async function handler(
     const msg = String(err?.message || err || "Stripe error");
     console.error("Stripe checkout error:", msg, err);
 
-    // Provide a user-friendly error message
     let userMessage = msg;
-    if (msg.includes("retried") || msg.includes("ECONNREFUSED") || msg.includes("timeout")) {
+    if (msg.includes("Expired API Key")) {
+      userMessage =
+        "The Stripe API key has expired. Please update it in Management → Stripe Settings.";
+    } else if (msg.includes("retried") || msg.includes("ECONNREFUSED") || msg.includes("timeout")) {
       userMessage =
         "We're having trouble connecting to our payment provider. Please try again in a moment.";
-    } else if (msg.includes("not configured") || msg.includes("SECRET_KEY")) {
+    } else if (msg.includes("not configured")) {
       userMessage =
         "Payments are not configured yet. Please contact support.";
     }
