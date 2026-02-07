@@ -148,15 +148,3 @@ function resolveBaseUrl(req: NextApiRequest) {
 
   return "https://www.myfamousfinds.com";
 }
-
-function sanitizeImageUrl(imageUrl?: string) {
-  if (!imageUrl) return "";
-  const trimmed = imageUrl.trim();
-  if (!trimmed || trimmed.length > 2048) return "";
-  try {
-    const url = new URL(trimmed);
-    return url.toString();
-  } catch {
-    return "";
-  }
-}
