@@ -89,8 +89,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         // Create order record
         const buyerEmail = session.customer_details?.email || "";
         const buyerName = session.customer_details?.name || "";
+
+        // ✅ FIX: Stripe typings in your version don't export Session.ShippingDetails
+        // Treat shipping_details as a plain object type.
         const shippingDetails = (session as any).shipping_details as
-          | Stripe.Checkout.Session.ShippingDetails
+          | { name?: string; address?: any }
           | undefined;
 
         const shipAddr =
