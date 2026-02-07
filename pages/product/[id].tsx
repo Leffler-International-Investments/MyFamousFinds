@@ -89,6 +89,7 @@ export default function ProductPage(props: ProductPageProps) {
   const handleBuyNow = async () => {
     try {
       setLoading(true);
+
       const res = await fetch("/api/checkout", {
         method: "POST",
         headers: {
@@ -104,16 +105,25 @@ export default function ProductPage(props: ProductPageProps) {
       });
 
       const json = await res.json();
+
       if (!res.ok || !json?.sessionId) {
         throw new Error(json?.error || "Unable to create checkout session");
       }
 
       const stripe = await getStripe();
-      if (!stripe) {
-        throw new Error("Stripe not loaded");
+      if (!stripe) throw new Error("Stripe not loaded");
+
+      const result = await stripe.redirectToCheckout({ sessionId: json.sessionId });
+
+      // ✅ HARD FALLBACK: if Stripe.js redirect fails but we have a session URL, redirect directly
+      if (result?.error && json?.url) {
+        window.location.assign(json.url);
+        return;
       }
 
-      await stripe.redirectToCheckout({ sessionId: json.sessionId });
+      if (result?.error) {
+        throw new Error(result.error.message || "Checkout failed");
+      }
     } catch (err: any) {
       console.error(err);
       alert(err?.message || "Checkout failed, please try again.");
