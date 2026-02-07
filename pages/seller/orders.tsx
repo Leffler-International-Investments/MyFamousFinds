@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
-import useRequireSeller from "../../hooks/useRequireSeller";
+import { useRequireSeller } from "../../hooks/useRequireSeller";
 
 type ShippingAddress = {
   name?: string;
@@ -34,13 +34,13 @@ type FulfillmentInfo = {
 type OrderRow = {
   id: string;
   listingTitle?: string;
-  item?: string; // backward compatibility (older API)
+  item?: string; // backward compatibility
   buyerName?: string;
   buyerEmail?: string;
-  buyer?: string; // backward compatibility (older API)
+  buyer?: string; // backward compatibility
   total?: number;
   currency?: string;
-  totalLabel?: string; // backward compatibility (older API)
+  totalLabel?: string; // backward compatibility
   status: string;
   createdAt?: string | null;
   shipDeadlineAt?: string | null;
@@ -60,7 +60,10 @@ export default function SellerOrders() {
   const [savingId, setSavingId] = useState<string | null>(null);
 
   const [editing, setEditing] = useState<
-    Record<string, { carrier: string; trackingNumber: string; signatureRequired: boolean }>
+    Record<
+      string,
+      { carrier: string; trackingNumber: string; signatureRequired: boolean }
+    >
   >({});
 
   useEffect(() => {
@@ -189,12 +192,16 @@ export default function SellerOrders() {
                         </td>
 
                         <td>
-                          <div className="cell-strong">{r.listingTitle || r.item || "Item"}</div>
+                          <div className="cell-strong">
+                            {r.listingTitle || r.item || "Item"}
+                          </div>
                           <div className="muted">{formatMoney(r)}</div>
                         </td>
 
                         <td>
-                          <div className="cell-strong">{r.buyerName || r.buyer || "Buyer"}</div>
+                          <div className="cell-strong">
+                            {r.buyerName || r.buyer || "Buyer"}
+                          </div>
                           <div className="muted">{r.buyerEmail || ""}</div>
                         </td>
 
@@ -485,11 +492,14 @@ export default function SellerOrders() {
     const stage = String(r.fulfillment?.stage || "").toUpperCase();
     const status = String(r.status || "").toUpperCase();
 
-    // Normalize display
-    if (stage === "PAID" || status === "PAID") return <span className="badge neutral">SOLD – SHIP NOW</span>;
-    if (stage === "SHIPPED" || status === "SHIPPED") return <span className="badge good">Shipped</span>;
-    if (stage === "DELIVERED" || status === "DELIVERED") return <span className="badge good">Delivered</span>;
-    if (stage === "SIGNATURE_CONFIRMED") return <span className="badge good">Signature Confirmed</span>;
+    if (stage === "PAID" || status === "PAID")
+      return <span className="badge neutral">SOLD – SHIP NOW</span>;
+    if (stage === "SHIPPED" || status === "SHIPPED")
+      return <span className="badge good">Shipped</span>;
+    if (stage === "DELIVERED" || status === "DELIVERED")
+      return <span className="badge good">Delivered</span>;
+    if (stage === "SIGNATURE_CONFIRMED")
+      return <span className="badge good">Signature Confirmed</span>;
 
     return <span className="badge neutral">{r.status || "—"}</span>;
   }
@@ -522,7 +532,12 @@ export default function SellerOrders() {
 
           <div className="action-row">
             {ship.trackingUrl ? (
-              <a className="btn" href={ship.trackingUrl} target="_blank" rel="noreferrer">
+              <a
+                className="btn"
+                href={ship.trackingUrl}
+                target="_blank"
+                rel="noreferrer"
+              >
                 Open Tracking
               </a>
             ) : (
@@ -547,7 +562,12 @@ export default function SellerOrders() {
           <select
             className="small-input small-select"
             value={edit.carrier}
-            onChange={(e) => setEditing((prev) => ({ ...prev, [r.id]: { ...edit, carrier: e.target.value } }))}
+            onChange={(e) =>
+              setEditing((prev) => ({
+                ...prev,
+                [r.id]: { ...edit, carrier: e.target.value },
+              }))
+            }
           >
             <option value="DHL">DHL</option>
             <option value="UPS">UPS</option>
@@ -560,7 +580,12 @@ export default function SellerOrders() {
             className="small-input"
             placeholder="Tracking #"
             value={edit.trackingNumber}
-            onChange={(e) => setEditing((prev) => ({ ...prev, [r.id]: { ...edit, trackingNumber: e.target.value } }))}
+            onChange={(e) =>
+              setEditing((prev) => ({
+                ...prev,
+                [r.id]: { ...edit, trackingNumber: e.target.value },
+              }))
+            }
           />
         </div>
 
@@ -569,7 +594,12 @@ export default function SellerOrders() {
             <input
               type="checkbox"
               checked={edit.signatureRequired}
-              onChange={(e) => setEditing((prev) => ({ ...prev, [r.id]: { ...edit, signatureRequired: e.target.checked } }))}
+              onChange={(e) =>
+                setEditing((prev) => ({
+                  ...prev,
+                  [r.id]: { ...edit, signatureRequired: e.target.checked },
+                }))
+              }
             />
             Signature required
           </label>
@@ -626,7 +656,6 @@ export default function SellerOrders() {
 }
 
 function formatMoney(r: OrderRow) {
-  // Prefer explicit label if your API already formats it
   if (r.totalLabel) return r.totalLabel;
 
   const total = Number(r.total ?? 0);
@@ -641,7 +670,6 @@ function formatMoney(r: OrderRow) {
 }
 
 function formatLocal(input: string) {
-  // input may already be formatted; if it's ISO, convert nicely
   const ms = Date.parse(input);
   if (!Number.isFinite(ms)) return input;
   return new Date(ms).toLocaleString();
@@ -649,7 +677,14 @@ function formatLocal(input: string) {
 
 function formatDeadline(deadlineMs: number) {
   const d = new Date(deadlineMs);
-  const date = d.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "2-digit" });
-  const time = d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
+  const date = d.toLocaleDateString(undefined, {
+    year: "numeric",
+    month: "short",
+    day: "2-digit",
+  });
+  const time = d.toLocaleTimeString(undefined, {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
   return `${date} • ${time}`;
 }
