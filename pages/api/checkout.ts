@@ -37,7 +37,7 @@ async function createSessionFallback(
   return freshStripe.checkout.sessions.create(params);
 }
 
-function resolveCheckoutBaseUrl(req: NextApiRequest) {
+function resolveBaseUrl(req: NextApiRequest) {
   const fromEnv = process.env.NEXT_PUBLIC_SITE_URL || "";
   const fromHeader = (req.headers.origin as string | undefined) || "";
 
@@ -59,7 +59,7 @@ function resolveCheckoutBaseUrl(req: NextApiRequest) {
   return "https://www.myfamousfinds.com";
 }
 
-function sanitizeCheckoutImageUrl(imageUrl?: string) {
+function sanitizeImageUrl(imageUrl?: string) {
   if (!imageUrl) return "";
   const trimmed = imageUrl.trim();
   if (!trimmed || trimmed.length > 2048) return "";
@@ -89,9 +89,9 @@ export default async function handler(
       return res.status(400).json({ ok: false, error: "Missing product data" });
     }
 
-    const baseUrl = resolveCheckoutBaseUrl(req);
+    const baseUrl = resolveBaseUrl(req);
 
-    const safeImageUrl = sanitizeCheckoutImageUrl(image);
+    const safeImageUrl = sanitizeImageUrl(image);
     const sessionParams: Stripe.Checkout.SessionCreateParams = {
       mode: "payment",
       metadata: {
@@ -147,16 +147,40 @@ export default async function handler(
     const msg = String(err?.message || err || "Stripe error");
     console.error("Stripe checkout error:", msg, err);
 
-    // Provide a user-friendly error message
     let userMessage = msg;
-    if (msg.includes("retried") || msg.includes("ECONNREFUSED") || msg.includes("timeout")) {
+    if (msg.includes("Expired API Key")) {
+      userMessage =
+        "The Stripe API key has expired. Please update it in Management → Stripe Settings.";
+    } else if (msg.includes("retried") || msg.includes("ECONNREFUSED") || msg.includes("timeout")) {
       userMessage =
         "We're having trouble connecting to our payment provider. Please try again in a moment.";
-    } else if (msg.includes("not configured") || msg.includes("SECRET_KEY")) {
+    } else if (msg.includes("not configured")) {
       userMessage =
         "Payments are not configured yet. Please contact support.";
     }
 
     return res.status(500).json({ ok: false, error: userMessage });
   }
+}
+
+function resolveBaseUrl(req: NextApiRequest) {
+  const fromEnv = process.env.NEXT_PUBLIC_SITE_URL || "";
+  const fromHeader = (req.headers.origin as string | undefined) || "";
+
+  const candidates = [fromEnv, fromHeader].filter(Boolean);
+  for (const candidate of candidates) {
+    const trimmed = candidate.trim();
+    if (!trimmed) continue;
+    try {
+      const url = new URL(trimmed);
+      const origin = url.origin;
+      if (origin.length <= 2000) {
+        return origin;
+      }
+    } catch {
+      // ignore invalid URL
+    }
+  }
+
+  return "https://www.myfamousfinds.com";
 }

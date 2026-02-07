@@ -62,7 +62,7 @@ export async function getStripeClient(): Promise<Stripe | null> {
   return client;
 }
 
-// Helper wrappers that fail clearly at runtime if Stripe is not configured
+// Helper wrappers – now use the dynamic key resolver
 export async function createCheckoutSession(
   params: Stripe.Checkout.SessionCreateParams
 ) {
