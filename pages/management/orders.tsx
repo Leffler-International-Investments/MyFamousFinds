@@ -376,8 +376,7 @@ export const getServerSideProps: GetServerSideProps<Props> = async () => {
         sellerName: d.sellerName || "",
         total: Number(d.total || 0),
         status: d.status || "Pending",
-        createdAt:
-          d.createdAt?.toDate?.().toLocaleString("en-US") || "",
+        createdAt: d.createdAt?.toDate?.().toLocaleString("en-US") || "",
         shipping: d.shipping || {},
       };
     });
