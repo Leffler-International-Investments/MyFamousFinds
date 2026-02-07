@@ -37,6 +37,40 @@ async function createSessionFallback(
   return freshStripe.checkout.sessions.create(params);
 }
 
+function resolveBaseUrl(req: NextApiRequest) {
+  const fromEnv = process.env.NEXT_PUBLIC_SITE_URL || "";
+  const fromHeader = (req.headers.origin as string | undefined) || "";
+
+  const candidates = [fromEnv, fromHeader].filter(Boolean);
+  for (const candidate of candidates) {
+    const trimmed = candidate.trim();
+    if (!trimmed) continue;
+    try {
+      const url = new URL(trimmed);
+      const origin = url.origin;
+      if (origin.length <= 2000) {
+        return origin;
+      }
+    } catch {
+      // ignore invalid URL
+    }
+  }
+
+  return "https://www.myfamousfinds.com";
+}
+
+function sanitizeImageUrl(imageUrl?: string) {
+  if (!imageUrl) return "";
+  const trimmed = imageUrl.trim();
+  if (!trimmed || trimmed.length > 2048) return "";
+  try {
+    const url = new URL(trimmed);
+    return url.toString();
+  } catch {
+    return "";
+  }
+}
+
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse<SuccessResponse | ErrorResponse>
