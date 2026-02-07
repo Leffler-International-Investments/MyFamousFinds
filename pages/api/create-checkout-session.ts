@@ -48,10 +48,7 @@ export default async function handler(
     // ─────────────────────────────────────────────
     // 1) Fetch listing from Firestore
     // ─────────────────────────────────────────────
-    const listingSnap = await adminDb
-      .collection("listings")
-      .doc(listingId)
-      .get();
+    const listingSnap = await adminDb.collection("listings").doc(listingId).get();
 
     if (!listingSnap.exists) {
       return res
@@ -67,11 +64,15 @@ export default async function handler(
         .json({ ok: false, error: "Listing has no valid price." });
     }
 
-    const title: string =
-      listing.title || listing.name || "Famous Finds item";
+    const title: string = listing.title || listing.name || "Famous Finds item";
     const currency: string = (listing.currency || "usd").toLowerCase();
-    const sellerStripeAccountId: string | undefined =
-      listing.sellerStripeAccountId || listing.stripeAccountId;
+
+    // IMPORTANT (Marketplace Flow):
+    // MyFamousFinds is the merchant of record.
+    // Funds MUST land in the platform Stripe account first.
+    // Sellers do NOT connect to Stripe at this stage.
+    // Payouts happen AFTER delivery + signature + cooling period.
+    // Therefore, we DO NOT route funds to any connected account here.
 
     const unitAmount = Math.round(price * 100); // convert to cents
 
@@ -89,6 +90,31 @@ export default async function handler(
     const sessionParams: Stripe.Checkout.SessionCreateParams = {
       mode: "payment",
       payment_method_types: ["card"],
+
+      // We need a real shipping address to allow seller shipping + signature required delivery.
+      shipping_address_collection: {
+        allowed_countries: [
+          "AU",
+          "US",
+          "GB",
+          "CA",
+          "NZ",
+          "IE",
+          "FR",
+          "ES",
+          "IT",
+          "DE",
+          "NL",
+          "BE",
+          "CH",
+          "SE",
+          "NO",
+          "DK",
+          "SG",
+          "HK",
+          "AE",
+        ],
+      },
       line_items: [
         {
           quantity,
@@ -111,17 +137,6 @@ export default async function handler(
       },
     };
 
-    // If we have a connected account for the seller, route funds via Connect
-    if (sellerStripeAccountId) {
-      sessionParams.payment_intent_data = {
-        transfer_data: {
-          destination: sellerStripeAccountId,
-        },
-        // optional: platform fee logic can go here
-        // application_fee_amount: Math.round(unitAmount * 0.15),
-      };
-    }
-
     try {
       const session = await stripe.checkout.sessions.create(sessionParams);
       if (!session.id || !session.url) {
@@ -137,7 +152,10 @@ export default async function handler(
         url: session.url,
       });
     } catch (err: any) {
-      if (err?.code === "url_invalid" || String(err?.message || "").includes("URL must be")) {
+      if (
+        err?.code === "url_invalid" ||
+        String(err?.message || "").includes("URL must be")
+      ) {
         const fallbackOrigin = "https://www.myfamousfinds.com";
         const fallbackSession = await stripe.checkout.sessions.create({
           ...sessionParams,
@@ -156,8 +174,7 @@ export default async function handler(
     console.error("create-checkout-session-error", err);
     return res.status(500).json({
       ok: false,
-      error:
-        err?.message || "Unexpected error while creating checkout session.",
+      error: err?.message || "Unexpected error while creating checkout session.",
     });
   }
 }
