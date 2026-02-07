@@ -2,56 +2,73 @@
 import Stripe from "stripe";
 import { adminDb } from "../utils/firebaseAdmin";
 
-type StripeSecretKeyInfo = {
+export type StripeSecretKeyInfo = {
   key: string;
-  source: "firestore" | "env" | "none";
+  source: "env" | "firestore" | "none";
   hadWhitespace: boolean;
 };
 
 let cachedStripe: { key: string; client: Stripe } | null = null;
 
+function normalizeKey(raw: string) {
+  const trimmed = (raw || "").trim();
+  return { trimmed, hadWhitespace: raw.length !== trimmed.length };
+}
+
+function looksLikeSecretKey(k: string) {
+  return k.startsWith("sk_live_") || k.startsWith("sk_test_");
+}
+
+/**
+ * FIX:
+ * Prefer ENV STRIPE_SECRET_KEY first (Vercel source of truth).
+ * Fall back to Firestore ONLY if env is missing.
+ *
+ * This prevents stale Firestore keys from breaking LIVE Checkout.
+ */
 export async function getStripeSecretKeyInfo(): Promise<StripeSecretKeyInfo> {
   const envRaw = process.env.STRIPE_SECRET_KEY || "";
-  const envTrimmed = envRaw.trim();
-  const envHadWhitespace = envRaw.length !== envTrimmed.length;
+  const { trimmed: envKey, hadWhitespace: envHadWhitespace } = normalizeKey(envRaw);
 
+  // ✅ Prefer env first
+  if (envKey) {
+    if (!looksLikeSecretKey(envKey)) {
+      console.warn("[stripe] STRIPE_SECRET_KEY does not look like a Stripe secret key (sk_...).");
+    }
+    return { key: envKey, source: "env", hadWhitespace: envHadWhitespace };
+  }
+
+  // Fallback: Firestore (only if env missing)
   if (adminDb) {
     try {
       const snap = await adminDb.collection("admin").doc("stripe_settings").get();
       if (snap.exists) {
         const data = snap.data();
         const raw = String(data?.secretKey || "");
-        const trimmed = raw.trim();
+        const { trimmed, hadWhitespace } = normalizeKey(raw);
         if (trimmed) {
-          return {
-            key: trimmed,
-            source: "firestore",
-            hadWhitespace: raw.length !== trimmed.length,
-          };
+          if (!looksLikeSecretKey(trimmed)) {
+            console.warn("[stripe] Firestore secretKey does not look like a Stripe secret key (sk_...).");
+          }
+          return { key: trimmed, source: "firestore", hadWhitespace };
         }
       }
     } catch (err) {
-      console.warn("Failed to load Stripe settings from Firestore:", err);
+      console.warn("[stripe] Failed to load Stripe settings from Firestore:", err);
     }
-  }
-
-  if (envTrimmed) {
-    return { key: envTrimmed, source: "env", hadWhitespace: envHadWhitespace };
   }
 
   return { key: "", source: "none", hadWhitespace: false };
 }
 
 export async function getStripeClient(): Promise<Stripe | null> {
-  const { key } = await getStripeSecretKeyInfo();
+  const { key, source } = await getStripeSecretKeyInfo();
   if (!key) {
-    console.warn("Stripe disabled: no secret key found in settings or env");
+    console.warn("[stripe] Stripe disabled: no secret key found in env or Firestore.");
     return null;
   }
 
-  if (cachedStripe?.key === key) {
-    return cachedStripe.client;
-  }
+  if (cachedStripe?.key === key) return cachedStripe.client;
 
   const client = new Stripe(key, {
     timeout: 15000,
@@ -59,17 +76,15 @@ export async function getStripeClient(): Promise<Stripe | null> {
   });
 
   cachedStripe = { key, client };
+  console.log(`[stripe] Stripe client initialised using source: ${source}`);
   return client;
 }
 
-// Helper wrappers – now use the dynamic key resolver
-export async function createCheckoutSession(
-  params: Stripe.Checkout.SessionCreateParams
-) {
+export async function createCheckoutSession(params: Stripe.Checkout.SessionCreateParams) {
   const stripe = await getStripeClient();
   if (!stripe) {
     throw new Error(
-      "Stripe is not configured on the server. Set STRIPE_SECRET_KEY or save Stripe settings in admin."
+      "Stripe is not configured on the server. Set STRIPE_SECRET_KEY in Vercel env vars."
     );
   }
   return stripe.checkout.sessions.create(params);
@@ -79,7 +94,7 @@ export async function retrieveCheckoutSession(id: string) {
   const stripe = await getStripeClient();
   if (!stripe) {
     throw new Error(
-      "Stripe is not configured on the server. Set STRIPE_SECRET_KEY or save Stripe settings in admin."
+      "Stripe is not configured on the server. Set STRIPE_SECRET_KEY in Vercel env vars."
     );
   }
   return stripe.checkout.sessions.retrieve(id);
