@@ -1,21 +1,22 @@
 // FILE: /pages/api/seller/orders.ts
-
 import type { NextApiRequest, NextApiResponse } from "next";
-// --- IMPORTANT: Make sure this path is correct ---
 import { getSellerId } from "../../../utils/authServer";
 import { adminDb } from "../../../utils/firebaseAdmin";
 
 type OrderPayload = {
   id: string;
-  item: string;
-  buyer: string;
-  total: string;
+  listingTitle: string;
+  buyerName: string;
+  buyerEmail: string;
+  total: number;
+  currency: string;
   status: string;
-  createdAt?: string;
+  shipDeadlineAt?: string | null;
   shippingAddress?: any;
-  shipping?: any;
   fulfillment?: any;
+  shipping?: any;
   payout?: any;
+  createdAt?: string | null;
 };
 
 type OrdersResponse =
@@ -26,75 +27,53 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse<OrdersResponse>
 ) {
+  if (req.method !== "GET") {
+    res.setHeader("Allow", "GET");
+    return res.status(405).json({ ok: false, error: "method_not_allowed" });
+  }
+
   if (!adminDb) {
     return res.status(500).json({ ok: false, error: "Firebase not configured" });
   }
 
   try {
-    const sellerId = await getSellerId(req);
-
-    if (!sellerId) {
-      return res.status(401).json({
-        ok: false,
-        error: "unauthorized",
-      });
-    }
+    const sellerId = getSellerId(req);
+    if (!sellerId) return res.status(401).json({ ok: false, error: "unauthorized" });
 
     const snap = await adminDb
       .collection("orders")
       .where("sellerId", "==", sellerId)
+      .limit(200)
       .get();
 
-    const docs = snap.docs;
-
-    const orders: OrderPayload[] = docs
-      .map((doc) => {
-        const data: any = doc.data() || {};
-
-        const title: string =
-          data.title || data.itemTitle || data.listingTitle || "Unknown item";
-
-        const buyer: string =
-          data.buyerName || data.buyerEmail || data.buyerId || "Private buyer";
-
-        const rawTotal =
-          data.total !== undefined && data.total !== null
-            ? Number(data.total)
-            : data.price !== undefined && data.price !== null
-            ? Number(data.price)
-            : 0;
-
-        const status: string = data.status || data.orderStatus || "Pending";
-
+    const orders = snap.docs
+      .map((d) => {
+        const o: any = d.data() || {};
         return {
-          id: doc.id,
-          item: title,
-          buyer,
-          total: `$${rawTotal.toFixed(2)}`,
-          status,
-          createdAt: data.createdAt?.toDate?.().toISOString?.() || undefined,
-          shippingAddress: data.shippingAddress || null,
-          shipping: data.shipping || null,
-          fulfillment: data.fulfillment || null,
-          payout: data.payout || null,
-        };
+          id: d.id,
+          listingTitle: String(o.listingTitle || o.item || "Item"),
+          buyerName: String(o.buyer?.name || ""),
+          buyerEmail: String(o.buyer?.email || ""),
+          total: Number(o.totals?.total || o.total || 0),
+          currency: String(o.totals?.currency || o.currency || "USD"),
+          status: String(o.status || "Pending"),
+          shipDeadlineAt: o.shipDeadlineAt?.toDate?.()
+            ? o.shipDeadlineAt.toDate().toISOString()
+            : null,
+          shippingAddress: o.shippingAddress || null,
+          fulfillment: o.fulfillment || null,
+          shipping: o.shipping || null,
+          payout: o.payout || null,
+          createdAt: o.createdAt?.toDate?.()
+            ? o.createdAt.toDate().toISOString()
+            : null,
+        } as OrderPayload;
       })
-      .sort((a, b) => {
-        const aDoc = docs.find((d) => d.id === a.id);
-        const bDoc = docs.find((d) => d.id === b.id);
-        const aCreated =
-          (aDoc?.data() as any)?.createdAt?.toDate?.()?.getTime?.() || 0;
-        const bCreated =
-          (bDoc?.data() as any)?.createdAt?.toDate?.()?.getTime?.() || 0;
-        return bCreated - aCreated;
-      });
+      .sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || ""));
 
     return res.status(200).json({ ok: true, orders });
   } catch (err: any) {
     console.error("seller_orders_error", err);
-    return res.status(500).json({
-      ok: false,
-      error: err?.message || "server_error",
-    });
+    return res.status(500).json({ ok: false, error: err?.message || "server_error" });
   }
 }
