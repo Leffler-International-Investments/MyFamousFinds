@@ -57,6 +57,7 @@ export default async function handler(
 
     const baseUrl = resolveBaseUrl(req);
 
+    const safeImageUrl = sanitizeImageUrl(image);
     const sessionParams: Stripe.Checkout.SessionCreateParams = {
       mode: "payment",
       metadata: {
@@ -70,7 +71,7 @@ export default async function handler(
             unit_amount: Math.round(price * 100),
             product_data: {
               name: title,
-              images: image ? [image] : [],
+              images: safeImageUrl ? [safeImageUrl] : [],
             },
           },
           quantity: 1,
