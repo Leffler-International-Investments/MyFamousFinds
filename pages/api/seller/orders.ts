@@ -11,6 +11,11 @@ type OrderPayload = {
   buyer: string;
   total: string;
   status: string;
+  createdAt?: string;
+  shippingAddress?: any;
+  shipping?: any;
+  fulfillment?: any;
+  payout?: any;
 };
 
 type OrdersResponse =
@@ -26,7 +31,6 @@ export default async function handler(
   }
 
   try {
-    // This was our previous fix
     const sellerId = await getSellerId(req);
 
     if (!sellerId) {
@@ -36,13 +40,11 @@ export default async function handler(
       });
     }
 
-    // Simple query that does NOT require a composite Firestore index
     const snap = await adminDb
       .collection("orders")
       .where("sellerId", "==", sellerId)
       .get();
 
-    // Map docs to a stable payload shape and sort newest first
     const docs = snap.docs;
 
     const orders: OrderPayload[] = docs
@@ -50,16 +52,10 @@ export default async function handler(
         const data: any = doc.data() || {};
 
         const title: string =
-          data.title ||
-          data.itemTitle ||
-          data.listingTitle ||
-          "Unknown item";
+          data.title || data.itemTitle || data.listingTitle || "Unknown item";
 
         const buyer: string =
-          data.buyerName ||
-          data.buyerEmail ||
-          data.buyerId ||
-          "Private buyer";
+          data.buyerName || data.buyerEmail || data.buyerId || "Private buyer";
 
         const rawTotal =
           data.total !== undefined && data.total !== null
@@ -68,17 +64,19 @@ export default async function handler(
             ? Number(data.price)
             : 0;
 
-        const status: string =
-          data.status ||
-          data.orderStatus ||
-          "Pending";
+        const status: string = data.status || data.orderStatus || "Pending";
 
         return {
           id: doc.id,
           item: title,
           buyer,
-          total: `$${rawTotal.toFixed(2)}`, // Always USD
+          total: `$${rawTotal.toFixed(2)}`,
           status,
+          createdAt: data.createdAt?.toDate?.().toISOString?.() || undefined,
+          shippingAddress: data.shippingAddress || null,
+          shipping: data.shipping || null,
+          fulfillment: data.fulfillment || null,
+          payout: data.payout || null,
         };
       })
       .sort((a, b) => {
@@ -92,12 +90,11 @@ export default async function handler(
       });
 
     return res.status(200).json({ ok: true, orders });
-    
-  } catch (err: any) { // <-- ADDED THE OPENING {
+  } catch (err: any) {
     console.error("seller_orders_error", err);
     return res.status(500).json({
       ok: false,
       error: err?.message || "server_error",
     });
-  } // <-- ADDED THE CLOSING }
+  }
 }
