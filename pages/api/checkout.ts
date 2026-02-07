@@ -55,10 +55,7 @@ export default async function handler(
       return res.status(400).json({ ok: false, error: "Missing product data" });
     }
 
-    const baseUrl =
-      (req.headers.origin as string | undefined) ||
-      process.env.NEXT_PUBLIC_SITE_URL ||
-      "https://www.myfamousfinds.com";
+    const baseUrl = resolveBaseUrl(req);
 
     const sessionParams: Stripe.Checkout.SessionCreateParams = {
       mode: "payment",
@@ -89,12 +86,25 @@ export default async function handler(
       // Primary attempt via shared Stripe instance
       session = await createCheckoutSession(sessionParams);
     } catch (primaryErr: any) {
-      console.warn(
-        "Primary Stripe checkout failed, trying fallback:",
-        primaryErr?.message
-      );
-      // Fallback: create a fresh Stripe instance
-      session = await createSessionFallback(sessionParams);
+      if (
+        primaryErr?.code === "url_invalid" ||
+        String(primaryErr?.message || "").includes("URL must be")
+      ) {
+        const fallbackOrigin = "https://www.myfamousfinds.com";
+        const fallbackParams: Stripe.Checkout.SessionCreateParams = {
+          ...sessionParams,
+          success_url: `${fallbackOrigin}/order/success?session_id={CHECKOUT_SESSION_ID}`,
+          cancel_url: `${fallbackOrigin}/product/${id}`,
+        };
+        session = await createCheckoutSession(fallbackParams);
+      } else {
+        console.warn(
+          "Primary Stripe checkout failed, trying fallback:",
+          primaryErr?.message
+        );
+        // Fallback: create a fresh Stripe instance
+        session = await createSessionFallback(sessionParams);
+      }
     }
 
     return res.status(200).json({ ok: true, sessionId: session.id });
@@ -114,4 +124,26 @@ export default async function handler(
 
     return res.status(500).json({ ok: false, error: userMessage });
   }
+}
+
+function resolveBaseUrl(req: NextApiRequest) {
+  const fromEnv = process.env.NEXT_PUBLIC_SITE_URL || "";
+  const fromHeader = (req.headers.origin as string | undefined) || "";
+
+  const candidates = [fromEnv, fromHeader].filter(Boolean);
+  for (const candidate of candidates) {
+    const trimmed = candidate.trim();
+    if (!trimmed) continue;
+    try {
+      const url = new URL(trimmed);
+      const origin = url.origin;
+      if (origin.length <= 2000) {
+        return origin;
+      }
+    } catch {
+      // ignore invalid URL
+    }
+  }
+
+  return "https://www.myfamousfinds.com";
 }
