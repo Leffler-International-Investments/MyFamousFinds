@@ -16,11 +16,21 @@ type ErrorResponse = { ok: false; error: string };
 
 /**
  * Fallback helper: create a checkout session using a fresh Stripe instance.
- * Useful when the shared stripe instance has stale/invalid config at runtime.
  */
 async function createSessionFallback(params: Stripe.Checkout.SessionCreateParams) {
-  const info = getStripeSecretKeyInfo?.();
-  const key = info?.key || process.env.STRIPE_SECRET_KEY || "";
+  let info: any = null;
+
+  try {
+    // ✅ FIX: getStripeSecretKeyInfo returns a Promise in this repo
+    info = (await getStripeSecretKeyInfo?.()) ?? null;
+  } catch {
+    info = null;
+  }
+
+  const key =
+    (info && typeof info === "object" ? info.key : "") ||
+    process.env.STRIPE_SECRET_KEY ||
+    "";
 
   if (!key) {
     throw new Error(
@@ -28,7 +38,6 @@ async function createSessionFallback(params: Stripe.Checkout.SessionCreateParams
     );
   }
 
-  // Small safety check
   if (!key.startsWith("sk_")) {
     throw new Error(
       "Stripe secret key looks invalid (must start with sk_). Please verify Vercel env vars."
@@ -54,9 +63,7 @@ function resolveBaseUrl(req: NextApiRequest) {
     try {
       const url = new URL(trimmed);
       const origin = url.origin;
-      if (origin.length <= 2000) {
-        return origin;
-      }
+      if (origin.length <= 2000) return origin;
     } catch {
       // ignore invalid URL
     }
@@ -68,7 +75,6 @@ function resolveBaseUrl(req: NextApiRequest) {
 function sanitizeListingTitle(title: string) {
   const t = String(title || "").trim();
   if (!t) return "MyFamousFinds Purchase";
-  // Stripe allows pretty broad text, but keep it sensible
   return t.slice(0, 120);
 }
 
@@ -133,7 +139,6 @@ export default async function handler(
     let session: Stripe.Checkout.Session;
 
     try {
-      // Primary attempt via shared Stripe instance
       session = await createCheckoutSession(sessionParams);
     } catch (primaryErr: any) {
       if (
@@ -152,7 +157,6 @@ export default async function handler(
           "Primary Stripe checkout failed, trying fallback:",
           primaryErr?.message
         );
-        // Fallback: create a fresh Stripe instance
         session = await createSessionFallback(sessionParams);
       }
     }
