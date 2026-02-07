@@ -45,6 +45,10 @@ export default async function handler(
     return;
   }
 
+  if (!stripe) {
+    return res.status(500).json({ error: "Stripe is not configured" });
+  }
+
   let event: Stripe.Event;
 
   try {

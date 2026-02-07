@@ -100,6 +100,16 @@ export default function SellerRegisterPage() {
 
       setSuccess(true);
 
+      // Set seller session so useRequireSeller allows dashboard access
+      if (typeof window !== "undefined") {
+        window.localStorage.setItem("ff-role", "seller");
+        window.localStorage.setItem("ff-email", email);
+        window.localStorage.setItem(
+          "ff-session-exp",
+          String(Date.now() + 8 * 60 * 60 * 1000)
+        );
+      }
+
       // From now on, seller should log in via the main Seller Admin Login
       setTimeout(() => {
         router.push("/seller/dashboard");

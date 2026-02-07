@@ -46,6 +46,10 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse<HomepageResponse | { ok: boolean; error?: string }>
 ) {
+  if (!adminDb) {
+    return res.status(500).json({ ok: false, error: "Firebase not configured" });
+  }
+
   // NOTE: Proper server-side admin auth should be added here later.
   // This API is currently protected only by the client-side admin UI.
 

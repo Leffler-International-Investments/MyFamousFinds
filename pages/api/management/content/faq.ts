@@ -13,6 +13,10 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse<FaqResponse>
 ) {
+  if (!adminDb) {
+    return res.status(500).json({ ok: false, error: "Firebase not configured" });
+  }
+
   if (req.method === "GET") {
     try {
       const snap = await adminDb.collection("cms").doc("faq").get();

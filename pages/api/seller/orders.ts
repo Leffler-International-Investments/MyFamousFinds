@@ -21,6 +21,10 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse<OrdersResponse>
 ) {
+  if (!adminDb) {
+    return res.status(500).json({ ok: false, error: "Firebase not configured" });
+  }
+
   try {
     // This was our previous fix
     const sellerId = await getSellerId(req);

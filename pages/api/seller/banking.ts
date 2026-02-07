@@ -11,6 +11,10 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse<Data>
 ) {
+  if (!adminDb) {
+    return res.status(500).json({ ok: false, error: "Firebase not configured" });
+  }
+
   try {
     // email comes from the logged-in seller (stored as ff-email in localStorage)
     const emailFromQuery = typeof req.query.email === "string"

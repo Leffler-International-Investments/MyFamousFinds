@@ -23,6 +23,10 @@ export default async function handler(
     return res.status(405).json({ ok: false, error: "method_not_allowed" });
   }
 
+  if (!adminDb) {
+    return res.status(500).json({ ok: false, error: "Firebase not configured" });
+  }
+
   try {
     const { uid, email, fullName } = req.body || {};
 

@@ -244,7 +244,7 @@ export default function SellerLoginPage() {
                     onChange={setPassword}
                     name="password"
                     required
-                    showStrength={true} /* Strength Meter Enabled */
+                    showStrength={false}
                     placeholder="Enter password"
                   />
                   <button

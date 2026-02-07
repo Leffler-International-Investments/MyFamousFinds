@@ -3,12 +3,16 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { adminDb } from "../../../utils/firebaseAdmin";
 
-const DOC_REF = adminDb.collection("admin").doc("stripe_settings");
-
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ) {
+  if (!adminDb) {
+    return res.status(500).json({ ok: false, error: "Firebase not configured" });
+  }
+
+  const DOC_REF = adminDb.collection("admin").doc("stripe_settings");
+
   try {
     if (req.method === "GET") {
       const snap = await DOC_REF.get();

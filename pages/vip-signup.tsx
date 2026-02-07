@@ -26,18 +26,19 @@ export default function VipSignupPage() {
       const cred = await createUserWithEmailAndPassword(auth, email, password);
 
       // Register in VIP members collection (API)
-      try {
-        await fetch("/api/vip/join", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            uid: cred.user.uid,
-            email: cred.user.email,
-            fullName,
-          }),
-        });
-      } catch (err) {
-        console.error("vip_join_api_error", err);
+      const joinRes = await fetch("/api/vip/join", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          uid: cred.user.uid,
+          email: cred.user.email,
+          fullName,
+        }),
+      });
+
+      const joinJson = await joinRes.json();
+      if (!joinRes.ok || !joinJson?.ok) {
+        console.error("vip_join_api_error", joinJson);
       }
 
       router.push("/vip-welcome");
@@ -47,6 +48,7 @@ export default function VipSignupPage() {
         err?.message ||
           "We couldn't create your VIP profile just now. Please try again."
       );
+    } finally {
       setLoading(false);
     }
   }

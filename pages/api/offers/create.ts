@@ -5,6 +5,11 @@ import { getUserId } from "../../../utils/authServer";
 
 export default async function handler(req:NextApiRequest,res:NextApiResponse){
   if (req.method!=="POST") return res.status(405).end();
+
+  if (!adminDb) {
+    return res.status(500).json({ ok: false, error: "Firebase not configured" });
+  }
+
   const buyerId = getUserId(req);
   const { productId, price, offerValue, offerAmount, buyerEmail, message } = req.body || {};
   const resolvedPrice = price ?? offerValue ?? offerAmount;

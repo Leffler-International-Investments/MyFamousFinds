@@ -14,6 +14,10 @@ export default async function handler(
     return res.status(405).json({ error: "Method not allowed" });
   }
 
+  if (!adminDb) {
+    return res.status(500).json({ error: "Firebase not configured" });
+  }
+
   try {
     const {
       businessName,
@@ -47,12 +51,13 @@ export default async function handler(
       website: website || "",
       otherPlatforms: otherPlatforms || "",
       vettingNotes: vettingNotes || "",
-      status: "Pending",
       updatedAt: now,
     };
 
+    // Only set status to "Pending" for new profiles — never overwrite approved status
     if (!snap.exists) {
       data.createdAt = now;
+      data.status = "Pending";
     }
 
     await ref.set(data, { merge: true });

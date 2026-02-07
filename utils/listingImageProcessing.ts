@@ -98,7 +98,7 @@ async function removeBackgroundIfConfigured(
 
   try {
     const form = new FormData();
-    const blob = new Blob([buffer], { type: contentType });
+    const blob = new Blob([new Uint8Array(buffer)], { type: contentType });
     form.append("image_file", blob, "upload");
     form.append("size", "auto");
 
