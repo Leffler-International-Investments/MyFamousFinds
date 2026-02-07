@@ -25,12 +25,9 @@ export default async function handler(
     return res.status(405).json({ ok: false, error: "Method not allowed" });
   }
 
-  // Use dynamic key resolver (reads from Firestore first, then env var)
-  let stripe: Stripe;
-  try {
-    stripe = await getStripeClient();
-  } catch (err: any) {
-    console.error("Stripe not configured:", err?.message);
+  const stripe = await getStripeClient();
+  if (!stripe) {
+    console.error("Missing Stripe secret key (env or admin settings)");
     return res
       .status(500)
       .json({ ok: false, error: "Stripe is not configured on the server." });
@@ -81,10 +78,7 @@ export default async function handler(
     // ─────────────────────────────────────────────
     // 2) Build success / cancel URLs
     // ─────────────────────────────────────────────
-    const origin =
-      process.env.NEXT_PUBLIC_SITE_URL ||
-      (req.headers.origin as string | undefined) ||
-      "https://www.myfamousfinds.com";
+    const origin = resolveBaseUrl(req);
 
     const successUrl = `${origin}/checkout/success?session_id={CHECKOUT_SESSION_ID}`;
     const cancelUrl = `${origin}/product/${listingId}?canceled=1`;
@@ -128,20 +122,36 @@ export default async function handler(
       };
     }
 
-    const session = await stripe.checkout.sessions.create(sessionParams);
+    try {
+      const session = await stripe.checkout.sessions.create(sessionParams);
+      if (!session.id || !session.url) {
+        console.error("Stripe session missing id or url", session);
+        return res
+          .status(500)
+          .json({ ok: false, error: "Unable to create Stripe session." });
+      }
 
-    if (!session.id || !session.url) {
-      console.error("Stripe session missing id or url", session);
-      return res
-        .status(500)
-        .json({ ok: false, error: "Unable to create Stripe session." });
+      return res.status(200).json({
+        ok: true,
+        sessionId: session.id,
+        url: session.url,
+      });
+    } catch (err: any) {
+      if (err?.code === "url_invalid" || String(err?.message || "").includes("URL must be")) {
+        const fallbackOrigin = "https://www.myfamousfinds.com";
+        const fallbackSession = await stripe.checkout.sessions.create({
+          ...sessionParams,
+          success_url: `${fallbackOrigin}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
+          cancel_url: `${fallbackOrigin}/product/${listingId}?canceled=1`,
+        });
+        return res.status(200).json({
+          ok: true,
+          sessionId: fallbackSession.id,
+          url: fallbackSession.url!,
+        });
+      }
+      throw err;
     }
-
-    return res.status(200).json({
-      ok: true,
-      sessionId: session.id,
-      url: session.url,
-    });
   } catch (err: any) {
     console.error("create-checkout-session-error", err);
     return res.status(500).json({
@@ -150,4 +160,26 @@ export default async function handler(
         err?.message || "Unexpected error while creating checkout session.",
     });
   }
+}
+
+function resolveBaseUrl(req: NextApiRequest) {
+  const fromEnv = process.env.NEXT_PUBLIC_SITE_URL || "";
+  const fromHeader = (req.headers.origin as string | undefined) || "";
+
+  const candidates = [fromEnv, fromHeader].filter(Boolean);
+  for (const candidate of candidates) {
+    const trimmed = candidate.trim();
+    if (!trimmed) continue;
+    try {
+      const url = new URL(trimmed);
+      const origin = url.origin;
+      if (origin.length <= 2000) {
+        return origin;
+      }
+    } catch {
+      // ignore invalid URL
+    }
+  }
+
+  return "https://www.myfamousfinds.com";
 }
