@@ -2,88 +2,37 @@
 
 import type { NextApiRequest, NextApiResponse } from "next";
 import Stripe from "stripe";
-import { createCheckoutSession, getStripeSecretKeyInfo } from "../../lib/stripe";
+import { createCheckoutSession } from "../../lib/stripe";
 
 type RequestBody = {
-  id: string; // listing id
-  title: string; // product title
-  price: number; // in major units (USD dollars)
-  image?: string; // optional image URL
+  id: string;
+  title: string;
+  price: number;
+  image?: string;
 };
 
-type SuccessResponse = { ok: true; sessionId: string };
+type SuccessResponse = { ok: true; sessionId: string; url: string };
 type ErrorResponse = { ok: false; error: string };
 
-/**
- * Fallback helper: create a checkout session using a fresh Stripe instance.
- */
-async function createSessionFallback(params: Stripe.Checkout.SessionCreateParams) {
-  let info: any = null;
-
-  try {
-    // ✅ FIX: getStripeSecretKeyInfo returns a Promise in this repo
-    info = (await getStripeSecretKeyInfo?.()) ?? null;
-  } catch {
-    info = null;
-  }
-
-  const key =
-    (info && typeof info === "object" ? info.key : "") ||
-    process.env.STRIPE_SECRET_KEY ||
-    "";
-
-  if (!key) {
-    throw new Error(
-      "Stripe is not configured. Missing STRIPE_SECRET_KEY. Please set it in Vercel env vars."
-    );
-  }
-
-  if (!key.startsWith("sk_")) {
-    throw new Error(
-      "Stripe secret key looks invalid (must start with sk_). Please verify Vercel env vars."
-    );
-  }
-
-  const freshStripe = new Stripe(key, {
-    timeout: 20000,
-    maxNetworkRetries: 1,
-  });
-
-  return freshStripe.checkout.sessions.create(params);
-}
-
 function resolveBaseUrl(req: NextApiRequest) {
-  const fromEnv = process.env.NEXT_PUBLIC_SITE_URL || "";
-  const fromHeader = (req.headers.origin as string | undefined) || "";
+  const fromEnv = (process.env.NEXT_PUBLIC_SITE_URL || "").trim();
+  const fromHeader = String(req.headers.origin || "").trim();
 
-  const candidates = [fromEnv, fromHeader].filter(Boolean);
-  for (const candidate of candidates) {
-    const trimmed = candidate.trim();
-    if (!trimmed) continue;
+  for (const candidate of [fromEnv, fromHeader]) {
+    if (!candidate) continue;
     try {
-      const url = new URL(trimmed);
-      const origin = url.origin;
-      if (origin.length <= 2000) return origin;
-    } catch {
-      // ignore invalid URL
-    }
+      return new URL(candidate).origin;
+    } catch {}
   }
-
   return "https://www.myfamousfinds.com";
 }
 
-function sanitizeListingTitle(title: string) {
-  const t = String(title || "").trim();
-  if (!t) return "MyFamousFinds Purchase";
-  return t.slice(0, 120);
-}
-
-function safeImage(image?: string) {
-  const raw = String(image || "").trim();
-  if (!raw) return "";
+function sanitizeImageUrl(imageUrl?: string) {
+  const trimmed = String(imageUrl || "").trim();
+  if (!trimmed || trimmed.length > 2048) return "";
   try {
-    const u = new URL(raw);
-    if (u.protocol !== "http:" && u.protocol !== "https:") return "";
+    const u = new URL(trimmed);
+    if (u.protocol !== "https:" && u.protocol !== "http:") return "";
     return u.toString();
   } catch {
     return "";
@@ -95,37 +44,35 @@ export default async function handler(
   res: NextApiResponse<SuccessResponse | ErrorResponse>
 ) {
   if (req.method !== "POST") {
-    return res.status(405).json({ ok: false, error: "Method Not Allowed" });
+    return res.status(405).json({ ok: false, error: "Method not allowed" });
   }
 
   try {
-    const body = (req.body || {}) as Partial<RequestBody>;
-    const id = String(body.id || "").trim();
-    const title = sanitizeListingTitle(body.title || "");
-    const price = Number(body.price);
+    const { id, title, price, image } = (req.body || {}) as RequestBody;
+    const buyerIdHeader =
+      (req.headers["x-user-id"] as string | undefined) ||
+      (req.headers["x-userid"] as string | undefined);
 
-    if (!id) {
-      return res.status(400).json({ ok: false, error: "Missing listing id" });
-    }
-    if (!Number.isFinite(price) || price <= 0) {
-      return res.status(400).json({ ok: false, error: "Invalid price" });
+    if (!id || !title || typeof price !== "number") {
+      return res.status(400).json({ ok: false, error: "Missing product data" });
     }
 
     const baseUrl = resolveBaseUrl(req);
-    const safeImageUrl = safeImage(body.image);
-
-    const unitAmount = Math.round(price * 100); // USD cents
+    const safeImageUrl = sanitizeImageUrl(image);
 
     const sessionParams: Stripe.Checkout.SessionCreateParams = {
       mode: "payment",
-      payment_method_types: ["card"],
+      metadata: {
+        listingId: id,
+        ...(buyerIdHeader ? { buyerId: buyerIdHeader } : {}),
+      },
       line_items: [
         {
           price_data: {
             currency: "usd",
-            unit_amount: unitAmount,
+            unit_amount: Math.round(price * 100),
             product_data: {
-              name: title,
+              name: String(title).slice(0, 120),
               images: safeImageUrl ? [safeImageUrl] : [],
             },
           },
@@ -136,51 +83,16 @@ export default async function handler(
       cancel_url: `${baseUrl}/product/${id}`,
     };
 
-    let session: Stripe.Checkout.Session;
+    const session = await createCheckoutSession(sessionParams);
 
-    try {
-      session = await createCheckoutSession(sessionParams);
-    } catch (primaryErr: any) {
-      if (
-        primaryErr?.code === "url_invalid" ||
-        String(primaryErr?.message || "").includes("URL must be")
-      ) {
-        const fallbackOrigin = "https://www.myfamousfinds.com";
-        const fallbackParams: Stripe.Checkout.SessionCreateParams = {
-          ...sessionParams,
-          success_url: `${fallbackOrigin}/order/success?session_id={CHECKOUT_SESSION_ID}`,
-          cancel_url: `${fallbackOrigin}/product/${id}`,
-        };
-        session = await createCheckoutSession(fallbackParams);
-      } else {
-        console.warn(
-          "Primary Stripe checkout failed, trying fallback:",
-          primaryErr?.message
-        );
-        session = await createSessionFallback(sessionParams);
-      }
-    }
-
-    return res.status(200).json({ ok: true, sessionId: session.id });
+    return res.status(200).json({
+      ok: true,
+      sessionId: session.id,
+      url: session.url || "",
+    });
   } catch (err: any) {
     const msg = String(err?.message || err || "Stripe error");
     console.error("Stripe checkout error:", msg, err);
-
-    let userMessage = msg;
-    if (msg.includes("Expired API Key")) {
-      userMessage =
-        "The Stripe API key has expired. Please update it in Management → Stripe Settings.";
-    } else if (
-      msg.includes("retried") ||
-      msg.includes("ECONNREFUSED") ||
-      msg.includes("timeout")
-    ) {
-      userMessage =
-        "We're having trouble connecting to our payment provider. Please try again in a moment.";
-    } else if (msg.includes("not configured")) {
-      userMessage = "Payments are not configured yet. Please contact support.";
-    }
-
-    return res.status(500).json({ ok: false, error: userMessage });
+    return res.status(500).json({ ok: false, error: msg });
   }
 }
