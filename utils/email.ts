@@ -1,4 +1,5 @@
 // FILE: /utils/email.ts
+
 import nodemailer from "nodemailer";
 
 const host = process.env.SMTP_HOST;
@@ -27,17 +28,12 @@ async function sendMail(to: string, subject: string, text: string) {
     console.warn("[email] SMTP not configured – skipping send");
     return;
   }
-  try {
-    const info = await transporter.sendMail({ from, to, subject, text });
-    console.log("[email] sent", { to, messageId: info.messageId });
-  } catch (err) {
-    console.error("[email] error sending mail", err);
-    throw err;
-  }
+  const info = await transporter.sendMail({ from, to, subject, text });
+  console.log("[email] sent", { to, messageId: info.messageId });
 }
 
 export async function sendLoginCode(to: string, code: string) {
-  const subject = "Your Famous Finds Verification Code";
+  const subject = "Your MyFamousFinds Verification Code";
   const text = `Your login verification code is: ${code}
 
 Enter this code in the login screen to continue.`;
@@ -52,25 +48,50 @@ export async function sendSellerInviteEmail(args: {
 }) {
   const { to, businessName, registerUrl } = args;
 
-  const subject = "Your Seller Application is Approved — Welcome to Famous Finds";
+  const subject = "Seller Application Approved — Welcome to MyFamousFinds";
   const text = `Hi${businessName ? " " + businessName : ""},
 
-Welcome to Famous Finds — your seller application has been approved!
+Your seller application has been APPROVED.
 
 Next steps:
-1) Log into the Seller Portal.
-2) Complete your seller profile.
-3) Upload your first listing.
+1) Log into the Seller Portal
+2) Complete your seller profile
+3) Upload your first listing
 
-Seller portal setup link:
+Seller portal link:
 ${registerUrl ?? ""}
 
-Need help? Contact us at support@myfamousfinds.com.`;
+Support: support@myfamousfinds.com`;
 
   await sendMail(to, subject, text);
 }
 
-// ✅ NEW: Sold label email with buyer shipping details
+// ✅ REQUIRED FIX: export the rejection email (build error)
+export async function sendSellerRejectionEmail(args: {
+  to: string;
+  businessName?: string;
+  reason?: string;
+  supportEmail?: string;
+}) {
+  const { to, businessName, reason, supportEmail } = args;
+
+  const subject = "Seller Application Update — Not Approved";
+  const text = `Hi${businessName ? " " + businessName : ""},
+
+Thank you for applying to sell on MyFamousFinds.
+
+At this time, your seller application was NOT approved.
+
+${reason ? `Reason (optional):\n${reason}\n\n` : ""}If you believe this is an error or you’d like to reapply, please contact:
+${supportEmail || "support@myfamousfinds.com"}
+
+Regards,
+MyFamousFinds Team`;
+
+  await sendMail(to, subject, text);
+}
+
+// ✅ Sold label email with buyer shipping details
 export async function sendSellerSoldShipNowEmail(args: {
   to: string;
   orderId: string;
@@ -80,8 +101,15 @@ export async function sendSellerSoldShipNowEmail(args: {
   shippingAddressText: string;
   shipByText: string; // e.g. "within 72 hours"
 }) {
-  const { to, orderId, listingTitle, buyerName, buyerEmail, shippingAddressText, shipByText } =
-    args;
+  const {
+    to,
+    orderId,
+    listingTitle,
+    buyerName,
+    buyerEmail,
+    shippingAddressText,
+    shipByText,
+  } = args;
 
   const subject = `SOLD – SHIP NOW (Order ${orderId})`;
   const text = `Your item has been SOLD on MyFamousFinds.
@@ -99,12 +127,10 @@ Shipping Address:
 ${shippingAddressText}
 
 Next steps:
-1) Pack item carefully
-2) Ship with SIGNATURE REQUIRED
-3) Enter tracking number in Seller Portal (Orders → Mark Shipped)
+1) Ship with SIGNATURE REQUIRED
+2) Enter tracking number in Seller Portal → Orders → Mark Shipped
 
-Support: support@myfamousfinds.com
-`;
+Support: support@myfamousfinds.com`;
 
   await sendMail(to, subject, text);
 }
