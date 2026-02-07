@@ -1,6 +1,7 @@
 // FILE: /pages/api/checkout.ts
 
 import type { NextApiRequest, NextApiResponse } from "next";
+import Stripe from "stripe";
 import { createCheckoutSession } from "../../lib/stripe";
 
 type RequestBody = {
@@ -12,6 +13,29 @@ type RequestBody = {
 
 type SuccessResponse = { ok: true; sessionId: string };
 type ErrorResponse = { ok: false; error: string };
+
+/**
+ * Fallback: create a fresh Stripe instance if the shared one fails.
+ * Handles edge cases where the module-level instance hits a transient
+ * network error on cold start.
+ */
+async function createSessionFallback(
+  params: Stripe.Checkout.SessionCreateParams
+) {
+  const key = (process.env.STRIPE_SECRET_KEY || "").trim();
+  if (!key) {
+    throw new Error(
+      "Stripe is not configured. Please set STRIPE_SECRET_KEY in your environment variables."
+    );
+  }
+
+  const freshStripe = new Stripe(key, {
+    timeout: 20000,
+    maxNetworkRetries: 1,
+  });
+
+  return freshStripe.checkout.sessions.create(params);
+}
 
 export default async function handler(
   req: NextApiRequest,
@@ -36,9 +60,8 @@ export default async function handler(
       process.env.NEXT_PUBLIC_SITE_URL ||
       "https://www.myfamousfinds.com";
 
-    const session = await createCheckoutSession({
+    const sessionParams: Stripe.Checkout.SessionCreateParams = {
       mode: "payment",
-      payment_method_types: ["card"],
       metadata: {
         listingId: id,
         ...(buyerIdHeader ? { buyerId: buyerIdHeader } : {}),
@@ -51,7 +74,6 @@ export default async function handler(
             product_data: {
               name: title,
               images: image ? [image] : [],
-              metadata: { listingId: id },
             },
           },
           quantity: 1,
@@ -59,12 +81,37 @@ export default async function handler(
       ],
       success_url: `${baseUrl}/order/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${baseUrl}/product/${id}`,
-    });
+    };
+
+    let session: Stripe.Checkout.Session;
+
+    try {
+      // Primary attempt via shared Stripe instance
+      session = await createCheckoutSession(sessionParams);
+    } catch (primaryErr: any) {
+      console.warn(
+        "Primary Stripe checkout failed, trying fallback:",
+        primaryErr?.message
+      );
+      // Fallback: create a fresh Stripe instance
+      session = await createSessionFallback(sessionParams);
+    }
 
     return res.status(200).json({ ok: true, sessionId: session.id });
   } catch (err: any) {
     const msg = String(err?.message || err || "Stripe error");
     console.error("Stripe checkout error:", msg, err);
-    return res.status(500).json({ ok: false, error: msg });
+
+    // Provide a user-friendly error message
+    let userMessage = msg;
+    if (msg.includes("retried") || msg.includes("ECONNREFUSED") || msg.includes("timeout")) {
+      userMessage =
+        "We're having trouble connecting to our payment provider. Please try again in a moment.";
+    } else if (msg.includes("not configured") || msg.includes("SECRET_KEY")) {
+      userMessage =
+        "Payments are not configured yet. Please contact support.";
+    }
+
+    return res.status(500).json({ ok: false, error: userMessage });
   }
 }
