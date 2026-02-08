@@ -39,10 +39,10 @@ type Order = {
 };
 
 type OrdersOk = { ok: true; orders: Order[] };
-type OrdersErr = { ok: false; error: string };
 
 export default function SellerOrdersPage() {
   const { ok: authed, authLoading } = useRequireSeller();
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [orders, setOrders] = useState<Order[]>([]);
@@ -62,7 +62,7 @@ export default function SellerOrdersPage() {
   useEffect(() => {
     if (!authLoading && authed) refresh();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [authLoading]);
+  }, [authLoading, authed]);
 
   function getSellerIdHeader(): string {
     if (typeof window === "undefined") return "";
@@ -81,7 +81,7 @@ export default function SellerOrdersPage() {
       if (!res.ok || !json?.ok) throw new Error(json?.error || "Failed to load orders");
       setOrders((json as OrdersOk).orders || []);
     } catch (e: any) {
-      setError(String(e?.message || e || "Failed to load orders"));
+      setError(String(e?.message || "Failed to load orders"));
     } finally {
       setLoading(false);
     }
@@ -103,13 +103,16 @@ export default function SellerOrdersPage() {
           trackingNumber: trackingNumber.trim(),
         }),
       });
+
       const json = await res.json();
-      if (!res.ok || !json?.ok) throw new Error(json?.error || "Failed to mark shipped");
+      if (!res.ok || !json?.ok) {
+        throw new Error(json?.error || "Failed to mark shipped");
+      }
 
       setShipModal({ open: false });
       await refresh();
     } catch (e: any) {
-      setError(String(e?.message || e || "Failed to mark shipped"));
+      setError(String(e?.message || "Failed to mark shipped"));
     } finally {
       setLoading(false);
     }
@@ -130,7 +133,7 @@ export default function SellerOrdersPage() {
               <div>
                 <h1 className="text-2xl font-bold text-gray-900">Orders</h1>
                 <p className="text-gray-600">
-                  View and manage your paid orders. Mark shipped to notify the buyer.
+                  View and manage your sold items. Ship promptly using signature required.
                 </p>
               </div>
 
@@ -146,22 +149,20 @@ export default function SellerOrdersPage() {
                   disabled={loading}
                   className="rounded-full bg-orange-500 px-4 py-2 text-sm font-semibold text-white hover:bg-orange-600 disabled:opacity-60"
                 >
-                  {loading ? "Refreshing..." : "Refresh"}
+                  {loading ? "Refreshing…" : "Refresh"}
                 </button>
               </div>
             </div>
 
-            {error ? (
+            {error && (
               <div className="mb-6 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
                 {error}
               </div>
-            ) : null}
+            )}
 
             <div className="rounded-xl border border-gray-200 bg-white shadow-sm">
-              <div className="border-b border-gray-200 px-6 py-4">
-                <div className="text-sm text-gray-700">
-                  Showing <b>{paidOrders.length}</b> active orders
-                </div>
+              <div className="border-b border-gray-200 px-6 py-4 text-sm text-gray-700">
+                Showing <b>{paidOrders.length}</b> active orders
               </div>
 
               <div className="divide-y divide-gray-100">
@@ -172,15 +173,15 @@ export default function SellerOrdersPage() {
                 ) : (
                   paidOrders.map((o) => (
                     <div key={o.id} className="px-6 py-5">
-                      <div className="flex flex-wrap items-center justify-between gap-3">
+                      <div className="flex items-center justify-between gap-3">
                         <div>
                           <div className="text-sm text-gray-500">
                             Order #{o.id.slice(0, 8)} •{" "}
                             {new Date(o.createdAt).toLocaleString()}
                           </div>
-                          <div className="text-base font-semibold text-gray-900">
-                            {o.items.length} item{o.items.length === 1 ? "" : "s"} • $
-                            {Number(o.total || 0).toFixed(2)}
+                          <div className="font-semibold text-gray-900">
+                            {o.items.length} item{o.items.length !== 1 ? "s" : ""} • $
+                            {Number(o.total).toFixed(2)}
                           </div>
                         </div>
 
@@ -191,7 +192,7 @@ export default function SellerOrdersPage() {
 
                           <button
                             onClick={() =>
-                              setExpanded((prev) => ({ ...prev, [o.id]: !prev[o.id] }))
+                              setExpanded((p) => ({ ...p, [o.id]: !p[o.id] }))
                             }
                             className="rounded-full border border-gray-300 px-3 py-1 text-xs font-semibold text-gray-700 hover:bg-gray-50"
                           >
@@ -214,70 +215,52 @@ export default function SellerOrdersPage() {
                         </div>
                       </div>
 
-                      {expanded[o.id] ? (
+                      {expanded[o.id] && (
                         <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-6">
                           <div>
-                            <div className="text-sm font-semibold text-gray-900 mb-2">
-                              Items
-                            </div>
-                            <div className="space-y-3">
-                              {o.items.map((it, idx) => (
-                                <div
-                                  key={`${o.id}-${idx}`}
-                                  className="flex items-center gap-3"
-                                >
-                                  <div className="h-14 w-14 rounded-lg bg-gray-100 overflow-hidden flex items-center justify-center">
-                                    {it.image ? (
-                                      // eslint-disable-next-line @next/next/no-img-element
-                                      <img
-                                        src={it.image}
-                                        alt={it.title}
-                                        className="h-full w-full object-cover"
-                                      />
-                                    ) : (
-                                      <span className="text-xs text-gray-400">No image</span>
-                                    )}
-                                  </div>
-
-                                  <div className="min-w-0">
-                                    <div className="text-sm font-semibold text-gray-900 truncate">
-                                      {it.title}
-                                    </div>
-                                    <div className="text-sm text-gray-600">
-                                      Qty {it.quantity} • ${Number(it.price).toFixed(2)}
-                                    </div>
+                            <div className="font-semibold mb-2">Items</div>
+                            {o.items.map((it, i) => (
+                              <div key={i} className="flex gap-3 mb-3">
+                                <div className="h-14 w-14 bg-gray-100 rounded-lg overflow-hidden">
+                                  {it.image && (
+                                    // eslint-disable-next-line @next/next/no-img-element
+                                    <img
+                                      src={it.image}
+                                      alt={it.title}
+                                      className="h-full w-full object-cover"
+                                    />
+                                  )}
+                                </div>
+                                <div>
+                                  <div className="font-semibold">{it.title}</div>
+                                  <div className="text-sm text-gray-600">
+                                    Qty {it.quantity} • ${it.price.toFixed(2)}
                                   </div>
                                 </div>
-                              ))}
-                            </div>
+                              </div>
+                            ))}
                           </div>
 
                           <div>
-                            <div className="text-sm font-semibold text-gray-900 mb-2">
-                              Shipping
-                            </div>
-
-                            <div className="rounded-lg border border-gray-200 p-4 text-sm text-gray-700 space-y-1">
-                              <div className="font-semibold text-gray-900">
-                                {o.shipping?.name || "—"}
-                              </div>
-                              <div>{o.shipping?.line1 || "—"}</div>
-                              {o.shipping?.line2 ? <div>{o.shipping.line2}</div> : null}
+                            <div className="font-semibold mb-2">Shipping</div>
+                            <div className="border rounded-lg p-4 text-sm">
+                              <div className="font-semibold">{o.shipping?.name}</div>
+                              <div>{o.shipping?.line1}</div>
+                              {o.shipping?.line2 && <div>{o.shipping.line2}</div>}
                               <div>
                                 {[o.shipping?.city, o.shipping?.state, o.shipping?.postal_code]
                                   .filter(Boolean)
-                                  .join(", ") || "—"}
+                                  .join(", ")}
                               </div>
-                              <div>{o.shipping?.country || "—"}</div>
-                              {o.shipping?.phone ? <div>Phone: {o.shipping.phone}</div> : null}
-                              {o.buyerEmail ? <div>Buyer: {o.buyerEmail}</div> : null}
+                              <div>{o.shipping?.country}</div>
+                              {o.buyerEmail && <div>Buyer: {o.buyerEmail}</div>}
                             </div>
 
                             <div className="mt-3 text-sm text-gray-600">
                               Tracking:{" "}
                               {o.tracking?.trackingNumber ? (
                                 <b>
-                                  {o.tracking.carrier || "Carrier"} • {o.tracking.trackingNumber}
+                                  {o.tracking.carrier} • {o.tracking.trackingNumber}
                                 </b>
                               ) : (
                                 "Not provided"
@@ -285,83 +268,13 @@ export default function SellerOrdersPage() {
                             </div>
                           </div>
                         </div>
-                      ) : null}
+                      )}
                     </div>
                   ))
                 )}
               </div>
             </div>
           </div>
-
-          {shipModal.open ? (
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
-              <div className="w-full max-w-lg rounded-xl bg-white shadow-xl">
-                <div className="border-b border-gray-200 px-6 py-4">
-                  <div className="text-lg font-bold text-gray-900">Mark as shipped</div>
-                  <div className="text-sm text-gray-600">
-                    Add carrier and tracking number for this order.
-                  </div>
-                </div>
-
-                <div className="px-6 py-5 space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Carrier
-                    </label>
-                    <input
-                      type="text"
-                      value={shipModal.carrier || ""}
-                      onChange={(e) =>
-                        setShipModal((p) => ({ ...p, carrier: e.target.value }))
-                      }
-                      className="w-full rounded-lg border border-gray-300 px-3 py-2"
-                      placeholder="Australia Post"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Tracking number
-                    </label>
-                    <input
-                      type="text"
-                      value={shipModal.trackingNumber || ""}
-                      onChange={(e) =>
-                        setShipModal((p) => ({ ...p, trackingNumber: e.target.value }))
-                      }
-                      className="w-full rounded-lg border border-gray-300 px-3 py-2"
-                      placeholder="e.g. 1234 5678 9012"
-                    />
-                  </div>
-                </div>
-
-                <div className="border-t border-gray-200 px-6 py-4 flex items-center justify-end gap-3">
-                  <button
-                    onClick={() => setShipModal({ open: false })}
-                    className="rounded-full border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
-                  >
-                    Cancel
-                  </button>
-
-                  <button
-                    disabled={loading || !shipModal.orderId}
-                    onClick={() =>
-                      shipModal.orderId
-                        ? onMarkShipped(
-                            shipModal.orderId,
-                            shipModal.carrier || "",
-                            shipModal.trackingNumber || ""
-                          )
-                        : null
-                    }
-                    className="rounded-full bg-orange-500 px-4 py-2 text-sm font-semibold text-white hover:bg-orange-600 disabled:opacity-60"
-                  >
-                    {loading ? "Saving..." : "Save"}
-                  </button>
-                </div>
-              </div>
-            </div>
-          ) : null}
         </main>
 
         <Footer />
