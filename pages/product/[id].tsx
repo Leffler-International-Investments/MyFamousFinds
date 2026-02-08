@@ -211,21 +211,21 @@ export default function ProductPage(props: ProductPageProps) {
           ...(userId ? { "x-user-id": userId } : {}),
         },
         body: JSON.stringify({
-          listingId: id,
-          offerValue,
-          offerMessage,
-          title,
-          brand,
-          price,
-          currency,
-          imageUrl,
+          productId: id,            // ✅ REQUIRED by API
+          price: offerValue,        // ✅ API accepts price
+          message: offerMessage,
+          buyerEmail: buyerDetails.email || "", // optional
         }),
       });
 
       const json = await res.json();
 
       if (!res.ok || !json?.ok) {
-        throw new Error(json?.error || "Unable to submit offer");
+        const friendly =
+          json?.error === "missing_fields"
+            ? "Please enter an offer amount before submitting."
+            : json?.error || "Unable to submit offer.";
+        throw new Error(friendly);
       }
 
       form.reset();
