@@ -268,7 +268,7 @@ export default function ProductPage(props: ProductPageProps) {
               All prices in USD. Taxes and shipping calculated at checkout.
             </p>
 
-            <WishlistButton listingId={id} />
+            <WishlistButton productId={id} />
 
             <div className="meta">
               <div>
