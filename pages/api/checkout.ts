@@ -11,6 +11,20 @@ type RequestBody = {
   image?: string;
   brand?: string;
   category?: string;
+
+  // Optional: if you collect buyer details in-app before checkout.
+  // Stripe will still collect shipping/billing/phone based on sessionParams below.
+  buyerDetails?: {
+    fullName?: string;
+    email?: string;
+    phone?: string;
+    addressLine1?: string;
+    addressLine2?: string;
+    city?: string;
+    state?: string;
+    postalCode?: string;
+    country?: string;
+  };
 };
 
 type SuccessResponse = { ok: true; sessionId: string; url: string };
@@ -50,13 +64,39 @@ export default async function handler(
   }
 
   try {
-    const { id, title, price, image, brand, category } = (req.body || {}) as RequestBody;
+    const { id, title, price, image, brand, category, buyerDetails } =
+      (req.body || {}) as RequestBody;
+
     const buyerIdHeader =
       (req.headers["x-user-id"] as string | undefined) ||
       (req.headers["x-userid"] as string | undefined);
 
     if (!id || !title || typeof price !== "number") {
       return res.status(400).json({ ok: false, error: "Missing product data" });
+    }
+
+    // If buyerDetails are provided, ensure they're not partially empty.
+    // (We do NOT require them by default because Stripe will collect billing/shipping/phone.)
+    if (buyerDetails) {
+      const requiredBuyerFields = [
+        buyerDetails?.fullName,
+        buyerDetails?.email,
+        buyerDetails?.phone,
+        buyerDetails?.addressLine1,
+        buyerDetails?.city,
+        buyerDetails?.state,
+        buyerDetails?.postalCode,
+        buyerDetails?.country,
+      ];
+
+      const missing = requiredBuyerFields.some((v) => !String(v || "").trim());
+      if (missing) {
+        return res.status(400).json({
+          ok: false,
+          error:
+            "Missing buyer details. Please complete your details before checkout.",
+        });
+      }
     }
 
     const baseUrl = resolveBaseUrl(req);
@@ -76,6 +116,15 @@ export default async function handler(
         ...(brand ? { brand: String(brand).slice(0, 120) } : {}),
         ...(category ? { category: String(category).slice(0, 120) } : {}),
         ...(buyerIdHeader ? { buyerId: buyerIdHeader } : {}),
+        ...(buyerDetails?.fullName
+          ? { buyerFullName: String(buyerDetails.fullName).slice(0, 120) }
+          : {}),
+        ...(buyerDetails?.email
+          ? { buyerEmail: String(buyerDetails.email).slice(0, 120) }
+          : {}),
+        ...(buyerDetails?.phone
+          ? { buyerPhone: String(buyerDetails.phone).slice(0, 60) }
+          : {}),
       },
       line_items: [
         {
