@@ -49,6 +49,11 @@ type OrderRow = {
   fulfillment?: FulfillmentInfo | null;
 };
 
+function getSellerIdHeader(): string {
+  if (typeof window === "undefined") return "";
+  return String(window.localStorage.getItem("ff-seller-id") || "").trim();
+}
+
 export default function SellerOrders() {
   const { loading: authLoading } = useRequireSeller();
 
@@ -76,7 +81,10 @@ export default function SellerOrders() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch("/api/seller/orders");
+      const sellerId = getSellerIdHeader();
+      const res = await fetch("/api/seller/orders", {
+        headers: sellerId ? { "x-seller-id": sellerId } : undefined,
+      });
       const json = await res.json();
       if (!res.ok || !json?.ok) throw new Error(json?.error || "Failed to load orders.");
       const orders = Array.isArray(json.orders) ? json.orders : [];
@@ -634,7 +642,10 @@ export default function SellerOrders() {
 
       const res = await fetch("/api/seller/mark-shipped", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(getSellerIdHeader() ? { "x-seller-id": getSellerIdHeader() } : {}),
+        },
         body: JSON.stringify({
           orderId,
           carrier: edit.carrier,
