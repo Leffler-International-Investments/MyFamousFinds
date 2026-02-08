@@ -1,79 +1,371 @@
-// FILE: /pages/api/seller/orders.ts
-import type { NextApiRequest, NextApiResponse } from "next";
-import { getSellerId } from "../../../utils/authServer";
-import { adminDb } from "../../../utils/firebaseAdmin";
+// FILE: /pages/seller/orders.tsx
 
-type OrderPayload = {
-  id: string;
-  listingTitle: string;
-  buyerName: string;
-  buyerEmail: string;
-  total: number;
-  currency: string;
-  status: string;
-  shipDeadlineAt?: string | null;
-  shippingAddress?: any;
-  fulfillment?: any;
-  shipping?: any;
-  payout?: any;
-  createdAt?: string | null;
+import Head from "next/head";
+import Link from "next/link";
+import { useEffect, useMemo, useState } from "react";
+import Header from "../../components/Header";
+import Footer from "../../components/Footer";
+import { useRequireSeller } from "../../hooks/useRequireSeller";
+
+type ShippingAddress = {
+  name?: string;
+  line1?: string;
+  line2?: string;
+  city?: string;
+  state?: string;
+  postal_code?: string;
+  country?: string;
+  phone?: string;
 };
 
-type OrdersResponse =
-  | { ok: true; orders: OrderPayload[] }
-  | { ok: false; error: string };
+type OrderItem = {
+  listingId: string;
+  title: string;
+  image?: string;
+  price: number;
+  quantity: number;
+};
 
-export default async function handler(
-  req: NextApiRequest,
-  res: NextApiResponse<OrdersResponse>
-) {
-  if (req.method !== "GET") {
-    res.setHeader("Allow", "GET");
-    return res.status(405).json({ ok: false, error: "method_not_allowed" });
+type Order = {
+  id: string;
+  createdAt: number;
+  status: "paid" | "shipped" | "delivered" | "cancelled";
+  buyerEmail?: string;
+  shipping?: ShippingAddress;
+  items: OrderItem[];
+  total: number;
+  payoutStatus?: "pending" | "paid" | "failed";
+  tracking?: { carrier?: string; trackingNumber?: string };
+};
+
+type OrdersOk = { ok: true; orders: Order[] };
+type OrdersErr = { ok: false; error: string };
+
+export default function SellerOrdersPage() {
+  const { ok: authed, authLoading } = useRequireSeller();
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+  const [shipModal, setShipModal] = useState<{
+    open: boolean;
+    orderId?: string;
+    carrier?: string;
+    trackingNumber?: string;
+  }>({ open: false });
+
+  const paidOrders = useMemo(
+    () => orders.filter((o) => o.status === "paid" || o.status === "shipped"),
+    [orders]
+  );
+
+  useEffect(() => {
+    if (!authLoading && authed) refresh();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authLoading]);
+
+  function getSellerIdHeader(): string {
+    if (typeof window === "undefined") return "";
+    return String(window.localStorage.getItem("ff-seller-id") || "").trim();
   }
 
-  if (!adminDb) {
-    return res.status(500).json({ ok: false, error: "Firebase not configured" });
+  async function refresh() {
+    setLoading(true);
+    setError(null);
+    try {
+      const sellerId = getSellerIdHeader();
+      const res = await fetch("/api/seller/orders", {
+        headers: sellerId ? { "x-seller-id": sellerId } : undefined,
+      });
+      const json = await res.json();
+      if (!res.ok || !json?.ok) throw new Error(json?.error || "Failed to load orders");
+      setOrders((json as OrdersOk).orders || []);
+    } catch (e: any) {
+      setError(String(e?.message || e || "Failed to load orders"));
+    } finally {
+      setLoading(false);
+    }
   }
 
-  try {
-    const sellerId = getSellerId(req);
-    if (!sellerId) return res.status(401).json({ ok: false, error: "unauthorized" });
+  async function onMarkShipped(orderId: string, carrier: string, trackingNumber: string) {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/seller/mark-shipped", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(getSellerIdHeader() ? { "x-seller-id": getSellerIdHeader() } : {}),
+        },
+        body: JSON.stringify({
+          orderId,
+          carrier: carrier.trim(),
+          trackingNumber: trackingNumber.trim(),
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok || !json?.ok) throw new Error(json?.error || "Failed to mark shipped");
 
-    const snap = await adminDb
-      .collection("orders")
-      .where("sellerId", "==", sellerId)
-      .limit(200)
-      .get();
-
-    const orders = snap.docs
-      .map((d) => {
-        const o: any = d.data() || {};
-        return {
-          id: d.id,
-          listingTitle: String(o.listingTitle || o.item || "Item"),
-          buyerName: String(o.buyer?.name || ""),
-          buyerEmail: String(o.buyer?.email || ""),
-          total: Number(o.totals?.total || o.total || 0),
-          currency: String(o.totals?.currency || o.currency || "USD"),
-          status: String(o.status || "Pending"),
-          shipDeadlineAt: o.shipDeadlineAt?.toDate?.()
-            ? o.shipDeadlineAt.toDate().toISOString()
-            : null,
-          shippingAddress: o.shippingAddress || null,
-          fulfillment: o.fulfillment || null,
-          shipping: o.shipping || null,
-          payout: o.payout || null,
-          createdAt: o.createdAt?.toDate?.()
-            ? o.createdAt.toDate().toISOString()
-            : null,
-        } as OrderPayload;
-      })
-      .sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || ""));
-
-    return res.status(200).json({ ok: true, orders });
-  } catch (err: any) {
-    console.error("seller_orders_error", err);
-    return res.status(500).json({ ok: false, error: err?.message || "server_error" });
+      setShipModal({ open: false });
+      await refresh();
+    } catch (e: any) {
+      setError(String(e?.message || e || "Failed to mark shipped"));
+    } finally {
+      setLoading(false);
+    }
   }
+
+  return (
+    <>
+      <Head>
+        <title>Seller Orders | My Famous Finds</title>
+      </Head>
+
+      <div className="min-h-screen flex flex-col bg-white">
+        <Header />
+
+        <main className="flex-1 w-full">
+          <div className="max-w-6xl mx-auto px-4 py-8">
+            <div className="flex items-center justify-between gap-4 mb-6">
+              <div>
+                <h1 className="text-2xl font-bold text-gray-900">Orders</h1>
+                <p className="text-gray-600">
+                  View and manage your paid orders. Mark shipped to notify the buyer.
+                </p>
+              </div>
+
+              <div className="flex items-center gap-3">
+                <Link
+                  href="/seller/dashboard"
+                  className="rounded-full border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+                >
+                  Back to dashboard
+                </Link>
+                <button
+                  onClick={refresh}
+                  disabled={loading}
+                  className="rounded-full bg-orange-500 px-4 py-2 text-sm font-semibold text-white hover:bg-orange-600 disabled:opacity-60"
+                >
+                  {loading ? "Refreshing..." : "Refresh"}
+                </button>
+              </div>
+            </div>
+
+            {error ? (
+              <div className="mb-6 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                {error}
+              </div>
+            ) : null}
+
+            <div className="rounded-xl border border-gray-200 bg-white shadow-sm">
+              <div className="border-b border-gray-200 px-6 py-4">
+                <div className="text-sm text-gray-700">
+                  Showing <b>{paidOrders.length}</b> active orders
+                </div>
+              </div>
+
+              <div className="divide-y divide-gray-100">
+                {paidOrders.length === 0 ? (
+                  <div className="px-6 py-10 text-center text-gray-600">
+                    No paid orders yet.
+                  </div>
+                ) : (
+                  paidOrders.map((o) => (
+                    <div key={o.id} className="px-6 py-5">
+                      <div className="flex flex-wrap items-center justify-between gap-3">
+                        <div>
+                          <div className="text-sm text-gray-500">
+                            Order #{o.id.slice(0, 8)} •{" "}
+                            {new Date(o.createdAt).toLocaleString()}
+                          </div>
+                          <div className="text-base font-semibold text-gray-900">
+                            {o.items.length} item{o.items.length === 1 ? "" : "s"} • $
+                            {Number(o.total || 0).toFixed(2)}
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          <span className="rounded-full bg-gray-100 px-3 py-1 text-xs font-semibold text-gray-700">
+                            {o.status.toUpperCase()}
+                          </span>
+
+                          <button
+                            onClick={() =>
+                              setExpanded((prev) => ({ ...prev, [o.id]: !prev[o.id] }))
+                            }
+                            className="rounded-full border border-gray-300 px-3 py-1 text-xs font-semibold text-gray-700 hover:bg-gray-50"
+                          >
+                            {expanded[o.id] ? "Hide" : "Details"}
+                          </button>
+
+                          <button
+                            onClick={() =>
+                              setShipModal({
+                                open: true,
+                                orderId: o.id,
+                                carrier: o.tracking?.carrier || "",
+                                trackingNumber: o.tracking?.trackingNumber || "",
+                              })
+                            }
+                            className="rounded-full bg-orange-500 px-3 py-1 text-xs font-semibold text-white hover:bg-orange-600"
+                          >
+                            Mark shipped
+                          </button>
+                        </div>
+                      </div>
+
+                      {expanded[o.id] ? (
+                        <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-6">
+                          <div>
+                            <div className="text-sm font-semibold text-gray-900 mb-2">
+                              Items
+                            </div>
+                            <div className="space-y-3">
+                              {o.items.map((it, idx) => (
+                                <div
+                                  key={`${o.id}-${idx}`}
+                                  className="flex items-center gap-3"
+                                >
+                                  <div className="h-14 w-14 rounded-lg bg-gray-100 overflow-hidden flex items-center justify-center">
+                                    {it.image ? (
+                                      // eslint-disable-next-line @next/next/no-img-element
+                                      <img
+                                        src={it.image}
+                                        alt={it.title}
+                                        className="h-full w-full object-cover"
+                                      />
+                                    ) : (
+                                      <span className="text-xs text-gray-400">No image</span>
+                                    )}
+                                  </div>
+
+                                  <div className="min-w-0">
+                                    <div className="text-sm font-semibold text-gray-900 truncate">
+                                      {it.title}
+                                    </div>
+                                    <div className="text-sm text-gray-600">
+                                      Qty {it.quantity} • ${Number(it.price).toFixed(2)}
+                                    </div>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+
+                          <div>
+                            <div className="text-sm font-semibold text-gray-900 mb-2">
+                              Shipping
+                            </div>
+
+                            <div className="rounded-lg border border-gray-200 p-4 text-sm text-gray-700 space-y-1">
+                              <div className="font-semibold text-gray-900">
+                                {o.shipping?.name || "—"}
+                              </div>
+                              <div>{o.shipping?.line1 || "—"}</div>
+                              {o.shipping?.line2 ? <div>{o.shipping.line2}</div> : null}
+                              <div>
+                                {[o.shipping?.city, o.shipping?.state, o.shipping?.postal_code]
+                                  .filter(Boolean)
+                                  .join(", ") || "—"}
+                              </div>
+                              <div>{o.shipping?.country || "—"}</div>
+                              {o.shipping?.phone ? <div>Phone: {o.shipping.phone}</div> : null}
+                              {o.buyerEmail ? <div>Buyer: {o.buyerEmail}</div> : null}
+                            </div>
+
+                            <div className="mt-3 text-sm text-gray-600">
+                              Tracking:{" "}
+                              {o.tracking?.trackingNumber ? (
+                                <b>
+                                  {o.tracking.carrier || "Carrier"} • {o.tracking.trackingNumber}
+                                </b>
+                              ) : (
+                                "Not provided"
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      ) : null}
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          </div>
+
+          {shipModal.open ? (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+              <div className="w-full max-w-lg rounded-xl bg-white shadow-xl">
+                <div className="border-b border-gray-200 px-6 py-4">
+                  <div className="text-lg font-bold text-gray-900">Mark as shipped</div>
+                  <div className="text-sm text-gray-600">
+                    Add carrier and tracking number for this order.
+                  </div>
+                </div>
+
+                <div className="px-6 py-5 space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Carrier
+                    </label>
+                    <input
+                      type="text"
+                      value={shipModal.carrier || ""}
+                      onChange={(e) =>
+                        setShipModal((p) => ({ ...p, carrier: e.target.value }))
+                      }
+                      className="w-full rounded-lg border border-gray-300 px-3 py-2"
+                      placeholder="Australia Post"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Tracking number
+                    </label>
+                    <input
+                      type="text"
+                      value={shipModal.trackingNumber || ""}
+                      onChange={(e) =>
+                        setShipModal((p) => ({ ...p, trackingNumber: e.target.value }))
+                      }
+                      className="w-full rounded-lg border border-gray-300 px-3 py-2"
+                      placeholder="e.g. 1234 5678 9012"
+                    />
+                  </div>
+                </div>
+
+                <div className="border-t border-gray-200 px-6 py-4 flex items-center justify-end gap-3">
+                  <button
+                    onClick={() => setShipModal({ open: false })}
+                    className="rounded-full border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+                  >
+                    Cancel
+                  </button>
+
+                  <button
+                    disabled={loading || !shipModal.orderId}
+                    onClick={() =>
+                      shipModal.orderId
+                        ? onMarkShipped(
+                            shipModal.orderId,
+                            shipModal.carrier || "",
+                            shipModal.trackingNumber || ""
+                          )
+                        : null
+                    }
+                    className="rounded-full bg-orange-500 px-4 py-2 text-sm font-semibold text-white hover:bg-orange-600 disabled:opacity-60"
+                  >
+                    {loading ? "Saving..." : "Save"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : null}
+        </main>
+
+        <Footer />
+      </div>
+    </>
+  );
 }
