@@ -4,7 +4,11 @@ import Stripe from "stripe";
 import { getStripeClient } from "../../lib/stripe";
 import { adminDb, FieldValue } from "../../utils/firebaseAdmin";
 import { getPayoutSettings } from "../../lib/payoutSettings";
-import { sendOrderConfirmationEmail, OrderEmailPayload } from "../../utils/email";
+import {
+  sendOrderConfirmationEmail,
+  sendSellerSoldShipNowEmail,
+  OrderEmailPayload,
+} from "../../utils/email";
 
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
 
@@ -40,6 +44,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const stripe = await getStripeClient();
   if (!stripe) {
     return res.status(500).json({ error: "Stripe is not configured" });
+  }
+
+  if (!adminDb) {
+    return res.status(500).json({ error: "Firebase Admin is not configured" });
   }
 
   let event: Stripe.Event;
@@ -90,7 +98,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         const buyerEmail = session.customer_details?.email || "";
         const buyerName = session.customer_details?.name || "";
 
-        // ✅ FIX: Stripe typings in your version don't export Session.ShippingDetails
         // Treat shipping_details as a plain object type.
         const shippingDetails = (session as any).shipping_details as
           | { name?: string; address?: any }
@@ -117,6 +124,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         const shipping = Math.max(0, amountTotal - subtotal);
 
         const { defaultCoolingDays } = await getPayoutSettings();
+
+        // Default ship deadline: 72 hours from payment
+        const shipDeadlineAt = new Date(Date.now() + 72 * 60 * 60 * 1000);
 
         const ordersRef = adminDb.collection("orders");
         const orderDoc = {
@@ -153,18 +163,56 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
           shippingAddress: buyerShippingAddress,
 
+          shipDeadlineAt,
+
           payout: {
             coolingDays: defaultCoolingDays,
             status: "NOT_READY", // NOT_READY | COOLING | ELIGIBLE | PAID
           },
 
           createdAt: FieldValue.serverTimestamp(),
+          updatedAt: FieldValue.serverTimestamp(),
         };
 
         const orderRef = await ordersRef.add(orderDoc);
         const orderId = orderRef.id;
 
-        // Send email receipt
+        // Email seller with shipping instructions
+        try {
+          const sellerId = String(listing.sellerId || "");
+          if (sellerId) {
+            const sellerDoc = await adminDb.collection("sellers").doc(sellerId).get();
+            const sellerData: any = sellerDoc.exists ? sellerDoc.data() : null;
+            const sellerEmail = String(
+              sellerData?.email || sellerData?.contactEmail || sellerId || ""
+            );
+
+            if (sellerEmail.includes("@")) {
+              const sa: any = buyerShippingAddress;
+              const shippingAddressText = sa
+                ? `${sa.name || buyerName || ""}\n${sa.line1 || ""}${
+                    sa.line2 ? `, ${sa.line2}` : ""
+                  }\n${[sa.city, sa.state, sa.postal_code]
+                    .filter(Boolean)
+                    .join(" ")}\n${sa.country || ""}`
+                : "Address not provided";
+
+              await sendSellerSoldShipNowEmail({
+                to: sellerEmail,
+                orderId,
+                listingTitle: listing.title || "Item",
+                buyerName,
+                buyerEmail,
+                shippingAddressText,
+                shipByText: "within 72 hours",
+              });
+            }
+          }
+        } catch (sellerEmailErr) {
+          console.warn("Failed to send seller sold email:", sellerEmailErr);
+        }
+
+        // Send email receipt to buyer
         if (buyerEmail) {
           const emailPayload: OrderEmailPayload = {
             id: orderId,
