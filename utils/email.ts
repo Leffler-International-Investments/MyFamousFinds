@@ -28,25 +28,46 @@ async function sendMail(to: string, subject: string, text: string) {
     console.warn("[email] SMTP not configured – skipping send");
     return;
   }
-  const info = await transporter.sendMail({ from, to, subject, text });
+
+  const info = await transporter.sendMail({
+    from,
+    to,
+    subject,
+    text,
+  });
+
   console.log("[email] sent", { to, messageId: info.messageId });
 }
 
 /* ─────────────────────────────────────────────────────────────
-   ✅ ADD THESE EXPORTS (required by /pages/api/stripe.ts)
+   🔹 TEST EMAIL (SMTP verification)
+───────────────────────────────────────────────────────────── */
+
+export async function sendTestEmail(to: string) {
+  const subject = "MyFamousFinds SMTP Test";
+  const text =
+    "SMTP is working.\n\n" +
+    "This is a test email from MyFamousFinds.\n\n" +
+    "If you received this email, seller emails WILL be sent on purchase.";
+
+  await sendMail(to, subject, text);
+}
+
+/* ─────────────────────────────────────────────────────────────
+   🔹 ORDER CONFIRMATION (BUYER)
 ───────────────────────────────────────────────────────────── */
 
 export type OrderEmailPayload = {
   id: string;
   customerName?: string;
   customerEmail: string;
-  currency: string; // e.g. "USD"
+  currency: string;
   items: Array<{
     name: string;
     brand?: string;
     category?: string;
     quantity: number;
-    price: number; // major units (e.g. 123.45)
+    price: number;
   }>;
   subtotal: number;
   shipping?: number;
@@ -70,25 +91,29 @@ export async function sendOrderConfirmationEmail(payload: OrderEmailPayload) {
   const lines: string[] = [];
   lines.push(`Hi${customerName ? " " + customerName : ""},`);
   lines.push("");
-  lines.push(`Thanks for your purchase on MyFamousFinds.`);
+  lines.push("Thank you for your purchase on MyFamousFinds.");
   lines.push("");
   lines.push(`Order ID: ${id}`);
   lines.push("");
   lines.push("Items:");
+
   for (const it of items) {
     const label = [it.brand, it.name].filter(Boolean).join(" — ");
     lines.push(
-      `• ${label}  x${it.quantity}  (${formatMoney(it.price, currency)})`
+      `• ${label} ×${it.quantity} (${formatMoney(it.price, currency)})`
     );
   }
+
   lines.push("");
   lines.push(`Subtotal: ${formatMoney(subtotal, currency)}`);
-  if (shipping > 0) lines.push(`Shipping: ${formatMoney(shipping, currency)}`);
+  if (shipping > 0) {
+    lines.push(`Shipping: ${formatMoney(shipping, currency)}`);
+  }
   lines.push(`Total: ${formatMoney(total, currency)}`);
   lines.push("");
-  lines.push("If you have questions, reply to this email.");
+  lines.push("If you have any questions, simply reply to this email.");
   lines.push("");
-  lines.push("MyFamousFinds Team");
+  lines.push("— MyFamousFinds Team");
 
   await sendMail(customerEmail, subject, lines.join("\n"));
 }
@@ -104,7 +129,7 @@ function formatMoney(amount: number, currency: string) {
 }
 
 /* ─────────────────────────────────────────────────────────────
-   Existing exports (keep as-is)
+   🔹 AUTH / SELLER EMAILS (EXISTING)
 ───────────────────────────────────────────────────────────── */
 
 export async function sendLoginCode(to: string, code: string) {
@@ -112,6 +137,7 @@ export async function sendLoginCode(to: string, code: string) {
   const text = `Your login verification code is: ${code}
 
 Enter this code in the login screen to continue.`;
+
   await sendMail(to, subject, text);
 }
 
@@ -119,7 +145,6 @@ export async function sendSellerInviteEmail(args: {
   to: string;
   businessName?: string;
   registerUrl?: string;
-  [key: string]: any;
 }) {
   const { to, businessName, registerUrl } = args;
 
@@ -156,7 +181,7 @@ Thank you for applying to sell on MyFamousFinds.
 
 At this time, your seller application was NOT approved.
 
-${reason ? `Reason (optional):\n${reason}\n\n` : ""}If you believe this is an error or you’d like to reapply, please contact:
+${reason ? `Reason:\n${reason}\n\n` : ""}If you believe this is an error or wish to reapply, please contact:
 ${supportEmail || "support@myfamousfinds.com"}
 
 Regards,
@@ -190,18 +215,18 @@ export async function sendSellerSoldShipNowEmail(args: {
 Item:
 ${listingTitle}
 
-Ship By:
+Ship by:
 ${shipByText}
 
 Buyer:
 ${buyerName || "Buyer"}${buyerEmail ? ` (${buyerEmail})` : ""}
 
-Shipping Address:
+Shipping address:
 ${shippingAddressText}
 
 Next steps:
 1) Ship with SIGNATURE REQUIRED
-2) Enter tracking number in Seller Portal → Orders → Mark Shipped
+2) Enter tracking in Seller Portal → Orders → Mark Shipped
 
 Support: support@myfamousfinds.com`;
 
