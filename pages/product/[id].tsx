@@ -54,10 +54,49 @@ export default function ProductPage(props: ProductPageProps) {
   const [userId, setUserId] = useState<string | null>(null);
   const router = useRouter();
 
+  // Buyer details must be completed before checkout is enabled
+  const [buyerDetails, setBuyerDetails] = useState({
+    fullName: "",
+    email: "",
+    phone: "",
+    addressLine1: "",
+    addressLine2: "",
+    city: "",
+    state: "",
+    postalCode: "",
+    country: "AU",
+  });
+  const [buyerTouched, setBuyerTouched] = useState(false);
+
+  const isBuyerDetailsValid = (() => {
+    const b = buyerDetails;
+    const required = [
+      b.fullName,
+      b.email,
+      b.phone,
+      b.addressLine1,
+      b.city,
+      b.state,
+      b.postalCode,
+      b.country,
+    ];
+    return required.every((v) => String(v || "").trim().length > 0);
+  })();
+
   useEffect(() => {
     if (!firebaseClientReady || !auth) return;
     const unsub = onAuthStateChanged(auth, (user) => {
       setUserId(user?.uid ?? null);
+
+      // helpful auto-fill for signed-in users
+      const email = user?.email || "";
+      if (email) {
+        setBuyerDetails((p) => ({ ...p, email }));
+      }
+      const name = (user as any)?.displayName || "";
+      if (name) {
+        setBuyerDetails((p) => ({ ...p, fullName: p.fullName || name }));
+      }
     });
     return () => unsub();
   }, []);
@@ -88,6 +127,14 @@ export default function ProductPage(props: ProductPageProps) {
 
   const handleBuyNow = async () => {
     try {
+      if (!isBuyerDetailsValid) {
+        setBuyerTouched(true);
+        const el = document.getElementById("buyer-details-form");
+        if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+        alert("Please complete your buyer details before checkout.");
+        return;
+      }
+
       setLoading(true);
 
       const res = await fetch("/api/checkout", {
@@ -103,6 +150,7 @@ export default function ProductPage(props: ProductPageProps) {
           image: imageUrl,
           brand,
           category,
+          buyerDetails,
         }),
       });
 
@@ -145,22 +193,17 @@ export default function ProductPage(props: ProductPageProps) {
 
     const form = e.currentTarget;
     const formData = new FormData(form);
-    const offerValue = Number(formData.get("offer_value") || 0);
-    const email = String(formData.get("email") || "").trim();
-    const message = String(formData.get("message") || "").trim();
+    const offerValue = Number(formData.get("offer_value"));
+    const offerMessage = String(formData.get("offer_message") || "").trim();
 
     if (!offerValue || offerValue <= 0) {
-      setOfferError("Please enter a valid offer.");
-      return;
-    }
-
-    if (!email) {
-      setOfferError("Please enter your email so we can respond.");
+      setOfferError("Please enter a valid offer amount.");
       return;
     }
 
     try {
       setOfferSubmitting(true);
+
       const res = await fetch("/api/offers/create", {
         method: "POST",
         headers: {
@@ -168,114 +211,266 @@ export default function ProductPage(props: ProductPageProps) {
           ...(userId ? { "x-user-id": userId } : {}),
         },
         body: JSON.stringify({
-          productId: id,
+          listingId: id,
           offerValue,
-          buyerEmail: email,
-          message,
+          offerMessage,
+          title,
+          brand,
+          price,
+          currency,
+          imageUrl,
         }),
       });
 
       const json = await res.json();
+
       if (!res.ok || !json?.ok) {
         throw new Error(json?.error || "Unable to submit offer");
       }
 
       form.reset();
-      alert("Your offer has been submitted to the seller.");
+      alert("Your offer has been submitted.");
     } catch (err: any) {
       console.error(err);
-      setOfferError(err?.message || "Unable to submit offer");
+      setOfferError(err?.message || "Offer submission failed.");
     } finally {
       setOfferSubmitting(false);
     }
   };
 
   return (
-    <div className="dark-theme-page">
+    <div className="page">
       <Head>
-        <title>{title} — Famous-Finds</title>
+        <title>{title} – Famous Finds</title>
       </Head>
+
       <Header />
 
-      <main className="product-wrap">
-        <nav className="breadcrumb">
-          <span>Home</span> <span className="mx-1">/</span>
-          <span>Women</span> <span className="mx-1">/</span>
-          <span className="breadcrumb-active">{title}</span>
-        </nav>
+      <main className="container">
+        <div className="breadcrumb">
+          <span>Home</span> / <span>{category || "Catalogue"}</span> / <span>{title}</span>
+        </div>
 
-        <div className="product-grid">
-          {/* Product image */}
-          <div className="image-column">
-            <div className="image-wrapper">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={imageUrl} alt={title} className="product-image" />
-            </div>
-            <p className="image-note">
-              Authenticity and quality vetted before shipment. Free returns if
-              not as described.
-            </p>
+        <div className="grid">
+          <div className="imageWrap">
+            <img src={imageUrl} alt={title} className="image" />
           </div>
 
-          {/* Product details */}
-          <div className="details-column">
-            <div>
-              <p className="eyebrow">Famous-Finds</p>
-              <h1>{title}</h1>
-              <p className="seller-note">
-                Sold by {sellerName}. Inspected and shipped via Famous-Finds
-                concierge.
-              </p>
+          <div className="details">
+            <div className="brand">{brand || "FAMOUS-FINDS"}</div>
+            <h1 className="title">{title}</h1>
+            <p className="subtitle">
+              Sold by Independent seller. Inspected and shipped via Famous-Finds concierge.
+            </p>
+
+            <div className="price">{priceLabel}</div>
+            <p className="smallNote">
+              All prices in USD. Taxes and shipping calculated at checkout.
+            </p>
+
+            <WishlistButton listingId={id} />
+
+            <div className="meta">
+              <div>
+                <div className="metaLabel">Condition</div>
+                <div className="metaValue">{condition || "—"}</div>
+              </div>
+              <div>
+                <div className="metaLabel">Brand</div>
+                <div className="metaValue">{brand || "—"}</div>
+              </div>
+              <div>
+                <div className="metaLabel">Category</div>
+                <div className="metaValue">{category || "—"}</div>
+              </div>
+              <div>
+                <div className="metaLabel">Color</div>
+                <div className="metaValue">{color || "—"}</div>
+              </div>
+              <div>
+                <div className="metaLabel">Size</div>
+                <div className="metaValue">{size || "—"}</div>
+              </div>
             </div>
 
-            <div className="price-box">
-              <p className="price-label">{priceLabel}</p>
-              <p className="price-note">
-                All prices in USD. Taxes and shipping calculated at checkout.
-              </p>
+            <div className="desc">
+              <div className="descLabel">DESCRIPTION</div>
+              <div className="descText">{description || "No additional description provided."}</div>
             </div>
 
-            <div className="button-row">
-              <WishlistButton productId={id} />
-            </div>
-
-            <dl className="details-grid">
-              <div className="detail-item">
-                <dt>Condition</dt>
-                <dd>{condition}</dd>
-              </div>
-              <div className="detail-item">
-                <dt>Brand</dt>
-                <dd>{brand}</dd>
-              </div>
-              <div className="detail-item">
-                <dt>Category</dt>
-                <dd>{category}</dd>
-              </div>
-              <div className="detail-item">
-                <dt>Color</dt>
-                <dd>{color}</dd>
-              </div>
-              <div className="detail-item">
-                <dt>Size</dt>
-                <dd>{size}</dd>
-              </div>
-            </dl>
-
-            <div>
-              <h2 className="description-heading">Description</h2>
-              <p className="description-body">
-                {description || "No additional description provided."}
+            {/* ✅ REQUIRED BEFORE CHECKOUT */}
+            <div id="buyer-details-form" className="buyer-box">
+              <h3 className="buyer-title">Buyer details</h3>
+              <p className="buyer-hint">
+                Complete your details below. The <strong>Buy now</strong> button will activate
+                once all required fields are filled.
               </p>
+
+              <div className="buyer-grid">
+                <div className="buyer-field">
+                  <label>
+                    Full name <span className="req">*</span>
+                  </label>
+                  <input
+                    value={buyerDetails.fullName}
+                    onChange={(e) => {
+                      setBuyerTouched(true);
+                      setBuyerDetails((p) => ({ ...p, fullName: e.target.value }));
+                    }}
+                    placeholder="Full name"
+                  />
+                  {buyerTouched && !buyerDetails.fullName.trim() && (
+                    <div className="buyer-error">Required</div>
+                  )}
+                </div>
+
+                <div className="buyer-field">
+                  <label>
+                    Email <span className="req">*</span>
+                  </label>
+                  <input
+                    type="email"
+                    value={buyerDetails.email}
+                    onChange={(e) => {
+                      setBuyerTouched(true);
+                      setBuyerDetails((p) => ({ ...p, email: e.target.value }));
+                    }}
+                    placeholder="Email"
+                  />
+                  {buyerTouched && !buyerDetails.email.trim() && (
+                    <div className="buyer-error">Required</div>
+                  )}
+                </div>
+
+                <div className="buyer-field">
+                  <label>
+                    Phone <span className="req">*</span>
+                  </label>
+                  <input
+                    value={buyerDetails.phone}
+                    onChange={(e) => {
+                      setBuyerTouched(true);
+                      setBuyerDetails((p) => ({ ...p, phone: e.target.value }));
+                    }}
+                    placeholder="Phone"
+                  />
+                  {buyerTouched && !buyerDetails.phone.trim() && (
+                    <div className="buyer-error">Required</div>
+                  )}
+                </div>
+
+                <div className="buyer-field buyer-wide">
+                  <label>
+                    Address line 1 <span className="req">*</span>
+                  </label>
+                  <input
+                    value={buyerDetails.addressLine1}
+                    onChange={(e) => {
+                      setBuyerTouched(true);
+                      setBuyerDetails((p) => ({ ...p, addressLine1: e.target.value }));
+                    }}
+                    placeholder="Street address"
+                  />
+                  {buyerTouched && !buyerDetails.addressLine1.trim() && (
+                    <div className="buyer-error">Required</div>
+                  )}
+                </div>
+
+                <div className="buyer-field buyer-wide">
+                  <label>Address line 2</label>
+                  <input
+                    value={buyerDetails.addressLine2}
+                    onChange={(e) => {
+                      setBuyerTouched(true);
+                      setBuyerDetails((p) => ({ ...p, addressLine2: e.target.value }));
+                    }}
+                    placeholder="Apartment, unit, etc (optional)"
+                  />
+                </div>
+
+                <div className="buyer-field">
+                  <label>
+                    City <span className="req">*</span>
+                  </label>
+                  <input
+                    value={buyerDetails.city}
+                    onChange={(e) => {
+                      setBuyerTouched(true);
+                      setBuyerDetails((p) => ({ ...p, city: e.target.value }));
+                    }}
+                    placeholder="City"
+                  />
+                  {buyerTouched && !buyerDetails.city.trim() && (
+                    <div className="buyer-error">Required</div>
+                  )}
+                </div>
+
+                <div className="buyer-field">
+                  <label>
+                    State <span className="req">*</span>
+                  </label>
+                  <input
+                    value={buyerDetails.state}
+                    onChange={(e) => {
+                      setBuyerTouched(true);
+                      setBuyerDetails((p) => ({ ...p, state: e.target.value }));
+                    }}
+                    placeholder="State"
+                  />
+                  {buyerTouched && !buyerDetails.state.trim() && (
+                    <div className="buyer-error">Required</div>
+                  )}
+                </div>
+
+                <div className="buyer-field">
+                  <label>
+                    Postcode <span className="req">*</span>
+                  </label>
+                  <input
+                    value={buyerDetails.postalCode}
+                    onChange={(e) => {
+                      setBuyerTouched(true);
+                      setBuyerDetails((p) => ({ ...p, postalCode: e.target.value }));
+                    }}
+                    placeholder="Postcode"
+                  />
+                  {buyerTouched && !buyerDetails.postalCode.trim() && (
+                    <div className="buyer-error">Required</div>
+                  )}
+                </div>
+
+                <div className="buyer-field">
+                  <label>
+                    Country <span className="req">*</span>
+                  </label>
+                  <input
+                    value={buyerDetails.country}
+                    onChange={(e) => {
+                      setBuyerTouched(true);
+                      setBuyerDetails((p) => ({ ...p, country: e.target.value }));
+                    }}
+                    placeholder="Country (e.g. AU)"
+                  />
+                  {buyerTouched && !buyerDetails.country.trim() && (
+                    <div className="buyer-error">Required</div>
+                  )}
+                </div>
+              </div>
+
+              {!isBuyerDetailsValid && buyerTouched && (
+                <div className="buyer-warning">
+                  Please fill all required fields (*) to enable checkout.
+                </div>
+              )}
             </div>
 
             <div className="button-row">
               <button
                 onClick={handleBuyNow}
-                disabled={loading}
+                disabled={loading || !isBuyerDetailsValid}
                 className="btn-buy"
               >
-                {loading ? "Processing…" : "Buy now"}
+                {loading ? "Processing…" : isBuyerDetailsValid ? "Buy now" : "Complete details to buy"}
               </button>
 
               {allowOffers && (
@@ -297,352 +492,320 @@ export default function ProductPage(props: ProductPageProps) {
             </div>
 
             <div className="protection-box">
-              <p className="protection-title">
-                How Famous-Finds protects you
-              </p>
+              <p className="protection-title">How Famous-Finds protects you</p>
               <ul className="protection-list">
                 <li>Funds held securely until your item is authenticated.</li>
-                <li>
-                  If the item is not as described, you are fully refunded.
-                </li>
+                <li>If the item is not as described, you are fully refunded.</li>
                 <li>All payments processed in USD via Stripe.</li>
               </ul>
             </div>
+
+            {allowOffers && (
+              <div className="offer-wrap" id="offer-form">
+                <h3 className="offer-title">Make an offer</h3>
+                <p className="offer-note">
+                  Enter an amount you’d like to pay. The seller can accept, counter, or decline.
+                </p>
+
+                <form onSubmit={handleOfferSubmit} className="offer-form">
+                  <label className="offer-label">
+                    Offer amount ({currency || "USD"})
+                    <input name="offer_value" type="number" min="1" step="1" className="offer-input" />
+                  </label>
+
+                  <label className="offer-label">
+                    Message (optional)
+                    <textarea name="offer_message" className="offer-textarea" rows={3} />
+                  </label>
+
+                  {offerError && <div className="offer-error">{offerError}</div>}
+
+                  <button className="offer-submit" type="submit" disabled={offerSubmitting}>
+                    {offerSubmitting ? "Submitting…" : "Submit offer"}
+                  </button>
+                </form>
+              </div>
+            )}
+
+            <div className="sellerLine">
+              <span className="sellerLabel">Seller:</span> {sellerName || "Independent seller"}
+            </div>
           </div>
         </div>
-
-        {/* Offer form – only when allowed */}
-        {allowOffers && (
-          <section id="offer-form" className="offer-section">
-            <h2 className="offer-heading">Make an offer</h2>
-            <p className="offer-subtitle">
-              If you have a reasonable offer, submit it here and our team will
-              contact the seller on your behalf.
-            </p>
-
-            <form onSubmit={handleOfferSubmit} className="offer-form">
-              <div className="form-field">
-                <label htmlFor="offer_value" className="form-label">
-                  Offer amount (USD)
-                </label>
-                <input
-                  id="offer_value"
-                  name="offer_value"
-                  type="number"
-                  step="1"
-                  min="1"
-                  className="form-input"
-                  placeholder="Enter your offer in USD"
-                />
-              </div>
-
-              <div className="form-field">
-                <label htmlFor="email" className="form-label">
-                  Your email
-                </label>
-                <input
-                  id="email"
-                  name="email"
-                  type="email"
-                  className="form-input"
-                  placeholder="you@example.com"
-                />
-              </div>
-
-              <div className="form-field">
-                <label htmlFor="message" className="form-label">
-                  Optional message
-                </label>
-                <textarea
-                  id="message"
-                  name="message"
-                  rows={3}
-                  className="form-textarea"
-                  placeholder="Tell the seller anything you’d like them to know."
-                />
-              </div>
-
-              {offerError && <p className="form-error">{offerError}</p>}
-
-              <button
-                type="submit"
-                disabled={offerSubmitting}
-                className="btn-submit-offer"
-              >
-                {offerSubmitting ? "Submitting…" : "Submit offer"}
-              </button>
-            </form>
-          </section>
-        )}
       </main>
 
       <Footer />
 
       <style jsx>{`
-        .product-wrap {
-          max-width: 1152px;
-          margin: 0 auto;
-          padding: 24px 16px 64px;
-        }
-
-        .breadcrumb {
-          margin-bottom: 16px;
-          font-size: 12px;
-          color: #6b7280;
-        }
-        .breadcrumb-active {
-          color: #111827;
-        }
-
-        .product-grid {
-          display: grid;
-          gap: 40px;
-        }
-        @media (min-width: 768px) {
-          .product-grid {
-            grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
-          }
-        }
-
-        .image-column {
-          display: flex;
-          flex-direction: column;
-          gap: 16px;
-        }
-        .image-wrapper {
-          position: relative;
-          overflow: hidden;
-          border-radius: 16px;
-          border: 1px solid #e5e7eb;
+        .page {
           background: #ffffff;
         }
-        .product-image {
-          aspect-ratio: 4 / 5;
+        .container {
+          max-width: 1100px;
+          margin: 0 auto;
+          padding: 18px 16px 40px;
+        }
+        .breadcrumb {
+          font-size: 12px;
+          color: #6b7280;
+          margin-bottom: 12px;
+        }
+        .grid {
+          display: grid;
+          grid-template-columns: 1.2fr 1fr;
+          gap: 26px;
+          align-items: start;
+        }
+        .imageWrap {
+          border-radius: 18px;
+          border: 1px solid #e5e7eb;
+          overflow: hidden;
+          background: #fff;
+        }
+        .image {
           width: 100%;
+          display: block;
           object-fit: cover;
         }
-        .image-note {
-          font-size: 12px;
-          color: #4b5563;
+        .details {
+          padding-top: 6px;
         }
-
-        .details-column {
-          display: flex;
-          flex-direction: column;
-          gap: 24px;
-        }
-
-        .eyebrow {
+        .brand {
           font-size: 12px;
-          font-weight: 600;
+          letter-spacing: 0.22em;
+          color: #0f172a;
           text-transform: uppercase;
-          letter-spacing: 0.2em;
-          color: #047857;
         }
-        h1 {
-          margin-top: 4px;
-          font-size: 24px;
-          font-weight: 600;
-          color: #111827;
-        }
-        .seller-note {
-          margin-top: 4px;
-          font-size: 14px;
-          color: #4b5563;
-        }
-
-        .price-box {
-          display: flex;
-          flex-direction: column;
-          gap: 8px;
-        }
-        .price-label {
-          font-size: 24px;
+        .title {
+          margin: 6px 0 8px;
+          font-size: 28px;
           font-weight: 700;
-          color: #111827;
+          color: #0b1220;
         }
-        .price-note {
-          font-size: 12px;
+        .subtitle {
+          margin: 0 0 12px;
+          font-size: 13px;
           color: #4b5563;
+          max-width: 540px;
         }
-
-        .details-grid {
-          display: grid;
-          grid-template-columns: repeat(2, 1fr);
-          gap: 16px;
+        .price {
+          font-size: 26px;
+          font-weight: 800;
+          margin: 10px 0 6px;
+        }
+        .smallNote {
+          margin: 0 0 12px;
           font-size: 12px;
-          color: #111827;
-        }
-        .detail-item dt {
           color: #6b7280;
         }
-        .detail-item dd {
-          font-weight: 600;
-          color: #111827;
+        .meta {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 10px 18px;
+          margin: 14px 0 12px;
         }
-
-        .description-heading {
-          margin-bottom: 4px;
+        .metaLabel {
+          font-size: 11px;
+          color: #6b7280;
+        }
+        .metaValue {
+          font-size: 13px;
+          color: #0b1220;
+          font-weight: 600;
+        }
+        .desc {
+          margin-top: 10px;
+        }
+        .descLabel {
           font-size: 12px;
-          font-weight: 600;
-          text-transform: uppercase;
           letter-spacing: 0.2em;
+          color: #0f172a;
+          font-weight: 700;
+          margin-bottom: 6px;
+        }
+        .descText {
+          font-size: 13px;
           color: #374151;
+          line-height: 1.5;
         }
-        .description-body {
-          font-size: 14px;
-          line-height: 1.6;
-          color: #111827;
-        }
-
         .button-row {
+          margin-top: 14px;
           display: flex;
-          flex-direction: column;
-          gap: 12px;
-        }
-        @media (min-width: 640px) {
-          .button-row {
-            flex-direction: row;
-          }
-        }
-
-        .btn-buy,
-        .btn-offer {
-          display: inline-flex;
-          flex: 1;
+          gap: 10px;
           align-items: center;
-          justify-content: center;
-          border-radius: 999px;
-          padding: 12px 24px;
-          font-size: 14px;
-          font-weight: 600;
-          transition: all 150ms;
-          cursor: pointer;
         }
         .btn-buy {
-          background: #111827;
-          color: #ffffff;
+          width: 100%;
           border: none;
-        }
-        .btn-buy:hover {
-          background: #000000;
+          border-radius: 999px;
+          background: #0b1220;
+          color: white;
+          padding: 12px 16px;
+          font-weight: 700;
+          cursor: pointer;
         }
         .btn-buy:disabled {
+          opacity: 0.55;
           cursor: not-allowed;
-          opacity: 0.7;
         }
-
         .btn-offer {
-          border: 1px solid #111827;
-          color: #111827;
-          background: #ffffff;
+          width: 100%;
+          border: 1px solid #0b1220;
+          border-radius: 999px;
+          background: white;
+          color: #0b1220;
+          padding: 12px 16px;
+          font-weight: 700;
+          cursor: pointer;
         }
-        .btn-offer:hover {
-          background: #f3f4f6;
-        }
-
         .protection-box {
-          border-radius: 16px;
+          margin-top: 14px;
           border: 1px solid #e5e7eb;
-          background: #f3f4f6;
-          padding: 16px;
-          font-size: 12px;
-          color: #111827;
+          border-radius: 14px;
+          padding: 14px 14px;
+          background: #f9fafb;
         }
         .protection-title {
-          font-weight: 600;
+          margin: 0 0 8px;
+          font-size: 12px;
+          font-weight: 800;
           color: #111827;
         }
         .protection-list {
-          margin-top: 8px;
-          list-style-type: disc;
-          display: flex;
-          flex-direction: column;
-          gap: 4px;
-          padding-left: 16px;
-        }
-
-        .offer-section {
-          margin-top: 48px;
-          max-width: 640px;
-          display: flex;
-          flex-direction: column;
-          gap: 16px;
-        }
-        .offer-heading {
-          font-size: 14px;
-          font-weight: 600;
-          text-transform: uppercase;
-          letter-spacing: 0.2em;
+          margin: 0;
+          padding-left: 18px;
           color: #374151;
+          font-size: 13px;
         }
-        .offer-subtitle {
-          font-size: 12px;
-          color: #4b5563;
+        .offer-wrap {
+          margin-top: 18px;
+          border-top: 1px solid #e5e7eb;
+          padding-top: 16px;
         }
-
+        .offer-title {
+          margin: 0 0 6px;
+          font-size: 15px;
+          font-weight: 800;
+        }
+        .offer-note {
+          margin: 0 0 12px;
+          font-size: 13px;
+          color: #6b7280;
+        }
         .offer-form {
-          display: flex;
-          flex-direction: column;
-          gap: 16px;
-          border-radius: 16px;
-          border: 1px solid #e5e7eb;
-          background: #ffffff;
-          padding: 16px;
-          font-size: 12px;
+          display: grid;
+          gap: 10px;
+          max-width: 520px;
         }
-
-        .form-label {
-          display: block;
-          font-size: 11px;
-          font-weight: 500;
-          text-transform: uppercase;
-          letter-spacing: 0.16em;
-          color: #4b5563;
-        }
-        .form-input,
-        .form-textarea {
-          margin-top: 4px;
-          width: 100%;
-          border-radius: 6px;
-          border: 1px solid #d1d5db;
-          background: #ffffff;
-          padding: 8px 12px;
+        .offer-label {
+          display: grid;
+          gap: 6px;
           font-size: 12px;
           color: #111827;
         }
-        .form-input:focus,
-        .form-textarea:focus {
-          border-color: #111827;
-          outline: none;
+        .offer-input,
+        .offer-textarea {
+          width: 100%;
+          border: 1px solid #d1d5db;
+          border-radius: 10px;
+          padding: 10px 10px;
+          font-size: 14px;
+        }
+        .offer-error {
+          color: #b91c1c;
+          font-size: 13px;
+          font-weight: 700;
+        }
+        .offer-submit {
+          border: none;
+          border-radius: 10px;
+          background: #111827;
+          color: white;
+          padding: 10px 12px;
+          font-weight: 800;
+          cursor: pointer;
+        }
+        .offer-submit:disabled {
+          opacity: 0.6;
+          cursor: not-allowed;
+        }
+        .sellerLine {
+          margin-top: 16px;
+          font-size: 12px;
+          color: #6b7280;
+        }
+        .sellerLabel {
+          font-weight: 800;
+          color: #111827;
         }
 
-        .form-error {
+        .buyer-box {
+          margin-top: 18px;
+          padding: 14px 14px;
+          border: 1px solid #e5e7eb;
+          border-radius: 12px;
+          background: #fafafa;
+        }
+        .buyer-title {
+          margin: 0 0 6px;
+          font-size: 14px;
+          letter-spacing: 0.08em;
+          text-transform: uppercase;
+          color: #111827;
+        }
+        .buyer-hint {
+          margin: 0 0 12px;
+          font-size: 13px;
+          color: #374151;
+        }
+        .buyer-grid {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 10px;
+        }
+        .buyer-wide {
+          grid-column: 1 / -1;
+        }
+        .buyer-field label {
+          display: block;
+          font-size: 12px;
+          color: #111827;
+          margin-bottom: 4px;
+        }
+        .buyer-field input {
+          width: 100%;
+          border: 1px solid #d1d5db;
+          border-radius: 10px;
+          padding: 10px 10px;
+          font-size: 14px;
+          outline: none;
+          background: white;
+        }
+        .buyer-field input:focus {
+          border-color: #111827;
+        }
+        .req {
+          color: #b91c1c;
+        }
+        .buyer-error {
+          margin-top: 4px;
           font-size: 12px;
           color: #b91c1c;
         }
-
-        .btn-submit-offer {
-          display: inline-flex;
-          width: 100%;
-          align-items: center;
-          justify-content: center;
-          border-radius: 999px;
-          background: #111827;
-          padding: 10px 24px;
-          font-size: 12px;
-          font-weight: 600;
-          color: #ffffff;
-          transition: all 150ms;
-          border: none;
-          cursor: pointer;
+        .buyer-warning {
+          margin-top: 10px;
+          font-size: 13px;
+          color: #b91c1c;
         }
-        .btn-submit-offer:hover {
-          background: #000000;
+        @media (max-width: 900px) {
+          .grid {
+            grid-template-columns: 1fr;
+          }
         }
-        .btn-submit-offer:disabled {
-          cursor: not-allowed;
-          opacity: 0.7;
+        @media (max-width: 820px) {
+          .buyer-grid {
+            grid-template-columns: 1fr;
+          }
         }
       `}</style>
     </div>
@@ -650,64 +813,74 @@ export default function ProductPage(props: ProductPageProps) {
 }
 
 export const getServerSideProps: GetServerSideProps<ProductPageProps> = async (
-  context
+  ctx
 ) => {
-  const id = String(context.params?.id || "");
+  const id = String(ctx.params?.id || "");
 
   if (!id) {
     return { notFound: true };
   }
 
   try {
-    const doc = await adminDb.collection("listings").doc(id).get();
-    if (!doc.exists) {
+    if (!adminDb) return { notFound: true };
+
+    const docSnap = await adminDb.collection("listings").doc(id).get();
+    if (!docSnap.exists) {
       return { notFound: true };
     }
 
-    const d = doc.data() || {};
-    const priceNumber = Number(d.price) || 0;
-    const currency = d.currency || "USD";
-    const priceLabel = priceNumber
-      ? new Intl.NumberFormat("en-US", {
-          style: "currency",
-          currency,
-          maximumFractionDigits: 0,
-        }).format(priceNumber)
-      : "";
+    const d: any = docSnap.data() || {};
 
-    const sellerName =
-      d.sellerName || d.sellerDisplayName || "Independent seller";
+    // If already sold, hide page (prevents double purchase)
+    const status = String(d.status || "").toLowerCase();
+    const isSold = d.isSold === true || d.sold === true || status === "sold";
+    if (isSold) {
+      return { notFound: true };
+    }
 
+    const title = String(d.title || d.name || "Untitled");
+    const price = typeof d.priceUsd === "number" ? d.priceUsd : Number(d.price || 0);
+    const currency = String(d.currency || "USD").toUpperCase();
+    const priceLabel = new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency,
+      maximumFractionDigits: 0,
+    }).format(price || 0);
+
+    const images = Array.isArray(d.images) ? d.images : [];
     const imageUrl =
-      d.displayImageUrl ||
-      d.display_image_url ||
-      d.image_url ||
-      d.imageUrl ||
-      d.image ||
-      (Array.isArray(d.imageUrls) && d.imageUrls[0]) ||
-      (Array.isArray(d.auth_photos) && d.auth_photos[0]) ||
-      "";
+      String(d.displayImageUrl || d.display_image_url || images[0] || "").trim() ||
+      "/placeholder.png";
+
+    const condition = String(d.condition || "").trim();
+    const brand = String(d.brand || d.designer || "").trim();
+    const category = String(d.category || "").trim();
+    const color = String(d.color || d.colour || "").trim();
+    const size = String(d.size || "").trim();
+    const description = String(d.description || "").trim();
+    const sellerName = String(d.sellerName || d.seller || "").trim();
+    const allowOffers = d.allowOffers !== false;
 
     return {
       props: {
         id,
-        title: d.title || "Product",
-        price: priceNumber,
+        title,
+        price,
         currency,
         priceLabel,
         imageUrl,
-        condition: d.condition || "Pre-owned",
-        brand: d.brand || "Designer",
-        category: d.category || "Fashion",
-        color: d.color || "Mixed",
-        size: d.size || "One size",
-        description: d.description || "",
+        condition,
+        brand,
+        category,
+        color,
+        size,
+        description,
         sellerName,
-        allowOffers: !!d.allowOffers,
+        allowOffers,
       },
     };
   } catch (err) {
-    console.error("Error loading product:", err);
+    console.error("product_page_ssr_error", err);
     return { notFound: true };
   }
 };
