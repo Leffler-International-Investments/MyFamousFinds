@@ -72,7 +72,7 @@ export default function ListingFilters(props: Props) {
     showApplyButton = false,
   } = props;
 
-  // ✅ State to toggle between fixed dropdown and manual typing
+  // ✅ State to toggle manual typing for materials (Fixes mobile dropdown issue)
   const [isCustomMaterial, setIsCustomMaterial] = useState(false);
 
   return (
@@ -159,7 +159,7 @@ export default function ListingFilters(props: Props) {
           <details className="filter-block" open>
             <summary>Material</summary>
             <div className="filter-body">
-              {/* ✅ FIXED: Replacing Datalist with a standard Select for mobile compatibility */}
+              {/* ✅ Standard Select ensures dropdown works on Mobile */}
               <select
                 className="select"
                 value={isCustomMaterial ? "__custom" : material}
