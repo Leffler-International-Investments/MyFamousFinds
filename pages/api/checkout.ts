@@ -62,6 +62,12 @@ export default async function handler(
 
     const sessionParams: Stripe.Checkout.SessionCreateParams = {
       mode: "payment",
+      customer_creation: "always",
+      billing_address_collection: "required",
+      shipping_address_collection: {
+        allowed_countries: ["AU", "US", "GB", "CA", "NZ", "FR", "DE", "IT", "ES", "NL"],
+      },
+      phone_number_collection: { enabled: true },
       metadata: {
         listingId: id,
         ...(buyerIdHeader ? { buyerId: buyerIdHeader } : {}),
