@@ -9,42 +9,35 @@ type Err = {
 };
 type Resp = Ok | Err;
 
-function parseCsv(raw: string | undefined) {
-  return (raw || "")
-    .split(",")
-    .map((s) => s.trim().toLowerCase())
-    .filter(Boolean);
-}
-
-function buildAllowList(): Set<string> {
-  // Union allow-list (supports both new and legacy env vars)
-  const fromManagement = parseCsv(process.env.MANAGEMENT_SUPER_EMAILS);
-  const fromAdminEmails = parseCsv(process.env.ADMIN_EMAILS);
-  const single = String(process.env.ADMIN_EMAIL || "").trim().toLowerCase();
-
-  const combined = [
-    ...fromManagement,
-    ...fromAdminEmails,
-    ...(single ? [single] : []),
-  ].filter(Boolean);
-
-  return new Set(combined);
+function parseAllowList(raw: string | undefined) {
+  return new Set(
+    (raw || "")
+      .split(",")
+      .map((s) => s.trim().toLowerCase())
+      .filter(Boolean)
+  );
 }
 
 type AdminCred = { email: string; password: string };
 
-// Legacy per-admin password support (kept for existing setups)
-function getLegacyAdminCredentials(): AdminCred[] {
-  return [
-    {
-      email: "arich1114@aol.com",
-      password: process.env.MANAGEMENT_ARIEL_PASSWORD || "",
-    },
-    {
-      email: "leffleryd@gmail.com",
-      password: process.env.MANAGEMENT_DAN_PASSWORD || "",
-    },
-  ];
+function getAdminCredentials(): AdminCred[] {
+  const out: AdminCred[] = [];
+
+  // ✅ Primary single-admin pair (what you added in Vercel)
+  const adminEmail = String(process.env.ADMIN_EMAIL || "").trim().toLowerCase();
+  const adminPassword = String(process.env.ADMIN_PASSWORD || "");
+  if (adminEmail && adminPassword) {
+    out.push({ email: adminEmail, password: adminPassword });
+  }
+
+  // ✅ Optional legacy support (if you keep them)
+  const legacyAriel = String(process.env.MANAGEMENT_ARIEL_PASSWORD || "");
+  if (legacyAriel) out.push({ email: "arich1114@aol.com", password: legacyAriel });
+
+  const legacyDan = String(process.env.MANAGEMENT_DAN_PASSWORD || "");
+  if (legacyDan) out.push({ email: "leffleryd@gmail.com", password: legacyDan });
+
+  return out;
 }
 
 export default async function handler(
@@ -68,13 +61,17 @@ export default async function handler(
     });
   }
 
-  const allow = buildAllowList();
+  // ✅ Allow-list can come from MANAGEMENT_SUPER_EMAILS OR fallback to ADMIN_EMAIL
+  const allow = parseAllowList(process.env.MANAGEMENT_SUPER_EMAILS);
+  const fallbackAdminEmail = String(process.env.ADMIN_EMAIL || "").trim().toLowerCase();
+  if (fallbackAdminEmail) allow.add(fallbackAdminEmail);
+
   if (!allow.size) {
     return res.status(500).json({
       ok: false,
       code: "server_not_configured",
       message:
-        "Missing management allow-list env var. Set MANAGEMENT_SUPER_EMAILS (recommended) or ADMIN_EMAIL / ADMIN_EMAILS in Vercel.",
+        "Missing management allow-list. Set ADMIN_EMAIL (recommended) or MANAGEMENT_SUPER_EMAILS in Vercel.",
     });
   }
 
@@ -86,24 +83,10 @@ export default async function handler(
     });
   }
 
-  // ✅ Preferred: one shared management password for all allowed emails
-  const sharedPassword = String(process.env.ADMIN_PASSWORD || "");
-  if (sharedPassword) {
-    if (password !== sharedPassword) {
-      return res.status(401).json({
-        ok: false,
-        code: "bad_credentials",
-        message: "Incorrect email or password.",
-      });
-    }
-    return res.status(200).json({ ok: true, managementId: email });
-  }
+  const creds = getAdminCredentials();
+  const match = creds.find((c) => c.email === email);
 
-  // Legacy: per-email passwords (kept for existing configs)
-  const legacyAdmins = getLegacyAdminCredentials();
-  const admin = legacyAdmins.find((a) => a.email.toLowerCase() === email);
-
-  if (!admin || !admin.password || admin.password !== password) {
+  if (!match || match.password !== password) {
     return res.status(401).json({
       ok: false,
       code: "bad_credentials",
