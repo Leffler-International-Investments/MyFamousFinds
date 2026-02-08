@@ -28,6 +28,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   const stripe = await getStripeClient();
   if (!stripe) return res.status(500).json({ error: "Stripe is not configured" });
+  if (!adminDb) return res.status(500).json({ error: "Firebase Admin is not configured" });
 
   let event: Stripe.Event;
 
