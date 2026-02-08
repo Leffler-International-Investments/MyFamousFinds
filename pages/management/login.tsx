@@ -1,4 +1,7 @@
 // FILE: /pages/management/login.tsx
+// FILE: /pages/seller/login.tsx
+// Seller login with clear orange pill CTA for new sellers
+
 import Head from "next/head";
 import Link from "next/link";
 import { useRouter } from "next/router";
@@ -7,20 +10,36 @@ import Header from "../../components/Header";
 import Footer from "../../components/Footer";
 import PasswordInput from "../../components/PasswordInput";
 
-type ManagementLoginOk = { ok: true; managementId: string };
-type ManagementLoginError = {
+import { auth } from "../../utils/firebaseClient";
+import { signInWithEmailAndPassword } from "firebase/auth";
+
+type LoginSuccess = { ok: true; sellerId: string };
+type LoginError = {
   ok: false;
-  code: "pending" | "not_authorised" | "bad_credentials" | string;
+  code: "apply_first" | "pending" | "bad_credentials" | "server_not_configured" | string;
   message: string;
 };
-type ManagementLoginResponse = ManagementLoginOk | ManagementLoginError;
+type LoginResponse = LoginSuccess | LoginError;
+
+type Start2faSuccess = {
+  ok: true;
+  challengeId: string;
+  via: "sms" | "email";
+  devCode?: string;
+};
+type Start2faError = { ok: false; message?: string };
+type Start2faResponse = Start2faSuccess | Start2faError;
+
+type Verify2faSuccess = { ok: true };
+type Verify2faError = { ok: false; message?: string };
+type Verify2faResponse = Verify2faSuccess | Verify2faError;
 
 type TwoFactorStep = "credentials" | "verify";
 
 // ✅ EXTENDED SESSION (8 hours)
 const SESSION_TTL_MS = 8 * 60 * 60 * 1000;
 
-export default function ManagementLoginPage() {
+export default function SellerLoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -30,22 +49,18 @@ export default function ManagementLoginPage() {
   const [info, setInfo] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [sellerId, setSellerId] = useState<string | null>(null);
 
   const from =
-    typeof router.query.from === "string"
-      ? router.query.from
-      : "/management/dashboard";
+    typeof router.query.from === "string" ? router.query.from : null;
 
-  // ---------------------------
-  // STEP 1: EMAIL + PASSWORD
-  // ---------------------------
   async function handleCredentialsSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError(null);
     setInfo(null);
 
-    const trimmedEmail = email.toLowerCase().trim();
-    const trimmedPassword = password.trim();
+    const trimmedEmail = email.trim().toLowerCase();
+    const trimmedPassword = password;
 
     if (!trimmedEmail || !trimmedPassword) {
       setError("Please enter your email and password.");
@@ -53,118 +68,128 @@ export default function ManagementLoginPage() {
     }
 
     setLoading(true);
-
     try {
-      // 🔐 Check credentials via management-specific API
-      const res = await fetch("/api/management/login", {
+      // ✅ 1) Authenticate via Firebase Auth (real password check)
+      try {
+        await signInWithEmailAndPassword(auth, trimmedEmail, trimmedPassword);
+      } catch (authErr) {
+        setError("Incorrect email or password. Please try again.");
+        return;
+      }
+
+      // ✅ 2) Server check: seller exists + approved
+      const res = await fetch("/api/seller/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email: trimmedEmail,
-          password: trimmedPassword,
-        }),
+        body: JSON.stringify({ email: trimmedEmail }),
       });
 
-      const json = (await res.json()) as ManagementLoginResponse;
+      const json = (await res.json()) as LoginResponse;
+      const sId = json.ok ? json.sellerId : null;
+      setSellerId(sId);
 
       if (!json.ok) {
-        const errJson = json as ManagementLoginError;
+        const errJson = json as LoginError;
 
-        if (errJson.code === "not_authorised") {
-          setError("This email is not registered for management access. Please contact the site owner.");
+        if (errJson.code === "apply_first") {
+          setError("");
+          setInfo(
+            "We couldn't find a completed seller application for this email. Please apply as a seller first using the orange button below."
+          );
           return;
         }
 
         if (errJson.code === "pending") {
-          setInfo("Your management access is still under review. We'll email you as soon as it is approved.");
+          setError("");
+          setInfo(
+            "Your seller application is still under review. We'll email you as soon as it's approved."
+          );
           return;
         }
 
-        if (errJson.code === "bad_credentials") {
-          setError("Incorrect email or password. Please try again.");
+        if (errJson.code === "server_not_configured") {
+          setError("");
+          setInfo(errJson.message || "Server not configured.");
           return;
         }
 
-        setError(errJson.message || "Unable to sign you in. Please try again.");
+        setError(
+          errJson.message ||
+            "We couldn't sign you in. Please check your details and try again."
+        );
         return;
       }
 
-      // ✅ Credentials OK → Start 2FA strictly with "management" role
+      // ✅ 3) Start 2FA
       const twofaRes = await fetch("/api/auth/start-2fa", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           email: trimmedEmail,
-          role: "management", // <— Critical for management dashboard access
+          role: "seller",
           method: "email",
         }),
       });
-
-      const twofaJson = await twofaRes.json();
+      const twofaJson = (await twofaRes.json()) as Start2faResponse;
 
       if (!twofaJson.ok) {
-        setError(twofaJson.message || "We couldn't start the verification process. Please try again.");
+        const errJson = twofaJson as Start2faError;
+        setError(
+          errJson.message ||
+            "We couldn't start the verification process. Please try again."
+        );
         return;
       }
 
       setChallengeId(twofaJson.challengeId);
       setStep("verify");
-
-      const message = twofaJson.devCode
-        ? `Your 6-digit code is: ${twofaJson.devCode}`
+      const message = (twofaJson as Start2faSuccess).devCode
+        ? `Your 6-digit code is: ${(twofaJson as Start2faSuccess).devCode}`
         : "Your 6-digit code has been sent to your email.";
       setInfo(message);
     } catch (err) {
-      console.error("management_login_error", err);
+      console.error("seller_login_error", err);
       setError("Unexpected error. Please try again.");
     } finally {
       setLoading(false);
     }
   }
 
-  // ---------------------------
-  // STEP 2: VERIFY 2FA CODE
-  // ---------------------------
   async function handleVerifySubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError(null);
-    setInfo(null);
 
     if (!challengeId) {
-      setError("Your verification session has expired. Please start again.");
-      setStep("credentials");
+      setError("Your verification session has expired. Please log in again.");
       return;
     }
-
-    const trimmedCode = code.trim();
-    if (!trimmedCode || trimmedCode.length < 6) {
-      setError("Please enter the 6-digit code.");
+    if (!code.trim()) {
+      setError("Please enter the verification code.");
       return;
     }
 
     setLoading(true);
-
     try {
       const res = await fetch("/api/auth/verify-2fa", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           challengeId,
-          code: trimmedCode,
+          code: code.trim(),
         }),
       });
-
-      const json = await res.json();
+      const json = (await res.json()) as Verify2faResponse;
 
       if (!json.ok) {
-        setError(json.message || "Incorrect or expired code.");
+        const errJson = json as Verify2faError;
+        setError(errJson.message || "Incorrect or expired code.");
         return;
       }
 
-      // ✅ Mark session as management
       if (typeof window !== "undefined") {
-        window.localStorage.setItem("ff-role", "management");
+        window.localStorage.setItem("ff-role", "seller");
         window.localStorage.setItem("ff-email", email.toLowerCase().trim());
+        if (sellerId) window.localStorage.setItem("ff-seller-id", sellerId);
 
         // ✅ EXTEND SESSION
         window.localStorage.setItem(
@@ -173,9 +198,10 @@ export default function ManagementLoginPage() {
         );
       }
 
-      router.push(from || "/management/dashboard");
+      if (from) router.push(from);
+      else router.push("/seller/dashboard");
     } catch (err) {
-      console.error("management_verify_2fa_error", err);
+      console.error("seller_verify_2fa_error", err);
       setError("Unable to verify the code. Please try again.");
     } finally {
       setLoading(false);
@@ -187,14 +213,16 @@ export default function ManagementLoginPage() {
   return (
     <>
       <Head>
-        <title>Management Login - Famous Finds</title>
+        <title>Seller Login - Famous Finds</title>
       </Head>
       <div className="auth-page">
         <Header />
         <main className="auth-main">
           <div className="auth-card">
-            <h1>Management Login</h1>
-            <p className="auth-subtitle">Secure admin access.</p>
+            <h1>Seller Portal</h1>
+            <p className="auth-subtitle">
+              Log in to manage your listings and orders.
+            </p>
 
             {error && <div className="auth-error">{error}</div>}
             {info && <div className="auth-info">{info}</div>}
@@ -203,20 +231,18 @@ export default function ManagementLoginPage() {
               <form onSubmit={handleCredentialsSubmit}>
                 <div className="auth-fields">
                   <div className="auth-field">
-                    <label htmlFor="email">Admin Email</label>
+                    <label htmlFor="email">Email</label>
                     <input
                       id="email"
                       type="email"
-                      autoComplete="email"
                       required
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       className="auth-input"
-                      placeholder="name@famousfinds.com"
+                      placeholder="name@example.com"
                       disabled={disabled}
                     />
                   </div>
-
                   <PasswordInput
                     label="Password"
                     value={password}
@@ -226,14 +252,22 @@ export default function ManagementLoginPage() {
                     showStrength={false}
                     placeholder="Enter password"
                   />
-
                   <button
                     type="submit"
                     disabled={disabled}
                     className="auth-button-primary"
                   >
-                    {loading ? "Checking..." : "Sign In"}
+                    {loading ? "Checking..." : "Continue"}
                   </button>
+
+                  <div className="auth-apply-button-wrapper">
+                    <Link
+                      href="/seller/register-vetting"
+                      className="auth-apply-button"
+                    >
+                      New here? <strong>Apply to Sell</strong>
+                    </Link>
+                  </div>
                 </div>
               </form>
             ) : (
@@ -256,13 +290,12 @@ export default function ManagementLoginPage() {
                       disabled={disabled}
                     />
                   </div>
-
                   <button
                     type="submit"
                     disabled={disabled}
                     className="auth-button-primary"
                   >
-                    {loading ? "Verifying..." : "Confirm"}
+                    {loading ? "Verifying..." : "Confirm Login"}
                   </button>
                 </div>
                 <p className="auth-secondary-link-inline">
@@ -276,14 +309,17 @@ export default function ManagementLoginPage() {
                       setError(null);
                     }}
                   >
-                    Back to login
+                    Use a different email
                   </button>
                 </p>
               </form>
             )}
 
             <p className="auth-secondary-link">
-              <Link href="/">Return to Store</Link>
+              <Link href="/">Back to Storefront</Link>
+            </p>
+            <p className="auth-secondary-link">
+              <Link href="/seller/forgot-password">Forgot password?</Link>
             </p>
           </div>
         </main>
@@ -312,7 +348,7 @@ export default function ManagementLoginPage() {
           border-radius: 22px;
           border: 1px solid #e5e7eb;
           padding: 32px 28px;
-          box-shadow: 0 12px 35px rgba(0, 0, 0, 0.06);
+          box-shadow: 0 12px 35px rgba(0,0,0,0.06);
         }
         h1 {
           font-family: ui-serif, "Times New Roman", serif;
@@ -378,31 +414,50 @@ export default function ManagementLoginPage() {
           opacity: 0.5;
           cursor: default;
         }
-        .auth-error {
-          background: #fef2f2;
-          color: #b91c1c;
+        .auth-error,
+        .auth-info {
           border-radius: 12px;
           padding: 10px;
           font-size: 13px;
           margin-bottom: 16px;
           text-align: center;
         }
+        .auth-error {
+          background: #fef2f2;
+          color: #b91c1c;
+        }
         .auth-info {
           background: #eff6ff;
           color: #1d4ed8;
-          border-radius: 12px;
-          padding: 10px;
-          font-size: 13px;
-          margin-bottom: 16px;
-          text-align: center;
         }
         .auth-code-input {
           text-align: center;
           letter-spacing: 0.2em;
           font-weight: 600;
         }
-        .auth-secondary-link {
+        .auth-apply-button-wrapper {
           margin-top: 20px;
+        }
+        .auth-apply-button {
+          display: block;
+          width: 100%;
+          text-align: center;
+          border-radius: 999px;
+          padding: 10px 14px;
+          font-size: 13px;
+          font-weight: 500;
+          background: #fff;
+          color: #111;
+          border: 1px solid #e5e7eb;
+          text-decoration: none;
+          transition: all 0.2s;
+        }
+        .auth-apply-button:hover {
+          border-color: #111;
+          background: #fafafa;
+        }
+        .auth-secondary-link {
+          margin-top: 12px;
           text-align: center;
           font-size: 13px;
         }
