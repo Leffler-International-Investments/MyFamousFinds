@@ -848,9 +848,14 @@ export const getServerSideProps: GetServerSideProps<ProductPageProps> = async (
     }).format(price || 0);
 
     const images = Array.isArray(d.images) ? d.images : [];
-    const imageUrl =
-      String(d.displayImageUrl || d.display_image_url || images[0] || "").trim() ||
-      "/placeholder.png";
+
+    // Robust image URL resolution logic
+    const imageUrl = (
+      String(d.imageUrl || "") || 
+      String(d.displayImageUrl || "") || 
+      String(d.display_image_url || "") || 
+      String(images[0] || "")
+    ).trim() || "/placeholder.png";
 
     const condition = String(d.condition || "").trim();
     const brand = String(d.brand || d.designer || "").trim();
