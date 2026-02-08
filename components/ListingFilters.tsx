@@ -1,6 +1,6 @@
 // FILE: /components/ListingFilters.tsx
 
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 type SortValue = "newest" | "price-asc" | "price-desc";
 
@@ -73,6 +73,19 @@ export default function ListingFilters(props: Props) {
   } = props;
 
   const hasMaterials = useMemo(() => materialOptions.length > 0, [materialOptions]);
+
+  // Mobile <datalist> is unreliable (often shows nothing). We render a mobile <select> instead.
+  const [mobileCustomMaterial, setMobileCustomMaterial] = useState(false);
+
+  const isMaterialInOptions = useMemo(() => {
+    if (!material) return true;
+    return materialOptions.some((m) => m === material);
+  }, [material, materialOptions]);
+
+  useEffect(() => {
+    // If material is already set but not in options, show the custom input on mobile.
+    if (material && !isMaterialInOptions) setMobileCustomMaterial(true);
+  }, [material, isMaterialInOptions]);
 
   return (
     <>
@@ -151,20 +164,58 @@ export default function ListingFilters(props: Props) {
           <details className="filter-block" open>
             <summary>Material</summary>
             <div className="filter-body">
-              <input
-                className="text-input"
-                list={hasMaterials ? "materials-list" : undefined}
-                placeholder="Select or type material..."
-                value={material}
-                onChange={(e) => setMaterial(e.target.value)}
-              />
-              {hasMaterials ? (
-                <datalist id="materials-list">
+              {/* Desktop/tablet: keep type-ahead input (works well on PC) */}
+              <div className="material-desktop">
+                <input
+                  className="text-input"
+                  list={hasMaterials ? "materials-list" : undefined}
+                  placeholder="Select or type material..."
+                  value={material}
+                  onChange={(e) => setMaterial(e.target.value)}
+                />
+                {hasMaterials ? (
+                  <datalist id="materials-list">
+                    {materialOptions.map((m) => (
+                      <option key={m} value={m} />
+                    ))}
+                  </datalist>
+                ) : null}
+              </div>
+
+              {/* Mobile: datalist commonly fails to show options, so use a real select */}
+              <div className="material-mobile">
+                <select
+                  className="select"
+                  value={mobileCustomMaterial ? "__custom" : material}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    if (v === "__custom") {
+                      setMobileCustomMaterial(true);
+                      setMaterial("");
+                    } else {
+                      setMobileCustomMaterial(false);
+                      setMaterial(v);
+                    }
+                  }}
+                >
+                  <option value="">Any</option>
                   {materialOptions.map((m) => (
-                    <option key={m} value={m} />
+                    <option key={m} value={m}>
+                      {m}
+                    </option>
                   ))}
-                </datalist>
-              ) : null}
+                  <option value="__custom">Other (type)</option>
+                </select>
+
+                {mobileCustomMaterial ? (
+                  <input
+                    className="text-input mobile-custom"
+                    placeholder="Type material..."
+                    value={material}
+                    onChange={(e) => setMaterial(e.target.value)}
+                  />
+                ) : null}
+              </div>
             </div>
           </details>
 
@@ -220,9 +271,7 @@ export default function ListingFilters(props: Props) {
                     type="number"
                     value={minPrice}
                     onChange={(e) =>
-                      setMinPrice(
-                        e.target.value === "" ? "" : Number(e.target.value) || 0
-                      )
+                      setMinPrice(e.target.value === "" ? "" : Number(e.target.value) || 0)
                     }
                   />
                 </div>
@@ -233,9 +282,7 @@ export default function ListingFilters(props: Props) {
                     type="number"
                     value={maxPrice}
                     onChange={(e) =>
-                      setMaxPrice(
-                        e.target.value === "" ? "" : Number(e.target.value) || 0
-                      )
+                      setMaxPrice(e.target.value === "" ? "" : Number(e.target.value) || 0)
                     }
                   />
                 </div>
@@ -366,6 +413,25 @@ export default function ListingFilters(props: Props) {
           padding: 10px 12px;
           font-weight: 600;
           cursor: pointer;
+        }
+
+        /* Mobile material fix: use a real <select> instead of <datalist> */
+        .material-mobile {
+          display: none;
+          gap: 10px;
+        }
+
+        .mobile-custom {
+          margin-top: 10px;
+        }
+
+        @media (max-width: 768px) {
+          .material-desktop {
+            display: none;
+          }
+          .material-mobile {
+            display: grid;
+          }
         }
       `}</style>
     </>
