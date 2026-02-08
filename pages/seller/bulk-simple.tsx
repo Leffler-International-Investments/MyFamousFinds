@@ -98,6 +98,11 @@ const SOURCES = [
 
 const PROOFS = ["Receipt", "Bank statement", "Certificate", "Other"];
 
+function getSellerIdHeader(): string {
+  if (typeof window === "undefined") return "";
+  return String(window.localStorage.getItem("ff-seller-id") || "").trim();
+}
+
 export default function BulkSimple() {
   const [items, setItems] = useState<Item[]>([{}]);
   const [designers, setDesigners] = useState<Designer[]>([]);
@@ -293,7 +298,10 @@ export default function BulkSimple() {
     try {
       const res = await fetch("/api/seller/bulk-commit", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(getSellerIdHeader() ? { "x-seller-id": getSellerIdHeader() } : {}),
+        },
         body: JSON.stringify({ rows }),
       });
 
