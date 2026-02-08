@@ -37,8 +37,8 @@ type Props = {
 
   // actions
   onReset: () => void;
-  onApply?: () => void;
-  showApplyButton?: boolean;
+  onApply?: () => void; // designers page uses URL; others can omit
+  showApplyButton?: boolean; // default false
 };
 
 export default function ListingFilters(props: Props) {
@@ -72,7 +72,7 @@ export default function ListingFilters(props: Props) {
     showApplyButton = false,
   } = props;
 
-  // Track if the user wants to enter a custom material manually
+  // ✅ State to toggle between fixed dropdown and manual typing
   const [isCustomMaterial, setIsCustomMaterial] = useState(false);
 
   return (
@@ -130,7 +130,9 @@ export default function ListingFilters(props: Props) {
               >
                 <option value="">Any</option>
                 {categoryOptions.map((c) => (
-                  <option key={c} value={c}>{c}</option>
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
                 ))}
               </select>
             </div>
@@ -146,7 +148,9 @@ export default function ListingFilters(props: Props) {
               >
                 <option value="">Any</option>
                 {designerOptions.map((d) => (
-                  <option key={d} value={d}>{d}</option>
+                  <option key={d} value={d}>
+                    {d}
+                  </option>
                 ))}
               </select>
             </div>
@@ -155,7 +159,7 @@ export default function ListingFilters(props: Props) {
           <details className="filter-block" open>
             <summary>Material</summary>
             <div className="filter-body">
-              {/* ✅ FIXED: Mobile-safe Select menu instead of Datalist */}
+              {/* ✅ FIXED: Replacing Datalist with a standard Select for mobile compatibility */}
               <select
                 className="select"
                 value={isCustomMaterial ? "__custom" : material}
@@ -199,7 +203,9 @@ export default function ListingFilters(props: Props) {
               >
                 <option value="">Any</option>
                 {conditionOptions.map((c) => (
-                  <option key={c} value={c}>{c}</option>
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
                 ))}
               </select>
             </div>
@@ -238,15 +244,24 @@ export default function ListingFilters(props: Props) {
                   <input
                     type="number"
                     value={minPrice}
-                    onChange={(e) => setMinPrice(e.target.value === "" ? "" : Number(e.target.value) || 0)}
+                    onChange={(e) =>
+                      setMinPrice(
+                        e.target.value === "" ? "" : Number(e.target.value) || 0
+                      )
+                    }
                   />
                 </div>
+
                 <div className="price-input">
                   <span>Max</span>
                   <input
                     type="number"
                     value={maxPrice}
-                    onChange={(e) => setMaxPrice(e.target.value === "" ? "" : Number(e.target.value) || 0)}
+                    onChange={(e) =>
+                      setMaxPrice(
+                        e.target.value === "" ? "" : Number(e.target.value) || 0
+                      )
+                    }
                   />
                 </div>
               </div>
