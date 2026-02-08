@@ -37,8 +37,8 @@ type Props = {
 
   // actions
   onReset: () => void;
-  onApply?: () => void; // designers page uses URL; others can omit
-  showApplyButton?: boolean; // default false
+  onApply?: () => void;
+  showApplyButton?: boolean;
 };
 
 export default function ListingFilters(props: Props) {
@@ -72,7 +72,7 @@ export default function ListingFilters(props: Props) {
     showApplyButton = false,
   } = props;
 
-  // ✅ Track if user is typing a custom material to avoid datalist bugs on mobile
+  // Track if the user wants to enter a custom material manually
   const [isCustomMaterial, setIsCustomMaterial] = useState(false);
 
   return (
@@ -80,10 +80,14 @@ export default function ListingFilters(props: Props) {
       <aside className="filters">
         <div className="filter-header">
           <h2>Filters</h2>
-          <button type="button" className="link-btn" onClick={() => {
-            setIsCustomMaterial(false);
-            onReset();
-          }}>
+          <button 
+            type="button" 
+            className="link-btn" 
+            onClick={() => {
+              setIsCustomMaterial(false);
+              onReset();
+            }}
+          >
             {showApplyButton ? "Clear All" : "Reset"}
           </button>
         </div>
@@ -126,9 +130,7 @@ export default function ListingFilters(props: Props) {
               >
                 <option value="">Any</option>
                 {categoryOptions.map((c) => (
-                  <option key={c} value={c}>
-                    {c}
-                  </option>
+                  <option key={c} value={c}>{c}</option>
                 ))}
               </select>
             </div>
@@ -144,9 +146,7 @@ export default function ListingFilters(props: Props) {
               >
                 <option value="">Any</option>
                 {designerOptions.map((d) => (
-                  <option key={d} value={d}>
-                    {d}
-                  </option>
+                  <option key={d} value={d}>{d}</option>
                 ))}
               </select>
             </div>
@@ -155,6 +155,7 @@ export default function ListingFilters(props: Props) {
           <details className="filter-block" open>
             <summary>Material</summary>
             <div className="filter-body">
+              {/* ✅ FIXED: Mobile-safe Select menu instead of Datalist */}
               <select
                 className="select"
                 value={isCustomMaterial ? "__custom" : material}
@@ -173,14 +174,14 @@ export default function ListingFilters(props: Props) {
                 {materialOptions.map((m) => (
                   <option key={m} value={m}>{m}</option>
                 ))}
-                <option value="__custom">Other (type manually)</option>
+                <option value="__custom">Other (Type manually...)</option>
               </select>
 
               {isCustomMaterial && (
                 <input
                   className="text-input"
                   style={{ marginTop: '10px' }}
-                  placeholder="Type material..."
+                  placeholder="Enter material..."
                   value={material}
                   onChange={(e) => setMaterial(e.target.value)}
                 />
@@ -198,9 +199,7 @@ export default function ListingFilters(props: Props) {
               >
                 <option value="">Any</option>
                 {conditionOptions.map((c) => (
-                  <option key={c} value={c}>
-                    {c}
-                  </option>
+                  <option key={c} value={c}>{c}</option>
                 ))}
               </select>
             </div>
@@ -239,24 +238,15 @@ export default function ListingFilters(props: Props) {
                   <input
                     type="number"
                     value={minPrice}
-                    onChange={(e) =>
-                      setMinPrice(
-                        e.target.value === "" ? "" : Number(e.target.value) || 0
-                      )
-                    }
+                    onChange={(e) => setMinPrice(e.target.value === "" ? "" : Number(e.target.value) || 0)}
                   />
                 </div>
-
                 <div className="price-input">
                   <span>Max</span>
                   <input
                     type="number"
                     value={maxPrice}
-                    onChange={(e) =>
-                      setMaxPrice(
-                        e.target.value === "" ? "" : Number(e.target.value) || 0
-                      )
-                    }
+                    onChange={(e) => setMaxPrice(e.target.value === "" ? "" : Number(e.target.value) || 0)}
                   />
                 </div>
               </div>
@@ -341,6 +331,7 @@ export default function ListingFilters(props: Props) {
           padding: 10px 12px;
           font-size: 14px;
           outline: none;
+          background: #fff;
         }
         .price-row {
           display: grid;
