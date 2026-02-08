@@ -15,6 +15,10 @@ type SuccessProps = {
   amountTotal: number;
   currency: string;
   vipUrl: string;
+  buyerEmail: string;
+  buyerName: string;
+  shippingAddressText: string;
+  orderId: string;
 };
 
 export default function OrderSuccessPage({
@@ -24,6 +28,10 @@ export default function OrderSuccessPage({
   amountTotal,
   currency,
   vipUrl,
+  buyerEmail,
+  buyerName,
+  shippingAddressText,
+  orderId,
 }: SuccessProps) {
   const formattedTotal = new Intl.NumberFormat("en-US", {
     style: "currency",
@@ -69,6 +77,36 @@ export default function OrderSuccessPage({
           <p className="row">
             <span className="label">Total paid</span>
             <span className="value">{formattedTotal}</span>
+          </p>
+
+          {orderId && (
+            <p className="row">
+              <span className="label">Order ID</span>
+              <span className="value">{orderId}</span>
+            </p>
+          )}
+        </div>
+
+        <div className="summary">
+          <h2>Delivery details</h2>
+
+          {buyerName && (
+            <p className="row">
+              <span className="label">Name</span>
+              <span className="value">{buyerName}</span>
+            </p>
+          )}
+
+          {buyerEmail && (
+            <p className="row">
+              <span className="label">Email</span>
+              <span className="value">{buyerEmail}</span>
+            </p>
+          )}
+
+          <p className="row">
+            <span className="label">Ship to</span>
+            <span className="value address">{shippingAddressText || "Pending"}</span>
           </p>
         </div>
 
@@ -139,6 +177,9 @@ export default function OrderSuccessPage({
           font-weight: 500;
           text-align: right;
         }
+        .address {
+          white-space: pre-line;
+        }
         .authDisclaimer {
           font-size: 12px;
           color: #9ca3af;
@@ -177,6 +218,7 @@ export const getServerSideProps: GetServerSideProps<SuccessProps> = async (
     let productTitle = "Your item";
     let brand = "";
     let category = "";
+    let orderId = "";
 
     if (session.metadata) {
       if (session.metadata.productTitle) {
@@ -190,19 +232,65 @@ export const getServerSideProps: GetServerSideProps<SuccessProps> = async (
       }
     }
 
-    // Optional: persist a basic order record for internal analytics
+    let buyerEmail = session.customer_details?.email || "";
+    let buyerName = session.customer_details?.name || "";
+
+    const shippingDetails = (session as any).shipping_details as
+      | { name?: string; address?: any }
+      | undefined;
+
+    const shipAddr =
+      shippingDetails?.address || session.customer_details?.address || null;
+
+    if (shippingDetails?.name) {
+      buyerName = shippingDetails.name;
+    }
+
+    let shippingAddressText = shipAddr
+      ? [
+          shippingDetails?.name || buyerName,
+          shipAddr.line1 || "",
+          shipAddr.line2 || "",
+          [shipAddr.city, shipAddr.state, shipAddr.postal_code]
+            .filter(Boolean)
+            .join(" "),
+          shipAddr.country || "",
+        ]
+          .filter(Boolean)
+          .join("\n")
+      : "";
+
     if (adminDb) {
-      const coll = adminDb.collection("orders");
-      await coll.add({
-        createdAt: new Date(),
-        amountTotal,
-        currency,
-        brand,
-        category,
-        productTitle,
-        sessionId,
-        stripeStatus: session.payment_status || "unknown",
-      });
+      const ordersSnap = await adminDb
+        .collection("orders")
+        .where("stripeSessionId", "==", session.id)
+        .limit(1)
+        .get();
+      if (!ordersSnap.empty) {
+        const orderDoc = ordersSnap.docs[0];
+        const data = orderDoc.data() as any;
+        orderId = orderDoc.id;
+        productTitle = String(data.listingTitle || productTitle);
+        brand = String(data.listingBrand || brand);
+        category = String(data.listingCategory || category);
+        buyerEmail = String(data.buyerEmail || buyerEmail);
+        buyerName = String(data.buyerName || buyerName);
+        if (!shippingAddressText && data.shippingAddress) {
+          const sa = data.shippingAddress;
+          const fallbackText = [
+            sa.name || buyerName,
+            sa.line1 || "",
+            sa.line2 || "",
+            [sa.city, sa.state, sa.postal_code].filter(Boolean).join(" "),
+            sa.country || "",
+          ]
+            .filter(Boolean)
+            .join("\n");
+          if (fallbackText) {
+            shippingAddressText = fallbackText;
+          }
+        }
+      }
     }
 
     const vipUrl =
@@ -218,6 +306,10 @@ export const getServerSideProps: GetServerSideProps<SuccessProps> = async (
         amountTotal,
         currency,
         vipUrl,
+        buyerEmail,
+        buyerName,
+        shippingAddressText,
+        orderId,
       },
     };
   } catch (err) {

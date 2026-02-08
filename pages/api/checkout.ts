@@ -9,6 +9,8 @@ type RequestBody = {
   title: string;
   price: number;
   image?: string;
+  brand?: string;
+  category?: string;
 };
 
 type SuccessResponse = { ok: true; sessionId: string; url: string };
@@ -48,7 +50,7 @@ export default async function handler(
   }
 
   try {
-    const { id, title, price, image } = (req.body || {}) as RequestBody;
+    const { id, title, price, image, brand, category } = (req.body || {}) as RequestBody;
     const buyerIdHeader =
       (req.headers["x-user-id"] as string | undefined) ||
       (req.headers["x-userid"] as string | undefined);
@@ -70,6 +72,9 @@ export default async function handler(
       phone_number_collection: { enabled: true },
       metadata: {
         listingId: id,
+        productTitle: String(title).slice(0, 120),
+        ...(brand ? { brand: String(brand).slice(0, 120) } : {}),
+        ...(category ? { category: String(category).slice(0, 120) } : {}),
         ...(buyerIdHeader ? { buyerId: buyerIdHeader } : {}),
       },
       line_items: [

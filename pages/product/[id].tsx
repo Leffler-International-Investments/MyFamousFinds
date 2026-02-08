@@ -101,6 +101,8 @@ export default function ProductPage(props: ProductPageProps) {
           title,
           price,
           image: imageUrl,
+          brand,
+          category,
         }),
       });
 
