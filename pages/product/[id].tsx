@@ -51,7 +51,19 @@ export default function ProductPage(props: ProductPageProps) {
   const [loading, setLoading] = useState(false);
   const [offerSubmitting, setOfferSubmitting] = useState(false);
   const [offerError, setOfferError] = useState<string | null>(null);
+  const [checkoutError, setCheckoutError] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
+  const [buyerDetails, setBuyerDetails] = useState({
+    fullName: "",
+    email: "",
+    phone: "",
+    addressLine1: "",
+    addressLine2: "",
+    city: "",
+    state: "",
+    postalCode: "",
+    country: "",
+  });
   const router = useRouter();
 
   useEffect(() => {
@@ -88,6 +100,23 @@ export default function ProductPage(props: ProductPageProps) {
 
   const handleBuyNow = async () => {
     try {
+      setCheckoutError(null);
+      const requiredFields = [
+        buyerDetails.fullName,
+        buyerDetails.email,
+        buyerDetails.phone,
+        buyerDetails.addressLine1,
+        buyerDetails.city,
+        buyerDetails.state,
+        buyerDetails.postalCode,
+        buyerDetails.country,
+      ];
+      const isComplete = requiredFields.every((v) => String(v).trim().length > 0);
+      if (!isComplete) {
+        setCheckoutError("Please complete the delivery details before checkout.");
+        return;
+      }
+
       setLoading(true);
 
       const res = await fetch("/api/checkout", {
@@ -101,6 +130,9 @@ export default function ProductPage(props: ProductPageProps) {
           title,
           price,
           image: imageUrl,
+          brand,
+          category,
+          buyerDetails,
         }),
       });
 
@@ -131,6 +163,21 @@ export default function ProductPage(props: ProductPageProps) {
       setLoading(false);
     }
   };
+
+  const updateBuyerDetail = (field: keyof typeof buyerDetails, value: string) => {
+    setBuyerDetails((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const formComplete = [
+    buyerDetails.fullName,
+    buyerDetails.email,
+    buyerDetails.phone,
+    buyerDetails.addressLine1,
+    buyerDetails.city,
+    buyerDetails.state,
+    buyerDetails.postalCode,
+    buyerDetails.country,
+  ].every((value) => String(value).trim().length > 0);
 
   const handleOfferSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -267,10 +314,156 @@ export default function ProductPage(props: ProductPageProps) {
               </p>
             </div>
 
+            <div className="delivery-form">
+              <h2 className="description-heading">Delivery details</h2>
+              <p className="form-hint">
+                Please provide your shipping information before checkout. Your Buy
+                Now button will unlock once all required fields are complete.
+              </p>
+
+              <div className="form-grid">
+                <div className="form-field">
+                  <label htmlFor="buyer-full-name" className="form-label">
+                    Full name *
+                  </label>
+                  <input
+                    id="buyer-full-name"
+                    type="text"
+                    className="form-input"
+                    value={buyerDetails.fullName}
+                    onChange={(e) => updateBuyerDetail("fullName", e.target.value)}
+                    placeholder="Full legal name"
+                    required
+                  />
+                </div>
+
+                <div className="form-field">
+                  <label htmlFor="buyer-email" className="form-label">
+                    Email *
+                  </label>
+                  <input
+                    id="buyer-email"
+                    type="email"
+                    className="form-input"
+                    value={buyerDetails.email}
+                    onChange={(e) => updateBuyerDetail("email", e.target.value)}
+                    placeholder="you@email.com"
+                    required
+                  />
+                </div>
+
+                <div className="form-field">
+                  <label htmlFor="buyer-phone" className="form-label">
+                    Phone *
+                  </label>
+                  <input
+                    id="buyer-phone"
+                    type="tel"
+                    className="form-input"
+                    value={buyerDetails.phone}
+                    onChange={(e) => updateBuyerDetail("phone", e.target.value)}
+                    placeholder="+1 555 123 4567"
+                    required
+                  />
+                </div>
+
+                <div className="form-field form-field--wide">
+                  <label htmlFor="buyer-address-1" className="form-label">
+                    Address line 1 *
+                  </label>
+                  <input
+                    id="buyer-address-1"
+                    type="text"
+                    className="form-input"
+                    value={buyerDetails.addressLine1}
+                    onChange={(e) => updateBuyerDetail("addressLine1", e.target.value)}
+                    placeholder="Street address"
+                    required
+                  />
+                </div>
+
+                <div className="form-field form-field--wide">
+                  <label htmlFor="buyer-address-2" className="form-label">
+                    Address line 2
+                  </label>
+                  <input
+                    id="buyer-address-2"
+                    type="text"
+                    className="form-input"
+                    value={buyerDetails.addressLine2}
+                    onChange={(e) => updateBuyerDetail("addressLine2", e.target.value)}
+                    placeholder="Apartment, suite, unit (optional)"
+                  />
+                </div>
+
+                <div className="form-field">
+                  <label htmlFor="buyer-city" className="form-label">
+                    City *
+                  </label>
+                  <input
+                    id="buyer-city"
+                    type="text"
+                    className="form-input"
+                    value={buyerDetails.city}
+                    onChange={(e) => updateBuyerDetail("city", e.target.value)}
+                    placeholder="City"
+                    required
+                  />
+                </div>
+
+                <div className="form-field">
+                  <label htmlFor="buyer-state" className="form-label">
+                    State/Province *
+                  </label>
+                  <input
+                    id="buyer-state"
+                    type="text"
+                    className="form-input"
+                    value={buyerDetails.state}
+                    onChange={(e) => updateBuyerDetail("state", e.target.value)}
+                    placeholder="State or province"
+                    required
+                  />
+                </div>
+
+                <div className="form-field">
+                  <label htmlFor="buyer-postal" className="form-label">
+                    Postal code *
+                  </label>
+                  <input
+                    id="buyer-postal"
+                    type="text"
+                    className="form-input"
+                    value={buyerDetails.postalCode}
+                    onChange={(e) => updateBuyerDetail("postalCode", e.target.value)}
+                    placeholder="ZIP / postal code"
+                    required
+                  />
+                </div>
+
+                <div className="form-field">
+                  <label htmlFor="buyer-country" className="form-label">
+                    Country *
+                  </label>
+                  <input
+                    id="buyer-country"
+                    type="text"
+                    className="form-input"
+                    value={buyerDetails.country}
+                    onChange={(e) => updateBuyerDetail("country", e.target.value)}
+                    placeholder="Country"
+                    required
+                  />
+                </div>
+              </div>
+
+              {checkoutError && <p className="form-error">{checkoutError}</p>}
+            </div>
+
             <div className="button-row">
               <button
                 onClick={handleBuyNow}
-                disabled={loading}
+                disabled={loading || !formComplete}
                 className="btn-buy"
               >
                 {loading ? "Processing…" : "Buy now"}
@@ -558,6 +751,36 @@ export default function ProductPage(props: ProductPageProps) {
           flex-direction: column;
           gap: 4px;
           padding-left: 16px;
+        }
+
+        .delivery-form {
+          border-radius: 16px;
+          border: 1px solid #e5e7eb;
+          background: #ffffff;
+          padding: 16px;
+          display: flex;
+          flex-direction: column;
+          gap: 12px;
+        }
+        .form-hint {
+          font-size: 12px;
+          color: #6b7280;
+        }
+        .form-grid {
+          display: grid;
+          gap: 12px;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+        .form-field--wide {
+          grid-column: span 2;
+        }
+        @media (max-width: 640px) {
+          .form-grid {
+            grid-template-columns: 1fr;
+          }
+          .form-field--wide {
+            grid-column: span 1;
+          }
         }
 
         .offer-section {

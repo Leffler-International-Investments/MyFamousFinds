@@ -597,6 +597,7 @@ export const getServerSideProps: GetServerSideProps = async () => {
   }
 
   const listings = await adminDb.collection("listings").limit(200).get();
+  const allowedStatuses = ["live", "active", "approved"];
 
   const pickImage = (d: any): string => {
     const fromArray =
@@ -623,27 +624,34 @@ export const getServerSideProps: GetServerSideProps = async () => {
     );
   };
 
-  const items: any[] = listings.docs.map((doc) => {
-    const data: any = doc.data() || {};
-    const priceNum = typeof data.price === "number" ? data.price : Number(data.price || 0);
+  const items: any[] = listings.docs
+    .filter((doc) => {
+      const data: any = doc.data() || {};
+      const status = String(data.status || "").trim().toLowerCase();
+      if (!status) return true;
+      return allowedStatuses.includes(status);
+    })
+    .map((doc) => {
+      const data: any = doc.data() || {};
+      const priceNum = typeof data.price === "number" ? data.price : Number(data.price || 0);
 
-    return {
-      id: doc.id,
-      title: data.title || data.name || "Untitled",
-      brand: data.brand || data.designer || "",
-      price: priceNum ? `US$${priceNum.toLocaleString("en-US")}` : "",
-      priceValue: priceNum || 0,
-      image: pickImage(data),
-      href: `/product/${doc.id}`,
-      category: data.category || data.categoryLabel || data.menuCategory || "",
-      condition: data.condition || "",
-      material: data.material || "",
-      size: data.size || "",
-      color: data.color || "",
-      createdAt: data.createdAt?.toMillis?.() || 0,
-      viewCount: data.viewCount || 0,
-    };
-  });
+      return {
+        id: doc.id,
+        title: data.title || data.name || "Untitled",
+        brand: data.brand || data.designer || "",
+        price: priceNum ? `US$${priceNum.toLocaleString("en-US")}` : "",
+        priceValue: priceNum || 0,
+        image: pickImage(data),
+        href: `/product/${doc.id}`,
+        category: data.category || data.categoryLabel || data.menuCategory || "",
+        condition: data.condition || "",
+        material: data.material || "",
+        size: data.size || "",
+        color: data.color || "",
+        createdAt: data.createdAt?.toMillis?.() || 0,
+        viewCount: data.viewCount || 0,
+      };
+    });
 
   const newArrivals = items
     .slice()

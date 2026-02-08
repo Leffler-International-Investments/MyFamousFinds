@@ -69,8 +69,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         });
 
         // 3) Extract buyer + shipping
-        const buyerEmail = session.customer_details?.email || "";
-        const buyerName = session.customer_details?.name || "";
+        const metadata = session.metadata || {};
+        const buyerEmail = session.customer_details?.email || metadata.buyerEmail || "";
+        const buyerName = session.customer_details?.name || metadata.buyerName || "";
 
         // ✅ FIX: Stripe typings in your installed version do NOT export Session.ShippingDetails
         // Treat shipping_details as plain object type (safe).
@@ -78,8 +79,21 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           | { name?: string; address?: any }
           | undefined;
 
-        const shipAddr =
+        const metadataAddress = {
+          line1: metadata.shipLine1 || "",
+          line2: metadata.shipLine2 || "",
+          city: metadata.shipCity || "",
+          state: metadata.shipState || "",
+          postal_code: metadata.shipPostal || "",
+          country: metadata.shipCountry || "",
+        };
+
+        let shipAddr =
           shippingDetails?.address || session.customer_details?.address || null;
+
+        if (!shipAddr && Object.values(metadataAddress).some(Boolean)) {
+          shipAddr = metadataAddress;
+        }
 
         const shippingAddress = shipAddr
           ? {

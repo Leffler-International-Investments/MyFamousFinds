@@ -95,16 +95,30 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         });
 
         // Create order record
-        const buyerEmail = session.customer_details?.email || "";
-        const buyerName = session.customer_details?.name || "";
+        const metadata = session.metadata || {};
+        const buyerEmail = session.customer_details?.email || metadata.buyerEmail || "";
+        const buyerName = session.customer_details?.name || metadata.buyerName || "";
 
         // Treat shipping_details as a plain object type.
         const shippingDetails = (session as any).shipping_details as
           | { name?: string; address?: any }
           | undefined;
 
-        const shipAddr =
+        const metadataAddress = {
+          line1: metadata.shipLine1 || "",
+          line2: metadata.shipLine2 || "",
+          city: metadata.shipCity || "",
+          state: metadata.shipState || "",
+          postal_code: metadata.shipPostal || "",
+          country: metadata.shipCountry || "",
+        };
+
+        let shipAddr =
           shippingDetails?.address || session.customer_details?.address || null;
+
+        if (!shipAddr && Object.values(metadataAddress).some(Boolean)) {
+          shipAddr = metadataAddress;
+        }
 
         const buyerShippingAddress = shipAddr
           ? {

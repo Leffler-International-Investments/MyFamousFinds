@@ -9,6 +9,19 @@ type RequestBody = {
   title: string;
   price: number;
   image?: string;
+  brand?: string;
+  category?: string;
+  buyerDetails?: {
+    fullName?: string;
+    email?: string;
+    phone?: string;
+    addressLine1?: string;
+    addressLine2?: string;
+    city?: string;
+    state?: string;
+    postalCode?: string;
+    country?: string;
+  };
 };
 
 type SuccessResponse = { ok: true; sessionId: string; url: string };
@@ -48,7 +61,15 @@ export default async function handler(
   }
 
   try {
-    const { id, title, price, image } = (req.body || {}) as RequestBody;
+    const {
+      id,
+      title,
+      price,
+      image,
+      brand,
+      category,
+      buyerDetails,
+    } = (req.body || {}) as RequestBody;
     const buyerIdHeader =
       (req.headers["x-user-id"] as string | undefined) ||
       (req.headers["x-userid"] as string | undefined);
@@ -57,9 +78,27 @@ export default async function handler(
       return res.status(400).json({ ok: false, error: "Missing product data" });
     }
 
+    const requiredBuyerFields = [
+      buyerDetails?.fullName,
+      buyerDetails?.email,
+      buyerDetails?.phone,
+      buyerDetails?.addressLine1,
+      buyerDetails?.city,
+      buyerDetails?.state,
+      buyerDetails?.postalCode,
+      buyerDetails?.country,
+    ];
+    const buyerDetailsComplete = requiredBuyerFields.every(
+      (value) => typeof value === "string" && value.trim().length > 0
+    );
+    if (!buyerDetailsComplete) {
+      return res.status(400).json({ ok: false, error: "Missing buyer details" });
+    }
+
     const baseUrl = resolveBaseUrl(req);
     const safeImageUrl = sanitizeImageUrl(image);
 
+    const trimMeta = (value?: string) => String(value || "").trim().slice(0, 200);
     const sessionParams: Stripe.Checkout.SessionCreateParams = {
       mode: "payment",
       customer_creation: "always",
@@ -67,9 +106,29 @@ export default async function handler(
       shipping_address_collection: {
         allowed_countries: ["AU", "US", "GB", "CA", "NZ", "FR", "DE", "IT", "ES", "NL"],
       },
+      customer_email: buyerDetails?.email ? trimMeta(buyerDetails.email) : undefined,
       phone_number_collection: { enabled: true },
       metadata: {
         listingId: id,
+        productTitle: String(title).slice(0, 120),
+        ...(brand ? { brand: String(brand).slice(0, 120) } : {}),
+        ...(category ? { category: String(category).slice(0, 120) } : {}),
+        ...(buyerDetails?.fullName ? { buyerName: trimMeta(buyerDetails.fullName) } : {}),
+        ...(buyerDetails?.email ? { buyerEmail: trimMeta(buyerDetails.email) } : {}),
+        ...(buyerDetails?.phone ? { buyerPhone: trimMeta(buyerDetails.phone) } : {}),
+        ...(buyerDetails?.addressLine1
+          ? { shipLine1: trimMeta(buyerDetails.addressLine1) }
+          : {}),
+        ...(buyerDetails?.addressLine2
+          ? { shipLine2: trimMeta(buyerDetails.addressLine2) }
+          : {}),
+        ...(buyerDetails?.city ? { shipCity: trimMeta(buyerDetails.city) } : {}),
+        ...(buyerDetails?.state ? { shipState: trimMeta(buyerDetails.state) } : {}),
+        ...(buyerDetails?.postalCode
+          ? { shipPostal: trimMeta(buyerDetails.postalCode) }
+          : {}),
+        ...(buyerDetails?.country
+          ? { shipCountry: trimMeta(buyerDetails.country) } : {}),
         ...(buyerIdHeader ? { buyerId: buyerIdHeader } : {}),
       },
       line_items: [
