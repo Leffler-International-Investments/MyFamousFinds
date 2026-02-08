@@ -19,7 +19,8 @@ export const config = {
 
 // Stripe init
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string, {
-  apiVersion: "2023-10-16",
+  // ✅ MUST match your installed Stripe types (literal)
+  apiVersion: "2025-10-29.clover",
 });
 
 // Raw body helper
@@ -67,8 +68,8 @@ const handler: NextApiHandler = async (
         // TODO:
         // - mark order as paid
         // - store billing + shipping address
-        // - release seller workflow
-        // - DO NOT pay seller yet (wait for delivery confirmation)
+        // - notify seller + create shipping label flow
+        // - release seller payout only after delivery confirmation (your choice)
 
         break;
       }
