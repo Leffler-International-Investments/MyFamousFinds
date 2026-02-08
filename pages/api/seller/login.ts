@@ -1,153 +1,283 @@
-// FILE: /pages/api/seller/login.ts
-import type { NextApiRequest, NextApiResponse } from "next";
-import { adminDb, isFirebaseAdminReady } from "../../../utils/firebaseAdmin";
+// FILE: /pages/seller/login.tsx
+// Seller login with clear orange pill CTA for new sellers
 
-type LoginPayload = {
-  email?: string;
-  password?: string; // kept for backward compatibility (ignored)
+import Head from "next/head";
+import Link from "next/link";
+import { useRouter } from "next/router";
+import { FormEvent, useState } from "react";
+import Header from "../../components/Header";
+import Footer from "../../components/Footer";
+import PasswordInput from "../../components/PasswordInput";
+
+import {
+  parseFirebaseAuthError,
+  signInSellerWithEmailPassword,
+} from "../../utils/sellerAuth";
+
+type LoginSuccess = { ok: true; sellerId: string };
+type LoginError = {
+  ok: false;
+  code:
+    | "invalid_email"
+    | "invalid_password"
+    | "seller_not_found"
+    | "seller_not_approved"
+    | "server_error";
+  message: string;
 };
 
-type LoginResponse =
-  | { ok: true; sellerId: string }
-  | {
-      ok: false;
-      code: "apply_first" | "pending" | "bad_credentials" | "server_not_configured";
-      message: string;
-    };
+type VerifySuccess = { ok: true; sellerId: string };
+type VerifyError = { ok: false; code: "bad_code" | "expired" | "server_error"; message: string };
 
-// Owners / super sellers (always allowed)
-const SUPER_SELLER_EMAILS = new Set<string>([
-  "leffleryd@gmail.com", // Dan
-  "arich1114@aol.com", // Ariel
-  "arichspot@gmail.com",
-  "ariel@arichwines.com",
-  "arielspot@gmail.com",
-  "itai.leff@gmail.com",
-]);
+type LoginResponse = LoginSuccess | LoginError;
+type VerifyResponse = VerifySuccess | VerifyError;
 
-function isApprovedStatus(status: unknown) {
-  const s = String(status || "").trim().toLowerCase();
-  return s === "approved";
-}
+const SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 7;
 
-export default async function handler(
-  req: NextApiRequest,
-  res: NextApiResponse<LoginResponse>
-) {
-  if (req.method !== "POST") {
-    return res.status(405).json({
-      ok: false,
-      code: "bad_credentials",
-      message: "Method not allowed.",
-    });
-  }
+export default function SellerLoginPage() {
+  const router = useRouter();
 
-  const { email } = req.body as LoginPayload;
+  const [step, setStep] = useState<"email" | "verify">("email");
+  const [sellerId, setSellerId] = useState<string>("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [code, setCode] = useState("");
 
-  if (!email) {
-    return res.status(400).json({
-      ok: false,
-      code: "bad_credentials",
-      message: "Email is required.",
-    });
-  }
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [info, setInfo] = useState<string | null>(null);
 
-  const trimmedEmail = email.trim().toLowerCase();
-  const isSuperSeller = SUPER_SELLER_EMAILS.has(trimmedEmail);
+  async function handleCredentialsSubmit(e: FormEvent) {
+    e.preventDefault();
+    setLoading(true);
+    setError(null);
+    setInfo(null);
 
-  // If Firebase Admin is not configured, still allow SUPER sellers
-  if (!isFirebaseAdminReady || !adminDb) {
-    if (isSuperSeller) {
-      return res.status(200).json({ ok: true, sellerId: "super-seller" });
+    const trimmedEmail = email.trim().toLowerCase();
+    const trimmedPassword = password;
+
+    if (!trimmedEmail) {
+      setLoading(false);
+      setError("Please enter your email.");
+      return;
     }
-    return res.status(500).json({
-      ok: false,
-      code: "server_not_configured",
-      message:
-        "Server is not configured (missing Firebase Admin env vars). Please set FB_PROJECT_ID / FB_CLIENT_EMAIL / FB_PRIVATE_KEY in Vercel.",
-    });
-  }
-
-  try {
-    // Find seller in sellers collection (doc id could be email, or stored in fields)
-    let sellerSnap: any = await adminDb
-      .collection("sellers")
-      .doc(trimmedEmail)
-      .get();
-
-    if (!sellerSnap.exists) {
-      const byEmail = await adminDb
-        .collection("sellers")
-        .where("email", "==", trimmedEmail)
-        .limit(1)
-        .get();
-      if (!byEmail.empty) sellerSnap = byEmail.docs[0];
+    if (!trimmedPassword) {
+      setLoading(false);
+      setError("Please enter your password.");
+      return;
     }
 
-    if (!sellerSnap.exists) {
-      const byContactEmail = await adminDb
-        .collection("sellers")
-        .where("contactEmail", "==", trimmedEmail)
-        .limit(1)
-        .get();
-      if (!byContactEmail.empty) sellerSnap = byContactEmail.docs[0];
-    }
+    try {
+      const res = await fetch("/api/seller/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: trimmedEmail, password: trimmedPassword }),
+      });
 
-    // If not found:
-    if (!sellerSnap.exists) {
-      if (!isSuperSeller) {
-        return res.status(400).json({
-          ok: false,
-          code: "apply_first",
-          message:
-            "We couldn’t find a seller application for that email. Please apply to become a seller first.",
-        });
+      const json = (await res.json()) as LoginResponse;
+      const sellerId = json.ok ? json.sellerId : null;
+      if (sellerId) setSellerId(sellerId);
+
+      if (!json.ok) {
+        setLoading(false);
+
+        if (json.code === "seller_not_approved") {
+          setError("Your seller account is pending approval. Please wait for approval email.");
+          return;
+        }
+
+        setError(json.message || "Login failed.");
+        return;
       }
 
-      // Super seller fallback: create approved doc so login can proceed
-      await adminDb.collection("sellers").doc(trimmedEmail).set(
-        {
-          email: trimmedEmail,
-          contactEmail: trimmedEmail,
-          status: "Approved",
-          isSuperSeller: true,
-        },
-        { merge: true }
-      );
-
-      return res.status(200).json({ ok: true, sellerId: trimmedEmail });
+      setInfo("Verification code sent. Please check your email.");
+      setStep("verify");
+      setLoading(false);
+    } catch (err: any) {
+      setLoading(false);
+      setError(String(err?.message || err || "Login failed."));
     }
-
-    const data = sellerSnap.data ? sellerSnap.data() : {};
-    const sellerId = sellerSnap.id || trimmedEmail;
-
-    // Super sellers are always approved
-    if (isSuperSeller && !isApprovedStatus(data.status)) {
-      await sellerSnap.ref.set(
-        { status: "Approved", isSuperSeller: true },
-        { merge: true }
-      );
-      data.status = "Approved";
-    }
-
-    if (!isApprovedStatus(data.status)) {
-      return res.status(403).json({
-        ok: false,
-        code: "pending",
-        message:
-          "Your seller application is still under review. You’ll be notified once approved.",
-      });
-    }
-
-    // ✅ IMPORTANT CHANGE:
-    // We do NOT verify passwords here anymore (Firebase Auth handles that on the client).
-    return res.status(200).json({ ok: true, sellerId });
-  } catch (err) {
-    console.error("seller_login_api_error", err);
-    return res.status(500).json({
-      ok: false,
-      code: "bad_credentials",
-      message: "Unexpected server error. Please try again.",
-    });
   }
+
+  async function handleVerifySubmit(e: FormEvent) {
+    e.preventDefault();
+    setLoading(true);
+    setError(null);
+    setInfo(null);
+
+    const trimmedEmail = email.trim().toLowerCase();
+    const trimmedCode = code.trim();
+
+    if (!trimmedEmail) {
+      setLoading(false);
+      setError("Missing email.");
+      return;
+    }
+    if (!trimmedCode) {
+      setLoading(false);
+      setError("Please enter the verification code.");
+      return;
+    }
+
+    try {
+      const res = await fetch("/api/seller/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: trimmedEmail, code: trimmedCode }),
+      });
+
+      const errJson = await res.json();
+
+      if (!res.ok || !errJson?.ok) {
+        setLoading(false);
+        setError(errJson.message || "Incorrect or expired code.");
+        return;
+      }
+
+      if (typeof window !== "undefined") {
+        window.localStorage.setItem("ff-role", "seller");
+        window.localStorage.setItem("ff-email", email.toLowerCase().trim());
+        if (sellerId) window.localStorage.setItem("ff-seller-id", sellerId);
+
+        // ✅ EXTEND SESSION
+        window.localStorage.setItem(
+          "ff-session-exp",
+          String(Date.now() + SESSION_TTL_MS)
+        );
+      }
+
+      setLoading(false);
+      router.push("/seller/dashboard");
+    } catch (err: any) {
+      setLoading(false);
+      setError(String(err?.message || err || "Verification failed."));
+    }
+  }
+
+  return (
+    <>
+      <Head>
+        <title>Seller Login | My Famous Finds</title>
+      </Head>
+
+      <div className="min-h-screen flex flex-col bg-white">
+        <Header />
+
+        <main className="flex-1 w-full">
+          <div className="max-w-3xl mx-auto px-4 py-10">
+            <h1 className="text-2xl font-bold text-gray-900 mb-2">Seller Login</h1>
+            <p className="text-gray-600 mb-8">
+              Login to manage your listings, orders, and payouts.
+            </p>
+
+            {error ? (
+              <div className="mb-6 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                {error}
+              </div>
+            ) : null}
+
+            {info ? (
+              <div className="mb-6 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                {info}
+              </div>
+            ) : null}
+
+            {step === "email" ? (
+              <form
+                onSubmit={handleCredentialsSubmit}
+                className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm"
+              >
+                <div className="grid gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Email
+                    </label>
+                    <input
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      className="w-full rounded-lg border border-gray-300 px-3 py-2 text-gray-900"
+                      placeholder="you@example.com"
+                      autoComplete="email"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Password
+                    </label>
+                    <PasswordInput value={password} onChange={(v) => setPassword(v)} />
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="inline-flex items-center justify-center rounded-full bg-orange-500 px-5 py-2.5 text-white font-semibold hover:bg-orange-600 disabled:opacity-60"
+                  >
+                    {loading ? "Sending code..." : "Send verification code"}
+                  </button>
+
+                  <div className="text-sm text-gray-600">
+                    New seller?{" "}
+                    <Link href="/seller/register" className="text-orange-600 font-semibold hover:underline">
+                      Apply to sell
+                    </Link>
+                  </div>
+                </div>
+              </form>
+            ) : (
+              <form
+                onSubmit={handleVerifySubmit}
+                className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm"
+              >
+                <div className="grid gap-4">
+                  <div className="text-sm text-gray-700">
+                    Enter the verification code we sent to <b>{email.trim()}</b>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Verification code
+                    </label>
+                    <input
+                      type="text"
+                      value={code}
+                      onChange={(e) => setCode(e.target.value)}
+                      className="w-full rounded-lg border border-gray-300 px-3 py-2 text-gray-900"
+                      placeholder="123456"
+                      inputMode="numeric"
+                    />
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="inline-flex items-center justify-center rounded-full bg-orange-500 px-5 py-2.5 text-white font-semibold hover:bg-orange-600 disabled:opacity-60"
+                  >
+                    {loading ? "Verifying..." : "Verify & continue"}
+                  </button>
+
+                  <button
+                    type="button"
+                    disabled={loading}
+                    onClick={() => {
+                      setStep("email");
+                      setCode("");
+                      setError(null);
+                      setInfo(null);
+                    }}
+                    className="text-sm text-gray-600 hover:underline text-left"
+                  >
+                    Back
+                  </button>
+                </div>
+              </form>
+            )}
+          </div>
+        </main>
+
+        <Footer />
+      </div>
+    </>
+  );
 }
