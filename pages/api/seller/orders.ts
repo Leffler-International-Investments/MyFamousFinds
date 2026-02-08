@@ -1,11 +1,8 @@
-// FILE: /pages/seller/orders.tsx
+// FILE: /pages/api/seller/orders.ts
 
-import Head from "next/head";
-import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
-import Header from "../../components/Header";
-import Footer from "../../components/Footer";
-import { useRequireSeller } from "../../hooks/useRequireSeller";
+import type { NextApiRequest, NextApiResponse } from "next";
+import { adminDb } from "../../../utils/firebaseAdmin";
+import { getSellerId } from "../../../utils/authServer";
 
 type ShippingAddress = {
   name?: string;
@@ -19,266 +16,175 @@ type ShippingAddress = {
 };
 
 type OrderItem = {
-  listingId: string;
-  title: string;
+  listingId?: string;
+  title?: string;
   image?: string;
-  price: number;
-  quantity: number;
+  price?: number;
+  quantity?: number;
 };
 
 type Order = {
   id: string;
-  createdAt: number;
-  status: "paid" | "shipped" | "delivered" | "cancelled";
+  createdAt?: string | null;
+  status: string;
+
+  buyerName?: string;
   buyerEmail?: string;
-  shipping?: ShippingAddress;
-  items: OrderItem[];
-  total: number;
-  payoutStatus?: "pending" | "paid" | "failed";
-  tracking?: { carrier?: string; trackingNumber?: string };
-};
 
-type OrdersOk = { ok: true; orders: Order[] };
+  shippingAddress?: ShippingAddress | null;
 
-export default function SellerOrdersPage() {
-  const { ok: authed, authLoading } = useRequireSeller();
+  shipDeadlineAt?: string | null;
 
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [orders, setOrders] = useState<Order[]>([]);
-  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
-  const [shipModal, setShipModal] = useState<{
-    open: boolean;
-    orderId?: string;
+  shipping?: {
+    status?: string;
     carrier?: string;
     trackingNumber?: string;
-  }>({ open: false });
+    trackingUrl?: string;
+  } | null;
 
-  const paidOrders = useMemo(
-    () => orders.filter((o) => o.status === "paid" || o.status === "shipped"),
-    [orders]
-  );
+  fulfillment?: {
+    stage?: string;
+    signatureRequired?: boolean;
+    shippedAt?: string | null;
+    deliveredAt?: string | null;
+  } | null;
 
-  useEffect(() => {
-    if (!authLoading && authed) refresh();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [authLoading, authed]);
+  total?: number;
+  currency?: string;
 
-  function getSellerIdHeader(): string {
-    if (typeof window === "undefined") return "";
-    return String(window.localStorage.getItem("ff-seller-id") || "").trim();
+  items?: OrderItem[];
+  listingTitle?: string;
+};
+
+type Data =
+  | { ok: true; orders: Order[] }
+  | { ok: false; error: string };
+
+function toIsoMaybe(ts: any): string | null {
+  try {
+    if (!ts) return null;
+    if (typeof ts === "string") return ts;
+    if (typeof ts?.toDate === "function") return ts.toDate().toISOString();
+    if (ts instanceof Date) return ts.toISOString();
+    const ms = typeof ts === "number" ? ts : Date.parse(String(ts));
+    if (Number.isFinite(ms)) return new Date(ms).toISOString();
+    return null;
+  } catch {
+    return null;
   }
+}
 
-  async function refresh() {
-    setLoading(true);
-    setError(null);
-    try {
-      const sellerId = getSellerIdHeader();
-      const res = await fetch("/api/seller/orders", {
-        headers: sellerId ? { "x-seller-id": sellerId } : undefined,
-      });
-      const json = await res.json();
-      if (!res.ok || !json?.ok) throw new Error(json?.error || "Failed to load orders");
-      setOrders((json as OrdersOk).orders || []);
-    } catch (e: any) {
-      setError(String(e?.message || "Failed to load orders"));
-    } finally {
-      setLoading(false);
+export default async function handler(
+  req: NextApiRequest,
+  res: NextApiResponse<Data>
+) {
+  try {
+    if (req.method !== "GET") {
+      res.setHeader("Allow", "GET");
+      return res.status(405).json({ ok: false, error: "method_not_allowed" });
     }
-  }
 
-  async function onMarkShipped(orderId: string, carrier: string, trackingNumber: string) {
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await fetch("/api/seller/mark-shipped", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(getSellerIdHeader() ? { "x-seller-id": getSellerIdHeader() } : {}),
-        },
-        body: JSON.stringify({
-          orderId,
-          carrier: carrier.trim(),
-          trackingNumber: trackingNumber.trim(),
-        }),
-      });
-
-      const json = await res.json();
-      if (!res.ok || !json?.ok) {
-        throw new Error(json?.error || "Failed to mark shipped");
-      }
-
-      setShipModal({ open: false });
-      await refresh();
-    } catch (e: any) {
-      setError(String(e?.message || "Failed to mark shipped"));
-    } finally {
-      setLoading(false);
+    const sellerId = getSellerId(req);
+    if (!sellerId) {
+      return res.status(401).json({ ok: false, error: "unauthorized" });
     }
+
+    const snap = await adminDb
+      .collection("orders")
+      .where("sellerId", "==", sellerId)
+      .orderBy("createdAt", "desc")
+      .limit(200)
+      .get();
+
+    const orders: Order[] = snap.docs.map((d) => {
+      const o: any = d.data() || {};
+
+      const buyerName =
+        o.buyerName ||
+        o.buyer?.name ||
+        o.customerName ||
+        o.customer_details?.name ||
+        "";
+
+      const buyerEmail =
+        o.buyerEmail || o.buyer?.email || o.customerEmail || "";
+
+      const shippingAddress: ShippingAddress | null =
+        o.shippingAddress ||
+        o.shipping ||
+        o.shipping?.address ||
+        o.shipping_details?.address ||
+        null;
+
+      const shipDeadlineAt =
+        toIsoMaybe(o.shipDeadlineAt) ||
+        toIsoMaybe(o.fulfillment?.shipDeadlineAt) ||
+        null;
+
+      const fulfillment = o.fulfillment
+        ? {
+            stage: o.fulfillment.stage,
+            signatureRequired: o.fulfillment.signatureRequired,
+            shippedAt: toIsoMaybe(o.fulfillment.shippedAt),
+            deliveredAt: toIsoMaybe(o.fulfillment.deliveredAt),
+          }
+        : null;
+
+      const shipping = o.shipping
+        ? {
+            status: o.shipping.status,
+            carrier: o.shipping.carrier,
+            trackingNumber: o.shipping.trackingNumber,
+            trackingUrl: o.shipping.trackingUrl,
+          }
+        : o.tracking
+        ? {
+            status: o.tracking.status,
+            carrier: o.tracking.carrier,
+            trackingNumber: o.tracking.trackingNumber,
+            trackingUrl: o.tracking.trackingUrl,
+          }
+        : null;
+
+      const total =
+        typeof o.total === "number"
+          ? o.total
+          : typeof o.totals?.total === "number"
+          ? o.totals.total
+          : typeof o.amountTotal === "number"
+          ? o.amountTotal
+          : 0;
+
+      const currency = String(o.currency || o.totals?.currency || "USD");
+
+      const listingTitle =
+        o.listingTitle ||
+        o.item ||
+        (Array.isArray(o.items) ? o.items[0]?.title : "") ||
+        "";
+
+      return {
+        id: d.id,
+        createdAt: toIsoMaybe(o.createdAt),
+        status: o.status || "paid",
+        buyerName,
+        buyerEmail,
+        shippingAddress,
+        shipDeadlineAt,
+        shipping,
+        fulfillment,
+        total,
+        currency,
+        items: Array.isArray(o.items) ? o.items : [],
+        listingTitle,
+      };
+    });
+
+    return res.status(200).json({ ok: true, orders });
+  } catch (e: any) {
+    console.error("seller_orders_api_error", e);
+    return res
+      .status(500)
+      .json({ ok: false, error: e?.message || "internal_error" });
   }
-
-  return (
-    <>
-      <Head>
-        <title>Seller Orders | My Famous Finds</title>
-      </Head>
-
-      <div className="min-h-screen flex flex-col bg-white">
-        <Header />
-
-        <main className="flex-1 w-full">
-          <div className="max-w-6xl mx-auto px-4 py-8">
-            <div className="flex items-center justify-between gap-4 mb-6">
-              <div>
-                <h1 className="text-2xl font-bold text-gray-900">Orders</h1>
-                <p className="text-gray-600">
-                  View and manage your sold items. Ship promptly using signature required.
-                </p>
-              </div>
-
-              <div className="flex items-center gap-3">
-                <Link
-                  href="/seller/dashboard"
-                  className="rounded-full border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
-                >
-                  Back to dashboard
-                </Link>
-                <button
-                  onClick={refresh}
-                  disabled={loading}
-                  className="rounded-full bg-orange-500 px-4 py-2 text-sm font-semibold text-white hover:bg-orange-600 disabled:opacity-60"
-                >
-                  {loading ? "Refreshing…" : "Refresh"}
-                </button>
-              </div>
-            </div>
-
-            {error && (
-              <div className="mb-6 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-                {error}
-              </div>
-            )}
-
-            <div className="rounded-xl border border-gray-200 bg-white shadow-sm">
-              <div className="border-b border-gray-200 px-6 py-4 text-sm text-gray-700">
-                Showing <b>{paidOrders.length}</b> active orders
-              </div>
-
-              <div className="divide-y divide-gray-100">
-                {paidOrders.length === 0 ? (
-                  <div className="px-6 py-10 text-center text-gray-600">
-                    No paid orders yet.
-                  </div>
-                ) : (
-                  paidOrders.map((o) => (
-                    <div key={o.id} className="px-6 py-5">
-                      <div className="flex items-center justify-between gap-3">
-                        <div>
-                          <div className="text-sm text-gray-500">
-                            Order #{o.id.slice(0, 8)} •{" "}
-                            {new Date(o.createdAt).toLocaleString()}
-                          </div>
-                          <div className="font-semibold text-gray-900">
-                            {o.items.length} item{o.items.length !== 1 ? "s" : ""} • $
-                            {Number(o.total).toFixed(2)}
-                          </div>
-                        </div>
-
-                        <div className="flex items-center gap-2">
-                          <span className="rounded-full bg-gray-100 px-3 py-1 text-xs font-semibold text-gray-700">
-                            {o.status.toUpperCase()}
-                          </span>
-
-                          <button
-                            onClick={() =>
-                              setExpanded((p) => ({ ...p, [o.id]: !p[o.id] }))
-                            }
-                            className="rounded-full border border-gray-300 px-3 py-1 text-xs font-semibold text-gray-700 hover:bg-gray-50"
-                          >
-                            {expanded[o.id] ? "Hide" : "Details"}
-                          </button>
-
-                          <button
-                            onClick={() =>
-                              setShipModal({
-                                open: true,
-                                orderId: o.id,
-                                carrier: o.tracking?.carrier || "",
-                                trackingNumber: o.tracking?.trackingNumber || "",
-                              })
-                            }
-                            className="rounded-full bg-orange-500 px-3 py-1 text-xs font-semibold text-white hover:bg-orange-600"
-                          >
-                            Mark shipped
-                          </button>
-                        </div>
-                      </div>
-
-                      {expanded[o.id] && (
-                        <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-6">
-                          <div>
-                            <div className="font-semibold mb-2">Items</div>
-                            {o.items.map((it, i) => (
-                              <div key={i} className="flex gap-3 mb-3">
-                                <div className="h-14 w-14 bg-gray-100 rounded-lg overflow-hidden">
-                                  {it.image && (
-                                    // eslint-disable-next-line @next/next/no-img-element
-                                    <img
-                                      src={it.image}
-                                      alt={it.title}
-                                      className="h-full w-full object-cover"
-                                    />
-                                  )}
-                                </div>
-                                <div>
-                                  <div className="font-semibold">{it.title}</div>
-                                  <div className="text-sm text-gray-600">
-                                    Qty {it.quantity} • ${it.price.toFixed(2)}
-                                  </div>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-
-                          <div>
-                            <div className="font-semibold mb-2">Shipping</div>
-                            <div className="border rounded-lg p-4 text-sm">
-                              <div className="font-semibold">{o.shipping?.name}</div>
-                              <div>{o.shipping?.line1}</div>
-                              {o.shipping?.line2 && <div>{o.shipping.line2}</div>}
-                              <div>
-                                {[o.shipping?.city, o.shipping?.state, o.shipping?.postal_code]
-                                  .filter(Boolean)
-                                  .join(", ")}
-                              </div>
-                              <div>{o.shipping?.country}</div>
-                              {o.buyerEmail && <div>Buyer: {o.buyerEmail}</div>}
-                            </div>
-
-                            <div className="mt-3 text-sm text-gray-600">
-                              Tracking:{" "}
-                              {o.tracking?.trackingNumber ? (
-                                <b>
-                                  {o.tracking.carrier} • {o.tracking.trackingNumber}
-                                </b>
-                              ) : (
-                                "Not provided"
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
-          </div>
-        </main>
-
-        <Footer />
-      </div>
-    </>
-  );
 }
