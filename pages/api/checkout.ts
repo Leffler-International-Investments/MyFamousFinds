@@ -11,17 +11,6 @@ type RequestBody = {
   image?: string;
   brand?: string;
   category?: string;
-  buyerDetails?: {
-    fullName?: string;
-    email?: string;
-    phone?: string;
-    addressLine1?: string;
-    addressLine2?: string;
-    city?: string;
-    state?: string;
-    postalCode?: string;
-    country?: string;
-  };
 };
 
 type SuccessResponse = { ok: true; sessionId: string; url: string };
@@ -61,15 +50,7 @@ export default async function handler(
   }
 
   try {
-    const {
-      id,
-      title,
-      price,
-      image,
-      brand,
-      category,
-      buyerDetails,
-    } = (req.body || {}) as RequestBody;
+    const { id, title, price, image, brand, category } = (req.body || {}) as RequestBody;
     const buyerIdHeader =
       (req.headers["x-user-id"] as string | undefined) ||
       (req.headers["x-userid"] as string | undefined);
@@ -113,22 +94,6 @@ export default async function handler(
         productTitle: String(title).slice(0, 120),
         ...(brand ? { brand: String(brand).slice(0, 120) } : {}),
         ...(category ? { category: String(category).slice(0, 120) } : {}),
-        ...(buyerDetails?.fullName ? { buyerName: trimMeta(buyerDetails.fullName) } : {}),
-        ...(buyerDetails?.email ? { buyerEmail: trimMeta(buyerDetails.email) } : {}),
-        ...(buyerDetails?.phone ? { buyerPhone: trimMeta(buyerDetails.phone) } : {}),
-        ...(buyerDetails?.addressLine1
-          ? { shipLine1: trimMeta(buyerDetails.addressLine1) }
-          : {}),
-        ...(buyerDetails?.addressLine2
-          ? { shipLine2: trimMeta(buyerDetails.addressLine2) }
-          : {}),
-        ...(buyerDetails?.city ? { shipCity: trimMeta(buyerDetails.city) } : {}),
-        ...(buyerDetails?.state ? { shipState: trimMeta(buyerDetails.state) } : {}),
-        ...(buyerDetails?.postalCode
-          ? { shipPostal: trimMeta(buyerDetails.postalCode) }
-          : {}),
-        ...(buyerDetails?.country
-          ? { shipCountry: trimMeta(buyerDetails.country) } : {}),
         ...(buyerIdHeader ? { buyerId: buyerIdHeader } : {}),
       },
       line_items: [
