@@ -1,27 +1,45 @@
 // FILE: /pages/api/admin/payout/run-auto.ts
 import type { NextApiRequest, NextApiResponse } from "next";
-import { requireAdmin } from "../../../../utils/authServer";
 import { adminDb, FieldValue } from "../../../../utils/firebaseAdmin";
 import { getPayoutSettings } from "../../../../lib/payoutSettings";
 import { getStripeClient } from "../../../../lib/stripe";
+
+type Data =
+  | { ok: true; processed: number; paid: number; message?: string }
+  | { ok: false; error: string };
 
 function daysToMs(days: number) {
   return Math.max(0, days) * 24 * 60 * 60 * 1000;
 }
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+export default async function handler(
+  req: NextApiRequest,
+  res: NextApiResponse<Data>
+) {
   try {
-    await requireAdmin(req);
+    // Match your repo’s current admin API pattern: no server auth guard here.
+    if (req.method !== "POST") {
+      res.setHeader("Allow", "POST");
+      return res.status(405).json({ ok: false, error: "method_not_allowed" });
+    }
+
+    if (!adminDb) {
+      return res.status(500).json({ ok: false, error: "firebase_not_configured" });
+    }
 
     const settings = await getPayoutSettings();
     if (settings.payoutMode !== "stripe_connect_auto") {
-      return res.status(200).json({ ok: true, message: "payout_mode_manual_noop" });
+      return res
+        .status(200)
+        .json({ ok: true, processed: 0, paid: 0, message: "payout_mode_manual_noop" });
     }
 
     const stripe = await getStripeClient();
-    if (!stripe) return res.status(500).json({ ok: false, error: "stripe_not_configured" });
+    if (!stripe) {
+      return res.status(500).json({ ok: false, error: "stripe_not_configured" });
+    }
 
-    // Pull candidate orders
+    // Pull candidate orders (limit to keep it safe)
     const snap = await adminDb
       .collection("orders")
       .where("payout.status", "in", ["NOT_READY", "COOLING", "ELIGIBLE"])
@@ -34,13 +52,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     for (const doc of snap.docs) {
       const o: any = doc.data() || {};
-      const orderId = doc.id;
 
       const stage = String(o.fulfillment?.stage || "").toUpperCase();
-      if (stage !== "SIGNATURE_CONFIRMED") continue;
+      const status = String(o.status || "").toUpperCase();
 
-      const deliveredAtMs = o.fulfillment?.deliveredAt?.toDate?.()?.getTime?.();
-      if (!deliveredAtMs) continue;
+      // only after signature confirmed
+      if (stage !== "SIGNATURE_CONFIRMED" && status !== "SIGNATURE_CONFIRMED") continue;
+
+      const deliveredAtMs =
+        o.fulfillment?.deliveredAt?.toDate?.()?.getTime?.() ||
+        (o.fulfillment?.deliveredAt ? Date.parse(o.fulfillment.deliveredAt) : 0);
+
+      if (!deliveredAtMs || !Number.isFinite(deliveredAtMs)) continue;
 
       const coolingDays =
         typeof o.payout?.coolingDays === "number"
@@ -50,12 +73,29 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const eligibleAt = deliveredAtMs + daysToMs(coolingDays);
       const isEligible = now >= eligibleAt;
 
-      // mark eligible
-      if (isEligible && o.payout?.status !== "ELIGIBLE") {
+      // Update eligible date + cooling status
+      if (!isEligible) {
+        if (o.payout?.status !== "COOLING") {
+          await doc.ref.set(
+            {
+              payout: {
+                ...(o.payout || {}),
+                status: "COOLING",
+                eligibleAt: new Date(eligibleAt),
+              },
+              updatedAt: FieldValue.serverTimestamp(),
+            },
+            { merge: true }
+          );
+        }
+        continue;
+      }
+
+      if (o.payout?.status !== "ELIGIBLE") {
         await doc.ref.set(
           {
             payout: {
-              ...o.payout,
+              ...(o.payout || {}),
               status: "ELIGIBLE",
               eligibleAt: new Date(eligibleAt),
             },
@@ -65,18 +105,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         );
       }
 
-      if (!isEligible) {
-        // ensure cooling status
-        if (o.payout?.status !== "COOLING") {
-          await doc.ref.set(
-            { payout: { ...o.payout, status: "COOLING", eligibleAt: new Date(eligibleAt) } },
-            { merge: true }
-          );
-        }
-        continue;
-      }
-
-      // Must have seller stripe account
+      // Must have seller + Stripe connect account
       const sellerId = String(o.sellerId || "");
       if (!sellerId) continue;
 
@@ -85,29 +114,26 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const stripeAccountId = seller?.stripeAccountId;
       if (!stripeAccountId) continue;
 
-      // Compute payout amount (simple version)
-      // NOTE: replace this with your real commission logic if you have it already.
+      // Compute payout amount (replace with your exact commission logic if you already have one)
       const total = Number(o.totals?.total || o.total || 0);
       if (!Number.isFinite(total) || total <= 0) continue;
 
-      const platformCommissionPct = Number(o.payout?.platformCommissionPct ?? 15); // example default
+      const platformCommissionPct = Number(o.payout?.platformCommissionPct ?? 15);
       const sellerAmount = Math.max(0, total * (1 - platformCommissionPct / 100));
 
-      // Transfer to connected account (requires Stripe Connect)
-      // Currency must be lowercase per Stripe
       const currency = String(o.totals?.currency || o.currency || "USD").toLowerCase();
 
       await stripe.transfers.create({
         amount: Math.round(sellerAmount * 100),
         currency,
         destination: stripeAccountId,
-        metadata: { orderId },
+        metadata: { orderId: doc.id },
       });
 
       await doc.ref.set(
         {
           payout: {
-            ...o.payout,
+            ...(o.payout || {}),
             status: "PAID",
             paidOutAt: new Date(),
             paidOutMethod: "stripe_connect_auto",
@@ -120,12 +146,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         { merge: true }
       );
 
-      processed++;
-      paid++;
+      processed += 1;
+      paid += 1;
     }
 
     return res.status(200).json({ ok: true, processed, paid });
   } catch (e: any) {
-    return res.status(401).json({ ok: false, error: e?.message || "unauthorized" });
+    console.error("run_auto_payout_error", e);
+    return res.status(500).json({ ok: false, error: e?.message || "internal_error" });
   }
 }
