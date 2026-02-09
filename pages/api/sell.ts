@@ -47,16 +47,8 @@ export default async function handler(
       idToken,
     } = req.body || {};
 
-    const missing: string[] = [];
-    if (!name) missing.push("name");
-    if (!email) missing.push("email");
-    if (!title) missing.push("item name");
-    if (!brand) missing.push("brand/designer");
-    if (missing.length > 0) {
-      res.status(400).json({
-        ok: false,
-        error: `Missing required fields: ${missing.join(", ")}`,
-      });
+    if (!name || !email || !title || !brand) {
+      res.status(400).json({ ok: false, error: "Missing required fields" });
       return;
     }
 
@@ -102,11 +94,6 @@ export default async function handler(
     res.status(200).json({ ok: true, id: ref.id });
   } catch (e: any) {
     console.error("sell api error:", e?.message || e);
-    res.status(500).json({
-      ok: false,
-      error: e?.code === "PERMISSION_DENIED"
-        ? "Database permission error. Please contact support."
-        : `Server error: ${e?.message || "unknown"}`,
-    });
+    res.status(500).json({ ok: false, error: "Server error" });
   }
 }

@@ -44,8 +44,6 @@ export default function Sell() {
   const [uploadingImage, setUploadingImage] = useState(false);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
 
-  const [agreedToConsignment, setAgreedToConsignment] = useState(false);
-
   const [designers, setDesigners] = useState<Designer[]>([]);
   const [loadingDesigners, setLoadingDesigners] = useState(true);
   const [designerError, setDesignerError] = useState<string | null>(null);
@@ -82,34 +80,6 @@ export default function Sell() {
     return () => { isMounted = false; };
   }, []);
 
-  // Compress image client-side to stay within Vercel body-size limits
-  function compressImage(file: File, maxDim = 2000, quality = 0.85): Promise<Blob> {
-    return new Promise((resolve, reject) => {
-      const img = new Image();
-      img.onload = () => {
-        let { width, height } = img;
-        if (width > maxDim || height > maxDim) {
-          const ratio = Math.min(maxDim / width, maxDim / height);
-          width = Math.round(width * ratio);
-          height = Math.round(height * ratio);
-        }
-        const canvas = document.createElement("canvas");
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext("2d");
-        if (!ctx) return reject(new Error("Canvas not supported"));
-        ctx.drawImage(img, 0, 0, width, height);
-        canvas.toBlob(
-          (blob) => (blob ? resolve(blob) : reject(new Error("Compression failed"))),
-          "image/jpeg",
-          quality
-        );
-      };
-      img.onerror = () => reject(new Error("Failed to load image"));
-      img.src = URL.createObjectURL(file);
-    });
-  }
-
   async function uploadImageIfNeeded(
     formData: FormData
   ): Promise<{ imageUrl: string; displayImageUrl: string } | null> {
@@ -120,24 +90,15 @@ export default function Sell() {
 
     setUploadingImage(true);
     try {
-      // Compress client-side to avoid Vercel body-size limits
-      const compressed = await compressImage(file);
-
       const uploadData = new FormData();
-      uploadData.append("image", compressed, file.name || "photo.jpg");
+      uploadData.append("image", file);
 
       const res = await fetch("/api/seller/upload-with-processing", {
         method: "POST",
         body: uploadData,
       });
 
-      let json: any;
-      try {
-        json = await res.json();
-      } catch {
-        throw new Error(`Upload server error (status ${res.status})`);
-      }
-
+      const json = await res.json();
       if (!res.ok || !json.ok) {
         throw new Error(json?.error || "Upload failed");
       }
@@ -154,11 +115,6 @@ export default function Sell() {
   async function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (submitting) return;
-
-    if (!agreedToConsignment) {
-      alert("Please read and accept the Consignment Agreement before submitting.");
-      return;
-    }
 
     const form = e.currentTarget;
     const formData = new FormData(form);
@@ -181,19 +137,14 @@ export default function Sell() {
     let brandName = requestedDesigner;
     if (selectedDesignerId) {
       const match = designers.find((d) => d.id === selectedDesignerId);
-      brandName = match?.name || brandName || selectedDesignerId;
+      brandName = match?.name || brandName;
       formData.set("designer_id", selectedDesignerId);
       if (match?.isTop) {
         formData.set("designer_is_top", "true");
       }
     }
 
-    if (!brandName) {
-      alert("Please select a designer or type a designer name.");
-      return;
-    }
-
-    formData.set("brand", brandName);
+    formData.set("brand", brandName || "");
     if (requestedDesigner) {
       formData.set("designer_request", requestedDesigner);
       const requestReason = (formData.get("designer_request_reason") || "")
@@ -207,18 +158,10 @@ export default function Sell() {
 
     setSubmitting(true);
     try {
-      // Image upload is optional — if it fails, continue without image
-      let imageWarning = "";
-      try {
-        const uploaded = await uploadImageIfNeeded(formData);
-        if (uploaded) {
-          formData.set("image_url", uploaded.imageUrl);
-          formData.set("display_image_url", uploaded.displayImageUrl);
-        }
-      } catch (imgErr: any) {
-        console.warn("Image upload failed, continuing without image:", imgErr);
-        imageWarning =
-          "\n\n(Note: Image upload failed — your listing was submitted without the photo. You can add it later.)";
+      const uploaded = await uploadImageIfNeeded(formData);
+      if (uploaded) {
+        formData.set("image_url", uploaded.imageUrl);
+        formData.set("display_image_url", uploaded.displayImageUrl);
       }
 
       const payload: Record<string, any> = {};
@@ -237,64 +180,18 @@ export default function Sell() {
         body: JSON.stringify(payload),
       });
 
-      let json: any;
-      try {
-        json = await res.json();
-      } catch {
-        throw new Error(
-          `Server returned an unexpected response (status ${res.status}). Please try again.`
-        );
-      }
-
+      const json = await res.json();
       if (!res.ok || !json.ok) {
-        throw new Error(json?.error || `Server error (status ${res.status})`);
-      }
-
-      // Generate and download the Consignment Agreement PDF
-      try {
-        const pdfRes = await fetch("/api/consignment-agreement", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            sellerName: payload.name,
-            sellerEmail: payload.email,
-            itemTitle: payload.title,
-            itemBrand: payload.brand,
-            itemCondition: payload.condition,
-            itemPrice: payload.price,
-            itemSerialNumber: payload.serial_number,
-            itemDetails: payload.details,
-            submissionId: json.id,
-          }),
-        });
-        if (pdfRes.ok) {
-          const blob = await pdfRes.blob();
-          const url = URL.createObjectURL(blob);
-          const a = document.createElement("a");
-          a.href = url;
-          a.download = `FamousFinds-Consignment-Agreement.pdf`;
-          document.body.appendChild(a);
-          a.click();
-          document.body.removeChild(a);
-          URL.revokeObjectURL(url);
-        }
-      } catch (pdfErr) {
-        console.warn("Failed to generate consignment PDF:", pdfErr);
+        throw new Error(json?.error || "Something went wrong");
       }
 
       setSubmitted(true);
       form.reset();
       setImagePreview(null);
-      setAgreedToConsignment(false);
-
-      if (imageWarning) {
-        alert("Your listing was submitted successfully!" + imageWarning);
-      }
-    } catch (err: any) {
-      console.error("Listing submission error:", err);
-      const msg = err?.message || "Unknown error";
+    } catch (err) {
+      console.error(err);
       alert(
-        `Something went wrong submitting your listing: ${msg}\n\nPlease try again.`
+        "Something went wrong submitting your listing. Please try again."
       );
     } finally {
       setSubmitting(false);
@@ -536,46 +433,8 @@ export default function Sell() {
                 />
               </label>
 
-              {/* Consignment Agreement */}
-              <div className="consignment-agreement">
-                <strong>Consignment Agreement</strong>
-                <p>
-                  By checking the box below, you enter into a Consignment
-                  Agreement with Famous Finds, authorizing the platform to
-                  list, market, and sell the above-described item on your
-                  behalf.
-                </p>
-                <div className="agreement-summary">
-                  <p><strong>Key terms:</strong></p>
-                  <ul>
-                    <li>You confirm you are the lawful owner and the item is authentic.</li>
-                    <li>Famous Finds will list and sell the item on your behalf.</li>
-                    <li>A platform commission applies (see current fee schedule).</li>
-                    <li>Payout occurs after delivery confirmation and cooling period.</li>
-                    <li>You are responsible for any authenticity claims or disputes.</li>
-                    <li>Either party may terminate before the item sells.</li>
-                  </ul>
-                  <p className="agreement-note">
-                    A full PDF copy of the Consignment Agreement will be
-                    auto-generated and downloaded after submission.
-                  </p>
-                </div>
-                <label className="checkbox-label">
-                  <input
-                    type="checkbox"
-                    checked={agreedToConsignment}
-                    onChange={(e) => setAgreedToConsignment(e.target.checked)}
-                  />
-                  <span>
-                    I have read and agree to the{" "}
-                    <strong>Consignment Agreement</strong> and confirm that I
-                    am the lawful owner of this item and that it is authentic.
-                  </span>
-                </label>
-              </div>
-
               <div className="seller-responsibility">
-                <strong>Seller&apos;s Responsibility</strong>
+                <strong>Seller's Responsibility</strong>
                 <p>
                   By submitting this item, you declare, under penalty of law,
                   that this item is <strong>authentic</strong> and that all
@@ -589,24 +448,18 @@ export default function Sell() {
                 </p>
               </div>
 
-              <button
-                type="submit"
-                disabled={submitting || uploadingImage || !agreedToConsignment}
-              >
+              <button type="submit" disabled={submitting || uploadingImage}>
                 {submitting
                   ? "Submitting…"
                   : uploadingImage
                   ? "Uploading image…"
-                  : !agreedToConsignment
-                  ? "Accept agreement to submit"
                   : "Submit for review"}
               </button>
 
               {submitted && (
                 <p className="banner success">
-                  Thank you! We&apos;ve received your submission in USD. Your
-                  Consignment Agreement PDF has been downloaded. A team member
-                  will be in touch.
+                  Thank you! We&apos;ve received your submission in USD. A team
+                  member will be in touch.
                 </p>
               )}
             </form>
@@ -835,70 +688,6 @@ export default function Sell() {
           font-size: 12px;
           color: #6b7280;
           text-align: center;
-        }
-        .consignment-agreement {
-          margin-top: 20px;
-          padding: 16px;
-          border-radius: 8px;
-          border: 1px solid #bfdbfe;
-          background: #eff6ff;
-          font-size: 12px;
-          color: #1e3a5f;
-          line-height: 1.5;
-        }
-        .consignment-agreement > strong {
-          color: #1e40af;
-          display: block;
-          margin-bottom: 8px;
-          font-size: 14px;
-        }
-        .consignment-agreement p {
-          font-size: 12px;
-          margin-bottom: 8px;
-          color: #1e3a5f;
-        }
-        .agreement-summary {
-          margin: 8px 0 12px;
-          padding: 10px 12px;
-          background: #ffffff;
-          border-radius: 6px;
-          border: 1px solid #dbeafe;
-        }
-        .agreement-summary ul {
-          margin: 6px 0 8px;
-          padding-left: 18px;
-          font-size: 11px;
-          line-height: 1.6;
-          color: #374151;
-        }
-        .agreement-summary li {
-          margin-bottom: 2px;
-        }
-        .agreement-note {
-          font-size: 11px;
-          color: #6b7280;
-          font-style: italic;
-          margin-bottom: 0;
-        }
-        .checkbox-label {
-          display: flex;
-          flex-direction: row;
-          align-items: flex-start;
-          gap: 8px;
-          cursor: pointer;
-          font-weight: 400;
-        }
-        .checkbox-label input[type="checkbox"] {
-          margin-top: 2px;
-          width: 18px;
-          height: 18px;
-          flex-shrink: 0;
-          accent-color: #2563eb;
-        }
-        .checkbox-label span {
-          font-size: 12px;
-          color: #374151;
-          line-height: 1.5;
         }
         .seller-responsibility {
           margin-top: 16px;
