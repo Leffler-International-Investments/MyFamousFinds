@@ -1,55 +1,105 @@
 // FILE: /lib/stripe.ts
 import Stripe from "stripe";
+import { adminDb } from "../utils/firebaseAdmin";
 
-// Safely initialize Stripe so missing env vars do NOT break the build
-const secretKey = process.env.STRIPE_SECRET_KEY || "";
+export type StripeSecretKeyInfo = {
+  key: string;
+  source: "env" | "firestore" | "none";
+  hadWhitespace: boolean;
+};
 
-let stripe: Stripe | null = null;
+let cachedStripe: { key: string; client: Stripe } | null = null;
 
-if (secretKey) {
-  // Keep options minimal to avoid apiVersion mismatch surprises
-  stripe = new Stripe(secretKey, {});
-} else {
-  // Do NOT throw here — just log. This keeps Vercel builds working.
-  // At runtime, calls that require Stripe will throw a clear error.
-  console.warn("Stripe disabled: STRIPE_SECRET_KEY is not set");
+function normalizeKey(raw: string) {
+  const trimmed = (raw || "").trim();
+  return { trimmed, hadWhitespace: raw.length !== trimmed.length };
+}
+
+function looksLikeSecretKey(k: string) {
+  return k.startsWith("sk_live_") || k.startsWith("sk_test_");
 }
 
 /**
- * ✅ REQUIRED EXPORT
- * This is what pages/api/stripe.ts and webhooks expect.
+ * FIX:
+ * Prefer ENV STRIPE_SECRET_KEY first (Vercel source of truth).
+ * Fall back to Firestore ONLY if env is missing.
+ *
+ * This prevents stale Firestore keys from breaking LIVE Checkout.
  */
+export async function getStripeSecretKeyInfo(): Promise<StripeSecretKeyInfo> {
+  const envRaw = process.env.STRIPE_SECRET_KEY || "";
+  const { trimmed: envKey, hadWhitespace: envHadWhitespace } = normalizeKey(envRaw);
+
+  // ✅ Prefer env first
+  if (envKey) {
+    if (!looksLikeSecretKey(envKey)) {
+      console.warn("[stripe] STRIPE_SECRET_KEY does not look like a Stripe secret key (sk_...).");
+    }
+    return { key: envKey, source: "env", hadWhitespace: envHadWhitespace };
+  }
+
+  // Fallback: Firestore (only if env missing)
+  if (adminDb) {
+    try {
+      const snap = await adminDb.collection("admin").doc("stripe_settings").get();
+      if (snap.exists) {
+        const data = snap.data();
+        const raw = String(data?.secretKey || "");
+        const { trimmed, hadWhitespace } = normalizeKey(raw);
+        if (trimmed) {
+          if (!looksLikeSecretKey(trimmed)) {
+            console.warn("[stripe] Firestore secretKey does not look like a Stripe secret key (sk_...).");
+          }
+          return { key: trimmed, source: "firestore", hadWhitespace };
+        }
+      }
+    } catch (err) {
+      console.warn("[stripe] Failed to load Stripe settings from Firestore:", err);
+    }
+  }
+
+  return { key: "", source: "none", hadWhitespace: false };
+}
+
 export async function getStripeClient(): Promise<Stripe | null> {
-  return stripe;
+  const { key } = await getStripeSecretKeyInfo();
+  if (!key) {
+    console.warn("[stripe] Stripe disabled: no secret key found in env or Firestore.");
+    return null;
+  }
+
+  if (cachedStripe?.key === key) return cachedStripe.client;
+
+  const client = new Stripe(key, {
+    // apiVersion is optional; Stripe SDK defaults are fine for most apps.
+    timeout: 15000,
+    maxNetworkRetries: 2,
+  });
+
+  cachedStripe = { key, client };
+  return client;
 }
 
 /**
- * ✅ Backward-compatible named export
- * Some pages (like /pages/order/success.tsx) import { stripe } directly.
- */
-export { stripe };
-
-/**
- * Helper wrappers that fail clearly at runtime if Stripe is not configured
+ * ✅ EXPORT REQUIRED BY /pages/api/checkout.ts
+ * Your checkout API imports { createCheckoutSession } from "../../lib/stripe"
  */
 export async function createCheckoutSession(
   params: Stripe.Checkout.SessionCreateParams
-) {
+): Promise<Stripe.Checkout.Session> {
   const client = await getStripeClient();
   if (!client) {
-    throw new Error(
-      "Stripe is not configured on the server. Set STRIPE_SECRET_KEY to enable payments."
-    );
+    throw new Error("Stripe not configured (missing STRIPE_SECRET_KEY).");
   }
-  return client.checkout.sessions.create(params);
+  return await client.checkout.sessions.create(params);
 }
 
-export async function retrieveCheckoutSession(id: string) {
-  const client = await getStripeClient();
-  if (!client) {
-    throw new Error(
-      "Stripe is not configured on the server. Set STRIPE_SECRET_KEY to enable payments."
-    );
-  }
-  return client.checkout.sessions.retrieve(id);
-}
+/**
+ * ✅ Keep a named export `stripe` for any code that imports { stripe }.
+ * It will be a real Stripe client when STRIPE_SECRET_KEY is set.
+ * (If missing, it will be null at runtime.)
+ */
+const envKeyNow = (process.env.STRIPE_SECRET_KEY || "").trim();
+export const stripe: Stripe | null = envKeyNow
+  ? new Stripe(envKeyNow, { timeout: 15000, maxNetworkRetries: 2 })
+  : null;
