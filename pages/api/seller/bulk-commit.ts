@@ -1,3 +1,4 @@
+FILE: /pages/api/seller/bulk-commit.ts
 // FILE: /pages/api/seller/bulk-commit.ts
 import type { NextApiRequest, NextApiResponse } from "next";
 import { adminDb } from "../../../utils/firebaseAdmin";
@@ -94,7 +95,10 @@ async function processImage(base64Str: string): Promise<string | null> {
     const optimizedBuffer = await sharp(buffer)
       .rotate()
       .modulate({ brightness: 1.1, saturation: 1.05 })
-      .resize(1080, 1080, { fit: "contain", background: { r: 255, g: 255, b: 255, alpha: 1 } })
+      .resize(1080, 1080, {
+        fit: "contain",
+        background: { r: 255, g: 255, b: 255, alpha: 1 },
+      })
       .flatten({ background: "#ffffff" })
       .toFormat("jpeg", { quality: 85, mozjpeg: true })
       .toBuffer();
@@ -111,10 +115,7 @@ async function processAndStoreImage(base64Str: string) {
   if (!parsed) return null;
 
   if (!hasStorageBucket()) {
-    const displayBuffer = await createWhiteDisplayImage(
-      parsed.buffer,
-      parsed.contentType
-    );
+    const displayBuffer = await createWhiteDisplayImage(parsed.buffer, parsed.contentType);
     return {
       originalUrl: base64Str,
       displayUrl: `data:image/jpeg;base64,${displayBuffer.toString("base64")}`,
@@ -123,16 +124,10 @@ async function processAndStoreImage(base64Str: string) {
 
   try {
     const stored = await storeListingImages(parsed, "listing-images");
-    return {
-      originalUrl: stored.originalUrl,
-      displayUrl: stored.displayUrl,
-    };
+    return { originalUrl: stored.originalUrl, displayUrl: stored.displayUrl };
   } catch (error) {
     console.warn("Storage upload failed, falling back to data URLs:", error);
-    const displayBuffer = await createWhiteDisplayImage(
-      parsed.buffer,
-      parsed.contentType
-    );
+    const displayBuffer = await createWhiteDisplayImage(parsed.buffer, parsed.contentType);
     return {
       originalUrl: base64Str,
       displayUrl: `data:image/jpeg;base64,${displayBuffer.toString("base64")}`,
@@ -159,7 +154,7 @@ function cleanRow(r: IncomingRow): CleanRow | null {
   return {
     title,
     brand,
-    category: cat || "", // ✅ ONE SOURCE OF TRUTH
+    category: cat || "",
     condition,
     size,
     color,
@@ -184,7 +179,6 @@ async function getApprovedDesigners(): Promise<Set<string>> {
     if (data && data.name && data.active !== false) {
       set.add(String(data.name).trim().toLowerCase());
     }
-    return;
   });
 
   return set;
@@ -197,7 +191,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
     const { rows } = (req.body || {}) as { rows?: IncomingRow[] };
     if (!Array.isArray(rows)) return res.status(400).json({ ok: false, error: "Body must include array 'rows'" });
 
-    const sellerId = getSellerId(req) || "seller-demo-001";
+    const sellerId = await getSellerId(req);
+    if (!sellerId) {
+      return res.status(401).json({ ok: false, error: "unauthorized" });
+    }
 
     const approvedDesigners = await getApprovedDesigners();
     const enforceDesigners = approvedDesigners.size > 0;
