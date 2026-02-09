@@ -68,6 +68,27 @@ export default function ProductPage(props: ProductPageProps) {
   });
   const [buyerTouched, setBuyerTouched] = useState(false);
 
+  // ✅ Robust image fallback so the product image never disappears
+  // (Some listings store images as objects or empty strings; also "/placeholder.png" did not exist.)
+  const FALLBACK_IMG = "/Famous-Finds-Logo-2.png";
+  const isLikelyValidSrc = (src?: string | null) => {
+    const s = String(src || "").trim();
+    if (!s) return false;
+    if (s === "[object Object]") return false;
+    if (s.startsWith("data:image/")) return true;
+    if (s.startsWith("http://") || s.startsWith("https://")) return true;
+    if (s.startsWith("/")) return true; // local public asset
+    return false;
+  };
+  const [currentImgSrc, setCurrentImgSrc] = useState(
+    isLikelyValidSrc(imageUrl) ? imageUrl : FALLBACK_IMG
+  );
+
+  useEffect(() => {
+    setCurrentImgSrc(isLikelyValidSrc(imageUrl) ? imageUrl : FALLBACK_IMG);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [imageUrl]);
+
   const isBuyerDetailsValid = (() => {
     const b = buyerDetails;
     const required = [
@@ -211,8 +232,8 @@ export default function ProductPage(props: ProductPageProps) {
           ...(userId ? { "x-user-id": userId } : {}),
         },
         body: JSON.stringify({
-          productId: id,            // ✅ REQUIRED by API
-          price: offerValue,        // ✅ API accepts price
+          productId: id, // ✅ REQUIRED by API
+          price: offerValue, // ✅ API accepts price
           message: offerMessage,
           buyerEmail: buyerDetails.email || "", // optional
         }),
@@ -253,7 +274,14 @@ export default function ProductPage(props: ProductPageProps) {
 
         <div className="grid">
           <div className="imageWrap">
-            <img src={imageUrl} alt={title} className="image" />
+            <img
+              src={currentImgSrc}
+              alt={title}
+              className="image"
+              onError={() => {
+                if (currentImgSrc !== FALLBACK_IMG) setCurrentImgSrc(FALLBACK_IMG);
+              }}
+            />
           </div>
 
           <div className="details">
@@ -264,9 +292,7 @@ export default function ProductPage(props: ProductPageProps) {
             </p>
 
             <div className="price">{priceLabel}</div>
-            <p className="smallNote">
-              All prices in USD. Taxes and shipping calculated at checkout.
-            </p>
+            <p className="smallNote">All prices in USD. Taxes and shipping calculated at checkout.</p>
 
             <WishlistButton productId={id} />
 
@@ -302,8 +328,8 @@ export default function ProductPage(props: ProductPageProps) {
             <div id="buyer-details-form" className="buyer-box">
               <h3 className="buyer-title">Buyer details</h3>
               <p className="buyer-hint">
-                Complete your details below. The <strong>Buy now</strong> button will activate
-                once all required fields are filled.
+                Complete your details below. The <strong>Buy now</strong> button will activate once all
+                required fields are filled.
               </p>
 
               <div className="buyer-grid">
@@ -458,18 +484,12 @@ export default function ProductPage(props: ProductPageProps) {
               </div>
 
               {!isBuyerDetailsValid && buyerTouched && (
-                <div className="buyer-warning">
-                  Please fill all required fields (*) to enable checkout.
-                </div>
+                <div className="buyer-warning">Please fill all required fields (*) to enable checkout.</div>
               )}
             </div>
 
             <div className="button-row">
-              <button
-                onClick={handleBuyNow}
-                disabled={loading || !isBuyerDetailsValid}
-                className="btn-buy"
-              >
+              <button onClick={handleBuyNow} disabled={loading || !isBuyerDetailsValid} className="btn-buy">
                 {loading ? "Processing…" : isBuyerDetailsValid ? "Buy now" : "Complete details to buy"}
               </button>
 
@@ -478,10 +498,7 @@ export default function ProductPage(props: ProductPageProps) {
                   onClick={() => {
                     const form = document.getElementById("offer-form");
                     if (form) {
-                      form.scrollIntoView({
-                        behavior: "smooth",
-                        block: "start",
-                      });
+                      form.scrollIntoView({ behavior: "smooth", block: "start" });
                     }
                   }}
                   className="btn-offer"
@@ -503,9 +520,7 @@ export default function ProductPage(props: ProductPageProps) {
             {allowOffers && (
               <div className="offer-wrap" id="offer-form">
                 <h3 className="offer-title">Make an offer</h3>
-                <p className="offer-note">
-                  Enter an amount you’d like to pay. The seller can accept, counter, or decline.
-                </p>
+                <p className="offer-note">Enter an amount you’d like to pay. The seller can accept, counter, or decline.</p>
 
                 <form onSubmit={handleOfferSubmit} className="offer-form">
                   <label className="offer-label">
@@ -520,16 +535,12 @@ export default function ProductPage(props: ProductPageProps) {
 
                   {offerError && <div className="offer-error">{offerError}</div>}
 
-                  <button className="offer-submit" type="submit" disabled={offerSubmitting}>
+                  <button type="submit" disabled={offerSubmitting} className="offer-submit">
                     {offerSubmitting ? "Submitting…" : "Submit offer"}
                   </button>
                 </form>
               </div>
             )}
-
-            <div className="sellerLine">
-              <span className="sellerLabel">Seller:</span> {sellerName || "Independent seller"}
-            </div>
           </div>
         </div>
       </main>
@@ -538,273 +549,290 @@ export default function ProductPage(props: ProductPageProps) {
 
       <style jsx>{`
         .page {
-          background: #ffffff;
+          background: #fff;
+          min-height: 100vh;
         }
         .container {
-          max-width: 1100px;
+          max-width: 1180px;
           margin: 0 auto;
-          padding: 18px 16px 40px;
+          padding: 24px 20px 60px;
         }
         .breadcrumb {
           font-size: 12px;
-          color: #6b7280;
-          margin-bottom: 12px;
+          color: #777;
+          margin: 12px 0 18px;
         }
         .grid {
           display: grid;
-          grid-template-columns: 1.2fr 1fr;
-          gap: 26px;
+          grid-template-columns: 1.1fr 1fr;
+          gap: 28px;
           align-items: start;
         }
         .imageWrap {
-          border-radius: 18px;
-          border: 1px solid #e5e7eb;
-          overflow: hidden;
-          background: #fff;
+          width: 100%;
+          border: 1px solid #ececec;
+          border-radius: 14px;
+          padding: 18px;
+          background: #fafafa;
         }
         .image {
           width: 100%;
-          display: block;
-          object-fit: cover;
+          height: 360px;
+          object-fit: contain;
+          border-radius: 10px;
+          background: #fff;
+          border: 1px solid #f0f0f0;
         }
         .details {
-          padding-top: 6px;
+          width: 100%;
         }
         .brand {
           font-size: 12px;
-          letter-spacing: 0.22em;
-          color: #0f172a;
+          letter-spacing: 0.18em;
+          color: #666;
           text-transform: uppercase;
+          margin-bottom: 6px;
         }
         .title {
-          margin: 6px 0 8px;
-          font-size: 28px;
+          font-size: 30px;
           font-weight: 700;
-          color: #0b1220;
+          margin: 0 0 6px;
+          color: #111;
         }
         .subtitle {
-          margin: 0 0 12px;
+          margin: 0 0 16px;
+          color: #666;
           font-size: 13px;
-          color: #4b5563;
-          max-width: 540px;
+          line-height: 1.4;
         }
         .price {
-          font-size: 26px;
+          font-size: 28px;
           font-weight: 800;
-          margin: 10px 0 6px;
+          margin-top: 8px;
+          color: #111;
         }
         .smallNote {
-          margin: 0 0 12px;
+          margin: 6px 0 14px;
           font-size: 12px;
-          color: #6b7280;
+          color: #777;
         }
         .meta {
           display: grid;
-          grid-template-columns: 1fr 1fr;
-          gap: 10px 18px;
-          margin: 14px 0 12px;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 12px 22px;
+          margin: 16px 0 18px;
         }
         .metaLabel {
           font-size: 11px;
-          color: #6b7280;
+          color: #888;
+          text-transform: uppercase;
+          letter-spacing: 0.08em;
         }
         .metaValue {
           font-size: 13px;
-          color: #0b1220;
+          color: #111;
           font-weight: 600;
         }
         .desc {
-          margin-top: 10px;
+          margin-top: 8px;
         }
         .descLabel {
-          font-size: 12px;
-          letter-spacing: 0.2em;
-          color: #0f172a;
-          font-weight: 700;
+          font-size: 11px;
+          color: #888;
+          text-transform: uppercase;
+          letter-spacing: 0.14em;
           margin-bottom: 6px;
         }
         .descText {
           font-size: 13px;
-          color: #374151;
-          line-height: 1.5;
+          color: #333;
+          line-height: 1.6;
         }
+
+        .buyer-box {
+          margin-top: 22px;
+          border: 1px solid #ececec;
+          border-radius: 14px;
+          padding: 18px;
+          background: #fff;
+        }
+        .buyer-title {
+          margin: 0 0 6px;
+          font-size: 14px;
+          font-weight: 800;
+          letter-spacing: 0.1em;
+          text-transform: uppercase;
+        }
+        .buyer-hint {
+          margin: 0 0 14px;
+          font-size: 12px;
+          color: #666;
+        }
+        .buyer-grid {
+          display: grid;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 12px;
+        }
+        .buyer-field label {
+          display: block;
+          font-size: 12px;
+          color: #333;
+          margin-bottom: 6px;
+          font-weight: 600;
+        }
+        .req {
+          color: #d11;
+          font-weight: 900;
+        }
+        .buyer-field input,
+        .buyer-field textarea {
+          width: 100%;
+          border: 1px solid #ddd;
+          border-radius: 10px;
+          padding: 10px 12px;
+          font-size: 13px;
+          outline: none;
+        }
+        .buyer-wide {
+          grid-column: span 2;
+        }
+        .buyer-error {
+          margin-top: 6px;
+          font-size: 11px;
+          color: #d11;
+          font-weight: 700;
+        }
+        .buyer-warning {
+          margin-top: 12px;
+          font-size: 12px;
+          color: #a64b00;
+          background: #fff3e8;
+          border: 1px solid #ffd7b8;
+          border-radius: 10px;
+          padding: 10px 12px;
+        }
+
         .button-row {
-          margin-top: 14px;
           display: flex;
-          gap: 10px;
+          gap: 12px;
+          margin-top: 14px;
           align-items: center;
         }
         .btn-buy {
-          width: 100%;
+          flex: 1;
+          background: #6b6b6b;
+          color: #fff;
           border: none;
           border-radius: 999px;
-          background: #0b1220;
-          color: white;
           padding: 12px 16px;
           font-weight: 700;
           cursor: pointer;
         }
         .btn-buy:disabled {
-          opacity: 0.55;
+          opacity: 0.6;
           cursor: not-allowed;
         }
         .btn-offer {
-          width: 100%;
-          border: 1px solid #0b1220;
+          flex: 1;
+          background: #fff;
+          color: #111;
+          border: 1px solid #ddd;
           border-radius: 999px;
-          background: white;
-          color: #0b1220;
           padding: 12px 16px;
-          font-weight: 700;
+          font-weight: 800;
           cursor: pointer;
         }
+
         .protection-box {
           margin-top: 14px;
-          border: 1px solid #e5e7eb;
+          border: 1px solid #ececec;
           border-radius: 14px;
-          padding: 14px 14px;
-          background: #f9fafb;
+          padding: 14px 16px;
+          background: #fff;
         }
         .protection-title {
-          margin: 0 0 8px;
-          font-size: 12px;
           font-weight: 800;
-          color: #111827;
+          margin: 0 0 10px;
+          font-size: 12px;
         }
         .protection-list {
           margin: 0;
           padding-left: 18px;
-          color: #374151;
-          font-size: 13px;
+          color: #555;
+          font-size: 12px;
         }
         .offer-wrap {
-          margin-top: 18px;
-          border-top: 1px solid #e5e7eb;
-          padding-top: 16px;
+          margin-top: 16px;
+          border: 1px solid #ececec;
+          border-radius: 14px;
+          padding: 18px;
+          background: #fff;
         }
         .offer-title {
           margin: 0 0 6px;
-          font-size: 15px;
-          font-weight: 800;
+          font-weight: 900;
+          font-size: 13px;
+          letter-spacing: 0.1em;
+          text-transform: uppercase;
         }
         .offer-note {
           margin: 0 0 12px;
-          font-size: 13px;
-          color: #6b7280;
+          color: #666;
+          font-size: 12px;
         }
         .offer-form {
           display: grid;
           gap: 10px;
-          max-width: 520px;
         }
         .offer-label {
+          font-size: 12px;
+          color: #333;
+          font-weight: 700;
           display: grid;
           gap: 6px;
-          font-size: 12px;
-          color: #111827;
         }
         .offer-input,
         .offer-textarea {
-          width: 100%;
-          border: 1px solid #d1d5db;
+          border: 1px solid #ddd;
           border-radius: 10px;
-          padding: 10px 10px;
-          font-size: 14px;
-        }
-        .offer-error {
-          color: #b91c1c;
+          padding: 10px 12px;
           font-size: 13px;
-          font-weight: 700;
+          width: 100%;
         }
         .offer-submit {
+          background: #111;
+          color: #fff;
           border: none;
-          border-radius: 10px;
-          background: #111827;
-          color: white;
-          padding: 10px 12px;
-          font-weight: 800;
+          border-radius: 999px;
+          padding: 12px 16px;
+          font-weight: 900;
           cursor: pointer;
         }
         .offer-submit:disabled {
-          opacity: 0.6;
+          opacity: 0.7;
           cursor: not-allowed;
         }
-        .sellerLine {
-          margin-top: 16px;
-          font-size: 12px;
-          color: #6b7280;
-        }
-        .sellerLabel {
+        .offer-error {
+          color: #b00020;
           font-weight: 800;
-          color: #111827;
+          font-size: 12px;
         }
 
-        .buyer-box {
-          margin-top: 18px;
-          padding: 14px 14px;
-          border: 1px solid #e5e7eb;
-          border-radius: 12px;
-          background: #fafafa;
-        }
-        .buyer-title {
-          margin: 0 0 6px;
-          font-size: 14px;
-          letter-spacing: 0.08em;
-          text-transform: uppercase;
-          color: #111827;
-        }
-        .buyer-hint {
-          margin: 0 0 12px;
-          font-size: 13px;
-          color: #374151;
-        }
-        .buyer-grid {
-          display: grid;
-          grid-template-columns: 1fr 1fr;
-          gap: 10px;
-        }
-        .buyer-wide {
-          grid-column: 1 / -1;
-        }
-        .buyer-field label {
-          display: block;
-          font-size: 12px;
-          color: #111827;
-          margin-bottom: 4px;
-        }
-        .buyer-field input {
-          width: 100%;
-          border: 1px solid #d1d5db;
-          border-radius: 10px;
-          padding: 10px 10px;
-          font-size: 14px;
-          outline: none;
-          background: white;
-        }
-        .buyer-field input:focus {
-          border-color: #111827;
-        }
-        .req {
-          color: #b91c1c;
-        }
-        .buyer-error {
-          margin-top: 4px;
-          font-size: 12px;
-          color: #b91c1c;
-        }
-        .buyer-warning {
-          margin-top: 10px;
-          font-size: 13px;
-          color: #b91c1c;
-        }
-        @media (max-width: 900px) {
+        @media (max-width: 980px) {
           .grid {
             grid-template-columns: 1fr;
           }
-        }
-        @media (max-width: 820px) {
+          .image {
+            height: 320px;
+          }
           .buyer-grid {
             grid-template-columns: 1fr;
+          }
+          .buyer-wide {
+            grid-column: span 1;
+          }
+          .button-row {
+            flex-direction: column;
           }
         }
       `}</style>
@@ -812,9 +840,63 @@ export default function ProductPage(props: ProductPageProps) {
   );
 }
 
-export const getServerSideProps: GetServerSideProps<ProductPageProps> = async (
-  ctx
-) => {
+function formatLocal(iso: string) {
+  try {
+    const d = new Date(iso);
+    return d.toLocaleString();
+  } catch {
+    return iso;
+  }
+}
+
+/**
+ * Extract the best available shipping line(s)
+ */
+function renderShipTo(addr?: any) {
+  if (!addr) return <span className="muted">—</span>;
+  const parts = [addr.line1, addr.line2, addr.city, addr.state, addr.postal_code, addr.country]
+    .map((x) => String(x || "").trim())
+    .filter(Boolean);
+  if (parts.length === 0) return <span className="muted">—</span>;
+  return <span>{parts.join(", ")}</span>;
+}
+
+function formatMoney(r: any) {
+  const amount = typeof r.total === "number" ? r.total : typeof r.price === "number" ? r.price : 0;
+  const currency = String(r.currency || "USD").toUpperCase();
+  try {
+    return new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency,
+      maximumFractionDigits: 0,
+    }).format(amount || 0);
+  } catch {
+    return `${currency} ${amount || 0}`;
+  }
+}
+
+function renderDeadline(iso?: string | null) {
+  if (!iso) return <span className="muted">—</span>;
+  try {
+    return <span>{new Date(iso).toLocaleString()}</span>;
+  } catch {
+    return <span>{iso}</span>;
+  }
+}
+
+function renderStatus(r: any) {
+  const s = String(r.status || "").toLowerCase();
+  const stage = String(r.fulfillment?.stage || "").toLowerCase();
+
+  if (s.includes("paid") || stage === "paid") return <span>Paid</span>;
+  if (s.includes("shipped") || stage === "shipped") return <span>Shipped</span>;
+  if (s.includes("delivered") || stage === "delivered") return <span>Delivered</span>;
+  if (s.includes("cancel")) return <span>Cancelled</span>;
+
+  return <span>{r.status || "—"}</span>;
+}
+
+export const getServerSideProps: GetServerSideProps<ProductPageProps> = async (ctx) => {
   const id = String(ctx.params?.id || "");
 
   if (!id) {
@@ -849,13 +931,46 @@ export const getServerSideProps: GetServerSideProps<ProductPageProps> = async (
 
     const images = Array.isArray(d.images) ? d.images : [];
 
-    // Robust image URL resolution logic
-    const imageUrl = (
-      String(d.imageUrl || "") || 
-      String(d.displayImageUrl || "") || 
-      String(d.display_image_url || "") || 
-      String(images[0] || "")
-    ).trim() || "/placeholder.png";
+    const pickFrom = (v: any): string => {
+      if (!v) return "";
+      if (typeof v === "string") return v;
+      if (typeof v === "object") {
+        // common shapes we store during uploads / bulk
+        return (
+          v.displayUrl ||
+          v.displayImageUrl ||
+          v.url ||
+          v.src ||
+          v.originalUrl ||
+          v.original ||
+          ""
+        );
+      }
+      return "";
+    };
+
+    const normalizeSrc = (src: any): string => {
+      const s = String(src || "").trim();
+      if (!s || s === "[object Object]") return "";
+      // Allow: https/http, data:image, or local /public assets
+      if (s.startsWith("data:image/")) return s;
+      if (s.startsWith("http://") || s.startsWith("https://")) return s;
+      if (s.startsWith("/")) return s;
+      return "";
+    };
+
+    // ✅ Robust image URL resolution logic
+    const imageUrl =
+      normalizeSrc(
+        pickFrom(d.displayImageUrl) ||
+          pickFrom(d.display_image_url) ||
+          pickFrom(d.displayImageUrls?.[0]) ||
+          pickFrom(d.imageUrl) ||
+          pickFrom(d.image_url) ||
+          pickFrom(d.image) ||
+          pickFrom(d.imageUrls?.[0]) ||
+          pickFrom(images?.[0])
+      ) || "/Famous-Finds-Logo-2.png";
 
     const condition = String(d.condition || "").trim();
     const brand = String(d.brand || d.designer || "").trim();
