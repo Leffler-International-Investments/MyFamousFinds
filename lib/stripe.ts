@@ -11,8 +11,11 @@ export type StripeSecretKeyInfo = {
 let cachedStripe: { key: string; client: Stripe } | null = null;
 
 function normalizeKey(raw: string) {
-  const trimmed = (raw || "").trim();
-  return { trimmed, hadWhitespace: raw.length !== trimmed.length };
+  // Strip ALL whitespace (spaces, newlines, tabs, carriage returns) from
+  // everywhere in the key – not just leading/trailing.  Vercel env-var
+  // editors occasionally inject line-breaks when a value is pasted.
+  const stripped = (raw || "").replace(/\s+/g, "");
+  return { trimmed: stripped, hadWhitespace: raw.length !== stripped.length };
 }
 
 function looksLikeSecretKey(k: string) {

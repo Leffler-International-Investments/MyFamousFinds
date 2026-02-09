@@ -7,7 +7,8 @@ type Resp =
   | { ok: false; error: string };
 
 function normalize(raw: string) {
-  return String(raw || "").trim();
+  // Strip ALL whitespace – Vercel env editors can inject newlines
+  return String(raw || "").replace(/\s+/g, "");
 }
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse<Resp>) {

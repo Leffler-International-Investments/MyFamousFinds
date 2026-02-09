@@ -184,24 +184,31 @@ export default function ProductPage(props: ProductPageProps) {
 
       const json = await res.json();
 
-      if (!res.ok || !json?.sessionId) {
+      if (!res.ok || !json?.ok) {
         throw new Error(json?.error || "Unable to create checkout session");
       }
 
-      const stripe = await getStripe();
-      if (!stripe) throw new Error("Stripe not loaded");
-
-      const result = await stripe.redirectToCheckout({ sessionId: json.sessionId });
-
-      // ✅ HARD FALLBACK: if Stripe.js redirect fails but we have a session URL, redirect directly
-      if (result?.error && json?.url) {
+      // ✅ Prefer Stripe-hosted URL (session.url) – this is the modern,
+      // recommended approach and avoids publishable-key mismatch issues
+      // that can cause "Something went wrong" on the checkout page.
+      if (json.url) {
         window.location.assign(json.url);
         return;
       }
 
-      if (result?.error) {
-        throw new Error(result.error.message || "Checkout failed");
+      // Fallback: use Stripe.js redirectToCheckout if no URL returned
+      if (json.sessionId) {
+        const stripe = await getStripe();
+        if (!stripe) throw new Error("Stripe not loaded");
+
+        const result = await stripe.redirectToCheckout({ sessionId: json.sessionId });
+        if (result?.error) {
+          throw new Error(result.error.message || "Checkout failed");
+        }
+        return;
       }
+
+      throw new Error("No checkout URL or session ID returned");
     } catch (err: any) {
       console.error(err);
       alert(err?.message || "Checkout failed, please try again.");
