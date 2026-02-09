@@ -6,6 +6,7 @@ import Header from "../../components/Header";
 import Footer from "../../components/Footer";
 import { adminDb } from "../../utils/firebaseAdmin";
 import { useRequireAdmin } from "../../hooks/useRequireAdmin";
+import { mgmtFetch } from "../../utils/managementClient";
 import { useState } from "react";
 
 type Listing = {
@@ -41,7 +42,7 @@ function ManagementListingQueue({ items: initialItems }: Props) {
     setError(null);
 
     try {
-      const res = await fetch(`/api/admin/${action}/${id}`, {
+      const res = await mgmtFetch(`/api/admin/${action}/${id}`, {
         method: "POST",
       });
       const json = await res.json().catch(() => ({}));
@@ -291,6 +292,7 @@ export default ManagementListingQueue;
 
 export const getServerSideProps: GetServerSideProps<Props> = async () => {
   try {
+    if (!adminDb) return { props: { initialListings: [] } };
     const snap = await adminDb
       .collection("listings")
       .orderBy("createdAt", "desc")

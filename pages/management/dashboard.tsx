@@ -333,6 +333,7 @@ export default function ManagementDashboard({ stats }: Props) {
 
 export const getServerSideProps: GetServerSideProps<Props> = async () => {
   try {
+    if (!adminDb) return { props: { counts: { totalSellers: 0, pendingSellers: 0, totalListings: 0, pendingListings: 0, totalOrders: 0, pendingOrders: 0 } } };
     const [
       sellersSnap,
       pendingSellersSnap,
