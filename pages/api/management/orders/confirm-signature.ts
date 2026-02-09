@@ -3,21 +3,12 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { adminDb, FieldValue } from "../../../../utils/firebaseAdmin";
 import { getPayoutSettings } from "../../../../lib/payoutSettings";
+import { requireAdmin } from "../../../../utils/adminAuth";
 
 type Ok = { ok: true; eligibleAt: string };
 type Err = { ok: false; error: string };
 
-function isAdminRequest(req: NextApiRequest) {
-  const required = process.env.ADMIN_API_SECRET;
-  if (!required) return true;
-  const got = String(req.headers["x-admin-secret"] || "");
-  return got && got === required;
-}
-
-export default async function handler(
-  req: NextApiRequest,
-  res: NextApiResponse<Ok | Err>
-) {
+export default async function handler(req: NextApiRequest, res: NextApiResponse<Ok | Err>) {
   if (req.method !== "POST") {
     res.setHeader("Allow", "POST");
     return res.status(405).json({ ok: false, error: "method_not_allowed" });
@@ -26,24 +17,17 @@ export default async function handler(
   if (!adminDb) {
     return res.status(500).json({ ok: false, error: "firebase_not_configured" });
   }
-  if (!isAdminRequest(req)) {
-    return res.status(401).json({ ok: false, error: "unauthorized" });
+  if (!requireAdmin(req, res)) {
+    return;
   }
 
   try {
-    const { orderId, coolingDays } = (req.body || {}) as {
-      orderId?: string;
-      coolingDays?: number;
-    };
-    if (!orderId) {
-      return res.status(400).json({ ok: false, error: "missing_orderId" });
-    }
+    const { orderId, coolingDays } = (req.body || {}) as { orderId?: string; coolingDays?: number };
+    if (!orderId) return res.status(400).json({ ok: false, error: "missing_orderId" });
 
     const ref = adminDb.collection("orders").doc(String(orderId));
     const snap = await ref.get();
-    if (!snap.exists) {
-      return res.status(404).json({ ok: false, error: "order_not_found" });
-    }
+    if (!snap.exists) return res.status(404).json({ ok: false, error: "order_not_found" });
 
     const o: any = snap.data() || {};
     const { defaultCoolingDays } = await getPayoutSettings();
