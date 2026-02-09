@@ -27,7 +27,6 @@ export async function getStripeSecretKeyInfo(): Promise<StripeSecretKeyInfo> {
   const envRaw = process.env.STRIPE_SECRET_KEY || "";
   const { trimmed: envKey, hadWhitespace: envHadWhitespace } = normalizeKey(envRaw);
 
-  // ✅ Prefer env first
   if (envKey) {
     if (!looksLikeSecretKey(envKey)) {
       console.warn("[stripe] STRIPE_SECRET_KEY does not look like a Stripe secret key (sk_...).");
@@ -35,13 +34,12 @@ export async function getStripeSecretKeyInfo(): Promise<StripeSecretKeyInfo> {
     return { key: envKey, source: "env", hadWhitespace: envHadWhitespace };
   }
 
-  // Fallback: Firestore (only if env missing)
   if (adminDb) {
     try {
       const snap = await adminDb.collection("admin").doc("stripe_settings").get();
       if (snap.exists) {
         const data = snap.data();
-        const raw = String((data as any)?.secretKey || "");
+        const raw = String(data?.secretKey || "");
         const { trimmed, hadWhitespace } = normalizeKey(raw);
         if (trimmed) {
           if (!looksLikeSecretKey(trimmed)) {
@@ -77,7 +75,7 @@ export async function getStripeClient(): Promise<Stripe | null> {
 }
 
 /**
- * ✅ EXPORT REQUIRED BY /pages/api/checkout.ts
+ * Used by pages/api/checkout.ts
  */
 export async function createCheckoutSession(
   params: Stripe.Checkout.SessionCreateParams
@@ -90,18 +88,7 @@ export async function createCheckoutSession(
 }
 
 /**
- * ✅ Backward-compat named export `stripe`
- * Used by pages/order/success.tsx
- *
- * IMPORTANT:
- * Only ONE declaration of `stripe` must exist in this file.
+ * Backward-compat named export used by pages/order/success.tsx
+ * IMPORTANT: only declare/export this ONCE.
  */
-export const stripe: Stripe | null = (() => {
-  const k = (process.env.STRIPE_SECRET_KEY || "").trim();
-  if (!k) return null;
-  try {
-    return new Stripe(k, { timeout: 15000, maxNetworkRetries: 2 });
-  } catch {
-    return null;
-  }
-})();
+export const stripe: Stripe | null = null;
