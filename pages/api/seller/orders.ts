@@ -1,3 +1,4 @@
+FILE: /pages/api/seller/orders.ts
 // FILE: /pages/api/seller/orders.ts
 
 import type { NextApiRequest, NextApiResponse } from "next";
@@ -56,9 +57,7 @@ type Order = {
   listingTitle?: string;
 };
 
-type Data =
-  | { ok: true; orders: Order[] }
-  | { ok: false; error: string };
+type Data = { ok: true; orders: Order[] } | { ok: false; error: string };
 
 function toIsoMaybe(ts: any): string | null {
   try {
@@ -74,19 +73,20 @@ function toIsoMaybe(ts: any): string | null {
   }
 }
 
-export default async function handler(
-  req: NextApiRequest,
-  res: NextApiResponse<Data>
-) {
+export default async function handler(req: NextApiRequest, res: NextApiResponse<Data>) {
   try {
     if (req.method !== "GET") {
       res.setHeader("Allow", "GET");
       return res.status(405).json({ ok: false, error: "method_not_allowed" });
     }
 
-    const sellerId = getSellerId(req);
+    const sellerId = await getSellerId(req);
     if (!sellerId) {
       return res.status(401).json({ ok: false, error: "unauthorized" });
+    }
+
+    if (!adminDb) {
+      return res.status(500).json({ ok: false, error: "firebase_not_configured" });
     }
 
     const snap = await adminDb
@@ -100,26 +100,15 @@ export default async function handler(
       const o: any = d.data() || {};
 
       const buyerName =
-        o.buyerName ||
-        o.buyer?.name ||
-        o.customerName ||
-        o.customer_details?.name ||
-        "";
+        o.buyerName || o.buyer?.name || o.customerName || o.customer_details?.name || "";
 
-      const buyerEmail =
-        o.buyerEmail || o.buyer?.email || o.customerEmail || "";
+      const buyerEmail = o.buyerEmail || o.buyer?.email || o.customerEmail || "";
 
       const shippingAddress: ShippingAddress | null =
-        o.shippingAddress ||
-        o.shipping ||
-        o.shipping?.address ||
-        o.shipping_details?.address ||
-        null;
+        o.shippingAddress || o.shipping || o.shipping?.address || o.shipping_details?.address || null;
 
       const shipDeadlineAt =
-        toIsoMaybe(o.shipDeadlineAt) ||
-        toIsoMaybe(o.fulfillment?.shipDeadlineAt) ||
-        null;
+        toIsoMaybe(o.shipDeadlineAt) || toIsoMaybe(o.fulfillment?.shipDeadlineAt) || null;
 
       const fulfillment = o.fulfillment
         ? {
@@ -158,10 +147,7 @@ export default async function handler(
       const currency = String(o.currency || o.totals?.currency || "USD");
 
       const listingTitle =
-        o.listingTitle ||
-        o.item ||
-        (Array.isArray(o.items) ? o.items[0]?.title : "") ||
-        "";
+        o.listingTitle || o.item || (Array.isArray(o.items) ? o.items[0]?.title : "") || "";
 
       return {
         id: d.id,
@@ -183,8 +169,6 @@ export default async function handler(
     return res.status(200).json({ ok: true, orders });
   } catch (e: any) {
     console.error("seller_orders_api_error", e);
-    return res
-      .status(500)
-      .json({ ok: false, error: e?.message || "internal_error" });
+    return res.status(500).json({ ok: false, error: e?.message || "internal_error" });
   }
 }
