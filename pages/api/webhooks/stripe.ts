@@ -3,7 +3,12 @@ import type { NextApiRequest, NextApiResponse } from "next";
 import Stripe from "stripe";
 import { getStripeClient } from "../../../lib/stripe";
 import { adminDb, FieldValue } from "../../../utils/firebaseAdmin";
-import { sendSellerSoldShipNowEmail } from "../../../utils/email";
+import {
+  sendSellerSoldShipNowEmail,
+  sendOrderConfirmationEmail,
+  OrderEmailPayload,
+} from "../../../utils/email";
+import { getPayoutSettings } from "../../../lib/payoutSettings";
 
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET || "";
 
@@ -33,19 +38,43 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   let event: Stripe.Event;
 
   try {
-    const buf = await getRawBody(req);
+    const rawBody = await getRawBody(req);
+
+    if (!webhookSecret) {
+      return res.status(500).json({ error: "STRIPE_WEBHOOK_SECRET is not configured" });
+    }
+
     const sig = req.headers["stripe-signature"];
-    if (!sig) return res.status(400).send("Missing Stripe signature header");
-    event = stripe.webhooks.constructEvent(buf, sig, webhookSecret);
+    if (!sig || typeof sig !== "string") {
+      return res.status(400).json({ error: "Missing Stripe signature" });
+    }
+
+    event = stripe.webhooks.constructEvent(rawBody, sig, webhookSecret);
   } catch (err: any) {
-    console.error("Stripe webhook signature verification failed:", err?.message);
-    return res.status(400).send(`Webhook Error: ${err.message}`);
+    console.error("Stripe webhook signature verification failed:", err?.message || err);
+    return res.status(400).json({ error: "Invalid signature" });
   }
 
   try {
     switch (event.type) {
       case "checkout.session.completed": {
         const session = event.data.object as Stripe.Checkout.Session;
+
+        // ✅ Idempotency: if we already created an order for this Stripe session, no-op.
+        const existingByTop = await adminDb
+          .collection("orders")
+          .where("stripeSessionId", "==", session.id)
+          .limit(1)
+          .get();
+        if (!existingByTop.empty) break;
+
+        // Back-compat: older order schema stores stripe.sessionId
+        const existingByNested = await adminDb
+          .collection("orders")
+          .where("stripe.sessionId", "==", session.id)
+          .limit(1)
+          .get();
+        if (!existingByNested.empty) break;
 
         const listingId = session.metadata?.listingId;
         const paymentStatus = session.payment_status;
@@ -62,18 +91,21 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         const listingTitle = String(listing.title || listing.name || "Item");
 
         // 2) Mark listing sold
-        await listingRef.update({
-          status: "Sold",
-          updatedAt: FieldValue.serverTimestamp(),
-          stripePaymentIntent: session.payment_intent || null,
-        });
+        await listingRef.set(
+          {
+            status: "Sold",
+            isSold: true,
+            soldAt: FieldValue.serverTimestamp(),
+            updatedAt: FieldValue.serverTimestamp(),
+            stripePaymentIntent: session.payment_intent || null,
+          },
+          { merge: true }
+        );
 
         // 3) Extract buyer + shipping
         const buyerEmail = session.customer_details?.email || "";
         const buyerName = session.customer_details?.name || "";
 
-        // ✅ FIX: Stripe typings in your installed version do NOT export Session.ShippingDetails
-        // Treat shipping_details as plain object type (safe).
         const shippingDetails = (session as any).shipping_details as
           | { name?: string; address?: any }
           | undefined;
@@ -93,23 +125,37 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             }
           : null;
 
-        // 4) Create order record (seller label source)
-        // Default ship deadline: 72 hours
+        // 4) Create order record (canonical schema used by /order/success)
         const nowMs = Date.now();
         const shipDeadlineAt = new Date(nowMs + 72 * 60 * 60 * 1000);
 
         const currency = (session.currency || "usd").toUpperCase();
-        const total = (session.amount_total || 0) / 100;
+        const amountTotal = (session.amount_total || 0) / 100;
+        const subtotal = (session.amount_subtotal || session.amount_total || 0) / 100;
+        const shippingCost = Math.max(0, amountTotal - subtotal);
+
+        const { defaultCoolingDays } = await getPayoutSettings();
 
         const orderRef = await adminDb.collection("orders").add({
           listingId,
           listingTitle,
+          listingBrand: String(listing.brand || ""),
+          listingCategory: String(listing.category || ""),
           sellerId,
-          status: "Paid", // Paid → Shipped → Delivered(Signature) → Confirmed → Cooling → PaidOut
-          buyer: {
-            name: buyerName,
-            email: buyerEmail,
-          },
+          sellerName: String(
+            listing.sellerName || listing.sellerDisplayName || "Independent seller"
+          ),
+          listingImage:
+            listing.displayImageUrl ||
+            listing.display_image_url ||
+            listing.imageUrl ||
+            listing.image_url ||
+            (Array.isArray(listing.images) ? listing.images[0] : "") ||
+            "",
+          status: "Paid",
+          buyerEmail,
+          buyerName,
+          buyerUid: session.metadata?.buyerId || null,
           shippingAddress,
           shipDeadlineAt,
           fulfillment: {
@@ -118,13 +164,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           },
           payout: {
             status: "NOT_READY",
-            coolingDays: 7, // later adjustable via settings
+            coolingDays: defaultCoolingDays,
           },
-          totals: { currency, total },
-          stripe: {
-            sessionId: session.id,
-            paymentIntentId: session.payment_intent || null,
-          },
+          price: listing.price || amountTotal,
+          total: amountTotal,
+          currency,
+          stripeSessionId: session.id,
+          stripePaymentIntentId: session.payment_intent || null,
+          totals: { currency, total: amountTotal },
+          stripe: { sessionId: session.id, paymentIntentId: session.payment_intent || null },
           createdAt: FieldValue.serverTimestamp(),
           updatedAt: FieldValue.serverTimestamp(),
         });
@@ -158,6 +206,34 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             } catch (e) {
               console.warn("Seller sold email failed:", e);
             }
+          }
+        }
+
+        // 6) Email buyer receipt (best effort)
+        if (buyerEmail) {
+          const emailPayload: OrderEmailPayload = {
+            id: orderRef.id,
+            customerName: buyerName || undefined,
+            customerEmail: buyerEmail,
+            currency,
+            items: [
+              {
+                name: listingTitle,
+                brand: String(listing.brand || ""),
+                category: String(listing.category || ""),
+                quantity: 1,
+                price: subtotal || amountTotal,
+              },
+            ],
+            subtotal: subtotal || amountTotal,
+            shipping: shippingCost,
+            total: amountTotal,
+          };
+
+          try {
+            await sendOrderConfirmationEmail(emailPayload);
+          } catch (e) {
+            console.warn("Buyer order email failed:", e);
           }
         }
 
