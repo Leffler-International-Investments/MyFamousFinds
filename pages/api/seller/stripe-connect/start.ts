@@ -1,3 +1,4 @@
+FILE: /pages/api/seller/stripe-connect/start.ts
 // FILE: /pages/api/seller/stripe-connect/start.ts
 import type { NextApiRequest, NextApiResponse } from "next";
 import Stripe from "stripe";
@@ -11,8 +12,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(405).json({ ok: false, error: "method_not_allowed" });
   }
 
-  const sellerId = getSellerId(req);
+  const sellerId = await getSellerId(req);
   if (!sellerId) return res.status(401).json({ ok: false, error: "unauthorized" });
+
+  if (!adminDb) return res.status(500).json({ ok: false, error: "firebase_not_configured" });
 
   const stripe = await getStripeClient();
   if (!stripe) return res.status(500).json({ ok: false, error: "stripe_not_configured" });
@@ -22,7 +25,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const seller = sellerSnap.exists ? (sellerSnap.data() as any) : {};
   const email = String(seller.email || seller.contactEmail || "");
 
-  // Create connected account if missing
   let stripeAccountId = seller.stripeAccountId as string | undefined;
   if (!stripeAccountId) {
     const acct = await stripe.accounts.create({
@@ -46,9 +48,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     );
   }
 
-  const baseUrl =
-    process.env.NEXT_PUBLIC_SITE_URL ||
-    `https://${req.headers.host}`;
+  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || `https://${req.headers.host}`;
 
   const accountLink = await stripe.accountLinks.create({
     account: stripeAccountId,
