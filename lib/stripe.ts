@@ -20,11 +20,8 @@ function looksLikeSecretKey(k: string) {
 }
 
 /**
- * FIX:
  * Prefer ENV STRIPE_SECRET_KEY first (Vercel source of truth).
  * Fall back to Firestore ONLY if env is missing.
- *
- * This prevents stale Firestore keys from breaking LIVE Checkout.
  */
 export async function getStripeSecretKeyInfo(): Promise<StripeSecretKeyInfo> {
   const envRaw = process.env.STRIPE_SECRET_KEY || "";
@@ -44,7 +41,7 @@ export async function getStripeSecretKeyInfo(): Promise<StripeSecretKeyInfo> {
       const snap = await adminDb.collection("admin").doc("stripe_settings").get();
       if (snap.exists) {
         const data = snap.data();
-        const raw = String(data?.secretKey || "");
+        const raw = String((data as any)?.secretKey || "");
         const { trimmed, hadWhitespace } = normalizeKey(raw);
         if (trimmed) {
           if (!looksLikeSecretKey(trimmed)) {
@@ -71,7 +68,6 @@ export async function getStripeClient(): Promise<Stripe | null> {
   if (cachedStripe?.key === key) return cachedStripe.client;
 
   const client = new Stripe(key, {
-    // apiVersion is optional; Stripe SDK defaults are fine for most apps.
     timeout: 15000,
     maxNetworkRetries: 2,
   });
@@ -82,7 +78,6 @@ export async function getStripeClient(): Promise<Stripe | null> {
 
 /**
  * ✅ EXPORT REQUIRED BY /pages/api/checkout.ts
- * Your checkout API imports { createCheckoutSession } from "../../lib/stripe"
  */
 export async function createCheckoutSession(
   params: Stripe.Checkout.SessionCreateParams
@@ -95,11 +90,18 @@ export async function createCheckoutSession(
 }
 
 /**
- * ✅ Keep a named export `stripe` for any code that imports { stripe }.
- * It will be a real Stripe client when STRIPE_SECRET_KEY is set.
- * (If missing, it will be null at runtime.)
+ * ✅ Backward-compat named export `stripe`
+ * Used by pages/order/success.tsx
+ *
+ * IMPORTANT:
+ * Only ONE declaration of `stripe` must exist in this file.
  */
-const envKeyNow = (process.env.STRIPE_SECRET_KEY || "").trim();
-export const stripe: Stripe | null = envKeyNow
-  ? new Stripe(envKeyNow, { timeout: 15000, maxNetworkRetries: 2 })
-  : null;
+export const stripe: Stripe | null = (() => {
+  const k = (process.env.STRIPE_SECRET_KEY || "").trim();
+  if (!k) return null;
+  try {
+    return new Stripe(k, { timeout: 15000, maxNetworkRetries: 2 });
+  } catch {
+    return null;
+  }
+})();
