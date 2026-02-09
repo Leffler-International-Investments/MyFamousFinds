@@ -1,188 +1,230 @@
-// utils/email.ts
+// FILE: /utils/email.ts
 import nodemailer from "nodemailer";
 
-const host = process.env.SMTP_HOST;
-const port = Number(process.env.SMTP_PORT || 587);
-const user = process.env.SMTP_USER;
-const pass = process.env.SMTP_PASS;
-const from = process.env.SMTP_FROM || "service@myfamousfinds.com";
+function cleanEnv(v?: string) {
+  return String(v ?? "")
+    .replace(/\r/g, "")
+    .replace(/\n/g, "")
+    .trim();
+}
 
-// Warn if missing envs (shows in Vercel logs)
-if (!host || !user || !pass) {
-  console.warn("[email] Missing SMTP configuration. Emails will NOT be sent.", {
-    host,
-    user,
+const SMTP_HOST = cleanEnv(process.env.SMTP_HOST);
+const SMTP_PORT = Number(cleanEnv(process.env.SMTP_PORT) || "587");
+const SMTP_USER = cleanEnv(process.env.SMTP_USER);
+const SMTP_PASS = cleanEnv(process.env.SMTP_PASS);
+const SMTP_FROM =
+  cleanEnv(process.env.SMTP_FROM) ||
+  (SMTP_USER
+    ? `Famous Finds <${SMTP_USER}>`
+    : "Famous Finds <no-reply@myfamousfinds.com>");
+
+function getTransport() {
+  if (!SMTP_HOST || !SMTP_PORT) {
+    throw new Error("SMTP is not configured (missing SMTP_HOST/SMTP_PORT).");
+  }
+
+  const usingAuth = Boolean(SMTP_USER && SMTP_PASS);
+
+  return nodemailer.createTransport({
+    host: SMTP_HOST,
+    port: SMTP_PORT,
+    secure: SMTP_PORT === 465,
+    auth: usingAuth ? { user: SMTP_USER, pass: SMTP_PASS } : undefined,
   });
 }
 
-const transporter = nodemailer.createTransport({
-  host,
-  port,
-  secure: port === 465, // 587 = STARTTLS, 465 = SSL
-  auth: { user, pass },
-  tls: {
-    // avoids some TLS issues on serverless hosts
-    rejectUnauthorized: false,
-  },
-});
+function escapeHtml(s: string) {
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
 
-// Generic helper
-async function sendMail(to: string, subject: string, text: string) {
-  if (!host || !user || !pass) {
-    console.warn("[email] SMTP not configured – skipping send");
-    return;
-  }
-
-  try {
-    const info = await transporter.sendMail({
-      from,
-      to,
-      subject,
-      text,
-    });
-    console.log("[email] sent", { to, messageId: info.messageId });
-  } catch (err) {
-    console.error("[email] error sending mail", err);
-    // Let the API route see the error so it can return ok:false
-    throw err;
-  }
+export async function sendMail(
+  to: string,
+  subject: string,
+  text: string,
+  html?: string
+) {
+  const transport = getTransport();
+  await transport.sendMail({
+    from: SMTP_FROM,
+    to,
+    subject,
+    text,
+    ...(html ? { html } : {}),
+  });
 }
 
 /**
- * 2FA login code email for admins/sellers
+ * 2FA / Login Code email (used by /pages/api/auth/start-2fa.ts)
  */
 export async function sendLoginCode(to: string, code: string) {
-  const subject = "Your Famous Finds Verification Code";
-  const text = `Your login verification code is: ${code}
+  const email = String(to || "").trim();
+  const c = String(code || "").trim();
 
-Enter this code in the login screen to continue.`;
-  await sendMail(to, subject, text);
+  if (!email) throw new Error("sendLoginCode missing required field: to");
+  if (!c) throw new Error("sendLoginCode missing required field: code");
+
+  const subject = "MyFamousFinds — Your Login Code";
+  const text =
+    "Hello,\n\n" +
+    "Use the login code below to sign in:\n\n" +
+    `${c}\n\n` +
+    "If you did not request this, you can ignore this email.\n\n" +
+    "MyFamousFinds";
+
+  const html =
+    "<p>Hello,</p>" +
+    "<p>Use the login code below to sign in:</p>" +
+    `<p style="font-size:20px; letter-spacing:2px;"><b>${escapeHtml(
+      c
+    )}</b></p>` +
+    "<p>If you did not request this, you can ignore this email.</p>" +
+    "<p>MyFamousFinds</p>";
+
+  await sendMail(email, subject, text, html);
 }
 
 /**
- * Seller invite email used when an admin approves a seller
+ * Seller Application — confirmation to the seller (application received)
  */
-export async function sendSellerInviteEmail(args: {
-  to: string;
-  businessName?: string;
-  registerUrl?: string;
-  [key: string]: any;
-}) {
-  const { to, businessName, registerUrl } = args;
+export async function sendSellerApplicationReceivedEmail(to: string) {
+  const email = String(to || "").trim();
+  if (!email) throw new Error("sendSellerApplicationReceivedEmail missing required field: to");
 
-  const subject = "Your Seller Application is Approved — Welcome to Famous Finds";
-  const text = `Hi${businessName ? " " + businessName : ""},
+  const subject = "MyFamousFinds — Application Received";
+  const text =
+    "Hello,\n\n" +
+    "Thanks for applying to become a seller on MyFamousFinds.\n\n" +
+    "We have received your application and our team will review it shortly.\n\n" +
+    "You will receive another email once your application has been approved or if we need more information.\n\n" +
+    "Regards,\n" +
+    "MyFamousFinds";
 
-Welcome to Famous Finds — your seller application has been approved!
+  const html =
+    "<p>Hello,</p>" +
+    "<p>Thanks for applying to become a seller on <b>MyFamousFinds</b>.</p>" +
+    "<p>We have received your application and our team will review it shortly.</p>" +
+    "<p>You will receive another email once your application has been approved or if we need more information.</p>" +
+    "<p>Regards,<br/>MyFamousFinds</p>";
 
-Next steps:
-1) Log into the Seller Portal.
-2) Complete your seller profile (name + payout details, if applicable).
-3) Upload your first listing with clear photos and all required fields.
-4) If moderation is required, our team will review and approve listings before they go live.
-
-Seller portal setup link:
-${registerUrl ?? ""}
-
-Need help? Contact us at support@myfamousfinds.com.`;
-
-  await sendMail(to, subject, text);
+  await sendMail(email, subject, text, html);
 }
 
 /**
- * Seller rejection email used when an admin rejects a seller
+ * Seller Application — notification to admin (new seller application received)
  */
-export async function sendSellerRejectionEmail(args: {
+export async function sendAdminNewSellerApplicationEmail(
+  adminTo: string,
+  sellerEmail: string
+) {
+  const to = String(adminTo || "").trim();
+  const seller = String(sellerEmail || "").trim().toLowerCase();
+
+  if (!to) throw new Error("sendAdminNewSellerApplicationEmail missing required field: adminTo");
+  if (!seller || !seller.includes("@")) {
+    throw new Error("sendAdminNewSellerApplicationEmail missing/invalid sellerEmail");
+  }
+
+  const subject = "MyFamousFinds — New Seller Application";
+  const text =
+    "Hello,\n\n" +
+    "A new seller application has been submitted.\n\n" +
+    `Seller email: ${seller}\n\n` +
+    "Please review it in the Management Dashboard.\n\n" +
+    "MyFamousFinds";
+
+  const html =
+    "<p>Hello,</p>" +
+    "<p><b>A new seller application has been submitted.</b></p>" +
+    `<p><b>Seller email:</b> ${escapeHtml(seller)}</p>` +
+    "<p>Please review it in the Management Dashboard.</p>" +
+    "<p>MyFamousFinds</p>";
+
+  await sendMail(to, subject, text, html);
+}
+
+export async function sendSellerInviteEmail(
+  a: { to: string; businessName?: string; registerUrl: string } | string,
+  b?: string,
+  c?: string
+) {
+  let to = "";
+  let businessName = "";
+  let registerUrl = "";
+
+  if (typeof a === "string") {
+    to = a;
+    if (c) {
+      businessName = b || "";
+      registerUrl = c;
+    } else {
+      registerUrl = b || "";
+    }
+  } else {
+    to = a.to;
+    businessName = a.businessName || "";
+    registerUrl = a.registerUrl;
+  }
+
+  if (!to || !registerUrl) {
+    throw new Error("sendSellerInviteEmail missing required fields (to/registerUrl).");
+  }
+
+  const subject = "MyFamousFinds — Seller Registration Link";
+  const text =
+    `Hello${businessName ? " " + businessName : ""},\n\n` +
+    `Your seller account has been approved.\n\n` +
+    `Please complete your registration here:\n${registerUrl}\n\n` +
+    `If you did not request this, ignore this email.\n`;
+
+  const html =
+    `<p>Hello${businessName ? " " + businessName : ""},</p>` +
+    `<p>Your seller account has been approved.</p>` +
+    `<p><b>Please complete your registration here:</b><br/>` +
+    `<a href="${registerUrl}">${registerUrl}</a></p>` +
+    `<p>If you did not request this, ignore this email.</p>`;
+
+  await sendMail(to, subject, text, html);
+}
+
+export async function sendSellerRejectionEmail(params: {
   to: string;
   businessName?: string;
   reason?: string;
-  [key: string]: any;
 }) {
-  const { to, businessName, reason } = args;
+  const to = (params.to || "").trim();
+  const businessName = (params.businessName || "").trim();
+  const reason = (params.reason || "").trim();
 
-  const subject = "Your seller application on Famous Finds";
-  const text = `Hi${businessName ? " " + businessName : ""},
+  if (!to) throw new Error("sendSellerRejectionEmail missing required field: to");
 
-Thank you for applying to become a seller on Famous Finds.
+  const subject = "MyFamousFinds — Seller Application Update";
+  const text =
+    `Hello${businessName ? " " + businessName : ""},\n\n` +
+    `Thank you for applying to become a seller on MyFamousFinds.\n\n` +
+    `At this time, your application was not approved.` +
+    (reason ? `\n\nReason:\n${reason}\n` : "\n\n") +
+    `You are welcome to re-apply after updating your information.\n`;
 
-After reviewing your application, we’re unable to approve it at this time.${
-    reason ? "\n\nReason: " + reason : ""
-  }
+  const html =
+    `<p>Hello${businessName ? " " + businessName : ""},</p>` +
+    `<p>Thank you for applying to become a seller on MyFamousFinds.</p>` +
+    `<p><b>At this time, your application was not approved.</b></p>` +
+    (reason
+      ? `<p><b>Reason:</b><br/>${escapeHtml(reason).replace(/\n/g, "<br/>")}</p>`
+      : "") +
+    `<p>You are welcome to re-apply after updating your information.</p>`;
 
-You’re welcome to contact us or reapply in the future.`;
-
-  await sendMail(to, subject, text);
+  await sendMail(to, subject, text, html);
 }
 
-/**
- * Order confirmation email payload type
- */
-export type OrderEmailPayload = {
-  to?: string; // <-- now optional
-  customerEmail?: string;
-  subject?: string;
-  text?: string;
-  orderId?: string;
-  total?: number;
-  currency?: string;
-  items?: {
-    name: string;
-    quantity: number;
-    price?: number;
-    brand?: string;
-    category?: string;
-    [key: string]: any;
-  }[];
-  [key: string]: any;
-};
-
-/**
- * Order confirmation email used from Stripe webhook / API
- */
-export async function sendOrderConfirmationEmail(
-  payload: OrderEmailPayload
-): Promise<void> {
-  const {
-    to,
-    customerEmail,
-    subject,
-    text,
-    orderId,
-    total,
-    currency,
-    items,
-  } = payload;
-
-  const recipient = to || customerEmail;
-  if (!recipient) {
-    console.warn("[email] sendOrderConfirmationEmail: no recipient email");
-    return;
-  }
-
-  const finalSubject = subject || "Your Famous Finds order confirmation";
-
-  const itemsText =
-    items && items.length
-      ? "\n\nItems:\n" +
-        items
-          .map(
-            (it) =>
-              `- ${it.name} x ${it.quantity}${
-                it.price ? ` (${it.price} ${currency ?? ""})` : ""
-              }`
-          )
-          .join("\n")
-      : "";
-
-  const finalText =
-    text ||
-    `Thank you for your order on Famous Finds.${
-      orderId ? `\n\nOrder ID: ${orderId}` : ""
-    }${
-      typeof total === "number"
-        ? `\nTotal: ${total} ${currency ?? ""}`
-        : ""
-    }${itemsText}\n\nIf you have any questions, reply to this email.`;
-
-  await sendMail(recipient, finalSubject, finalText);
+export async function sendTestEmail(to: string) {
+  const subject = "MyFamousFinds SMTP Test";
+  const text =
+    "SMTP is working. This is a test email from MyFamousFinds.\n\nIf you received this, seller emails will send on approval.";
+  await sendMail(to, subject, text);
 }
