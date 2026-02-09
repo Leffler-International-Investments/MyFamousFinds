@@ -29,7 +29,9 @@ export async function getStripeSecretKeyInfo(): Promise<StripeSecretKeyInfo> {
 
   if (envKey) {
     if (!looksLikeSecretKey(envKey)) {
-      console.warn("[stripe] STRIPE_SECRET_KEY does not look like a Stripe secret key (sk_...).");
+      console.warn(
+        "[stripe] STRIPE_SECRET_KEY does not look like a Stripe secret key (sk_...)."
+      );
     }
     return { key: envKey, source: "env", hadWhitespace: envHadWhitespace };
   }
@@ -43,7 +45,9 @@ export async function getStripeSecretKeyInfo(): Promise<StripeSecretKeyInfo> {
         const { trimmed, hadWhitespace } = normalizeKey(raw);
         if (trimmed) {
           if (!looksLikeSecretKey(trimmed)) {
-            console.warn("[stripe] Firestore secretKey does not look like a Stripe secret key (sk_...).");
+            console.warn(
+              "[stripe] Firestore secretKey does not look like a Stripe secret key (sk_...)."
+            );
           }
           return { key: trimmed, source: "firestore", hadWhitespace };
         }
@@ -88,7 +92,22 @@ export async function createCheckoutSession(
 }
 
 /**
- * Backward-compat named export used by pages/order/success.tsx
+ * Used by pages/order/success.tsx
+ * Fixes build error: no exported member 'retrieveCheckoutSession'
+ */
+export async function retrieveCheckoutSession(
+  sessionId: string,
+  params?: Stripe.Checkout.SessionRetrieveParams
+): Promise<Stripe.Checkout.Session> {
+  const client = await getStripeClient();
+  if (!client) {
+    throw new Error("Stripe not configured (missing STRIPE_SECRET_KEY).");
+  }
+  return await client.checkout.sessions.retrieve(sessionId, params);
+}
+
+/**
+ * Backward-compat named export (avoid module-load Stripe init).
  * IMPORTANT: only declare/export this ONCE.
  */
 export const stripe: Stripe | null = null;
