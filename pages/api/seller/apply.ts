@@ -30,28 +30,46 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     const id = email.replace(/\./g, "_");
 
+    // Check for duplicate application — only send email on first submission
+    const existingDoc = await adminDb.collection("sellerApplications").doc(id).get();
+    const isNewApplication = !existingDoc.exists;
+
     await adminDb.collection("sellerApplications").doc(id).set({
       ...body,
       email,
       status: "pending",
-      createdAt: Date.now(),
+      createdAt: existingDoc.exists ? (existingDoc.data()?.createdAt ?? Date.now()) : Date.now(),
       updatedAt: Date.now(),
     });
 
-    // ✅ Email seller: application received
-    try {
-      await sendSellerApplicationReceivedEmail(email);
-    } catch (e) {
-      console.error("seller apply email failed", e);
+    // ✅ Email seller: application received (only on first submission)
+    if (isNewApplication) {
+      try {
+        await sendSellerApplicationReceivedEmail(email, {
+          businessName: body.businessName,
+          contactName: body.contactName,
+          phone: body.phone,
+          website: body.website,
+          social: body.social,
+          inventory: body.inventory,
+          experience: body.experience,
+        });
+      } catch (e) {
+        console.error("[APPLY] seller confirmation email failed", e);
+      }
+    } else {
+      console.log(`[APPLY] duplicate submission for ${email} — skipping confirmation email`);
     }
 
-    // ✅ Email admin: new application (if set)
-    const adminEmail = String(process.env.ADMIN_EMAIL || "").trim();
-    if (adminEmail && adminEmail.includes("@")) {
-      try {
-        await sendAdminNewSellerApplicationEmail(adminEmail, email);
-      } catch (e) {
-        console.error("admin new seller email failed", e);
+    // ✅ Email admin: new application (if set, only on first submission)
+    if (isNewApplication) {
+      const adminEmail = String(process.env.ADMIN_EMAIL || "").trim();
+      if (adminEmail && adminEmail.includes("@")) {
+        try {
+          await sendAdminNewSellerApplicationEmail(adminEmail, email);
+        } catch (e) {
+          console.error("[APPLY] admin notification email failed", e);
+        }
       }
     }
 

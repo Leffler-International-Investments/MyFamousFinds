@@ -48,14 +48,23 @@ export async function sendMail(
   text: string,
   html?: string
 ) {
-  const transport = getTransport();
-  await transport.sendMail({
-    from: SMTP_FROM,
-    to,
-    subject,
-    text,
-    ...(html ? { html } : {}),
-  });
+  const logTag = `[EMAIL] to=${to} subject="${subject}"`;
+  console.log(`${logTag} — attempting to send`);
+  try {
+    const transport = getTransport();
+    const info = await transport.sendMail({
+      from: SMTP_FROM,
+      to,
+      subject,
+      text,
+      ...(html ? { html } : {}),
+    });
+    console.log(`${logTag} — sent successfully (messageId=${info.messageId ?? "n/a"})`);
+    return info;
+  } catch (err) {
+    console.error(`${logTag} — FAILED`, err);
+    throw err;
+  }
 }
 
 /**
@@ -91,25 +100,77 @@ export async function sendLoginCode(to: string, code: string) {
 /**
  * Seller Application — confirmation to the seller (application received)
  */
-export async function sendSellerApplicationReceivedEmail(to: string) {
+export async function sendSellerApplicationReceivedEmail(
+  to: string,
+  details?: {
+    businessName?: string;
+    contactName?: string;
+    phone?: string;
+    website?: string;
+    social?: string;
+    inventory?: string;
+    experience?: string;
+  }
+) {
   const email = String(to || "").trim();
   if (!email) throw new Error("sendSellerApplicationReceivedEmail missing required field: to");
 
+  const d = details || {};
+  const greeting = d.contactName ? `Hello ${escapeHtml(d.contactName)}` : "Hello";
+
+  // Build a plain-text summary of submitted details
+  const summaryLines: string[] = [];
+  if (d.businessName) summaryLines.push(`  Business Name: ${d.businessName}`);
+  if (d.contactName) summaryLines.push(`  Contact Name: ${d.contactName}`);
+  summaryLines.push(`  Email: ${email}`);
+  if (d.phone) summaryLines.push(`  Phone: ${d.phone}`);
+  if (d.website) summaryLines.push(`  Website: ${d.website}`);
+  if (d.social) summaryLines.push(`  Social: ${d.social}`);
+  if (d.inventory) summaryLines.push(`  Inventory: ${d.inventory}`);
+  if (d.experience) summaryLines.push(`  Experience: ${d.experience}`);
+  const summaryText = summaryLines.join("\n");
+
+  // Build an HTML summary table
+  const summaryRows: string[] = [];
+  if (d.businessName)
+    summaryRows.push(`<tr><td style="padding:4px 8px;color:#6b7280;">Business Name</td><td style="padding:4px 8px;">${escapeHtml(d.businessName)}</td></tr>`);
+  if (d.contactName)
+    summaryRows.push(`<tr><td style="padding:4px 8px;color:#6b7280;">Contact Name</td><td style="padding:4px 8px;">${escapeHtml(d.contactName)}</td></tr>`);
+  summaryRows.push(`<tr><td style="padding:4px 8px;color:#6b7280;">Email</td><td style="padding:4px 8px;">${escapeHtml(email)}</td></tr>`);
+  if (d.phone)
+    summaryRows.push(`<tr><td style="padding:4px 8px;color:#6b7280;">Phone</td><td style="padding:4px 8px;">${escapeHtml(d.phone)}</td></tr>`);
+  if (d.website)
+    summaryRows.push(`<tr><td style="padding:4px 8px;color:#6b7280;">Website</td><td style="padding:4px 8px;">${escapeHtml(d.website)}</td></tr>`);
+  if (d.social)
+    summaryRows.push(`<tr><td style="padding:4px 8px;color:#6b7280;">Social</td><td style="padding:4px 8px;">${escapeHtml(d.social)}</td></tr>`);
+  if (d.inventory)
+    summaryRows.push(`<tr><td style="padding:4px 8px;color:#6b7280;">Inventory</td><td style="padding:4px 8px;">${escapeHtml(d.inventory)}</td></tr>`);
+  if (d.experience)
+    summaryRows.push(`<tr><td style="padding:4px 8px;color:#6b7280;">Experience</td><td style="padding:4px 8px;">${escapeHtml(d.experience)}</td></tr>`);
+  const summaryHtml = summaryRows.length
+    ? `<table style="border-collapse:collapse;margin:8px 0;font-size:14px;">${summaryRows.join("")}</table>`
+    : "";
+
   const subject = "MyFamousFinds — Application Received";
   const text =
-    "Hello,\n\n" +
-    "Thanks for applying to become a seller on MyFamousFinds.\n\n" +
-    "We have received your application and our team will review it shortly.\n\n" +
-    "You will receive another email once your application has been approved or if we need more information.\n\n" +
+    `${greeting.replace(/<[^>]*>/g, "")},\n\n` +
+    "Thank you for applying to become a seller on MyFamousFinds!\n\n" +
+    "We have received your application with the following details:\n\n" +
+    summaryText + "\n\n" +
+    "Your application is under review. You will be notified once vetted.\n\n" +
+    "If you have any questions in the meantime, feel free to reply to this email.\n\n" +
     "Regards,\n" +
-    "MyFamousFinds";
+    "The MyFamousFinds Team";
 
   const html =
-    "<p>Hello,</p>" +
-    "<p>Thanks for applying to become a seller on <b>MyFamousFinds</b>.</p>" +
-    "<p>We have received your application and our team will review it shortly.</p>" +
-    "<p>You will receive another email once your application has been approved or if we need more information.</p>" +
-    "<p>Regards,<br/>MyFamousFinds</p>";
+    `<p>${greeting},</p>` +
+    "<p>Thank you for applying to become a seller on <b>MyFamousFinds</b>!</p>" +
+    "<p>We have received your application with the following details:</p>" +
+    summaryHtml +
+    `<p style="margin-top:12px;padding:10px;background:#f0fdf4;border-radius:6px;font-size:14px;">` +
+    "<b>Your application is under review.</b> You will be notified once vetted.</p>" +
+    "<p>If you have any questions in the meantime, feel free to reply to this email.</p>" +
+    "<p>Regards,<br/>The MyFamousFinds Team</p>";
 
   await sendMail(email, subject, text, html);
 }
@@ -174,19 +235,32 @@ export async function sendSellerInviteEmail(
     throw new Error("sendSellerInviteEmail missing required fields (to/registerUrl).");
   }
 
-  const subject = "MyFamousFinds — Seller Registration Link";
+  const subject = "MyFamousFinds — Your Seller Account Has Been Approved!";
   const text =
     `Hello${businessName ? " " + businessName : ""},\n\n` +
-    `Your seller account has been approved.\n\n` +
-    `Please complete your registration here:\n${registerUrl}\n\n` +
-    `If you did not request this, ignore this email.\n`;
+    `Great news — your seller account on MyFamousFinds has been approved!\n\n` +
+    `Here's what to do next:\n\n` +
+    `1. Complete your registration using the link below:\n   ${registerUrl}\n\n` +
+    `2. Once registered, log in to your Seller Admin console.\n\n` +
+    `3. Complete your banking details so you can receive payouts.\n\n` +
+    `4. Start listing your products!\n\n` +
+    `If you did not apply, you can safely ignore this email.\n\n` +
+    `Welcome aboard!\n` +
+    `The MyFamousFinds Team\n`;
 
   const html =
-    `<p>Hello${businessName ? " " + businessName : ""},</p>` +
-    `<p>Your seller account has been approved.</p>` +
-    `<p><b>Please complete your registration here:</b><br/>` +
-    `<a href="${registerUrl}">${registerUrl}</a></p>` +
-    `<p>If you did not request this, ignore this email.</p>`;
+    `<p>Hello${businessName ? " " + escapeHtml(businessName) : ""},</p>` +
+    `<p style="font-size:16px;"><b>Great news — your seller account on MyFamousFinds has been approved!</b></p>` +
+    `<p>Here's what to do next:</p>` +
+    `<ol style="line-height:1.8;">` +
+    `<li><b>Complete your registration</b> using the link below:<br/>` +
+    `<a href="${registerUrl}" style="color:#059669;">${escapeHtml(registerUrl)}</a></li>` +
+    `<li>Once registered, <b>log in</b> to your Seller Admin console.</li>` +
+    `<li><b>Complete your banking details</b> so you can receive payouts.</li>` +
+    `<li><b>Start listing your products!</b></li>` +
+    `</ol>` +
+    `<p style="font-size:12px;color:#6b7280;">If you did not apply, you can safely ignore this email.</p>` +
+    `<p>Welcome aboard!<br/>The MyFamousFinds Team</p>`;
 
   await sendMail(to, subject, text, html);
 }
@@ -205,19 +279,26 @@ export async function sendSellerRejectionEmail(params: {
   const subject = "MyFamousFinds — Seller Application Update";
   const text =
     `Hello${businessName ? " " + businessName : ""},\n\n` +
-    `Thank you for applying to become a seller on MyFamousFinds.\n\n` +
-    `At this time, your application was not approved.` +
-    (reason ? `\n\nReason:\n${reason}\n` : "\n\n") +
-    `You are welcome to re-apply after updating your information.\n`;
+    `Thank you for your interest in becoming a seller on MyFamousFinds.\n\n` +
+    `After reviewing your application, we are unable to approve it at this time.` +
+    (reason ? `\n\nFeedback from our team:\n${reason}\n` : "\n") +
+    `\nWe appreciate the time you took to apply. You are welcome to re-apply at any time ` +
+    `by visiting our "Become a Seller" page and submitting an updated application.\n\n` +
+    `If you have questions, feel free to reply to this email.\n\n` +
+    `Regards,\n` +
+    `The MyFamousFinds Team\n`;
 
   const html =
-    `<p>Hello${businessName ? " " + businessName : ""},</p>` +
-    `<p>Thank you for applying to become a seller on MyFamousFinds.</p>` +
-    `<p><b>At this time, your application was not approved.</b></p>` +
+    `<p>Hello${businessName ? " " + escapeHtml(businessName) : ""},</p>` +
+    `<p>Thank you for your interest in becoming a seller on <b>MyFamousFinds</b>.</p>` +
+    `<p>After reviewing your application, we are unable to approve it at this time.</p>` +
     (reason
-      ? `<p><b>Reason:</b><br/>${escapeHtml(reason).replace(/\n/g, "<br/>")}</p>`
+      ? `<p style="padding:10px;background:#fef3c7;border-radius:6px;"><b>Feedback from our team:</b><br/>${escapeHtml(reason).replace(/\n/g, "<br/>")}</p>`
       : "") +
-    `<p>You are welcome to re-apply after updating your information.</p>`;
+    `<p>We appreciate the time you took to apply. You are welcome to <b>re-apply at any time</b> ` +
+    `by visiting our "Become a Seller" page and submitting an updated application.</p>` +
+    `<p>If you have questions, feel free to reply to this email.</p>` +
+    `<p>Regards,<br/>The MyFamousFinds Team</p>`;
 
   await sendMail(to, subject, text, html);
 }
