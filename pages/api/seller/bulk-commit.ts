@@ -186,6 +186,7 @@ async function getApprovedDesigners(): Promise<Set<string>> {
 export default async function handler(req: NextApiRequest, res: NextApiResponse<ApiOk | ApiErr>) {
   try {
     if (req.method !== "POST") return res.status(405).json({ ok: false, error: "Method not allowed" });
+    if (!adminDb) return res.status(500).json({ ok: false, error: "firebase_not_configured" });
 
     const { rows } = (req.body || {}) as { rows?: IncomingRow[] };
     if (!Array.isArray(rows)) return res.status(400).json({ ok: false, error: "Body must include array 'rows'" });

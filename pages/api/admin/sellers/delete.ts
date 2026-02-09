@@ -3,6 +3,7 @@ import { adminAuth, adminDb } from "../../../../utils/firebaseAdmin";
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== "POST") return res.status(405).send("Method not allowed");
+  if (!adminDb || !adminAuth) return res.status(500).json({ ok: false, error: "firebase_not_configured" });
 
   try {
     const token = (req.headers.authorization || "").replace("Bearer ", "");
