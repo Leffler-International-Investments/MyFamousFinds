@@ -1,4 +1,3 @@
-FILE: /pages/api/seller/orders.ts
 // FILE: /pages/api/seller/orders.ts
 
 import type { NextApiRequest, NextApiResponse } from "next";
@@ -81,13 +80,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
     }
 
     const sellerId = await getSellerId(req);
-    if (!sellerId) {
-      return res.status(401).json({ ok: false, error: "unauthorized" });
-    }
+    if (!sellerId) return res.status(401).json({ ok: false, error: "unauthorized" });
 
-    if (!adminDb) {
-      return res.status(500).json({ ok: false, error: "firebase_not_configured" });
-    }
+    if (!adminDb) return res.status(500).json({ ok: false, error: "firebase_not_configured" });
 
     const snap = await adminDb
       .collection("orders")
@@ -100,12 +95,25 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
       const o: any = d.data() || {};
 
       const buyerName =
-        o.buyerName || o.buyer?.name || o.customerName || o.customer_details?.name || "";
+        o.buyerName ||
+        o.buyer?.name ||
+        o.customerName ||
+        o.customer_details?.name ||
+        o.customer_details?.name ||
+        "";
 
-      const buyerEmail = o.buyerEmail || o.buyer?.email || o.customerEmail || "";
+      const buyerEmail =
+        o.buyerEmail || o.buyer?.email || o.customerEmail || o.customer_details?.email || "";
+
+      const shippingDetails = o.shipping_details || o.shippingDetails || null;
 
       const shippingAddress: ShippingAddress | null =
-        o.shippingAddress || o.shipping || o.shipping?.address || o.shipping_details?.address || null;
+        o.shippingAddress ||
+        o.shipping ||
+        o.shipping?.address ||
+        shippingDetails?.address ||
+        o.customer_details?.address ||
+        null;
 
       const shipDeadlineAt =
         toIsoMaybe(o.shipDeadlineAt) || toIsoMaybe(o.fulfillment?.shipDeadlineAt) || null;
