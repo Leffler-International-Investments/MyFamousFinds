@@ -39,7 +39,7 @@ export async function getStripeSecretKeyInfo(): Promise<StripeSecretKeyInfo> {
     try {
       const snap = await adminDb.collection("admin").doc("stripe_settings").get();
       if (snap.exists) {
-        const data = snap.data();
+        const data = snap.data() as any;
         const raw = String(data?.secretKey || "");
         const { trimmed, hadWhitespace } = normalizeKey(raw);
         if (trimmed) {
@@ -90,7 +90,6 @@ export async function createCheckoutSession(
 
 /**
  * Used by pages/order/success.tsx
- * Fixes build error: no exported member 'retrieveCheckoutSession'
  */
 export async function retrieveCheckoutSession(
   sessionId: string,
@@ -102,9 +101,3 @@ export async function retrieveCheckoutSession(
   }
   return await client.checkout.sessions.retrieve(sessionId, params);
 }
-
-/**
- * Backward-compat named export (avoid module-load Stripe init).
- * IMPORTANT: only declare/export this ONCE.
- */
-export const stripe: Stripe | null = null;
