@@ -1,12 +1,11 @@
 // FILE: /pages/order/success.tsx
-
 import Head from "next/head";
 import Link from "next/link";
 import type { GetServerSideProps } from "next";
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
-import { retrieveCheckoutSession } from "../../lib/stripe";
-import { adminDb, FieldValue } from "../../utils/firebaseAdmin";
+import { stripe } from "../../lib/stripe";
+import { adminDb } from "../../utils/firebaseAdmin";
 import PostPurchaseButler from "../../components/PostPurchaseButler";
 
 type SuccessProps = {
@@ -151,46 +150,50 @@ export default function OrderSuccessPage({
           margin: 16px auto 24px;
           max-width: 480px;
           padding: 12px 16px;
-          border: 1px solid rgba(255, 255, 255, 0.12);
-          border-radius: 14px;
-          background: rgba(0, 0, 0, 0.25);
+          border-radius: 12px;
+          background: rgba(15, 23, 42, 0.8);
+          border: 1px solid #1f2937;
           text-align: left;
+          font-size: 14px;
         }
-        h2 {
-          margin: 0 0 10px;
-          font-size: 15px;
+        .summary h2 {
+          font-size: 14px;
+          text-transform: uppercase;
+          letter-spacing: 0.12em;
+          color: #9ca3af;
+          margin-bottom: 6px;
         }
         .row {
           display: flex;
           justify-content: space-between;
-          gap: 10px;
-          margin: 8px 0;
-          font-size: 13px;
+          gap: 12px;
+          margin-top: 6px;
         }
         .label {
           color: #9ca3af;
-          min-width: 90px;
         }
         .value {
-          color: #fff;
-          font-weight: 700;
+          color: #f9fafb;
+          font-weight: 500;
           text-align: right;
-          white-space: pre-line;
         }
         .address {
-          max-width: 320px;
+          white-space: pre-line;
         }
         .authDisclaimer {
           font-size: 12px;
-          color: #cbd5e1;
-          margin-top: 10px;
+          color: #9ca3af;
+          line-height: 1.5;
+          margin-bottom: 28px;
         }
         .back {
           display: inline-block;
-          margin-top: 18px;
-          color: #fff;
-          text-decoration: underline;
-          font-weight: 700;
+          padding: 10px 18px;
+          border-radius: 999px;
+          background: #ffffff;
+          color: #000000;
+          text-decoration: none;
+          font-weight: 600;
         }
       `}</style>
     </div>
@@ -206,8 +209,13 @@ export const getServerSideProps: GetServerSideProps<SuccessProps> = async (
     return { notFound: true };
   }
 
+  if (!stripe) {
+    console.error("Stripe not configured – skipping order success SSR.");
+    return { notFound: true };
+  }
+
   try {
-    const session = await retrieveCheckoutSession(sessionId);
+    const session = await stripe.checkout.sessions.retrieve(sessionId);
 
     const currency = (session.currency || "usd").toUpperCase();
     const amountTotal = (session.amount_total || 0) / 100;
@@ -216,12 +224,8 @@ export const getServerSideProps: GetServerSideProps<SuccessProps> = async (
     let brand = "";
     let category = "";
     let orderId = "";
-    let listingId = "";
 
     if (session.metadata) {
-      if (session.metadata.listingId) {
-        listingId = session.metadata.listingId;
-      }
       if (session.metadata.productTitle) {
         productTitle = session.metadata.productTitle;
       }
@@ -291,28 +295,6 @@ export const getServerSideProps: GetServerSideProps<SuccessProps> = async (
             shippingAddressText = fallbackText;
           }
         }
-      }
-    }
-
-    // ✅ HARD FALLBACK: ensure listing is marked Sold even if webhook delivery is delayed/missed
-    if (adminDb && listingId) {
-      try {
-        const listingRef = adminDb.collection("listings").doc(String(listingId));
-        const listingSnap = await listingRef.get();
-        if (listingSnap.exists) {
-          const d: any = listingSnap.data() || {};
-          const status = String(d.status || "").toLowerCase();
-          const isSold = d.isSold === true || d.sold === true || status === "sold";
-          if (!isSold) {
-            await listingRef.update({
-              status: "Sold",
-              isSold: true,
-              updatedAt: FieldValue.serverTimestamp(),
-            });
-          }
-        }
-      } catch (e) {
-        console.warn("success_page_mark_sold_failed", e);
       }
     }
 

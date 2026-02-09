@@ -3,16 +3,14 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import Stripe from "stripe";
 import { createCheckoutSession } from "../../lib/stripe";
-import { adminDb } from "../../utils/firebaseAdmin";
 
 type RequestBody = {
   id: string;
   title: string;
-  price: number; // client-supplied (server will validate against Firestore)
+  price: number;
   image?: string;
   brand?: string;
   category?: string;
-
   buyerDetails?: {
     fullName?: string;
     email?: string;
@@ -42,20 +40,14 @@ function resolveBaseUrl(req: NextApiRequest) {
   return "https://www.myfamousfinds.com";
 }
 
-/**
- * Enhanced sanitization to ensure Stripe accepts the image URL.
- */
 function sanitizeImageUrl(imageUrl?: string) {
   const trimmed = String(imageUrl || "").trim();
   if (!trimmed || trimmed.length > 2048) return "";
-
   try {
     const u = new URL(trimmed);
-    // Stripe strictly requires http or https protocols.
-    if (!["http:", "https:"].includes(u.protocol)) return "";
+    if (u.protocol !== "https:" && u.protocol !== "http:") return "";
     return u.toString();
   } catch {
-    // Stripe does not support relative paths.
     return "";
   }
 }
@@ -69,9 +61,15 @@ export default async function handler(
   }
 
   try {
-    const { id, title, price, image, brand, category, buyerDetails } =
-      (req.body || {}) as RequestBody;
-
+    const {
+      id,
+      title,
+      price,
+      image,
+      brand,
+      category,
+      buyerDetails,
+    } = (req.body || {}) as RequestBody;
     const buyerIdHeader =
       (req.headers["x-user-id"] as string | undefined) ||
       (req.headers["x-userid"] as string | undefined);
@@ -80,82 +78,27 @@ export default async function handler(
       return res.status(400).json({ ok: false, error: "Missing product data" });
     }
 
-    // ✅ CRITICAL: Server-side validation (prevents price tampering + sold-item checkout)
-    if (!adminDb) {
-      return res
-        .status(500)
-        .json({ ok: false, error: "Firebase Admin not configured" });
-    }
-
-    const listingRef = adminDb.collection("listings").doc(String(id));
-    const listingSnap = await listingRef.get();
-    if (!listingSnap.exists) {
-      return res.status(404).json({ ok: false, error: "Listing not found" });
-    }
-
-    const listing: any = listingSnap.data() || {};
-    const status = String(listing.status || "").toLowerCase();
-    const isSold = listing.isSold === true || listing.sold === true || status === "sold";
-    if (isSold) {
-      return res.status(409).json({ ok: false, error: "Listing already sold" });
-    }
-
-    // Validate price against Firestore (authoritative)
-    const listingPrice =
-      typeof listing.priceUsd === "number"
-        ? listing.priceUsd
-        : typeof listing.price === "number"
-        ? listing.price
-        : Number(listing.price || 0);
-
-    if (!Number.isFinite(listingPrice) || listingPrice <= 0) {
-      return res.status(400).json({ ok: false, error: "Invalid listing price" });
-    }
-
-    // If client price doesn't match, trust Firestore price.
-    const finalPrice = listingPrice;
-
-    // Prefer Firestore fields (prevents client spoofing)
-    const finalTitle = String(listing.title || listing.name || title || "Item");
-    const finalBrand = String(listing.brand || listing.designer || brand || "");
-    const finalCategory = String(listing.category || category || "");
-
-    // Prefer Firestore image (but keep client as fallback)
-    const listingImage =
-      listing.displayImageUrl ||
-      listing.display_image_url ||
-      listing.imageUrl ||
-      listing.image_url ||
-      listing.image ||
-      (Array.isArray(listing.images) ? listing.images[0] : "") ||
-      image ||
-      "";
-
-    if (buyerDetails) {
-      const requiredBuyerFields = [
-        buyerDetails?.fullName,
-        buyerDetails?.email,
-        buyerDetails?.phone,
-        buyerDetails?.addressLine1,
-        buyerDetails?.city,
-        buyerDetails?.state,
-        buyerDetails?.postalCode,
-        buyerDetails?.country,
-      ];
-
-      const missing = requiredBuyerFields.some((v) => !String(v || "").trim());
-      if (missing) {
-        return res.status(400).json({
-          ok: false,
-          error:
-            "Missing buyer details. Please complete your details before checkout.",
-        });
-      }
+    const requiredBuyerFields = [
+      buyerDetails?.fullName,
+      buyerDetails?.email,
+      buyerDetails?.phone,
+      buyerDetails?.addressLine1,
+      buyerDetails?.city,
+      buyerDetails?.state,
+      buyerDetails?.postalCode,
+      buyerDetails?.country,
+    ];
+    const buyerDetailsComplete = requiredBuyerFields.every(
+      (value) => typeof value === "string" && value.trim().length > 0
+    );
+    if (!buyerDetailsComplete) {
+      return res.status(400).json({ ok: false, error: "Missing buyer details" });
     }
 
     const baseUrl = resolveBaseUrl(req);
-    const safeImageUrl = sanitizeImageUrl(listingImage);
+    const safeImageUrl = sanitizeImageUrl(image);
 
+    const trimMeta = (value?: string) => String(value || "").trim().slice(0, 200);
     const sessionParams: Stripe.Checkout.SessionCreateParams = {
       mode: "payment",
       customer_creation: "always",
@@ -163,30 +106,38 @@ export default async function handler(
       shipping_address_collection: {
         allowed_countries: ["AU", "US", "GB", "CA", "NZ", "FR", "DE", "IT", "ES", "NL"],
       },
+      customer_email: buyerDetails?.email ? trimMeta(buyerDetails.email) : undefined,
       phone_number_collection: { enabled: true },
       metadata: {
         listingId: id,
-        productTitle: String(finalTitle).slice(0, 120),
-        ...(finalBrand ? { brand: String(finalBrand).slice(0, 120) } : {}),
-        ...(finalCategory ? { category: String(finalCategory).slice(0, 120) } : {}),
+        productTitle: String(title).slice(0, 120),
+        ...(brand ? { brand: String(brand).slice(0, 120) } : {}),
+        ...(category ? { category: String(category).slice(0, 120) } : {}),
+        ...(buyerDetails?.fullName ? { buyerName: trimMeta(buyerDetails.fullName) } : {}),
+        ...(buyerDetails?.email ? { buyerEmail: trimMeta(buyerDetails.email) } : {}),
+        ...(buyerDetails?.phone ? { buyerPhone: trimMeta(buyerDetails.phone) } : {}),
+        ...(buyerDetails?.addressLine1
+          ? { shipLine1: trimMeta(buyerDetails.addressLine1) }
+          : {}),
+        ...(buyerDetails?.addressLine2
+          ? { shipLine2: trimMeta(buyerDetails.addressLine2) }
+          : {}),
+        ...(buyerDetails?.city ? { shipCity: trimMeta(buyerDetails.city) } : {}),
+        ...(buyerDetails?.state ? { shipState: trimMeta(buyerDetails.state) } : {}),
+        ...(buyerDetails?.postalCode
+          ? { shipPostal: trimMeta(buyerDetails.postalCode) }
+          : {}),
+        ...(buyerDetails?.country
+          ? { shipCountry: trimMeta(buyerDetails.country) } : {}),
         ...(buyerIdHeader ? { buyerId: buyerIdHeader } : {}),
-        ...(buyerDetails?.fullName
-          ? { buyerFullName: String(buyerDetails.fullName).slice(0, 120) }
-          : {}),
-        ...(buyerDetails?.email
-          ? { buyerEmail: String(buyerDetails.email).slice(0, 120) }
-          : {}),
-        ...(buyerDetails?.phone
-          ? { buyerPhone: String(buyerDetails.phone).slice(0, 60) }
-          : {}),
       },
       line_items: [
         {
           price_data: {
             currency: "usd",
-            unit_amount: Math.round(finalPrice * 100),
+            unit_amount: Math.round(price * 100),
             product_data: {
-              name: String(finalTitle).slice(0, 120),
+              name: String(title).slice(0, 120),
               images: safeImageUrl ? [safeImageUrl] : [],
             },
           },
