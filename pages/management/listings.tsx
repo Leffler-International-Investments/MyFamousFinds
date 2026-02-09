@@ -768,7 +768,7 @@ export default function ManagementListings({ items }: Props) {
 
 export const getServerSideProps: GetServerSideProps<Props> = async () => {
   try {
-    if (!adminDb) return { props: { initialListings: [] } };
+    if (!adminDb) return { props: { items: [] } };
     const snap = await adminDb.collection("listings").get();
 
     const items: Listing[] = snap.docs.map((doc) => {

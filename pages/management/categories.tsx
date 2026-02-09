@@ -185,7 +185,7 @@ export default function ManagementCategories({ categories }: Props) {
 
 export const getServerSideProps: GetServerSideProps<Props> = async () => {
   try {
-    if (!adminDb) return { props: { initialCategories: [] } };
+    if (!adminDb) return { props: { categories: [] } };
     const snap = await adminDb.collection("categories").get();
     const categories: Category[] = snap.docs.map((doc) => {
       const d: any = doc.data() || {};
