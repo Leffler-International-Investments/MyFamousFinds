@@ -2,10 +2,12 @@
 import type { GetServerSideProps } from "next";
 import Head from "next/head";
 import Link from "next/link";
+import { useState, useEffect, useCallback } from "react";
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
 import { adminDb } from "../../utils/firebaseAdmin";
 import { useRequireAdmin } from "../../hooks/useRequireAdmin";
+import { mgmtFetch } from "../../utils/managementClient";
 
 type Payout = {
   id: string;
@@ -22,18 +24,87 @@ type Props = {
 
 export default function ManagementPayouts({ payouts }: Props) {
   const { loading } = useRequireAdmin();
-  if (loading) return <div className="dashboard-page" />; // Light theme skeleton
+  const [payoutMode, setPayoutMode] = useState<"manual" | "stripe_connect_auto">("manual");
+  const [coolingDays, setCoolingDays] = useState(7);
+  const [saving, setSaving] = useState(false);
+  const [loadingSettings, setLoadingSettings] = useState(true);
+  const [runResult, setRunResult] = useState<string | null>(null);
+  const [running, setRunning] = useState(false);
+
+  // Load current payout settings
+  const loadSettings = useCallback(async () => {
+    try {
+      const resp = await mgmtFetch("/api/admin/payout-settings");
+      const data = await resp.json();
+      if (data.ok && data.settings) {
+        setPayoutMode(data.settings.payoutMode || "manual");
+        setCoolingDays(data.settings.defaultCoolingDays ?? 7);
+      }
+    } catch (e) {
+      console.error("Failed to load payout settings", e);
+    } finally {
+      setLoadingSettings(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!loading) loadSettings();
+  }, [loading, loadSettings]);
+
+  // Save settings
+  async function handleSaveSettings() {
+    setSaving(true);
+    try {
+      const resp = await mgmtFetch("/api/admin/payout-settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ payoutMode, defaultCoolingDays: coolingDays }),
+      });
+      const data = await resp.json();
+      if (!data.ok) alert("Save failed: " + (data.error || "Unknown error"));
+    } catch (e: any) {
+      alert("Save failed: " + e.message);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  // Manual payout run
+  async function handleRunPayouts() {
+    if (!confirm("Run payouts now for all eligible orders?")) return;
+    setRunning(true);
+    setRunResult(null);
+    try {
+      const resp = await mgmtFetch("/api/admin/payout/run-auto", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
+      const data = await resp.json();
+      if (data.ok) {
+        setRunResult(
+          `Processed: ${data.processed}, Paid: ${data.paid}` +
+          (data.message ? ` (${data.message})` : "")
+        );
+      } else {
+        setRunResult("Error: " + (data.error || "Unknown"));
+      }
+    } catch (e: any) {
+      setRunResult("Error: " + e.message);
+    } finally {
+      setRunning(false);
+    }
+  }
+
+  if (loading) return <div className="dashboard-page" />;
 
   return (
     <>
       <Head>
         <title>Payouts &amp; Finance — Admin</title>
       </Head>
-      {/* Use light theme classes from globals.css */}
       <div className="dashboard-page">
         <Header />
         <main className="dashboard-main">
-          {/* Use light theme classes from globals.css */}
           <div className="dashboard-header">
             <div>
               <h1>Payouts &amp; Finance</h1>
@@ -46,6 +117,78 @@ export default function ManagementPayouts({ payouts }: Props) {
             </Link>
           </div>
 
+          {/* ── Payout Mode Toggle ── */}
+          <div className="settings-card">
+            <h2>Payout Settings</h2>
+            {loadingSettings ? (
+              <p style={{ color: "#6b7280" }}>Loading settings...</p>
+            ) : (
+              <>
+                <div className="mode-toggle">
+                  <label className="mode-label">
+                    <span>Payout Mode:</span>
+                  </label>
+                  <div className="mode-options">
+                    <button
+                      className={`mode-btn ${payoutMode === "manual" ? "active" : ""}`}
+                      onClick={() => setPayoutMode("manual")}
+                    >
+                      Manual
+                    </button>
+                    <button
+                      className={`mode-btn ${payoutMode === "stripe_connect_auto" ? "active" : ""}`}
+                      onClick={() => setPayoutMode("stripe_connect_auto")}
+                    >
+                      Auto Pay (Stripe Connect)
+                    </button>
+                  </div>
+                </div>
+
+                <p className="mode-desc">
+                  {payoutMode === "manual"
+                    ? "Manual: You review and approve each payout individually."
+                    : "Auto Pay: Payouts are automatically sent to sellers via Stripe Connect after the cooling period ends. Cron runs every 12 hours."}
+                </p>
+
+                <div className="cooling-row">
+                  <label htmlFor="coolingDays">Cooling Period (days):</label>
+                  <input
+                    id="coolingDays"
+                    type="number"
+                    min={0}
+                    max={60}
+                    value={coolingDays}
+                    onChange={(e) => setCoolingDays(Number(e.target.value))}
+                    className="cooling-input"
+                  />
+                </div>
+
+                <div className="settings-actions">
+                  <button
+                    onClick={handleSaveSettings}
+                    disabled={saving}
+                    className="save-btn"
+                  >
+                    {saving ? "Saving..." : "Save Settings"}
+                  </button>
+
+                  <button
+                    onClick={handleRunPayouts}
+                    disabled={running}
+                    className="run-btn"
+                  >
+                    {running ? "Running..." : "Run Payouts Now"}
+                  </button>
+                </div>
+
+                {runResult && (
+                  <p className="run-result">{runResult}</p>
+                )}
+              </>
+            )}
+          </div>
+
+          {/* ── Payout History Table ── */}
           <div className="table-wrapper">
             <table className="data-table">
               <thead>
@@ -88,12 +231,118 @@ export default function ManagementPayouts({ payouts }: Props) {
         <Footer />
       </div>
 
-      {/* Styles for the light theme table */}
       <style jsx>{`
+        .settings-card {
+          background: #ffffff;
+          border: 1px solid #e5e7eb;
+          border-radius: 8px;
+          padding: 20px;
+          margin-bottom: 24px;
+          box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+        }
+        .settings-card h2 {
+          margin: 0 0 16px 0;
+          font-size: 18px;
+          color: #111827;
+        }
+        .mode-toggle {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          margin-bottom: 8px;
+        }
+        .mode-label span {
+          font-weight: 500;
+          color: #374151;
+        }
+        .mode-options {
+          display: flex;
+          gap: 8px;
+        }
+        .mode-btn {
+          padding: 8px 16px;
+          border: 1px solid #d1d5db;
+          border-radius: 6px;
+          background: #f9fafb;
+          color: #374151;
+          cursor: pointer;
+          font-size: 14px;
+          transition: all 0.15s ease;
+        }
+        .mode-btn:hover {
+          background: #f3f4f6;
+        }
+        .mode-btn.active {
+          background: #2563eb;
+          color: #ffffff;
+          border-color: #2563eb;
+        }
+        .mode-desc {
+          color: #6b7280;
+          font-size: 13px;
+          margin: 8px 0 16px 0;
+        }
+        .cooling-row {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          margin-bottom: 16px;
+        }
+        .cooling-row label {
+          font-weight: 500;
+          color: #374151;
+          font-size: 14px;
+        }
+        .cooling-input {
+          width: 80px;
+          padding: 6px 10px;
+          border: 1px solid #d1d5db;
+          border-radius: 6px;
+          font-size: 14px;
+        }
+        .settings-actions {
+          display: flex;
+          gap: 12px;
+        }
+        .save-btn {
+          padding: 8px 20px;
+          background: #2563eb;
+          color: #ffffff;
+          border: none;
+          border-radius: 6px;
+          cursor: pointer;
+          font-size: 14px;
+        }
+        .save-btn:disabled {
+          opacity: 0.6;
+          cursor: not-allowed;
+        }
+        .run-btn {
+          padding: 8px 20px;
+          background: #059669;
+          color: #ffffff;
+          border: none;
+          border-radius: 6px;
+          cursor: pointer;
+          font-size: 14px;
+        }
+        .run-btn:disabled {
+          opacity: 0.6;
+          cursor: not-allowed;
+        }
+        .run-result {
+          margin-top: 12px;
+          padding: 8px 12px;
+          background: #f0fdf4;
+          border: 1px solid #bbf7d0;
+          border-radius: 6px;
+          color: #166534;
+          font-size: 13px;
+        }
         .table-wrapper {
           overflow-x: auto;
           border-radius: 8px;
-          border: 1px solid #e5e7eb; /* gray-200 */
+          border: 1px solid #e5e7eb;
           background: #ffffff;
           box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
         }
@@ -103,23 +352,23 @@ export default function ManagementPayouts({ payouts }: Props) {
           font-size: 14px;
         }
         .data-table thead {
-          background: #f9fafb; /* gray-50 */
+          background: #f9fafb;
         }
         .data-table th {
           padding: 8px 12px;
           text-align: left;
           font-weight: 500;
-          color: #374151; /* gray-700 */
+          color: #374151;
         }
         .data-table tbody tr {
-          border-bottom: 1px solid #f3f4f6; /* gray-100 */
+          border-bottom: 1px solid #f3f4f6;
         }
         .data-table tbody tr:last-child {
           border-bottom: none;
         }
         .data-table td {
           padding: 8px 12px;
-          color: #111827; /* gray-900 */
+          color: #111827;
         }
         .data-table td:first-child {
           font-weight: 500;
@@ -127,7 +376,7 @@ export default function ManagementPayouts({ payouts }: Props) {
         .table-message {
           padding: 24px;
           text-align: center;
-          color: #6b7280; /* gray-500 */
+          color: #6b7280;
         }
       `}</style>
     </>
@@ -135,6 +384,10 @@ export default function ManagementPayouts({ payouts }: Props) {
 }
 
 export const getServerSideProps: GetServerSideProps<Props> = async () => {
+  if (!adminDb) {
+    return { props: { payouts: [] } };
+  }
+
   try {
     const snap = await adminDb
       .collection("payouts")
