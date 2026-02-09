@@ -1,3 +1,4 @@
+FILE: /utils/adminAuth.ts
 // FILE: /utils/adminAuth.ts
 
 import type { NextApiRequest, NextApiResponse } from "next";
