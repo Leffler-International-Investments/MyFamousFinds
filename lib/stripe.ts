@@ -1,3 +1,4 @@
+FILE: /lib/stripe.ts
 // FILE: /lib/stripe.ts
 import Stripe from "stripe";
 import { adminDb } from "../utils/firebaseAdmin";
@@ -29,9 +30,7 @@ export async function getStripeSecretKeyInfo(): Promise<StripeSecretKeyInfo> {
 
   if (envKey) {
     if (!looksLikeSecretKey(envKey)) {
-      console.warn(
-        "[stripe] STRIPE_SECRET_KEY does not look like a Stripe secret key (sk_...)."
-      );
+      console.warn("[stripe] STRIPE_SECRET_KEY does not look like a Stripe secret key (sk_...).");
     }
     return { key: envKey, source: "env", hadWhitespace: envHadWhitespace };
   }
@@ -45,9 +44,7 @@ export async function getStripeSecretKeyInfo(): Promise<StripeSecretKeyInfo> {
         const { trimmed, hadWhitespace } = normalizeKey(raw);
         if (trimmed) {
           if (!looksLikeSecretKey(trimmed)) {
-            console.warn(
-              "[stripe] Firestore secretKey does not look like a Stripe secret key (sk_...)."
-            );
+            console.warn("[stripe] Firestore secretKey does not look like a Stripe secret key (sk_...).");
           }
           return { key: trimmed, source: "firestore", hadWhitespace };
         }
