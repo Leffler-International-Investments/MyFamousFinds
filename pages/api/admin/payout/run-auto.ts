@@ -3,6 +3,7 @@ import type { NextApiRequest, NextApiResponse } from "next";
 import { adminDb, FieldValue } from "../../../../utils/firebaseAdmin";
 import { getPayoutSettings } from "../../../../lib/payoutSettings";
 import { getStripeClient } from "../../../../lib/stripe";
+import { requireAdmin } from "../../../../utils/adminAuth";
 
 type Data =
   | { ok: true; processed: number; paid: number; message?: string }
@@ -12,12 +13,8 @@ function daysToMs(days: number) {
   return Math.max(0, days) * 24 * 60 * 60 * 1000;
 }
 
-export default async function handler(
-  req: NextApiRequest,
-  res: NextApiResponse<Data>
-) {
+export default async function handler(req: NextApiRequest, res: NextApiResponse<Data>) {
   try {
-    // Match your repo’s current admin API pattern: no server auth guard here.
     if (req.method !== "POST") {
       res.setHeader("Allow", "POST");
       return res.status(405).json({ ok: false, error: "method_not_allowed" });
@@ -27,11 +24,18 @@ export default async function handler(
       return res.status(500).json({ ok: false, error: "firebase_not_configured" });
     }
 
+    if (!requireAdmin(req, res)) {
+      return;
+    }
+
     const settings = await getPayoutSettings();
     if (settings.payoutMode !== "stripe_connect_auto") {
-      return res
-        .status(200)
-        .json({ ok: true, processed: 0, paid: 0, message: "payout_mode_manual_noop" });
+      return res.status(200).json({
+        ok: true,
+        processed: 0,
+        paid: 0,
+        message: "payout_mode_manual_noop",
+      });
     }
 
     const stripe = await getStripeClient();
@@ -39,7 +43,6 @@ export default async function handler(
       return res.status(500).json({ ok: false, error: "stripe_not_configured" });
     }
 
-    // Pull candidate orders (limit to keep it safe)
     const snap = await adminDb
       .collection("orders")
       .where("payout.status", "in", ["NOT_READY", "COOLING", "ELIGIBLE"])
@@ -52,11 +55,9 @@ export default async function handler(
 
     for (const doc of snap.docs) {
       const o: any = doc.data() || {};
-
       const stage = String(o.fulfillment?.stage || "").toUpperCase();
       const status = String(o.status || "").toUpperCase();
 
-      // only after signature confirmed
       if (stage !== "SIGNATURE_CONFIRMED" && status !== "SIGNATURE_CONFIRMED") continue;
 
       const deliveredAtMs =
@@ -73,16 +74,11 @@ export default async function handler(
       const eligibleAt = deliveredAtMs + daysToMs(coolingDays);
       const isEligible = now >= eligibleAt;
 
-      // Update eligible date + cooling status
       if (!isEligible) {
         if (o.payout?.status !== "COOLING") {
           await doc.ref.set(
             {
-              payout: {
-                ...(o.payout || {}),
-                status: "COOLING",
-                eligibleAt: new Date(eligibleAt),
-              },
+              payout: { ...(o.payout || {}), status: "COOLING", eligibleAt: new Date(eligibleAt) },
               updatedAt: FieldValue.serverTimestamp(),
             },
             { merge: true }
@@ -94,18 +90,13 @@ export default async function handler(
       if (o.payout?.status !== "ELIGIBLE") {
         await doc.ref.set(
           {
-            payout: {
-              ...(o.payout || {}),
-              status: "ELIGIBLE",
-              eligibleAt: new Date(eligibleAt),
-            },
+            payout: { ...(o.payout || {}), status: "ELIGIBLE", eligibleAt: new Date(eligibleAt) },
             updatedAt: FieldValue.serverTimestamp(),
           },
           { merge: true }
         );
       }
 
-      // Must have seller + Stripe connect account
       const sellerId = String(o.sellerId || "");
       if (!sellerId) continue;
 
@@ -114,7 +105,6 @@ export default async function handler(
       const stripeAccountId = seller?.stripeAccountId;
       if (!stripeAccountId) continue;
 
-      // Compute payout amount (replace with your exact commission logic if you already have one)
       const total = Number(o.totals?.total || o.total || 0);
       if (!Number.isFinite(total) || total <= 0) continue;
 
