@@ -2,16 +2,33 @@
 
 import type { NextApiRequest, NextApiResponse } from "next";
 import { adminDb, isFirebaseAdminReady } from "../../../utils/firebaseAdmin";
-import { sendAdminNewSellerApplicationEmail, sendSellerApplicationReceivedEmail } from "../../../utils/email";
+import {
+  sendAdminNewSellerApplicationEmail,
+  sendSellerApplicationReceivedEmail,
+} from "../../../utils/email";
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  if (req.method !== "POST") return res.status(405).json({ ok: false, error: "Method not allowed" });
+  if (req.method !== "POST") {
+    return res.status(405).json({ ok: false, error: "Method not allowed" });
+  }
+
+  if (!isFirebaseAdminReady || !adminDb) {
+    return res.status(500).json({ ok: false, error: "Firebase not configured" });
+  }
 
   if (!isFirebaseAdminReady || !adminDb) {
     return res.status(500).json({ ok: false, error: "Firebase not configured" });
   }
 
   try {
+    if (!isFirebaseAdminReady || !adminDb) {
+      return res.status(500).json({
+        ok: false,
+        error:
+          "Firebase Admin is not configured. Missing FIREBASE_SERVICE_ACCOUNT_JSON (or split FB_* env vars).",
+      });
+    }
+
     const body = typeof req.body === "string" ? JSON.parse(req.body) : req.body;
 
     const email = String(body?.email || "").trim().toLowerCase();
@@ -21,7 +38,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     const id = email.replace(/\./g, "_");
 
-    await adminDb.collection("sellers").doc(id).set({
+    await adminDb.collection("sellerApplications").doc(id).set({
       ...body,
       email,
       status: "pending",
