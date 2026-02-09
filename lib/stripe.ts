@@ -1,4 +1,3 @@
-FILE: /lib/stripe.ts
 // FILE: /lib/stripe.ts
 import Stripe from "stripe";
 import { adminDb } from "../utils/firebaseAdmin";
