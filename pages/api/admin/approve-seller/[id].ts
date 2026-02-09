@@ -46,8 +46,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
     try {
       await sendSellerInviteEmail({ to: email, businessName, registerUrl });
       emailSent = true;
+      console.log(`[APPROVE-SELLER] approval email sent to ${email} for seller ${sellerId}`);
     } catch (err) {
-      console.error("send_seller_invite_email_error", err);
+      console.error(`[APPROVE-SELLER] approval email FAILED for ${email} (seller ${sellerId})`, err);
       emailSent = false;
     }
 

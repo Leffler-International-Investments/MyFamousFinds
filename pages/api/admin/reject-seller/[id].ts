@@ -58,10 +58,13 @@ export default async function handler(
           businessName,
           reason: typeof reason === "string" ? reason : undefined,
         });
+        console.log(`[REJECT-SELLER] rejection email sent to ${email} for seller ${sellerId}`);
       } catch (err) {
-        console.error("send_seller_rejection_email_error", err);
+        console.error(`[REJECT-SELLER] rejection email FAILED for ${email} (seller ${sellerId})`, err);
         // Do not fail the API just because email failed
       }
+    } else {
+      console.warn(`[REJECT-SELLER] no email address found for seller ${sellerId} — skipping email`);
     }
 
     return res.status(200).json({ ok: true });
