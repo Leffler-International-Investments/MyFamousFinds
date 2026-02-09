@@ -1,3 +1,4 @@
+FILE: /pages/api/seller/mark-shipped.ts
 // FILE: /pages/api/seller/mark-shipped.ts
 
 import type { NextApiRequest, NextApiResponse } from "next";
@@ -12,25 +13,16 @@ function buildTrackingUrl(carrier: string, trackingNumber: string) {
   const tn = encodeURIComponent(String(trackingNumber || "").trim());
   if (!tn) return "";
 
-  if (carrierCode === "dhl") {
-    return `https://www.dhl.com/en/express/tracking.html?AWB=${tn}`;
-  }
-  if (carrierCode === "ups") {
-    return `https://www.ups.com/track?loc=en_US&tracknum=${tn}`;
-  }
-  if (carrierCode === "fedex" || carrierCode === "fed ex") {
+  if (carrierCode === "dhl") return `https://www.dhl.com/en/express/tracking.html?AWB=${tn}`;
+  if (carrierCode === "ups") return `https://www.ups.com/track?loc=en_US&tracknum=${tn}`;
+  if (carrierCode === "fedex" || carrierCode === "fed ex")
     return `https://www.fedex.com/fedextrack/?tracknumbers=${tn}`;
-  }
-  if (carrierCode === "auspost" || carrierCode === "australia post") {
+  if (carrierCode === "auspost" || carrierCode === "australia post")
     return `https://auspost.com.au/mypost/track/#/details/${tn}`;
-  }
   return "";
 }
 
-export default async function handler(
-  req: NextApiRequest,
-  res: NextApiResponse<Ok | Err>
-) {
+export default async function handler(req: NextApiRequest, res: NextApiResponse<Ok | Err>) {
   if (req.method !== "POST") {
     res.setHeader("Allow", "POST");
     return res.status(405).json({ ok: false, error: "method_not_allowed" });
@@ -40,19 +32,18 @@ export default async function handler(
     return res.status(500).json({ ok: false, error: "firebase_not_configured" });
   }
 
-  const sellerId = getSellerId(req);
+  const sellerId = await getSellerId(req);
   if (!sellerId) {
     return res.status(401).json({ ok: false, error: "unauthorized" });
   }
 
   try {
-    const { orderId, carrier, trackingNumber, signatureRequired } =
-      (req.body || {}) as {
-        orderId?: string;
-        carrier?: string;
-        trackingNumber?: string;
-        signatureRequired?: boolean;
-      };
+    const { orderId, carrier, trackingNumber, signatureRequired } = (req.body || {}) as {
+      orderId?: string;
+      carrier?: string;
+      trackingNumber?: string;
+      signatureRequired?: boolean;
+    };
 
     if (!orderId || !carrier || !trackingNumber) {
       return res.status(400).json({ ok: false, error: "missing_fields" });
@@ -96,8 +87,6 @@ export default async function handler(
     return res.status(200).json({ ok: true });
   } catch (err: any) {
     console.error("seller_mark_shipped_error", err);
-    return res
-      .status(500)
-      .json({ ok: false, error: err?.message || "server_error" });
+    return res.status(500).json({ ok: false, error: err?.message || "server_error" });
   }
 }
