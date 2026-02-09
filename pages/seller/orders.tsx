@@ -6,6 +6,7 @@ import { useEffect, useMemo, useState } from "react";
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
 import { useRequireSeller } from "../../hooks/useRequireSeller";
+import { sellerFetch } from "../../utils/sellerClient";
 
 type ShippingAddress = {
   name?: string;
@@ -81,10 +82,7 @@ export default function SellerOrders() {
     setLoading(true);
     setError(null);
     try {
-      const sellerId = getSellerIdHeader();
-      const res = await fetch("/api/seller/orders", {
-        headers: sellerId ? { "x-seller-id": sellerId } : undefined,
-      });
+      const res = await sellerFetch("/api/seller/orders");
       const json = await res.json();
       if (!res.ok || !json?.ok) throw new Error(json?.error || "Failed to load orders.");
       const orders = Array.isArray(json.orders) ? json.orders : [];
@@ -640,12 +638,9 @@ export default function SellerOrders() {
       setSavingId(orderId);
       setError(null);
 
-      const res = await fetch("/api/seller/mark-shipped", {
+      const res = await sellerFetch("/api/seller/mark-shipped", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(getSellerIdHeader() ? { "x-seller-id": getSellerIdHeader() } : {}),
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           orderId,
           carrier: edit.carrier,

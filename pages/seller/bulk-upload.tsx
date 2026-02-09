@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
+import { sellerFetch } from "../../utils/sellerClient";
 
 type ParsedRow = {
   title: string;
@@ -117,7 +118,7 @@ export default function SellerBulkUploadPage() {
     setSuccessMsg(null);
 
     try {
-      const res = await fetch("/api/seller/bulk-upload", {
+      const res = await sellerFetch("/api/seller/bulk-upload", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ rows }),

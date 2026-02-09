@@ -4,6 +4,7 @@ import Link from "next/link";
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
 import { useRequireSeller } from "../../hooks/useRequireSeller"; // Security
+import { sellerFetch } from "../../utils/sellerClient";
 import { useEffect, useState, useCallback } from "react";
 
 // Data from your Stripe Connect API
@@ -42,7 +43,7 @@ export default function SellerWallet() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch("/api/seller/wallet");
+      const res = await sellerFetch("/api/seller/wallet");
       const data = await res.json();
       if (!res.ok || !data.ok) {
         throw new Error(data.error || "Failed to load wallet data");
@@ -64,7 +65,7 @@ export default function SellerWallet() {
     setPayoutLoading(true);
     setPayoutError(null);
     try {
-      const res = await fetch("/api/seller/wallet/payout", {
+      const res = await sellerFetch("/api/seller/wallet/payout", {
         method: "POST",
       });
       const data = await res.json();
