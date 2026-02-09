@@ -1,21 +1,12 @@
 // FILE: /pages/api/seller/onboard.ts
 
 import type { NextApiRequest, NextApiResponse } from "next";
-import Stripe from "stripe";
+import { getStripeClient } from "../../../lib/stripe";
 import { adminDb } from "../../../utils/firebaseAdmin";
 
 type OnboardResponse =
   | { ok: true; url: string }
   | { ok: false; error: string };
-
-const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
-
-if (!stripeSecretKey) {
-  throw new Error("STRIPE_SECRET_KEY env var is missing");
-}
-
-// IMPORTANT: no apiVersion here → avoids the "2025-10-29.clover" TS type issue
-const stripe = new Stripe(stripeSecretKey, {});
 
 export default async function handler(
   req: NextApiRequest,
@@ -23,6 +14,15 @@ export default async function handler(
 ) {
   if (req.method !== "POST") {
     return res.status(405).json({ ok: false, error: "method_not_allowed" });
+  }
+
+  if (!adminDb) {
+    return res.status(500).json({ ok: false, error: "firebase_not_configured" });
+  }
+
+  const stripe = await getStripeClient();
+  if (!stripe) {
+    return res.status(500).json({ ok: false, error: "stripe_not_configured" });
   }
 
   try {
@@ -41,7 +41,7 @@ export default async function handler(
     const sellerSnap = await sellerRef.get();
     const sellerData = sellerSnap.data() || {};
 
-    let stripeAccountId: string | undefined = sellerData.stripeAccountId;
+    let stripeAccountId: string | undefined = (sellerData as any).stripeAccountId;
 
     // 2) Create Stripe Express account if missing
     if (!stripeAccountId) {

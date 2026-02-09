@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
 import { useRequireSeller } from "../../hooks/useRequireSeller"; // --- 1. IMPORT THE HOOK ---
+import { sellerFetch } from "../../utils/sellerClient";
 
 type StatementSummary = {
   period: { start: string; end: string };
@@ -81,7 +82,7 @@ export default function SellerStatements() {
           start: currentPeriod.start,
           end: currentPeriod.end,
         });
-        const res = await fetch(`/api/seller/statement?${params.toString()}`);
+        const res = await sellerFetch(`/api/seller/statement?${params.toString()}`);
         const json: ApiResponse = await res.json();
         if (!cancelled) setData(json);
       } catch (err) {

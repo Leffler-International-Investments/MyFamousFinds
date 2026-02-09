@@ -6,6 +6,7 @@ import Header from "../../components/Header";
 import Footer from "../../components/Footer";
 import { FormEvent, useState } from "react";
 import { useRequireSeller } from "../../hooks/useRequireSeller";
+import { sellerFetch } from "../../utils/sellerClient";
 
 // Public env-based URLs so you can control behaviour without code changes
 const STRIPE_CONNECT_URL =
@@ -43,7 +44,7 @@ export default function SellerProfile() {
     };
 
     try {
-      const res = await fetch("/api/seller/profile", {
+      const res = await sellerFetch("/api/seller/profile", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),

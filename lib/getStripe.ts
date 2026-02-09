@@ -5,13 +5,14 @@ import type { Stripe } from "@stripe/stripe-js";
 let stripePromise: Promise<Stripe | null> | null = null;
 
 async function getPublishableKey(): Promise<string> {
-  const fromEnv = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;
-  if (fromEnv && fromEnv.trim()) return fromEnv.trim();
+  // Strip ALL whitespace – Vercel env editors can inject newlines
+  const fromEnv = (process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || "").replace(/\s+/g, "");
+  if (fromEnv) return fromEnv;
 
   const res = await fetch("/api/stripe-public-key");
   const json = await res.json().catch(() => ({} as any));
 
-  const key = String(json?.key || "").trim();
+  const key = String(json?.key || "").replace(/\s+/g, "");
   if (!res.ok || !key) throw new Error(json?.error || "Missing Stripe publishable key");
 
   return key;

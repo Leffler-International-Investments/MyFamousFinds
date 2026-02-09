@@ -6,6 +6,7 @@ import Header from "../../components/Header";
 import Footer from "../../components/Footer";
 import { useEffect, useState } from "react";
 import { useRequireSeller } from "../../hooks/useRequireSeller";
+import { sellerFetch } from "../../utils/sellerClient";
 
 // NEW: use client Firestore to toggle allowOffers
 import { db } from "../../utils/firebaseClient";
@@ -35,7 +36,7 @@ export default function SellerCatalogue() {
       setLoading(true);
       setError(null);
       try {
-        const res = await fetch("/api/seller/listings");
+        const res = await sellerFetch("/api/seller/listings");
         const json = await res.json();
         if (!json.ok) {
           throw new Error(json.error || "Failed to load catalogue");
@@ -68,7 +69,7 @@ export default function SellerCatalogue() {
     setDeletingId(id);
     setError(null);
     try {
-      const res = await fetch(`/api/seller/listings/${id}`, {
+      const res = await sellerFetch(`/api/seller/listings/${id}`, {
         method: "DELETE",
       });
       const json = await res.json();

@@ -12,6 +12,9 @@ export type PayoutSettings = {
 const DOC_PATH = "settings/payout";
 
 export async function getPayoutSettings(): Promise<PayoutSettings> {
+  if (!adminDb) {
+    return { defaultCoolingDays: 7, payoutMode: "manual" };
+  }
   const snap = await adminDb.doc(DOC_PATH).get();
   const data = snap.exists ? (snap.data() as any) : {};
 
@@ -26,6 +29,9 @@ export async function getPayoutSettings(): Promise<PayoutSettings> {
 }
 
 export async function setPayoutSettings(partial: Partial<PayoutSettings>) {
+  if (!adminDb) {
+    throw new Error("Firebase not configured");
+  }
   const current = await getPayoutSettings();
   const next: PayoutSettings = {
     ...current,

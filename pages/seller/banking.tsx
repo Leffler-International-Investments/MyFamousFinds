@@ -7,6 +7,7 @@ import Header from "../../components/Header";
 import Footer from "../../components/Footer";
 import { auth } from "../../utils/firebaseClient";
 import { useRequireSeller } from "../../hooks/useRequireSeller";
+import { sellerFetch } from "../../utils/sellerClient";
 
 const STRIPE_CONNECT_SELLER_URL =
   process.env.NEXT_PUBLIC_STRIPE_CONNECT_SELLER_URL || "";
@@ -102,7 +103,7 @@ export default function SellerBankingPage() {
     try {
       setStripeBusy(true);
 
-      const res = await fetch("/api/seller/onboard", {
+      const res = await sellerFetch("/api/seller/onboard", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email }), // <-- send seller email to API
@@ -141,7 +142,7 @@ export default function SellerBankingPage() {
         );
       }
 
-      const res = await fetch("/api/seller/banking", {
+      const res = await sellerFetch("/api/seller/banking", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
