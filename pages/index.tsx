@@ -36,14 +36,7 @@ type HomeProps = {
 
 const CATEGORY_OPTIONS = ["Women", "Men", "Bags", "Shoes", "Accessories", "Jewelry", "Watches"];
 
-const CONDITION_OPTIONS = [
-  "New with tags",
-  "New (never used)",
-  "Excellent",
-  "Very good",
-  "Good",
-  "Fair",
-];
+const CONDITION_OPTIONS = ["New with tags", "New (never used)", "Excellent", "Very good", "Good", "Fair"];
 
 const MATERIAL_OPTIONS = [
   "Leather",
@@ -80,9 +73,24 @@ function parseNum(v: any): number {
   return Number.isFinite(n) ? n : 0;
 }
 
+function safeUrl(u?: string) {
+  const s = String(u || "").trim();
+  if (!s) return "";
+  // allow relative internal links OR absolute links
+  if (s.startsWith("/")) return s;
+  if (s.startsWith("http://") || s.startsWith("https://")) return s;
+  return "";
+}
+
+function isMp4(u?: string) {
+  const s = String(u || "").trim().toLowerCase();
+  return s.endsWith(".mp4");
+}
+
 const HomePage: NextPage<HomeProps> = ({
   trending,
   newArrivals,
+  activeMessages,
   designerOptions: serverDesignerOptions,
 }) => {
   // Same filter UX as /pages/designers/index.tsx
@@ -129,9 +137,9 @@ const HomePage: NextPage<HomeProps> = ({
     if (Array.isArray(serverDesignerOptions) && serverDesignerOptions.length > 0) {
       return serverDesignerOptions;
     }
-    return Array.from(
-      new Set(poolItems.map((x: any) => String(x.brand || "").trim()).filter(Boolean))
-    ).sort((a, b) => a.localeCompare(b));
+    return Array.from(new Set(poolItems.map((x: any) => String(x.brand || "").trim()).filter(Boolean))).sort(
+      (a, b) => a.localeCompare(b)
+    );
   }, [poolItems, serverDesignerOptions]);
 
   const filteredItems = useMemo(() => {
@@ -161,12 +169,18 @@ const HomePage: NextPage<HomeProps> = ({
       return pv >= min && pv <= max;
     });
 
-    if (sortBy === "price-asc") result.sort((a: any, b: any) => parseNum(a.priceValue ?? a.price) - parseNum(b.priceValue ?? b.price));
-    if (sortBy === "price-desc") result.sort((a: any, b: any) => parseNum(b.priceValue ?? b.price) - parseNum(a.priceValue ?? a.price));
+    if (sortBy === "price-asc")
+      result.sort((a: any, b: any) => parseNum(a.priceValue ?? a.price) - parseNum(b.priceValue ?? b.price));
+    if (sortBy === "price-desc")
+      result.sort((a: any, b: any) => parseNum(b.priceValue ?? b.price) - parseNum(a.priceValue ?? a.price));
     if (sortBy === "newest") result.sort((a: any, b: any) => (b.createdAt || 0) - (a.createdAt || 0));
 
     return result.slice(0, 24);
   }, [poolItems, titleQuery, category, designer, condition, material, size, color, minPrice, maxPrice, sortBy]);
+
+  const topMessages = useMemo(() => {
+    return Array.isArray(activeMessages) ? activeMessages.filter((m) => m && m.text && m.text.trim()).slice(0, 2) : [];
+  }, [activeMessages]);
 
   return (
     <div className="home-wrapper">
@@ -181,15 +195,69 @@ const HomePage: NextPage<HomeProps> = ({
       <Header />
 
       <main className="wrap">
+        {/* ✅ MESSAGE BOARD (RESTORED) */}
+        {topMessages.length > 0 && (
+          <section className="msgBoard">
+            {topMessages.map((m) => {
+              const link = safeUrl(m.linkUrl);
+              const img = safeUrl(m.imageUrl);
+              const vid = safeUrl(m.videoUrl);
+
+              return (
+                <div key={m.id} className={`msgCard msg-${m.type || "info"}`}>
+                  <div className="msgTop">
+                    <span className={`msgBadge badge-${m.type || "info"}`}>
+                      {(m.type || "info").toUpperCase()}
+                    </span>
+                    <div className="msgText">{m.text}</div>
+                  </div>
+
+                  {(link || img || vid) && (
+                    <div className="msgExtras">
+                      {link && (
+                        <div className="msgLinkWrap">
+                          <Link href={link} className="msgLink">
+                            {m.linkText?.trim() ? m.linkText : "View more"}
+                          </Link>
+                        </div>
+                      )}
+
+                      {img && (
+                        <div className="msgMedia">
+                          <img className="msgImg" src={img} alt="Announcement" />
+                        </div>
+                      )}
+
+                      {vid && (
+                        <div className="msgMedia">
+                          {isMp4(vid) ? (
+                            <video className="msgVid" controls>
+                              <source src={vid} />
+                            </video>
+                          ) : (
+                            <a className="msgVideoLink" href={vid} target="_blank" rel="noreferrer">
+                              Watch video
+                            </a>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </section>
+        )}
+
         {/* HERO */}
         <section className="hero">
           <div className="hero-copy">
             <p className="eyebrow">Curated pre-loved luxury</p>
             <h1>Discover, save &amp; shop authenticated designer pieces.</h1>
             <p className="hero-sub">
-              Browse a hand-picked selection of bags, jewelry, watches and ready-to-wear from trusted sellers. Every piece is vetted so you can shop with confidence.
+              Browse a hand-picked selection of bags, jewelry, watches and ready-to-wear from trusted sellers. Every
+              piece is vetted so you can shop with confidence.
             </p>
-
           </div>
         </section>
 
@@ -220,10 +288,10 @@ const HomePage: NextPage<HomeProps> = ({
                 <summary>Category</summary>
                 <div className="filter-body">
                   <select className="select" value={category} onChange={(e) => setCategory(e.target.value)}>
-                    <option value="">Any</option>
-                    {CATEGORY_OPTIONS.map((c) => (
-                      <option key={c} value={c}>
-                        {c}
+                    <option value="">All</option>
+                    {CATEGORY_OPTIONS.map((o) => (
+                      <option key={o} value={o}>
+                        {o}
                       </option>
                     ))}
                   </select>
@@ -234,10 +302,24 @@ const HomePage: NextPage<HomeProps> = ({
                 <summary>Designer</summary>
                 <div className="filter-body">
                   <select className="select" value={designer} onChange={(e) => setDesigner(e.target.value)}>
-                    <option value="">Any</option>
-                    {(designerOptions || []).map((d) => (
-                      <option key={d} value={d}>
-                        {d}
+                    <option value="">All</option>
+                    {designerOptions.map((o) => (
+                      <option key={o} value={o}>
+                        {o}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </details>
+
+              <details className="filter-block">
+                <summary>Condition</summary>
+                <div className="filter-body">
+                  <select className="select" value={condition} onChange={(e) => setCondition(e.target.value)}>
+                    <option value="">All</option>
+                    {CONDITION_OPTIONS.map((o) => (
+                      <option key={o} value={o}>
+                        {o}
                       </option>
                     ))}
                   </select>
@@ -247,29 +329,11 @@ const HomePage: NextPage<HomeProps> = ({
               <details className="filter-block">
                 <summary>Material</summary>
                 <div className="filter-body">
-                  <input
-                    className="text-input"
-                    list="materials-list"
-                    placeholder="Select or type material..."
-                    value={material}
-                    onChange={(e) => setMaterial(e.target.value)}
-                  />
-                  <datalist id="materials-list">
-                    {MATERIAL_OPTIONS.map((m) => (
-                      <option key={m} value={m} />
-                    ))}
-                  </datalist>
-                </div>
-              </details>
-
-              <details className="filter-block">
-                <summary>Condition</summary>
-                <div className="filter-body">
-                  <select className="select" value={condition} onChange={(e) => setCondition(e.target.value)}>
-                    <option value="">Any</option>
-                    {CONDITION_OPTIONS.map((c) => (
-                      <option key={c} value={c}>
-                        {c}
+                  <select className="select" value={material} onChange={(e) => setMaterial(e.target.value)}>
+                    <option value="">All</option>
+                    {MATERIAL_OPTIONS.map((o) => (
+                      <option key={o} value={o}>
+                        {o}
                       </option>
                     ))}
                   </select>
@@ -279,43 +343,31 @@ const HomePage: NextPage<HomeProps> = ({
               <details className="filter-block">
                 <summary>Size</summary>
                 <div className="filter-body">
-                  <input
-                    className="text-input"
-                    placeholder="e.g. 38 / M / One Size..."
-                    value={size}
-                    onChange={(e) => setSize(e.target.value)}
-                  />
+                  <input className="text-input" value={size} onChange={(e) => setSize(e.target.value)} placeholder="e.g. medium" />
                 </div>
               </details>
 
               <details className="filter-block">
                 <summary>Color</summary>
                 <div className="filter-body">
-                  <input
-                    className="text-input"
-                    placeholder="e.g. Black / Gold / Red..."
-                    value={color}
-                    onChange={(e) => setColor(e.target.value)}
-                  />
+                  <input className="text-input" value={color} onChange={(e) => setColor(e.target.value)} placeholder="e.g. black" />
                 </div>
               </details>
 
               <details className="filter-block">
-                <summary>Price Range (USD)</summary>
+                <summary>Price (USD)</summary>
                 <div className="filter-body price-row">
                   <input
                     className="text-input"
-                    inputMode="numeric"
                     placeholder="Min"
                     value={minPrice}
-                    onChange={(e) => setMinPrice(e.target.value ? Number(e.target.value) : "")}
+                    onChange={(e) => setMinPrice(e.target.value === "" ? "" : Number(e.target.value))}
                   />
                   <input
                     className="text-input"
-                    inputMode="numeric"
                     placeholder="Max"
                     value={maxPrice}
-                    onChange={(e) => setMaxPrice(e.target.value ? Number(e.target.value) : "")}
+                    onChange={(e) => setMaxPrice(e.target.value === "" ? "" : Number(e.target.value))}
                   />
                 </div>
               </details>
@@ -357,7 +409,6 @@ const HomePage: NextPage<HomeProps> = ({
             </div>
           </div>
         </section>
-
       </main>
 
       <HomepageButler />
@@ -372,6 +423,105 @@ const HomePage: NextPage<HomeProps> = ({
           margin: 0 auto;
           padding: 32px 16px 64px;
         }
+
+        /* ✅ Message Board */
+        .msgBoard {
+          display: grid;
+          gap: 10px;
+          margin-bottom: 18px;
+        }
+        .msgCard {
+          background: #fff;
+          border: 1px solid #e5e7eb;
+          border-radius: 16px;
+          padding: 12px 14px;
+          box-shadow: 0 1px 0 rgba(15, 23, 42, 0.03);
+        }
+        .msgTop {
+          display: flex;
+          gap: 10px;
+          align-items: flex-start;
+        }
+        .msgBadge {
+          font-size: 10px;
+          font-weight: 900;
+          letter-spacing: 0.12em;
+          padding: 5px 8px;
+          border-radius: 999px;
+          line-height: 1;
+          border: 1px solid #e5e7eb;
+          color: #111827;
+          background: #f3f4f6;
+          flex: 0 0 auto;
+        }
+        .badge-info {
+          background: #f3f4f6;
+          border-color: #e5e7eb;
+        }
+        .badge-promo {
+          background: #ecfdf5;
+          border-color: #a7f3d0;
+          color: #065f46;
+        }
+        .badge-alert {
+          background: #fef2f2;
+          border-color: #fecaca;
+          color: #991b1b;
+        }
+        .msgText {
+          font-size: 13px;
+          color: #111827;
+          line-height: 1.45;
+          font-weight: 600;
+          padding-top: 1px;
+        }
+        .msgExtras {
+          margin-top: 10px;
+          display: grid;
+          gap: 10px;
+        }
+        .msgLinkWrap {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+        }
+        .msgLink {
+          font-size: 13px;
+          font-weight: 800;
+          text-decoration: none;
+          color: #0f172a;
+          border: 1px solid #e5e7eb;
+          padding: 8px 12px;
+          border-radius: 999px;
+          background: #fff;
+          display: inline-flex;
+          width: fit-content;
+        }
+        .msgMedia {
+          border: 1px solid #eef2f7;
+          border-radius: 14px;
+          overflow: hidden;
+          background: #fafafa;
+        }
+        .msgImg {
+          display: block;
+          width: 100%;
+          max-height: 260px;
+          object-fit: cover;
+        }
+        .msgVid {
+          display: block;
+          width: 100%;
+          max-height: 320px;
+        }
+        .msgVideoLink {
+          display: block;
+          padding: 12px;
+          font-weight: 800;
+          color: #0f172a;
+          text-decoration: none;
+        }
+
         .hero {
           display: grid;
           grid-template-columns: minmax(0, 3fr) minmax(0, 1fr);
@@ -399,32 +549,6 @@ const HomePage: NextPage<HomeProps> = ({
           color: #374151;
           line-height: 1.6;
           max-width: 52ch;
-        }
-
-        .snapshot-card {
-          background: #fff;
-          border: 1px solid #e5e7eb;
-          border-radius: 18px;
-          padding: 16px;
-        }
-        .snapshot-card h2 {
-          margin: 0 0 6px;
-          font-size: 16px;
-          color: #0f172a;
-        }
-        .snapshot-view {
-          margin: 0 0 12px;
-          color: #6b7280;
-          font-size: 12px;
-        }
-        .snapshot-row {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          padding: 8px 0;
-          border-top: 1px dashed #e5e7eb;
-          font-size: 13px;
-          color: #111827;
         }
 
         .home-section {
@@ -599,16 +723,15 @@ export const getServerSideProps: GetServerSideProps = async () => {
   const listings = await adminDb.collection("listings").limit(200).get();
 
   const pickImage = (d: any): string => {
-    const fromArray =
-      Array.isArray(d.displayImageUrls)
-        ? d.displayImageUrls
-        : Array.isArray(d.images)
-        ? d.images
-        : Array.isArray(d.imageUrls)
-        ? d.imageUrls
-        : Array.isArray(d.photos)
-        ? d.photos
-        : [];
+    const fromArray = Array.isArray(d.displayImageUrls)
+      ? d.displayImageUrls
+      : Array.isArray(d.images)
+      ? d.images
+      : Array.isArray(d.imageUrls)
+      ? d.imageUrls
+      : Array.isArray(d.photos)
+      ? d.photos
+      : [];
     if (Array.isArray(fromArray) && fromArray[0]) return String(fromArray[0]);
 
     return (
@@ -698,9 +821,9 @@ export const getServerSideProps: GetServerSideProps = async () => {
       .sort((a, b) => a.localeCompare(b));
   } catch (err) {
     console.error("Error fetching designers for homepage:", err);
-    designerOptions = Array.from(
-      new Set(items.map((i) => String(i.brand || "").trim()).filter(Boolean))
-    ).sort((a, b) => a.localeCompare(b));
+    designerOptions = Array.from(new Set(items.map((i) => String(i.brand || "").trim()).filter(Boolean))).sort((a, b) =>
+      a.localeCompare(b)
+    );
   }
 
   return {
