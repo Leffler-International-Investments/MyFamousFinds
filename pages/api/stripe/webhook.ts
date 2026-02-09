@@ -1,3 +1,4 @@
+FILE: /pages/api/stripe/webhook.ts
 // FILE: /pages/api/stripe/webhook.ts
 import type { NextApiRequest, NextApiResponse } from "next";
 import handler from "../webhooks/stripe";
@@ -13,9 +14,6 @@ export const config = {
   api: { bodyParser: false },
 };
 
-export default async function stripeWebhookProxy(
-  req: NextApiRequest,
-  res: NextApiResponse
-) {
+export default async function stripeWebhookProxy(req: NextApiRequest, res: NextApiResponse) {
   return handler(req, res);
 }
