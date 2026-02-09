@@ -1,7 +1,7 @@
 // FILE: /pages/api/admin/approve-seller/[id].ts
 
 import type { NextApiRequest, NextApiResponse } from "next";
-import { getAdminDb } from "../../../../lib/firebaseAdmin";
+import { adminDb, isFirebaseAdminReady } from "../../../../utils/firebaseAdmin";
 import { sendSellerInviteEmail } from "../../../../utils/email";
 
 type Res =
@@ -29,10 +29,12 @@ export default async function handler(
       return res.status(401).json({ ok: false, error: "Unauthorized" });
     }
 
-    const db = getAdminDb();
+    if (!isFirebaseAdminReady || !adminDb) {
+      return res.status(500).json({ ok: false, error: "Firebase not configured" });
+    }
 
-    // sellerApplications/{id}
-    const ref = db.collection("sellerApplications").doc(id);
+    // sellers/{id}
+    const ref = adminDb.collection("sellers").doc(id);
     const snap = await ref.get();
     if (!snap.exists) {
       return res.status(404).json({ ok: false, error: "Seller not found" });
@@ -54,7 +56,7 @@ export default async function handler(
 
     // Create /sellerProfiles/{id} if you use it elsewhere
     try {
-      await db
+      await adminDb
         .collection("sellerProfiles")
         .doc(id)
         .set(

@@ -70,3 +70,13 @@ export async function sendSellerInviteEmail(to: string, inviteUrl: string) {
     "\n\nMyFamousFinds";
   await sendMail(to, subject, text);
 }
+
+export async function sendLoginCode(to: string, code: string) {
+  const subject = "MyFamousFinds — Your login code";
+  const text =
+    "Here is your 6-digit login code:\n\n" +
+    code +
+    "\n\nIf you did not request this, you can ignore this email.\n\n" +
+    "MyFamousFinds";
+  await sendMail(to, subject, text);
+}
