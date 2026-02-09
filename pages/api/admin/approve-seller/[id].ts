@@ -1,90 +1,98 @@
 // FILE: /pages/api/admin/approve-seller/[id].ts
-import type { NextApiRequest, NextApiResponse } from "next";
-import { adminDb } from "../../../../utils/firebaseAdmin";
-import { sendSellerInviteEmail } from "../../../../utils/email";
-import crypto from "crypto";
 
-type Data =
-  | { ok: true; registerUrl: string; emailSent: boolean }
-  | { error: string };
+import type { NextApiRequest, NextApiResponse } from "next";
+import { getAdminDb } from "../../../../lib/firebaseAdmin";
+import { sendSellerInviteEmail } from "../../../../utils/email";
+
+type Res =
+  | { ok: true; emailSent: boolean }
+  | { ok: false; error: string };
 
 export default async function handler(
   req: NextApiRequest,
-  res: NextApiResponse<Data>
+  res: NextApiResponse<Res>
 ) {
   if (req.method !== "POST") {
-    return res.status(405).json({ error: "Method not allowed" });
-  }
-
-  if (!adminDb) {
-    return res.status(500).json({ error: "Firebase not configured" });
+    return res.status(405).json({ ok: false, error: "Method not allowed" });
   }
 
   try {
-    const { id } = req.query;
-    if (!id || Array.isArray(id)) {
-      return res.status(400).json({ error: "Missing seller id" });
+    const id = String(req.query.id || "").trim();
+    if (!id) return res.status(400).json({ ok: false, error: "Missing id" });
+
+    // Optional simple admin gate (if you already use it elsewhere)
+    const adminEmail = String(process.env.ADMIN_EMAIL || "").trim().toLowerCase();
+    const headerEmail = String(req.headers["x-admin-email"] || "")
+      .trim()
+      .toLowerCase();
+    if (adminEmail && headerEmail && adminEmail !== headerEmail) {
+      return res.status(401).json({ ok: false, error: "Unauthorized" });
     }
 
-    const sellerId = id as string;
-    const ref = adminDb.collection("sellers").doc(sellerId);
+    const db = getAdminDb();
+
+    // sellerApplications/{id}
+    const ref = db.collection("sellerApplications").doc(id);
     const snap = await ref.get();
-
     if (!snap.exists) {
-      return res.status(404).json({ error: "Seller application not found" });
+      return res.status(404).json({ ok: false, error: "Seller not found" });
     }
 
-    const data = snap.data() || {};
-    const email: string = (data.contactEmail as string) || (data.email as string) || "";
+    const data: any = snap.data() || {};
+    const email = String(data.email || "").trim().toLowerCase();
+    const businessName = String(data.businessName || data.shopName || "").trim();
 
-    if (!email) {
-      return res
-        .status(400)
-        .json({ error: "Seller record has no contact email address." });
-    }
-
-    const businessName: string =
-      (data.businessName as string) || (data.storeName as string) || "";
-
-    // Generate a secure invitation token
-    const token = crypto.randomBytes(32).toString("hex");
-
-    const baseUrl =
-      process.env.NEXT_PUBLIC_BASE_URL || `https://${req.headers.host ?? ""}`;
-    const registerUrl = `${baseUrl}/seller/register?id=${encodeURIComponent(
-      sellerId
-    )}&token=${token}`;
-
-    // Update Firestore
+    // Mark approved
     await ref.set(
       {
-        status: "Approved",
-        approvedAt: new Date(),
-        invitationToken: token,
-        invitationUrl: registerUrl,
+        status: "approved",
+        approvedAt: Date.now(),
+        updatedAt: Date.now(),
       },
       { merge: true }
     );
 
-    // ✅ Email #2: "You have been approved"
-    let emailSent = false;
+    // Create /sellerProfiles/{id} if you use it elsewhere
     try {
-      await sendSellerInviteEmail({
-        to: email,
-        businessName,
-        registerUrl,
-      });
-      emailSent = true;
-    } catch (err) {
-      console.error("send_seller_invite_email_error", err);
-      emailSent = false;
+      await db
+        .collection("sellerProfiles")
+        .doc(id)
+        .set(
+          {
+            email,
+            businessName,
+            status: "approved",
+            updatedAt: Date.now(),
+          },
+          { merge: true }
+        );
+    } catch (e) {
+      console.error("approve-seller sellerProfiles write failed", e);
     }
 
-    return res.status(200).json({ ok: true, registerUrl, emailSent });
-  } catch (err: any) {
-    console.error("approve_seller_error", err);
+    // Build register URL (adjust if you want a different path)
+    const siteUrl = String(process.env.NEXT_PUBLIC_SITE_URL || "").trim();
+    const base = siteUrl || "https://www.myfamousfinds.com";
+    const registerUrl = `${base}/seller/register?email=${encodeURIComponent(
+      email
+    )}`;
+
+    // ✅ FIX: call sendSellerInviteEmail(to, inviteUrl)
+    let emailSent = false;
+    try {
+      if (email && email.includes("@")) {
+        await sendSellerInviteEmail(email, registerUrl);
+        emailSent = true;
+      }
+    } catch (e) {
+      console.error("approve-seller invite email failed", e);
+    }
+
+    return res.status(200).json({ ok: true, emailSent });
+  } catch (e: any) {
+    console.error("approve-seller error", e);
     return res
       .status(500)
-      .json({ error: err?.message || "Internal server error" });
+      .json({ ok: false, error: e?.message || "Server error" });
   }
 }
