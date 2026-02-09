@@ -4,73 +4,98 @@ import Stripe from "stripe";
 import { adminDb } from "../../../utils/firebaseAdmin";
 import { getStripeClient } from "../../../lib/stripe";
 
-export const config = { api: { bodyParser: false } };
+export const config = {
+  api: { bodyParser: false },
+};
 
-async function buffer(req: any) {
-  const chunks = [];
+async function readBuffer(req: any): Promise<Buffer> {
+  const chunks: Uint8Array[] = [];
   for await (const chunk of req) chunks.push(chunk);
   return Buffer.concat(chunks);
 }
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  if (req.method !== "POST") return res.status(405).end();
+  if (req.method !== "POST") {
+    res.setHeader("Allow", "POST");
+    return res.status(405).end("Method Not Allowed");
+  }
 
   const stripe = await getStripeClient();
-  if (!stripe) return res.status(500).end();
+  if (!stripe) {
+    console.error("[stripe webhook] Stripe not configured");
+    return res.status(500).end();
+  }
 
-  const sig = req.headers["stripe-signature"] as string;
   const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
-
   if (!webhookSecret) {
-    console.error("Missing STRIPE_WEBHOOK_SECRET");
+    console.error("[stripe webhook] STRIPE_WEBHOOK_SECRET missing");
     return res.status(500).end();
   }
 
   let event: Stripe.Event;
 
   try {
-    const buf = await buffer(req);
+    const buf = await readBuffer(req);
+    const sig = req.headers["stripe-signature"] as string;
     event = stripe.webhooks.constructEvent(buf, sig, webhookSecret);
-  } catch (err) {
-    console.error("Webhook signature failed", err);
-    return res.status(400).end();
+  } catch (err: any) {
+    console.error("[stripe webhook] Signature verification failed:", err.message);
+    return res.status(400).end("Invalid signature");
   }
 
-  // ✅ Idempotency check
-  const existing = await adminDb
-    .collection("stripe_events")
-    .doc(event.id)
-    .get();
-
-  if (existing.exists) {
-    return res.status(200).json({ received: true });
+  // ✅ IDEMPOTENCY
+  const eventRef = adminDb.collection("stripe_events").doc(event.id);
+  const alreadyHandled = await eventRef.get();
+  if (alreadyHandled.exists) {
+    return res.status(200).json({ received: true, duplicate: true });
   }
 
-  await adminDb.collection("stripe_events").doc(event.id).set({
+  await eventRef.set({
     type: event.type,
     created: Date.now(),
   });
 
-  if (event.type === "checkout.session.completed") {
-    const session = event.data.object as Stripe.Checkout.Session;
+  try {
+    if (event.type === "checkout.session.completed") {
+      const session = event.data.object as Stripe.Checkout.Session;
 
-    const listingId = session.metadata?.listingId;
-    if (listingId) {
-      await adminDb.collection("orders").add({
-        stripeSessionId: session.id,
-        listingId,
-        buyerEmail: session.customer_details?.email || "",
-        amountTotal: session.amount_total || 0,
-        status: "paid",
-        createdAt: Date.now(),
-      });
+      const listingId = session.metadata?.listingId;
+      if (!listingId) {
+        console.warn("[stripe webhook] Missing listingId metadata");
+        return res.status(200).json({ received: true });
+      }
+
+      // Prevent duplicate orders
+      const existingOrder = await adminDb
+        .collection("orders")
+        .where("stripeSessionId", "==", session.id)
+        .limit(1)
+        .get();
+
+      if (existingOrder.empty) {
+        await adminDb.collection("orders").add({
+          stripeSessionId: session.id,
+          listingId,
+          buyerEmail: session.customer_details?.email || "",
+          buyerName: session.customer_details?.name || "",
+          amountTotal: session.amount_total || 0,
+          currency: session.currency || "usd",
+          status: "paid",
+          createdAt: Date.now(),
+          shippingAddress: session.shipping_details?.address || null,
+        });
+      }
 
       await adminDb.collection("listings").doc(listingId).update({
         status: "sold",
         isSold: true,
+        soldAt: Date.now(),
       });
     }
-  }
 
-  res.json({ received: true });
+    return res.status(200).json({ received: true });
+  } catch (err) {
+    console.error("[stripe webhook] Processing error:", err);
+    return res.status(500).end();
+  }
 }
