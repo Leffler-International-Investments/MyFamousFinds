@@ -1,14 +1,26 @@
 // FILE: /pages/api/seller/apply.ts
 
 import type { NextApiRequest, NextApiResponse } from "next";
-import { db } from "../../../lib/firebaseAdmin";
-import { doc, setDoc } from "firebase/firestore";
-import { sendAdminNewSellerApplicationEmail, sendSellerApplicationReceivedEmail } from "../../../utils/email";
+import { adminDb, isFirebaseAdminReady } from "../../../utils/firebaseAdmin";
+import {
+  sendAdminNewSellerApplicationEmail,
+  sendSellerApplicationReceivedEmail,
+} from "../../../utils/email";
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  if (req.method !== "POST") return res.status(405).json({ ok: false, error: "Method not allowed" });
+  if (req.method !== "POST") {
+    return res.status(405).json({ ok: false, error: "Method not allowed" });
+  }
 
   try {
+    if (!isFirebaseAdminReady || !adminDb) {
+      return res.status(500).json({
+        ok: false,
+        error:
+          "Firebase Admin is not configured. Missing FIREBASE_SERVICE_ACCOUNT_JSON (or split FB_* env vars).",
+      });
+    }
+
     const body = typeof req.body === "string" ? JSON.parse(req.body) : req.body;
 
     const email = String(body?.email || "").trim().toLowerCase();
@@ -18,7 +30,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     const id = email.replace(/\./g, "_");
 
-    await setDoc(doc(db as any, "sellerApplications", id), {
+    await adminDb.collection("sellerApplications").doc(id).set({
       ...body,
       email,
       status: "pending",
