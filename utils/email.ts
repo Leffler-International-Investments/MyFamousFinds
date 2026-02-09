@@ -228,3 +228,13 @@ export async function sendTestEmail(to: string) {
     "SMTP is working. This is a test email from MyFamousFinds.\n\nIf you received this, seller emails will send on approval.";
   await sendMail(to, subject, text);
 }
+
+export async function sendLoginCode(to: string, code: string) {
+  const subject = "MyFamousFinds — Your login code";
+  const text =
+    "Here is your 6-digit login code:\n\n" +
+    code +
+    "\n\nIf you did not request this, you can ignore this email.\n\n" +
+    "MyFamousFinds";
+  await sendMail(to, subject, text);
+}
