@@ -35,10 +35,7 @@ export default async function handler(
     }
 
     const data = snap.data() || {};
-    const email: string =
-      (data.contactEmail as string) ||
-      (data.email as string) ||
-      "";
+    const email: string = (data.contactEmail as string) || (data.email as string) || "";
 
     if (!email) {
       return res
@@ -53,8 +50,7 @@ export default async function handler(
     const token = crypto.randomBytes(32).toString("hex");
 
     const baseUrl =
-      process.env.NEXT_PUBLIC_BASE_URL ||
-      `https://${req.headers.host ?? ""}`;
+      process.env.NEXT_PUBLIC_BASE_URL || `https://${req.headers.host ?? ""}`;
     const registerUrl = `${baseUrl}/seller/register?id=${encodeURIComponent(
       sellerId
     )}&token=${token}`;
@@ -70,6 +66,7 @@ export default async function handler(
       { merge: true }
     );
 
+    // ✅ Email #2: "You have been approved"
     let emailSent = false;
     try {
       await sendSellerInviteEmail({
