@@ -1,4 +1,3 @@
-FILE: /pages/api/seller/mark-shipped.ts
 // FILE: /pages/api/seller/mark-shipped.ts
 
 import type { NextApiRequest, NextApiResponse } from "next";
