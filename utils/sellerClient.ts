@@ -7,9 +7,60 @@
  *
  * This module provides `sellerFetch()` which automatically attaches
  * the current Firebase Auth user's ID token to every request.
+ *
+ * FIX:
+ * - After refresh, Firebase Auth can take a moment to restore session.
+ * - Old code read auth.currentUser immediately (null) → no Bearer token → 401.
+ * - Now we wait for onAuthStateChanged once before reading the token.
  */
 
+import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "./firebaseClient";
+
+let authReadyPromise: Promise<void> | null = null;
+
+async function waitForAuth(): Promise<void> {
+  if (!auth) return;
+
+  // If already available, no wait needed.
+  if (auth.currentUser) return;
+
+  // Reuse the same promise across calls.
+  if (authReadyPromise) return authReadyPromise;
+
+  authReadyPromise = new Promise<void>((resolve) => {
+    let done = false;
+
+    const finish = () => {
+      if (done) return;
+      done = true;
+      resolve();
+    };
+
+    // Safety timeout so we never hang.
+    const t = setTimeout(finish, 2500);
+
+    const unsub = onAuthStateChanged(
+      auth,
+      () => {
+        clearTimeout(t);
+        try {
+          unsub();
+        } catch {}
+        finish();
+      },
+      () => {
+        clearTimeout(t);
+        try {
+          unsub();
+        } catch {}
+        finish();
+      }
+    );
+  });
+
+  return authReadyPromise;
+}
 
 /**
  * Get the Firebase Auth Bearer token for the current signed-in seller.
@@ -18,6 +69,8 @@ import { auth } from "./firebaseClient";
 export async function getAuthHeaders(): Promise<Record<string, string>> {
   const headers: Record<string, string> = {};
   try {
+    await waitForAuth();
+
     if (auth?.currentUser) {
       const token = await auth.currentUser.getIdToken();
       if (token) headers["Authorization"] = `Bearer ${token}`;
@@ -30,7 +83,7 @@ export async function getAuthHeaders(): Promise<Record<string, string>> {
 
 /**
  * Wrapper around fetch() that automatically attaches the Firebase Auth
- * Bearer token.  Drop-in replacement for `fetch(url, opts)`.
+ * Bearer token. Drop-in replacement for `fetch(url, opts)`.
  */
 export async function sellerFetch(
   url: string,
