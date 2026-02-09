@@ -1,4 +1,3 @@
-FILE: /pages/api/webhooks/stripe.ts
 // FILE: /pages/api/webhooks/stripe.ts
 import type { NextApiRequest, NextApiResponse } from "next";
 import Stripe from "stripe";
