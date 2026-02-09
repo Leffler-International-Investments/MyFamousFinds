@@ -28,6 +28,8 @@ type ProductPageProps = {
   description: string;
   sellerName: string;
   allowOffers: boolean;
+  allowPurchase: boolean;
+  isSold: boolean;
 };
 
 export default function ProductPage(props: ProductPageProps) {
@@ -46,6 +48,8 @@ export default function ProductPage(props: ProductPageProps) {
     description,
     sellerName,
     allowOffers,
+    allowPurchase,
+    isSold,
   } = props;
 
   const [loading, setLoading] = useState(false);
@@ -69,7 +73,6 @@ export default function ProductPage(props: ProductPageProps) {
   const [buyerTouched, setBuyerTouched] = useState(false);
 
   // ✅ Robust image fallback so the product image never disappears
-  // (Some listings store images as objects or empty strings; also "/placeholder.png" did not exist.)
   const FALLBACK_IMG = "/Famous-Finds-Logo-2.png";
   const isLikelyValidSrc = (src?: string | null) => {
     const s = String(src || "").trim();
@@ -148,6 +151,10 @@ export default function ProductPage(props: ProductPageProps) {
 
   const handleBuyNow = async () => {
     try {
+      if (!allowPurchase) {
+        alert("This item is no longer available.");
+        return;
+      }
       if (!isBuyerDetailsValid) {
         setBuyerTouched(true);
         const el = document.getElementById("buyer-details-form");
@@ -489,11 +496,21 @@ export default function ProductPage(props: ProductPageProps) {
             </div>
 
             <div className="button-row">
-              <button onClick={handleBuyNow} disabled={loading || !isBuyerDetailsValid} className="btn-buy">
-                {loading ? "Processing…" : isBuyerDetailsValid ? "Buy now" : "Complete details to buy"}
+              <button
+                onClick={handleBuyNow}
+                disabled={loading || !isBuyerDetailsValid || !allowPurchase}
+                className="btn-buy"
+              >
+                {loading
+                  ? "Processing…"
+                  : isSold
+                  ? "Sold"
+                  : !isBuyerDetailsValid
+                  ? "Complete details to buy"
+                  : "Buy now"}
               </button>
 
-              {allowOffers && (
+              {allowOffers && !isSold && (
                 <button
                   onClick={() => {
                     const form = document.getElementById("offer-form");
@@ -517,7 +534,7 @@ export default function ProductPage(props: ProductPageProps) {
               </ul>
             </div>
 
-            {allowOffers && (
+            {allowOffers && !isSold && (
               <div className="offer-wrap" id="offer-form">
                 <h3 className="offer-title">Make an offer</h3>
                 <p className="offer-note">Enter an amount you’d like to pay. The seller can accept, counter, or decline.</p>
@@ -840,62 +857,6 @@ export default function ProductPage(props: ProductPageProps) {
   );
 }
 
-function formatLocal(iso: string) {
-  try {
-    const d = new Date(iso);
-    return d.toLocaleString();
-  } catch {
-    return iso;
-  }
-}
-
-/**
- * Extract the best available shipping line(s)
- */
-function renderShipTo(addr?: any) {
-  if (!addr) return <span className="muted">—</span>;
-  const parts = [addr.line1, addr.line2, addr.city, addr.state, addr.postal_code, addr.country]
-    .map((x) => String(x || "").trim())
-    .filter(Boolean);
-  if (parts.length === 0) return <span className="muted">—</span>;
-  return <span>{parts.join(", ")}</span>;
-}
-
-function formatMoney(r: any) {
-  const amount = typeof r.total === "number" ? r.total : typeof r.price === "number" ? r.price : 0;
-  const currency = String(r.currency || "USD").toUpperCase();
-  try {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency,
-      maximumFractionDigits: 0,
-    }).format(amount || 0);
-  } catch {
-    return `${currency} ${amount || 0}`;
-  }
-}
-
-function renderDeadline(iso?: string | null) {
-  if (!iso) return <span className="muted">—</span>;
-  try {
-    return <span>{new Date(iso).toLocaleString()}</span>;
-  } catch {
-    return <span>{iso}</span>;
-  }
-}
-
-function renderStatus(r: any) {
-  const s = String(r.status || "").toLowerCase();
-  const stage = String(r.fulfillment?.stage || "").toLowerCase();
-
-  if (s.includes("paid") || stage === "paid") return <span>Paid</span>;
-  if (s.includes("shipped") || stage === "shipped") return <span>Shipped</span>;
-  if (s.includes("delivered") || stage === "delivered") return <span>Delivered</span>;
-  if (s.includes("cancel")) return <span>Cancelled</span>;
-
-  return <span>{r.status || "—"}</span>;
-}
-
 export const getServerSideProps: GetServerSideProps<ProductPageProps> = async (ctx) => {
   const id = String(ctx.params?.id || "");
 
@@ -913,12 +874,10 @@ export const getServerSideProps: GetServerSideProps<ProductPageProps> = async (c
 
     const d: any = docSnap.data() || {};
 
-    // If already sold, hide page (prevents double purchase)
     const status = String(d.status || "").toLowerCase();
     const isSold = d.isSold === true || d.sold === true || status === "sold";
-    if (isSold) {
-      return { notFound: true };
-    }
+    const isLive = status === "live";
+    const allowPurchase = isLive && !isSold;
 
     const title = String(d.title || d.name || "Untitled");
     const price = typeof d.priceUsd === "number" ? d.priceUsd : Number(d.price || 0);
@@ -935,7 +894,6 @@ export const getServerSideProps: GetServerSideProps<ProductPageProps> = async (c
       if (!v) return "";
       if (typeof v === "string") return v;
       if (typeof v === "object") {
-        // common shapes we store during uploads / bulk
         return (
           v.displayUrl ||
           v.displayImageUrl ||
@@ -952,14 +910,12 @@ export const getServerSideProps: GetServerSideProps<ProductPageProps> = async (c
     const normalizeSrc = (src: any): string => {
       const s = String(src || "").trim();
       if (!s || s === "[object Object]") return "";
-      // Allow: https/http, data:image, or local /public assets
       if (s.startsWith("data:image/")) return s;
       if (s.startsWith("http://") || s.startsWith("https://")) return s;
       if (s.startsWith("/")) return s;
       return "";
     };
 
-    // ✅ Robust image URL resolution logic
     const imageUrl =
       normalizeSrc(
         pickFrom(d.displayImageUrl) ||
@@ -997,6 +953,8 @@ export const getServerSideProps: GetServerSideProps<ProductPageProps> = async (c
         description,
         sellerName,
         allowOffers,
+        allowPurchase,
+        isSold,
       },
     };
   } catch (err) {
