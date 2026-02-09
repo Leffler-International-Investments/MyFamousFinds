@@ -22,17 +22,13 @@ export default async function handler(
   res: NextApiResponse<StatementJsonResponse | string>
 ) {
   if (req.method !== "GET") {
-    return res
-      .status(405)
-      .json({ ok: false, error: "method_not_allowed" });
+    return res.status(405).json({ ok: false, error: "method_not_allowed" });
   }
 
   try {
-    const sellerId = getSellerId(req);
+    const sellerId = await getSellerId(req);
     if (!sellerId) {
-      return res
-        .status(401)
-        .json({ ok: false, error: "unauthorized" });
+      return res.status(401).json({ ok: false, error: "unauthorized" });
     }
 
     const { start: startStr, end: endStr, format } = req.query;
@@ -44,9 +40,8 @@ export default async function handler(
     const startDateString =
       typeof startStr === "string"
         ? startStr
-        : `${monthStart.getFullYear()}-${pad(
-            monthStart.getMonth() + 1
-          )}-01`;
+        : `${monthStart.getFullYear()}-${pad(monthStart.getMonth() + 1)}-01`;
+
     const endDateString =
       typeof endStr === "string"
         ? endStr
@@ -80,7 +75,7 @@ export default async function handler(
           [
             r.date,
             r.sku,
-            r.title?.replace(/,/g, " "),
+            (r.title || "").replace(/,/g, " "),
             r.action,
             r.qty,
             r.gross.toFixed(2),
