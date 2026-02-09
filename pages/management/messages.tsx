@@ -8,6 +8,7 @@ import type { GetServerSideProps } from "next";
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
 import { useRequireAdmin } from "../../hooks/useRequireAdmin";
+import { mgmtFetch } from "../../utils/managementClient";
 import { adminDb } from "../../utils/firebaseAdmin";
 
 export type BuyerMessage = {
@@ -80,7 +81,7 @@ export default function MessageBoardManagement({ initialMessages }: Props) {
 
       if (isEditing) {
         // UPDATE via API
-        const res = await fetch("/api/management/messages", {
+        const res = await mgmtFetch("/api/management/messages", {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ id: isEditing, ...payload }),
@@ -95,7 +96,7 @@ export default function MessageBoardManagement({ initialMessages }: Props) {
         );
       } else {
         // CREATE via API
-        const res = await fetch("/api/management/messages", {
+        const res = await mgmtFetch("/api/management/messages", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),
@@ -129,7 +130,7 @@ export default function MessageBoardManagement({ initialMessages }: Props) {
 
   const toggleActive = async (id: string, currentStatus: boolean) => {
     try {
-      const res = await fetch("/api/management/messages", {
+      const res = await mgmtFetch("/api/management/messages", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id, active: !currentStatus }),
@@ -151,7 +152,7 @@ export default function MessageBoardManagement({ initialMessages }: Props) {
   const handleDelete = async (id: string) => {
     if (!window.confirm("Delete this message permanently?")) return;
     try {
-      const res = await fetch(`/api/management/messages?id=${id}`, {
+      const res = await mgmtFetch(`/api/management/messages?id=${id}`, {
         method: "DELETE",
       });
       const json = await res.json();
@@ -538,6 +539,7 @@ export default function MessageBoardManagement({ initialMessages }: Props) {
 
 export const getServerSideProps: GetServerSideProps<Props> = async () => {
   try {
+    if (!adminDb) return { props: { initialMessages: [] } };
     const snap = await adminDb
       .collection("buyer_messages")
       .orderBy("createdAt", "desc")

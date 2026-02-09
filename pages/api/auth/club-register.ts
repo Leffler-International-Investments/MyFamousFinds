@@ -11,6 +11,9 @@ export default async function handler(
   }
 
   try {
+    if (!adminDb || !adminAuth) {
+      return res.status(500).json({ error: "Firebase not configured" });
+    }
     // 1. Get the token from the Authorization header
     const authHeader = req.headers.authorization;
     if (!authHeader) {

@@ -5,6 +5,7 @@ import Link from "next/link";
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
 import { useRequireAdmin } from "../../hooks/useRequireAdmin";
+import { mgmtFetch } from "../../utils/managementClient";
 
 export default function ManagementStripe() {
   const { loading: authLoading } = useRequireAdmin();
@@ -29,7 +30,7 @@ export default function ManagementStripe() {
     };
 
     try {
-      const res = await fetch("/api/management/stripe-settings", {
+      const res = await mgmtFetch("/api/management/stripe-settings", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",

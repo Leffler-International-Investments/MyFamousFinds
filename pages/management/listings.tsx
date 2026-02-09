@@ -6,6 +6,7 @@ import Link from "next/link";
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
 import { useRequireAdmin } from "../../hooks/useRequireAdmin";
+import { mgmtFetch } from "../../utils/managementClient";
 import { adminDb } from "../../utils/firebaseAdmin";
 
 type Listing = {
@@ -103,7 +104,7 @@ export default function ManagementListings({ items }: Props) {
 
     try {
       setDeletingId(id);
-      const res = await fetch(`/api/admin/delete/${id}`, { method: "POST" });
+      const res = await mgmtFetch(`/api/admin/delete/${id}`, { method: "POST" });
       const json = await res.json();
       if (!res.ok || !json?.ok) {
         throw new Error(json?.error || "Failed to delete listing");
@@ -127,7 +128,7 @@ export default function ManagementListings({ items }: Props) {
 
     try {
       setSellingId(id);
-      const res = await fetch(`/api/admin/mark-sold/${id}`, { method: "POST" });
+      const res = await mgmtFetch(`/api/admin/mark-sold/${id}`, { method: "POST" });
       const json = await res.json();
       if (!res.ok || !json?.ok) {
         throw new Error(json?.error || "Failed to mark listing as sold");
@@ -165,7 +166,7 @@ export default function ManagementListings({ items }: Props) {
       // IMPORTANT:
       // This endpoint must exist in your project.
       // Create /pages/api/admin/update-category/[id].ts (or adjust URL to your existing endpoint).
-      const res = await fetch(`/api/admin/update-category/${id}`, {
+      const res = await mgmtFetch(`/api/admin/update-category/${id}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ category: nextCat }),
@@ -199,7 +200,7 @@ export default function ManagementListings({ items }: Props) {
 
     try {
       setUpdatingKey(`${id}:price`);
-      const res = await fetch(`/api/admin/update-listing/${id}`, {
+      const res = await mgmtFetch(`/api/admin/update-listing/${id}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ price: parsed }),
@@ -229,7 +230,7 @@ export default function ManagementListings({ items }: Props) {
 
     try {
       setUpdatingKey(`${id}:condition`);
-      const res = await fetch(`/api/admin/update-listing/${id}`, {
+      const res = await mgmtFetch(`/api/admin/update-listing/${id}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ condition: nextCondition }),
@@ -259,7 +260,7 @@ export default function ManagementListings({ items }: Props) {
 
     try {
       setUpdatingKey(`${id}:status`);
-      const res = await fetch(`/api/admin/update-listing/${id}`, {
+      const res = await mgmtFetch(`/api/admin/update-listing/${id}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: nextStatus }),
@@ -767,6 +768,7 @@ export default function ManagementListings({ items }: Props) {
 
 export const getServerSideProps: GetServerSideProps<Props> = async () => {
   try {
+    if (!adminDb) return { props: { items: [] } };
     const snap = await adminDb.collection("listings").get();
 
     const items: Listing[] = snap.docs.map((doc) => {

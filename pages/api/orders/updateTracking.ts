@@ -2,15 +2,9 @@
 
 import type { NextApiRequest, NextApiResponse } from "next";
 import { adminDb, FieldValue } from "../../../utils/firebaseAdmin";
+import { isAdminRequest } from "../../../utils/adminAuth";
 
 type Data = { ok: true } | { ok: false; error: string };
-
-function isAdminRequest(req: NextApiRequest) {
-  const required = process.env.ADMIN_API_SECRET;
-  if (!required) return true;
-  const got = String(req.headers["x-admin-secret"] || "");
-  return got && got === required;
-}
 
 function buildTrackingUrl(carrier: string, trackingNumber: string) {
   const carrierCode = String(carrier || "").toLowerCase().trim();

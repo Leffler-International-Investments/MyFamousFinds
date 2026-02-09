@@ -5,7 +5,7 @@ import { sendTestEmail } from "../../../utils/email";
 
 function isAdminRequest(req: NextApiRequest) {
   const required = process.env.ADMIN_API_SECRET;
-  if (!required) return true;
+  if (!required) return false;
   const got = String(req.headers["x-admin-secret"] || "");
   return got && got === required;
 }
