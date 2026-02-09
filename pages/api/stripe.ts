@@ -3,20 +3,16 @@ import type { NextApiRequest, NextApiResponse } from "next";
 import handler from "./webhooks/stripe";
 
 /**
- * Stripe webhook consolidation
- *
- * Canonical webhook handler is now:
- *   /pages/api/webhooks/stripe.ts
- *
- * This legacy endpoint is kept as a safe proxy so older Stripe webhook
- * configurations don't break, while still ensuring a SINGLE handler executes.
+ * Legacy Stripe webhook endpoint (kept as a proxy).
+ * This prevents duplicate order creation if someone mistakenly configures Stripe
+ * to call /api/stripe instead of /api/stripe/webhook.
  */
 
 export const config = {
   api: { bodyParser: false },
 };
 
-export default async function stripeWebhookLegacyProxy(
+export default async function stripeLegacyProxy(
   req: NextApiRequest,
   res: NextApiResponse
 ) {
