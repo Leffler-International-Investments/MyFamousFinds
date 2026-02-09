@@ -25,7 +25,7 @@ const transporter = nodemailer.createTransport({
 
 async function sendMail(to: string, subject: string, text: string) {
   if (!host || !user || !pass) {
-    console.warn("[email] SMTP not configured – skipping send");
+    console.warn("[email] SMTP not configured – skipping send", { to, subject });
     return;
   }
 
@@ -36,7 +36,31 @@ async function sendMail(to: string, subject: string, text: string) {
     text,
   });
 
-  console.log("[email] sent", { to, messageId: info.messageId });
+  console.log("[email] sent", { to, messageId: info.messageId, subject });
+}
+
+/* ─────────────────────────────────────────────────────────────
+   🔹 SELLER VETTING EMAILS (NEW)
+───────────────────────────────────────────────────────────── */
+
+export async function sendSellerApplicationReceivedEmail(args: {
+  to: string;
+  businessName?: string;
+  contactName?: string;
+  supportEmail?: string;
+}) {
+  const { to, businessName, contactName, supportEmail } = args;
+
+  const subject = "We received your Seller Application — MyFamousFinds";
+  const text =
+    `Hi${contactName ? " " + contactName : ""},\n\n` +
+    `Thanks for applying to become a seller on MyFamousFinds.\n\n` +
+    `We received your application${businessName ? ` for: ${businessName}` : ""}.\n` +
+    `Our team is now reviewing it. You will receive a second email once your application is approved or rejected.\n\n` +
+    `If you have any questions, contact: ${supportEmail || "support@myfamousfinds.com"}\n\n` +
+    `— MyFamousFinds Team`;
+
+  await sendMail(to, subject, text);
 }
 
 /* ─────────────────────────────────────────────────────────────
@@ -99,9 +123,7 @@ export async function sendOrderConfirmationEmail(payload: OrderEmailPayload) {
 
   for (const it of items) {
     const label = [it.brand, it.name].filter(Boolean).join(" — ");
-    lines.push(
-      `• ${label} ×${it.quantity} (${formatMoney(it.price, currency)})`
-    );
+    lines.push(`• ${label} ×${it.quantity} (${formatMoney(it.price, currency)})`);
   }
 
   lines.push("");
