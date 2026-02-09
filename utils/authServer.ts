@@ -1,4 +1,3 @@
-FILE: /utils/authServer.ts
 // FILE: /utils/authServer.ts
 
 import type { NextApiRequest } from "next";
