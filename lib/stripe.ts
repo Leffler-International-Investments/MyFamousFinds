@@ -68,11 +68,15 @@ export async function getStripeSecretKeyInfo(): Promise<StripeSecretKeyInfo> {
 ------------------------------------------------- */
 export async function getStripeClient(): Promise<Stripe | null> {
   const { key } = await getStripeSecretKeyInfo();
-  if (!key) return null;
+  if (!key) {
+    console.warn("[stripe] Stripe disabled: no secret key found in env or Firestore.");
+    return null;
+  }
 
   if (cachedStripe?.key === key) return cachedStripe.client;
 
   const client = new Stripe(key, {
+    // apiVersion is optional; Stripe SDK defaults are fine for most apps.
     timeout: 15000,
     maxNetworkRetries: 2,
   });
@@ -81,10 +85,10 @@ export async function getStripeClient(): Promise<Stripe | null> {
   return client;
 }
 
-/* -------------------------------------------------
-   BACKWARD-COMPAT EXPORTS
-   (DO NOT REMOVE — REQUIRED BY API ROUTES)
-------------------------------------------------- */
+/**
+ * BACKWARD-COMPAT EXPORTS
+ * (DO NOT REMOVE — REQUIRED BY API ROUTES)
+ */
 
 // Used by pages/order/success.tsx
 export const stripe: Stripe | null = cachedStripe?.client ?? null;
@@ -95,7 +99,17 @@ export async function createCheckoutSession(
 ): Promise<Stripe.Checkout.Session> {
   const client = await getStripeClient();
   if (!client) {
-    throw new Error("Stripe client not initialized");
+    throw new Error("Stripe not configured (missing STRIPE_SECRET_KEY).");
   }
-  return client.checkout.sessions.create(params);
+  return await client.checkout.sessions.create(params);
 }
+
+/**
+ * ✅ Keep a named export `stripe` for any code that imports { stripe }.
+ * It will be a real Stripe client when STRIPE_SECRET_KEY is set.
+ * (If missing, it will be null at runtime.)
+ */
+const envKeyNow = (process.env.STRIPE_SECRET_KEY || "").trim();
+export const stripe: Stripe | null = envKeyNow
+  ? new Stripe(envKeyNow, { timeout: 15000, maxNetworkRetries: 2 })
+  : null;
