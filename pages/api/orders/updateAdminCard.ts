@@ -2,20 +2,14 @@
 
 import type { NextApiRequest, NextApiResponse } from "next";
 import { adminDb, FieldValue } from "../../../utils/firebaseAdmin";
+import { requireAdmin } from "../../../utils/adminAuth";
 
 type Data = { ok: true } | { ok: false; error: string };
-
-function isAdminRequest(req: NextApiRequest) {
-  const required = process.env.ADMIN_API_SECRET;
-  if (!required) return true;
-  const got = String(req.headers["x-admin-secret"] || "");
-  return got && got === required;
-}
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse<Data>) {
   if (req.method !== "POST") return res.status(405).json({ ok: false, error: "method_not_allowed" });
   if (!adminDb) return res.status(500).json({ ok: false, error: "firebase_not_configured" });
-  if (!isAdminRequest(req)) return res.status(401).json({ ok: false, error: "unauthorized" });
+  if (!requireAdmin(req, res)) return;
 
   try {
     const { orderId, remarks, checklist, closed } = (req.body || {}) as {
