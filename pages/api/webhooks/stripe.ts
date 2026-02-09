@@ -1,3 +1,4 @@
+FILE: /pages/api/webhooks/stripe.ts
 // FILE: /pages/api/webhooks/stripe.ts
 import type { NextApiRequest, NextApiResponse } from "next";
 import Stripe from "stripe";
@@ -18,6 +19,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (req.method !== "POST") {
     res.setHeader("Allow", "POST");
     return res.status(405).end("Method Not Allowed");
+  }
+
+  if (!adminDb) {
+    console.error("[stripe webhook] Firebase not configured");
+    return res.status(500).end();
   }
 
   const stripe = await getStripeClient();
@@ -65,32 +71,46 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         return res.status(200).json({ received: true });
       }
 
-      // Prevent duplicate orders
+      // Load listing to capture sellerId and prevent invalid updates
+      const listingRef = adminDb.collection("listings").doc(String(listingId));
+      const listingSnap = await listingRef.get();
+      const listing: any = listingSnap.exists ? listingSnap.data() : null;
+      const sellerId = String(listing?.sellerId || listing?.sellerEmail || listing?.seller || "");
+
+      // Prevent duplicate orders (by session id)
       const existingOrder = await adminDb
         .collection("orders")
         .where("stripeSessionId", "==", session.id)
         .limit(1)
         .get();
 
+      // Stripe type definitions can differ by version; safely read shipping details.
+      const shippingDetails = (session as any)?.shipping_details;
+      const shippingAddress = shippingDetails?.address || session.customer_details?.address || null;
+
       if (existingOrder.empty) {
         await adminDb.collection("orders").add({
           stripeSessionId: session.id,
           listingId,
+          ...(sellerId ? { sellerId } : {}),
           buyerEmail: session.customer_details?.email || "",
           buyerName: session.customer_details?.name || "",
           amountTotal: session.amount_total || 0,
           currency: session.currency || "usd",
           status: "paid",
           createdAt: Date.now(),
-          shippingAddress: session.shipping_details?.address || null,
+          shippingAddress,
         });
       }
 
-      await adminDb.collection("listings").doc(listingId).update({
-        status: "sold",
-        isSold: true,
-        soldAt: Date.now(),
-      });
+      // Mark listing sold (only if it exists)
+      if (listingSnap.exists) {
+        await listingRef.update({
+          status: "sold",
+          isSold: true,
+          soldAt: Date.now(),
+        });
+      }
     }
 
     return res.status(200).json({ received: true });
