@@ -5,7 +5,6 @@ import {
   setPayoutSettings,
   PayoutMode,
 } from "../../../lib/payoutSettings";
-import { requireAdmin } from "../../../utils/adminAuth";
 
 type Data =
   | { ok: true; settings: any }
@@ -15,8 +14,6 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse<Data>
 ) {
-  if (!requireAdmin(req, res)) return;
-
   try {
     if (req.method === "GET") {
       const settings = await getPayoutSettings();

@@ -8,8 +8,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(405).json({ error: "Method not allowed" });
   }
 
-  if (!adminDb) return res.status(500).json({ ok: false, error: "firebase_not_configured" });
-  if (!requireAdmin(req, res)) return;
+  if (!requireAdmin(req, res)) {
+    return;
+  }
 
   const { id } = req.query;
   if (!id || typeof id !== "string") {

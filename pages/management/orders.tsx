@@ -8,7 +8,6 @@ import Header from "../../components/Header";
 import Footer from "../../components/Footer";
 import { adminDb } from "../../utils/firebaseAdmin";
 import { useRequireAdmin } from "../../hooks/useRequireAdmin";
-import { mgmtFetch } from "../../utils/managementClient";
 
 type ShippingAddress = {
   name?: string;
@@ -135,7 +134,7 @@ export default function ManagementOrders({ initialOrders }: Props) {
       setSavingId(orderId);
       setError(null);
 
-      const res = await mgmtFetch("/api/orders/updateAdminCard", {
+      const res = await fetch("/api/orders/updateAdminCard", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -549,7 +548,6 @@ export default function ManagementOrders({ initialOrders }: Props) {
 
 export const getServerSideProps: GetServerSideProps<Props> = async () => {
   try {
-    if (!adminDb) return { props: { initialOrders: [] } };
     const snap = await adminDb.collection("orders").orderBy("createdAt", "desc").limit(200).get();
 
     const initialOrders: Order[] = snap.docs.map((doc) => {

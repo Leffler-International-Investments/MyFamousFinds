@@ -18,8 +18,6 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse<Data>
 ) {
-  if (!adminDb) return res.status(500).json({ error: "firebase_not_configured" });
-
   const emailParam =
     (req.method === "GET"
       ? req.query.email

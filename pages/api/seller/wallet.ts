@@ -43,7 +43,6 @@ export default async function handler(
   if (req.method !== "GET") {
     return res.status(405).json({ ok: false, error: "Method Not Allowed" });
   }
-  if (!adminDb) return res.status(500).json({ ok: false, error: "firebase_not_configured" });
 
   try {
     const sellerId = await getSellerId(req);

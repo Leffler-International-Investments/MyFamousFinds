@@ -8,7 +8,6 @@ import Footer from "../../components/Footer";
 import { auth } from "../../utils/firebaseClient";
 import { useRouter } from "next/router";
 import { useRequireAdmin } from "../../hooks/useRequireAdmin";
-import { mgmtFetch } from "../../utils/managementClient";
 
 // ✅ Only these emails can access the management payout setup
 const ALLOWED_EMAILS = [
@@ -50,7 +49,7 @@ export default function ManagementBankingPage() {
 
       async function loadPrefs() {
         try {
-          const res = await mgmtFetch(
+          const res = await fetch(
             `/api/admin/banking?email=${encodeURIComponent(lower)}`
           );
           if (!res.ok) return;
@@ -93,7 +92,7 @@ export default function ManagementBankingPage() {
     setError(null);
 
     try {
-      const res = await mgmtFetch("/api/admin/banking", {
+      const res = await fetch("/api/admin/banking", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

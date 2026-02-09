@@ -7,7 +7,6 @@ import Link from "next/link";
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
 import { useRequireAdmin } from "../../hooks/useRequireAdmin";
-import { mgmtFetch } from "../../utils/managementClient";
 import { adminDb } from "../../utils/firebaseAdmin";
 
 type SellerApplication = {
@@ -78,7 +77,7 @@ export default function ManagementVettingQueue({ items }: Props) {
 
     try {
       // Uses the same pattern you had: /api/admin/approve-seller / reject-seller
-      const res = await mgmtFetch(`/api/admin/${action}-seller/${id}`, {
+      const res = await fetch(`/api/admin/${action}-seller/${id}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -372,7 +371,6 @@ export default function ManagementVettingQueue({ items }: Props) {
 
 // Load applications from the "sellers" collection (same as your existing code)
 export const getServerSideProps: GetServerSideProps<Props> = async () => {
-  if (!adminDb) return { props: { items: [] } };
   const snapshot = await adminDb
     .collection("sellers")
     .orderBy("submittedAt", "desc")

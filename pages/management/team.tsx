@@ -4,7 +4,6 @@ import Link from "next/link";
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
 import { useRequireOwner } from "../../hooks/useRequireOwner";
-import { mgmtFetch } from "../../utils/managementClient";
 import { useState } from "react";
 
 const initialTeam = [
@@ -49,7 +48,7 @@ export default function ManagementTeam() {
     };
 
     try {
-      const res = await mgmtFetch("/api/management/team/add", {
+      const res = await fetch("/api/management/team/add", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload), // Payload now includes the role

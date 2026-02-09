@@ -7,7 +7,6 @@ import Header from "../../components/Header";
 import Footer from "../../components/Footer";
 import { adminDb } from "../../utils/firebaseAdmin";
 import { useRequireAdmin } from "../../hooks/useRequireAdmin";
-import { mgmtFetch } from "../../utils/managementClient";
 
 type SellerRow = {
   id: string;
@@ -58,7 +57,7 @@ export default function ManagementSellers({ sellers }: Props) {
 
     try {
       // Use API route so this works even if Firestore client is locked down.
-      const res = await mgmtFetch("/api/admin/sellers/toggle", {
+      const res = await fetch("/api/admin/sellers/toggle", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ sellerId: seller.id, status: nextStatus }),
@@ -92,7 +91,7 @@ export default function ManagementSellers({ sellers }: Props) {
     setRows((prev) => prev.filter((r) => r.id !== seller.id));
 
     try {
-      const res = await mgmtFetch("/api/admin/sellers/delete", {
+      const res = await fetch("/api/admin/sellers/delete", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ sellerId: seller.id }),
@@ -298,7 +297,6 @@ export default function ManagementSellers({ sellers }: Props) {
 
 export const getServerSideProps: GetServerSideProps<Props> = async () => {
   try {
-    if (!adminDb) return { props: { sellers: [] } };
     const [sellersSnap, listingsSnap] = await Promise.all([
       adminDb.collection("sellers").get(),
       adminDb.collection("listings").get(),
