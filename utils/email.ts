@@ -14,7 +14,9 @@ const SMTP_USER = cleanEnv(process.env.SMTP_USER);
 const SMTP_PASS = cleanEnv(process.env.SMTP_PASS);
 const SMTP_FROM =
   cleanEnv(process.env.SMTP_FROM) ||
-  (SMTP_USER ? `Famous Finds <${SMTP_USER}>` : "Famous Finds <no-reply@myfamousfinds.com>");
+  (SMTP_USER
+    ? `Famous Finds <${SMTP_USER}>`
+    : "Famous Finds <no-reply@myfamousfinds.com>");
 
 function getTransport() {
   if (!SMTP_HOST || !SMTP_PORT) {
@@ -40,7 +42,12 @@ function escapeHtml(s: string) {
     .replace(/'/g, "&#039;");
 }
 
-export async function sendMail(to: string, subject: string, text: string, html?: string) {
+export async function sendMail(
+  to: string,
+  subject: string,
+  text: string,
+  html?: string
+) {
   const transport = getTransport();
   await transport.sendMail({
     from: SMTP_FROM,
@@ -49,6 +56,36 @@ export async function sendMail(to: string, subject: string, text: string, html?:
     text,
     ...(html ? { html } : {}),
   });
+}
+
+/**
+ * 2FA / Login Code email (used by /pages/api/auth/start-2fa.ts)
+ */
+export async function sendLoginCode(to: string, code: string) {
+  const email = String(to || "").trim();
+  const c = String(code || "").trim();
+
+  if (!email) throw new Error("sendLoginCode missing required field: to");
+  if (!c) throw new Error("sendLoginCode missing required field: code");
+
+  const subject = "MyFamousFinds — Your Login Code";
+  const text =
+    "Hello,\n\n" +
+    "Use the login code below to sign in:\n\n" +
+    `${c}\n\n` +
+    "If you did not request this, you can ignore this email.\n\n" +
+    "MyFamousFinds";
+
+  const html =
+    "<p>Hello,</p>" +
+    "<p>Use the login code below to sign in:</p>" +
+    `<p style="font-size:20px; letter-spacing:2px;"><b>${escapeHtml(
+      c
+    )}</b></p>` +
+    "<p>If you did not request this, you can ignore this email.</p>" +
+    "<p>MyFamousFinds</p>";
+
+  await sendMail(email, subject, text, html);
 }
 
 /**
@@ -80,7 +117,10 @@ export async function sendSellerApplicationReceivedEmail(to: string) {
 /**
  * Seller Application — notification to admin (new seller application received)
  */
-export async function sendAdminNewSellerApplicationEmail(adminTo: string, sellerEmail: string) {
+export async function sendAdminNewSellerApplicationEmail(
+  adminTo: string,
+  sellerEmail: string
+) {
   const to = String(adminTo || "").trim();
   const seller = String(sellerEmail || "").trim().toLowerCase();
 
@@ -174,7 +214,9 @@ export async function sendSellerRejectionEmail(params: {
     `<p>Hello${businessName ? " " + businessName : ""},</p>` +
     `<p>Thank you for applying to become a seller on MyFamousFinds.</p>` +
     `<p><b>At this time, your application was not approved.</b></p>` +
-    (reason ? `<p><b>Reason:</b><br/>${escapeHtml(reason).replace(/\n/g, "<br/>")}</p>` : "") +
+    (reason
+      ? `<p><b>Reason:</b><br/>${escapeHtml(reason).replace(/\n/g, "<br/>")}</p>`
+      : "") +
     `<p>You are welcome to re-apply after updating your information.</p>`;
 
   await sendMail(to, subject, text, html);
