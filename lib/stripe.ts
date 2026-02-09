@@ -28,12 +28,15 @@ function looksLikeSecretKey(k: string) {
  */
 export async function getStripeSecretKeyInfo(): Promise<StripeSecretKeyInfo> {
   const envRaw = process.env.STRIPE_SECRET_KEY || "";
-  const { trimmed: envKey, hadWhitespace: envHadWhitespace } = normalizeKey(envRaw);
+  const { trimmed: envKey, hadWhitespace: envHadWhitespace } =
+    normalizeKey(envRaw);
 
   // ✅ Prefer env first
   if (envKey) {
     if (!looksLikeSecretKey(envKey)) {
-      console.warn("[stripe] STRIPE_SECRET_KEY does not look like a Stripe secret key (sk_...).");
+      console.warn(
+        "[stripe] STRIPE_SECRET_KEY does not look like a Stripe secret key (sk_...)."
+      );
     }
     return { key: envKey, source: "env", hadWhitespace: envHadWhitespace };
   }
@@ -41,20 +44,32 @@ export async function getStripeSecretKeyInfo(): Promise<StripeSecretKeyInfo> {
   // Fallback: Firestore (only if env missing)
   if (adminDb) {
     try {
-      const snap = await adminDb.collection("admin").doc("stripe_settings").get();
+      const snap = await adminDb
+        .collection("admin")
+        .doc("stripe_settings")
+        .get();
       if (snap.exists) {
         const data = snap.data();
         const raw = String(data?.secretKey || "");
         const { trimmed, hadWhitespace } = normalizeKey(raw);
         if (trimmed) {
           if (!looksLikeSecretKey(trimmed)) {
-            console.warn("[stripe] Firestore secretKey does not look like a Stripe secret key (sk_...).");
+            console.warn(
+              "[stripe] Firestore secretKey does not look like a Stripe secret key (sk_...)."
+            );
           }
-          return { key: trimmed, source: "firestore", hadWhitespace };
+          return {
+            key: trimmed,
+            source: "firestore",
+            hadWhitespace,
+          };
         }
       }
     } catch (err) {
-      console.warn("[stripe] Failed to load Stripe settings from Firestore:", err);
+      console.warn(
+        "[stripe] Failed to load Stripe settings from Firestore:",
+        err
+      );
     }
   }
 
@@ -62,9 +77,11 @@ export async function getStripeSecretKeyInfo(): Promise<StripeSecretKeyInfo> {
 }
 
 export async function getStripeClient(): Promise<Stripe | null> {
-  const { key, source } = await getStripeSecretKeyInfo();
+  const { key } = await getStripeSecretKeyInfo();
   if (!key) {
-    console.warn("[stripe] Stripe disabled: no secret key found in env or Firestore.");
+    console.warn(
+      "[stripe] Stripe disabled: no secret key found in env or Firestore."
+    );
     return null;
   }
 
@@ -76,26 +93,11 @@ export async function getStripeClient(): Promise<Stripe | null> {
   });
 
   cachedStripe = { key, client };
-  console.log(`[stripe] Stripe client initialised using source: ${source}`);
   return client;
 }
 
-export async function createCheckoutSession(params: Stripe.Checkout.SessionCreateParams) {
-  const stripe = await getStripeClient();
-  if (!stripe) {
-    throw new Error(
-      "Stripe is not configured on the server. Set STRIPE_SECRET_KEY in Vercel env vars."
-    );
-  }
-  return stripe.checkout.sessions.create(params);
-}
-
-export async function retrieveCheckoutSession(id: string) {
-  const stripe = await getStripeClient();
-  if (!stripe) {
-    throw new Error(
-      "Stripe is not configured on the server. Set STRIPE_SECRET_KEY in Vercel env vars."
-    );
-  }
-  return stripe.checkout.sessions.retrieve(id);
-}
+/**
+ * Backward-compat export
+ * Required by pages/order/success.tsx
+ */
+export const stripe: Stripe | null = cachedStripe?.client ?? null;
