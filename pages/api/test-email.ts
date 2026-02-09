@@ -7,6 +7,13 @@ type Res =
   | { ok: true; sentTo: string }
   | { ok: false; error: string };
 
+function readBearer(req: NextApiRequest) {
+  const h = req.headers.authorization;
+  const v = Array.isArray(h) ? h[0] : h;
+  if (!v) return "";
+  return v.toLowerCase().startsWith("bearer ") ? v.slice(7).trim() : v.trim();
+}
+
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse<Res>
@@ -16,19 +23,18 @@ export default async function handler(
   }
 
   const adminPass = String(process.env.ADMIN_PASSWORD || "").trim();
-  const pass = String(req.query.pass || "").trim();
-  const to = String(req.query.to || "").trim().toLowerCase();
-
   if (!adminPass) {
     return res
       .status(500)
       .json({ ok: false, error: "ADMIN_PASSWORD is not set in Vercel env." });
   }
 
+  const pass = readBearer(req);
   if (!pass || pass !== adminPass) {
     return res.status(401).json({ ok: false, error: "Unauthorized" });
   }
 
+  const to = String(req.query.to || "").trim().toLowerCase();
   if (!to || !to.includes("@")) {
     return res.status(400).json({ ok: false, error: "Missing ?to=email" });
   }
