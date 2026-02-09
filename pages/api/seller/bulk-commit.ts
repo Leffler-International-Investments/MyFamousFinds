@@ -1,4 +1,3 @@
-FILE: /pages/api/seller/bulk-commit.ts
 // FILE: /pages/api/seller/bulk-commit.ts
 import type { NextApiRequest, NextApiResponse } from "next";
 import { adminDb } from "../../../utils/firebaseAdmin";
@@ -192,9 +191,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
     if (!Array.isArray(rows)) return res.status(400).json({ ok: false, error: "Body must include array 'rows'" });
 
     const sellerId = await getSellerId(req);
-    if (!sellerId) {
-      return res.status(401).json({ ok: false, error: "unauthorized" });
-    }
+    if (!sellerId) return res.status(401).json({ ok: false, error: "unauthorized" });
 
     const approvedDesigners = await getApprovedDesigners();
     const enforceDesigners = approvedDesigners.size > 0;
