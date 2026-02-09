@@ -111,7 +111,12 @@ export default function OrderSuccessPage({
         </div>
 
         <div style={{ marginTop: 18 }}>
-          <PostPurchaseButler />
+          <PostPurchaseButler
+            brand={brand || ""}
+            itemTitle={productTitle || ""}
+            category={category || ""}
+            vipUrl={vipUrl || "/vip-welcome"}
+          />
         </div>
 
         <div className="actions" style={{ marginTop: 22 }}>
@@ -134,7 +139,6 @@ export const getServerSideProps: GetServerSideProps<SuccessProps> = async (ctx) 
   if (!sessionId) return { notFound: true };
 
   try {
-    // ✅ Runtime-safe (no module-load Stripe init)
     const session = await retrieveCheckoutSession(sessionId);
 
     const currency = (session.currency || "usd").toUpperCase();
@@ -174,7 +178,6 @@ export const getServerSideProps: GetServerSideProps<SuccessProps> = async (ctx) 
           .join("\n")
       : "";
 
-    // DB fallback (preferred) - uses canonical order schema created by webhook
     if (adminDb) {
       const ordersSnap = await adminDb
         .collection("orders")
