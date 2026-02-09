@@ -12,8 +12,6 @@ type RequestBody = {
   brand?: string;
   category?: string;
 
-  // Optional: if you collect buyer details in-app before checkout.
-  // Stripe will still collect shipping/billing/phone based on sessionParams below.
   buyerDetails?: {
     fullName?: string;
     email?: string;
@@ -43,14 +41,22 @@ function resolveBaseUrl(req: NextApiRequest) {
   return "https://www.myfamousfinds.com";
 }
 
+/**
+ * Enhanced sanitization to ensure Stripe accepts the image URL.
+ */
 function sanitizeImageUrl(imageUrl?: string) {
   const trimmed = String(imageUrl || "").trim();
   if (!trimmed || trimmed.length > 2048) return "";
+  
   try {
     const u = new URL(trimmed);
-    if (u.protocol !== "https:" && u.protocol !== "http:") return "";
+    // Stripe strictly requires http or https protocols.
+    if (!["http:", "https:"].includes(u.protocol)) return "";
+    
+    // Return the full absolute URL including any necessary query tokens.
     return u.toString();
   } catch {
+    // Return empty for relative paths as Stripe does not support them.
     return "";
   }
 }
@@ -75,8 +81,6 @@ export default async function handler(
       return res.status(400).json({ ok: false, error: "Missing product data" });
     }
 
-    // If buyerDetails are provided, ensure they're not partially empty.
-    // (We do NOT require them by default because Stripe will collect billing/shipping/phone.)
     if (buyerDetails) {
       const requiredBuyerFields = [
         buyerDetails?.fullName,
@@ -133,7 +137,7 @@ export default async function handler(
             unit_amount: Math.round(price * 100),
             product_data: {
               name: String(title).slice(0, 120),
-              images: safeImageUrl ? [safeImageUrl] : [],
+              images: safeImageUrl ? [safeImageUrl] : [], // Pass sanitized URL to Stripe.
             },
           },
           quantity: 1,
