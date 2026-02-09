@@ -3,8 +3,9 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { adminDb } from "../../../utils/firebaseAdmin";
 import { FieldValue } from "firebase-admin/firestore";
+import { sendSellerApplicationReceivedEmail } from "../../../utils/email";
 
-type Ok = { ok: true };
+type Ok = { ok: true; emailSent: boolean };
 type Err = { ok: false; error: string };
 type Res = Ok | Err;
 
@@ -36,6 +37,7 @@ export default async function handler(
 
     const trimmedEmail = (email || "").toString().trim().toLowerCase();
     const trimmedBusiness = (businessName || "").toString().trim();
+    const trimmedContactName = (contactName || "").toString().trim();
 
     if (!trimmedBusiness || !trimmedEmail) {
       res
@@ -49,7 +51,7 @@ export default async function handler(
     await docRef.set(
       {
         businessName: trimmedBusiness,
-        contactName: (contactName || "").toString().trim(),
+        contactName: trimmedContactName,
         contactEmail: trimmedEmail,
         email: trimmedEmail,
         phone: (phone || "").toString().trim(),
@@ -66,7 +68,21 @@ export default async function handler(
       { merge: true }
     );
 
-    res.status(200).json({ ok: true });
+    // ✅ Email #1: "We received your registration"
+    let emailSent = false;
+    try {
+      await sendSellerApplicationReceivedEmail({
+        to: trimmedEmail,
+        businessName: trimmedBusiness,
+        contactName: trimmedContactName,
+      });
+      emailSent = true;
+    } catch (e) {
+      console.error("send_seller_application_received_email_error", e);
+      emailSent = false;
+    }
+
+    res.status(200).json({ ok: true, emailSent });
   } catch (err) {
     console.error("api/seller/apply error", err);
     res
