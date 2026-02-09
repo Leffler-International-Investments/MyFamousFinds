@@ -12,10 +12,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(405).json({ ok: false, error: "Method not allowed" });
   }
 
-  if (!isFirebaseAdminReady || !adminDb) {
-    return res.status(500).json({ ok: false, error: "Firebase not configured" });
-  }
-
   try {
     if (!isFirebaseAdminReady || !adminDb) {
       return res.status(500).json({
@@ -38,8 +34,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       ...body,
       email,
       status: "pending",
-      submittedAt: new Date(),
-      updatedAt: new Date(),
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
     });
 
     // ✅ Email seller: application received
