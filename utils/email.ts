@@ -31,6 +31,15 @@ function getTransport() {
   });
 }
 
+function escapeHtml(s: string) {
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
 export async function sendMail(to: string, subject: string, text: string, html?: string) {
   const transport = getTransport();
   await transport.sendMail({
@@ -40,6 +49,62 @@ export async function sendMail(to: string, subject: string, text: string, html?:
     text,
     ...(html ? { html } : {}),
   });
+}
+
+/**
+ * Seller Application — confirmation to the seller (application received)
+ */
+export async function sendSellerApplicationReceivedEmail(to: string) {
+  const email = String(to || "").trim();
+  if (!email) throw new Error("sendSellerApplicationReceivedEmail missing required field: to");
+
+  const subject = "MyFamousFinds — Application Received";
+  const text =
+    "Hello,\n\n" +
+    "Thanks for applying to become a seller on MyFamousFinds.\n\n" +
+    "We have received your application and our team will review it shortly.\n\n" +
+    "You will receive another email once your application has been approved or if we need more information.\n\n" +
+    "Regards,\n" +
+    "MyFamousFinds";
+
+  const html =
+    "<p>Hello,</p>" +
+    "<p>Thanks for applying to become a seller on <b>MyFamousFinds</b>.</p>" +
+    "<p>We have received your application and our team will review it shortly.</p>" +
+    "<p>You will receive another email once your application has been approved or if we need more information.</p>" +
+    "<p>Regards,<br/>MyFamousFinds</p>";
+
+  await sendMail(email, subject, text, html);
+}
+
+/**
+ * Seller Application — notification to admin (new seller application received)
+ */
+export async function sendAdminNewSellerApplicationEmail(adminTo: string, sellerEmail: string) {
+  const to = String(adminTo || "").trim();
+  const seller = String(sellerEmail || "").trim().toLowerCase();
+
+  if (!to) throw new Error("sendAdminNewSellerApplicationEmail missing required field: adminTo");
+  if (!seller || !seller.includes("@")) {
+    throw new Error("sendAdminNewSellerApplicationEmail missing/invalid sellerEmail");
+  }
+
+  const subject = "MyFamousFinds — New Seller Application";
+  const text =
+    "Hello,\n\n" +
+    "A new seller application has been submitted.\n\n" +
+    `Seller email: ${seller}\n\n` +
+    "Please review it in the Management Dashboard.\n\n" +
+    "MyFamousFinds";
+
+  const html =
+    "<p>Hello,</p>" +
+    "<p><b>A new seller application has been submitted.</b></p>" +
+    `<p><b>Seller email:</b> ${escapeHtml(seller)}</p>` +
+    "<p>Please review it in the Management Dashboard.</p>" +
+    "<p>MyFamousFinds</p>";
+
+  await sendMail(to, subject, text, html);
 }
 
 export async function sendSellerInviteEmail(
@@ -113,15 +178,6 @@ export async function sendSellerRejectionEmail(params: {
     `<p>You are welcome to re-apply after updating your information.</p>`;
 
   await sendMail(to, subject, text, html);
-}
-
-function escapeHtml(s: string) {
-  return s
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#039;");
 }
 
 export async function sendTestEmail(to: string) {
