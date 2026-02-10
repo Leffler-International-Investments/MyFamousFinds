@@ -22,11 +22,13 @@ export default function SellerVetting() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [warning, setWarning] = useState<string | null>(null);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setError(null);
     setSuccess(null);
+    setWarning(null);
 
     const trimmedEmail = email.trim().toLowerCase();
     const trimmedBusiness = businessName.trim();
@@ -58,7 +60,7 @@ export default function SellerVetting() {
         }),
       });
 
-      const json = (await res.json()) as { ok: boolean; error?: string };
+      const json = (await res.json()) as { ok: boolean; error?: string; warning?: string };
 
       if (!json.ok) {
         setError(json.error || "We couldn't submit your application.");
@@ -69,6 +71,7 @@ export default function SellerVetting() {
       setSuccess(
         "Thank you! Your application has been submitted successfully. Our team will review it and contact you by email."
       );
+      if (json.warning) setWarning(json.warning);
       setSubmitting(false);
 
       setBusinessName("");
@@ -111,6 +114,7 @@ export default function SellerVetting() {
             </div>
 
             {error && <div className="auth-error">{error}</div>}
+            {warning && <div className="auth-info">{warning}</div>}
             {success && <div className="auth-success">{success}</div>}
 
             <form onSubmit={handleSubmit} className="auth-fields">
