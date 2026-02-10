@@ -1,6 +1,6 @@
 // FILE: /pages/management/vetting-queue.tsx
 
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import type { GetServerSideProps } from "next";
 import Head from "next/head";
 import Link from "next/link";
@@ -17,7 +17,63 @@ type SellerApplication = {
   status: "Pending" | "Approved" | "Rejected" | "Removed";
 };
 
+type ManualNotifyInfo = {
+  sellerId: string;
+  sellerEmail: string;
+  businessName: string;
+  decision: "approved" | "rejected";
+  registerUrl?: string;
+  reason?: string;
+};
+
 type Props = { items: SellerApplication[] };
+
+const BCC_ADDRESSES = "ita.leff@gmail.com,leffleryd@gmail.com";
+
+function buildGmailComposeUrl(info: ManualNotifyInfo): string {
+  const to = encodeURIComponent(info.sellerEmail);
+  const bcc = encodeURIComponent(BCC_ADDRESSES);
+
+  let subject: string;
+  let body: string;
+
+  if (info.decision === "approved") {
+    subject = encodeURIComponent(
+      "Famous Finds — Your Seller Account Has Been Approved!"
+    );
+    body = encodeURIComponent(
+      `Hello${info.businessName ? " " + info.businessName : ""},\n\n` +
+        `Great news — your seller account on Famous Finds has been approved!\n\n` +
+        `Complete your registration here:\n${info.registerUrl || "[REGISTRATION LINK]"}\n\n` +
+        `This link will allow you to set up your password and access the Seller Dashboard.\n\n` +
+        `Welcome aboard!\nThe Famous Finds Team`
+    );
+  } else {
+    const reasonLine =
+      info.reason ? `\n\nFeedback: ${info.reason}` : "";
+    subject = encodeURIComponent(
+      "Famous Finds — Seller Application Update"
+    );
+    body = encodeURIComponent(
+      `Hello${info.businessName ? " " + info.businessName : ""},\n\n` +
+        `Thank you for your interest in becoming a seller on Famous Finds.\n\n` +
+        `After reviewing your application, we are unable to approve it at this time.${reasonLine}\n\n` +
+        `You are welcome to re-apply in the future.\n\n` +
+        `Regards,\nThe Famous Finds Team`
+    );
+  }
+
+  return `https://mail.google.com/mail/?view=cm&to=${to}&bcc=${bcc}&su=${subject}&body=${body}`;
+}
+
+async function copyToClipboard(text: string): Promise<boolean> {
+  try {
+    await navigator.clipboard.writeText(text);
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 export default function ManagementVettingQueue({ items }: Props) {
   // Same guard as Listing Review Queue (no extra redirects)
@@ -27,6 +83,14 @@ export default function ManagementVettingQueue({ items }: Props) {
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [emailWarning, setEmailWarning] = useState<string | null>(null);
+
+  // Manual notification panel state
+  const [manualNotify, setManualNotify] = useState<ManualNotifyInfo | null>(
+    null
+  );
+  const [notifyLogging, setNotifyLogging] = useState(false);
+  const [notifyLogged, setNotifyLogged] = useState(false);
+  const [copiedField, setCopiedField] = useState<string | null>(null);
 
   const visible = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -46,6 +110,17 @@ export default function ManagementVettingQueue({ items }: Props) {
       return haystack.includes(q);
     });
   }, [query, localItems]);
+
+  const handleCopy = useCallback(
+    async (text: string, field: string) => {
+      const ok = await copyToClipboard(text);
+      if (ok) {
+        setCopiedField(field);
+        setTimeout(() => setCopiedField(null), 2000);
+      }
+    },
+    []
+  );
 
   async function handleAction(
     id: string,
@@ -76,6 +151,8 @@ export default function ManagementVettingQueue({ items }: Props) {
     setActionLoading(id);
     setError(null);
     setEmailWarning(null);
+    setManualNotify(null);
+    setNotifyLogged(false);
 
     try {
       // Uses the same pattern you had: /api/admin/approve-seller / reject-seller
@@ -92,19 +169,31 @@ export default function ManagementVettingQueue({ items }: Props) {
         throw new Error(json.error || "Failed to update seller");
       }
 
-      // Check if email was sent or queued
+      const seller = localItems.find((s) => s.id === id);
+      const emailAddr = seller?.contactEmail || id;
+      const businessName = seller?.businessName || "";
+
+      // Always show manual notification panel (since emailSent is always false
+      // with the outbox pattern, manual fallback is the reliable path)
       if (json.emailSent === false) {
-        const seller = localItems.find((s) => s.id === id);
-        const emailAddr = seller?.contactEmail || id;
         if (json.emailQueued) {
           setEmailWarning(
-            `Seller was ${action === "approve" ? "approved" : "rejected"}. Email to ${emailAddr} failed but has been queued for automatic retry. Check Email Queue for status.`
+            `Seller was ${action === "approve" ? "approved" : "rejected"}. Email to ${emailAddr} has been queued for automatic retry — but SMTP is currently unreliable. Use the manual notification panel below to guarantee delivery.`
           );
         } else {
           setEmailWarning(
-            `Seller was ${action === "approve" ? "approved" : "rejected"}, but the notification email to ${emailAddr} failed to send. Please notify them manually.`
+            `Seller was ${action === "approve" ? "approved" : "rejected"}, but the notification email to ${emailAddr} failed to send. Use the manual notification panel below.`
           );
         }
+
+        setManualNotify({
+          sellerId: id,
+          sellerEmail: emailAddr,
+          businessName,
+          decision: action === "approve" ? "approved" : "rejected",
+          registerUrl: json.registerUrl || undefined,
+          reason,
+        });
       }
 
       // Update local list
@@ -123,6 +212,36 @@ export default function ManagementVettingQueue({ items }: Props) {
       setError(err?.message || "Something went wrong updating this seller.");
     } finally {
       setActionLoading(null);
+    }
+  }
+
+  async function handleMarkNotified() {
+    if (!manualNotify || notifyLogging) return;
+    setNotifyLogging(true);
+
+    try {
+      const res = await fetch("/api/admin/log-manual-notification", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sellerId: manualNotify.sellerId,
+          sellerEmail: manualNotify.sellerEmail,
+          decision: manualNotify.decision,
+          sentBy: "staff",
+        }),
+      });
+      const json = await res.json().catch(() => ({} as any));
+      if (!res.ok || json.error) {
+        throw new Error(json.error || "Failed to log notification");
+      }
+      setNotifyLogged(true);
+    } catch (err: any) {
+      console.error("log_manual_notification_error", err);
+      setError(
+        err?.message || "Failed to log manual notification. Try again."
+      );
+    } finally {
+      setNotifyLogging(false);
     }
   }
 
@@ -185,13 +304,13 @@ export default function ManagementVettingQueue({ items }: Props) {
             <div>
               <h1>Seller Vetting Queue</h1>
               <p>
-                New seller applications submitted via the "Become a Seller"
-                form. Approve to grant access to the Seller Admin console, or
-                reject with a reason.
+                New seller applications submitted via the &quot;Become a
+                Seller&quot; form. Approve to grant access to the Seller Admin
+                console, or reject with a reason.
               </p>
             </div>
             <Link href="/management/dashboard" className="btn-primary-dark">
-              ← Back to Management Dashboard
+              &larr; Back to Management Dashboard
             </Link>
           </div>
 
@@ -210,6 +329,138 @@ export default function ManagementVettingQueue({ items }: Props) {
               style={{ marginBottom: "16px" }}
             >
               <strong>Warning:</strong> {emailWarning}
+            </div>
+          )}
+
+          {/* ── Manual Notification Panel ── */}
+          {manualNotify && (
+            <div className="manual-notify-panel">
+              <div className="manual-notify-header">
+                <strong>
+                  Manual Notification Required
+                </strong>
+                <button
+                  className="btn-dismiss"
+                  onClick={() => {
+                    setManualNotify(null);
+                    setEmailWarning(null);
+                    setNotifyLogged(false);
+                  }}
+                  title="Dismiss"
+                >
+                  &times;
+                </button>
+              </div>
+
+              <p className="manual-notify-sub">
+                Automated email is unreliable. Send a manual Gmail to the seller
+                now, then mark as notified for the audit trail.
+              </p>
+
+              {/* Seller email with copy */}
+              <div className="notify-field">
+                <label>Seller email:</label>
+                <span className="notify-value">
+                  {manualNotify.sellerEmail}
+                </span>
+                <button
+                  className="btn-copy"
+                  onClick={() =>
+                    handleCopy(manualNotify.sellerEmail, "email")
+                  }
+                >
+                  {copiedField === "email" ? "Copied!" : "Copy"}
+                </button>
+              </div>
+
+              {/* Decision */}
+              <div className="notify-field">
+                <label>Decision:</label>
+                <span
+                  className={`notify-badge ${manualNotify.decision === "approved" ? "badge-approved" : "badge-rejected"}`}
+                >
+                  {manualNotify.decision === "approved"
+                    ? "APPROVED"
+                    : "REJECTED"}
+                </span>
+              </div>
+
+              {/* Registration link (approval only) */}
+              {manualNotify.decision === "approved" &&
+                manualNotify.registerUrl && (
+                  <div className="notify-field">
+                    <label>Registration link:</label>
+                    <span className="notify-value notify-url">
+                      {manualNotify.registerUrl}
+                    </span>
+                    <button
+                      className="btn-copy"
+                      onClick={() =>
+                        handleCopy(manualNotify.registerUrl!, "url")
+                      }
+                    >
+                      {copiedField === "url" ? "Copied!" : "Copy"}
+                    </button>
+                  </div>
+                )}
+
+              {/* Rejection reason (if given) */}
+              {manualNotify.decision === "rejected" &&
+                manualNotify.reason && (
+                  <div className="notify-field">
+                    <label>Reason:</label>
+                    <span className="notify-value">
+                      {manualNotify.reason}
+                    </span>
+                  </div>
+                )}
+
+              {/* Checklist */}
+              <div className="notify-checklist">
+                <p>
+                  <strong>Include in your email:</strong>
+                </p>
+                <ul>
+                  <li>
+                    Decision ({manualNotify.decision})
+                  </li>
+                  {manualNotify.decision === "approved" && (
+                    <li>Registration link (above)</li>
+                  )}
+                  <li>Next steps for the seller</li>
+                  <li>
+                    BCC: {BCC_ADDRESSES} (for audit trail)
+                  </li>
+                </ul>
+              </div>
+
+              {/* Action buttons */}
+              <div className="notify-actions">
+                <a
+                  className="btn-gmail"
+                  href={buildGmailComposeUrl(manualNotify)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  Open Gmail Compose
+                </a>
+
+                {notifyLogged ? (
+                  <span className="notify-logged-badge">
+                    Logged as manually notified
+                  </span>
+                ) : (
+                  <button
+                    className="btn-mark-notified"
+                    onClick={handleMarkNotified}
+                    disabled={notifyLogging}
+                  >
+                    {notifyLogging
+                      ? "Logging..."
+                      : "Mark as Manually Notified"}
+                  </button>
+                )}
+              </div>
             </div>
           )}
 
@@ -240,7 +491,24 @@ export default function ManagementVettingQueue({ items }: Props) {
                   visible.map((s) => (
                     <tr key={s.id}>
                       <td>{s.businessName || "—"}</td>
-                      <td>{s.contactEmail || "—"}</td>
+                      <td>
+                        <span className="email-cell">
+                          {s.contactEmail || "—"}
+                          {s.contactEmail && (
+                            <button
+                              className="btn-copy-inline"
+                              onClick={() =>
+                                handleCopy(s.contactEmail, `row-${s.id}`)
+                              }
+                              title="Copy email"
+                            >
+                              {copiedField === `row-${s.id}`
+                                ? "Copied"
+                                : "Copy"}
+                            </button>
+                          )}
+                        </span>
+                      </td>
                       <td>{s.submittedAt || "—"}</td>
                       <td>{s.status}</td>
                       <td>
@@ -299,8 +567,8 @@ export default function ManagementVettingQueue({ items }: Props) {
       <style jsx>{`
         .dashboard-page {
           min-height: 100vh;
-          background: #f3f4f6; /* gray-100 */
-          color: #111827; /* gray-900 */
+          background: #f3f4f6;
+          color: #111827;
           display: flex;
           flex-direction: column;
         }
@@ -330,12 +598,12 @@ export default function ManagementVettingQueue({ items }: Props) {
         .dashboard-header p {
           margin: 0;
           font-size: 14px;
-          color: #4b5563; /* gray-600 */
+          color: #4b5563;
         }
 
         .btn-primary-dark {
           border-radius: 999px;
-          background: #111827; /* gray-900 */
+          background: #111827;
           padding: 8px 16px;
           font-size: 12px;
           font-weight: 500;
@@ -351,14 +619,209 @@ export default function ManagementVettingQueue({ items }: Props) {
           border-radius: 6px;
         }
         .form-message.error {
-          background: #fee2e2; /* red-100 */
-          color: #b91c1c; /* red-700 */
+          background: #fee2e2;
+          color: #b91c1c;
         }
         .form-message.warning {
-          background: #fef3c7; /* amber-100 */
-          color: #92400e; /* amber-800 */
+          background: #fef3c7;
+          color: #92400e;
         }
 
+        /* ── Manual Notification Panel ── */
+        .manual-notify-panel {
+          background: #fffbeb;
+          border: 2px solid #f59e0b;
+          border-radius: 10px;
+          padding: 16px 20px;
+          margin-bottom: 20px;
+        }
+
+        .manual-notify-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 8px;
+          font-size: 15px;
+          color: #92400e;
+        }
+
+        .btn-dismiss {
+          background: none;
+          border: none;
+          font-size: 20px;
+          cursor: pointer;
+          color: #92400e;
+          padding: 0 4px;
+          line-height: 1;
+        }
+
+        .manual-notify-sub {
+          font-size: 13px;
+          color: #78350f;
+          margin: 0 0 12px;
+        }
+
+        .notify-field {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          margin-bottom: 8px;
+          font-size: 13px;
+          flex-wrap: wrap;
+        }
+
+        .notify-field label {
+          font-weight: 600;
+          color: #78350f;
+          min-width: 120px;
+          flex-shrink: 0;
+        }
+
+        .notify-value {
+          color: #111827;
+          word-break: break-all;
+        }
+
+        .notify-url {
+          font-family: monospace;
+          font-size: 12px;
+          background: #fef3c7;
+          padding: 2px 6px;
+          border-radius: 4px;
+          max-width: 500px;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+          display: inline-block;
+        }
+
+        .notify-badge {
+          display: inline-block;
+          padding: 2px 8px;
+          border-radius: 4px;
+          font-size: 12px;
+          font-weight: 700;
+          letter-spacing: 0.5px;
+        }
+
+        .badge-approved {
+          background: #d1fae5;
+          color: #065f46;
+        }
+
+        .badge-rejected {
+          background: #fee2e2;
+          color: #991b1b;
+        }
+
+        .btn-copy {
+          padding: 2px 8px;
+          border-radius: 4px;
+          font-size: 11px;
+          border: 1px solid #d1d5db;
+          background: #ffffff;
+          cursor: pointer;
+          color: #374151;
+          flex-shrink: 0;
+        }
+        .btn-copy:hover {
+          background: #f3f4f6;
+        }
+
+        .notify-checklist {
+          margin: 12px 0;
+          font-size: 13px;
+          color: #78350f;
+        }
+
+        .notify-checklist p {
+          margin: 0 0 4px;
+        }
+
+        .notify-checklist ul {
+          margin: 0;
+          padding-left: 20px;
+        }
+
+        .notify-checklist li {
+          margin-bottom: 2px;
+        }
+
+        .notify-actions {
+          display: flex;
+          gap: 10px;
+          align-items: center;
+          margin-top: 14px;
+          flex-wrap: wrap;
+        }
+
+        .btn-gmail {
+          display: inline-block;
+          padding: 8px 16px;
+          border-radius: 6px;
+          font-size: 13px;
+          font-weight: 600;
+          background: #1d4ed8;
+          color: #ffffff;
+          text-decoration: none;
+          border: none;
+          cursor: pointer;
+        }
+        .btn-gmail:hover {
+          background: #1e40af;
+        }
+
+        .btn-mark-notified {
+          padding: 8px 16px;
+          border-radius: 6px;
+          font-size: 13px;
+          font-weight: 600;
+          background: #059669;
+          color: #ffffff;
+          border: none;
+          cursor: pointer;
+        }
+        .btn-mark-notified:hover {
+          background: #047857;
+        }
+        .btn-mark-notified:disabled {
+          opacity: 0.6;
+          cursor: default;
+        }
+
+        .notify-logged-badge {
+          display: inline-block;
+          padding: 8px 16px;
+          border-radius: 6px;
+          font-size: 13px;
+          font-weight: 600;
+          background: #d1fae5;
+          color: #065f46;
+        }
+
+        /* ── Email cell inline copy ── */
+        .email-cell {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+        }
+
+        .btn-copy-inline {
+          padding: 1px 6px;
+          border-radius: 4px;
+          font-size: 10px;
+          border: 1px solid #d1d5db;
+          background: #f9fafb;
+          cursor: pointer;
+          color: #6b7280;
+          flex-shrink: 0;
+        }
+        .btn-copy-inline:hover {
+          background: #e5e7eb;
+          color: #374151;
+        }
+
+        /* ── Existing table styles ── */
         .card-header {
           display: flex;
           align-items: center;
@@ -376,7 +839,7 @@ export default function ManagementVettingQueue({ items }: Props) {
           width: 100%;
           padding: 6px 10px;
           border-radius: 999px;
-          border: 1px solid #d1d5db; /* gray-300 */
+          border: 1px solid #d1d5db;
           font-size: 13px;
           background: #ffffff;
         }
@@ -397,19 +860,19 @@ export default function ManagementVettingQueue({ items }: Props) {
         }
 
         .data-table thead {
-          background: #f9fafb; /* gray-50 */
+          background: #f9fafb;
         }
 
         .data-table th {
           padding: 8px 12px;
           text-align: left;
           font-weight: 500;
-          color: #374151; /* gray-700 */
+          color: #374151;
         }
 
         .data-table td {
           padding: 8px 12px;
-          border-top: 1px solid #e5e7eb; /* gray-200 */
+          border-top: 1px solid #e5e7eb;
         }
 
         .data-table tbody tr:nth-child(even) {
@@ -435,17 +898,17 @@ export default function ManagementVettingQueue({ items }: Props) {
         }
 
         .btn-approve {
-          background: #059669; /* green-600 */
+          background: #059669;
           color: #ffffff;
         }
 
         .btn-reject {
-          background: #dc2626; /* red-600 */
+          background: #dc2626;
           color: #ffffff;
         }
 
         .btn-remove {
-          background: #6b7280; /* gray-500 */
+          background: #6b7280;
           color: #ffffff;
         }
       `}</style>
