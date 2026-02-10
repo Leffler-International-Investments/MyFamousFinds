@@ -7,7 +7,20 @@ import {
   sendSellerApplicationReceivedEmail,
 } from "../../../utils/email";
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+type ApplyResponse = {
+  ok: boolean;
+  error?: string;
+  warning?: string;
+  emailErrors?: string[];
+  queuedEmailJobs?: string[];
+};
+
+function isSmtpAuthError(message: string) {
+  const m = message.toLowerCase();
+  return m.includes("535") || m.includes("invalid login") || m.includes("authentication");
+}
+
+export default async function handler(req: NextApiRequest, res: NextApiResponse<ApplyResponse>) {
   if (req.method !== "POST") {
     return res.status(405).json({ ok: false, error: "Method not allowed" });
   }
