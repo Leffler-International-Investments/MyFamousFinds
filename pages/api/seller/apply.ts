@@ -2,7 +2,10 @@
 
 import type { NextApiRequest, NextApiResponse } from "next";
 import { adminDb, isFirebaseAdminReady, FieldValue } from "../../../utils/firebaseAdmin";
-import { queueEmail } from "../../../utils/emailOutbox";
+import {
+  sendAdminNewSellerApplicationEmail,
+  sendSellerApplicationReceivedEmail,
+} from "../../../utils/email";
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== "POST") {
@@ -25,55 +28,61 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(400).json({ ok: false, error: "Missing email" });
     }
 
-    const id = email.replace(/\./g, "_");
-    const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD for idempotency
+    const adminEmail = String(process.env.ADMIN_EMAIL || "").trim().toLowerCase();
+    if (!adminEmail || !adminEmail.includes("@")) {
+      return res.status(500).json({
+        ok: false,
+        error: "ADMIN_EMAIL is not configured. Seller application emails cannot be completed.",
+      });
+    }
 
-    // Check for duplicate application — send email on first submission
-    // or if the seller is still Pending (email may have failed previously)
+    const id = email.replace(/\./g, "_");
+
     const existingDoc = await adminDb.collection("sellers").doc(id).get();
     const existingData = existingDoc.exists ? existingDoc.data() : null;
-    const shouldSendEmail =
-      !existingDoc.exists || existingData?.status === "Pending";
 
     await adminDb.collection("sellers").doc(id).set({
       ...body,
       email,
       status: "Pending",
-      submittedAt: existingDoc.exists ? (existingData?.submittedAt ?? FieldValue.serverTimestamp()) : FieldValue.serverTimestamp(),
-      createdAt: existingDoc.exists ? (existingData?.createdAt ?? Date.now()) : Date.now(),
+      submittedAt: existingDoc.exists
+        ? existingData?.submittedAt ?? FieldValue.serverTimestamp()
+        : FieldValue.serverTimestamp(),
+      createdAt: existingDoc.exists ? existingData?.createdAt ?? Date.now() : Date.now(),
       updatedAt: Date.now(),
     });
 
-    // ✅ FULL OUTBOX PATTERN: Queue ALL emails upfront for guaranteed delivery
-    if (shouldSendEmail) {
-      const greeting = body.contactName ? `Hello ${body.contactName}` : "Hello";
+    const emailErrors: string[] = [];
 
-      // 1. Queue email to seller: application received
-      await queueEmail({
-        to: email,
-        subject: "Famous Finds — Application Received",
-        text: `${greeting},\n\nThank you for applying to become a seller on Famous Finds!\n\nWe've received your application and our team will review it shortly. This process typically takes 1-2 business days.\n\nOnce reviewed, you'll receive an email with the outcome.\n\nIf you have any questions, feel free to reply to this email.\n\nThanks for your interest in Famous Finds!`,
-        eventType: "seller_application_received",
-        eventKey: `${id}:seller_application_received:${today}`,
-        metadata: { sellerId: id, businessName: body.businessName },
+    try {
+      await sendSellerApplicationReceivedEmail(email, {
+        businessName: body.businessName,
+        contactName: body.contactName,
+        phone: body.phone,
+        website: body.website,
+        social: body.social,
+        inventory: body.inventory,
+        experience: body.experience,
       });
+    } catch (e: any) {
+      console.error("[APPLY] seller confirmation email failed", e);
+      emailErrors.push(`seller_confirmation_failed: ${e?.message || "unknown_error"}`);
+    }
 
-      // 2. Queue email to admin: new application (if ADMIN_EMAIL is set)
-      const adminEmail = String(process.env.ADMIN_EMAIL || "").trim();
-      if (adminEmail && adminEmail.includes("@")) {
-        await queueEmail({
-          to: adminEmail,
-          subject: "Famous Finds — New Seller Application",
-          text: `Hello,\n\nA new seller application has been submitted.\n\nBusiness: ${body.businessName || "Not provided"}\nEmail: ${email}\nContact: ${body.contactName || "Not provided"}\n\nPlease review it in the Management Dashboard:\nhttps://myfamousfinds.com/management/vetting-queue\n\nFamous Finds`,
-          eventType: "admin_new_seller_application",
-          eventKey: `${id}:admin_new_seller_application:${today}`,
-          metadata: { sellerId: id, sellerEmail: email, businessName: body.businessName },
-        });
-      }
+    try {
+      await sendAdminNewSellerApplicationEmail(adminEmail, email);
+    } catch (e: any) {
+      console.error("[APPLY] admin notification email failed", e);
+      emailErrors.push(`admin_notification_failed: ${e?.message || "unknown_error"}`);
+    }
 
-      console.log(`[APPLY] Queued 2 emails for seller ${email}`);
-    } else {
-      console.log(`[APPLY] seller ${email} already ${existingData?.status} — skipping emails`);
+    if (emailErrors.length > 0) {
+      return res.status(502).json({
+        ok: false,
+        error:
+          "Application was saved, but one or more emails failed to send. Please verify SMTP settings and retry.",
+        emailErrors,
+      });
     }
 
     return res.status(200).json({ ok: true });
