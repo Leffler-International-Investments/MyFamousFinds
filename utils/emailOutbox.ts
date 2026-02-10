@@ -73,25 +73,31 @@ export async function queueEmail(params: {
   }
 
   const now = new Date();
-  const job: Omit<EmailJob, "id"> = {
+
+  // Build the job object, excluding undefined values (Firestore doesn't accept undefined)
+  const job: Record<string, any> = {
     to,
     subject,
     text,
-    html,
     status: "pending",
     attempts: 0,
     maxAttempts: MAX_ATTEMPTS,
-    lastError: undefined,
+    lastError: null,
     lastAttemptAt: null,
     nextAttemptAt: now, // Ready to send immediately
     sentAt: null,
-    messageId: undefined,
+    messageId: null,
     eventType,
     eventKey,
     metadata: metadata || {},
     createdAt: now,
     updatedAt: now,
   };
+
+  // Only add html if it's defined
+  if (html) {
+    job.html = html;
+  }
 
   const docRef = await adminDb.collection(COLLECTION).add({
     ...job,
