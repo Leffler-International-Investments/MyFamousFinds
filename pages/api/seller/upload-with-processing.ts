@@ -3,6 +3,7 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import formidable from "formidable";
 import fs from "fs/promises";
+import sharp from "sharp";
 import {
   createWhiteDisplayImage,
   hasStorageBucket,
@@ -68,11 +69,18 @@ export default async function handler(
     const contentType = file.mimetype || "image/jpeg";
 
     if (!hasStorageBucket()) {
-      const displayBuffer = await createWhiteDisplayImage(buffer, contentType);
+      // No Storage bucket — compress to fit in Firestore (<1MB limit)
+      const compressedBuffer = await sharp(buffer)
+        .rotate()
+        .resize(800, 800, { fit: "inside", withoutEnlargement: true })
+        .flatten({ background: "#ffffff" })
+        .jpeg({ quality: 70, mozjpeg: true })
+        .toBuffer();
+      const compressedUrl = `data:image/jpeg;base64,${compressedBuffer.toString("base64")}`;
       return res.status(200).json({
         ok: true,
-        imageUrl: `data:${contentType};base64,${buffer.toString("base64")}`,
-        displayImageUrl: `data:image/jpeg;base64,${displayBuffer.toString("base64")}`,
+        imageUrl: compressedUrl,
+        displayImageUrl: compressedUrl,
       });
     }
 
