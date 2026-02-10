@@ -92,13 +92,19 @@ export default function ManagementVettingQueue({ items }: Props) {
         throw new Error(json.error || "Failed to update seller");
       }
 
-      // Check if email was sent
+      // Check if email was sent or queued
       if (json.emailSent === false) {
         const seller = localItems.find((s) => s.id === id);
         const emailAddr = seller?.contactEmail || id;
-        setEmailWarning(
-          `Seller was ${action === "approve" ? "approved" : "rejected"}, but the notification email to ${emailAddr} failed to send. Please notify them manually.`
-        );
+        if (json.emailQueued) {
+          setEmailWarning(
+            `Seller was ${action === "approve" ? "approved" : "rejected"}. Email to ${emailAddr} failed but has been queued for automatic retry. Check Email Queue for status.`
+          );
+        } else {
+          setEmailWarning(
+            `Seller was ${action === "approve" ? "approved" : "rejected"}, but the notification email to ${emailAddr} failed to send. Please notify them manually.`
+          );
+        }
       }
 
       // Update local list

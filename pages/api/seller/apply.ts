@@ -6,6 +6,7 @@ import {
   sendAdminNewSellerApplicationEmail,
   sendSellerApplicationReceivedEmail,
 } from "../../../utils/email";
+import { queueEmail } from "../../../utils/emailOutbox";
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== "POST") {
@@ -29,6 +30,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     const id = email.replace(/\./g, "_");
+    const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD for idempotency
 
     // Check for duplicate application — send email on first submission
     // or if the seller is still Pending (email may have failed previously)
@@ -46,8 +48,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       updatedAt: Date.now(),
     });
 
-    // ✅ Email seller: application received
+    // ✅ Queue email to seller: application received
     if (shouldSendEmail) {
+      // Try to send immediately first
+      let sellerEmailSent = false;
       try {
         await sendSellerApplicationReceivedEmail(email, {
           businessName: body.businessName,
@@ -58,21 +62,50 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           inventory: body.inventory,
           experience: body.experience,
         });
+        sellerEmailSent = true;
       } catch (e) {
-        console.error("[APPLY] seller confirmation email failed", e);
+        console.error("[APPLY] seller confirmation email failed, queuing for retry", e);
+      }
+
+      // If immediate send failed, queue for retry
+      if (!sellerEmailSent) {
+        const greeting = body.contactName ? `Hello ${body.contactName}` : "Hello";
+        await queueEmail({
+          to: email,
+          subject: "MyFamousFinds — Application Received",
+          text: `${greeting},\n\nThank you for applying to become a seller on MyFamousFinds!\n\nYour application is under review. You will be notified once vetted.\n\nRegards,\nThe MyFamousFinds Team`,
+          eventType: "seller_application_received",
+          eventKey: `${id}:seller_application_received:${today}`,
+          metadata: { sellerId: id, businessName: body.businessName },
+        });
       }
     } else {
       console.log(`[APPLY] seller ${email} already ${existingData?.status} — skipping confirmation email`);
     }
 
-    // ✅ Email admin: new application (if set)
+    // ✅ Queue email to admin: new application (if set)
     if (shouldSendEmail) {
       const adminEmail = String(process.env.ADMIN_EMAIL || "").trim();
       if (adminEmail && adminEmail.includes("@")) {
+        // Try to send immediately first
+        let adminEmailSent = false;
         try {
           await sendAdminNewSellerApplicationEmail(adminEmail, email);
+          adminEmailSent = true;
         } catch (e) {
-          console.error("[APPLY] admin notification email failed", e);
+          console.error("[APPLY] admin notification email failed, queuing for retry", e);
+        }
+
+        // If immediate send failed, queue for retry
+        if (!adminEmailSent) {
+          await queueEmail({
+            to: adminEmail,
+            subject: "MyFamousFinds — New Seller Application",
+            text: `Hello,\n\nA new seller application has been submitted.\n\nSeller email: ${email}\n\nPlease review it in the Management Dashboard.\n\nMyFamousFinds`,
+            eventType: "admin_new_seller_application",
+            eventKey: `${id}:admin_new_seller_application:${today}`,
+            metadata: { sellerId: id, sellerEmail: email },
+          });
         }
       }
     }
