@@ -1,7 +1,6 @@
 // FILE: /pages/api/admin/approve-seller/[id].ts
 import type { NextApiRequest, NextApiResponse } from "next";
 import { adminDb } from "../../../../utils/firebaseAdmin";
-import { sendSellerInviteEmail } from "../../../../utils/email";
 import { queueEmail } from "../../../../utils/emailOutbox";
 import crypto from "crypto";
 
@@ -43,32 +42,22 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
       { merge: true }
     );
 
-    let emailSent = false;
-    let emailQueued = false;
+    // ✅ FULL OUTBOX PATTERN: Queue email for guaranteed delivery
+    const today = new Date().toISOString().slice(0, 10);
+    const jobId = await queueEmail({
+      to: email,
+      subject: "Famous Finds — Your Seller Account Has Been Approved!",
+      text: `Hello${businessName ? " " + businessName : ""},\n\nGreat news — your seller account on Famous Finds has been approved!\n\nComplete your registration here:\n${registerUrl}\n\nThis link will allow you to set up your password and access the Seller Dashboard.\n\nWelcome aboard!\nThe Famous Finds Team`,
+      html: `<p>Hello${businessName ? " " + businessName : ""},</p><p><b>Great news — your seller account has been approved!</b></p><p>Complete your registration:</p><p><a href="${registerUrl}">${registerUrl}</a></p><p>This link will allow you to set up your password and access the Seller Dashboard.</p><p>Welcome aboard!<br/>The Famous Finds Team</p>`,
+      eventType: "seller_approved",
+      eventKey: `${sellerId}:seller_approved:${today}`,
+      metadata: { sellerId, businessName, registerUrl },
+    });
 
-    // Try to send immediately
-    try {
-      await sendSellerInviteEmail({ to: email, businessName, registerUrl });
-      emailSent = true;
-      console.log(`[APPROVE-SELLER] approval email sent to ${email} for seller ${sellerId}`);
-    } catch (err) {
-      console.error(`[APPROVE-SELLER] approval email FAILED for ${email} (seller ${sellerId}), queuing for retry`, err);
+    const emailQueued = !!jobId;
+    console.log(`[APPROVE-SELLER] Email queued for ${email} (seller ${sellerId}), jobId: ${jobId}`);
 
-      // Queue for retry with exponential backoff
-      const today = new Date().toISOString().slice(0, 10);
-      const jobId = await queueEmail({
-        to: email,
-        subject: "MyFamousFinds — Your Seller Account Has Been Approved!",
-        text: `Hello${businessName ? " " + businessName : ""},\n\nGreat news — your seller account on MyFamousFinds has been approved!\n\nComplete your registration here: ${registerUrl}\n\nWelcome aboard!\nThe MyFamousFinds Team`,
-        html: `<p>Hello${businessName ? " " + businessName : ""},</p><p><b>Great news — your seller account has been approved!</b></p><p>Complete your registration: <a href="${registerUrl}">${registerUrl}</a></p><p>Welcome aboard!<br/>The MyFamousFinds Team</p>`,
-        eventType: "seller_approved",
-        eventKey: `${sellerId}:seller_approved:${today}`,
-        metadata: { sellerId, businessName, registerUrl },
-      });
-      emailQueued = !!jobId;
-    }
-
-    return res.status(200).json({ ok: true, registerUrl, emailSent, emailQueued });
+    return res.status(200).json({ ok: true, registerUrl, emailSent: false, emailQueued });
   } catch (err: any) {
     console.error("approve_seller_error", err);
     return res.status(500).json({ error: err?.message || "Internal server error" });

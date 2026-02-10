@@ -112,23 +112,40 @@ export async function queueEmail(params: {
 
 /**
  * Get pending emails that are ready to retry
+ * Note: Uses simple query to avoid composite index requirement
  */
 export async function getPendingEmails(limit = 10): Promise<EmailJob[]> {
   if (!adminDb) return [];
 
   const now = new Date();
+
+  // Simple query - just get pending emails, filter in code to avoid index
   const snapshot = await adminDb
     .collection(COLLECTION)
     .where("status", "==", "pending")
-    .where("nextAttemptAt", "<=", now)
-    .orderBy("nextAttemptAt", "asc")
-    .limit(limit)
+    .limit(50) // Get more than needed, filter below
     .get();
 
-  return snapshot.docs.map((doc) => ({
-    id: doc.id,
-    ...doc.data(),
-  })) as EmailJob[];
+  // Filter in code: only emails where nextAttemptAt <= now
+  const ready = snapshot.docs
+    .map((doc) => {
+      const data = doc.data();
+      const nextAttempt = data.nextAttemptAt?.toDate?.() || new Date(0);
+      return {
+        id: doc.id,
+        ...data,
+        nextAttemptAt: nextAttempt,
+      } as EmailJob;
+    })
+    .filter((job) => {
+      const nextAttempt = job.nextAttemptAt instanceof Date
+        ? job.nextAttemptAt
+        : new Date(job.nextAttemptAt || 0);
+      return nextAttempt <= now;
+    })
+    .slice(0, limit);
+
+  return ready;
 }
 
 /**
