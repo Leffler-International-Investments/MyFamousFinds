@@ -28,6 +28,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
 
     const businessName: string = (data.businessName as string) || (data.storeName as string) || "";
 
+    const adminRecipients = String(
+      process.env.ADMIN_NOTIFICATION_EMAILS ||
+      process.env.ADMIN_EMAIL ||
+      "ita.leff@gmail.com,leffleryd@gmail.com"
+    )
+      .split(",")
+      .map((v) => v.trim().toLowerCase())
+      .filter((v) => v.includes("@"));
+    const adminTo = adminRecipients.join(",");
+
     const token = crypto.randomBytes(32).toString("hex");
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || `https://${req.headers.host ?? ""}`;
     const registerUrl = `${baseUrl}/seller/register?id=${encodeURIComponent(sellerId)}&token=${token}`;
@@ -56,6 +66,28 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
 
     const emailQueued = !!jobId;
     console.log(`[APPROVE-SELLER] Email queued for ${email} (seller ${sellerId}), jobId: ${jobId}`);
+
+    if (adminTo) {
+      const internalJobId = await queueEmail({
+        to: adminTo,
+        subject: "Famous Finds — Seller Approved",
+        text:
+          `Seller approved in vetting queue.
+
+` +
+          `Business: ${businessName || "N/A"}
+` +
+          `Seller email: ${email}
+` +
+          `Seller ID: ${sellerId}
+` +
+          `Invite URL: ${registerUrl}`,
+        eventType: "seller_approved_internal_notice",
+        eventKey: `${sellerId}:seller_approved_internal_notice:${today}`,
+        metadata: { sellerId, sellerEmail: email, registerUrl },
+      });
+      console.log(`[APPROVE-SELLER] Internal notice queued to ${adminTo}, jobId: ${internalJobId}`);
+    }
 
     return res.status(200).json({ ok: true, registerUrl, emailSent: false, emailQueued });
   } catch (err: any) {

@@ -40,6 +40,15 @@ export default async function handler(
       "";
     const businessName: string =
       (data.businessName as string) || (data.storeName as string) || "";
+    const adminRecipients = String(
+      process.env.ADMIN_NOTIFICATION_EMAILS ||
+      process.env.ADMIN_EMAIL ||
+      "ita.leff@gmail.com,leffleryd@gmail.com"
+    )
+      .split(",")
+      .map((v) => v.trim().toLowerCase())
+      .filter((v) => v.includes("@"));
+    const adminTo = adminRecipients.join(",");
 
     // Update Firestore
     await ref.set(
@@ -54,8 +63,9 @@ export default async function handler(
     // ✅ FULL OUTBOX PATTERN: Queue email for guaranteed delivery
     let emailQueued = false;
 
+    const today = new Date().toISOString().slice(0, 10);
+
     if (email) {
-      const today = new Date().toISOString().slice(0, 10);
       const reasonText = typeof reason === "string" && reason ? `\n\nFeedback: ${reason}` : "";
       const jobId = await queueEmail({
         to: email,
@@ -69,6 +79,28 @@ export default async function handler(
       console.log(`[REJECT-SELLER] Email queued for ${email} (seller ${sellerId}), jobId: ${jobId}`);
     } else {
       console.warn(`[REJECT-SELLER] no email address found for seller ${sellerId} — skipping email`);
+    }
+
+    if (adminTo) {
+      const internalJobId = await queueEmail({
+        to: adminTo,
+        subject: "Famous Finds — Seller Rejected",
+        text:
+          `Seller rejected in vetting queue.
+
+` +
+          `Business: ${businessName || "N/A"}
+` +
+          `Seller email: ${email || "N/A"}
+` +
+          `Seller ID: ${sellerId}
+` +
+          `Reason: ${typeof reason === "string" && reason ? reason : "N/A"}`,
+        eventType: "seller_rejected_internal_notice",
+        eventKey: `${sellerId}:seller_rejected_internal_notice:${today}`,
+        metadata: { sellerId, sellerEmail: email, reason },
+      });
+      console.log(`[REJECT-SELLER] Internal notice queued to ${adminTo}, jobId: ${internalJobId}`);
     }
 
     return res.status(200).json({ ok: true, emailSent: false, emailQueued });
