@@ -1,7 +1,11 @@
 // FILE: /pages/api/admin/remove-seller/[id].ts
 
 import type { NextApiRequest, NextApiResponse } from "next";
-import { adminDb, isFirebaseAdminReady, FieldValue } from "../../../../utils/firebaseAdmin";
+import {
+  adminDb,
+  isFirebaseAdminReady,
+  FieldValue,
+} from "../../../../utils/firebaseAdmin";
 
 type Ok = { ok: true; updatedListings: number };
 type Err = { error: string };
@@ -10,11 +14,11 @@ type Resp = Ok | Err;
 /**
  * REMOVE SELLER (soft remove)
  * ---------------------------
- * - Sets sellers/{sellerId}.status = "Removed" and stamps removedAt.
- * - Hides the seller's listings by setting listings.status = "Removed".
+ * - Sets sellers/{sellerId}.status = "Removed"
+ * - Hides the seller's listings by setting listings.status = "Removed"
  *
- * This keeps history intact for orders / payouts, while immediately preventing
- * seller login (seller login only allows status "Approved").
+ * IMPORTANT:
+ * We intentionally DO NOT use orderBy(...) here to avoid requiring a composite index.
  */
 export default async function handler(
   req: NextApiRequest,
@@ -38,6 +42,7 @@ export default async function handler(
     }
 
     const sellerId = String(id);
+
     const reason =
       typeof (req.body as any)?.reason === "string"
         ? String((req.body as any).reason).trim()
@@ -60,29 +65,25 @@ export default async function handler(
       { merge: true }
     );
 
-    // 2) Hide all listings for this seller (paginate safely)
+    // 2) Fetch seller listings WITHOUT orderBy (avoids composite index requirement)
+    const listingsSnap = await adminDb
+      .collection("listings")
+      .where("sellerId", "==", sellerId)
+      .get();
+
     let updatedListings = 0;
-    let lastDoc: FirebaseFirestore.QueryDocumentSnapshot | null = null;
 
-    // Firestore batch limit = 500
-    const PAGE_SIZE = 400;
+    // Firestore batch limit = 500 writes. Use safe chunk size.
+    const CHUNK = 450;
+    const docs = listingsSnap.docs;
 
-    while (true) {
-      let q = adminDb
-        .collection("listings")
-        .where("sellerId", "==", sellerId)
-        .orderBy("createdAt", "desc")
-        .limit(PAGE_SIZE);
-
-      if (lastDoc) q = q.startAfter(lastDoc);
-
-      const snap = await q.get();
-      if (snap.empty) break;
-
+    for (let i = 0; i < docs.length; i += CHUNK) {
+      const slice = docs.slice(i, i + CHUNK);
       const batch = adminDb.batch();
-      snap.docs.forEach((doc) => {
+
+      slice.forEach((d) => {
         batch.set(
-          doc.ref,
+          d.ref,
           {
             status: "Removed",
             removedAt: FieldValue.serverTimestamp(),
@@ -93,15 +94,14 @@ export default async function handler(
       });
 
       await batch.commit();
-      updatedListings += snap.size;
-      lastDoc = snap.docs[snap.docs.length - 1];
-
-      if (snap.size < PAGE_SIZE) break;
+      updatedListings += slice.length;
     }
 
     return res.status(200).json({ ok: true, updatedListings });
   } catch (err: any) {
     console.error("remove_seller_error", err);
-    return res.status(500).json({ error: err?.message || "Internal server error" });
+    return res
+      .status(500)
+      .json({ error: err?.message || "Internal server error" });
   }
 }
