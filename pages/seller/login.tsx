@@ -36,7 +36,7 @@ type Verify2faResponse = Verify2faSuccess | Verify2faError;
 type PageMode = "login" | "setup";
 type TwoFactorStep = "credentials" | "verify";
 
-const SESSION_TTL_MS = 8 * 60 * 60 * 1000;
+const SESSION_TTL_MS = 72 * 60 * 60 * 1000;
 
 export default function SellerLoginPage() {
   const router = useRouter();
