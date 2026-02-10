@@ -1,13 +1,18 @@
 // FILE: /pages/api/seller/apply.ts
 
 import type { NextApiRequest, NextApiResponse } from "next";
-import { adminDb, isFirebaseAdminReady } from "../../../utils/firebaseAdmin";
+import { adminDb, isFirebaseAdminReady, FieldValue } from "../../../utils/firebaseAdmin";
 import {
   sendAdminNewSellerApplicationEmail,
   sendSellerApplicationReceivedEmail,
 } from "../../../utils/email";
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+type ApplyResponse = {
+  ok: boolean;
+  error?: string;
+};
+
+export default async function handler(req: NextApiRequest, res: NextApiResponse<ApplyResponse>) {
   if (req.method !== "POST") {
     return res.status(405).json({ ok: false, error: "Method not allowed" });
   }
@@ -28,49 +33,57 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(400).json({ ok: false, error: "Missing email" });
     }
 
+    const adminEmail = String(process.env.ADMIN_EMAIL || "").trim().toLowerCase();
+    if (!adminEmail || !adminEmail.includes("@")) {
+      return res.status(500).json({
+        ok: false,
+        error: "ADMIN_EMAIL is not configured. Seller application emails cannot be completed.",
+      });
+    }
+
     const id = email.replace(/\./g, "_");
 
-    // Check for duplicate application — only send email on first submission
-    const existingDoc = await adminDb.collection("sellerApplications").doc(id).get();
-    const isNewApplication = !existingDoc.exists;
+    const existingDoc = await adminDb.collection("sellers").doc(id).get();
+    const existingData = existingDoc.exists ? existingDoc.data() : null;
 
-    await adminDb.collection("sellerApplications").doc(id).set({
+    await adminDb.collection("sellers").doc(id).set({
       ...body,
       email,
-      status: "pending",
-      createdAt: existingDoc.exists ? (existingDoc.data()?.createdAt ?? Date.now()) : Date.now(),
+      status: "Pending",
+      submittedAt: existingDoc.exists
+        ? existingData?.submittedAt ?? FieldValue.serverTimestamp()
+        : FieldValue.serverTimestamp(),
+      createdAt: existingDoc.exists ? existingData?.createdAt ?? Date.now() : Date.now(),
       updatedAt: Date.now(),
     });
 
-    // ✅ Email seller: application received (only on first submission)
-    if (isNewApplication) {
-      try {
-        await sendSellerApplicationReceivedEmail(email, {
-          businessName: body.businessName,
-          contactName: body.contactName,
-          phone: body.phone,
-          website: body.website,
-          social: body.social,
-          inventory: body.inventory,
-          experience: body.experience,
-        });
-      } catch (e) {
-        console.error("[APPLY] seller confirmation email failed", e);
-      }
-    } else {
-      console.log(`[APPLY] duplicate submission for ${email} — skipping confirmation email`);
+    const emailErrors: string[] = [];
+
+    try {
+      await sendSellerApplicationReceivedEmail(email, {
+        businessName: body.businessName,
+        contactName: body.contactName,
+        phone: body.phone,
+        website: body.website,
+        social: body.social,
+        inventory: body.inventory,
+        experience: body.experience,
+      });
+    } catch (e: any) {
+      console.error("[APPLY] seller confirmation email failed", e);
+      emailErrors.push(`seller_confirmation_failed: ${e?.message || "unknown_error"}`);
     }
 
-    // ✅ Email admin: new application (if set, only on first submission)
-    if (isNewApplication) {
-      const adminEmail = String(process.env.ADMIN_EMAIL || "").trim();
-      if (adminEmail && adminEmail.includes("@")) {
-        try {
-          await sendAdminNewSellerApplicationEmail(adminEmail, email);
-        } catch (e) {
-          console.error("[APPLY] admin notification email failed", e);
-        }
-      }
+    try {
+      await sendAdminNewSellerApplicationEmail(adminEmail, email);
+    } catch (e: any) {
+      console.error("[APPLY] admin notification email failed", e);
+      emailErrors.push(`admin_notification_failed: ${e?.message || "unknown_error"}`);
+    }
+
+    if (emailErrors.length > 0) {
+      // Log server-side but never expose SMTP errors to the applicant
+      console.warn("[APPLY] email errors (suppressed from UI):", emailErrors);
     }
 
     return res.status(200).json({ ok: true });

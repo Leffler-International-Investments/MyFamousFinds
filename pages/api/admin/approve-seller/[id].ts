@@ -1,11 +1,11 @@
 // FILE: /pages/api/admin/approve-seller/[id].ts
 import type { NextApiRequest, NextApiResponse } from "next";
 import { adminDb } from "../../../../utils/firebaseAdmin";
-import { sendSellerInviteEmail } from "../../../../utils/email";
+import { queueEmail } from "../../../../utils/emailOutbox";
 import crypto from "crypto";
 
 type Data =
-  | { ok: true; registerUrl: string; emailSent: boolean }
+  | { ok: true; registerUrl: string; emailSent: boolean; emailQueued?: boolean }
   | { error: string };
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse<Data>) {
@@ -28,9 +28,20 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
 
     const businessName: string = (data.businessName as string) || (data.storeName as string) || "";
 
+    const adminRecipients = String(
+      process.env.ADMIN_NOTIFICATION_EMAILS ||
+      process.env.ADMIN_EMAIL ||
+      "ita.leff@gmail.com,leffleryd@gmail.com"
+    )
+      .split(",")
+      .map((v) => v.trim().toLowerCase())
+      .filter((v) => v.includes("@"));
+    const adminTo = adminRecipients.join(",");
+
     const token = crypto.randomBytes(32).toString("hex");
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || `https://${req.headers.host ?? ""}`;
     const registerUrl = `${baseUrl}/seller/register?id=${encodeURIComponent(sellerId)}&token=${token}`;
+    const loginUrl = `${baseUrl}/seller/login`;
 
     await ref.set(
       {
@@ -42,17 +53,44 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
       { merge: true }
     );
 
-    let emailSent = false;
-    try {
-      await sendSellerInviteEmail({ to: email, businessName, registerUrl });
-      emailSent = true;
-      console.log(`[APPROVE-SELLER] approval email sent to ${email} for seller ${sellerId}`);
-    } catch (err) {
-      console.error(`[APPROVE-SELLER] approval email FAILED for ${email} (seller ${sellerId})`, err);
-      emailSent = false;
+    // ✅ FULL OUTBOX PATTERN: Queue email for guaranteed delivery
+    const today = new Date().toISOString().slice(0, 10);
+    const jobId = await queueEmail({
+      to: email,
+      subject: "Famous Finds — Your Seller Account Has Been Approved!",
+      text: `Hello${businessName ? " " + businessName : ""},\n\nGreat news — your seller account on Famous Finds has been approved!\n\nLogin here - ${loginUrl} and complete the registration process.\n\nWelcome aboard!\nThe Famous Finds Team`,
+      html: `<p>Hello${businessName ? " " + businessName : ""},</p><p><b>Great news — your seller account has been approved!</b></p><p>Login here - <a href="${loginUrl}">${loginUrl}</a> and complete the registration process.</p><p>Welcome aboard!<br/>The Famous Finds Team</p>`,
+      eventType: "seller_approved",
+      eventKey: `${sellerId}:seller_approved:${today}`,
+      metadata: { sellerId, businessName, loginUrl, registerUrl },
+    });
+
+    const emailQueued = !!jobId;
+    console.log(`[APPROVE-SELLER] Email queued for ${email} (seller ${sellerId}), jobId: ${jobId}`);
+
+    if (adminTo) {
+      const internalJobId = await queueEmail({
+        to: adminTo,
+        subject: "Famous Finds — Seller Approved",
+        text:
+          `Seller approved in vetting queue.
+
+` +
+          `Business: ${businessName || "N/A"}
+` +
+          `Seller email: ${email}
+` +
+          `Seller ID: ${sellerId}
+` +
+          `Invite URL: ${registerUrl}`,
+        eventType: "seller_approved_internal_notice",
+        eventKey: `${sellerId}:seller_approved_internal_notice:${today}`,
+        metadata: { sellerId, sellerEmail: email, registerUrl },
+      });
+      console.log(`[APPROVE-SELLER] Internal notice queued to ${adminTo}, jobId: ${internalJobId}`);
     }
 
-    return res.status(200).json({ ok: true, registerUrl, emailSent });
+    return res.status(200).json({ ok: true, registerUrl, emailSent: false, emailQueued });
   } catch (err: any) {
     console.error("approve_seller_error", err);
     return res.status(500).json({ error: err?.message || "Internal server error" });
