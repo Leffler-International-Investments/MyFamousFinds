@@ -47,7 +47,7 @@ export default async function handler(
 
   // POST - save acceptance
   if (req.method === "POST") {
-    const { consignorName, consignorDate } = req.body || {};
+    const { consignorName, consignorAddress, consignorPhone, consignorDate } = req.body || {};
 
     if (!consignorName) {
       return res.status(400).json({ ok: false, error: "Your name is required." });
@@ -61,6 +61,8 @@ export default async function handler(
           email,
           accepted: true,
           consignorName: String(consignorName).trim(),
+          consignorAddress: String(consignorAddress || "").trim(),
+          consignorPhone: String(consignorPhone || "").trim(),
           consignorDate: consignorDate || new Date().toISOString().split("T")[0],
           acceptedAt: new Date().toISOString(),
         });
