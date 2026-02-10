@@ -29,9 +29,15 @@ const transporter = nodemailer.createTransport({
 // Generic helper
 async function sendMail(to: string, subject: string, text: string) {
   if (!host || !user || !pass) {
-    console.warn("[email] SMTP not configured – skipping send");
-    return;
+    console.error("[email] SMTP not configured – cannot send email", {
+      hasHost: !!host,
+      hasUser: !!user,
+      hasPass: !!pass,
+    });
+    throw new Error("SMTP not configured");
   }
+
+  console.log("[email] Attempting to send email", { to, from, host, port });
 
   try {
     const info = await transporter.sendMail({
@@ -40,7 +46,7 @@ async function sendMail(to: string, subject: string, text: string) {
       subject,
       text,
     });
-    console.log("[email] sent", { to, messageId: info.messageId });
+    console.log("[email] sent successfully", { to, messageId: info.messageId });
   } catch (err) {
     console.error("[email] error sending mail", err);
     // Let the API route see the error so it can return ok:false
