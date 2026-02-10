@@ -6,7 +6,6 @@ import {
   sendAdminNewSellerApplicationEmail,
   sendSellerApplicationReceivedEmail,
 } from "../../../utils/email";
-import { queueEmail } from "../../../utils/emailOutbox";
 
 type ApplyResponse = {
   ok: boolean;
@@ -67,8 +66,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
     });
 
     const emailErrors: string[] = [];
-    const queuedEmailJobs: string[] = [];
-    const today = new Date().toISOString().slice(0, 10);
 
     try {
       await sendSellerApplicationReceivedEmail(email, {
@@ -81,57 +78,23 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
         experience: body.experience,
       });
     } catch (e: any) {
-      const message = e?.message || "unknown_error";
       console.error("[APPLY] seller confirmation email failed", e);
-      emailErrors.push(`seller_confirmation_failed: ${message}`);
-
-      const sellerGreeting = body.contactName ? `Hello ${body.contactName}` : "Hello";
-      const sellerText = `${sellerGreeting},\n\nThank you for applying to become a seller on MyFamousFinds!\n\nWe received your application and our team will review it shortly.\n\nRegards,\nThe MyFamousFinds Team`;
-      const sellerJobId = await queueEmail({
-        to: email,
-        subject: "MyFamousFinds — Application Received",
-        text: sellerText,
-        eventType: "seller_application_received",
-        eventKey: `${id}:seller_application_received:${today}`,
-        metadata: { sellerId: id, fallbackFrom: "api/seller/apply" },
-      });
-      if (sellerJobId) queuedEmailJobs.push(sellerJobId);
+      emailErrors.push(`seller_confirmation_failed: ${e?.message || "unknown_error"}`);
     }
 
     try {
       await sendAdminNewSellerApplicationEmail(adminEmail, email);
     } catch (e: any) {
-      const message = e?.message || "unknown_error";
       console.error("[APPLY] admin notification email failed", e);
-      emailErrors.push(`admin_notification_failed: ${message}`);
-
-      const adminText =
-        "Hello,\n\n" +
-        "A new seller application has been submitted.\n\n" +
-        `Seller email: ${email}\n\n` +
-        "Please review it in the Management Dashboard.\n\n" +
-        "MyFamousFinds";
-
-      const adminJobId = await queueEmail({
-        to: adminEmail,
-        subject: "MyFamousFinds — New Seller Application",
-        text: adminText,
-        eventType: "admin_new_seller_application",
-        eventKey: `${id}:admin_new_seller_application:${today}`,
-        metadata: { sellerId: id, sellerEmail: email, fallbackFrom: "api/seller/apply" },
-      });
-      if (adminJobId) queuedEmailJobs.push(adminJobId);
+      emailErrors.push(`admin_notification_failed: ${e?.message || "unknown_error"}`);
     }
 
     if (emailErrors.length > 0) {
-      const hasAuthIssue = emailErrors.some(isSmtpAuthError);
-      return res.status(200).json({
-        ok: true,
-        warning: hasAuthIssue
-          ? "Application saved. Email login failed (SMTP auth). We queued retries; please verify SMTP_USER/SMTP_PASS App Password in Vercel."
-          : "Application saved. One or more emails failed to send immediately, but retry jobs were queued.",
+      return res.status(502).json({
+        ok: false,
+        error:
+          "Application was saved, but one or more emails failed to send. Please verify SMTP settings and retry.",
         emailErrors,
-        queuedEmailJobs,
       });
     }
 
