@@ -1,6 +1,7 @@
 // FILE: /pages/api/management/updateListing.ts
 import type { NextApiRequest, NextApiResponse } from "next";
 import { adminDb } from "../../../utils/firebaseAdmin";
+import sharp from "sharp";
 import {
   createWhiteDisplayImage,
   fetchImageBuffer,
@@ -83,12 +84,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           nextPatch.imageUrl = stored.originalUrl;
           nextPatch.displayImageUrl = stored.displayUrl;
         } else {
-          const displayBuffer = await createWhiteDisplayImage(
-            imageBuffer.buffer,
-            imageBuffer.contentType
-          );
-          nextPatch.imageUrl = imageInput;
-          nextPatch.displayImageUrl = `data:image/jpeg;base64,${displayBuffer.toString("base64")}`;
+          // No Storage bucket — compress to fit in Firestore (<1MB limit)
+          const compressedBuffer = await sharp(imageBuffer.buffer)
+            .rotate()
+            .resize(800, 800, { fit: "inside", withoutEnlargement: true })
+            .flatten({ background: "#ffffff" })
+            .jpeg({ quality: 70, mozjpeg: true })
+            .toBuffer();
+          const compressedUrl = `data:image/jpeg;base64,${compressedBuffer.toString("base64")}`;
+          nextPatch.imageUrl = compressedUrl;
+          nextPatch.displayImageUrl = null;
         }
       } catch (error) {
         console.warn("Update listing image failed:", error);

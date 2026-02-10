@@ -114,23 +114,36 @@ async function processAndStoreImage(base64Str: string) {
   if (!parsed) return null;
 
   if (!hasStorageBucket()) {
-    const displayBuffer = await createWhiteDisplayImage(parsed.buffer, parsed.contentType);
-    return {
-      originalUrl: base64Str,
-      displayUrl: `data:image/jpeg;base64,${displayBuffer.toString("base64")}`,
-    };
+    // No Storage bucket — compress to a small JPEG so it fits in Firestore (<1MB limit)
+    const compressedBuffer = await sharp(parsed.buffer)
+      .rotate()
+      .resize(800, 800, {
+        fit: "inside",
+        withoutEnlargement: true,
+      })
+      .flatten({ background: "#ffffff" })
+      .jpeg({ quality: 70, mozjpeg: true })
+      .toBuffer();
+    const compressedUrl = `data:image/jpeg;base64,${compressedBuffer.toString("base64")}`;
+    return { originalUrl: compressedUrl, displayUrl: compressedUrl };
   }
 
   try {
     const stored = await storeListingImages(parsed, "listing-images");
     return { originalUrl: stored.originalUrl, displayUrl: stored.displayUrl };
   } catch (error) {
-    console.warn("Storage upload failed, falling back to data URLs:", error);
-    const displayBuffer = await createWhiteDisplayImage(parsed.buffer, parsed.contentType);
-    return {
-      originalUrl: base64Str,
-      displayUrl: `data:image/jpeg;base64,${displayBuffer.toString("base64")}`,
-    };
+    console.warn("Storage upload failed, falling back to compressed data URL:", error);
+    const compressedBuffer = await sharp(parsed.buffer)
+      .rotate()
+      .resize(800, 800, {
+        fit: "inside",
+        withoutEnlargement: true,
+      })
+      .flatten({ background: "#ffffff" })
+      .jpeg({ quality: 70, mozjpeg: true })
+      .toBuffer();
+    const compressedUrl = `data:image/jpeg;base64,${compressedBuffer.toString("base64")}`;
+    return { originalUrl: compressedUrl, displayUrl: compressedUrl };
   }
 }
 
@@ -214,9 +227,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
       if (cleaned.image_url) {
         const stored = await processAndStoreImage(cleaned.image_url);
         if (stored) {
-          cleaned.image_url = stored.originalUrl;
-          cleaned.imageUrl = stored.originalUrl;
-          cleaned.displayImageUrl = stored.displayUrl;
+          const isBase64 = stored.originalUrl.startsWith("data:");
+          if (isBase64) {
+            // Base64 fallback: store only one copy to stay under Firestore 1MB limit
+            cleaned.image_url = stored.displayUrl;
+            cleaned.imageUrl = stored.displayUrl;
+            cleaned.displayImageUrl = null;
+          } else {
+            // Real Storage URLs: safe to store separate original and display URLs
+            cleaned.image_url = stored.originalUrl;
+            cleaned.imageUrl = stored.originalUrl;
+            cleaned.displayImageUrl = stored.displayUrl;
+          }
         } else {
           cleaned.image_url = await processImage(cleaned.image_url);
         }
