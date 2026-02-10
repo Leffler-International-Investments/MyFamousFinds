@@ -14,7 +14,7 @@ type SellerApplication = {
   businessName: string;
   contactEmail: string;
   submittedAt: string;
-  status: "Pending" | "Approved" | "Rejected";
+  status: "Pending" | "Approved" | "Rejected" | "Removed";
 };
 
 type Props = { items: SellerApplication[] };
@@ -109,6 +109,46 @@ export default function ManagementVettingQueue({ items }: Props) {
     }
   }
 
+  async function handleRemove(id: string) {
+    if (actionLoading) return;
+
+    const ok = window.confirm(
+      "REMOVE this seller/application?\n\nThis will:\n- mark the seller as Removed\n- hide their listings (status = Removed)\n\nProceed?"
+    );
+    if (!ok) return;
+
+    const reason =
+      window.prompt(
+        "Optional: add a short reason for removal (saved in Firebase):",
+        ""
+      ) ?? null;
+    if (reason === null) return; // user cancelled
+
+    setActionLoading(id);
+    setError(null);
+
+    try {
+      const res = await fetch(`/api/admin/remove-seller/${id}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reason: reason.trim() || undefined }),
+      });
+
+      const json = await res.json().catch(() => ({} as any));
+      if (!res.ok || json.error) {
+        throw new Error(json.error || "Failed to remove seller");
+      }
+
+      // Remove from the queue UI immediately
+      setLocalItems((prev) => prev.filter((s) => s.id !== id));
+    } catch (err: any) {
+      console.error("vetting_queue_remove_error", err);
+      setError(err?.message || "Something went wrong removing this seller.");
+    } finally {
+      setActionLoading(null);
+    }
+  }
+
   if (loading) {
     // Same skeleton pattern as other admin pages
     return <div className="dashboard-page" />;
@@ -128,7 +168,7 @@ export default function ManagementVettingQueue({ items }: Props) {
             <div>
               <h1>Seller Vetting Queue</h1>
               <p>
-                New seller applications submitted via the “Become a Seller”
+                New seller applications submitted via the "Become a Seller"
                 form. Approve to grant access to the Seller Admin console, or
                 reject with a reason.
               </p>
@@ -166,7 +206,7 @@ export default function ManagementVettingQueue({ items }: Props) {
                   <th>Email</th>
                   <th>Submitted</th>
                   <th>Status</th>
-                  <th style={{ width: "220px" }}>Actions</th>
+                  <th style={{ width: "320px" }}>Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -202,6 +242,15 @@ export default function ManagementVettingQueue({ items }: Props) {
                             s.status !== "Rejected"
                               ? "Rejecting…"
                               : "Reject"}
+                          </button>
+
+                          <button
+                            className="btn-small btn-remove"
+                            disabled={actionLoading === s.id}
+                            onClick={() => handleRemove(s.id)}
+                            title="Remove seller/application"
+                          >
+                            {actionLoading === s.id ? "Working…" : "Remove"}
                           </button>
                         </div>
                       </td>
@@ -362,6 +411,11 @@ export default function ManagementVettingQueue({ items }: Props) {
 
         .btn-reject {
           background: #dc2626; /* red-600 */
+          color: #ffffff;
+        }
+
+        .btn-remove {
+          background: #6b7280; /* gray-500 */
           color: #ffffff;
         }
       `}</style>
