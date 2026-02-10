@@ -2,10 +2,6 @@
 
 import type { NextApiRequest, NextApiResponse } from "next";
 import { adminDb, isFirebaseAdminReady, FieldValue } from "../../../utils/firebaseAdmin";
-import {
-  sendAdminNewSellerApplicationEmail,
-  sendSellerApplicationReceivedEmail,
-} from "../../../utils/email";
 import { queueEmail } from "../../../utils/emailOutbox";
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -48,66 +44,36 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       updatedAt: Date.now(),
     });
 
-    // ✅ Queue email to seller: application received
+    // ✅ FULL OUTBOX PATTERN: Queue ALL emails upfront for guaranteed delivery
     if (shouldSendEmail) {
-      // Try to send immediately first
-      let sellerEmailSent = false;
-      try {
-        await sendSellerApplicationReceivedEmail(email, {
-          businessName: body.businessName,
-          contactName: body.contactName,
-          phone: body.phone,
-          website: body.website,
-          social: body.social,
-          inventory: body.inventory,
-          experience: body.experience,
-        });
-        sellerEmailSent = true;
-      } catch (e) {
-        console.error("[APPLY] seller confirmation email failed, queuing for retry", e);
-      }
+      const greeting = body.contactName ? `Hello ${body.contactName}` : "Hello";
 
-      // If immediate send failed, queue for retry
-      if (!sellerEmailSent) {
-        const greeting = body.contactName ? `Hello ${body.contactName}` : "Hello";
-        await queueEmail({
-          to: email,
-          subject: "MyFamousFinds — Application Received",
-          text: `${greeting},\n\nThank you for applying to become a seller on MyFamousFinds!\n\nYour application is under review. You will be notified once vetted.\n\nRegards,\nThe MyFamousFinds Team`,
-          eventType: "seller_application_received",
-          eventKey: `${id}:seller_application_received:${today}`,
-          metadata: { sellerId: id, businessName: body.businessName },
-        });
-      }
-    } else {
-      console.log(`[APPLY] seller ${email} already ${existingData?.status} — skipping confirmation email`);
-    }
+      // 1. Queue email to seller: application received
+      await queueEmail({
+        to: email,
+        subject: "Famous Finds — Application Received",
+        text: `${greeting},\n\nThank you for applying to become a seller on Famous Finds!\n\nWe've received your application and our team will review it shortly. This process typically takes 1-2 business days.\n\nOnce reviewed, you'll receive an email with the outcome.\n\nIf you have any questions, feel free to reply to this email.\n\nThanks for your interest in Famous Finds!`,
+        eventType: "seller_application_received",
+        eventKey: `${id}:seller_application_received:${today}`,
+        metadata: { sellerId: id, businessName: body.businessName },
+      });
 
-    // ✅ Queue email to admin: new application (if set)
-    if (shouldSendEmail) {
+      // 2. Queue email to admin: new application (if ADMIN_EMAIL is set)
       const adminEmail = String(process.env.ADMIN_EMAIL || "").trim();
       if (adminEmail && adminEmail.includes("@")) {
-        // Try to send immediately first
-        let adminEmailSent = false;
-        try {
-          await sendAdminNewSellerApplicationEmail(adminEmail, email);
-          adminEmailSent = true;
-        } catch (e) {
-          console.error("[APPLY] admin notification email failed, queuing for retry", e);
-        }
-
-        // If immediate send failed, queue for retry
-        if (!adminEmailSent) {
-          await queueEmail({
-            to: adminEmail,
-            subject: "MyFamousFinds — New Seller Application",
-            text: `Hello,\n\nA new seller application has been submitted.\n\nSeller email: ${email}\n\nPlease review it in the Management Dashboard.\n\nMyFamousFinds`,
-            eventType: "admin_new_seller_application",
-            eventKey: `${id}:admin_new_seller_application:${today}`,
-            metadata: { sellerId: id, sellerEmail: email },
-          });
-        }
+        await queueEmail({
+          to: adminEmail,
+          subject: "Famous Finds — New Seller Application",
+          text: `Hello,\n\nA new seller application has been submitted.\n\nBusiness: ${body.businessName || "Not provided"}\nEmail: ${email}\nContact: ${body.contactName || "Not provided"}\n\nPlease review it in the Management Dashboard:\nhttps://myfamousfinds.com/management/vetting-queue\n\nFamous Finds`,
+          eventType: "admin_new_seller_application",
+          eventKey: `${id}:admin_new_seller_application:${today}`,
+          metadata: { sellerId: id, sellerEmail: email, businessName: body.businessName },
+        });
       }
+
+      console.log(`[APPLY] Queued 2 emails for seller ${email}`);
+    } else {
+      console.log(`[APPLY] seller ${email} already ${existingData?.status} — skipping emails`);
     }
 
     return res.status(200).json({ ok: true });

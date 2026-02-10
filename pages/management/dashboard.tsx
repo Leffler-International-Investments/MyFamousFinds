@@ -228,6 +228,13 @@ export default function ManagementDashboard({ stats }: Props) {
             linkText="Edit Categories"
             linkColor="blue"
           />
+          <DashboardTile
+            title="Email Queue"
+            description="View and manage outbound emails. Monitor delivery status and retry failed emails."
+            href="/management/email-queue"
+            linkText="View Queue"
+            linkColor="gold"
+          />
         </DashboardSection>
 
         <DashboardSection
