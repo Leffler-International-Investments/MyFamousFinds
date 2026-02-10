@@ -22,7 +22,6 @@ type ManualNotifyInfo = {
   sellerEmail: string;
   businessName: string;
   decision: "approved" | "rejected";
-  registerUrl?: string;
   reason?: string;
 };
 
@@ -81,7 +80,6 @@ export default function ManagementVettingQueue({ items }: Props) {
   const [localItems, setLocalItems] = useState(items);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [emailWarning, setEmailWarning] = useState<string | null>(null);
 
   // Manual notification panel state
   const [manualNotify, setManualNotify] = useState<ManualNotifyInfo | null>(
@@ -149,7 +147,6 @@ export default function ManagementVettingQueue({ items }: Props) {
 
     setActionLoading(id);
     setError(null);
-    setEmailWarning(null);
     setManualNotify(null);
     setNotifyLogged(false);
 
@@ -172,28 +169,14 @@ export default function ManagementVettingQueue({ items }: Props) {
       const emailAddr = seller?.contactEmail || id;
       const businessName = seller?.businessName || "";
 
-      // Always show manual notification panel (since emailSent is always false
-      // with the outbox pattern, manual fallback is the reliable path)
-      if (json.emailSent === false) {
-        if (json.emailQueued) {
-          setEmailWarning(
-            `Seller was ${action === "approve" ? "approved" : "rejected"}. Email to ${emailAddr} has been queued for automatic retry — but SMTP is currently unreliable. Use the manual notification panel below to guarantee delivery.`
-          );
-        } else {
-          setEmailWarning(
-            `Seller was ${action === "approve" ? "approved" : "rejected"}, but the notification email to ${emailAddr} failed to send. Use the manual notification panel below.`
-          );
-        }
-
-        setManualNotify({
-          sellerId: id,
-          sellerEmail: emailAddr,
-          businessName,
-          decision: action === "approve" ? "approved" : "rejected",
-          registerUrl: json.registerUrl || undefined,
-          reason,
-        });
-      }
+      // Always show manual notification panel — we are running manual operations
+      setManualNotify({
+        sellerId: id,
+        sellerEmail: emailAddr,
+        businessName,
+        decision: action === "approve" ? "approved" : "rejected",
+        reason,
+      });
 
       // Update local list
       setLocalItems((prev) =>
@@ -322,15 +305,6 @@ export default function ManagementVettingQueue({ items }: Props) {
             </div>
           )}
 
-          {emailWarning && (
-            <div
-              className="form-message warning"
-              style={{ marginBottom: "16px" }}
-            >
-              <strong>Warning:</strong> {emailWarning}
-            </div>
-          )}
-
           {/* ── Manual Notification Panel ── */}
           {manualNotify && (
             <div className="manual-notify-panel">
@@ -342,7 +316,6 @@ export default function ManagementVettingQueue({ items }: Props) {
                   className="btn-dismiss"
                   onClick={() => {
                     setManualNotify(null);
-                    setEmailWarning(null);
                     setNotifyLogged(false);
                   }}
                   title="Dismiss"
@@ -619,10 +592,6 @@ export default function ManagementVettingQueue({ items }: Props) {
         .form-message.error {
           background: #fee2e2;
           color: #b91c1c;
-        }
-        .form-message.warning {
-          background: #fef3c7;
-          color: #92400e;
         }
 
         /* ── Manual Notification Panel ── */
