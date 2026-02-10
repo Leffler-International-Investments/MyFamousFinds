@@ -10,15 +10,7 @@ import {
 type ApplyResponse = {
   ok: boolean;
   error?: string;
-  warning?: string;
-  emailErrors?: string[];
-  queuedEmailJobs?: string[];
 };
-
-function isSmtpAuthError(message: string) {
-  const m = message.toLowerCase();
-  return m.includes("535") || m.includes("invalid login") || m.includes("authentication");
-}
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse<ApplyResponse>) {
   if (req.method !== "POST") {
@@ -90,12 +82,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
     }
 
     if (emailErrors.length > 0) {
-      return res.status(502).json({
-        ok: false,
-        error:
-          "Application was saved, but one or more emails failed to send. Please verify SMTP settings and retry.",
-        emailErrors,
-      });
+      // Log server-side but never expose SMTP errors to the applicant
+      console.warn("[APPLY] email errors (suppressed from UI):", emailErrors);
     }
 
     return res.status(200).json({ ok: true });
