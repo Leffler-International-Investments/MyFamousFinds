@@ -1,7 +1,7 @@
 // FILE: /pages/api/seller/apply.ts
 
 import type { NextApiRequest, NextApiResponse } from "next";
-import { adminDb, isFirebaseAdminReady } from "../../../utils/firebaseAdmin";
+import { adminDb, isFirebaseAdminReady, FieldValue } from "../../../utils/firebaseAdmin";
 import {
   sendAdminNewSellerApplicationEmail,
   sendSellerApplicationReceivedEmail,
@@ -31,13 +31,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const id = email.replace(/\./g, "_");
 
     // Check for duplicate application — only send email on first submission
-    const existingDoc = await adminDb.collection("sellerApplications").doc(id).get();
+    const existingDoc = await adminDb.collection("sellers").doc(id).get();
     const isNewApplication = !existingDoc.exists;
 
-    await adminDb.collection("sellerApplications").doc(id).set({
+    await adminDb.collection("sellers").doc(id).set({
       ...body,
       email,
-      status: "pending",
+      status: "Pending",
+      submittedAt: existingDoc.exists ? (existingDoc.data()?.submittedAt ?? FieldValue.serverTimestamp()) : FieldValue.serverTimestamp(),
       createdAt: existingDoc.exists ? (existingDoc.data()?.createdAt ?? Date.now()) : Date.now(),
       updatedAt: Date.now(),
     });
