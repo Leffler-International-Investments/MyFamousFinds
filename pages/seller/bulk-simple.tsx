@@ -191,7 +191,36 @@ export default function BulkSimple() {
     [items]
   );
 
-  const handleFilesChange = (idx: number, fileList: FileList | null) => {
+  /**
+   * Compress an image file in the browser using canvas so the base64 data URL
+   * stays small enough for Firestore's 1 MB document limit.
+   */
+  const compressImageFile = (file: File, maxDim = 800, quality = 0.7): Promise<string> =>
+    new Promise((resolve, reject) => {
+      const img = new Image();
+      const objectUrl = URL.createObjectURL(file);
+      img.onload = () => {
+        URL.revokeObjectURL(objectUrl);
+        let w = img.width;
+        let h = img.height;
+        if (w > maxDim || h > maxDim) {
+          if (w >= h) { h = Math.round(h * (maxDim / w)); w = maxDim; }
+          else        { w = Math.round(w * (maxDim / h)); h = maxDim; }
+        }
+        const canvas = document.createElement("canvas");
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext("2d")!;
+        ctx.fillStyle = "#ffffff";
+        ctx.fillRect(0, 0, w, h);
+        ctx.drawImage(img, 0, 0, w, h);
+        resolve(canvas.toDataURL("image/jpeg", quality));
+      };
+      img.onerror = () => { URL.revokeObjectURL(objectUrl); reject(new Error("Image load failed")); };
+      img.src = objectUrl;
+    });
+
+  const handleFilesChange = async (idx: number, fileList: FileList | null) => {
     const files = Array.from(fileList || [])
       .filter((f) => f.type.startsWith("image/"))
       .slice(0, 8);
@@ -201,14 +230,19 @@ export default function BulkSimple() {
       return;
     }
 
-    const first = files[0];
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      const dataUrl =
-        typeof reader.result === "string" ? reader.result : undefined;
+    try {
+      const dataUrl = await compressImageFile(files[0]);
       update(idx, { images: files, imageDataUrl: dataUrl });
-    };
-    reader.readAsDataURL(first);
+    } catch {
+      // Fallback: use raw file if compression fails
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const dataUrl =
+          typeof reader.result === "string" ? reader.result : undefined;
+        update(idx, { images: files, imageDataUrl: dataUrl });
+      };
+      reader.readAsDataURL(files[0]);
+    }
   };
 
   const handleDrop = (idx: number, e: React.DragEvent<HTMLDivElement>) => {
