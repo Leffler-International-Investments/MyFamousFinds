@@ -83,6 +83,8 @@ function ConsignmentAgreement({
   onAccepted: () => void;
 }) {
   const [consignorName, setConsignorName] = useState("");
+  const [consignorAddress, setConsignorAddress] = useState("");
+  const [consignorPhone, setConsignorPhone] = useState("");
   const [consignorDate, setConsignorDate] = useState(
     new Date().toISOString().split("T")[0]
   );
@@ -109,6 +111,8 @@ function ConsignmentAgreement({
         body: JSON.stringify({
           email: sellerEmail,
           consignorName: consignorName.trim(),
+          consignorAddress: consignorAddress.trim(),
+          consignorPhone: consignorPhone.trim(),
           consignorDate,
         }),
       });
@@ -188,19 +192,37 @@ function ConsignmentAgreement({
         <div className="info-box">
           <p>
             <strong>Name:</strong>{" "}
-            <span className="field-value">
-              {consignorName || "___________________"}
-            </span>
+            <input
+              type="text"
+              value={consignorName}
+              onChange={(e) => setConsignorName(e.target.value)}
+              placeholder="Enter your full legal name"
+              className="inline-field"
+            />
           </p>
           <p>
-            <strong>Address:</strong> ___________________
+            <strong>Address:</strong>{" "}
+            <input
+              type="text"
+              value={consignorAddress}
+              onChange={(e) => setConsignorAddress(e.target.value)}
+              placeholder="Enter your address"
+              className="inline-field"
+            />
           </p>
           <p>
             <strong>Email:</strong>{" "}
             <span className="field-value">{sellerEmail}</span>
           </p>
           <p>
-            <strong>Phone:</strong> ___________________
+            <strong>Phone:</strong>{" "}
+            <input
+              type="tel"
+              value={consignorPhone}
+              onChange={(e) => setConsignorPhone(e.target.value)}
+              placeholder="Enter your phone number"
+              className="inline-field"
+            />
           </p>
         </div>
 
@@ -377,7 +399,10 @@ function ConsignmentAgreement({
               <strong>CONSIGNOR</strong>
             </p>
             <p>
-              <strong>Name:</strong>{" "}
+              <strong>Signature:</strong> ___________________
+            </p>
+            <p>
+              <strong>Print Name:</strong>{" "}
               <span className="field-value">
                 {consignorName || "___________________"}
               </span>
@@ -392,7 +417,10 @@ function ConsignmentAgreement({
               <strong>CONSIGNEE</strong>
             </p>
             <p>
-              <strong>Name:</strong> A Rich Wines / MyFamousFinds
+              <strong>Signature:</strong> ___________________
+            </p>
+            <p>
+              <strong>Print Name:</strong> A Rich Wines / MyFamousFinds
             </p>
             <p>
               <strong>Date:</strong> {today}
@@ -740,6 +768,28 @@ export default function SellerDashboard() {
         }
         .field-value {
           font-weight: 700;
+        }
+        .inline-field {
+          border: none;
+          border-bottom: 1px solid #999;
+          background: transparent;
+          font-family: inherit;
+          font-size: inherit;
+          font-weight: 700;
+          color: #111;
+          padding: 2px 4px;
+          width: 280px;
+          max-width: 60%;
+          outline: none;
+        }
+        .inline-field:focus {
+          border-bottom-color: #111;
+          background: #fff;
+        }
+        .inline-field::placeholder {
+          color: #999;
+          font-weight: 400;
+          font-style: italic;
         }
         .sig-block {
           display: flex;
