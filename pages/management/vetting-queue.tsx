@@ -168,7 +168,7 @@ export default function ManagementVettingQueue({ items }: Props) {
             <div>
               <h1>Seller Vetting Queue</h1>
               <p>
-                New seller applications submitted via the “Become a Seller”
+                New seller applications submitted via the "Become a Seller"
                 form. Approve to grant access to the Seller Admin console, or
                 reject with a reason.
               </p>

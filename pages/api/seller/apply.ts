@@ -30,21 +30,24 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     const id = email.replace(/\./g, "_");
 
-    // Check for duplicate application — only send email on first submission
+    // Check for duplicate application — send email on first submission
+    // or if the seller is still Pending (email may have failed previously)
     const existingDoc = await adminDb.collection("sellers").doc(id).get();
-    const isNewApplication = !existingDoc.exists;
+    const existingData = existingDoc.exists ? existingDoc.data() : null;
+    const shouldSendEmail =
+      !existingDoc.exists || existingData?.status === "Pending";
 
     await adminDb.collection("sellers").doc(id).set({
       ...body,
       email,
       status: "Pending",
-      submittedAt: existingDoc.exists ? (existingDoc.data()?.submittedAt ?? FieldValue.serverTimestamp()) : FieldValue.serverTimestamp(),
-      createdAt: existingDoc.exists ? (existingDoc.data()?.createdAt ?? Date.now()) : Date.now(),
+      submittedAt: existingDoc.exists ? (existingData?.submittedAt ?? FieldValue.serverTimestamp()) : FieldValue.serverTimestamp(),
+      createdAt: existingDoc.exists ? (existingData?.createdAt ?? Date.now()) : Date.now(),
       updatedAt: Date.now(),
     });
 
-    // ✅ Email seller: application received (only on first submission)
-    if (isNewApplication) {
+    // ✅ Email seller: application received
+    if (shouldSendEmail) {
       try {
         await sendSellerApplicationReceivedEmail(email, {
           businessName: body.businessName,
@@ -59,11 +62,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         console.error("[APPLY] seller confirmation email failed", e);
       }
     } else {
-      console.log(`[APPLY] duplicate submission for ${email} — skipping confirmation email`);
+      console.log(`[APPLY] seller ${email} already ${existingData?.status} — skipping confirmation email`);
     }
 
-    // ✅ Email admin: new application (if set, only on first submission)
-    if (isNewApplication) {
+    // ✅ Email admin: new application (if set)
+    if (shouldSendEmail) {
       const adminEmail = String(process.env.ADMIN_EMAIL || "").trim();
       if (adminEmail && adminEmail.includes("@")) {
         try {
