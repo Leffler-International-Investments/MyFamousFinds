@@ -1,26 +1,27 @@
 // FILE: /pages/api/mark-sold/[id].ts
 
 import type { NextApiRequest, NextApiResponse } from "next";
-import { adminDb } from "../../../utils/firebaseAdmin";
-import { FieldValue } from "firebase-admin/firestore";
+import { adminDb, FieldValue } from "../../../utils/firebaseAdmin";
+import { requireAdmin } from "../../../utils/adminAuth";
 
-type ApiResponse =
-  | { ok: true }
-  | { ok: false; error: string };
+type ApiResponse = { ok: true } | { ok: false; error: string };
 
-export default async function handler(
-  req: NextApiRequest,
-  res: NextApiResponse<ApiResponse>
-) {
+export default async function handler(req: NextApiRequest, res: NextApiResponse<ApiResponse>) {
   if (req.method !== "POST") {
     res.setHeader("Allow", ["POST"]);
     return res.status(405).json({ ok: false, error: "Method not allowed" });
   }
 
   try {
+    if (!adminDb) {
+      return res.status(500).json({ ok: false, error: "Firebase not configured" });
+    }
+    if (!requireAdmin(req, res)) {
+      return;
+    }
+
     const { id: queryId } = req.query;
     const { id: bodyId } = req.body || {};
-
     const id = (queryId || bodyId) as string | string[] | undefined;
 
     if (!id) {
@@ -48,8 +49,6 @@ export default async function handler(
     return res.status(200).json({ ok: true });
   } catch (err: any) {
     console.error("mark-sold error:", err);
-    return res
-      .status(500)
-      .json({ ok: false, error: err?.message || "Internal error" });
+    return res.status(500).json({ ok: false, error: err?.message || "Internal error" });
   }
 }

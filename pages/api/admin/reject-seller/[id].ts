@@ -13,6 +13,10 @@ export default async function handler(
     return res.status(405).json({ error: "Method not allowed" });
   }
 
+  if (!adminDb) {
+    return res.status(500).json({ error: "Firebase not configured" });
+  }
+
   try {
     const { id } = req.query;
     const { reason } = (req.body || {}) as { reason?: string };
@@ -55,11 +59,13 @@ export default async function handler(
           businessName,
           reason: typeof reason === "string" ? reason : undefined,
         });
-        emailSent = true;
+        console.log(`[REJECT-SELLER] rejection email sent to ${email} for seller ${sellerId}`);
       } catch (err) {
-        console.error("send_seller_rejection_email_error", err);
-        emailSent = false;
+        console.error(`[REJECT-SELLER] rejection email FAILED for ${email} (seller ${sellerId})`, err);
+        // Do not fail the API just because email failed
       }
+    } else {
+      console.warn(`[REJECT-SELLER] no email address found for seller ${sellerId} — skipping email`);
     }
 
     return res.status(200).json({ ok: true, emailSent });

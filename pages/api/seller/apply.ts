@@ -1,86 +1,85 @@
 // FILE: /pages/api/seller/apply.ts
 
 import type { NextApiRequest, NextApiResponse } from "next";
-import { adminDb } from "../../../utils/firebaseAdmin";
-import { FieldValue } from "firebase-admin/firestore";
-import { sendApplicationConfirmationEmail } from "../../../utils/email";
+import { adminDb, isFirebaseAdminReady, FieldValue } from "../../../utils/firebaseAdmin";
+import {
+  sendAdminNewSellerApplicationEmail,
+  sendSellerApplicationReceivedEmail,
+} from "../../../utils/email";
 
-type Ok = { ok: true; emailSent: boolean };
-type Err = { ok: false; error: string };
-type Res = Ok | Err;
-
-export default async function handler(
-  req: NextApiRequest,
-  res: NextApiResponse<Res>
-) {
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== "POST") {
-    res.status(405).json({ ok: false, error: "Method not allowed" });
-    return;
+    return res.status(405).json({ ok: false, error: "Method not allowed" });
   }
 
   try {
-    const {
-      businessName,
-      contactName,
-      email,
-      phone,
-      website,
-      social,
-      inventory,
-      experience,
-      notes,
-    } = req.body || {};
-
-    const trimmedEmail = (email || "").toString().trim().toLowerCase();
-    const trimmedBusiness = (businessName || "").toString().trim();
-
-    if (!trimmedBusiness || !trimmedEmail) {
-      res
-        .status(400)
-        .json({ ok: false, error: "Business name and email are required." });
-      return;
-    }
-
-    const docRef = adminDb.collection("sellers").doc(trimmedEmail);
-
-    await docRef.set(
-      {
-        businessName: trimmedBusiness,
-        contactName: (contactName || "").toString().trim(),
-        contactEmail: trimmedEmail,
-        email: trimmedEmail,
-        phone: (phone || "").toString().trim(),
-        website: (website || "").toString().trim(),
-        social: (social || "").toString().trim(),
-        inventory: (inventory || "").toString().trim(),
-        experience: (experience || "").toString().trim(),
-        notes: (notes || "").toString().trim(),
-        status: "Pending",
-        source: "public_vetting_form",
-        submittedAt: FieldValue.serverTimestamp(),
-        createdAt: FieldValue.serverTimestamp(),
-      },
-      { merge: true }
-    );
-
-    // Send confirmation email to applicant
-    let emailSent = false;
-    try {
-      await sendApplicationConfirmationEmail({
-        to: trimmedEmail,
-        businessName: trimmedBusiness,
+    if (!isFirebaseAdminReady || !adminDb) {
+      return res.status(500).json({
+        ok: false,
+        error:
+          "Firebase Admin is not configured. Missing FIREBASE_SERVICE_ACCOUNT_JSON (or split FB_* env vars).",
       });
-      emailSent = true;
-    } catch (err) {
-      console.error("send_application_confirmation_email_error", err);
-      emailSent = false;
     }
 
-    res.status(200).json({ ok: true, emailSent });
-  } catch (err) {
-    console.error("api/seller/apply error", err);
-    res
-      .status(500)
-      .json({ ok: false, error: "Failed to submit application. Try again." });
+    const body = typeof req.body === "string" ? JSON.parse(req.body) : req.body;
+
+    const email = String(body?.email || "").trim().toLowerCase();
+    if (!email || !email.includes("@")) {
+      return res.status(400).json({ ok: false, error: "Missing email" });
+    }
+
+    const id = email.replace(/\./g, "_");
+
+    // Check for duplicate application — send email on first submission
+    // or if the seller is still Pending (email may have failed previously)
+    const existingDoc = await adminDb.collection("sellers").doc(id).get();
+    const existingData = existingDoc.exists ? existingDoc.data() : null;
+    const shouldSendEmail =
+      !existingDoc.exists || existingData?.status === "Pending";
+
+    await adminDb.collection("sellers").doc(id).set({
+      ...body,
+      email,
+      status: "Pending",
+      submittedAt: existingDoc.exists ? (existingData?.submittedAt ?? FieldValue.serverTimestamp()) : FieldValue.serverTimestamp(),
+      createdAt: existingDoc.exists ? (existingData?.createdAt ?? Date.now()) : Date.now(),
+      updatedAt: Date.now(),
+    });
+
+    // ✅ Email seller: application received
+    if (shouldSendEmail) {
+      try {
+        await sendSellerApplicationReceivedEmail(email, {
+          businessName: body.businessName,
+          contactName: body.contactName,
+          phone: body.phone,
+          website: body.website,
+          social: body.social,
+          inventory: body.inventory,
+          experience: body.experience,
+        });
+      } catch (e) {
+        console.error("[APPLY] seller confirmation email failed", e);
+      }
+    } else {
+      console.log(`[APPLY] seller ${email} already ${existingData?.status} — skipping confirmation email`);
+    }
+
+    // ✅ Email admin: new application (if set)
+    if (shouldSendEmail) {
+      const adminEmail = String(process.env.ADMIN_EMAIL || "").trim();
+      if (adminEmail && adminEmail.includes("@")) {
+        try {
+          await sendAdminNewSellerApplicationEmail(adminEmail, email);
+        } catch (e) {
+          console.error("[APPLY] admin notification email failed", e);
+        }
+      }
+    }
+
+    return res.status(200).json({ ok: true });
+  } catch (e: any) {
+    console.error("seller/apply error", e);
+    return res.status(500).json({ ok: false, error: e?.message || "Server error" });
   }
 }

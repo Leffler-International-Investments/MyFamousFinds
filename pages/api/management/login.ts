@@ -18,22 +18,60 @@ function parseAllowList(raw: string | undefined) {
   );
 }
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse<Resp>) {
+type AdminCred = { email: string; password: string };
+
+function getAdminCredentials(): AdminCred[] {
+  const out: AdminCred[] = [];
+
+  // ✅ Primary single-admin pair (what you added in Vercel)
+  const adminEmail = String(process.env.ADMIN_EMAIL || "").trim().toLowerCase();
+  const adminPassword = String(process.env.ADMIN_PASSWORD || "");
+  if (adminEmail && adminPassword) {
+    out.push({ email: adminEmail, password: adminPassword });
+  }
+
+  // ✅ Optional legacy support (if you keep them)
+  const legacyAriel = String(process.env.MANAGEMENT_ARIEL_PASSWORD || "");
+  if (legacyAriel) out.push({ email: "arich1114@aol.com", password: legacyAriel });
+
+  const legacyDan = String(process.env.MANAGEMENT_DAN_PASSWORD || "");
+  if (legacyDan) out.push({ email: "leffleryd@gmail.com", password: legacyDan });
+
+  return out;
+}
+
+export default async function handler(
+  req: NextApiRequest,
+  res: NextApiResponse<Resp>
+) {
   if (req.method !== "POST") {
-    return res.status(405).json({ ok: false, code: "bad_credentials", message: "Method not allowed." });
+    return res
+      .status(405)
+      .json({ ok: false, code: "bad_credentials", message: "Method not allowed." });
   }
 
   const email = String(req.body?.email || "").trim().toLowerCase();
-  if (!email) {
-    return res.status(400).json({ ok: false, code: "bad_credentials", message: "Email is required." });
+  const password = String(req.body?.password || "");
+
+  if (!email || !password) {
+    return res.status(400).json({
+      ok: false,
+      code: "bad_credentials",
+      message: "Email and password are required.",
+    });
   }
 
+  // ✅ Allow-list can come from MANAGEMENT_SUPER_EMAILS OR fallback to ADMIN_EMAIL
   const allow = parseAllowList(process.env.MANAGEMENT_SUPER_EMAILS);
+  const fallbackAdminEmail = String(process.env.ADMIN_EMAIL || "").trim().toLowerCase();
+  if (fallbackAdminEmail) allow.add(fallbackAdminEmail);
+
   if (!allow.size) {
     return res.status(500).json({
       ok: false,
       code: "server_not_configured",
-      message: "Missing MANAGEMENT_SUPER_EMAILS env var in Vercel.",
+      message:
+        "Missing management allow-list. Set ADMIN_EMAIL (recommended) or MANAGEMENT_SUPER_EMAILS in Vercel.",
     });
   }
 
@@ -42,6 +80,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
       ok: false,
       code: "not_authorised",
       message: "This email is not authorised for management access.",
+    });
+  }
+
+  const creds = getAdminCredentials();
+  const match = creds.find((c) => c.email === email);
+
+  if (!match || match.password !== password) {
+    return res.status(401).json({
+      ok: false,
+      code: "bad_credentials",
+      message: "Incorrect email or password.",
     });
   }
 

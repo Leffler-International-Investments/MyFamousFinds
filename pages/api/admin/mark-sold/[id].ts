@@ -3,32 +3,31 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { adminDb } from "../../../../utils/firebaseAdmin";
 import { FieldValue } from "firebase-admin/firestore";
+import { requireAdmin } from "../../../../utils/adminAuth";
 
-type ApiResponse =
-  | { ok: true }
-  | { ok: false; error: string };
+type ApiResponse = { ok: true } | { ok: false; error: string };
 
-export default async function handler(
-  req: NextApiRequest,
-  res: NextApiResponse<ApiResponse>
-) {
+export default async function handler(req: NextApiRequest, res: NextApiResponse<ApiResponse>) {
   if (req.method !== "POST") {
     res.setHeader("Allow", ["POST"]);
-    return res
-      .status(405)
-      .json({ ok: false, error: "Method not allowed" });
+    return res.status(405).json({ ok: false, error: "Method not allowed" });
+  }
+
+  if (!adminDb) {
+    return res.status(500).json({ ok: false, error: "Firebase not configured" });
+  }
+
+  if (!requireAdmin(req, res)) {
+    return;
   }
 
   try {
     const { id: queryId } = req.query;
     const { id: bodyId } = req.body || {};
-
     const id = (queryId || bodyId) as string | string[] | undefined;
 
     if (!id) {
-      return res
-        .status(400)
-        .json({ ok: false, error: "Missing listing ID" });
+      return res.status(400).json({ ok: false, error: "Missing listing ID" });
     }
 
     const listingId = Array.isArray(id) ? id[0] : id;
@@ -37,9 +36,7 @@ export default async function handler(
     const snap = await docRef.get();
 
     if (!snap.exists) {
-      return res
-        .status(404)
-        .json({ ok: false, error: "Listing not found" });
+      return res.status(404).json({ ok: false, error: "Listing not found" });
     }
 
     await docRef.set(
@@ -54,9 +51,6 @@ export default async function handler(
     return res.status(200).json({ ok: true });
   } catch (err: any) {
     console.error("admin mark-sold error:", err);
-    return res.status(500).json({
-      ok: false,
-      error: err?.message || "Internal error",
-    });
+    return res.status(500).json({ ok: false, error: err?.message || "Internal error" });
   }
 }

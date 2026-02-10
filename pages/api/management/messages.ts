@@ -13,8 +13,6 @@ type MessageType =
   | "brand" 
   | "luxury";
 
-const collectionRef = adminDb.collection("buyer_messages");
-
 type ApiResponse =
   | { ok: true; id?: string }
   | { ok: false; error: string };
@@ -23,6 +21,12 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse<ApiResponse>
 ) {
+  if (!adminDb) {
+    return res.status(500).json({ ok: false, error: "Firebase not configured" });
+  }
+
+  const collectionRef = adminDb.collection("buyer_messages");
+
   try {
     const { method } = req;
 

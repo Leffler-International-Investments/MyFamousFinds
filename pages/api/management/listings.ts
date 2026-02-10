@@ -1,6 +1,7 @@
 // FILE: /pages/api/management/listings.ts
 import type { NextApiRequest, NextApiResponse } from "next";
 import { adminDb, isFirebaseAdminReady } from "../../../utils/firebaseAdmin";
+import { requireAdmin } from "../../../utils/adminAuth";
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   try {
@@ -11,14 +12,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       });
     }
 
-    // Grab recent-ish listings (adjust as needed)
-    // If some docs don't have createdAt, this orderBy can fail.
-    // We keep it because it's the cleanest; if you have missing createdAt, tell me and I'll switch to a safe fallback.
-    const snap = await adminDb
-      .collection("listings")
-      .orderBy("createdAt", "desc")
-      .limit(200)
-      .get();
+    if (!requireAdmin(req, res)) {
+      return;
+    }
+
+    const snap = await adminDb.collection("listings").orderBy("createdAt", "desc").limit(200).get();
 
     const rows = snap.docs.map((d) => {
       const x: any = d.data() || {};

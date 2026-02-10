@@ -1,6 +1,6 @@
 // FILE: /components/ListingFilters.tsx
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 
 type SortValue = "newest" | "price-asc" | "price-desc";
 
@@ -72,14 +72,22 @@ export default function ListingFilters(props: Props) {
     showApplyButton = false,
   } = props;
 
-  const hasMaterials = useMemo(() => materialOptions.length > 0, [materialOptions]);
+  // ✅ State to toggle manual typing for materials (Fixes mobile dropdown issue)
+  const [isCustomMaterial, setIsCustomMaterial] = useState(false);
 
   return (
     <>
       <aside className="filters">
         <div className="filter-header">
           <h2>Filters</h2>
-          <button type="button" className="link-btn" onClick={onReset}>
+          <button 
+            type="button" 
+            className="link-btn" 
+            onClick={() => {
+              setIsCustomMaterial(false);
+              onReset();
+            }}
+          >
             {showApplyButton ? "Clear All" : "Reset"}
           </button>
         </div>
@@ -151,20 +159,37 @@ export default function ListingFilters(props: Props) {
           <details className="filter-block" open>
             <summary>Material</summary>
             <div className="filter-body">
-              <input
-                className="text-input"
-                list={hasMaterials ? "materials-list" : undefined}
-                placeholder="Select or type material..."
-                value={material}
-                onChange={(e) => setMaterial(e.target.value)}
-              />
-              {hasMaterials ? (
-                <datalist id="materials-list">
-                  {materialOptions.map((m) => (
-                    <option key={m} value={m} />
-                  ))}
-                </datalist>
-              ) : null}
+              {/* ✅ Standard Select ensures dropdown works on Mobile */}
+              <select
+                className="select"
+                value={isCustomMaterial ? "__custom" : material}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  if (val === "__custom") {
+                    setIsCustomMaterial(true);
+                    setMaterial("");
+                  } else {
+                    setIsCustomMaterial(false);
+                    setMaterial(val);
+                  }
+                }}
+              >
+                <option value="">Any</option>
+                {materialOptions.map((m) => (
+                  <option key={m} value={m}>{m}</option>
+                ))}
+                <option value="__custom">Other (Type manually...)</option>
+              </select>
+
+              {isCustomMaterial && (
+                <input
+                  className="text-input"
+                  style={{ marginTop: '10px' }}
+                  placeholder="Enter material..."
+                  value={material}
+                  onChange={(e) => setMaterial(e.target.value)}
+                />
+              )}
             </div>
           </details>
 
@@ -261,7 +286,6 @@ export default function ListingFilters(props: Props) {
           padding: 16px;
           background: #fff;
         }
-
         .filter-header {
           display: flex;
           align-items: center;
@@ -270,12 +294,10 @@ export default function ListingFilters(props: Props) {
           border-bottom: 1px solid #eef2f7;
           margin-bottom: 10px;
         }
-
         .filter-header h2 {
           font-size: 16px;
           margin: 0;
         }
-
         .link-btn {
           border: 0;
           background: transparent;
@@ -284,30 +306,25 @@ export default function ListingFilters(props: Props) {
           text-decoration: underline;
           cursor: pointer;
         }
-
         .filter-body-stack {
           display: grid;
           gap: 10px;
         }
-
         .sort-row {
           display: grid;
           gap: 6px;
         }
-
         .sort-label {
           display: grid;
           gap: 6px;
           font-size: 12px;
           color: #111827;
         }
-
         .filter-block {
           border: 1px solid #eef2f7;
           border-radius: 12px;
           padding: 10px 12px;
         }
-
         summary {
           cursor: pointer;
           font-weight: 600;
@@ -315,15 +332,12 @@ export default function ListingFilters(props: Props) {
           color: #111827;
           list-style: none;
         }
-
         summary::-webkit-details-marker {
           display: none;
         }
-
         .filter-body {
           margin-top: 10px;
         }
-
         .text-input,
         .select {
           width: 100%;
@@ -332,21 +346,19 @@ export default function ListingFilters(props: Props) {
           padding: 10px 12px;
           font-size: 14px;
           outline: none;
+          background: #fff;
         }
-
         .price-row {
           display: grid;
           grid-template-columns: 1fr 1fr;
           gap: 10px;
         }
-
         .price-input span {
           display: block;
           font-size: 12px;
           color: #6b7280;
           margin-bottom: 6px;
         }
-
         .price-input input {
           width: 100%;
           border: 1px solid #e5e7eb;
@@ -355,7 +367,6 @@ export default function ListingFilters(props: Props) {
           font-size: 14px;
           outline: none;
         }
-
         .apply-btn {
           margin-top: 10px;
           width: 100%;

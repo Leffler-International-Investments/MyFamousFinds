@@ -14,6 +14,10 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse<Ok | Err>
 ) {
+  if (!adminDb) {
+    return res.status(500).json({ ok: false, error: "Firebase not configured" });
+  }
+
   try {
     if (req.method !== "POST") {
       res.status(405).json({ ok: false, error: "Method not allowed" });
@@ -36,6 +40,7 @@ export default async function handler(
       price,
       serial_number,
       image_url,
+      display_image_url,
       purchase_proof,
       details,
       // optional: auth token from client (if you gate submissions)
@@ -49,7 +54,7 @@ export default async function handler(
 
     // (Optional) verify user if token provided
     let uid: string | null = null;
-    if (idToken) {
+    if (idToken && adminAuth) {
       try {
         const decoded = await adminAuth.verifyIdToken(idToken);
         uid = decoded.uid;
@@ -79,6 +84,7 @@ export default async function handler(
         price: price ? Number(price) : null,
         serial_number: serial_number || null,
         image_url: image_url || null,
+        displayImageUrl: display_image_url || null,
         purchase_proof: purchase_proof || null,
         details: details || null,
       },

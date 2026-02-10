@@ -7,10 +7,8 @@ import { useMemo, useState } from "react";
 
 import Header from "../components/Header";
 import Footer from "../components/Footer";
-import DemoGrid from "../components/DemoGrid";
 import HomepageButler from "../components/HomepageButler";
 import ProductCard, { ProductLike } from "../components/ProductCard";
-import ListingFilters from "../components/ListingFilters";
 import { adminDb } from "../utils/firebaseAdmin";
 
 // --------------------------------------------------
@@ -33,30 +31,40 @@ type HomeProps = {
   trending: ProductLike[];
   newArrivals: ProductLike[];
   activeMessages: BuyerMessage[];
+  designerOptions: string[];
 };
 
-const CATEGORY_OPTIONS = ["Women", "Bags", "Men", "Jewelry", "Watches"];
-const CONDITION_OPTIONS = ["New", "Excellent", "Very good", "Good"];
+const CATEGORY_OPTIONS = ["Women", "Men", "Bags", "Shoes", "Accessories", "Jewelry", "Watches"];
+
+const CONDITION_OPTIONS = ["New with tags", "New (never used)", "Excellent", "Very good", "Good", "Fair"];
+
 const MATERIAL_OPTIONS = [
   "Leather",
+  "Exotic Leather",
   "Silk",
   "Cashmere",
   "Wool",
   "Linen",
   "Cotton",
+  "Cotton Blend",
   "Denim",
+  "Velvet",
   "Suede",
   "Canvas",
-  "Nylon",
+  "Metal",
   "Gold",
   "Silver",
-  "Stainless Steel",
-  "Diamonds",
-  "Pearls",
+  "Plated Metal",
+  "Ceramic",
+  "Crystal",
+  "Resin",
+  "Synthetic",
+  "Other",
 ];
 
-function normalize(v: any): string {
-  return String(v || "").trim().toLowerCase();
+function normalize(raw: any): string {
+  if (!raw) return "";
+  return String(raw).toString().trim().toLowerCase();
 }
 
 function parseNum(v: any): number {
@@ -65,37 +73,55 @@ function parseNum(v: any): number {
   return Number.isFinite(n) ? n : 0;
 }
 
-const HomePage: NextPage<HomeProps> = ({ trending, newArrivals, activeMessages }) => {
-  // Shared filter state
+function safeUrl(u?: string) {
+  const s = String(u || "").trim();
+  if (!s) return "";
+  // allow relative internal links OR absolute links
+  if (s.startsWith("/")) return s;
+  if (s.startsWith("http://") || s.startsWith("https://")) return s;
+  return "";
+}
+
+function isMp4(u?: string) {
+  const s = String(u || "").trim().toLowerCase();
+  return s.endsWith(".mp4");
+}
+
+const HomePage: NextPage<HomeProps> = ({
+  trending,
+  newArrivals,
+  activeMessages,
+  designerOptions: serverDesignerOptions,
+}) => {
+  // Same filter UX as /pages/designers/index.tsx
   const [titleQuery, setTitleQuery] = useState("");
   const [category, setCategory] = useState("");
   const [designer, setDesigner] = useState("");
-  const [material, setMaterial] = useState("");
   const [condition, setCondition] = useState("");
+  const [material, setMaterial] = useState("");
   const [size, setSize] = useState("");
   const [color, setColor] = useState("");
   const [minPrice, setMinPrice] = useState<number | "">(0);
-  const [maxPrice, setMaxPrice] = useState<number | "">(1000000);
+  const [maxPrice, setMaxPrice] = useState<number | "">(100000);
   const [sortBy, setSortBy] = useState<"newest" | "price-asc" | "price-desc">("newest");
 
   const resetFilters = () => {
     setTitleQuery("");
     setCategory("");
     setDesigner("");
-    setMaterial("");
     setCondition("");
+    setMaterial("");
     setSize("");
     setColor("");
     setMinPrice(0);
-    setMaxPrice(1000000);
+    setMaxPrice(100000);
     setSortBy("newest");
   };
 
-  // Catalogue preview items
-  const previewItems = useMemo(() => {
+  // Combined pool (newArrivals + trending) used for homepage browsing
+  const poolItems = useMemo(() => {
     const combined = [...(newArrivals || []), ...(trending || [])];
 
-    // de-dupe by id
     const seen = new Set<string>();
     const uniq: any[] = [];
     for (const p of combined) {
@@ -104,18 +130,20 @@ const HomePage: NextPage<HomeProps> = ({ trending, newArrivals, activeMessages }
       seen.add(id);
       uniq.push(p);
     }
-    return uniq.slice(0, 60);
+    return uniq.slice(0, 120);
   }, [newArrivals, trending]);
 
   const designerOptions = useMemo(() => {
-    const fromItems = Array.from(
-      new Set(previewItems.map((x: any) => String(x.brand || "").trim()).filter(Boolean))
-    ).sort((a, b) => a.localeCompare(b));
-    return fromItems;
-  }, [previewItems]);
+    if (Array.isArray(serverDesignerOptions) && serverDesignerOptions.length > 0) {
+      return serverDesignerOptions;
+    }
+    return Array.from(new Set(poolItems.map((x: any) => String(x.brand || "").trim()).filter(Boolean))).sort(
+      (a, b) => a.localeCompare(b)
+    );
+  }, [poolItems, serverDesignerOptions]);
 
-  const filteredPreview = useMemo(() => {
-    let result = [...(previewItems as any[])];
+  const filteredItems = useMemo(() => {
+    let result = [...(poolItems as any[])];
 
     const tq = normalize(titleQuery);
     const cat = normalize(category);
@@ -126,8 +154,8 @@ const HomePage: NextPage<HomeProps> = ({ trending, newArrivals, activeMessages }
     const col = normalize(color);
 
     if (tq) result = result.filter((x) => normalize(x.title).includes(tq));
-    if (cat) result = result.filter((x) => normalize(x.category) === cat);
-    if (des) result = result.filter((x) => normalize(x.brand) === des);
+    if (cat) result = result.filter((x) => normalize(x.category).includes(cat));
+    if (des) result = result.filter((x) => normalize(x.brand).includes(des));
     if (cond) result = result.filter((x) => normalize(x.condition) === cond);
 
     if (mat) result = result.filter((x: any) => normalize(x.material).includes(mat));
@@ -145,21 +173,14 @@ const HomePage: NextPage<HomeProps> = ({ trending, newArrivals, activeMessages }
       result.sort((a: any, b: any) => parseNum(a.priceValue ?? a.price) - parseNum(b.priceValue ?? b.price));
     if (sortBy === "price-desc")
       result.sort((a: any, b: any) => parseNum(b.priceValue ?? b.price) - parseNum(a.priceValue ?? a.price));
+    if (sortBy === "newest") result.sort((a: any, b: any) => (b.createdAt || 0) - (a.createdAt || 0));
 
-    return result.slice(0, 12);
-  }, [
-    previewItems,
-    titleQuery,
-    category,
-    designer,
-    material,
-    condition,
-    size,
-    color,
-    minPrice,
-    maxPrice,
-    sortBy,
-  ]);
+    return result.slice(0, 24);
+  }, [poolItems, titleQuery, category, designer, condition, material, size, color, minPrice, maxPrice, sortBy]);
+
+  const topMessages = useMemo(() => {
+    return Array.isArray(activeMessages) ? activeMessages.filter((m) => m && m.text && m.text.trim()).slice(0, 2) : [];
+  }, [activeMessages]);
 
   return (
     <div className="home-wrapper">
@@ -174,129 +195,216 @@ const HomePage: NextPage<HomeProps> = ({ trending, newArrivals, activeMessages }
       <Header />
 
       <main className="wrap">
-        {/* HERO + SNAPSHOT */}
+        {/* ✅ MESSAGE BOARD (RESTORED) */}
+        {topMessages.length > 0 && (
+          <section className="msgBoard">
+            {topMessages.map((m) => {
+              const link = safeUrl(m.linkUrl);
+              const img = safeUrl(m.imageUrl);
+              const vid = safeUrl(m.videoUrl);
+
+              return (
+                <div key={m.id} className={`msgCard msg-${m.type || "info"}`}>
+                  <div className="msgTop">
+                    <span className={`msgBadge badge-${m.type || "info"}`}>
+                      {(m.type || "info").toUpperCase()}
+                    </span>
+                    <div className="msgText">{m.text}</div>
+                  </div>
+
+                  {(link || img || vid) && (
+                    <div className="msgExtras">
+                      {link && (
+                        <div className="msgLinkWrap">
+                          <Link href={link} className="msgLink">
+                            {m.linkText?.trim() ? m.linkText : "View more"}
+                          </Link>
+                        </div>
+                      )}
+
+                      {img && (
+                        <div className="msgMedia">
+                          <img className="msgImg" src={img} alt="Announcement" />
+                        </div>
+                      )}
+
+                      {vid && (
+                        <div className="msgMedia">
+                          {isMp4(vid) ? (
+                            <video className="msgVid" controls>
+                              <source src={vid} />
+                            </video>
+                          ) : (
+                            <a className="msgVideoLink" href={vid} target="_blank" rel="noreferrer">
+                              Watch video
+                            </a>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </section>
+        )}
+
+        {/* HERO */}
         <section className="hero">
           <div className="hero-copy">
             <p className="eyebrow">Curated pre-loved luxury</p>
             <h1>Discover, save &amp; shop authenticated designer pieces.</h1>
             <p className="hero-sub">
-              Browse a hand-picked selection of bags, jewelry, watches and
-              ready-to-wear from trusted sellers. Every piece is vetted so you
-              can shop with confidence.
+              Browse a hand-picked selection of bags, jewelry, watches and ready-to-wear from trusted sellers. Every
+              piece is vetted so you can shop with confidence.
             </p>
-
-            <div className="hero-actions">
-              <Link href="/category/new-arrivals" className="btn-primary">
-                Browse New Arrivals
-              </Link>
-              <Link href="/designers" className="btn-secondary">
-                View Trending Pieces
-              </Link>
-            </div>
           </div>
-
-          {/* SNAPSHOT CARD */}
-          <aside className="snapshot-card">
-            <h2>Your Famous Finds Snapshot</h2>
-            <p className="snapshot-view">Guest view</p>
-            <div className="snapshot-row">
-              <span>Saved Items</span>
-              <span>0</span>
-            </div>
-            <div className="snapshot-row">
-              <span>Recently Viewed</span>
-              <span>0</span>
-            </div>
-            <div className="snapshot-row">
-              <span>Active Offers</span>
-              <span>0</span>
-            </div>
-
-            <Link
-              href="/buyer/dashboard"
-              className="block w-full bg-slate-900 text-white rounded-full py-3 text-center text-sm font-medium"
-            >
-              Sign in to view your dashboard
-            </Link>
-
-            <Link
-              href="/buyer/signup"
-              className="block w-full border border-gray-300 text-gray-700 rounded-full py-3 mt-3 text-center text-sm font-medium"
-            >
-              Create a free buyer account
-            </Link>
-          </aside>
         </section>
 
-        {/* NEW ARRIVALS GRID */}
+        {/* FILTER + RESULTS (LEFT SIDEBAR ALWAYS ON HOMEPAGE) */}
         <section className="home-section">
-          <DemoGrid
-            title="New Arrivals"
-            subtitle="Just in – freshly listed pieces from our vetted sellers."
-            products={newArrivals}
-          />
-        </section>
+          <div className="layout">
+            <aside className="filters">
+              <div className="filters-header">
+                <h2>Filters</h2>
+                <button type="button" onClick={resetFilters}>
+                  Clear All
+                </button>
+              </div>
 
-        {/* TRENDING GRID */}
-        <section className="home-section">
-          <DemoGrid
-            title="Trending Now"
-            subtitle="Most-viewed and most-saved listings this week."
-            products={trending}
-          />
-        </section>
+              <details className="filter-block" open>
+                <summary>Title</summary>
+                <div className="filter-body">
+                  <input
+                    className="text-input"
+                    placeholder="Search title..."
+                    value={titleQuery}
+                    onChange={(e) => setTitleQuery(e.target.value)}
+                  />
+                </div>
+              </details>
 
-        {/* Catalogue Preview */}
-        <section className="home-section">
-          <div className="preview-head">
-            <div>
-              <h2 className="preview-title">Catalogue Preview</h2>
-              <p className="preview-sub">Use the same filters you see on the Designers page.</p>
-            </div>
-            <Link className="preview-link" href="/category/new-arrivals">
-              Open full catalogue
-            </Link>
-          </div>
+              <details className="filter-block">
+                <summary>Category</summary>
+                <div className="filter-body">
+                  <select className="select" value={category} onChange={(e) => setCategory(e.target.value)}>
+                    <option value="">All</option>
+                    {CATEGORY_OPTIONS.map((o) => (
+                      <option key={o} value={o}>
+                        {o}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </details>
 
-          <div className="preview-grid">
-            <ListingFilters
-              titleQuery={titleQuery}
-              category={category}
-              designer={designer}
-              material={material}
-              condition={condition}
-              size={size}
-              color={color}
-              minPrice={minPrice}
-              maxPrice={maxPrice}
-              sortBy={sortBy}
-              setTitleQuery={setTitleQuery}
-              setCategory={setCategory}
-              setDesigner={setDesigner}
-              setMaterial={setMaterial}
-              setCondition={setCondition}
-              setSize={setSize}
-              setColor={setColor}
-              setMinPrice={setMinPrice}
-              setMaxPrice={setMaxPrice}
-              setSortBy={setSortBy}
-              categoryOptions={CATEGORY_OPTIONS}
-              designerOptions={designerOptions}
-              conditionOptions={CONDITION_OPTIONS}
-              materialOptions={MATERIAL_OPTIONS}
-              onReset={resetFilters}
-              showApplyButton={false}
-            />
+              <details className="filter-block">
+                <summary>Designer</summary>
+                <div className="filter-body">
+                  <select className="select" value={designer} onChange={(e) => setDesigner(e.target.value)}>
+                    <option value="">All</option>
+                    {designerOptions.map((o) => (
+                      <option key={o} value={o}>
+                        {o}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </details>
 
-            <div className="preview-cards">
-              {filteredPreview.length === 0 ? (
+              <details className="filter-block">
+                <summary>Condition</summary>
+                <div className="filter-body">
+                  <select className="select" value={condition} onChange={(e) => setCondition(e.target.value)}>
+                    <option value="">All</option>
+                    {CONDITION_OPTIONS.map((o) => (
+                      <option key={o} value={o}>
+                        {o}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </details>
+
+              <details className="filter-block">
+                <summary>Material</summary>
+                <div className="filter-body">
+                  <select className="select" value={material} onChange={(e) => setMaterial(e.target.value)}>
+                    <option value="">All</option>
+                    {MATERIAL_OPTIONS.map((o) => (
+                      <option key={o} value={o}>
+                        {o}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </details>
+
+              <details className="filter-block">
+                <summary>Size</summary>
+                <div className="filter-body">
+                  <input className="text-input" value={size} onChange={(e) => setSize(e.target.value)} placeholder="e.g. medium" />
+                </div>
+              </details>
+
+              <details className="filter-block">
+                <summary>Color</summary>
+                <div className="filter-body">
+                  <input className="text-input" value={color} onChange={(e) => setColor(e.target.value)} placeholder="e.g. black" />
+                </div>
+              </details>
+
+              <details className="filter-block">
+                <summary>Price (USD)</summary>
+                <div className="filter-body price-row">
+                  <input
+                    className="text-input"
+                    placeholder="Min"
+                    value={minPrice}
+                    onChange={(e) => setMinPrice(e.target.value === "" ? "" : Number(e.target.value))}
+                  />
+                  <input
+                    className="text-input"
+                    placeholder="Max"
+                    value={maxPrice}
+                    onChange={(e) => setMaxPrice(e.target.value === "" ? "" : Number(e.target.value))}
+                  />
+                </div>
+              </details>
+
+              <details className="filter-block">
+                <summary>Sort</summary>
+                <div className="filter-body">
+                  <select className="select" value={sortBy} onChange={(e) => setSortBy(e.target.value as any)}>
+                    <option value="newest">Newest</option>
+                    <option value="price-asc">Price: Low → High</option>
+                    <option value="price-desc">Price: High → Low</option>
+                  </select>
+                </div>
+              </details>
+            </aside>
+
+            <div className="results">
+              <div className="results-head">
+                <h2>Browse Listings</h2>
+                <Link className="results-link" href="/designers">
+                  Open full catalogue
+                </Link>
+              </div>
+
+              {filteredItems.length === 0 ? (
                 <div className="empty-state">
                   <h3>No items match these filters.</h3>
-                  <button className="resetBtn" onClick={resetFilters}>Reset filters</button>
+                  <button className="resetBtn" onClick={resetFilters}>
+                    Reset filters
+                  </button>
                 </div>
               ) : (
-                /* ✅ FIX: Spread product fields as props */
-                filteredPreview.map((p: any) => <ProductCard key={p.id} {...p} />)
+                <div className="cards">
+                  {filteredItems.map((p: any) => (
+                    <ProductCard key={p.id} {...p} />
+                  ))}
+                </div>
               )}
             </div>
           </div>
@@ -315,6 +423,105 @@ const HomePage: NextPage<HomeProps> = ({ trending, newArrivals, activeMessages }
           margin: 0 auto;
           padding: 32px 16px 64px;
         }
+
+        /* ✅ Message Board */
+        .msgBoard {
+          display: grid;
+          gap: 10px;
+          margin-bottom: 18px;
+        }
+        .msgCard {
+          background: #fff;
+          border: 1px solid #e5e7eb;
+          border-radius: 16px;
+          padding: 12px 14px;
+          box-shadow: 0 1px 0 rgba(15, 23, 42, 0.03);
+        }
+        .msgTop {
+          display: flex;
+          gap: 10px;
+          align-items: flex-start;
+        }
+        .msgBadge {
+          font-size: 10px;
+          font-weight: 900;
+          letter-spacing: 0.12em;
+          padding: 5px 8px;
+          border-radius: 999px;
+          line-height: 1;
+          border: 1px solid #e5e7eb;
+          color: #111827;
+          background: #f3f4f6;
+          flex: 0 0 auto;
+        }
+        .badge-info {
+          background: #f3f4f6;
+          border-color: #e5e7eb;
+        }
+        .badge-promo {
+          background: #ecfdf5;
+          border-color: #a7f3d0;
+          color: #065f46;
+        }
+        .badge-alert {
+          background: #fef2f2;
+          border-color: #fecaca;
+          color: #991b1b;
+        }
+        .msgText {
+          font-size: 13px;
+          color: #111827;
+          line-height: 1.45;
+          font-weight: 600;
+          padding-top: 1px;
+        }
+        .msgExtras {
+          margin-top: 10px;
+          display: grid;
+          gap: 10px;
+        }
+        .msgLinkWrap {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+        }
+        .msgLink {
+          font-size: 13px;
+          font-weight: 800;
+          text-decoration: none;
+          color: #0f172a;
+          border: 1px solid #e5e7eb;
+          padding: 8px 12px;
+          border-radius: 999px;
+          background: #fff;
+          display: inline-flex;
+          width: fit-content;
+        }
+        .msgMedia {
+          border: 1px solid #eef2f7;
+          border-radius: 14px;
+          overflow: hidden;
+          background: #fafafa;
+        }
+        .msgImg {
+          display: block;
+          width: 100%;
+          max-height: 260px;
+          object-fit: cover;
+        }
+        .msgVid {
+          display: block;
+          width: 100%;
+          max-height: 320px;
+        }
+        .msgVideoLink {
+          display: block;
+          padding: 12px;
+          font-weight: 800;
+          color: #0f172a;
+          text-decoration: none;
+        }
+
         .hero {
           display: grid;
           grid-template-columns: minmax(0, 3fr) minmax(0, 1fr);
@@ -343,135 +550,155 @@ const HomePage: NextPage<HomeProps> = ({ trending, newArrivals, activeMessages }
           line-height: 1.6;
           max-width: 52ch;
         }
-        .hero-actions {
-          display: flex;
-          gap: 10px;
-          flex-wrap: wrap;
-        }
-        .btn-primary,
-        .btn-secondary {
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-          border-radius: 999px;
-          padding: 12px 16px;
-          font-weight: 700;
-          font-size: 13px;
-          text-decoration: none;
-        }
-        .btn-primary {
-          background: #0f172a;
-          color: #fff;
-          border: 1px solid #0f172a;
-        }
-        .btn-secondary {
-          background: #fff;
-          color: #0f172a;
-          border: 1px solid #cbd5e1;
-        }
-
-        .snapshot-card {
-          background: #fff;
-          border: 1px solid #e5e7eb;
-          border-radius: 18px;
-          padding: 16px;
-        }
-        .snapshot-card h2 {
-          margin: 0 0 6px;
-          font-size: 16px;
-          color: #0f172a;
-        }
-        .snapshot-view {
-          margin: 0 0 12px;
-          color: #6b7280;
-          font-size: 12px;
-        }
-        .snapshot-row {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          padding: 8px 0;
-          border-bottom: 1px solid #eef2f7;
-          font-size: 13px;
-          color: #111827;
-        }
-        .snapshot-row:last-of-type {
-          border-bottom: 0;
-        }
 
         .home-section {
-          margin-top: 18px;
+          margin-top: 22px;
         }
 
-        .preview-head {
-          display: flex;
-          align-items: flex-end;
-          justify-content: space-between;
-          gap: 12px;
-          margin: 10px 0 12px;
-        }
-        .preview-title {
-          margin: 0;
-          font-size: 20px;
-          color: #0f172a;
-        }
-        .preview-sub {
-          margin: 6px 0 0;
-          font-size: 13px;
-          color: #6b7280;
-        }
-        .preview-link {
-          font-size: 13px;
-          text-decoration: underline;
-          color: #0f172a;
-        }
-
-        .preview-grid {
+        /* Designers-style filter sidebar */
+        .layout {
           display: grid;
           grid-template-columns: 320px minmax(0, 1fr);
           gap: 18px;
           align-items: start;
         }
+        .filters {
+          background: #fff;
+          border: 1px solid #e5e7eb;
+          border-radius: 16px;
+          padding: 14px;
+          position: sticky;
+          top: 16px;
+        }
+        .filters-header {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 10px;
+          margin-bottom: 10px;
+        }
+        .filters-header h2 {
+          margin: 0;
+          font-size: 14px;
+          color: #0f172a;
+          letter-spacing: 0.02em;
+          text-transform: uppercase;
+        }
+        .filters-header button {
+          border: 0;
+          background: transparent;
+          color: #0f172a;
+          font-weight: 700;
+          font-size: 12px;
+          cursor: pointer;
+        }
+        .filter-block {
+          border-top: 1px solid #eef2f7;
+          padding-top: 10px;
+          margin-top: 10px;
+        }
+        .filter-block summary {
+          cursor: pointer;
+          font-weight: 700;
+          font-size: 13px;
+          color: #111827;
+          list-style: none;
+        }
+        .filter-block summary::-webkit-details-marker {
+          display: none;
+        }
+        .filter-body {
+          margin-top: 8px;
+        }
+        .text-input,
+        .select {
+          width: 100%;
+          border: 1px solid #e5e7eb;
+          border-radius: 12px;
+          padding: 10px 12px;
+          font-size: 13px;
+          outline: none;
+          background: #fff;
+        }
+        .price-row {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 10px;
+        }
 
-        .preview-cards {
+        .results {
+          background: #fff;
+          border: 1px solid #e5e7eb;
+          border-radius: 16px;
+          padding: 14px;
+        }
+        .results-head {
+          display: flex;
+          align-items: baseline;
+          justify-content: space-between;
+          gap: 10px;
+          padding-bottom: 10px;
+          border-bottom: 1px solid #eef2f7;
+          margin-bottom: 12px;
+        }
+        .results-head h2 {
+          margin: 0;
+          font-size: 18px;
+          color: #0f172a;
+        }
+        .results-link {
+          font-size: 13px;
+          text-decoration: none;
+          color: #0f172a;
+          font-weight: 700;
+        }
+
+        .cards {
           display: grid;
           grid-template-columns: repeat(3, minmax(0, 1fr));
-          gap: 16px;
+          gap: 12px;
         }
-
         .empty-state {
+          padding: 18px;
           border: 1px dashed #e5e7eb;
-          border-radius: 16px;
-          padding: 22px;
-          background: #fafafa;
+          border-radius: 12px;
+          text-align: center;
+        }
+        .empty-state h3 {
+          margin: 0 0 10px;
+          font-size: 14px;
+          color: #111827;
         }
         .resetBtn {
-          margin-top: 10px;
-          border: 1px solid #111827;
+          border: 1px solid #cbd5e1;
           background: #fff;
+          color: #0f172a;
           border-radius: 999px;
           padding: 10px 14px;
+          font-weight: 700;
           cursor: pointer;
-          font-weight: 600;
         }
 
         @media (max-width: 980px) {
           .hero {
             grid-template-columns: 1fr;
           }
-          .preview-grid {
+          .layout {
             grid-template-columns: 1fr;
           }
-          .preview-cards {
+          .filters {
+            position: relative;
+            top: auto;
+          }
+          .cards {
             grid-template-columns: repeat(2, minmax(0, 1fr));
           }
         }
-
         @media (max-width: 560px) {
           h1 {
             font-size: 34px;
           }
-          .preview-cards {
+          .cards {
             grid-template-columns: 1fr;
           }
         }
@@ -480,20 +707,36 @@ const HomePage: NextPage<HomeProps> = ({ trending, newArrivals, activeMessages }
   );
 };
 
-export default HomePage;
-
 export const getServerSideProps: GetServerSideProps = async () => {
+  // ✅ Prevent runtime 500 if Firebase Admin env vars are missing/misparsed in Vercel
+  if (!adminDb) {
+    return {
+      props: {
+        trending: [],
+        newArrivals: [],
+        activeMessages: [],
+        designerOptions: [],
+      },
+    };
+  }
+
   const listings = await adminDb.collection("listings").limit(200).get();
 
   const pickImage = (d: any): string => {
-    const fromArray =
-      Array.isArray(d.images) ? d.images :
-      Array.isArray(d.imageUrls) ? d.imageUrls :
-      Array.isArray(d.photos) ? d.photos :
-      [];
+    const fromArray = Array.isArray(d.displayImageUrls)
+      ? d.displayImageUrls
+      : Array.isArray(d.images)
+      ? d.images
+      : Array.isArray(d.imageUrls)
+      ? d.imageUrls
+      : Array.isArray(d.photos)
+      ? d.photos
+      : [];
     if (Array.isArray(fromArray) && fromArray[0]) return String(fromArray[0]);
 
     return (
+      d.displayImageUrl ||
+      d.display_image_url ||
       d.image_url ||
       d.imageUrl ||
       d.image ||
@@ -517,6 +760,9 @@ export const getServerSideProps: GetServerSideProps = async () => {
       href: `/product/${doc.id}`,
       category: data.category || data.categoryLabel || data.menuCategory || "",
       condition: data.condition || "",
+      material: data.material || "",
+      size: data.size || "",
+      color: data.color || "",
       createdAt: data.createdAt?.toMillis?.() || 0,
       viewCount: data.viewCount || 0,
     };
@@ -524,11 +770,7 @@ export const getServerSideProps: GetServerSideProps = async () => {
 
   const newArrivals = items
     .slice()
-    .sort((a: any, b: any) => {
-      const aTime = a.createdAt || 0;
-      const bTime = b.createdAt || 0;
-      return bTime - aTime;
-    })
+    .sort((a: any, b: any) => (b.createdAt || 0) - (a.createdAt || 0))
     .slice(0, 8);
 
   let trending = items
@@ -565,13 +807,33 @@ export const getServerSideProps: GetServerSideProps = async () => {
     console.error("Error fetching messages:", err);
   }
 
+  let designerOptions: string[] = [];
+  try {
+    const ds = await adminDb.collection("designers").get();
+    designerOptions = ds.docs
+      .map((doc) => {
+        const data = doc.data() as any;
+        const name = String(data?.name ?? doc.id).trim();
+        const active = data?.active !== false;
+        return active ? name : "";
+      })
+      .filter(Boolean)
+      .sort((a, b) => a.localeCompare(b));
+  } catch (err) {
+    console.error("Error fetching designers for homepage:", err);
+    designerOptions = Array.from(new Set(items.map((i) => String(i.brand || "").trim()).filter(Boolean))).sort((a, b) =>
+      a.localeCompare(b)
+    );
+  }
+
   return {
     props: {
       trending,
       newArrivals,
       activeMessages,
+      designerOptions,
     },
   };
 };
 
-
+export default HomePage;

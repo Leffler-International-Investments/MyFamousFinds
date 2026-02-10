@@ -6,6 +6,7 @@ import Link from "next/link";
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
 import { db } from "../../utils/firebaseClient";
+import { sellerFetch } from "../../utils/sellerClient";
 import {
   collection,
   getDocs,
@@ -97,6 +98,11 @@ const SOURCES = [
 ];
 
 const PROOFS = ["Receipt", "Bank statement", "Certificate", "Other"];
+
+function getSellerIdHeader(): string {
+  if (typeof window === "undefined") return "";
+  return String(window.localStorage.getItem("ff-seller-id") || "").trim();
+}
 
 export default function BulkSimple() {
   const [items, setItems] = useState<Item[]>([{}]);
@@ -291,7 +297,7 @@ export default function BulkSimple() {
 
     setSubmitting(true);
     try {
-      const res = await fetch("/api/seller/bulk-commit", {
+      const res = await sellerFetch("/api/seller/bulk-commit", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ rows }),

@@ -1,99 +1,182 @@
 // FILE: /pages/api/seller/orders.ts
 
 import type { NextApiRequest, NextApiResponse } from "next";
-// --- IMPORTANT: Make sure this path is correct ---
-import { getSellerId } from "../../../utils/authServer";
 import { adminDb } from "../../../utils/firebaseAdmin";
+import { getSellerId } from "../../../utils/authServer";
 
-type OrderPayload = {
-  id: string;
-  item: string;
-  buyer: string;
-  total: string;
-  status: string;
+type ShippingAddress = {
+  name?: string;
+  line1?: string;
+  line2?: string;
+  city?: string;
+  state?: string;
+  postal_code?: string;
+  country?: string;
+  phone?: string;
 };
 
-type OrdersResponse =
-  | { ok: true; orders: OrderPayload[] }
-  | { ok: false; error: string };
+type OrderItem = {
+  listingId?: string;
+  title?: string;
+  image?: string;
+  price?: number;
+  quantity?: number;
+};
 
-export default async function handler(
-  req: NextApiRequest,
-  res: NextApiResponse<OrdersResponse>
-) {
+type Order = {
+  id: string;
+  createdAt?: string | null;
+  status: string;
+
+  buyerName?: string;
+  buyerEmail?: string;
+
+  shippingAddress?: ShippingAddress | null;
+
+  shipDeadlineAt?: string | null;
+
+  shipping?: {
+    status?: string;
+    carrier?: string;
+    trackingNumber?: string;
+    trackingUrl?: string;
+  } | null;
+
+  fulfillment?: {
+    stage?: string;
+    signatureRequired?: boolean;
+    shippedAt?: string | null;
+    deliveredAt?: string | null;
+  } | null;
+
+  total?: number;
+  currency?: string;
+
+  items?: OrderItem[];
+  listingTitle?: string;
+};
+
+type Data = { ok: true; orders: Order[] } | { ok: false; error: string };
+
+function toIsoMaybe(ts: any): string | null {
   try {
-    // This was our previous fix
-    const sellerId = await getSellerId(req);
+    if (!ts) return null;
+    if (typeof ts === "string") return ts;
+    if (typeof ts?.toDate === "function") return ts.toDate().toISOString();
+    if (ts instanceof Date) return ts.toISOString();
+    const ms = typeof ts === "number" ? ts : Date.parse(String(ts));
+    if (Number.isFinite(ms)) return new Date(ms).toISOString();
+    return null;
+  } catch {
+    return null;
+  }
+}
 
-    if (!sellerId) {
-      return res.status(401).json({
-        ok: false,
-        error: "unauthorized",
-      });
+export default async function handler(req: NextApiRequest, res: NextApiResponse<Data>) {
+  try {
+    if (req.method !== "GET") {
+      res.setHeader("Allow", "GET");
+      return res.status(405).json({ ok: false, error: "method_not_allowed" });
     }
 
-    // Simple query that does NOT require a composite Firestore index
+    const sellerId = await getSellerId(req);
+    if (!sellerId) return res.status(401).json({ ok: false, error: "unauthorized" });
+
+    if (!adminDb) return res.status(500).json({ ok: false, error: "firebase_not_configured" });
+
     const snap = await adminDb
       .collection("orders")
       .where("sellerId", "==", sellerId)
+      .orderBy("createdAt", "desc")
+      .limit(200)
       .get();
 
-    // Map docs to a stable payload shape and sort newest first
-    const docs = snap.docs;
+    const orders: Order[] = snap.docs.map((d) => {
+      const o: any = d.data() || {};
 
-    const orders: OrderPayload[] = docs
-      .map((doc) => {
-        const data: any = doc.data() || {};
+      const buyerName =
+        o.buyerName ||
+        o.buyer?.name ||
+        o.customerName ||
+        o.customer_details?.name ||
+        o.customer_details?.name ||
+        "";
 
-        const title: string =
-          data.title ||
-          data.itemTitle ||
-          data.listingTitle ||
-          "Unknown item";
+      const buyerEmail =
+        o.buyerEmail || o.buyer?.email || o.customerEmail || o.customer_details?.email || "";
 
-        const buyer: string =
-          data.buyerName ||
-          data.buyerEmail ||
-          data.buyerId ||
-          "Private buyer";
+      const shippingDetails = o.shipping_details || o.shippingDetails || null;
 
-        const rawTotal =
-          data.total !== undefined && data.total !== null
-            ? Number(data.total)
-            : data.price !== undefined && data.price !== null
-            ? Number(data.price)
-            : 0;
+      const shippingAddress: ShippingAddress | null =
+        o.shippingAddress ||
+        o.shipping ||
+        o.shipping?.address ||
+        shippingDetails?.address ||
+        o.customer_details?.address ||
+        null;
 
-        const status: string =
-          data.status ||
-          data.orderStatus ||
-          "Pending";
+      const shipDeadlineAt =
+        toIsoMaybe(o.shipDeadlineAt) || toIsoMaybe(o.fulfillment?.shipDeadlineAt) || null;
 
-        return {
-          id: doc.id,
-          item: title,
-          buyer,
-          total: `$${rawTotal.toFixed(2)}`, // Always USD
-          status,
-        };
-      })
-      .sort((a, b) => {
-        const aDoc = docs.find((d) => d.id === a.id);
-        const bDoc = docs.find((d) => d.id === b.id);
-        const aCreated =
-          (aDoc?.data() as any)?.createdAt?.toDate?.()?.getTime?.() || 0;
-        const bCreated =
-          (bDoc?.data() as any)?.createdAt?.toDate?.()?.getTime?.() || 0;
-        return bCreated - aCreated;
-      });
+      const fulfillment = o.fulfillment
+        ? {
+            stage: o.fulfillment.stage,
+            signatureRequired: o.fulfillment.signatureRequired,
+            shippedAt: toIsoMaybe(o.fulfillment.shippedAt),
+            deliveredAt: toIsoMaybe(o.fulfillment.deliveredAt),
+          }
+        : null;
+
+      const shipping = o.shipping
+        ? {
+            status: o.shipping.status,
+            carrier: o.shipping.carrier,
+            trackingNumber: o.shipping.trackingNumber,
+            trackingUrl: o.shipping.trackingUrl,
+          }
+        : o.tracking
+        ? {
+            status: o.tracking.status,
+            carrier: o.tracking.carrier,
+            trackingNumber: o.tracking.trackingNumber,
+            trackingUrl: o.tracking.trackingUrl,
+          }
+        : null;
+
+      const total =
+        typeof o.total === "number"
+          ? o.total
+          : typeof o.totals?.total === "number"
+          ? o.totals.total
+          : typeof o.amountTotal === "number"
+          ? o.amountTotal
+          : 0;
+
+      const currency = String(o.currency || o.totals?.currency || "USD");
+
+      const listingTitle =
+        o.listingTitle || o.item || (Array.isArray(o.items) ? o.items[0]?.title : "") || "";
+
+      return {
+        id: d.id,
+        createdAt: toIsoMaybe(o.createdAt),
+        status: o.status || "paid",
+        buyerName,
+        buyerEmail,
+        shippingAddress,
+        shipDeadlineAt,
+        shipping,
+        fulfillment,
+        total,
+        currency,
+        items: Array.isArray(o.items) ? o.items : [],
+        listingTitle,
+      };
+    });
 
     return res.status(200).json({ ok: true, orders });
-    
-  } catch (err: any) { // <-- ADDED THE OPENING {
-    console.error("seller_orders_error", err);
-    return res.status(500).json({
-      ok: false,
-      error: err?.message || "server_error",
-    });
-  } // <-- ADDED THE CLOSING }
+  } catch (e: any) {
+    console.error("seller_orders_api_error", e);
+    return res.status(500).json({ ok: false, error: e?.message || "internal_error" });
+  }
 }

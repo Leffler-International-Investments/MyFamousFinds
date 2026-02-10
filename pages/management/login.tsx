@@ -223,7 +223,7 @@ export default function ManagementLoginPage() {
                     onChange={setPassword}
                     name="password"
                     required
-                    showStrength={true}
+                    showStrength={false}
                     placeholder="Enter password"
                   />
 

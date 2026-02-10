@@ -6,6 +6,7 @@ import Footer from "../../components/Footer";
 import { useEffect, useState } from "react";
 // Import security hook
 import { useRequireSeller } from "../../hooks/useRequireSeller";
+import { sellerFetch } from "../../utils/sellerClient";
 
 type Insight = {
   brand: string;
@@ -32,7 +33,7 @@ export default function SellerInsights() {
   const [busy, setBusy] = useState(false);
 
   async function load() {
-    const r = await fetch(`/api/seller/insights`, { cache: "no-store" });
+    const r = await sellerFetch(`/api/seller/insights`, { cache: "no-store" });
     const j = await r.json();
     setInsights(j.items || []);
   }

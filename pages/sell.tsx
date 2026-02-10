@@ -82,7 +82,7 @@ export default function Sell() {
 
   async function uploadImageIfNeeded(
     formData: FormData
-  ): Promise<string | null> {
+  ): Promise<{ imageUrl: string; displayImageUrl: string } | null> {
     const file = formData.get("image_file");
     if (!file || !(file instanceof File) || !file.size) {
       return null;
@@ -90,22 +90,23 @@ export default function Sell() {
 
     setUploadingImage(true);
     try {
-      const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
-      const path = `listing-images/${Date.now()}-${safeName}`;
+      const uploadData = new FormData();
+      uploadData.append("image", file);
 
-      const {
-        getStorage,
-        ref,
-        uploadBytes,
-        getDownloadURL,
-      } = await import("firebase/storage");
-      // Use db as the reference point for the Firebase instance
-      const storage = getStorage();
+      const res = await fetch("/api/seller/upload-with-processing", {
+        method: "POST",
+        body: uploadData,
+      });
 
-      const storageRef = ref(storage, path);
-      const snapshot = await uploadBytes(storageRef, file as File);
-      const url = await getDownloadURL(snapshot.ref);
-      return url;
+      const json = await res.json();
+      if (!res.ok || !json.ok) {
+        throw new Error(json?.error || "Upload failed");
+      }
+
+      return {
+        imageUrl: json.imageUrl,
+        displayImageUrl: json.displayImageUrl,
+      };
     } finally {
       setUploadingImage(false);
     }
@@ -157,9 +158,10 @@ export default function Sell() {
 
     setSubmitting(true);
     try {
-      const imageUrl = await uploadImageIfNeeded(formData);
-      if (imageUrl) {
-        formData.set("image_url", imageUrl);
+      const uploaded = await uploadImageIfNeeded(formData);
+      if (uploaded) {
+        formData.set("image_url", uploaded.imageUrl);
+        formData.set("display_image_url", uploaded.displayImageUrl);
       }
 
       const payload: Record<string, any> = {};
@@ -615,7 +617,7 @@ export default function Sell() {
           border: 1px dashed #d1d5db;
           padding: 12px;
           border-radius: 8px;
-          background: #f9fafb;
+          background: #ffffff;
           font-size: 12px;
           color: #4b5563;
         }

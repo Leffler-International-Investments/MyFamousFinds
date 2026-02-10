@@ -1,134 +1,120 @@
 // FILE: /pages/api/webhooks/stripe.ts
-// --- This is the new file provided in your instructions ---
 import type { NextApiRequest, NextApiResponse } from "next";
 import Stripe from "stripe";
-import { adminDb, FieldValue } from "../../../utils/firebaseAdmin";
-
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: "2025-10-29.clover", // <-- THIS LINE IS THE FIX
-});
-
-const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET!;
+import { adminDb } from "../../../utils/firebaseAdmin";
+import { getStripeClient } from "../../../lib/stripe";
 
 export const config = {
-  api: {
-    bodyParser: false,
-  },
+  api: { bodyParser: false },
 };
 
-async function getRawBody(req: NextApiRequest): Promise<Buffer> {
+async function readBuffer(req: any): Promise<Buffer> {
   const chunks: Uint8Array[] = [];
-  return await new Promise((resolve, reject) => {
-    req.on("data", (chunk) => {
-      chunks.push(typeof chunk === "string" ? Buffer.from(chunk) : chunk);
-    });
-    req.on("end", () => {
-      resolve(Buffer.concat(chunks));
-    });
-    req.on("error", (err) => {
-      reject(err);
-    });
-  });
+  for await (const chunk of req) chunks.push(chunk);
+  return Buffer.concat(chunks);
 }
 
-export default async function handler(
-  req: NextApiRequest,
-  res: NextApiResponse
-) {
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== "POST") {
-    res
-      .status(405)
-      .setHeader("Allow", "POST")
-      .json({ error: "Method not allowed" });
-    return;
+    res.setHeader("Allow", "POST");
+    return res.status(405).end("Method Not Allowed");
+  }
+
+  if (!adminDb) {
+    console.error("[stripe webhook] Firebase not configured");
+    return res.status(500).end();
+  }
+
+  const stripe = await getStripeClient();
+  if (!stripe) {
+    console.error("[stripe webhook] Stripe not configured");
+    return res.status(500).end();
+  }
+
+  const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+  if (!webhookSecret) {
+    console.error("[stripe webhook] STRIPE_WEBHOOK_SECRET missing");
+    return res.status(500).end();
   }
 
   let event: Stripe.Event;
 
   try {
-    const buf = await getRawBody(req);
-    const sig = req.headers["stripe-signature"];
-
-    if (!sig) {
-      return res.status(400).send("Missing Stripe signature header");
-    }
-
+    const buf = await readBuffer(req);
+    const sig = req.headers["stripe-signature"] as string;
     event = stripe.webhooks.constructEvent(buf, sig, webhookSecret);
   } catch (err: any) {
-    console.error("Stripe webhook signature verification failed:", err?.message);
-    return res.status(400).send(`Webhook Error: ${err.message}`);
+    console.error("[stripe webhook] Signature verification failed:", err.message);
+    return res.status(400).end("Invalid signature");
   }
+
+  // ✅ IDEMPOTENCY
+  const eventRef = adminDb.collection("stripe_events").doc(event.id);
+  const alreadyHandled = await eventRef.get();
+  if (alreadyHandled.exists) {
+    return res.status(200).json({ received: true, duplicate: true });
+  }
+
+  await eventRef.set({
+    type: event.type,
+    created: Date.now(),
+  });
 
   try {
-    switch (event.type) {
-      case "checkout.session.completed": {
-        const session = event.data.object as Stripe.Checkout.Session;
-        const listingId = session.metadata?.listingId;
-        const userId = session.metadata?.userId; // VIP member id (optional)
-        const paymentStatus = session.payment_status;
+    if (event.type === "checkout.session.completed") {
+      const session = event.data.object as Stripe.Checkout.Session;
 
-        if (listingId && paymentStatus === "paid") {
-          // A. Mark the listing as sold
-          const listingRef = adminDb.collection("listings").doc(listingId);
-          await listingRef.update({
-            status: "Sold",
-            updatedAt: FieldValue.serverTimestamp(),
-            stripePaymentIntent: session.payment_intent,
-          });
-
-          // B. Award VIP points if we know the member
-          if (userId) {
-            const amountSpent = (session.amount_total || 0) / 100;
-            const pointsToAdd = Math.floor(amountSpent); // 1 point per $1
-            const userRef = adminDb.collection("users").doc(userId);
-            
-            // Check if user document exists before updating
-            const userDoc = await userRef.get();
-            if (userDoc.exists) {
-              await userRef.update({
-                points: FieldValue.increment(pointsToAdd),
-              });
-              console.log(`Awarded ${pointsToAdd} points to user ${userId}`);
-            } else {
-              console.warn(`User ${userId} not found, cannot award points.`);
-            }
-          }
-        }
-        break;
+      const listingId = session.metadata?.listingId;
+      if (!listingId) {
+        console.warn("[stripe webhook] Missing listingId metadata");
+        return res.status(200).json({ received: true });
       }
 
-      case "account.updated": {
-        const account = event.data.object as Stripe.Account;
-        const accountId = account.id;
-        const chargesEnabled = account.charges_enabled;
+      // Load listing to capture sellerId and prevent invalid updates
+      const listingRef = adminDb.collection("listings").doc(String(listingId));
+      const listingSnap = await listingRef.get();
+      const listing: any = listingSnap.exists ? listingSnap.data() : null;
+      const sellerId = String(listing?.sellerId || listing?.sellerEmail || listing?.seller || "");
 
-        // This query confirms Sellers are in the 'users' collection
-        const usersRef = adminDb.collection("users");
-        const q = usersRef.where("stripe_account_id", "==", accountId);
-        const querySnapshot = await q.get();
+      // Prevent duplicate orders (by session id)
+      const existingOrder = await adminDb
+        .collection("orders")
+        .where("stripeSessionId", "==", session.id)
+        .limit(1)
+        .get();
 
-        if (!querySnapshot.empty) {
-          const userDoc = querySnapshot.docs[0];
-          await userDoc.ref.update({
-            stripe_charges_enabled: chargesEnabled,
-            updatedAt: FieldValue.serverTimestamp(),
-          });
-          console.log(
-            `Updated user ${userDoc.id} with charges_enabled=${chargesEnabled}`
-          );
-        } else {
-          console.warn(`No user found with Stripe account ${accountId}`);
-        }
-        break;
+      // Stripe type definitions can differ by version; safely read shipping details.
+      const shippingDetails = (session as any)?.shipping_details;
+      const shippingAddress = shippingDetails?.address || session.customer_details?.address || null;
+
+      if (existingOrder.empty) {
+        await adminDb.collection("orders").add({
+          stripeSessionId: session.id,
+          listingId,
+          ...(sellerId ? { sellerId } : {}),
+          buyerEmail: session.customer_details?.email || "",
+          buyerName: session.customer_details?.name || "",
+          amountTotal: session.amount_total || 0,
+          currency: session.currency || "usd",
+          status: "paid",
+          createdAt: Date.now(),
+          shippingAddress,
+        });
       }
 
-      default:
-        console.log(`Unhandled Stripe webhook event type: ${event.type}`);
+      // Mark listing sold (only if it exists)
+      if (listingSnap.exists) {
+        await listingRef.update({
+          status: "sold",
+          isSold: true,
+          soldAt: Date.now(),
+        });
+      }
     }
-  } catch (err) {
-    console.error("Error handling Stripe webhook:", err);
-    return res.status(500).json({ error: "Webhook handler error" });
-  }
 
-  res.status(200).json({ received: true });
+    return res.status(200).json({ received: true });
+  } catch (err) {
+    console.error("[stripe webhook] Processing error:", err);
+    return res.status(500).end();
+  }
 }

@@ -99,6 +99,8 @@ function normalize(raw: string | undefined | null): string {
 }
 
 const pickImage = (data: any): string => {
+  if (data.displayImageUrl) return data.displayImageUrl;
+  if (data.display_image_url) return data.display_image_url;
   if (data.image_url) return data.image_url;
   if (data.imageUrl) return data.imageUrl;
   if (data.image) return data.image;
@@ -263,7 +265,6 @@ const DesignersPage: NextPage<DesignersPageProps> = ({
                 </button>
               </div>
 
-              {/* ✅ Dropdown style: collapsible blocks (saves space) */}
               <details className="filter-block" open>
                 <summary>Title</summary>
                 <div className="filter-body">
@@ -315,7 +316,6 @@ const DesignersPage: NextPage<DesignersPageProps> = ({
               <details className="filter-block">
                 <summary>Material</summary>
                 <div className="filter-body">
-                  {/* ✅ allow typing anything not in list */}
                   <input
                     className="text-input"
                     list="materials-list"
@@ -529,8 +529,6 @@ const DesignersPage: NextPage<DesignersPageProps> = ({
           cursor: pointer;
           color: #6b7280;
         }
-
-        /* ✅ dropdown/collapsible filter blocks */
         .filter-block {
           border-top: 1px solid #e5e7eb;
           padding-top: 10px;
@@ -559,7 +557,6 @@ const DesignersPage: NextPage<DesignersPageProps> = ({
           padding: 10px 12px;
           font-size: 13px;
         }
-
         .price-row {
           display: grid;
           grid-template-columns: 1fr;
@@ -591,7 +588,6 @@ const DesignersPage: NextPage<DesignersPageProps> = ({
           color: #ffffff;
           cursor: pointer;
         }
-
         .results-header {
           display: flex;
           justify-content: space-between;
@@ -651,8 +647,12 @@ export default DesignersPage;
 
 export const getServerSideProps: GetServerSideProps<DesignersPageProps> =
   async () => {
+    // ✅ Safety Guard
+    if (!adminDb) {
+      return { props: { items: [], designerOptions: [] } };
+    }
+
     try {
-      // listings
       const snapshot = await adminDb
         .collection("listings")
         .where("status", "==", "Live")
@@ -660,19 +660,13 @@ export const getServerSideProps: GetServerSideProps<DesignersPageProps> =
 
       const items: ItemWithMeta[] = snapshot.docs.map((doc) => {
         const d: any = doc.data() || {};
-
-        const brandRaw =
-          d.brand || d.designer || d.designerName || d.brandName || "";
+        const brandRaw = d.brand || d.designer || d.designerName || d.brandName || "";
         const categoryRaw = d.category || d.categoryLabel || d.categoryName || "";
-        const conditionRaw =
-          d.condition || d.conditionLabel || d.itemCondition || d.conditionText || "";
-        const materialRaw =
-          d.material || d.fabric || d.fabrication || d.materialName || "";
+        const conditionRaw = d.condition || d.conditionLabel || d.itemCondition || d.conditionText || "";
+        const materialRaw = d.material || d.fabric || d.fabrication || d.materialName || "";
         const sizeRaw = d.size || d.itemSize || "";
         const colorRaw = d.color || d.colour || "";
-
-        const priceNum =
-          typeof d.price === "number" ? d.price : Number(d.price || 0);
+        const priceNum = typeof d.price === "number" ? d.price : Number(d.price || 0);
         const price = priceNum ? `US$${priceNum.toLocaleString("en-US")}` : "";
 
         return {
@@ -691,7 +685,6 @@ export const getServerSideProps: GetServerSideProps<DesignersPageProps> =
         };
       });
 
-      // designers list (source of truth = designers collection)
       let designerOptions: string[] = [];
       try {
         const ds = await adminDb.collection("designers").get();
@@ -705,7 +698,6 @@ export const getServerSideProps: GetServerSideProps<DesignersPageProps> =
           .filter(Boolean)
           .sort((a, b) => a.localeCompare(b));
       } catch {
-        // fallback: unique brands from items
         designerOptions = Array.from(
           new Set(items.map((i) => (i.brand || "").trim()).filter(Boolean))
         ).sort((a, b) => a.localeCompare(b));

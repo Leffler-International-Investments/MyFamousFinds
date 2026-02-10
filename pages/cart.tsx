@@ -1,63 +1,553 @@
 // /pages/cart.tsx
+import Head from "next/head";
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/router";
+import Header from "../components/Header";
+import Footer from "../components/Footer";
+
+import { onAuthStateChanged, User } from "firebase/auth";
+import {
+  collection,
+  query,
+  where,
+  getDocs,
+  doc,
+  deleteDoc,
+  setDoc,
+  serverTimestamp,
+} from "firebase/firestore";
+import { auth, db, firebaseClientReady } from "../utils/firebaseClient";
+
+type CartItem = {
+  id: string;
+  listingId: string;
+  title: string;
+  brand: string;
+  price: number;
+  currency: string;
+  imageUrl: string;
+};
+
+type SavedItem = {
+  id: string;
+  listingId: string;
+  title: string;
+  brand: string;
+  price: number;
+  currency: string;
+  imageUrl: string;
+};
 
 export default function Cart() {
-  const [items, setItems] = useState([
-    { id: 1, name: "Gucci Marmont Mini Bag", price: 2450 },
-    { id: 2, name: "Chanel Slingbacks", price: 1250 },
-  ]);
-  const [saved, setSaved] = useState([]);
+  const router = useRouter();
+  const [user, setUser] = useState<User | null>(null);
+  const [items, setItems] = useState<CartItem[]>([]);
+  const [savedItems, setSavedItems] = useState<SavedItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [actionId, setActionId] = useState<string | null>(null);
 
-  const moveToSaved = (id: number) => {
-    const item = items.find((i) => i.id === id);
-    if (!item) return;
-    setSaved([...saved, item]);
-    setItems(items.filter((i) => i.id !== id));
+  useEffect(() => {
+    if (!firebaseClientReady || !auth || !db) {
+      setLoading(false);
+      return;
+    }
+
+    const unsub = onAuthStateChanged(auth, async (u) => {
+      if (!u) {
+        router.replace("/buyer/signin");
+        return;
+      }
+      setUser(u);
+      await loadCart(u.uid);
+      setLoading(false);
+    });
+
+    return () => unsub();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const loadCart = async (uid: string) => {
+    if (!db) return;
+
+    const cartSnap = await getDocs(
+      query(collection(db, "buyerCartItems"), where("userId", "==", uid))
+    );
+    setItems(
+      cartSnap.docs.map((d) => {
+        const data: any = d.data() || {};
+        return {
+          id: d.id,
+          listingId: data.listingId || "",
+          title: data.title || "",
+          brand: data.brand || "",
+          price: Number(data.price || 0),
+          currency: data.currency || "USD",
+          imageUrl: data.imageUrl || "",
+        };
+      })
+    );
+
+    const savedSnap = await getDocs(
+      query(collection(db, "buyerSavedItems"), where("userId", "==", uid))
+    );
+    setSavedItems(
+      savedSnap.docs.map((d) => {
+        const data: any = d.data() || {};
+        return {
+          id: d.id,
+          listingId: data.listingId || "",
+          title: data.title || "",
+          brand: data.brand || "",
+          price: Number(data.price || 0),
+          currency: data.currency || "USD",
+          imageUrl: data.imageUrl || "",
+        };
+      })
+    );
   };
 
-  return (
-    <div className="min-h-screen bg-white text-black p-8">
-      <div className="flex justify-between mb-6">
-        <h1 className="text-2xl font-bold">Your Cart</h1>
-        <Link href="/" className="text-blue-600">← Return to Dashboard</Link>
-      </div>
+  const handleRemoveFromCart = async (item: CartItem) => {
+    if (!db) return;
+    setActionId(item.id);
+    try {
+      await deleteDoc(doc(db, "buyerCartItems", item.id));
+      setItems((prev) => prev.filter((i) => i.id !== item.id));
+    } catch (err) {
+      console.error("Remove from cart failed:", err);
+    } finally {
+      setActionId(null);
+    }
+  };
 
-      {items.length === 0 ? (
-        <p>Your cart is empty.</p>
-      ) : (
-        <div className="space-y-4">
-          {items.map((item) => (
-            <div key={item.id} className="border p-4 rounded-lg flex justify-between">
-              <span>{item.name}</span>
-              <div className="flex gap-2">
-                <span>${item.price}</span>
-                <button
-                  onClick={() => moveToSaved(item.id)}
-                  className="text-sm text-blue-600"
-                >
-                  Save for later
-                </button>
+  const handleSaveForLater = async (item: CartItem) => {
+    if (!db || !user) return;
+    setActionId(item.id);
+    try {
+      const savedDocId = `${user.uid}_${item.listingId}`;
+      await setDoc(
+        doc(db, "buyerSavedItems", savedDocId),
+        {
+          userId: user.uid,
+          listingId: item.listingId,
+          title: item.title,
+          brand: item.brand,
+          price: item.price,
+          currency: item.currency,
+          imageUrl: item.imageUrl,
+          updatedAt: serverTimestamp(),
+          createdAt: serverTimestamp(),
+        },
+        { merge: true }
+      );
+      await deleteDoc(doc(db, "buyerCartItems", item.id));
+      setItems((prev) => prev.filter((i) => i.id !== item.id));
+      setSavedItems((prev) => {
+        if (prev.find((s) => s.listingId === item.listingId)) return prev;
+        return [...prev, { ...item, id: savedDocId }];
+      });
+    } catch (err) {
+      console.error("Save for later failed:", err);
+    } finally {
+      setActionId(null);
+    }
+  };
+
+  const handleMoveToCart = async (item: SavedItem) => {
+    if (!db || !user) return;
+    setActionId(item.id);
+    try {
+      const cartDocId = `${user.uid}_${item.listingId}`;
+      await setDoc(
+        doc(db, "buyerCartItems", cartDocId),
+        {
+          userId: user.uid,
+          listingId: item.listingId,
+          title: item.title,
+          brand: item.brand,
+          price: item.price,
+          currency: item.currency,
+          imageUrl: item.imageUrl,
+          updatedAt: serverTimestamp(),
+          createdAt: serverTimestamp(),
+        },
+        { merge: true }
+      );
+      setItems((prev) => {
+        if (prev.find((c) => c.listingId === item.listingId)) return prev;
+        return [...prev, { ...item, id: cartDocId }];
+      });
+    } catch (err) {
+      console.error("Move to cart failed:", err);
+    } finally {
+      setActionId(null);
+    }
+  };
+
+  const formatPrice = (price: number, currency = "USD") =>
+    price > 0
+      ? price.toLocaleString("en-US", { style: "currency", currency })
+      : "";
+
+  const cartTotal = items.reduce((sum, i) => sum + i.price, 0);
+
+  return (
+    <>
+      <Head>
+        <title>My Shopping Bag | Famous Finds</title>
+      </Head>
+
+      <Header />
+
+      <main className="cart-main">
+        <div className="cart-wrap">
+          <div className="cart-header">
+            <h1>My Shopping Bag</h1>
+            <Link href="/buyer/dashboard" className="back-link">
+              ← Back to Dashboard
+            </Link>
+          </div>
+
+          {loading ? (
+            <p className="cart-loading">Loading your bag...</p>
+          ) : items.length === 0 ? (
+            <div className="cart-empty">
+              <p>Your shopping bag is empty.</p>
+              <p className="cart-empty-sub">
+                Browse our collection or move items from your wishlist.
+              </p>
+              <Link href="/" className="btn-browse">
+                Browse collection
+              </Link>
+            </div>
+          ) : (
+            <>
+              <div className="cart-items">
+                {items.map((item) => (
+                  <div key={item.id} className="cart-item">
+                    {item.imageUrl && (
+                      <img
+                        src={item.imageUrl}
+                        alt={item.title}
+                        className="cart-item-img"
+                      />
+                    )}
+                    <div className="cart-item-info">
+                      <span className="cart-item-title">{item.title}</span>
+                      {item.brand && (
+                        <span className="cart-item-brand">{item.brand}</span>
+                      )}
+                    </div>
+                    <div className="cart-item-actions">
+                      <span className="cart-item-price">
+                        {formatPrice(item.price, item.currency)}
+                      </span>
+                      <button
+                        type="button"
+                        className="btn-save-later"
+                        onClick={() => handleSaveForLater(item)}
+                        disabled={actionId === item.id}
+                      >
+                        {actionId === item.id ? "..." : "Save for later"}
+                      </button>
+                      <button
+                        type="button"
+                        className="btn-remove"
+                        onClick={() => handleRemoveFromCart(item)}
+                        disabled={actionId === item.id}
+                      >
+                        {actionId === item.id ? "..." : "Remove"}
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="cart-summary">
+                <div className="cart-total">
+                  <span>Subtotal ({items.length} item{items.length !== 1 ? "s" : ""})</span>
+                  <span className="cart-total-amount">
+                    {formatPrice(cartTotal)}
+                  </span>
+                </div>
+                <Link href="/checkout" className="btn-checkout">
+                  Proceed to checkout
+                </Link>
+              </div>
+            </>
+          )}
+
+          {/* Saved items (wishlist) below the cart */}
+          {savedItems.length > 0 && (
+            <div className="saved-section">
+              <h2>Saved Items ({savedItems.length})</h2>
+              <p className="saved-note">
+                Items in your wishlist. Move them to your bag when you are ready.
+              </p>
+              <div className="saved-items">
+                {savedItems.map((item) => {
+                  const alreadyInCart = items.some(
+                    (c) => c.listingId === item.listingId
+                  );
+                  return (
+                    <div key={item.id} className="saved-item">
+                      {item.imageUrl && (
+                        <img
+                          src={item.imageUrl}
+                          alt={item.title}
+                          className="cart-item-img"
+                        />
+                      )}
+                      <div className="cart-item-info">
+                        <span className="cart-item-title">{item.title}</span>
+                        {item.brand && (
+                          <span className="cart-item-brand">{item.brand}</span>
+                        )}
+                      </div>
+                      <div className="cart-item-actions">
+                        <span className="cart-item-price">
+                          {formatPrice(item.price, item.currency)}
+                        </span>
+                        <button
+                          type="button"
+                          className={alreadyInCart ? "btn-in-bag" : "btn-move-to-bag"}
+                          onClick={() => !alreadyInCart && handleMoveToCart(item)}
+                          disabled={alreadyInCart || actionId === item.id}
+                        >
+                          {actionId === item.id
+                            ? "Moving..."
+                            : alreadyInCart
+                            ? "In bag"
+                            : "Move to bag"}
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </div>
-          ))}
+          )}
         </div>
-      )}
+      </main>
 
-      {saved.length > 0 && (
-        <div className="mt-8">
-          <h2 className="font-semibold mb-2">Saved for Later</h2>
-          {saved.map((s) => (
-            <div key={s.id} className="border p-4 rounded-lg flex justify-between">
-              <span>{s.name}</span>
-              <span>${s.price}</span>
-            </div>
-          ))}
-          <p className="text-xs text-red-600 mt-2">
-            ⚠️ Items may sell out — saved items are not reserved.
-          </p>
-        </div>
-      )}
-    </div>
+      <Footer />
+
+      <style jsx>{`
+        .cart-main {
+          min-height: 60vh;
+          padding: 32px 16px;
+          background: #ffffff;
+        }
+        .cart-wrap {
+          max-width: 720px;
+          margin: 0 auto;
+        }
+        .cart-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 24px;
+        }
+        .cart-header h1 {
+          font-size: 22px;
+          font-weight: 600;
+          color: #111827;
+        }
+        .back-link {
+          font-size: 13px;
+          color: #2563eb;
+        }
+        .cart-loading {
+          color: #6b7280;
+          font-size: 14px;
+        }
+        .cart-empty {
+          text-align: center;
+          padding: 48px 0;
+        }
+        .cart-empty p {
+          font-size: 16px;
+          color: #111827;
+        }
+        .cart-empty-sub {
+          margin-top: 4px;
+          font-size: 13px;
+          color: #6b7280;
+        }
+        .btn-browse {
+          display: inline-block;
+          margin-top: 16px;
+          border-radius: 999px;
+          background: #111827;
+          padding: 8px 20px;
+          font-size: 13px;
+          font-weight: 500;
+          color: white;
+          text-decoration: none;
+        }
+        .cart-items {
+          display: flex;
+          flex-direction: column;
+          gap: 12px;
+        }
+        .cart-item,
+        .saved-item {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          padding: 12px;
+          border-radius: 10px;
+          border: 1px solid #e5e7eb;
+          background: #fafafa;
+        }
+        .cart-item-img {
+          width: 56px;
+          height: 56px;
+          border-radius: 8px;
+          object-fit: cover;
+          border: 1px solid #e5e7eb;
+          flex-shrink: 0;
+        }
+        .cart-item-info {
+          flex: 1;
+          display: flex;
+          flex-direction: column;
+          gap: 2px;
+          min-width: 0;
+        }
+        .cart-item-title {
+          font-size: 14px;
+          font-weight: 500;
+          color: #111827;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+        .cart-item-brand {
+          font-size: 12px;
+          color: #6b7280;
+        }
+        .cart-item-actions {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          flex-shrink: 0;
+        }
+        .cart-item-price {
+          font-size: 14px;
+          font-weight: 600;
+          color: #111827;
+          white-space: nowrap;
+        }
+        .btn-save-later {
+          font-size: 11px;
+          color: #2563eb;
+          background: none;
+          border: none;
+          cursor: pointer;
+          text-decoration: underline;
+          text-underline-offset: 2px;
+          white-space: nowrap;
+        }
+        .btn-save-later:disabled {
+          opacity: 0.5;
+        }
+        .btn-remove {
+          font-size: 11px;
+          color: #ef4444;
+          background: none;
+          border: none;
+          cursor: pointer;
+          white-space: nowrap;
+        }
+        .btn-remove:disabled {
+          opacity: 0.5;
+        }
+        .cart-summary {
+          margin-top: 24px;
+          padding: 16px;
+          border-radius: 10px;
+          border: 1px solid #e5e7eb;
+          background: #f9fafb;
+        }
+        .cart-total {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          font-size: 14px;
+          color: #374151;
+        }
+        .cart-total-amount {
+          font-size: 18px;
+          font-weight: 600;
+          color: #111827;
+        }
+        .btn-checkout {
+          display: block;
+          margin-top: 12px;
+          width: 100%;
+          border-radius: 999px;
+          background: #111827;
+          padding: 10px 0;
+          font-size: 14px;
+          font-weight: 500;
+          color: white;
+          text-align: center;
+          text-decoration: none;
+        }
+        .btn-checkout:hover {
+          background: #1f2937;
+        }
+        .saved-section {
+          margin-top: 40px;
+          padding-top: 24px;
+          border-top: 1px solid #e5e7eb;
+        }
+        .saved-section h2 {
+          font-size: 16px;
+          font-weight: 600;
+          color: #111827;
+        }
+        .saved-note {
+          margin-top: 4px;
+          font-size: 12px;
+          color: #6b7280;
+        }
+        .saved-items {
+          margin-top: 12px;
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
+        }
+        .btn-move-to-bag {
+          border-radius: 999px;
+          background: #111827;
+          padding: 4px 12px;
+          font-size: 11px;
+          font-weight: 500;
+          color: white;
+          border: none;
+          cursor: pointer;
+          white-space: nowrap;
+        }
+        .btn-move-to-bag:hover {
+          background: #1f2937;
+        }
+        .btn-move-to-bag:disabled {
+          opacity: 0.6;
+        }
+        .btn-in-bag {
+          border-radius: 999px;
+          background: #e5e7eb;
+          padding: 4px 12px;
+          font-size: 11px;
+          font-weight: 500;
+          color: #6b7280;
+          border: none;
+          cursor: default;
+          white-space: nowrap;
+        }
+      `}</style>
+    </>
   );
 }

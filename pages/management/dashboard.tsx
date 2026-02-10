@@ -19,6 +19,8 @@ type MgmtStats = {
   pendingListings: number;
   orders: number;
   pendingOrders: number;
+  agreements: number;
+  pendingAgreements: number;
 };
 
 type Props = {
@@ -125,6 +127,11 @@ export default function ManagementDashboard({ stats }: Props) {
               <p className="stat">{stats.orders.toLocaleString("en-US")}</p>
               <p className="sub-stat">{stats.pendingOrders} in progress</p>
             </Link>
+            <Link href="/management/agreements" className="dashboard-summary-tile">
+              <p className="label">Agreements</p>
+              <p className="stat">{stats.agreements.toLocaleString("en-US")}</p>
+              <p className="sub-stat">{stats.pendingAgreements} awaiting confirmation</p>
+            </Link>
           </div>
         </section>
 
@@ -144,6 +151,13 @@ export default function ManagementDashboard({ stats }: Props) {
             description="Approve or deny new seller applications. Only approved sellers can list products."
             href="/management/vetting-queue"
             linkText="Review Sellers"
+            linkColor="green"
+          />
+          <DashboardTile
+            title="Consignment Agreements"
+            description="View all seller consignment agreements. Confirm emailed agreements or revoke access."
+            href="/management/agreements"
+            linkText="Manage Agreements"
             linkColor="green"
           />
           <DashboardTile
@@ -340,6 +354,8 @@ export const getServerSideProps: GetServerSideProps<Props> = async () => {
       pendingListingsSnap,
       ordersSnap,
       pendingOrdersSnap,
+      agreementsSnap,
+      pendingAgreementsSnap,
     ] = await Promise.all([
       adminDb.collection("sellers").get(),
       adminDb.collection("sellers").where("status", "==", "Pending").get(),
@@ -353,6 +369,11 @@ export const getServerSideProps: GetServerSideProps<Props> = async () => {
         .collection("orders")
         .where("status", "in", ["Pending", "Processing", "Paid"])
         .get(),
+      adminDb.collection("consignment_agreements").get(),
+      adminDb
+        .collection("consignment_agreements")
+        .where("status", "==", "pending_email")
+        .get(),
     ]);
 
     const stats: MgmtStats = {
@@ -362,6 +383,8 @@ export const getServerSideProps: GetServerSideProps<Props> = async () => {
       pendingListings: pendingListingsSnap.size,
       orders: ordersSnap.size,
       pendingOrders: pendingOrdersSnap.size,
+      agreements: agreementsSnap.size,
+      pendingAgreements: pendingAgreementsSnap.size,
     };
 
     return { props: { stats } };
@@ -374,6 +397,8 @@ export const getServerSideProps: GetServerSideProps<Props> = async () => {
       pendingListings: 0,
       orders: 0,
       pendingOrders: 0,
+      agreements: 0,
+      pendingAgreements: 0,
     };
     return { props: { stats } };
   }

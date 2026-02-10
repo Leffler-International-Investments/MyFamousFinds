@@ -4,6 +4,12 @@ import { adminDb } from "../../../utils/firebaseAdmin";
 import { FieldValue } from "firebase-admin/firestore";
 import { getSellerId } from "../../../utils/authServer";
 import sharp from "sharp";
+import {
+  createWhiteDisplayImage,
+  hasStorageBucket,
+  parseDataUrl,
+  storeListingImages,
+} from "../../../utils/listingImageProcessing";
 
 export const config = {
   api: {
@@ -42,6 +48,8 @@ type CleanRow = {
   currency: "USD";
   status: "Pending";
   image_url?: string | null;
+  imageUrl?: string | null;
+  displayImageUrl?: string | null;
 };
 
 type ApiOk = { ok: true; created: number; skipped: number };
@@ -86,7 +94,10 @@ async function processImage(base64Str: string): Promise<string | null> {
     const optimizedBuffer = await sharp(buffer)
       .rotate()
       .modulate({ brightness: 1.1, saturation: 1.05 })
-      .resize(1080, 1080, { fit: "contain", background: { r: 255, g: 255, b: 255, alpha: 1 } })
+      .resize(1080, 1080, {
+        fit: "contain",
+        background: { r: 255, g: 255, b: 255, alpha: 1 },
+      })
       .flatten({ background: "#ffffff" })
       .toFormat("jpeg", { quality: 85, mozjpeg: true })
       .toBuffer();
@@ -95,6 +106,31 @@ async function processImage(base64Str: string): Promise<string | null> {
   } catch (error) {
     console.error("Image processing failed:", error);
     return null;
+  }
+}
+
+async function processAndStoreImage(base64Str: string) {
+  const parsed = parseDataUrl(base64Str);
+  if (!parsed) return null;
+
+  if (!hasStorageBucket()) {
+    const displayBuffer = await createWhiteDisplayImage(parsed.buffer, parsed.contentType);
+    return {
+      originalUrl: base64Str,
+      displayUrl: `data:image/jpeg;base64,${displayBuffer.toString("base64")}`,
+    };
+  }
+
+  try {
+    const stored = await storeListingImages(parsed, "listing-images");
+    return { originalUrl: stored.originalUrl, displayUrl: stored.displayUrl };
+  } catch (error) {
+    console.warn("Storage upload failed, falling back to data URLs:", error);
+    const displayBuffer = await createWhiteDisplayImage(parsed.buffer, parsed.contentType);
+    return {
+      originalUrl: base64Str,
+      displayUrl: `data:image/jpeg;base64,${displayBuffer.toString("base64")}`,
+    };
   }
 }
 
@@ -117,7 +153,7 @@ function cleanRow(r: IncomingRow): CleanRow | null {
   return {
     title,
     brand,
-    category: cat || "", // ✅ ONE SOURCE OF TRUTH
+    category: cat || "",
     condition,
     size,
     color,
@@ -142,7 +178,6 @@ async function getApprovedDesigners(): Promise<Set<string>> {
     if (data && data.name && data.active !== false) {
       set.add(String(data.name).trim().toLowerCase());
     }
-    return;
   });
 
   return set;
@@ -155,7 +190,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
     const { rows } = (req.body || {}) as { rows?: IncomingRow[] };
     if (!Array.isArray(rows)) return res.status(400).json({ ok: false, error: "Body must include array 'rows'" });
 
-    const sellerId = getSellerId(req) || "seller-demo-001";
+    const sellerId = await getSellerId(req);
+    if (!sellerId) return res.status(401).json({ ok: false, error: "unauthorized" });
 
     const approvedDesigners = await getApprovedDesigners();
     const enforceDesigners = approvedDesigners.size > 0;
@@ -175,7 +211,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
         continue;
       }
 
-      if (cleaned.image_url) cleaned.image_url = await processImage(cleaned.image_url);
+      if (cleaned.image_url) {
+        const stored = await processAndStoreImage(cleaned.image_url);
+        if (stored) {
+          cleaned.image_url = stored.originalUrl;
+          cleaned.imageUrl = stored.originalUrl;
+          cleaned.displayImageUrl = stored.displayUrl;
+        } else {
+          cleaned.image_url = await processImage(cleaned.image_url);
+        }
+      }
 
       const brandKey = cleaned.brand.toLowerCase();
       const isApprovedDesigner = enforceDesigners && approvedDesigners.has(brandKey);

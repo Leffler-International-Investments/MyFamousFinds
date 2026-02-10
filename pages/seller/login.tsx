@@ -193,8 +193,27 @@ export default function SellerLoginPage() {
         );
       }
 
-      if (from) router.push(from);
-      else router.push("/seller/dashboard");
+      // Check consignment agreement status before redirecting
+      try {
+        const agreeRes = await fetch("/api/seller/agreement-status", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: email.toLowerCase().trim() }),
+        });
+        const agreeJson = await agreeRes.json();
+        if (agreeJson.ok && agreeJson.agreementSigned) {
+          window.localStorage.setItem("ff-agreement-signed", "true");
+          if (from) router.push(from);
+          else router.push("/seller/dashboard");
+        } else {
+          window.localStorage.setItem("ff-agreement-signed", "false");
+          router.push("/seller/consignment-agreement");
+        }
+      } catch {
+        // If agreement check fails, still let them through to agreement page
+        window.localStorage.setItem("ff-agreement-signed", "false");
+        router.push("/seller/consignment-agreement");
+      }
     } catch (err) {
       console.error("seller_verify_2fa_error", err);
       setError("Unable to verify the code. Please try again.");
@@ -244,7 +263,7 @@ export default function SellerLoginPage() {
                     onChange={setPassword}
                     name="password"
                     required
-                    showStrength={true} /* Strength Meter Enabled */
+                    showStrength={false}
                     placeholder="Enter password"
                   />
                   <button

@@ -1,8 +1,10 @@
 // FILE: /pages/seller/bulk-upload.tsx
 import Head from "next/head";
+import Link from "next/link";
 import { useState } from "react";
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
+import { sellerFetch } from "../../utils/sellerClient";
 
 type ParsedRow = {
   title: string;
@@ -116,7 +118,7 @@ export default function SellerBulkUploadPage() {
     setSuccessMsg(null);
 
     try {
-      const res = await fetch("/api/seller/bulk-upload", {
+      const res = await sellerFetch("/api/seller/bulk-upload", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ rows }),
@@ -153,6 +155,7 @@ export default function SellerBulkUploadPage() {
               <h1>Bulk Upload Listings</h1>
               <p>Paste multiple items in one go. All prices are treated as USD.</p>
             </div>
+            <Link href="/seller/dashboard">← Back to Seller Dashboard</Link>
           </div>
 
           {/* STEP 1 */}

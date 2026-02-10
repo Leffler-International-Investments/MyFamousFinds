@@ -1,9 +1,11 @@
 // FILE: /pages/seller/statement-print.tsx
 import { useEffect, useState } from "react";
 import Head from "next/head";
+import Link from "next/link";
 import { useRouter } from "next/router";
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
+import { sellerFetch } from "../../utils/sellerClient";
 
 type Summary = {
   periodLabel: string;
@@ -44,7 +46,7 @@ export default function SellerStatementPrint() {
         const qs = new URLSearchParams(
           router.query as Record<string, string>
         ).toString();
-        const res = await fetch(`/api/seller/statement?${qs}`);
+        const res = await sellerFetch(`/api/seller/statement?${qs}`);
         const json: ApiResponse = await res.json();
         if (!res.ok || !("ok" in json) || !json.ok) {
           throw new Error(
@@ -78,6 +80,12 @@ export default function SellerStatementPrint() {
       <Header />
 
       <main className="mx-auto max-w-5xl px-4 pb-16 pt-6 text-sm">
+        <Link
+          href="/seller/dashboard"
+          className="mb-3 inline-flex text-xs text-gray-300 hover:text-white"
+        >
+          ← Back to Seller Dashboard
+        </Link>
         <div className="mb-4 flex items-center justify-between">
           <h1 className="text-xl font-semibold text-white">
             Seller statement

@@ -26,6 +26,15 @@ type Props = {
 };
 
 const CATEGORIES = ["WOMEN", "BAGS", "MEN", "JEWELRY", "WATCHES"] as const;
+const CONDITIONS = [
+  "New with tags",
+  "New (never used)",
+  "Excellent",
+  "Very good",
+  "Good",
+  "Fair",
+] as const;
+const STATUSES = ["Live", "Pending", "Rejected", "Sold"] as const;
 
 export default function ManagementListings({ items }: Props) {
   const { loading } = useRequireAdmin();
@@ -36,6 +45,7 @@ export default function ManagementListings({ items }: Props) {
     useState<"All" | "Live" | "Pending" | "Rejected" | "Sold">("All");
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [sellingId, setSellingId] = useState<string | null>(null);
+  const [updatingKey, setUpdatingKey] = useState<string | null>(null);
 
   // NEW: category edit state per row
   const [editedCategory, setEditedCategory] = useState<Record<string, string>>(
@@ -45,7 +55,25 @@ export default function ManagementListings({ items }: Props) {
       return init;
     }
   );
-  const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [editedCondition, setEditedCondition] = useState<Record<string, string>>(
+    () => {
+      const init: Record<string, string> = {};
+      for (const l of items) init[l.id] = (l.condition || "").toString();
+      return init;
+    }
+  );
+  const [editedPrice, setEditedPrice] = useState<Record<string, string>>(() => {
+    const init: Record<string, string> = {};
+    for (const l of items) init[l.id] = l.price ? String(l.price) : "";
+    return init;
+  });
+  const [editedStatus, setEditedStatus] = useState<Record<string, string>>(
+    () => {
+      const init: Record<string, string> = {};
+      for (const l of items) init[l.id] = l.status || "Live";
+      return init;
+    }
+  );
 
   const visible = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -119,7 +147,7 @@ export default function ManagementListings({ items }: Props) {
 
   // NEW: Update listing category (writes to Firestore via API)
   async function handleUpdateCategory(id: string, title: string) {
-    if (updatingId) return;
+    if (updatingKey) return;
 
     const nextCat = (editedCategory[id] || "").trim().toUpperCase();
     if (!nextCat) {
@@ -132,7 +160,7 @@ export default function ManagementListings({ items }: Props) {
     }
 
     try {
-      setUpdatingId(id);
+      setUpdatingKey(`${id}:category`);
 
       // IMPORTANT:
       // This endpoint must exist in your project.
@@ -156,7 +184,98 @@ export default function ManagementListings({ items }: Props) {
       console.error("Update category error", err);
       alert(err?.message || "Unable to update category");
     } finally {
-      setUpdatingId(null);
+      setUpdatingKey(null);
+    }
+  }
+
+  async function handleUpdatePrice(id: string) {
+    if (updatingKey) return;
+    const raw = (editedPrice[id] || "").trim();
+    const parsed = Number(raw);
+    if (!Number.isFinite(parsed) || parsed <= 0) {
+      alert("Please enter a valid price.");
+      return;
+    }
+
+    try {
+      setUpdatingKey(`${id}:price`);
+      const res = await fetch(`/api/admin/update-listing/${id}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ price: parsed }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok || !json?.ok) {
+        throw new Error(json?.error || "Failed to update price");
+      }
+      setRows((prev) =>
+        prev.map((l) => (l.id === id ? { ...l, price: parsed } : l))
+      );
+    } catch (err: any) {
+      console.error("Update price error", err);
+      alert(err?.message || "Unable to update price");
+    } finally {
+      setUpdatingKey(null);
+    }
+  }
+
+  async function handleUpdateCondition(id: string) {
+    if (updatingKey) return;
+    const nextCondition = (editedCondition[id] || "").trim();
+    if (!nextCondition) {
+      alert("Please select a condition first.");
+      return;
+    }
+
+    try {
+      setUpdatingKey(`${id}:condition`);
+      const res = await fetch(`/api/admin/update-listing/${id}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ condition: nextCondition }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok || !json?.ok) {
+        throw new Error(json?.error || "Failed to update condition");
+      }
+      setRows((prev) =>
+        prev.map((l) => (l.id === id ? { ...l, condition: nextCondition } : l))
+      );
+    } catch (err: any) {
+      console.error("Update condition error", err);
+      alert(err?.message || "Unable to update condition");
+    } finally {
+      setUpdatingKey(null);
+    }
+  }
+
+  async function handleUpdateStatus(id: string) {
+    if (updatingKey) return;
+    const nextStatus = (editedStatus[id] || "").trim();
+    if (!nextStatus) {
+      alert("Please select a status first.");
+      return;
+    }
+
+    try {
+      setUpdatingKey(`${id}:status`);
+      const res = await fetch(`/api/admin/update-listing/${id}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: nextStatus }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok || !json?.ok) {
+        throw new Error(json?.error || "Failed to update status");
+      }
+      setRows((prev) =>
+        prev.map((l) => (l.id === id ? { ...l, status: nextStatus as Listing["status"] } : l))
+      );
+    } catch (err: any) {
+      console.error("Update status error", err);
+      alert(err?.message || "Unable to update status");
+    } finally {
+      setUpdatingKey(null);
     }
   }
 
@@ -224,6 +343,16 @@ export default function ManagementListings({ items }: Props) {
                   const current = (l.category || "").trim().toUpperCase();
                   const edited = (editedCategory[l.id] || "").trim().toUpperCase();
                   const dirty = edited && edited !== current;
+                  const conditionCurrent = (l.condition || "").trim();
+                  const conditionEdited = (editedCondition[l.id] || "").trim();
+                  const conditionDirty =
+                    conditionEdited && conditionEdited !== conditionCurrent;
+                  const priceCurrent = l.price ? String(l.price) : "";
+                  const priceEdited = (editedPrice[l.id] || "").trim();
+                  const priceDirty = priceEdited && priceEdited !== priceCurrent;
+                  const statusCurrent = l.status;
+                  const statusEdited = (editedStatus[l.id] || "").trim();
+                  const statusDirty = statusEdited && statusEdited !== statusCurrent;
 
                   return (
                     <tr key={l.id}>
@@ -233,33 +362,110 @@ export default function ManagementListings({ items }: Props) {
                       </td>
 
                       <td>{l.brand || "—"}</td>
-                      <td>{l.condition || "—"}</td>
+
+                      <td>
+                        <div className="edit-cell">
+                          <select
+                            className={`edit-select ${conditionDirty ? "edit-select-dirty" : ""}`}
+                            value={editedCondition[l.id] ?? l.condition ?? ""}
+                            onChange={(e) =>
+                              setEditedCondition((prev) => ({
+                                ...prev,
+                                [l.id]: e.target.value,
+                              }))
+                            }
+                          >
+                            <option value="">— Pick —</option>
+                            {CONDITIONS.map((c) => (
+                              <option key={c} value={c}>
+                                {c}
+                              </option>
+                            ))}
+                          </select>
+                          <button
+                            type="button"
+                            className="btn-table-update"
+                            onClick={() => handleUpdateCondition(l.id)}
+                            disabled={!conditionDirty || updatingKey === `${l.id}:condition`}
+                            title={!conditionDirty ? "No changes to save" : "Save condition"}
+                          >
+                            {updatingKey === `${l.id}:condition` ? "Updating…" : "Update"}
+                          </button>
+                        </div>
+                      </td>
                       <td>{l.seller}</td>
 
                       <td>
-                        {l.price
-                          ? l.price.toLocaleString("en-US", {
-                              style: "currency",
-                              currency: "USD",
-                            })
-                          : "—"}
+                        <div className="edit-cell">
+                          <input
+                            type="number"
+                            min={1}
+                            step={1}
+                            className={`edit-input ${priceDirty ? "edit-input-dirty" : ""}`}
+                            value={editedPrice[l.id] ?? ""}
+                            onChange={(e) =>
+                              setEditedPrice((prev) => ({
+                                ...prev,
+                                [l.id]: e.target.value,
+                              }))
+                            }
+                          />
+                          <button
+                            type="button"
+                            className="btn-table-update"
+                            onClick={() => handleUpdatePrice(l.id)}
+                            disabled={!priceDirty || updatingKey === `${l.id}:price`}
+                            title={!priceDirty ? "No changes to save" : "Save price"}
+                          >
+                            {updatingKey === `${l.id}:price` ? "Updating…" : "Update"}
+                          </button>
+                        </div>
                       </td>
 
                       <td>
-                        <span
-                          className={
-                            "status-badge " +
-                            (l.status === "Live"
-                              ? "status-active"
-                              : l.status === "Pending"
-                              ? "status-pending"
-                              : l.status === "Rejected"
-                              ? "status-rejected"
-                              : "status-sold")
-                          }
-                        >
-                          {l.status}
-                        </span>
+                        <div className="status-cell">
+                          <span
+                            className={
+                              "status-badge " +
+                              (l.status === "Live"
+                                ? "status-active"
+                                : l.status === "Pending"
+                                ? "status-pending"
+                                : l.status === "Rejected"
+                                ? "status-rejected"
+                                : "status-sold")
+                            }
+                          >
+                            {l.status}
+                          </span>
+
+                          <select
+                            className={`edit-select ${statusDirty ? "edit-select-dirty" : ""}`}
+                            value={editedStatus[l.id] ?? l.status}
+                            onChange={(e) =>
+                              setEditedStatus((prev) => ({
+                                ...prev,
+                                [l.id]: e.target.value,
+                              }))
+                            }
+                          >
+                            {STATUSES.map((s) => (
+                              <option key={s} value={s}>
+                                {s}
+                              </option>
+                            ))}
+                          </select>
+
+                          <button
+                            type="button"
+                            className="btn-table-update"
+                            onClick={() => handleUpdateStatus(l.id)}
+                            disabled={!statusDirty || updatingKey === `${l.id}:status`}
+                            title={!statusDirty ? "No changes to save" : "Save status"}
+                          >
+                            {updatingKey === `${l.id}:status` ? "Updating…" : "Update"}
+                          </button>
+                        </div>
                       </td>
 
                       {/* NEW: Category editor */}
@@ -287,10 +493,10 @@ export default function ManagementListings({ items }: Props) {
                             type="button"
                             className="btn-table-update"
                             onClick={() => handleUpdateCategory(l.id, l.title)}
-                            disabled={!dirty || updatingId === l.id}
+                            disabled={!dirty || updatingKey === `${l.id}:category`}
                             title={!dirty ? "No changes to save" : "Save category"}
                           >
-                            {updatingId === l.id ? "Updating…" : "Update"}
+                            {updatingKey === `${l.id}:category` ? "Updating…" : "Update"}
                           </button>
                         </div>
                       </td>
@@ -431,6 +637,13 @@ export default function ManagementListings({ items }: Props) {
           color: #4b5563;
         }
 
+        .status-cell {
+          display: flex;
+          gap: 8px;
+          align-items: center;
+          flex-wrap: wrap;
+        }
+
         .btn-table-view {
           font-size: 12px;
           font-weight: 500;
@@ -517,6 +730,35 @@ export default function ManagementListings({ items }: Props) {
         }
         .btn-table-update:hover:not(:disabled) {
           background: #d1fae5;
+        }
+
+        .edit-cell {
+          display: flex;
+          gap: 8px;
+          align-items: center;
+          flex-wrap: wrap;
+        }
+        .edit-input {
+          border-radius: 999px;
+          border: 1px solid #d1d5db;
+          padding: 6px 10px;
+          font-size: 12px;
+          background: white;
+          width: 120px;
+        }
+        .edit-input-dirty {
+          border: 2px solid #047857;
+        }
+        .edit-select {
+          border-radius: 999px;
+          border: 1px solid #d1d5db;
+          padding: 6px 10px;
+          font-size: 12px;
+          background: white;
+          min-width: 150px;
+        }
+        .edit-select-dirty {
+          border: 2px solid #047857;
         }
       `}</style>
     </>

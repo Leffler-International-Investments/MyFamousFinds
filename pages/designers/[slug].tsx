@@ -132,6 +132,20 @@ export default function DesignerPage({ designer, items }: DesignerProps) {
 export const getServerSideProps: GetServerSideProps<DesignerProps> = async (
   ctx
 ) => {
+  // ✅ Added Admin Guard to avoid random 500s
+  if (!adminDb) {
+    return {
+      props: {
+        designer: { 
+          id: String(ctx.params?.slug || ""), 
+          name: String(ctx.params?.slug || ""), 
+          slug: String(ctx.params?.slug || "") 
+        },
+        items: [],
+      },
+    };
+  }
+
   try {
     const raw = String(ctx.params?.slug || "");
     const decoded = decodeURIComponent(raw);
@@ -184,6 +198,8 @@ export const getServerSideProps: GetServerSideProps<DesignerProps> = async (
       const l: any = doc.data() || {};
       const priceNumber = Number(l.price) || 0;
       const image =
+        l.displayImageUrl ||
+        l.display_image_url ||
         l.image_url ||
         l.imageUrl ||
         l.image ||
