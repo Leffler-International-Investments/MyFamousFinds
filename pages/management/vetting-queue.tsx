@@ -26,6 +26,7 @@ export default function ManagementVettingQueue({ items }: Props) {
   const [localItems, setLocalItems] = useState(items);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [emailWarning, setEmailWarning] = useState<string | null>(null);
 
   const visible = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -74,6 +75,7 @@ export default function ManagementVettingQueue({ items }: Props) {
 
     setActionLoading(id);
     setError(null);
+    setEmailWarning(null);
 
     try {
       // Uses the same pattern you had: /api/admin/approve-seller / reject-seller
@@ -88,6 +90,15 @@ export default function ManagementVettingQueue({ items }: Props) {
       const json = await res.json().catch(() => ({} as any));
       if (!res.ok || json.error) {
         throw new Error(json.error || "Failed to update seller");
+      }
+
+      // Check if email was sent
+      if (json.emailSent === false) {
+        const seller = localItems.find((s) => s.id === id);
+        const emailAddr = seller?.contactEmail || id;
+        setEmailWarning(
+          `Seller was ${action === "approve" ? "approved" : "rejected"}, but the notification email to ${emailAddr} failed to send. Please notify them manually.`
+        );
       }
 
       // Update local list
@@ -184,6 +195,15 @@ export default function ManagementVettingQueue({ items }: Props) {
               style={{ marginBottom: "16px" }}
             >
               <strong>Error:</strong> {error}
+            </div>
+          )}
+
+          {emailWarning && (
+            <div
+              className="form-message warning"
+              style={{ marginBottom: "16px" }}
+            >
+              <strong>Warning:</strong> {emailWarning}
             </div>
           )}
 
@@ -327,6 +347,10 @@ export default function ManagementVettingQueue({ items }: Props) {
         .form-message.error {
           background: #fee2e2; /* red-100 */
           color: #b91c1c; /* red-700 */
+        }
+        .form-message.warning {
+          background: #fef3c7; /* amber-100 */
+          color: #92400e; /* amber-800 */
         }
 
         .card-header {
