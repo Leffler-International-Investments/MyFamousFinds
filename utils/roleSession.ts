@@ -7,7 +7,7 @@ const EMAIL_KEY = "ff-email";
 const EXP_KEY = "ff-session-exp"; // epoch ms
 
 // Sliding session duration (hours)
-export const DEFAULT_SESSION_TTL_HOURS = 8;
+export const DEFAULT_SESSION_TTL_HOURS = 72;
 
 function nowMs() {
   return Date.now();
