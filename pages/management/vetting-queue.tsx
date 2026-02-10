@@ -28,7 +28,7 @@ type ManualNotifyInfo = {
 
 type Props = { items: SellerApplication[] };
 
-const BCC_ADDRESSES = "ita.leff@gmail.com,leffleryd@gmail.com";
+const BCC_ADDRESSES = "ita.leff@gmail.com,leffleryd@gmail.com,admin@myfamousfinds.com";
 
 function buildGmailComposeUrl(info: ManualNotifyInfo): string {
   const to = encodeURIComponent(info.sellerEmail);
@@ -44,8 +44,7 @@ function buildGmailComposeUrl(info: ManualNotifyInfo): string {
     body = encodeURIComponent(
       `Hello${info.businessName ? " " + info.businessName : ""},\n\n` +
         `Great news — your seller account on Famous Finds has been approved!\n\n` +
-        `Complete your registration here:\n${info.registerUrl || "[REGISTRATION LINK]"}\n\n` +
-        `This link will allow you to set up your password and access the Seller Dashboard.\n\n` +
+        `Login here - https://www.myfamousfinds.com/seller/login and complete the registration process.\n\n` +
         `Welcome aboard!\nThe Famous Finds Team`
     );
   } else {
@@ -385,18 +384,17 @@ export default function ManagementVettingQueue({ items }: Props) {
                 </span>
               </div>
 
-              {/* Registration link (approval only) */}
-              {manualNotify.decision === "approved" &&
-                manualNotify.registerUrl && (
+              {/* Login link (approval only) */}
+              {manualNotify.decision === "approved" && (
                   <div className="notify-field">
-                    <label>Registration link:</label>
+                    <label>Login link:</label>
                     <span className="notify-value notify-url">
-                      {manualNotify.registerUrl}
+                      https://www.myfamousfinds.com/seller/login
                     </span>
                     <button
                       className="btn-copy"
                       onClick={() =>
-                        handleCopy(manualNotify.registerUrl!, "url")
+                        handleCopy("https://www.myfamousfinds.com/seller/login", "url")
                       }
                     >
                       {copiedField === "url" ? "Copied!" : "Copy"}
@@ -425,7 +423,7 @@ export default function ManagementVettingQueue({ items }: Props) {
                     Decision ({manualNotify.decision})
                   </li>
                   {manualNotify.decision === "approved" && (
-                    <li>Registration link (above)</li>
+                    <li>Login link (above)</li>
                   )}
                   <li>Next steps for the seller</li>
                   <li>

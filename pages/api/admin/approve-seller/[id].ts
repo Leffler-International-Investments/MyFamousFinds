@@ -41,6 +41,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
     const token = crypto.randomBytes(32).toString("hex");
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || `https://${req.headers.host ?? ""}`;
     const registerUrl = `${baseUrl}/seller/register?id=${encodeURIComponent(sellerId)}&token=${token}`;
+    const loginUrl = `${baseUrl}/seller/login`;
 
     await ref.set(
       {
@@ -57,11 +58,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
     const jobId = await queueEmail({
       to: email,
       subject: "Famous Finds — Your Seller Account Has Been Approved!",
-      text: `Hello${businessName ? " " + businessName : ""},\n\nGreat news — your seller account on Famous Finds has been approved!\n\nComplete your registration here:\n${registerUrl}\n\nThis link will allow you to set up your password and access the Seller Dashboard.\n\nWelcome aboard!\nThe Famous Finds Team`,
-      html: `<p>Hello${businessName ? " " + businessName : ""},</p><p><b>Great news — your seller account has been approved!</b></p><p>Complete your registration:</p><p><a href="${registerUrl}">${registerUrl}</a></p><p>This link will allow you to set up your password and access the Seller Dashboard.</p><p>Welcome aboard!<br/>The Famous Finds Team</p>`,
+      text: `Hello${businessName ? " " + businessName : ""},\n\nGreat news — your seller account on Famous Finds has been approved!\n\nLogin here - ${loginUrl} and complete the registration process.\n\nWelcome aboard!\nThe Famous Finds Team`,
+      html: `<p>Hello${businessName ? " " + businessName : ""},</p><p><b>Great news — your seller account has been approved!</b></p><p>Login here - <a href="${loginUrl}">${loginUrl}</a> and complete the registration process.</p><p>Welcome aboard!<br/>The Famous Finds Team</p>`,
       eventType: "seller_approved",
       eventKey: `${sellerId}:seller_approved:${today}`,
-      metadata: { sellerId, businessName, registerUrl },
+      metadata: { sellerId, businessName, loginUrl, registerUrl },
     });
 
     const emailQueued = !!jobId;
