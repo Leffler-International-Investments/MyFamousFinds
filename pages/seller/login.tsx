@@ -159,28 +159,8 @@ export default function SellerLoginPage() {
         window.localStorage.setItem("ff-email", email.toLowerCase().trim());
         window.localStorage.setItem("ff-session-exp", String(Date.now() + SESSION_TTL_MS));
       }
-
-      // Check consignment agreement status before redirecting
-      try {
-        const agreeRes = await fetch("/api/seller/agreement-status", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email: email.toLowerCase().trim() }),
-        });
-        const agreeJson = await agreeRes.json();
-        if (agreeJson.ok && agreeJson.agreementSigned) {
-          window.localStorage.setItem("ff-agreement-signed", "true");
-          if (from) router.push(from);
-          else router.push("/seller/dashboard");
-        } else {
-          window.localStorage.setItem("ff-agreement-signed", "false");
-          router.push("/seller/consignment-agreement");
-        }
-      } catch {
-        // If agreement check fails, still let them through to agreement page
-        window.localStorage.setItem("ff-agreement-signed", "false");
-        router.push("/seller/consignment-agreement");
-      }
+      if (from) router.push(from);
+      else router.push("/seller/dashboard");
     } catch (err) {
       console.error("seller_verify_2fa_error", err);
       setError("Unable to verify the code. Please try again.");
