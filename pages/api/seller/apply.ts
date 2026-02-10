@@ -3,8 +3,9 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { adminDb } from "../../../utils/firebaseAdmin";
 import { FieldValue } from "firebase-admin/firestore";
+import { sendApplicationConfirmationEmail } from "../../../utils/email";
 
-type Ok = { ok: true };
+type Ok = { ok: true; emailSent: boolean };
 type Err = { ok: false; error: string };
 type Res = Ok | Err;
 
@@ -62,7 +63,20 @@ export default async function handler(
       { merge: true }
     );
 
-    res.status(200).json({ ok: true });
+    // Send confirmation email to applicant
+    let emailSent = false;
+    try {
+      await sendApplicationConfirmationEmail({
+        to: trimmedEmail,
+        businessName: trimmedBusiness,
+      });
+      emailSent = true;
+    } catch (err) {
+      console.error("send_application_confirmation_email_error", err);
+      emailSent = false;
+    }
+
+    res.status(200).json({ ok: true, emailSent });
   } catch (err) {
     console.error("api/seller/apply error", err);
     res

@@ -3,7 +3,7 @@ import type { NextApiRequest, NextApiResponse } from "next";
 import { adminDb } from "../../../../utils/firebaseAdmin";
 import { sendSellerRejectionEmail } from "../../../../utils/email";
 
-type Data = { ok: true } | { error: string };
+type Data = { ok: true; emailSent: boolean } | { error: string };
 
 export default async function handler(
   req: NextApiRequest,
@@ -47,6 +47,7 @@ export default async function handler(
       { merge: true }
     );
 
+    let emailSent = false;
     if (email) {
       try {
         await sendSellerRejectionEmail({
@@ -54,13 +55,14 @@ export default async function handler(
           businessName,
           reason: typeof reason === "string" ? reason : undefined,
         });
+        emailSent = true;
       } catch (err) {
         console.error("send_seller_rejection_email_error", err);
-        // Do not fail the API just because email failed
+        emailSent = false;
       }
     }
 
-    return res.status(200).json({ ok: true });
+    return res.status(200).json({ ok: true, emailSent });
   } catch (err: any) {
     console.error("reject_seller_error", err);
     return res

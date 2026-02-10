@@ -66,6 +66,33 @@ Enter this code in the login screen to continue.`;
 }
 
 /**
+ * Seller application confirmation email - sent when seller submits application
+ */
+export async function sendApplicationConfirmationEmail(args: {
+  to: string;
+  businessName?: string;
+}) {
+  const { to, businessName } = args;
+
+  const subject = "We received your Famous Finds seller application";
+  const text = `Hi${businessName ? " " + businessName : ""},
+
+Thank you for applying to become a seller on Famous Finds!
+
+We've received your application and our team will review it shortly. This process typically takes 1-2 business days.
+
+Once reviewed, you'll receive an email with the outcome:
+- If approved, you'll get a link to complete your seller registration
+- If we need more information, we'll reach out to this email address
+
+If you have any questions in the meantime, feel free to reply to this email.
+
+Thanks for your interest in Famous Finds!`;
+
+  await sendMail(to, subject, text);
+}
+
+/**
  * Seller invite email used when an admin approves a seller
  */
 export async function sendSellerInviteEmail(args: {
