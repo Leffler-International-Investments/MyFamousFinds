@@ -4,10 +4,59 @@ import Link from "next/link";
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
 import { useRequireAdmin } from "../../hooks/useRequireAdmin";
+import { useEffect, useState, useCallback } from "react";
+
+type PayoutMode = "manual" | "stripe_connect_auto";
 
 export default function ManagementSettings() {
   const { loading } = useRequireAdmin();
-  if (loading) return <div className="dark-theme-page" />; // Dark theme skeleton
+
+  const [payoutMode, setPayoutMode] = useState<PayoutMode>("manual");
+  const [coolingDays, setCoolingDays] = useState(7);
+  const [payoutLoading, setPayoutLoading] = useState(true);
+  const [payoutSaving, setPayoutSaving] = useState(false);
+  const [payoutMsg, setPayoutMsg] = useState<string | null>(null);
+
+  const loadPayoutSettings = useCallback(async () => {
+    setPayoutLoading(true);
+    try {
+      const res = await fetch("/api/management/settings/payouts");
+      const data = await res.json();
+      if (data.ok && data.settings) {
+        setPayoutMode(data.settings.payoutMode || "manual");
+        setCoolingDays(data.settings.defaultCoolingDays ?? 7);
+      }
+    } catch {
+      // defaults already set
+    } finally {
+      setPayoutLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!loading) loadPayoutSettings();
+  }, [loading, loadPayoutSettings]);
+
+  const savePayoutSettings = async () => {
+    setPayoutSaving(true);
+    setPayoutMsg(null);
+    try {
+      const res = await fetch("/api/management/settings/payouts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ payoutMode, defaultCoolingDays: coolingDays }),
+      });
+      const data = await res.json();
+      if (!data.ok) throw new Error(data.error || "Save failed");
+      setPayoutMsg("Payout settings saved.");
+    } catch (err: any) {
+      setPayoutMsg(`Error: ${err.message}`);
+    } finally {
+      setPayoutSaving(false);
+    }
+  };
+
+  if (loading) return <div className="dark-theme-page" />;
 
   return (
     <>
@@ -15,13 +64,10 @@ export default function ManagementSettings() {
         <title>System Settings — Admin</title>
       </Head>
 
-      {/* Use the same wrapper class as sell.tsx */}
       <div className="dark-theme-page">
         <Header />
 
-        {/* Use the same <main> class as sell.tsx */}
         <main className="section">
-          {/* Use the same header class as sell.tsx */}
           <div className="section-header">
             <div>
               <h1>System Settings</h1>
@@ -29,13 +75,12 @@ export default function ManagementSettings() {
                 Global settings for Famous-Finds marketplace.
               </p>
             </div>
-            {/* Use the .cta class from globals.css */}
             <Link href="/management/dashboard" className="cta">
               ← Back to Management Dashboard
             </Link>
           </div>
 
-          {/* Use the .sell-card class from sell.tsx's styles */}
+          {/* Marketplace configuration */}
           <section className="sell-card">
             <h2>Marketplace configuration</h2>
 
@@ -58,20 +103,89 @@ export default function ManagementSettings() {
                 </label>
               </div>
             </div>
+          </section>
 
-            <p className="note">
-              Note: This page is currently informational. Currency and platform
-              mode are controlled by code and infrastructure, not live toggles.
-            </p>
+          {/* Seller payout settings */}
+          <section className="sell-card" style={{ marginTop: 24 }}>
+            <h2>Seller payout settings</h2>
+
+            {payoutLoading ? (
+              <p className="field-help">Loading payout settings...</p>
+            ) : (
+              <>
+                <div className="settings-grid">
+                  <div className="form-field">
+                    <label htmlFor="payout-mode">Payout Mode</label>
+                    <select
+                      id="payout-mode"
+                      value={payoutMode}
+                      onChange={(e) => setPayoutMode(e.target.value as PayoutMode)}
+                    >
+                      <option value="manual">
+                        Manual — Management triggers payouts
+                      </option>
+                      <option value="stripe_connect_auto">
+                        Auto — Platform pays via Stripe Connect
+                      </option>
+                    </select>
+                    <p className="field-help">
+                      {payoutMode === "manual"
+                        ? "Payouts are initiated manually by admin staff from the Payouts page."
+                        : "Eligible orders are automatically paid out to sellers via Stripe Connect."}
+                    </p>
+                  </div>
+
+                  <div className="form-field">
+                    <label htmlFor="cooling-days">
+                      Cooling Period (days)
+                    </label>
+                    <input
+                      id="cooling-days"
+                      type="number"
+                      min={0}
+                      max={60}
+                      value={coolingDays}
+                      onChange={(e) =>
+                        setCoolingDays(
+                          Math.max(0, Math.min(60, parseInt(e.target.value) || 0))
+                        )
+                      }
+                    />
+                    <p className="field-help">
+                      Number of days after delivery confirmation before seller
+                      funds become eligible for payout (0–60). Default is 7.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="payout-actions">
+                  <button
+                    type="button"
+                    onClick={savePayoutSettings}
+                    disabled={payoutSaving}
+                    className="btn-save"
+                  >
+                    {payoutSaving ? "Saving..." : "Save payout settings"}
+                  </button>
+                  {payoutMsg && (
+                    <span
+                      className={
+                        payoutMsg.startsWith("Error") ? "msg-error" : "msg-ok"
+                      }
+                    >
+                      {payoutMsg}
+                    </span>
+                  )}
+                </div>
+              </>
+            )}
           </section>
         </main>
 
         <Footer />
       </div>
 
-      {/* This <style jsx> block is added to match sell.tsx. */}
       <style jsx>{`
-        /* Copied from sell.tsx */
         .sell-card {
           background: #111827;
           border-radius: 16px;
@@ -106,8 +220,9 @@ export default function ManagementSettings() {
           font-weight: 500;
           color: #e5e7eb;
         }
-        
-        .form-field select {
+
+        .form-field select,
+        .form-field input[type="number"] {
           background: #020617;
           border-radius: 8px;
           border: 1px solid #374151;
@@ -115,7 +230,8 @@ export default function ManagementSettings() {
           color: #e5e7eb;
           font-size: 14px;
         }
-        .form-field select:disabled {
+        .form-field select:disabled,
+        .form-field input:disabled {
           opacity: 0.7;
         }
 
@@ -124,22 +240,47 @@ export default function ManagementSettings() {
           color: #9ca3af;
           margin-top: 4px;
         }
-        
+
         .form-field-check {
           display: flex;
           align-items: center;
           gap: 8px;
-          margin-top: 20px; /* align with label */
+          margin-top: 20px;
         }
         .form-field-check label {
           font-size: 13px;
           color: #9ca3af;
         }
-        
-        .note {
-          margin-top: 24px;
+
+        .payout-actions {
+          margin-top: 20px;
+          display: flex;
+          align-items: center;
+          gap: 12px;
+        }
+        .btn-save {
+          border-radius: 999px;
+          background: white;
+          padding: 8px 16px;
+          font-size: 13px;
+          font-weight: 500;
+          color: black;
+          border: none;
+          cursor: pointer;
+        }
+        .btn-save:hover {
+          background: #e5e7eb;
+        }
+        .btn-save:disabled {
+          opacity: 0.6;
+        }
+        .msg-ok {
           font-size: 12px;
-          color: #9ca3af;
+          color: #6ee7b7;
+        }
+        .msg-error {
+          font-size: 12px;
+          color: #fca5a5;
         }
       `}</style>
     </>

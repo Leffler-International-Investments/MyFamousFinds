@@ -7,7 +7,8 @@ import Header from "../../components/Header";
 import Footer from "../../components/Footer";
 
 import { onAuthStateChanged, signOut, User } from "firebase/auth";
-import { collection, query, where, getDocs, orderBy, limit, doc, getDoc } from "firebase/firestore";
+import { collection, query, where, getDocs, orderBy, limit, doc, getDoc, setDoc, deleteDoc, serverTimestamp } from "firebase/firestore";
+import Link from "next/link";
 
 // ✅ Use the shared client initializer (and do NOT init at import-time here)
 import { auth, db, firebaseClientReady } from "../../utils/firebaseClient";
@@ -36,10 +37,12 @@ export default function BuyerDashboardPage() {
   const [user, setUser] = useState<User | null>(null);
 
   const [savedItems, setSavedItems] = useState<ItemRow[]>([]);
+  const [cartItems, setCartItems] = useState<ItemRow[]>([]);
   const [viewedItems, setViewedItems] = useState<ItemRow[]>([]);
   const [activeOffers, setActiveOffers] = useState<ItemRow[]>([]);
   const [purchasedItems, setPurchasedItems] = useState<ItemRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [movingId, setMovingId] = useState<string | null>(null);
 
   useEffect(() => {
     if (previewMode) {
@@ -92,6 +95,7 @@ export default function BuyerDashboardPage() {
     };
 
     setSavedItems(await loadCollection("buyerSavedItems"));
+    setCartItems(await loadCollection("buyerCartItems"));
     setViewedItems(await loadCollection("buyerRecentlyViewed"));
     setActiveOffers(await loadCollection("buyerOffers"));
 
@@ -124,6 +128,52 @@ export default function BuyerDashboardPage() {
     });
 
     setPurchasedItems(orders);
+  };
+
+  const handleMoveToBag = async (item: ItemRow) => {
+    if (!db || !user) return;
+    const listingId = item.listingId || item.id.split("_").pop() || "";
+    if (!listingId) return;
+    setMovingId(item.id);
+    try {
+      const cartDocId = `${user.uid}_${listingId}`;
+      await setDoc(
+        doc(db, "buyerCartItems", cartDocId),
+        {
+          userId: user.uid,
+          listingId,
+          title: item.title || "",
+          brand: item.brand || "",
+          price: item.price || 0,
+          currency: item.currency || "USD",
+          imageUrl: item.imageUrl || "",
+          updatedAt: serverTimestamp(),
+          createdAt: serverTimestamp(),
+        },
+        { merge: true }
+      );
+      setCartItems((prev) => {
+        if (prev.find((c) => c.listingId === listingId)) return prev;
+        return [...prev, { ...item, id: cartDocId, listingId }];
+      });
+    } catch (err) {
+      console.error("Failed to move to bag:", err);
+    } finally {
+      setMovingId(null);
+    }
+  };
+
+  const handleRemoveFromBag = async (item: ItemRow) => {
+    if (!db || !user) return;
+    setMovingId(item.id);
+    try {
+      await deleteDoc(doc(db, "buyerCartItems", item.id));
+      setCartItems((prev) => prev.filter((c) => c.id !== item.id));
+    } catch (err) {
+      console.error("Failed to remove from bag:", err);
+    } finally {
+      setMovingId(null);
+    }
   };
 
   const handleSignOut = async () => {
@@ -199,6 +249,11 @@ export default function BuyerDashboardPage() {
                   </div>
 
                   <div className="buyer-snapshot-item">
+                    <div className="buyer-snapshot-number">{cartItems.length}</div>
+                    <div className="buyer-snapshot-text">Shopping Bag</div>
+                  </div>
+
+                  <div className="buyer-snapshot-item">
                     <div className="buyer-snapshot-number">{viewedItems.length}</div>
                     <div className="buyer-snapshot-text">Recently Viewed</div>
                   </div>
@@ -222,6 +277,56 @@ export default function BuyerDashboardPage() {
 
               {/* Lists */}
               <section className="buyer-dashboard-lists">
+                {/* My Shopping Bag */}
+                <div className="buyer-dashboard-list">
+                  <h2 className="buyer-dashboard-list-title">
+                    My Shopping Bag
+                    {cartItems.length > 0 && (
+                      <Link href="/cart" className="buyer-dashboard-view-link">
+                        View bag
+                      </Link>
+                    )}
+                  </h2>
+                  <p className="buyer-dashboard-note">
+                    Items in your bag are not reserved until checkout is complete.
+                  </p>
+                  {cartItems.length ? (
+                    <ul className="buyer-dashboard-list-items">
+                      {cartItems.map((item) => (
+                        <li key={item.id} className="buyer-dashboard-list-row">
+                          <div className="buyer-dashboard-row-between">
+                            <div>
+                              <span>{item.title}</span>
+                              <span className="buyer-dashboard-meta-line">
+                                {item.brand ? `${item.brand} • ` : ""}
+                                {typeof item.price === "number" && item.price > 0
+                                  ? item.price.toLocaleString("en-US", {
+                                      style: "currency",
+                                      currency: item.currency || "USD",
+                                    })
+                                  : ""}
+                              </span>
+                            </div>
+                            <button
+                              type="button"
+                              className="btn-remove"
+                              onClick={() => handleRemoveFromBag(item)}
+                              disabled={movingId === item.id}
+                            >
+                              {movingId === item.id ? "..." : "Remove"}
+                            </button>
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="buyer-dashboard-empty">
+                      Your bag is empty. Move items from your wishlist below.
+                    </p>
+                  )}
+                </div>
+
+                {/* Saved Items (Wishlist) */}
                 <div className="buyer-dashboard-list">
                   <h2 className="buyer-dashboard-list-title">Saved Items</h2>
                   <p className="buyer-dashboard-note">
@@ -229,19 +334,49 @@ export default function BuyerDashboardPage() {
                   </p>
                   {savedItems.length ? (
                     <ul className="buyer-dashboard-list-items">
-                      {savedItems.map((item) => (
-                        <li key={item.id} className="buyer-dashboard-list-row">
-                          <span>{item.title}</span>
-                          <span className="buyer-dashboard-meta-line">
-                            {item.brand ? `${item.brand} • ` : ""}
-                            {item.status === "Sold"
-                              ? "Status: SOLD / No longer available"
-                              : item.status
-                              ? `Status: ${item.status}`
-                              : ""}
-                          </span>
-                        </li>
-                      ))}
+                      {savedItems.map((item) => {
+                        const listingId = item.listingId || item.id.split("_").pop() || "";
+                        const alreadyInBag = cartItems.some(
+                          (c) => c.listingId === listingId
+                        );
+                        return (
+                          <li key={item.id} className="buyer-dashboard-list-row">
+                            <div className="buyer-dashboard-row-between">
+                              <div>
+                                <span>{item.title}</span>
+                                <span className="buyer-dashboard-meta-line">
+                                  {item.brand ? `${item.brand} • ` : ""}
+                                  {typeof item.price === "number" && item.price > 0
+                                    ? item.price.toLocaleString("en-US", {
+                                        style: "currency",
+                                        currency: item.currency || "USD",
+                                      })
+                                    : ""}
+                                  {item.status === "Sold"
+                                    ? " • SOLD / No longer available"
+                                    : item.status
+                                    ? ` • ${item.status}`
+                                    : ""}
+                                </span>
+                              </div>
+                              {item.status !== "Sold" && (
+                                <button
+                                  type="button"
+                                  className={alreadyInBag ? "btn-in-bag" : "btn-move-to-bag"}
+                                  onClick={() => !alreadyInBag && handleMoveToBag(item)}
+                                  disabled={alreadyInBag || movingId === item.id}
+                                >
+                                  {movingId === item.id
+                                    ? "Moving..."
+                                    : alreadyInBag
+                                    ? "In bag"
+                                    : "Move to bag"}
+                                </button>
+                              )}
+                            </div>
+                          </li>
+                        );
+                      })}
                     </ul>
                   ) : (
                     <p className="buyer-dashboard-empty">No saved items yet.</p>
@@ -347,6 +482,74 @@ export default function BuyerDashboardPage() {
         .buyer-dashboard-meta-line {
           font-size: 12px;
           color: #6b7280;
+        }
+        .buyer-dashboard-row-between {
+          display: flex;
+          align-items: flex-start;
+          justify-content: space-between;
+          gap: 12px;
+          width: 100%;
+        }
+        .buyer-dashboard-row-between > div {
+          display: flex;
+          flex-direction: column;
+          gap: 4px;
+        }
+        .buyer-dashboard-view-link {
+          margin-left: 12px;
+          font-size: 12px;
+          font-weight: 400;
+          color: #2563eb;
+          text-decoration: underline;
+          text-underline-offset: 2px;
+        }
+        .btn-move-to-bag {
+          flex-shrink: 0;
+          border-radius: 999px;
+          background: #111827;
+          padding: 4px 12px;
+          font-size: 11px;
+          font-weight: 500;
+          color: white;
+          border: none;
+          cursor: pointer;
+          white-space: nowrap;
+        }
+        .btn-move-to-bag:hover {
+          background: #1f2937;
+        }
+        .btn-move-to-bag:disabled {
+          opacity: 0.6;
+        }
+        .btn-in-bag {
+          flex-shrink: 0;
+          border-radius: 999px;
+          background: #e5e7eb;
+          padding: 4px 12px;
+          font-size: 11px;
+          font-weight: 500;
+          color: #6b7280;
+          border: none;
+          cursor: default;
+          white-space: nowrap;
+        }
+        .btn-remove {
+          flex-shrink: 0;
+          border-radius: 999px;
+          background: transparent;
+          padding: 4px 12px;
+          font-size: 11px;
+          font-weight: 500;
+          color: #ef4444;
+          border: 1px solid #fecaca;
+          cursor: pointer;
+          white-space: nowrap;
+        }
+        .btn-remove:hover {
+          background: #fef2f2;
+        }
+        .btn-remove:disabled {
+          opacity: 0.6;
         }
       `}</style>
     </>

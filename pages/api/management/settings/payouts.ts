@@ -1,11 +1,15 @@
 // FILE: /pages/api/management/settings/payouts.ts
 
 import type { NextApiRequest, NextApiResponse } from "next";
-import { adminDb, FieldValue } from "../../../../utils/firebaseAdmin";
-import { getPayoutSettings } from "../../../../lib/payoutSettings";
+import { adminDb } from "../../../../utils/firebaseAdmin";
+import {
+  getPayoutSettings,
+  setPayoutSettings,
+  PayoutMode,
+} from "../../../../lib/payoutSettings";
 
-type OkGet = { ok: true; settings: { defaultCoolingDays: number } };
-type OkPost = { ok: true };
+type OkGet = { ok: true; settings: { defaultCoolingDays: number; payoutMode: PayoutMode } };
+type OkPost = { ok: true; settings: { defaultCoolingDays: number; payoutMode: PayoutMode } };
 type Err = { ok: false; error: string };
 
 // Minimal admin gate: optional shared secret.
@@ -34,26 +38,29 @@ export default async function handler(
   }
 
   if (req.method === "POST") {
-    const { defaultCoolingDays } = (req.body || {}) as {
+    const { defaultCoolingDays, payoutMode } = (req.body || {}) as {
       defaultCoolingDays?: number;
+      payoutMode?: string;
     };
-    const n = Number(defaultCoolingDays);
-    if (!Number.isFinite(n) || n < 0 || n > 60) {
-      return res.status(400).json({ ok: false, error: "invalid_defaultCoolingDays" });
+
+    if (defaultCoolingDays !== undefined) {
+      const n = Number(defaultCoolingDays);
+      if (!Number.isFinite(n) || n < 0 || n > 60) {
+        return res.status(400).json({ ok: false, error: "invalid_defaultCoolingDays" });
+      }
     }
 
-    await adminDb
-      .collection("settings")
-      .doc("payouts")
-      .set(
-        {
-          defaultCoolingDays: Math.round(n),
-          updatedAt: FieldValue.serverTimestamp(),
-        },
-        { merge: true }
-      );
+    if (payoutMode !== undefined && !["manual", "stripe_connect_auto"].includes(payoutMode)) {
+      return res.status(400).json({ ok: false, error: "invalid_payoutMode" });
+    }
 
-    return res.status(200).json({ ok: true });
+    const next = await setPayoutSettings({
+      defaultCoolingDays:
+        typeof defaultCoolingDays === "number" ? defaultCoolingDays : undefined,
+      payoutMode: payoutMode as PayoutMode | undefined,
+    });
+
+    return res.status(200).json({ ok: true, settings: next });
   }
 
   res.setHeader("Allow", "GET, POST");
