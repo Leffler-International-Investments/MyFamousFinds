@@ -1,6 +1,6 @@
 // FILE: /components/ProductCard.tsx
 import Link from "next/link";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 export type ProductLike = {
   id: string;
@@ -17,12 +17,31 @@ export type ProductLike = {
   tags?: string[];
 };
 
-export default function ProductCard(p: ProductLike) {
-  const [liked, setLiked] = useState(false);
+type Props = ProductLike & {
+  /** Whether this item is currently in the user's wishlist */
+  isSaved?: boolean;
+  /** Callback when user clicks the heart. Parent should handle the API call. */
+  onToggleWishlist?: (productId: string) => void;
+};
+
+export default function ProductCard({ isSaved, onToggleWishlist, ...p }: Props) {
+  // If parent doesn't provide wishlist state, use local state (backwards compat)
+  const [localLiked, setLocalLiked] = useState(false);
+  const liked = isSaved !== undefined ? isSaved : localLiked;
+
+  const handleHeartClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (onToggleWishlist) {
+      onToggleWishlist(p.id);
+    } else {
+      setLocalLiked(!localLiked);
+    }
+  };
 
   return (
     <div className="card">
-      {/* 1. THUMBNAIL (Unclickable, visual only) */}
+      {/* 1. THUMBNAIL with heart overlay */}
       <div className="thumb">
         {p.image ? (
           <img src={p.image} alt={p.title} />
@@ -30,6 +49,28 @@ export default function ProductCard(p: ProductLike) {
           <div className="no-image">No image</div>
         )}
         {p.badge && <span className="badge">{p.badge}</span>}
+        <button
+          type="button"
+          className={`heart-overlay${liked ? " heart-overlay--active" : ""}`}
+          onClick={handleHeartClick}
+          title={liked ? "Remove from wishlist" : "Add to wishlist"}
+        >
+          <svg viewBox="0 0 24 24" width="20" height="20" className="heart-svg">
+            {liked ? (
+              <path
+                d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"
+                fill="#ef4444"
+              />
+            ) : (
+              <path
+                d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"
+                fill="none"
+                stroke="#fff"
+                strokeWidth="2"
+              />
+            )}
+          </svg>
+        </button>
       </div>
 
       {/* 2. INFO & ACTIONS */}
@@ -40,17 +81,8 @@ export default function ProductCard(p: ProductLike) {
           {p.price && <div className="price">{p.price}</div>}
         </div>
 
-        {/* 3. NEW ACTION BUTTONS */}
+        {/* 3. ACTION BUTTON */}
         <div className="actions">
-          <button
-            type="button"
-            className={`btn-heart ${liked ? "active" : ""}`}
-            onClick={() => setLiked(!liked)}
-            title="I Love It"
-          >
-            {liked ? "❤" : "♡"}
-          </button>
-
           <Link href={p.href} className="btn-buy">
             Buy Now
           </Link>
@@ -71,22 +103,20 @@ export default function ProductCard(p: ProductLike) {
         /* --- PRESERVED YOUR PERFECT SQUARE THUMBNAIL --- */
         .thumb {
           position: relative;
-          aspect-ratio: 1 / 1;      
+          aspect-ratio: 1 / 1;
           background: #ffffff;
           display: flex;
           align-items: center;
           justify-content: center;
-          overflow: hidden;         
+          overflow: hidden;
         }
 
         .thumb img {
           width: 100%;
           height: 100%;
-          object-fit: cover;        
-          object-position: center;  
+          object-fit: cover;
+          object-position: center;
           display: block;
-          
-          /* Global Dashboard CSS handles the 'multiply' filter if needed */
         }
 
         .no-image {
@@ -108,12 +138,41 @@ export default function ProductCard(p: ProductLike) {
           z-index: 2;
         }
 
+        /* Heart overlay on top-right of image */
+        .heart-overlay {
+          position: absolute;
+          top: 8px;
+          right: 8px;
+          width: 34px;
+          height: 34px;
+          border-radius: 50%;
+          background: rgba(0, 0, 0, 0.25);
+          border: none;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
+          z-index: 3;
+          transition: background 0.2s, transform 0.15s;
+          padding: 0;
+        }
+        .heart-overlay:hover {
+          background: rgba(0, 0, 0, 0.4);
+          transform: scale(1.1);
+        }
+        .heart-overlay--active {
+          background: rgba(255, 255, 255, 0.9);
+        }
+        .heart-overlay--active:hover {
+          background: rgba(255, 255, 255, 1);
+        }
+
         /* --- META SECTION --- */
         .meta {
           padding: 12px;
           display: flex;
           flex-direction: column;
-          flex-grow: 1; /* Pushes actions to bottom if card stretches */
+          flex-grow: 1;
           gap: 12px;
         }
 
@@ -136,13 +195,11 @@ export default function ProductCard(p: ProductLike) {
           line-height: 1.3;
           font-weight: 500;
           color: #111;
-          
-          /* Text clamping to keep height consistent */
           display: -webkit-box;
           -webkit-line-clamp: 2;
           -webkit-box-orient: vertical;
           overflow: hidden;
-          min-height: 36px; 
+          min-height: 36px;
         }
 
         .price {
@@ -152,38 +209,12 @@ export default function ProductCard(p: ProductLike) {
           margin-top: 2px;
         }
 
-        /* --- NEW BUTTONS STYLING --- */
+        /* --- BUTTONS STYLING --- */
         .actions {
-          margin-top: auto; /* Pushes buttons to very bottom */
+          margin-top: auto;
           display: flex;
           align-items: center;
           gap: 8px;
-        }
-
-        .btn-heart {
-          width: 36px;
-          height: 36px;
-          border-radius: 50%;
-          border: 1px solid #e5e7eb;
-          background: #fff;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          font-size: 18px;
-          color: #9ca3af;
-          cursor: pointer;
-          transition: all 0.2s;
-        }
-
-        .btn-heart:hover {
-          border-color: #d1d5db;
-          color: #ef4444;
-        }
-
-        .btn-heart.active {
-          color: #ef4444;
-          background: #fef2f2;
-          border-color: #fca5a5;
         }
 
         .btn-buy {
