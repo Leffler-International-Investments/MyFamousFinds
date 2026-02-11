@@ -1,7 +1,7 @@
 // FILE: /lib/payoutSettings.ts
 import { adminDb } from "../utils/firebaseAdmin";
 
-export type PayoutMode = "manual" | "stripe_connect_auto";
+export type PayoutMode = "manual" | "paypal_auto";
 
 export type PayoutSettings = {
   defaultCoolingDays: number;

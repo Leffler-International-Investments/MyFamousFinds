@@ -121,8 +121,8 @@ export default function ManagementPayouts({
               <span className="mode-label">
                 Current mode:{" "}
                 <strong>
-                  {settings.payoutMode === "stripe_connect_auto"
-                    ? "Auto (Stripe Connect)"
+                  {settings.payoutMode === "paypal_auto"
+                    ? "Auto (PayPal Payouts)"
                     : "Manual (by management)"}
                 </strong>
               </span>
@@ -134,7 +134,7 @@ export default function ManagementPayouts({
                 </strong>
               </span>
             </div>
-            {settings.payoutMode === "stripe_connect_auto" && (
+            {settings.payoutMode === "paypal_auto" && (
               <button
                 type="button"
                 className="btn-action"

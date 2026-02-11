@@ -50,7 +50,7 @@ export default async function handler(
       }
     }
 
-    if (payoutMode !== undefined && !["manual", "stripe_connect_auto"].includes(payoutMode)) {
+    if (payoutMode !== undefined && !["manual", "paypal_auto"].includes(payoutMode)) {
       return res.status(400).json({ ok: false, error: "invalid_payoutMode" });
     }
 

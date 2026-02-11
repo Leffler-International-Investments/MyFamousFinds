@@ -69,13 +69,13 @@ const ManagementDashboardTutorial: React.FC = () => {
           </p>
         </li>
         <li style={{ marginBottom: "12px" }}>
-          <strong>Stripe &amp; financial settings</strong>
+          <strong>PayPal &amp; financial settings</strong>
           <p style={{ margin: "4px 0 0 0", padding: 0 }}>
-            In <strong>Stripe settings</strong> you manage platform commission, payout rules and
-            test/live mode (where enabled). Only authorised management users should change these
+            In <strong>Payment settings</strong> you manage platform commission, payout rules and
+            sandbox/live mode (where enabled). Only authorised management users should change these
             settings and any change should be coordinated with finance.{" "}
             <strong>
-              Note: Access to these financial areas is often protected by an "Owner Guard".
+              Note: Access to these financial areas is often protected by an &quot;Owner Guard&quot;.
             </strong>
           </p>
         </li>

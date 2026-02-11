@@ -4,7 +4,6 @@ import Link from "next/link";
 import type { GetServerSideProps } from "next";
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
-import { retrieveCheckoutSession } from "../../lib/stripe";
 import { adminDb } from "../../utils/firebaseAdmin";
 import PostPurchaseButler from "../../components/PostPurchaseButler";
 
@@ -135,78 +134,100 @@ export default function OrderSuccessPage({
 }
 
 export const getServerSideProps: GetServerSideProps<SuccessProps> = async (ctx) => {
-  const sessionId = String(ctx.query.session_id || "");
-  if (!sessionId) return { notFound: true };
+  const paypalOrderId = String(ctx.query.paypal_order_id || "");
+  const pendingId = String(ctx.query.pending || "");
+
+  if (!paypalOrderId) return { notFound: true };
 
   try {
-    const session = await retrieveCheckoutSession(sessionId);
+    if (!adminDb) return { notFound: true };
 
-    const currency = (session.currency || "usd").toUpperCase();
-    const amountTotal = (session.amount_total || 0) / 100;
+    // First, try to capture the order if it hasn't been captured yet
+    const existingOrder = await adminDb
+      .collection("orders")
+      .where("paypalOrderId", "==", paypalOrderId)
+      .limit(1)
+      .get();
 
+    let orderId = "";
     let productTitle = "Your item";
     let brand = "";
     let category = "";
-    let orderId = "";
+    let amountTotal = 0;
+    let currency = "USD";
+    let buyerEmail = "";
+    let buyerName = "";
+    let shippingAddressText = "";
 
-    if (session.metadata) {
-      if (session.metadata.productTitle) productTitle = session.metadata.productTitle;
-      if (session.metadata.brand) brand = session.metadata.brand;
-      if (session.metadata.category) category = session.metadata.category;
-    }
+    if (!existingOrder.empty) {
+      // Order already captured — read from Firestore
+      const orderDoc = existingOrder.docs[0];
+      const data = orderDoc.data() as any;
+      orderId = orderDoc.id;
+      productTitle = String(data.listingTitle || productTitle);
+      brand = String(data.listingBrand || brand);
+      category = String(data.listingCategory || category);
+      amountTotal = Number(data.amountTotal || 0) / 100;
+      currency = String(data.currency || "USD");
+      buyerEmail = String(data.buyerEmail || "");
+      buyerName = String(data.buyerName || "");
 
-    let buyerEmail = session.customer_details?.email || "";
-    let buyerName = session.customer_details?.name || "";
-
-    const shippingDetails = (session as any).shipping_details as
-      | { name?: string; address?: any }
-      | undefined;
-
-    const shipAddr = shippingDetails?.address || session.customer_details?.address || null;
-
-    if (shippingDetails?.name) buyerName = shippingDetails.name;
-
-    let shippingAddressText = shipAddr
-      ? [
-          shippingDetails?.name || buyerName,
-          shipAddr.line1 || "",
-          shipAddr.line2 || "",
-          [shipAddr.city, shipAddr.state, shipAddr.postal_code].filter(Boolean).join(" "),
-          shipAddr.country || "",
+      if (data.shippingAddress) {
+        const sa = data.shippingAddress;
+        shippingAddressText = [
+          sa.name || buyerName,
+          sa.line1 || "",
+          sa.line2 || "",
+          [sa.city, sa.state, sa.postal_code].filter(Boolean).join(" "),
+          sa.country || "",
         ]
           .filter(Boolean)
-          .join("\n")
-      : "";
+          .join("\n");
+      }
+    } else {
+      // Need to capture the PayPal order
+      const siteUrl =
+        (process.env.NEXT_PUBLIC_SITE_URL || "").trim() ||
+        "https://www.myfamousfinds.com";
 
-    if (adminDb) {
-      const ordersSnap = await adminDb
-        .collection("orders")
-        .where("stripeSessionId", "==", session.id)
-        .limit(1)
-        .get();
+      const captureRes = await fetch(`${siteUrl}/api/paypal/capture-order`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ paypalOrderId, pendingOrderId: pendingId }),
+      });
 
-      if (!ordersSnap.empty) {
-        const orderDoc = ordersSnap.docs[0];
-        const data = orderDoc.data() as any;
-        orderId = orderDoc.id;
-        productTitle = String(data.listingTitle || productTitle);
-        brand = String(data.listingBrand || brand);
-        category = String(data.listingCategory || category);
-        buyerEmail = String(data.buyerEmail || buyerEmail);
-        buyerName = String(data.buyerName || buyerName);
+      const captureData = await captureRes.json();
 
-        if (!shippingAddressText && data.shippingAddress) {
-          const sa = data.shippingAddress;
-          const fallbackText = [
-            sa.name || buyerName,
-            sa.line1 || "",
-            sa.line2 || "",
-            [sa.city, sa.state, sa.postal_code].filter(Boolean).join(" "),
-            sa.country || "",
-          ]
-            .filter(Boolean)
-            .join("\n");
-          if (fallbackText) shippingAddressText = fallbackText;
+      if (captureData.ok && captureData.orderId) {
+        // Re-read the created order
+        const orderDoc = await adminDb
+          .collection("orders")
+          .doc(captureData.orderId)
+          .get();
+
+        if (orderDoc.exists) {
+          const data = orderDoc.data() as any;
+          orderId = orderDoc.id;
+          productTitle = String(data.listingTitle || productTitle);
+          brand = String(data.listingBrand || brand);
+          category = String(data.listingCategory || category);
+          amountTotal = Number(data.amountTotal || 0) / 100;
+          currency = String(data.currency || "USD");
+          buyerEmail = String(data.buyerEmail || "");
+          buyerName = String(data.buyerName || "");
+
+          if (data.shippingAddress) {
+            const sa = data.shippingAddress;
+            shippingAddressText = [
+              sa.name || buyerName,
+              sa.line1 || "",
+              sa.line2 || "",
+              [sa.city, sa.state, sa.postal_code].filter(Boolean).join(" "),
+              sa.country || "",
+            ]
+              .filter(Boolean)
+              .join("\n");
+          }
         }
       }
     }

@@ -6,7 +6,7 @@ import Footer from "../../components/Footer";
 import { useRequireAdmin } from "../../hooks/useRequireAdmin";
 import { useEffect, useState, useCallback } from "react";
 
-type PayoutMode = "manual" | "stripe_connect_auto";
+type PayoutMode = "manual" | "paypal_auto";
 
 export default function ManagementSettings() {
   const { loading } = useRequireAdmin();
@@ -124,14 +124,14 @@ export default function ManagementSettings() {
                       <option value="manual">
                         Manual — Management triggers payouts
                       </option>
-                      <option value="stripe_connect_auto">
-                        Auto — Platform pays via Stripe Connect
+                      <option value="paypal_auto">
+                        Auto — Platform pays via PayPal Payouts
                       </option>
                     </select>
                     <p className="field-help">
                       {payoutMode === "manual"
                         ? "Payouts are initiated manually by admin staff from the Payouts page."
-                        : "Eligible orders are automatically paid out to sellers via Stripe Connect."}
+                        : "Eligible orders are automatically paid out to sellers via PayPal Payouts."}
                     </p>
                   </div>
 

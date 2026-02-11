@@ -16,8 +16,7 @@ const ALLOWED_EMAILS = [
   "danyaffa@famousfinds.com" // Secondary dev/business email
 ];
 
-const STRIPE_CONNECT_MGMT_URL =
-  process.env.NEXT_PUBLIC_STRIPE_CONNECT_MANAGEMENT_URL || "";
+// PayPal doesn't require a Connect redirect — payouts use PayPal email
 
 export default function ManagementBankingPage() {
   const { loading } = useRequireAdmin();
@@ -28,7 +27,7 @@ export default function ManagementBankingPage() {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [stripeBusy, setStripeBusy] = useState(false);
+  const [paypalEmail, setPaypalEmail] = useState("");
 
   useEffect(() => {
     const userEmail =
@@ -70,20 +69,7 @@ export default function ManagementBankingPage() {
     setPrefs((prev: any) => ({ ...prev, [key]: value }));
   }
 
-  function handleStripeClick() {
-    if (!STRIPE_CONNECT_MGMT_URL) {
-      alert(
-        "Stripe Connect for management payouts is not configured yet. Ask the owner to set it up."
-      );
-      return;
-    }
-    setStripeBusy(true);
-    try {
-      window.open(STRIPE_CONNECT_MGMT_URL, "_blank", "noopener,noreferrer");
-    } finally {
-      setStripeBusy(false);
-    }
-  }
+  // PayPal email is saved as part of the form now — no external redirect needed
 
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -169,8 +155,8 @@ export default function ManagementBankingPage() {
           <section className="form-card">
             <h2>Bank & tax setup</h2>
             <p className="form-subtitle">
-              Connect the management account to Stripe or the payroll system.
-              Sensitive data (bank details, SSN/EIN) is never stored here.
+              Configure the management payout account. Payouts are sent via
+              PayPal to the email address below.
             </p>
 
             <div className="form-field">
@@ -205,16 +191,20 @@ export default function ManagementBankingPage() {
             </div>
 
             <div className="form-field">
-              <button
-                type="button"
-                onClick={handleStripeClick}
-                disabled={stripeBusy}
-                className="btn-primary-dark"
-              >
-                {stripeBusy
-                  ? "Opening Stripe…"
-                  : "Open secure Stripe setup (Owner/Developer only)"}
-              </button>
+              <label>PayPal payout email</label>
+              <input
+                type="email"
+                className="form-input"
+                value={paypalEmail || prefs.paypalEmail || ""}
+                onChange={(e) => {
+                  setPaypalEmail(e.target.value);
+                  update("paypalEmail", e.target.value);
+                }}
+                placeholder="paypal@example.com"
+              />
+              <p className="form-subtitle" style={{ marginTop: 4 }}>
+                Payouts will be sent to this PayPal email address.
+              </p>
             </div>
           </section>
 

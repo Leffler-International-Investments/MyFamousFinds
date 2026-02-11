@@ -617,7 +617,7 @@ export default function SellerDashboard() {
             <DashboardLink
               href="/seller/banking"
               title="Banking & Payouts"
-              description="Connect Stripe and control payout schedule."
+              description="Set your PayPal email and control payout schedule."
               accentColor="gray"
               disabled={dashboardLocked}
             />
