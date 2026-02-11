@@ -87,6 +87,13 @@ export default function Header() {
               className="ff-search-input"
             />
           </form>
+          <Link href="/my-orders" className="ff-cart-icon" aria-label="Shopping cart">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="9" cy="21" r="1" />
+              <circle cx="20" cy="21" r="1" />
+              <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6" />
+            </svg>
+          </Link>
         </div>
       </div>
 
@@ -244,6 +251,25 @@ export default function Header() {
           border: 1px solid #d1d5db;
           padding: 8px 12px;
           font-size: 14px;
+        }
+
+        .ff-search-container {
+          display: flex;
+          align-items: center;
+          justify-content: flex-end;
+          gap: 14px;
+        }
+
+        .ff-cart-icon {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          color: #111827;
+          text-decoration: none;
+          transition: opacity 0.15s;
+        }
+        .ff-cart-icon:hover {
+          opacity: 0.6;
         }
 
         .ff-category-nav {
