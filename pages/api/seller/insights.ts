@@ -16,11 +16,37 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
   const now = new Date();
   const since = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
 
-  const snap = await adminDb
-    .collection("orders")
-    .where("sellerId", "==", String(sellerId))
-    .where("createdAt", ">=", since)
-    .get();
+  // Try the indexed query first; fall back if composite index is missing
+  let snap;
+  try {
+    snap = await adminDb
+      .collection("orders")
+      .where("sellerId", "==", String(sellerId))
+      .where("createdAt", ">=", since)
+      .get();
+  } catch (indexErr: any) {
+    if (
+      indexErr?.code === 9 ||
+      String(indexErr?.message || "").includes("FAILED_PRECONDITION") ||
+      String(indexErr?.message || "").includes("requires an index")
+    ) {
+      console.warn("seller_insights: composite index missing, falling back to unfiltered query");
+      // Fetch all seller orders and filter by date in JS
+      const allSnap = await adminDb
+        .collection("orders")
+        .where("sellerId", "==", String(sellerId))
+        .get();
+      // Filter to last 30 days manually
+      const filtered = allSnap.docs.filter((doc) => {
+        const d: any = doc.data() || {};
+        const ts = d.createdAt?.toDate ? d.createdAt.toDate() : null;
+        return ts ? ts >= since : false;
+      });
+      snap = { forEach: (fn: any) => filtered.forEach(fn), docs: filtered } as any;
+    } else {
+      throw indexErr;
+    }
+  }
 
   const map = new Map<string, { sum: number; count: number; first: Date; last: Date }>();
   snap.forEach((doc) => {
