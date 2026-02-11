@@ -1,6 +1,7 @@
 // FILE: /components/ProductCard.tsx
 import Link from "next/link";
 import { useState } from "react";
+import { useToast } from "./Toast";
 
 export type ProductLike = {
   id: string;
@@ -19,6 +20,17 @@ export type ProductLike = {
 
 export default function ProductCard(p: ProductLike) {
   const [liked, setLiked] = useState(false);
+  const { showToast } = useToast();
+
+  function handleHeart() {
+    const next = !liked;
+    setLiked(next);
+    showToast(
+      next
+        ? `${p.title} added to your wishlist`
+        : `${p.title} removed from your wishlist`
+    );
+  }
 
   return (
     <div className="card">
@@ -45,7 +57,7 @@ export default function ProductCard(p: ProductLike) {
           <button
             type="button"
             className={`btn-heart ${liked ? "active" : ""}`}
-            onClick={() => setLiked(!liked)}
+            onClick={handleHeart}
             title="I Love It"
           >
             {liked ? "❤" : "♡"}
