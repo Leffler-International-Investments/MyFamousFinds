@@ -19,6 +19,7 @@ type SellerBankingPrefs = {
   postalCode?: string;
   country?: string;
   phone?: string;
+  paypalEmail?: string;
   pausePayouts?: boolean;
   payoutSchedule?: string;
   notes?: string;
@@ -313,7 +314,7 @@ export default function SellerBankingPage() {
                 value={paypalEmailField || prefs.paypalEmail || ""}
                 onChange={(e) => {
                   setPaypalEmailField(e.target.value);
-                  update("paypalEmail" as any, e.target.value);
+                  update("paypalEmail", e.target.value);
                 }}
                 placeholder="your-paypal@email.com"
               />
