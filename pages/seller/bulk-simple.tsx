@@ -99,6 +99,28 @@ const SOURCES = [
 
 const PROOFS = ["Receipt", "Bank statement", "Certificate", "Other"];
 
+const COLOR_OPTIONS: { label: string; hex: string }[] = [
+  { label: "Black", hex: "#000000" },
+  { label: "White", hex: "#FFFFFF" },
+  { label: "Cream", hex: "#FFFDD0" },
+  { label: "Beige", hex: "#D2B48C" },
+  { label: "Brown", hex: "#8B4513" },
+  { label: "Tan", hex: "#C8A97E" },
+  { label: "Burgundy", hex: "#800020" },
+  { label: "Red", hex: "#DC2626" },
+  { label: "Pink", hex: "#EC4899" },
+  { label: "Orange", hex: "#F97316" },
+  { label: "Yellow", hex: "#EAB308" },
+  { label: "Green", hex: "#16A34A" },
+  { label: "Blue", hex: "#2563EB" },
+  { label: "Navy", hex: "#1E3A5F" },
+  { label: "Purple", hex: "#7C3AED" },
+  { label: "Grey", hex: "#9CA3AF" },
+  { label: "Silver", hex: "#C0C0C0" },
+  { label: "Gold", hex: "#D4AF37" },
+  { label: "Multi", hex: "conic-gradient(red,orange,yellow,green,blue,purple,red)" },
+];
+
 function getSellerIdHeader(): string {
   if (typeof window === "undefined") return "";
   return String(window.localStorage.getItem("ff-seller-id") || "").trim();
@@ -529,13 +551,29 @@ export default function BulkSimple() {
                 />
               </label>
 
-              <label>
+              <label className="full">
                 <span>Color</span>
-                <input
-                  value={it.color || ""}
-                  onChange={(e) => update(idx, { color: e.target.value })}
-                  placeholder="e.g., Black"
-                />
+                <div className="color-picker-grid">
+                  {COLOR_OPTIONS.map((c) => {
+                    const isMulti = c.label === "Multi";
+                    const isActive = (it.color || "").toLowerCase() === c.label.toLowerCase();
+                    return (
+                      <button
+                        key={c.label}
+                        type="button"
+                        className={`color-pick${isActive ? " color-pick--active" : ""}`}
+                        title={c.label}
+                        onClick={() => update(idx, { color: isActive ? "" : c.label })}
+                      >
+                        <span
+                          className="color-circle"
+                          style={isMulti ? { background: c.hex } : { backgroundColor: c.hex }}
+                        />
+                        <span className="color-name">{c.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
               </label>
 
               <label>
@@ -778,6 +816,48 @@ export default function BulkSimple() {
           box-shadow: 0 0 0 1px #000;
         }
         
+        /* Color picker */
+        .color-picker-grid {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 6px;
+        }
+        .color-pick {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 3px;
+          padding: 4px 3px;
+          border: 2px solid transparent;
+          border-radius: 8px;
+          background: none;
+          cursor: pointer;
+          transition: border-color 0.15s;
+          width: 52px;
+        }
+        .color-pick:hover {
+          border-color: #d1d5db;
+        }
+        .color-pick--active {
+          border-color: #111827;
+          background: #f3f4f6;
+        }
+        .color-circle {
+          width: 24px;
+          height: 24px;
+          border-radius: 50%;
+          border: 1px solid #d1d5db;
+          display: block;
+          flex-shrink: 0;
+        }
+        .color-name {
+          font-size: 9px;
+          color: #374151;
+          font-weight: 500;
+          line-height: 1.1;
+          text-align: center;
+        }
+
         .dropzone {
           border-radius: 8px;
           border: 1px dashed #d1d5db;
