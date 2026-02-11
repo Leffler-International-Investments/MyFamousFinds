@@ -145,7 +145,7 @@ export default async function handler(
       title,
       amount: listingPrice,
       currency,
-      returnUrl: `${baseUrl}/order/success?paypal_order_id={PAYPAL_ORDER_ID}&pending=${pendingOrderRef.id}`,
+      returnUrl: `${baseUrl}/order/success?pending=${pendingOrderRef.id}`,
       cancelUrl: `${baseUrl}/product/${id}`,
       buyerEmail: buyerDetails?.email,
       metadata: {
