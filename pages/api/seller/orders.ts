@@ -84,12 +84,31 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
 
     if (!adminDb) return res.status(500).json({ ok: false, error: "firebase_not_configured" });
 
-    const snap = await adminDb
-      .collection("orders")
-      .where("sellerId", "==", sellerId)
-      .orderBy("createdAt", "desc")
-      .limit(200)
-      .get();
+    // Try the indexed query first; fall back to unordered if composite index is missing
+    let snap;
+    try {
+      snap = await adminDb
+        .collection("orders")
+        .where("sellerId", "==", sellerId)
+        .orderBy("createdAt", "desc")
+        .limit(200)
+        .get();
+    } catch (indexErr: any) {
+      if (
+        indexErr?.code === 9 ||
+        String(indexErr?.message || "").includes("FAILED_PRECONDITION") ||
+        String(indexErr?.message || "").includes("requires an index")
+      ) {
+        console.warn("seller_orders: composite index missing, falling back to unordered query");
+        snap = await adminDb
+          .collection("orders")
+          .where("sellerId", "==", sellerId)
+          .limit(200)
+          .get();
+      } else {
+        throw indexErr;
+      }
+    }
 
     const orders: Order[] = snap.docs.map((d) => {
       const o: any = d.data() || {};
@@ -172,6 +191,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
         items: Array.isArray(o.items) ? o.items : [],
         listingTitle,
       };
+    });
+
+    // Sort by createdAt descending (ensures correct order even without Firestore index)
+    orders.sort((a, b) => {
+      const ta = a.createdAt ? Date.parse(a.createdAt) : 0;
+      const tb = b.createdAt ? Date.parse(b.createdAt) : 0;
+      return tb - ta;
     });
 
     return res.status(200).json({ ok: true, orders });
