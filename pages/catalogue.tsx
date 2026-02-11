@@ -170,22 +170,60 @@ export const getServerSideProps: GetServerSideProps<CatalogueProps> = async () =
     snap.docs.forEach((doc) => {
       const d: any = doc.data() || {};
 
-      const allowedStatuses = ["Live", "Active", "Approved"];
-      if (d.status && !allowedStatuses.includes(d.status)) {
-        return;
-      }
+      // Case-insensitive status check matching publicListings.ts
+      const status = String(d.status || "").trim().toLowerCase();
+      const isLive =
+        !status ||
+        status === "live" ||
+        status === "active" ||
+        status === "approved" ||
+        status === "published" ||
+        status === "pending";
+      if (!isLive) return;
 
-      const priceNumber = Number(d.price) || 0;
+      // Filter out sold items
+      const isSold =
+        d.isSold === true ||
+        d.sold === true ||
+        status === "sold" ||
+        status === "inactive_sold";
+      if (isSold) return;
+
+      const priceNumber =
+        typeof d.priceUsd === "number"
+          ? d.priceUsd
+          : typeof d.price === "number"
+          ? d.price
+          : Number(d.price || 0);
       const price = priceNumber
         ? `US$${priceNumber.toLocaleString("en-US")}`
         : "";
 
+      // Extract image (same logic as homepage)
+      const fromArray = Array.isArray(d.displayImageUrls)
+        ? d.displayImageUrls
+        : Array.isArray(d.images)
+        ? d.images
+        : Array.isArray(d.imageUrls)
+        ? d.imageUrls
+        : Array.isArray(d.photos)
+        ? d.photos
+        : [];
+      const image =
+        (Array.isArray(fromArray) && fromArray[0] ? String(fromArray[0]) : "") ||
+        d.displayImageUrl ||
+        d.display_image_url ||
+        d.image_url ||
+        d.imageUrl ||
+        d.image ||
+        "";
+
       liveItems.push({
         id: doc.id,
-        title: d.title || "Untitled listing",
-        brand: d.brand || "",
+        title: d.title || d.name || "Untitled listing",
+        brand: d.brand || d.designer || "",
         price,
-        image: "",
+        image,
         href: `/product/${doc.id}`,
       });
     });
