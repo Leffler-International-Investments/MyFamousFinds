@@ -553,26 +553,55 @@ export default function BulkSimple() {
 
               <label className="full">
                 <span>Color</span>
-                <div className="color-picker-grid">
-                  {COLOR_OPTIONS.map((c) => {
-                    const isMulti = c.label === "Multi";
-                    const isActive = (it.color || "").toLowerCase() === c.label.toLowerCase();
-                    return (
-                      <button
-                        key={c.label}
-                        type="button"
-                        className={`color-pick${isActive ? " color-pick--active" : ""}`}
-                        title={c.label}
-                        onClick={() => update(idx, { color: isActive ? "" : c.label })}
-                      >
+                <div className="color-dropdown">
+                  <button
+                    type="button"
+                    className="color-dropdown-trigger"
+                    onClick={(e) => {
+                      const panel = (e.currentTarget.nextElementSibling as HTMLElement);
+                      if (panel) panel.style.display = panel.style.display === "block" ? "none" : "block";
+                    }}
+                  >
+                    {it.color ? (
+                      <>
                         <span
-                          className="color-circle"
-                          style={isMulti ? { background: c.hex } : { backgroundColor: c.hex }}
+                          className="color-circle-sm"
+                          style={it.color === "Multi"
+                            ? { background: "conic-gradient(red,orange,yellow,green,blue,purple,red)" }
+                            : { backgroundColor: COLOR_OPTIONS.find(c => c.label === it.color)?.hex || "#ccc" }
+                          }
                         />
-                        <span className="color-name">{c.label}</span>
-                      </button>
-                    );
-                  })}
+                        {it.color}
+                      </>
+                    ) : (
+                      <span className="color-placeholder">— Select color —</span>
+                    )}
+                    <span className="color-chevron">&#9662;</span>
+                  </button>
+                  <div className="color-dropdown-panel" style={{ display: "none" }}>
+                    {COLOR_OPTIONS.map((c) => {
+                      const isMulti = c.label === "Multi";
+                      const isActive = (it.color || "").toLowerCase() === c.label.toLowerCase();
+                      return (
+                        <button
+                          key={c.label}
+                          type="button"
+                          className={`color-option${isActive ? " color-option--active" : ""}`}
+                          onClick={(e) => {
+                            update(idx, { color: isActive ? "" : c.label });
+                            const panel = (e.currentTarget.parentElement as HTMLElement);
+                            if (panel) panel.style.display = "none";
+                          }}
+                        >
+                          <span
+                            className="color-circle"
+                            style={isMulti ? { background: c.hex } : { backgroundColor: c.hex }}
+                          />
+                          <span className="color-name">{c.label}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
               </label>
 
@@ -816,35 +845,86 @@ export default function BulkSimple() {
           box-shadow: 0 0 0 1px #000;
         }
         
-        /* Color picker */
-        .color-picker-grid {
-          display: flex;
-          flex-wrap: wrap;
-          gap: 6px;
+        /* Color dropdown */
+        .color-dropdown {
+          position: relative;
         }
-        .color-pick {
+        .color-dropdown-trigger {
+          width: 100%;
+          background: #ffffff;
+          color: #111827;
+          border: 1px solid #d1d5db;
+          border-radius: 8px;
+          padding: 10px;
+          font-size: 14px;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          text-align: left;
+        }
+        .color-dropdown-trigger:focus {
+          outline: none;
+          border-color: #000;
+          box-shadow: 0 0 0 1px #000;
+        }
+        .color-placeholder {
+          color: #9ca3af;
+        }
+        .color-chevron {
+          margin-left: auto;
+          color: #6b7280;
+          font-size: 11px;
+        }
+        .color-circle-sm {
+          width: 16px;
+          height: 16px;
+          border-radius: 50%;
+          border: 1px solid #d1d5db;
+          display: inline-block;
+          flex-shrink: 0;
+        }
+        .color-dropdown-panel {
+          position: absolute;
+          top: 100%;
+          left: 0;
+          right: 0;
+          z-index: 20;
+          background: #fff;
+          border: 1px solid #d1d5db;
+          border-radius: 8px;
+          margin-top: 4px;
+          padding: 8px;
+          box-shadow: 0 4px 16px rgba(0,0,0,0.10);
+          display: grid;
+          grid-template-columns: repeat(auto-fill, minmax(56px, 1fr));
+          gap: 4px;
+          max-height: 220px;
+          overflow-y: auto;
+        }
+        .color-option {
           display: flex;
           flex-direction: column;
           align-items: center;
           gap: 3px;
-          padding: 4px 3px;
+          padding: 5px 2px;
           border: 2px solid transparent;
           border-radius: 8px;
           background: none;
           cursor: pointer;
           transition: border-color 0.15s;
-          width: 52px;
         }
-        .color-pick:hover {
+        .color-option:hover {
           border-color: #d1d5db;
+          background: #f9fafb;
         }
-        .color-pick--active {
+        .color-option--active {
           border-color: #111827;
           background: #f3f4f6;
         }
         .color-circle {
-          width: 24px;
-          height: 24px;
+          width: 22px;
+          height: 22px;
           border-radius: 50%;
           border: 1px solid #d1d5db;
           display: block;
