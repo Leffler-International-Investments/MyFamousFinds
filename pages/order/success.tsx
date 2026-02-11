@@ -5,6 +5,7 @@ import type { GetServerSideProps } from "next";
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
 import { adminDb } from "../../utils/firebaseAdmin";
+import { capturePayPalOrder, getPayPalOrder } from "../../lib/paypal";
 import PostPurchaseButler from "../../components/PostPurchaseButler";
 
 type SuccessProps = {
@@ -320,45 +321,170 @@ export const getServerSideProps: GetServerSideProps<SuccessProps> = async (ctx) 
           .join("\n");
       }
     } else {
-      // Need to capture the PayPal order
-      const siteUrl =
-        (process.env.NEXT_PUBLIC_SITE_URL || "").trim() ||
-        "https://www.myfamousfinds.com";
+      // Try to capture the PayPal order directly.
+      // If capture fails (e.g. already captured), fall back to reading the order.
+      let orderResult: any = null;
 
-      const captureRes = await fetch(`${siteUrl}/api/paypal/capture-order`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ paypalOrderId, pendingOrderId: pendingId }),
-      });
+      try {
+        orderResult = await capturePayPalOrder(paypalOrderId);
+      } catch (captureErr: any) {
+        console.error("PayPal capture attempt failed, trying getPayPalOrder:", captureErr?.message);
+        // Order may already be captured — fetch its current state instead
+        try {
+          orderResult = await getPayPalOrder(paypalOrderId);
+        } catch (getErr: any) {
+          console.error("PayPal getOrder also failed:", getErr?.message);
+        }
+      }
 
-      const captureData = await captureRes.json();
+      if (orderResult) {
+        const orderStatus = orderResult.status;
 
-      if (captureData.ok && captureData.orderId) {
-        // Re-read the created order
-        const orderDoc = await adminDb
-          .collection("orders")
-          .doc(captureData.orderId)
-          .get();
+        // Accept COMPLETED (captured) or APPROVED (buyer approved, auto-captured)
+        if (orderStatus === "COMPLETED" || orderStatus === "APPROVED") {
+          const purchaseUnit = orderResult.purchase_units?.[0];
+          const capture = purchaseUnit?.payments?.captures?.[0];
+          const captureId = capture?.id || "";
+          const listingId =
+            purchaseUnit?.reference_id || purchaseUnit?.custom_id || "";
 
-        if (orderDoc.exists) {
-          const data = orderDoc.data() as any;
-          orderId = orderDoc.id;
-          productTitle = String(data.listingTitle || productTitle);
-          brand = String(data.listingBrand || brand);
-          category = String(data.listingCategory || category);
-          amountTotal = Number(data.amountTotal || 0) / 100;
-          currency = String(data.currency || "USD");
-          buyerEmail = String(data.buyerEmail || "");
-          buyerName = String(data.buyerName || "");
+          // Load pending order details
+          let pendingData: any = {};
+          if (pendingId) {
+            const pendingSnap = await adminDb
+              .collection("pending_orders")
+              .doc(pendingId)
+              .get();
+            if (pendingSnap.exists) {
+              pendingData = pendingSnap.data() || {};
+            }
+          }
 
-          if (data.shippingAddress) {
-            const sa = data.shippingAddress;
+          // If no listingId from PayPal, try from pending order
+          const resolvedListingId = listingId || pendingData.listingId || "";
+
+          // Load listing to get sellerId
+          let sellerId = "";
+          if (resolvedListingId) {
+            const listingSnap = await adminDb
+              .collection("listings")
+              .doc(String(resolvedListingId))
+              .get();
+            if (listingSnap.exists) {
+              const listing: any = listingSnap.data() || {};
+              sellerId = String(
+                listing.sellerId || listing.sellerEmail || listing.seller || ""
+              );
+            }
+          }
+
+          // Extract payer info
+          const payer = orderResult.payer || {};
+          const payerEmail =
+            payer.email_address || pendingData.buyerDetails?.email || "";
+          const payerName =
+            [payer.name?.given_name, payer.name?.surname]
+              .filter(Boolean)
+              .join(" ") ||
+            pendingData.buyerDetails?.fullName ||
+            "";
+
+          const shipping = purchaseUnit?.shipping;
+          const shippingAddress = shipping?.address
+            ? {
+                name: shipping.name?.full_name || payerName,
+                line1: shipping.address.address_line_1 || "",
+                line2: shipping.address.address_line_2 || "",
+                city: shipping.address.admin_area_2 || "",
+                state: shipping.address.admin_area_1 || "",
+                postal_code: shipping.address.postal_code || "",
+                country: shipping.address.country_code || "",
+              }
+            : pendingData.buyerDetails
+            ? {
+                name: pendingData.buyerDetails.fullName || "",
+                line1: pendingData.buyerDetails.addressLine1 || "",
+                line2: pendingData.buyerDetails.addressLine2 || "",
+                city: pendingData.buyerDetails.city || "",
+                state: pendingData.buyerDetails.state || "",
+                postal_code: pendingData.buyerDetails.postalCode || "",
+                country: pendingData.buyerDetails.country || "",
+              }
+            : null;
+
+          // Get amount from capture or from purchase unit or from pending order
+          const capturedAmount =
+            Number(capture?.amount?.value || 0) ||
+            Number(purchaseUnit?.amount?.value || 0) ||
+            Number(pendingData.listingPrice || 0);
+          const capturedCurrency =
+            capture?.amount?.currency_code ||
+            purchaseUnit?.amount?.currency_code ||
+            pendingData.currency ||
+            "USD";
+
+          // Create order in Firestore
+          const orderRef = await adminDb.collection("orders").add({
+            paypalOrderId,
+            paypalCaptureId: captureId,
+            listingId: resolvedListingId,
+            ...(sellerId ? { sellerId } : {}),
+            buyerEmail: payerEmail,
+            buyerName: payerName,
+            listingTitle: pendingData.productTitle || "",
+            listingBrand: pendingData.brand || "",
+            listingCategory: pendingData.category || "",
+            amountTotal: Math.round(capturedAmount * 100),
+            currency: capturedCurrency,
+            status: "paid",
+            createdAt: Date.now(),
+            shippingAddress,
+            ...(pendingData.buyerId ? { buyerId: pendingData.buyerId } : {}),
+          });
+
+          // Mark listing as sold
+          if (resolvedListingId) {
+            await adminDb
+              .collection("listings")
+              .doc(String(resolvedListingId))
+              .update({
+                status: "sold",
+                isSold: true,
+                soldAt: Date.now(),
+              })
+              .catch((e: any) =>
+                console.error("Failed to mark listing as sold:", e?.message)
+              );
+          }
+
+          // Clean up pending order
+          if (pendingId) {
+            await adminDb
+              .collection("pending_orders")
+              .doc(pendingId)
+              .delete()
+              .catch(() => {});
+          }
+
+          // Populate success page data
+          orderId = orderRef.id;
+          productTitle = pendingData.productTitle || productTitle;
+          brand = pendingData.brand || brand;
+          category = pendingData.category || category;
+          amountTotal = capturedAmount;
+          currency = capturedCurrency;
+          buyerEmail = payerEmail;
+          buyerName = payerName;
+
+          if (shippingAddress) {
             shippingAddressText = [
-              sa.name || buyerName,
-              sa.line1 || "",
-              sa.line2 || "",
-              [sa.city, sa.state, sa.postal_code].filter(Boolean).join(" "),
-              sa.country || "",
+              shippingAddress.name || payerName,
+              shippingAddress.line1 || "",
+              shippingAddress.line2 || "",
+              [shippingAddress.city, shippingAddress.state, shippingAddress.postal_code]
+                .filter(Boolean)
+                .join(" "),
+              shippingAddress.country || "",
             ]
               .filter(Boolean)
               .join("\n");

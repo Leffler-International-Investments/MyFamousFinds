@@ -49,11 +49,17 @@ export default async function handler(
       });
     }
 
-    // Capture the order
-    const captureResult = await capturePayPalOrder(paypalOrderId);
+    // Capture the order — fall back to reading it if already captured
+    let captureResult: any;
+    try {
+      captureResult = await capturePayPalOrder(paypalOrderId);
+    } catch (captureErr: any) {
+      console.error("Capture call failed, trying getPayPalOrder:", captureErr?.message);
+      captureResult = await getPayPalOrder(paypalOrderId);
+    }
 
     const captureStatus = captureResult.status;
-    if (captureStatus !== "COMPLETED") {
+    if (captureStatus !== "COMPLETED" && captureStatus !== "APPROVED") {
       return res.status(400).json({
         ok: false,
         error: `PayPal order status: ${captureStatus}`,
