@@ -511,10 +511,26 @@ export default function ProductPage(props: ProductPageProps) {
               )}
             </div>
 
+            <div className="auth-badge">
+              <div className="auth-badge-icon">
+                <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#16a34a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                  <polyline points="9 12 11.5 14.5 16 9.5" />
+                </svg>
+              </div>
+              <div className="auth-badge-text">
+                <span className="auth-badge-title">Physical authentication included</span>
+                <span className="auth-badge-desc">
+                  Every item is inspected in-person by our expert team before shipping. You only pay for the real thing — guaranteed.
+                </span>
+              </div>
+            </div>
+
             <div className="protection-box">
               <p className="protection-title">How Famous-Finds protects you</p>
               <ul className="protection-list">
                 <li>Funds held securely until your item is authenticated.</li>
+                <li>Every item undergoes physical authentication by our specialists before dispatch.</li>
                 <li>If the item is not as described, you are fully refunded.</li>
                 <li>All payments processed in USD via PayPal.</li>
               </ul>
@@ -819,6 +835,37 @@ export default function ProductPage(props: ProductPageProps) {
           color: #b00020;
           font-weight: 800;
           font-size: 12px;
+        }
+
+        .auth-badge {
+          display: flex;
+          align-items: flex-start;
+          gap: 12px;
+          margin-top: 14px;
+          border: 1.5px solid #bbf7d0;
+          border-radius: 14px;
+          padding: 14px 16px;
+          background: #f0fdf4;
+        }
+        .auth-badge-icon {
+          flex-shrink: 0;
+          margin-top: 1px;
+        }
+        .auth-badge-text {
+          display: flex;
+          flex-direction: column;
+          gap: 3px;
+        }
+        .auth-badge-title {
+          font-weight: 800;
+          font-size: 13px;
+          color: #15803d;
+          letter-spacing: 0.02em;
+        }
+        .auth-badge-desc {
+          font-size: 12px;
+          color: #166534;
+          line-height: 1.5;
         }
 
         @media (max-width: 980px) {

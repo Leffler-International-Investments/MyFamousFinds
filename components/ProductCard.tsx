@@ -1,31 +1,27 @@
 // FILE: /components/ProductCard.tsx
 import Link from "next/link";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 
 export type ProductLike = {
   id: string;
   title: string;
   brand?: string;
   price?: string;
-  image: string;   // always the actual listing image
+  image: string;
   href: string;
   badge?: string;
   details?: string;
-  // Optional extras if your data has them
   category?: string;
   condition?: string;
   tags?: string[];
 };
 
 type Props = ProductLike & {
-  /** Whether this item is currently in the user's wishlist */
   isSaved?: boolean;
-  /** Callback when user clicks the heart. Parent should handle the API call. */
   onToggleWishlist?: (productId: string) => void;
 };
 
 export default function ProductCard({ isSaved, onToggleWishlist, ...p }: Props) {
-  // If parent doesn't provide wishlist state, use local state (backwards compat)
   const [localLiked, setLocalLiked] = useState(false);
   const liked = isSaved !== undefined ? isSaved : localLiked;
 
@@ -40,56 +36,62 @@ export default function ProductCard({ isSaved, onToggleWishlist, ...p }: Props) 
   };
 
   return (
-    <div className="card">
-      {/* 1. THUMBNAIL with heart overlay */}
-      <div className="thumb">
-        {p.image ? (
-          <img src={p.image} alt={p.title} />
-        ) : (
-          <div className="no-image">No image</div>
-        )}
-        {p.badge && <span className="badge">{p.badge}</span>}
-        <button
-          type="button"
-          className={`heart-overlay${liked ? " heart-overlay--active" : ""}`}
-          onClick={handleHeartClick}
-          title={liked ? "Remove from wishlist" : "Add to wishlist"}
-        >
-          <svg viewBox="0 0 24 24" width="20" height="20" className="heart-svg">
-            {liked ? (
-              <path
-                d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"
-                fill="#ef4444"
-              />
-            ) : (
-              <path
-                d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"
-                fill="none"
-                stroke="#fff"
-                strokeWidth="2"
-              />
-            )}
-          </svg>
-        </button>
-      </div>
-
-      {/* 2. INFO & ACTIONS */}
-      <div className="meta">
-        <div className="info-top">
-          {p.brand && <div className="brand">{p.brand}</div>}
-          <div className="title">{p.title}</div>
-          {p.price && <div className="price">{p.price}</div>}
+    <Link href={p.href} className="card-link">
+      <div className="card">
+        {/* THUMBNAIL with heart overlay */}
+        <div className="thumb">
+          {p.image ? (
+            <img src={p.image} alt={p.title} />
+          ) : (
+            <div className="no-image">No image</div>
+          )}
+          {p.badge && <span className="badge">{p.badge}</span>}
+          <button
+            type="button"
+            className={`heart-overlay${liked ? " heart-overlay--active" : ""}`}
+            onClick={handleHeartClick}
+            title={liked ? "Remove from wishlist" : "Add to wishlist"}
+          >
+            <svg viewBox="0 0 24 24" width="20" height="20" className="heart-svg">
+              {liked ? (
+                <path
+                  d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"
+                  fill="#ef4444"
+                />
+              ) : (
+                <path
+                  d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"
+                  fill="none"
+                  stroke="#fff"
+                  strokeWidth="2"
+                />
+              )}
+            </svg>
+          </button>
         </div>
 
-        {/* 3. ACTION BUTTON */}
-        <div className="actions">
-          <Link href={p.href} className="btn-buy">
-            Buy Now
-          </Link>
+        {/* INFO & BUY NOW */}
+        <div className="meta">
+          <div className="info-top">
+            {p.brand && <div className="brand">{p.brand}</div>}
+            <div className="title">{p.title}</div>
+            {p.price && <div className="price">{p.price}</div>}
+          </div>
+
+          <div className="actions">
+            <span className="btn-buy">Buy Now</span>
+          </div>
         </div>
       </div>
 
       <style jsx>{`
+        .card-link {
+          text-decoration: none;
+          color: inherit;
+          display: block;
+          height: 100%;
+          cursor: pointer;
+        }
         .card {
           display: flex;
           flex-direction: column;
@@ -97,10 +99,14 @@ export default function ProductCard({ isSaved, onToggleWishlist, ...p }: Props) 
           border-radius: 14px;
           overflow: hidden;
           background: #ffffff;
-          height: 100%; /* Fill grid height */
+          height: 100%;
+          transition: box-shadow 0.2s, border-color 0.2s;
+        }
+        .card-link:hover .card {
+          border-color: #111827;
+          box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
         }
 
-        /* --- PRESERVED YOUR PERFECT SQUARE THUMBNAIL --- */
         .thumb {
           position: relative;
           aspect-ratio: 1 / 1;
@@ -110,7 +116,6 @@ export default function ProductCard({ isSaved, onToggleWishlist, ...p }: Props) 
           justify-content: center;
           overflow: hidden;
         }
-
         .thumb img {
           width: 100%;
           height: 100%;
@@ -118,12 +123,10 @@ export default function ProductCard({ isSaved, onToggleWishlist, ...p }: Props) 
           object-position: center;
           display: block;
         }
-
         .no-image {
           font-size: 12px;
           color: #6b7280;
         }
-
         .badge {
           position: absolute;
           left: 8px;
@@ -138,7 +141,6 @@ export default function ProductCard({ isSaved, onToggleWishlist, ...p }: Props) 
           z-index: 2;
         }
 
-        /* Heart overlay on top-right of image */
         .heart-overlay {
           position: absolute;
           top: 8px;
@@ -167,7 +169,6 @@ export default function ProductCard({ isSaved, onToggleWishlist, ...p }: Props) 
           background: rgba(255, 255, 255, 1);
         }
 
-        /* --- META SECTION --- */
         .meta {
           padding: 12px;
           display: flex;
@@ -175,13 +176,11 @@ export default function ProductCard({ isSaved, onToggleWishlist, ...p }: Props) 
           flex-grow: 1;
           gap: 12px;
         }
-
         .info-top {
           display: flex;
           flex-direction: column;
           gap: 4px;
         }
-
         .brand {
           color: #6b7280;
           font-size: 11px;
@@ -189,7 +188,6 @@ export default function ProductCard({ isSaved, onToggleWishlist, ...p }: Props) 
           letter-spacing: 0.05em;
           font-weight: 500;
         }
-
         .title {
           font-size: 14px;
           line-height: 1.3;
@@ -201,7 +199,6 @@ export default function ProductCard({ isSaved, onToggleWishlist, ...p }: Props) 
           overflow: hidden;
           min-height: 36px;
         }
-
         .price {
           font-weight: 700;
           font-size: 15px;
@@ -209,14 +206,12 @@ export default function ProductCard({ isSaved, onToggleWishlist, ...p }: Props) 
           margin-top: 2px;
         }
 
-        /* --- BUTTONS STYLING --- */
         .actions {
           margin-top: auto;
           display: flex;
           align-items: center;
           gap: 8px;
         }
-
         .btn-buy {
           flex: 1;
           height: 36px;
@@ -231,11 +226,10 @@ export default function ProductCard({ isSaved, onToggleWishlist, ...p }: Props) 
           text-decoration: none;
           transition: background 0.2s;
         }
-
-        .btn-buy:hover {
+        .card-link:hover .btn-buy {
           background: #000000;
         }
       `}</style>
-    </div>
+    </Link>
   );
 }
