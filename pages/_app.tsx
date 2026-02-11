@@ -6,6 +6,7 @@ import { useRouter } from "next/router";
 
 import "../styles/globals.css";
 import Layout from "../components/Layout";
+import { ToastProvider } from "../components/Toast";
 
 const SITE_URL =
   process.env.NEXT_PUBLIC_SITE_URL || "https://www.myfamousfinds.com";
@@ -29,9 +30,11 @@ export default function MyFamousFindsApp({ Component, pageProps }: AppProps) {
       </Head>
 
       {/* Your existing layout + pages */}
-      <Layout>
-        <Component {...pageProps} />
-      </Layout>
+      <ToastProvider>
+        <Layout>
+          <Component {...pageProps} />
+        </Layout>
+      </ToastProvider>
     </>
   );
 }
