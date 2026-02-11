@@ -38,98 +38,232 @@ export default function OrderSuccessPage({
   }).format(amountTotal);
 
   return (
-    <div className="dark-theme-page">
-      <Head>
-        <title>Order successful – Famous Finds</title>
-      </Head>
-      <Header />
+    <>
+      <div className="dark-theme-page">
+        <Head>
+          <title>Order successful – Famous Finds</title>
+        </Head>
+        <Header />
 
-      <main className="wrap">
-        <h1>Thank you, your order is confirmed.</h1>
-        <p className="lead">
-          We&apos;ve emailed your receipt and will notify you as soon as your seller
-          ships your item.
-        </p>
-
-        <div className="summary">
-          <h2>Order summary</h2>
-
-          <p className="row">
-            <span className="label">Item</span>
-            <span className="value">{productTitle}</span>
+        <main className="wrap">
+          <div className="checkmark">&#10003;</div>
+          <h1 className="heading">Thank you, your order is confirmed.</h1>
+          <p className="lead">
+            We&apos;ve emailed your receipt and will notify you as soon as your seller
+            ships your item.
           </p>
 
-          {brand ? (
-            <p className="row">
-              <span className="label">Brand</span>
-              <span className="value">{brand}</span>
-            </p>
-          ) : null}
+          <div className="card">
+            <h2 className="card-title">Order summary</h2>
 
-          {category ? (
-            <p className="row">
-              <span className="label">Category</span>
-              <span className="value">{category}</span>
-            </p>
-          ) : null}
+            <div className="row">
+              <span className="label">Item</span>
+              <span className="value">{productTitle}</span>
+            </div>
 
-          <p className="row">
-            <span className="label">Total</span>
-            <span className="value">{formattedTotal}</span>
-          </p>
+            {brand ? (
+              <div className="row">
+                <span className="label">Brand</span>
+                <span className="value">{brand}</span>
+              </div>
+            ) : null}
 
-          {orderId ? (
-            <p className="row">
-              <span className="label">Order ID</span>
-              <span className="value">{orderId}</span>
-            </p>
-          ) : null}
-        </div>
+            {category ? (
+              <div className="row">
+                <span className="label">Category</span>
+                <span className="value">{category}</span>
+              </div>
+            ) : null}
 
-        <div className="summary">
-          <h2>Delivery details</h2>
-          <p className="row">
-            <span className="label">Buyer</span>
-            <span className="value">
-              {buyerName || "—"}
-              {buyerEmail ? (
-                <>
-                  <br />
-                  {buyerEmail}
-                </>
-              ) : null}
-            </span>
-          </p>
+            <div className="row">
+              <span className="label">Total</span>
+              <span className="value total">{formattedTotal}</span>
+            </div>
 
-          <p className="row">
-            <span className="label">Shipping address</span>
-            <span className="value" style={{ whiteSpace: "pre-line" }}>
-              {shippingAddressText || "—"}
-            </span>
-          </p>
-        </div>
+            {orderId ? (
+              <div className="row">
+                <span className="label">Order ID</span>
+                <span className="value mono">{orderId}</span>
+              </div>
+            ) : null}
+          </div>
 
-        <div style={{ marginTop: 18 }}>
-          <PostPurchaseButler
-            brand={brand || ""}
-            itemTitle={productTitle || ""}
-            category={category || ""}
-            vipUrl={vipUrl || "/vip-welcome"}
-          />
-        </div>
+          <div className="card">
+            <h2 className="card-title">Delivery details</h2>
+            <div className="row">
+              <span className="label">Buyer</span>
+              <span className="value">
+                {buyerName || "—"}
+                {buyerEmail ? (
+                  <>
+                    <br />
+                    {buyerEmail}
+                  </>
+                ) : null}
+              </span>
+            </div>
 
-        <div className="actions" style={{ marginTop: 22 }}>
-          <Link className="btn" href={vipUrl || "/vip-welcome"}>
-            VIP Club / Price Match
-          </Link>
-          <Link className="btn secondary" href="/my-orders">
-            View My Orders
-          </Link>
-        </div>
-      </main>
+            <div className="row">
+              <span className="label">Shipping address</span>
+              <span className="value" style={{ whiteSpace: "pre-line" }}>
+                {shippingAddressText || "—"}
+              </span>
+            </div>
+          </div>
 
-      <Footer />
-    </div>
+          <div className="actions">
+            <Link className="btn-primary" href={vipUrl || "/vip-welcome"}>
+              VIP Club / Price Match
+            </Link>
+            <Link className="btn-secondary" href="/my-orders">
+              View My Orders
+            </Link>
+          </div>
+        </main>
+
+        <Footer />
+
+        <style jsx>{`
+          .wrap {
+            max-width: 620px;
+            margin: 0 auto;
+            padding: 40px 20px 60px;
+            text-align: center;
+          }
+          .checkmark {
+            width: 56px;
+            height: 56px;
+            margin: 0 auto 18px;
+            background: #16a34a;
+            color: #fff;
+            font-size: 28px;
+            font-weight: 700;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+          }
+          .heading {
+            font-size: 26px;
+            font-weight: 800;
+            color: #111;
+            margin: 0 0 8px;
+          }
+          .lead {
+            font-size: 14px;
+            color: #555;
+            margin: 0 0 28px;
+            line-height: 1.5;
+          }
+          .card {
+            background: #fff;
+            border: 1px solid #e5e7eb;
+            border-radius: 14px;
+            padding: 20px 22px;
+            margin-bottom: 16px;
+            text-align: left;
+          }
+          .card-title {
+            font-size: 13px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: #111;
+            margin: 0 0 14px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #f0f0f0;
+          }
+          .row {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            padding: 8px 0;
+            gap: 12px;
+          }
+          .row + .row {
+            border-top: 1px solid #f5f5f5;
+          }
+          .label {
+            font-size: 13px;
+            color: #888;
+            font-weight: 500;
+            min-width: 110px;
+            flex-shrink: 0;
+          }
+          .value {
+            font-size: 13px;
+            color: #111;
+            font-weight: 600;
+            text-align: right;
+          }
+          .total {
+            font-size: 16px;
+            font-weight: 800;
+            color: #111;
+          }
+          .mono {
+            font-family: monospace;
+            font-size: 11px;
+            word-break: break-all;
+          }
+          .actions {
+            display: flex;
+            gap: 12px;
+            margin-top: 24px;
+            justify-content: center;
+          }
+          .actions :global(.btn-primary) {
+            flex: 1;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            background: #111;
+            color: #fff;
+            border: none;
+            border-radius: 999px;
+            padding: 12px 20px;
+            font-size: 13px;
+            font-weight: 700;
+            text-decoration: none;
+            cursor: pointer;
+          }
+          .actions :global(.btn-secondary) {
+            flex: 1;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            background: #fff;
+            color: #111;
+            border: 1px solid #ddd;
+            border-radius: 999px;
+            padding: 12px 20px;
+            font-size: 13px;
+            font-weight: 700;
+            text-decoration: none;
+            cursor: pointer;
+          }
+          @media (max-width: 600px) {
+            .wrap {
+              padding: 28px 16px 48px;
+            }
+            .heading {
+              font-size: 22px;
+            }
+            .actions {
+              flex-direction: column;
+            }
+          }
+        `}</style>
+      </div>
+
+      {/* Butler rendered outside dark-theme-page so global color override doesn't affect it */}
+      <PostPurchaseButler
+        brand={brand || ""}
+        itemTitle={productTitle || ""}
+        category={category || ""}
+        vipUrl={vipUrl || "/vip-welcome"}
+      />
+    </>
   );
 }
 
