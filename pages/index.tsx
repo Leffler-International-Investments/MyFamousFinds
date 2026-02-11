@@ -951,11 +951,36 @@ export const getServerSideProps: GetServerSideProps = async () => {
     );
   };
 
-  const items: any[] = listings.docs.map((doc) => {
+  const items: any[] = [];
+  listings.docs.forEach((doc) => {
     const data: any = doc.data() || {};
-    const priceNum = typeof data.price === "number" ? data.price : Number(data.price || 0);
 
-    return {
+    // Filter by status (case-insensitive, matching publicListings.ts)
+    const status = String(data.status || "").trim().toLowerCase();
+    const isLive =
+      !status ||
+      status === "live" ||
+      status === "active" ||
+      status === "approved" ||
+      status === "published" ||
+      status === "pending";
+    if (!isLive) return;
+
+    // Filter out sold items
+    const isSold =
+      data.isSold === true ||
+      data.sold === true ||
+      status === "sold" ||
+      status === "inactive_sold";
+    if (isSold) return;
+
+    const priceNum = typeof data.priceUsd === "number"
+      ? data.priceUsd
+      : typeof data.price === "number"
+      ? data.price
+      : Number(data.price || 0);
+
+    items.push({
       id: doc.id,
       title: data.title || data.name || "Untitled",
       brand: data.brand || data.designer || "",
@@ -970,7 +995,7 @@ export const getServerSideProps: GetServerSideProps = async () => {
       color: data.color || "",
       createdAt: data.createdAt?.toMillis?.() || 0,
       viewCount: data.viewCount || 0,
-    };
+    });
   });
 
   const newArrivals = items
