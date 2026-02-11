@@ -581,9 +581,9 @@ export default function SellerDashboard() {
 
           <DashboardSection title="Manage Listings">
             <DashboardLink
-              href="/sell"
+              href="/seller/bulk-simple"
               title="Create New Listing"
-              description="Upload a new item to your catalogue."
+              description="Add items with dropdowns and image uploads."
               accentColor="blue"
               disabled={dashboardLocked}
             />
@@ -591,13 +591,6 @@ export default function SellerDashboard() {
               href="/seller/catalogue"
               title="My Catalogue"
               description="Edit prices, quantity, and details for your active listings."
-              accentColor="blue"
-              disabled={dashboardLocked}
-            />
-            <DashboardLink
-              href="/seller/bulk-simple"
-              title="Quick Add (Form)"
-              description="Add several items with dropdowns and image uploads."
               accentColor="blue"
               disabled={dashboardLocked}
             />

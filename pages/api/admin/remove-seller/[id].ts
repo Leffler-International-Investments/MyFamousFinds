@@ -2,6 +2,7 @@
 
 import type { NextApiRequest, NextApiResponse } from "next";
 import {
+  adminAuth,
   adminDb,
   isFirebaseAdminReady,
   FieldValue,
@@ -64,6 +65,23 @@ export default async function handler(
       },
       { merge: true }
     );
+
+    // 1b) Disable the seller's Firebase Auth account so they can no longer log in
+    const sellerData = sellerSnap.data() || {};
+    const sellerEmail = sellerData.email || sellerId;
+    if (adminAuth && sellerEmail) {
+      try {
+        const authUser = await adminAuth.getUserByEmail(String(sellerEmail));
+        if (authUser) {
+          await adminAuth.updateUser(authUser.uid, { disabled: true });
+          console.log(`[REMOVE_SELLER] Disabled Firebase Auth for ${sellerEmail}`);
+        }
+      } catch (authErr: any) {
+        if (authErr?.code !== "auth/user-not-found") {
+          console.warn(`[REMOVE_SELLER] Could not disable Auth user for ${sellerEmail}:`, authErr?.message);
+        }
+      }
+    }
 
     // 2) Fetch seller listings WITHOUT orderBy (avoids composite index requirement)
     const listingsSnap = await adminDb
