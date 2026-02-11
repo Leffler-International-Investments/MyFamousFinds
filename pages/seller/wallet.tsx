@@ -7,7 +7,7 @@ import { useRequireSeller } from "../../hooks/useRequireSeller"; // Security
 import { sellerFetch } from "../../utils/sellerClient";
 import { useEffect, useState, useCallback } from "react";
 
-// Data from your Stripe Connect API
+// Data from your PayPal payout API
 type PayoutRow = {
   id: string;
   date: string;
@@ -125,7 +125,7 @@ export default function SellerWallet() {
               <p className="metric-value">
                 {loading ? "..." : formatCurrency(data?.available || 0)}
               </p>
-              <p className="metric-note">Ready to pay out to your bank.</p>
+              <p className="metric-note">Ready to pay out to your PayPal.</p>
             </div>
             <div className="metric-card">
               <p className="metric-label">Upcoming payout</p>
@@ -152,7 +152,7 @@ export default function SellerWallet() {
             <div className="info-card">
               <h2>Connected payout account</h2>
               <p className="info-note">
-                Payouts are processed via Stripe and sent to your linked bank.
+                Payouts are processed via PayPal and sent to your linked account.
               </p>
 
               {loading ? (
@@ -170,8 +170,8 @@ export default function SellerWallet() {
                 </dl>
               ) : (
                 <p className="bank-warning">
-                  No payout account connected. Please set up your account in
-                  Stripe.
+                  No payout account connected. Please set your PayPal email in
+                  Banking &amp; Payouts.
                 </p>
               )}
 
@@ -198,14 +198,14 @@ export default function SellerWallet() {
             <div className="info-card">
               <h2>How payouts work</h2>
               <ul className="info-list">
-                <li>Buyer pays Famous Finds at checkout (via Stripe).</li>
+                <li>Buyer pays Famous Finds at checkout (via PayPal).</li>
                 <li>
                   Funds are held until the order is delivered or return window
                   passes.
                 </li>
                 <li>
                   Net earnings move to your available balance and are
-                  paid to your bank on schedule.
+                  paid to your PayPal on schedule.
                 </li>
               </ul>
             </div>

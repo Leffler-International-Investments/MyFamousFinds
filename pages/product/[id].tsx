@@ -5,7 +5,6 @@ import Head from "next/head";
 import type { GetServerSideProps } from "next";
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
-import { getStripe } from "../../lib/getStripe";
 import { adminDb } from "../../utils/firebaseAdmin";
 import WishlistButton from "../../components/WishlistButton";
 import { auth, db, firebaseClientReady } from "../../utils/firebaseClient";
@@ -165,7 +164,7 @@ export default function ProductPage(props: ProductPageProps) {
 
       setLoading(true);
 
-      const res = await fetch("/api/checkout", {
+      const res = await fetch("/api/paypal/create-order", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -173,11 +172,6 @@ export default function ProductPage(props: ProductPageProps) {
         },
         body: JSON.stringify({
           id,
-          title,
-          price,
-          image: imageUrl,
-          brand,
-          category,
           buyerDetails,
         }),
       });
@@ -185,30 +179,15 @@ export default function ProductPage(props: ProductPageProps) {
       const json = await res.json();
 
       if (!res.ok || !json?.ok) {
-        throw new Error(json?.error || "Unable to create checkout session");
+        throw new Error(json?.error || "Unable to create PayPal order");
       }
 
-      // ✅ Prefer Stripe-hosted URL (session.url) – this is the modern,
-      // recommended approach and avoids publishable-key mismatch issues
-      // that can cause "Something went wrong" on the checkout page.
-      if (json.url) {
-        window.location.assign(json.url);
+      if (json.approveUrl) {
+        window.location.assign(json.approveUrl);
         return;
       }
 
-      // Fallback: use Stripe.js redirectToCheckout if no URL returned
-      if (json.sessionId) {
-        const stripe = await getStripe();
-        if (!stripe) throw new Error("Stripe not loaded");
-
-        const result = await stripe.redirectToCheckout({ sessionId: json.sessionId });
-        if (result?.error) {
-          throw new Error(result.error.message || "Checkout failed");
-        }
-        return;
-      }
-
-      throw new Error("No checkout URL or session ID returned");
+      throw new Error("No PayPal approval URL returned");
     } catch (err: any) {
       console.error(err);
       alert(err?.message || "Checkout failed, please try again.");
@@ -537,7 +516,7 @@ export default function ProductPage(props: ProductPageProps) {
               <ul className="protection-list">
                 <li>Funds held securely until your item is authenticated.</li>
                 <li>If the item is not as described, you are fully refunded.</li>
-                <li>All payments processed in USD via Stripe.</li>
+                <li>All payments processed in USD via PayPal.</li>
               </ul>
             </div>
 

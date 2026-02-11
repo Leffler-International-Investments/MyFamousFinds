@@ -23,6 +23,6 @@ Open http://localhost:3000
 
 
 **Next steps**
-- Replace simulated endpoints with your backend (Stripe Connect, DB, AI moderation, shipping labels)
+- Replace simulated endpoints with your backend (PayPal Payouts, DB, AI moderation, shipping labels)
 - Add authentication & role‑based admin
 - Add real Checkout flow and Orders state machine

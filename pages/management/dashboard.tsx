@@ -263,10 +263,10 @@ export default function ManagementDashboard({ stats }: Props) {
             linkColor="gray"
           />
           <DashboardTile
-            title="Stripe & Payment Settings"
-            description="Configure Stripe keys and payment-related settings."
-            href="/management/stripe-settings"
-            linkText="Configure Stripe"
+            title="PayPal & Payment Settings"
+            description="Configure PayPal keys and payment-related settings."
+            href="/management/settings"
+            linkText="Configure Payments"
             linkColor="gray"
           />
           <DashboardTile

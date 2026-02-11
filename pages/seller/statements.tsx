@@ -225,8 +225,8 @@ export default function SellerStatements() {
 
               <p className="footer-note">
                 Use the CSV export for your own accounting or to reconcile
-                payouts in Stripe or your bank account. For a PDF-friendly
-                layout, use the “Print-friendly statement” link.
+                payouts in PayPal or your bank account. For a PDF-friendly
+                layout, use the &quot;Print-friendly statement&quot; link.
               </p>
 
               <div className="footer-link">

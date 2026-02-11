@@ -2,7 +2,7 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { adminDb, FieldValue } from "../../../../utils/firebaseAdmin";
 import { getPayoutSettings } from "../../../../lib/payoutSettings";
-import { getStripeClient } from "../../../../lib/stripe";
+import { createPayPalPayout } from "../../../../lib/paypal";
 import { requireAdmin } from "../../../../utils/adminAuth";
 
 type Data =
@@ -29,18 +29,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
     }
 
     const settings = await getPayoutSettings();
-    if (settings.payoutMode !== "stripe_connect_auto") {
+    if (settings.payoutMode !== "paypal_auto") {
       return res.status(200).json({
         ok: true,
         processed: 0,
         paid: 0,
         message: "payout_mode_manual_noop",
       });
-    }
-
-    const stripe = await getStripeClient();
-    if (!stripe) {
-      return res.status(500).json({ ok: false, error: "stripe_not_configured" });
     }
 
     const snap = await adminDb
@@ -102,8 +97,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
 
       const sellerSnap = await adminDb.collection("sellers").doc(sellerId).get();
       const seller: any = sellerSnap.exists ? sellerSnap.data() : null;
-      const stripeAccountId = seller?.stripeAccountId;
-      if (!stripeAccountId) continue;
+      const paypalEmail = seller?.paypalEmail;
+      if (!paypalEmail) continue;
 
       const total = Number(o.totals?.total || o.total || 0);
       if (!Number.isFinite(total) || total <= 0) continue;
@@ -111,13 +106,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
       const platformCommissionPct = Number(o.payout?.platformCommissionPct ?? 15);
       const sellerAmount = Math.max(0, total * (1 - platformCommissionPct / 100));
 
-      const currency = String(o.totals?.currency || o.currency || "USD").toLowerCase();
+      const currency = String(o.totals?.currency || o.currency || "USD").toUpperCase();
+      const senderBatchId = `ff_auto_${doc.id}_${Date.now()}`;
 
-      await stripe.transfers.create({
-        amount: Math.round(sellerAmount * 100),
+      await createPayPalPayout({
+        recipientEmail: paypalEmail,
+        amount: sellerAmount,
         currency,
-        destination: stripeAccountId,
-        metadata: { orderId: doc.id },
+        note: `Famous Finds auto payout for order ${doc.id}`,
+        senderBatchId,
       });
 
       await doc.ref.set(
@@ -126,7 +123,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
             ...(o.payout || {}),
             status: "PAID",
             paidOutAt: new Date(),
-            paidOutMethod: "stripe_connect_auto",
+            paidOutMethod: "paypal_auto",
+            paypalPayoutBatchId: senderBatchId,
             sellerAmount,
             platformCommissionPct,
           },

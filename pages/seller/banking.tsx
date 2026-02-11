@@ -9,9 +9,6 @@ import { auth } from "../../utils/firebaseClient";
 import { useRequireSeller } from "../../hooks/useRequireSeller";
 import { sellerFetch } from "../../utils/sellerClient";
 
-const STRIPE_CONNECT_SELLER_URL =
-  process.env.NEXT_PUBLIC_STRIPE_CONNECT_SELLER_URL || "";
-
 type SellerBankingPrefs = {
   legalName?: string;
   sellingAs?: "individual" | "business";
@@ -22,6 +19,7 @@ type SellerBankingPrefs = {
   postalCode?: string;
   country?: string;
   phone?: string;
+  paypalEmail?: string;
   pausePayouts?: boolean;
   payoutSchedule?: string;
   notes?: string;
@@ -37,7 +35,7 @@ export default function SellerBankingPage() {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [stripeBusy, setStripeBusy] = useState(false);
+  const [paypalEmailField, setPaypalEmailField] = useState("");
 
   // Load email + any saved prefs
   useEffect(() => {
@@ -98,36 +96,7 @@ export default function SellerBankingPage() {
     setPrefs((prev) => ({ ...prev, [key]: value }));
   }
 
-  // OPEN STRIPE ONBOARDING (FINAL)
-  const handleOpenStripeSetup = async () => {
-    try {
-      setStripeBusy(true);
-
-      const res = await sellerFetch("/api/seller/onboard", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email }), // <-- send seller email to API
-      });
-
-      const data = await res.json();
-
-      if (!res.ok || !data?.url) {
-        console.error("Onboard error", data);
-        alert(
-          "Could not start Stripe onboarding. Please try again or contact support."
-        );
-        setStripeBusy(false);
-        return;
-      }
-
-      window.location.href = data.url;
-    } catch (err) {
-      console.error("Onboard error", err);
-      alert("Could not start Stripe onboarding. Please try again later.");
-    } finally {
-      setStripeBusy(false);
-    }
-  };
+  // PayPal email is saved as part of the onboard form below
 
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -157,7 +126,7 @@ export default function SellerBankingPage() {
       }
 
       setMessage(
-        "Your payout profile has been saved. Bank and tax details are handled securely by Stripe."
+        "Your payout profile has been saved. Payouts will be sent to your PayPal email."
       );
     } catch (err: any) {
       console.error("save_seller_banking_error", err);
@@ -182,9 +151,8 @@ export default function SellerBankingPage() {
           <div>
             <h1>Banking & Payouts</h1>
             <p>
-              Connect your Stripe payout account and provide the basic details
-              we need for U.S. reporting. All bank and tax information is
-              collected securely by Stripe, not stored on Famous Finds.
+              Provide your PayPal email for payouts and the basic details we
+              need for U.S. reporting. Your payout details are stored securely.
             </p>
           </div>
           <Link href="/seller/dashboard">← Back to Seller Dashboard</Link>
@@ -199,7 +167,7 @@ export default function SellerBankingPage() {
             <h2>Payee identity</h2>
             <p className="form-subtitle">
               These details help match your Famous Finds account with your
-              Stripe Connect profile and IRS records.
+              PayPal payout profile and IRS records.
             </p>
 
             <div className="form-field">
@@ -329,30 +297,30 @@ export default function SellerBankingPage() {
             </div>
           </section>
 
-          {/* Stripe + consent */}
+          {/* PayPal + consent */}
           <section className="form-card">
-            <h2>Bank & tax details via Stripe</h2>
+            <h2>PayPal Payout Details</h2>
             <p className="form-subtitle">
-              When you click the button below, you&apos;ll be redirected to
-              Stripe&apos;s secure onboarding flow. Stripe will collect your
-              bank account, tax ID (SSN/EIN), and W-9/W-8 forms as required by
-              U.S. law. Famous Finds never sees your full bank or tax numbers.
+              Payouts are sent directly to your PayPal account. Enter the email
+              address linked to your PayPal below.
             </p>
 
             <div className="form-field">
-              <button
-                type="button"
-                onClick={handleOpenStripeSetup}
-                disabled={stripeBusy}
-                className="btn-primary-dark"
-              >
-                {stripeBusy
-                  ? "Opening Stripe Connect…"
-                  : "Open Stripe secure setup"}
-              </button>
+              <label>PayPal email address</label>
+              <input
+                type="email"
+                className="form-input"
+                required
+                value={paypalEmailField || prefs.paypalEmail || ""}
+                onChange={(e) => {
+                  setPaypalEmailField(e.target.value);
+                  update("paypalEmail", e.target.value);
+                }}
+                placeholder="your-paypal@email.com"
+              />
               <p className="form-note">
-                Use this to add or update your payout bank account and tax
-                details.
+                Payouts will be sent to this PayPal email. Make sure it matches
+                your active PayPal account.
               </p>
             </div>
 
@@ -379,7 +347,7 @@ export default function SellerBankingPage() {
                     update("consentElectronic", e.target.checked || false)
                   }
                 />{" "}
-                I agree to receive payouts electronically via Stripe Connect and
+                I agree to receive payouts electronically via PayPal and
                 understand that tax forms (e.g. 1099-K) may be issued to me as
                 required by U.S. law.
               </label>
@@ -390,8 +358,7 @@ export default function SellerBankingPage() {
           <section className="form-card">
             <h2>Payout preferences</h2>
             <p className="form-subtitle">
-              These settings control how your payouts are scheduled. They don&apos;t
-              change how Stripe verifies your identity or tax information.
+              These settings control how your payouts are scheduled.
             </p>
 
             <div className="form-field form-field-inline">
@@ -404,8 +371,8 @@ export default function SellerBankingPage() {
                 Pause payouts for this seller
               </label>
               <p className="form-note">
-                When paused, funds remain in your Stripe balance until payouts
-                are resumed.
+                When paused, funds remain in your Famous Finds wallet until
+                payouts are resumed.
               </p>
             </div>
 

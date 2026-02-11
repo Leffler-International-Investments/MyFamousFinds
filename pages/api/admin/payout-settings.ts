@@ -24,7 +24,7 @@ export default async function handler(
       const { defaultCoolingDays, payoutMode } = req.body || {};
       const mode = payoutMode as PayoutMode | undefined;
 
-      if (mode && !["manual", "stripe_connect_auto"].includes(mode)) {
+      if (mode && !["manual", "paypal_auto"].includes(mode)) {
         return res
           .status(400)
           .json({ ok: false, error: "invalid_payout_mode" });

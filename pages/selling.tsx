@@ -44,7 +44,7 @@ export default function SellingPage() {
         <div className="card">
           <h2>4. Getting paid</h2>
           <p>
-            Payouts are processed via Stripe Connect to your bank account.
+            Payouts are processed via PayPal to your linked account.
           </p>
         </div>
       </main>

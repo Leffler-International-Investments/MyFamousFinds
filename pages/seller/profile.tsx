@@ -8,9 +8,6 @@ import { FormEvent, useState } from "react";
 import { useRequireSeller } from "../../hooks/useRequireSeller";
 import { sellerFetch } from "../../utils/sellerClient";
 
-// Public env-based URLs so you can control behaviour without code changes
-const STRIPE_CONNECT_URL =
-  process.env.NEXT_PUBLIC_STRIPE_CONNECT_URL || "";
 const TAX_W9_URL = process.env.NEXT_PUBLIC_TAX_W9_URL || "";
 
 export default function SellerProfile() {
@@ -20,8 +17,7 @@ export default function SellerProfile() {
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const [stripeBusy, setStripeBusy] = useState(false);
-  const [stripeError, setStripeError] = useState<string | null>(null);
+  const [paypalEmail, setPaypalEmail] = useState("");
 
   const [taxBusy, setTaxBusy] = useState(false);
 
@@ -63,29 +59,6 @@ export default function SellerProfile() {
       setError(err?.message || "Unable to save profile right now.");
     } finally {
       setSaving(false);
-    }
-  }
-
-  function handleStripeClick() {
-    setStripeError(null);
-
-    if (!STRIPE_CONNECT_URL) {
-      alert(
-        "Stripe Connect is not configured yet. Please contact support to set up your payout details."
-      );
-      return;
-    }
-
-    setStripeBusy(true);
-    try {
-      window.open(STRIPE_CONNECT_URL, "_blank", "noopener,noreferrer");
-    } catch (err: any) {
-      console.error("stripe_connect_error", err);
-      setStripeError(
-        err?.message || "Unable to open Stripe Connect at the moment."
-      );
-    } finally {
-      setStripeBusy(false);
     }
   }
 
@@ -218,31 +191,26 @@ export default function SellerProfile() {
             </div>
           </section>
 
-          {/* Section 2: Payouts (Stripe) */}
+          {/* Section 2: Payouts (PayPal) */}
           <section className="form-card">
-            <h2>Bank & Payout Details</h2>
+            <h2>PayPal Payout Details</h2>
             <p className="form-subtitle">
-              Your bank details are managed securely by Stripe. We do not store
-              this information.
+              Payouts are sent to your PayPal account. Enter your PayPal email
+              below, or update it in Banking &amp; Payouts.
             </p>
             <div className="form-field">
-              <button
-                type="button"
-                onClick={handleStripeClick}
-                disabled={stripeBusy}
-                className="btn-primary-dark"
-              >
-                {stripeBusy
-                  ? "Opening Stripe…"
-                  : "Manage Stripe Payout Account"}
-              </button>
+              <label>PayPal email</label>
+              <input
+                type="email"
+                name="paypalEmail"
+                className="form-input"
+                placeholder="your-paypal@email.com"
+                value={paypalEmail}
+                onChange={(e) => setPaypalEmail(e.target.value)}
+              />
               <p className="form-note">
-                (This will redirect to Stripe Connect to securely manage your
-                bank account.)
+                This should match the email on your active PayPal account.
               </p>
-              {stripeError && (
-                <p className="form-message error">{stripeError}</p>
-              )}
             </div>
           </section>
 
