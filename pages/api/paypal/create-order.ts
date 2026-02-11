@@ -84,7 +84,11 @@ export default async function handler(
     const status = String(listing.status || "").toLowerCase();
     const isSold =
       listing.isSold === true || listing.sold === true || status === "sold";
-    const isLive = status === "live";
+    const isLive =
+      status === "live" ||
+      status === "active" ||
+      status === "approved" ||
+      status === "published";
 
     if (!isLive || isSold) {
       return res.status(409).json({ ok: false, error: "Listing not available" });
