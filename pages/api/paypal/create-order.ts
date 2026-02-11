@@ -88,7 +88,8 @@ export default async function handler(
       status === "live" ||
       status === "active" ||
       status === "approved" ||
-      status === "published";
+      status === "published" ||
+      status === "pending";
 
     if (!isLive || isSold) {
       return res.status(409).json({ ok: false, error: "Listing not available" });

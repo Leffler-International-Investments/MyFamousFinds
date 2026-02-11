@@ -866,7 +866,8 @@ export const getServerSideProps: GetServerSideProps<ProductPageProps> = async (c
       status === "live" ||
       status === "active" ||
       status === "approved" ||
-      status === "published";
+      status === "published" ||
+      status === "pending";
     const allowPurchase = isLive && !isSold;
 
     const title = String(d.title || d.name || "Untitled");
