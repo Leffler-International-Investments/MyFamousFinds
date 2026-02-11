@@ -134,7 +134,8 @@ export default function OrderSuccessPage({
 }
 
 export const getServerSideProps: GetServerSideProps<SuccessProps> = async (ctx) => {
-  const paypalOrderId = String(ctx.query.paypal_order_id || "");
+  // PayPal appends ?token=ORDER_ID&PayerID=... to the return URL automatically
+  const paypalOrderId = String(ctx.query.token || ctx.query.paypal_order_id || "");
   const pendingId = String(ctx.query.pending || "");
 
   if (!paypalOrderId) return { notFound: true };
