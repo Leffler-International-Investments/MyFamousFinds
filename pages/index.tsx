@@ -3,13 +3,16 @@
 import Head from "next/head";
 import Link from "next/link";
 import type { GetServerSideProps, NextPage } from "next";
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { onAuthStateChanged } from "firebase/auth";
+import { collection, query, where, getDocs } from "firebase/firestore";
 
 import Header from "../components/Header";
 import Footer from "../components/Footer";
 import HomepageButler from "../components/HomepageButler";
 import ProductCard, { ProductLike } from "../components/ProductCard";
 import { adminDb } from "../utils/firebaseAdmin";
+import { auth, db, firebaseClientReady } from "../utils/firebaseClient";
 
 // --------------------------------------------------
 // Types
@@ -37,6 +40,28 @@ type HomeProps = {
 const CATEGORY_OPTIONS = ["Women", "Men", "Bags", "Shoes", "Accessories", "Jewelry", "Watches"];
 
 const CONDITION_OPTIONS = ["New with tags", "New (never used)", "Excellent", "Very good", "Good", "Fair"];
+
+const COLOR_OPTIONS: { label: string; hex: string }[] = [
+  { label: "Black", hex: "#000000" },
+  { label: "White", hex: "#FFFFFF" },
+  { label: "Cream", hex: "#FFFDD0" },
+  { label: "Beige", hex: "#D2B48C" },
+  { label: "Brown", hex: "#8B4513" },
+  { label: "Tan", hex: "#C8A97E" },
+  { label: "Burgundy", hex: "#800020" },
+  { label: "Red", hex: "#DC2626" },
+  { label: "Pink", hex: "#EC4899" },
+  { label: "Orange", hex: "#F97316" },
+  { label: "Yellow", hex: "#EAB308" },
+  { label: "Green", hex: "#16A34A" },
+  { label: "Blue", hex: "#2563EB" },
+  { label: "Navy", hex: "#1E3A5F" },
+  { label: "Purple", hex: "#7C3AED" },
+  { label: "Grey", hex: "#9CA3AF" },
+  { label: "Silver", hex: "#C0C0C0" },
+  { label: "Gold", hex: "#D4AF37" },
+  { label: "Multi", hex: "conic-gradient(red,orange,yellow,green,blue,purple,red)" },
+];
 
 const MATERIAL_OPTIONS = [
   "Leather",
@@ -104,6 +129,76 @@ const HomePage: NextPage<HomeProps> = ({
   const [minPrice, setMinPrice] = useState<number | "">(0);
   const [maxPrice, setMaxPrice] = useState<number | "">(100000);
   const [sortBy, setSortBy] = useState<"newest" | "price-asc" | "price-desc">("newest");
+
+  // Wishlist state
+  const [savedIds, setSavedIds] = useState<Set<string>>(new Set());
+  const [toastMsg, setToastMsg] = useState<string | null>(null);
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const currentUidRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!firebaseClientReady || !auth || !db) return;
+    const unsub = onAuthStateChanged(auth, async (user) => {
+      if (!user) {
+        setSavedIds(new Set());
+        currentUidRef.current = null;
+        return;
+      }
+      if (currentUidRef.current === user.uid) return;
+      currentUidRef.current = user.uid;
+      try {
+        const snap = await getDocs(
+          query(collection(db, "buyerSavedItems"), where("userId", "==", user.uid))
+        );
+        const ids = new Set(snap.docs.map((d) => (d.data() as any).listingId || ""));
+        setSavedIds(ids);
+      } catch {
+        // ignore — user can still browse
+      }
+    });
+    return () => unsub();
+  }, []);
+
+  const showToast = useCallback((msg: string) => {
+    setToastMsg(msg);
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    toastTimer.current = setTimeout(() => setToastMsg(null), 2500);
+  }, []);
+
+  const handleToggleWishlist = useCallback(
+    async (productId: string) => {
+      if (!auth?.currentUser) {
+        window.location.href = "/buyer/signin";
+        return;
+      }
+      const wasSaved = savedIds.has(productId);
+      const newSaved = new Set(savedIds);
+      if (wasSaved) {
+        newSaved.delete(productId);
+        showToast("Product removed from your wishlist");
+      } else {
+        newSaved.add(productId);
+        showToast("Product added to your wishlist");
+      }
+      setSavedIds(newSaved);
+
+      try {
+        const token = await auth.currentUser.getIdToken();
+        await fetch("/api/wishlist/toggle", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ productId, on: !wasSaved }),
+        });
+      } catch {
+        // Revert on failure
+        setSavedIds(savedIds);
+      }
+    },
+    [savedIds, showToast]
+  );
 
   const resetFilters = () => {
     setTitleQuery("");
@@ -350,7 +445,30 @@ const HomePage: NextPage<HomeProps> = ({
               <details className="filter-block">
                 <summary>Color</summary>
                 <div className="filter-body">
-                  <input className="text-input" value={color} onChange={(e) => setColor(e.target.value)} placeholder="e.g. black" />
+                  <div className="color-grid">
+                    {COLOR_OPTIONS.map((c) => {
+                      const isMulti = c.label === "Multi";
+                      const isActive = normalize(color) === normalize(c.label);
+                      return (
+                        <button
+                          key={c.label}
+                          type="button"
+                          className={`color-swatch${isActive ? " color-swatch--active" : ""}`}
+                          title={c.label}
+                          onClick={() => setColor(isActive ? "" : c.label)}
+                        >
+                          <span
+                            className="color-dot"
+                            style={isMulti
+                              ? { background: c.hex }
+                              : { backgroundColor: c.hex }
+                            }
+                          />
+                          <span className="color-label">{c.label}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
               </details>
 
@@ -402,7 +520,12 @@ const HomePage: NextPage<HomeProps> = ({
               ) : (
                 <div className="cards">
                   {filteredItems.map((p: any) => (
-                    <ProductCard key={p.id} {...p} />
+                    <ProductCard
+                      key={p.id}
+                      {...p}
+                      isSaved={savedIds.has(p.id)}
+                      onToggleWishlist={handleToggleWishlist}
+                    />
                   ))}
                 </div>
               )}
@@ -410,6 +533,14 @@ const HomePage: NextPage<HomeProps> = ({
           </div>
         </section>
       </main>
+
+      {/* Wishlist toast notification */}
+      {toastMsg && (
+        <div className="wishlist-toast">
+          <span className="wishlist-toast-icon">{toastMsg.includes("added") ? "\u2764" : "\u2661"}</span>
+          {toastMsg}
+        </div>
+      )}
 
       <HomepageButler />
       <Footer />
@@ -626,6 +757,46 @@ const HomePage: NextPage<HomeProps> = ({
           gap: 10px;
         }
 
+        /* Color swatch picker */
+        .color-grid {
+          display: grid;
+          grid-template-columns: repeat(4, 1fr);
+          gap: 6px;
+        }
+        .color-swatch {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 3px;
+          padding: 4px 2px;
+          border: 2px solid transparent;
+          border-radius: 8px;
+          background: none;
+          cursor: pointer;
+          transition: border-color 0.15s;
+        }
+        .color-swatch:hover {
+          border-color: #d1d5db;
+        }
+        .color-swatch--active {
+          border-color: #111827;
+        }
+        .color-dot {
+          width: 22px;
+          height: 22px;
+          border-radius: 50%;
+          border: 1px solid #d1d5db;
+          display: block;
+          flex-shrink: 0;
+        }
+        .color-label {
+          font-size: 9px;
+          color: #374151;
+          font-weight: 500;
+          line-height: 1.1;
+          text-align: center;
+        }
+
         .results {
           background: #fff;
           border: 1px solid #e5e7eb;
@@ -677,6 +848,40 @@ const HomePage: NextPage<HomeProps> = ({
           padding: 10px 14px;
           font-weight: 700;
           cursor: pointer;
+        }
+
+        /* Wishlist toast */
+        .wishlist-toast {
+          position: fixed;
+          bottom: 32px;
+          left: 50%;
+          transform: translateX(-50%);
+          background: #111827;
+          color: #fff;
+          padding: 12px 20px;
+          border-radius: 999px;
+          font-size: 14px;
+          font-weight: 500;
+          z-index: 9999;
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          box-shadow: 0 4px 24px rgba(0, 0, 0, 0.18);
+          animation: toastIn 0.3s ease;
+          white-space: nowrap;
+        }
+        .wishlist-toast-icon {
+          font-size: 16px;
+        }
+        @keyframes toastIn {
+          from {
+            opacity: 0;
+            transform: translateX(-50%) translateY(12px);
+          }
+          to {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0);
+          }
         }
 
         @media (max-width: 980px) {

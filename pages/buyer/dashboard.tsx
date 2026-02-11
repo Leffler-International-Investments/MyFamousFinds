@@ -1,14 +1,14 @@
- // FILE: pages/buyer/dashboard.tsx
+// FILE: pages/buyer/dashboard.tsx
 
 import { useEffect, useMemo, useState } from "react";
 import Head from "next/head";
+import Link from "next/link";
 import { useRouter } from "next/router";
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
 
 import { onAuthStateChanged, signOut, User } from "firebase/auth";
 import { collection, query, where, getDocs, orderBy, limit, doc, getDoc, setDoc, deleteDoc, serverTimestamp } from "firebase/firestore";
-import Link from "next/link";
 
 // ✅ Use the shared client initializer (and do NOT init at import-time here)
 import { auth, db, firebaseClientReady } from "../../utils/firebaseClient";
@@ -48,8 +48,8 @@ export default function BuyerDashboardPage() {
     if (previewMode) {
       setUser(null);
       setSavedItems([
-        { id: "preview-1", title: "Vintage Chanel Classic Flap", brand: "Chanel" },
-        { id: "preview-2", title: "Hermès Birkin 30", brand: "Hermès" },
+        { id: "preview-1", title: "Vintage Chanel Classic Flap", brand: "Chanel", price: 4500, currency: "USD", listingId: "preview-1" },
+        { id: "preview-2", title: "Hermès Birkin 30", brand: "Hermès", price: 12000, currency: "USD", listingId: "preview-2" },
       ]);
       setViewedItems([
         { id: "preview-3", title: "Louis Vuitton Speedy 25", brand: "Louis Vuitton" },
@@ -62,7 +62,7 @@ export default function BuyerDashboardPage() {
       return;
     }
 
-    // ✅ Prevent build-time crash / SSR crash when env vars aren’t configured
+    // ✅ Prevent build-time crash / SSR crash when env vars aren't configured
     if (!firebaseClientReady || !auth || !db) {
       setLoading(false);
       return;
@@ -185,7 +185,7 @@ export default function BuyerDashboardPage() {
     router.push("/");
   };
 
-  // ✅ If Firebase isn’t configured, don’t crash — show a clear message
+  // ✅ If Firebase isn't configured, don't crash — show a clear message
   if (!firebaseClientReady && !previewMode) {
     return (
       <>
@@ -333,51 +333,95 @@ export default function BuyerDashboardPage() {
                     Saved until another guest purchases it. Saving does not reserve the item.
                   </p>
                   {savedItems.length ? (
-                    <ul className="buyer-dashboard-list-items">
+                    <div className="wishlist-grid">
                       {savedItems.map((item) => {
+                        const sold = item.status === "Sold";
+                        const href = item.listingId ? `/product/${item.listingId}` : null;
                         const listingId = item.listingId || item.id.split("_").pop() || "";
                         const alreadyInBag = cartItems.some(
                           (c) => c.listingId === listingId
                         );
+                        const priceStr =
+                          typeof item.price === "number" && item.price > 0
+                            ? item.price.toLocaleString("en-US", {
+                                style: "currency",
+                                currency: item.currency || "USD",
+                              })
+                            : null;
+
                         return (
-                          <li key={item.id} className="buyer-dashboard-list-row">
-                            <div className="buyer-dashboard-row-between">
-                              <div>
-                                <span>{item.title}</span>
-                                <span className="buyer-dashboard-meta-line">
-                                  {item.brand ? `${item.brand} • ` : ""}
-                                  {typeof item.price === "number" && item.price > 0
-                                    ? item.price.toLocaleString("en-US", {
-                                        style: "currency",
-                                        currency: item.currency || "USD",
-                                      })
-                                    : ""}
-                                  {item.status === "Sold"
-                                    ? " • SOLD / No longer available"
-                                    : item.status
-                                    ? ` • ${item.status}`
-                                    : ""}
-                                </span>
+                          <div key={item.id} className="wishlist-card-wrapper">
+                            {href && !sold ? (
+                              <Link href={href} className="wishlist-card-link">
+                                <div className={`wishlist-card${sold ? " wishlist-card--sold" : ""}`}>
+                                  <div className="wishlist-card-img-wrap">
+                                    {item.imageUrl ? (
+                                      <img
+                                        src={item.imageUrl}
+                                        alt={item.title}
+                                        className="wishlist-card-img"
+                                      />
+                                    ) : (
+                                      <div className="wishlist-card-img-placeholder" />
+                                    )}
+                                    {sold && <span className="wishlist-sold-badge">SOLD</span>}
+                                  </div>
+                                  <div className="wishlist-card-info">
+                                    {item.brand && (
+                                      <span className="wishlist-card-brand">{item.brand}</span>
+                                    )}
+                                    <span className="wishlist-card-title">{item.title}</span>
+                                    {priceStr && (
+                                      <span className="wishlist-card-price">{priceStr}</span>
+                                    )}
+                                  </div>
+                                </div>
+                              </Link>
+                            ) : (
+                              <div className="wishlist-card-link">
+                                <div className={`wishlist-card${sold ? " wishlist-card--sold" : ""}`}>
+                                  <div className="wishlist-card-img-wrap">
+                                    {item.imageUrl ? (
+                                      <img
+                                        src={item.imageUrl}
+                                        alt={item.title}
+                                        className="wishlist-card-img"
+                                      />
+                                    ) : (
+                                      <div className="wishlist-card-img-placeholder" />
+                                    )}
+                                    {sold && <span className="wishlist-sold-badge">SOLD</span>}
+                                  </div>
+                                  <div className="wishlist-card-info">
+                                    {item.brand && (
+                                      <span className="wishlist-card-brand">{item.brand}</span>
+                                    )}
+                                    <span className="wishlist-card-title">{item.title}</span>
+                                    {priceStr && (
+                                      <span className="wishlist-card-price">{priceStr}</span>
+                                    )}
+                                  </div>
+                                </div>
                               </div>
-                              {item.status !== "Sold" && (
-                                <button
-                                  type="button"
-                                  className={alreadyInBag ? "btn-in-bag" : "btn-move-to-bag"}
-                                  onClick={() => !alreadyInBag && handleMoveToBag(item)}
-                                  disabled={alreadyInBag || movingId === item.id}
-                                >
-                                  {movingId === item.id
-                                    ? "Moving..."
-                                    : alreadyInBag
-                                    ? "In bag"
-                                    : "Move to bag"}
-                                </button>
-                              )}
-                            </div>
-                          </li>
+                            )}
+                            {!sold && (
+                              <button
+                                type="button"
+                                className={alreadyInBag ? "btn-in-bag wishlist-bag-btn" : "btn-move-to-bag wishlist-bag-btn"}
+                                onClick={() => !alreadyInBag && handleMoveToBag(item)}
+                                disabled={alreadyInBag || movingId === item.id}
+                              >
+                                {movingId === item.id
+                                  ? "Moving..."
+                                  : alreadyInBag
+                                  ? "In bag"
+                                  : "Move to bag"}
+                              </button>
+                            )}
+                          </div>
                         );
                       })}
-                    </ul>
+                    </div>
                   ) : (
                     <p className="buyer-dashboard-empty">No saved items yet.</p>
                   )}
@@ -550,6 +594,107 @@ export default function BuyerDashboardPage() {
         }
         .btn-remove:disabled {
           opacity: 0.6;
+        }
+
+        /* Wishlist grid */
+        .wishlist-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+          gap: 16px;
+          margin-top: 12px;
+        }
+        .wishlist-card-wrapper {
+          display: flex;
+          flex-direction: column;
+        }
+        .wishlist-card-link {
+          text-decoration: none;
+          color: inherit;
+        }
+        .wishlist-card {
+          border: 1px solid #e5e7eb;
+          border-radius: 14px;
+          overflow: hidden;
+          background: #fff;
+          transition: box-shadow 0.2s, transform 0.15s;
+        }
+        .wishlist-card-link:hover .wishlist-card {
+          box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+          transform: translateY(-2px);
+        }
+        .wishlist-card--sold {
+          opacity: 0.6;
+        }
+        .wishlist-card-img-wrap {
+          position: relative;
+          width: 100%;
+          aspect-ratio: 1;
+          background: #f9fafb;
+        }
+        .wishlist-card-img {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+          display: block;
+        }
+        .wishlist-card-img-placeholder {
+          width: 100%;
+          height: 100%;
+          background: #f3f4f6;
+        }
+        .wishlist-sold-badge {
+          position: absolute;
+          top: 8px;
+          left: 8px;
+          background: #b91c1c;
+          color: #fff;
+          font-size: 10px;
+          font-weight: 700;
+          padding: 2px 8px;
+          border-radius: 4px;
+          letter-spacing: 0.05em;
+        }
+        .wishlist-card-info {
+          padding: 10px 12px 12px;
+          display: flex;
+          flex-direction: column;
+          gap: 2px;
+        }
+        .wishlist-card-brand {
+          font-size: 11px;
+          font-weight: 600;
+          color: #6b7280;
+          text-transform: uppercase;
+          letter-spacing: 0.04em;
+        }
+        .wishlist-card-title {
+          font-size: 13px;
+          font-weight: 500;
+          color: #111;
+          line-height: 1.3;
+          display: -webkit-box;
+          -webkit-line-clamp: 2;
+          -webkit-box-orient: vertical;
+          overflow: hidden;
+        }
+        .wishlist-card-price {
+          font-size: 14px;
+          font-weight: 700;
+          color: #111;
+          margin-top: 4px;
+        }
+        .wishlist-bag-btn {
+          margin-top: 6px;
+          width: 100%;
+          text-align: center;
+          padding: 6px 12px;
+        }
+
+        @media (max-width: 480px) {
+          .wishlist-grid {
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+          }
         }
       `}</style>
     </>

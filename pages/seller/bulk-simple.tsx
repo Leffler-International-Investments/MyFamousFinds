@@ -99,6 +99,28 @@ const SOURCES = [
 
 const PROOFS = ["Receipt", "Bank statement", "Certificate", "Other"];
 
+const COLOR_OPTIONS: { label: string; hex: string }[] = [
+  { label: "Black", hex: "#000000" },
+  { label: "White", hex: "#FFFFFF" },
+  { label: "Cream", hex: "#FFFDD0" },
+  { label: "Beige", hex: "#D2B48C" },
+  { label: "Brown", hex: "#8B4513" },
+  { label: "Tan", hex: "#C8A97E" },
+  { label: "Burgundy", hex: "#800020" },
+  { label: "Red", hex: "#DC2626" },
+  { label: "Pink", hex: "#EC4899" },
+  { label: "Orange", hex: "#F97316" },
+  { label: "Yellow", hex: "#EAB308" },
+  { label: "Green", hex: "#16A34A" },
+  { label: "Blue", hex: "#2563EB" },
+  { label: "Navy", hex: "#1E3A5F" },
+  { label: "Purple", hex: "#7C3AED" },
+  { label: "Grey", hex: "#9CA3AF" },
+  { label: "Silver", hex: "#C0C0C0" },
+  { label: "Gold", hex: "#D4AF37" },
+  { label: "Multi", hex: "conic-gradient(red,orange,yellow,green,blue,purple,red)" },
+];
+
 function getSellerIdHeader(): string {
   if (typeof window === "undefined") return "";
   return String(window.localStorage.getItem("ff-seller-id") || "").trim();
@@ -191,7 +213,36 @@ export default function BulkSimple() {
     [items]
   );
 
-  const handleFilesChange = (idx: number, fileList: FileList | null) => {
+  /**
+   * Compress an image file in the browser using canvas so the base64 data URL
+   * stays small enough for Firestore's 1 MB document limit.
+   */
+  const compressImageFile = (file: File, maxDim = 800, quality = 0.7): Promise<string> =>
+    new Promise((resolve, reject) => {
+      const img = new Image();
+      const objectUrl = URL.createObjectURL(file);
+      img.onload = () => {
+        URL.revokeObjectURL(objectUrl);
+        let w = img.width;
+        let h = img.height;
+        if (w > maxDim || h > maxDim) {
+          if (w >= h) { h = Math.round(h * (maxDim / w)); w = maxDim; }
+          else        { w = Math.round(w * (maxDim / h)); h = maxDim; }
+        }
+        const canvas = document.createElement("canvas");
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext("2d")!;
+        ctx.fillStyle = "#ffffff";
+        ctx.fillRect(0, 0, w, h);
+        ctx.drawImage(img, 0, 0, w, h);
+        resolve(canvas.toDataURL("image/jpeg", quality));
+      };
+      img.onerror = () => { URL.revokeObjectURL(objectUrl); reject(new Error("Image load failed")); };
+      img.src = objectUrl;
+    });
+
+  const handleFilesChange = async (idx: number, fileList: FileList | null) => {
     const files = Array.from(fileList || [])
       .filter((f) => f.type.startsWith("image/"))
       .slice(0, 8);
@@ -201,14 +252,19 @@ export default function BulkSimple() {
       return;
     }
 
-    const first = files[0];
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      const dataUrl =
-        typeof reader.result === "string" ? reader.result : undefined;
+    try {
+      const dataUrl = await compressImageFile(files[0]);
       update(idx, { images: files, imageDataUrl: dataUrl });
-    };
-    reader.readAsDataURL(first);
+    } catch {
+      // Fallback: use raw file if compression fails
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const dataUrl =
+          typeof reader.result === "string" ? reader.result : undefined;
+        update(idx, { images: files, imageDataUrl: dataUrl });
+      };
+      reader.readAsDataURL(files[0]);
+    }
   };
 
   const handleDrop = (idx: number, e: React.DragEvent<HTMLDivElement>) => {
@@ -495,13 +551,58 @@ export default function BulkSimple() {
                 />
               </label>
 
-              <label>
+              <label className="full">
                 <span>Color</span>
-                <input
-                  value={it.color || ""}
-                  onChange={(e) => update(idx, { color: e.target.value })}
-                  placeholder="e.g., Black"
-                />
+                <div className="color-dropdown">
+                  <button
+                    type="button"
+                    className="color-dropdown-trigger"
+                    onClick={(e) => {
+                      const panel = (e.currentTarget.nextElementSibling as HTMLElement);
+                      if (panel) panel.style.display = panel.style.display === "block" ? "none" : "block";
+                    }}
+                  >
+                    {it.color ? (
+                      <>
+                        <span
+                          className="color-circle-sm"
+                          style={it.color === "Multi"
+                            ? { background: "conic-gradient(red,orange,yellow,green,blue,purple,red)" }
+                            : { backgroundColor: COLOR_OPTIONS.find(c => c.label === it.color)?.hex || "#ccc" }
+                          }
+                        />
+                        {it.color}
+                      </>
+                    ) : (
+                      <span className="color-placeholder">— Select color —</span>
+                    )}
+                    <span className="color-chevron">&#9662;</span>
+                  </button>
+                  <div className="color-dropdown-panel" style={{ display: "none" }}>
+                    {COLOR_OPTIONS.map((c) => {
+                      const isMulti = c.label === "Multi";
+                      const isActive = (it.color || "").toLowerCase() === c.label.toLowerCase();
+                      return (
+                        <button
+                          key={c.label}
+                          type="button"
+                          className={`color-option${isActive ? " color-option--active" : ""}`}
+                          onClick={(e) => {
+                            update(idx, { color: isActive ? "" : c.label });
+                            const panel = (e.currentTarget.parentElement as HTMLElement);
+                            if (panel) panel.style.display = "none";
+                          }}
+                        >
+                          <span
+                            className="color-circle"
+                            style={isMulti ? { background: c.hex } : { backgroundColor: c.hex }}
+                          />
+                          <span className="color-name">{c.label}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
               </label>
 
               <label>
@@ -744,6 +845,99 @@ export default function BulkSimple() {
           box-shadow: 0 0 0 1px #000;
         }
         
+        /* Color dropdown */
+        .color-dropdown {
+          position: relative;
+        }
+        .color-dropdown-trigger {
+          width: 100%;
+          background: #ffffff;
+          color: #111827;
+          border: 1px solid #d1d5db;
+          border-radius: 8px;
+          padding: 10px;
+          font-size: 14px;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          text-align: left;
+        }
+        .color-dropdown-trigger:focus {
+          outline: none;
+          border-color: #000;
+          box-shadow: 0 0 0 1px #000;
+        }
+        .color-placeholder {
+          color: #9ca3af;
+        }
+        .color-chevron {
+          margin-left: auto;
+          color: #6b7280;
+          font-size: 11px;
+        }
+        .color-circle-sm {
+          width: 16px;
+          height: 16px;
+          border-radius: 50%;
+          border: 1px solid #d1d5db;
+          display: inline-block;
+          flex-shrink: 0;
+        }
+        .color-dropdown-panel {
+          position: absolute;
+          top: 100%;
+          left: 0;
+          right: 0;
+          z-index: 20;
+          background: #fff;
+          border: 1px solid #d1d5db;
+          border-radius: 8px;
+          margin-top: 4px;
+          padding: 8px;
+          box-shadow: 0 4px 16px rgba(0,0,0,0.10);
+          display: grid;
+          grid-template-columns: repeat(auto-fill, minmax(56px, 1fr));
+          gap: 4px;
+          max-height: 220px;
+          overflow-y: auto;
+        }
+        .color-option {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 3px;
+          padding: 5px 2px;
+          border: 2px solid transparent;
+          border-radius: 8px;
+          background: none;
+          cursor: pointer;
+          transition: border-color 0.15s;
+        }
+        .color-option:hover {
+          border-color: #d1d5db;
+          background: #f9fafb;
+        }
+        .color-option--active {
+          border-color: #111827;
+          background: #f3f4f6;
+        }
+        .color-circle {
+          width: 22px;
+          height: 22px;
+          border-radius: 50%;
+          border: 1px solid #d1d5db;
+          display: block;
+          flex-shrink: 0;
+        }
+        .color-name {
+          font-size: 9px;
+          color: #374151;
+          font-weight: 500;
+          line-height: 1.1;
+          text-align: center;
+        }
+
         .dropzone {
           border-radius: 8px;
           border: 1px dashed #d1d5db;

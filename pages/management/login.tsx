@@ -15,13 +15,17 @@ type ManagementLoginError = {
 };
 type ManagementLoginResponse = ManagementLoginOk | ManagementLoginError;
 
+type PageMode = "login" | "setup";
 type TwoFactorStep = "credentials" | "verify";
 
-// ✅ EXTENDED SESSION (8 hours)
-const SESSION_TTL_MS = 8 * 60 * 60 * 1000;
+// 72 hours (3 days)
+const SESSION_TTL_MS = 72 * 60 * 60 * 1000;
 
 export default function ManagementLoginPage() {
   const router = useRouter();
+  const [mode, setMode] = useState<PageMode>("login");
+
+  // Login state
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [code, setCode] = useState("");
@@ -31,14 +35,20 @@ export default function ManagementLoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Setup state
+  const [setupEmail, setSetupEmail] = useState("");
+  const [setupPassword, setSetupPassword] = useState("");
+  const [setupConfirm, setSetupConfirm] = useState("");
+  const [setupLoading, setSetupLoading] = useState(false);
+  const [setupError, setSetupError] = useState<string | null>(null);
+  const [setupSuccess, setSetupSuccess] = useState<string | null>(null);
+
   const from =
     typeof router.query.from === "string"
       ? router.query.from
       : "/management/dashboard";
 
-  // ---------------------------
-  // STEP 1: EMAIL + PASSWORD
-  // ---------------------------
+  // ------ LOGIN FLOW ------
   async function handleCredentialsSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError(null);
@@ -55,7 +65,6 @@ export default function ManagementLoginPage() {
     setLoading(true);
 
     try {
-      // 🔐 Check credentials via management-specific API
       const res = await fetch("/api/management/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -89,13 +98,13 @@ export default function ManagementLoginPage() {
         return;
       }
 
-      // ✅ Credentials OK → Start 2FA strictly with "management" role
+      // Credentials OK -> Start 2FA
       const twofaRes = await fetch("/api/auth/start-2fa", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           email: trimmedEmail,
-          role: "management", // <— Critical for management dashboard access
+          role: "management",
           method: "email",
         }),
       });
@@ -122,9 +131,6 @@ export default function ManagementLoginPage() {
     }
   }
 
-  // ---------------------------
-  // STEP 2: VERIFY 2FA CODE
-  // ---------------------------
   async function handleVerifySubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError(null);
@@ -161,12 +167,9 @@ export default function ManagementLoginPage() {
         return;
       }
 
-      // ✅ Mark session as management
       if (typeof window !== "undefined") {
         window.localStorage.setItem("ff-role", "management");
         window.localStorage.setItem("ff-email", email.toLowerCase().trim());
-
-        // ✅ EXTEND SESSION
         window.localStorage.setItem(
           "ff-session-exp",
           String(Date.now() + SESSION_TTL_MS)
@@ -182,6 +185,67 @@ export default function ManagementLoginPage() {
     }
   }
 
+  // ------ SETUP PASSWORD FLOW ------
+  async function handleSetupSubmit(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setSetupError(null);
+    setSetupSuccess(null);
+
+    const trimmedEmail = setupEmail.trim().toLowerCase();
+    if (!trimmedEmail || !trimmedEmail.includes("@")) {
+      setSetupError("Please enter your team email address.");
+      return;
+    }
+    if (!setupPassword || setupPassword.length < 8) {
+      setSetupError("Password must be at least 8 characters.");
+      return;
+    }
+    if (setupPassword !== setupConfirm) {
+      setSetupError("Passwords do not match.");
+      return;
+    }
+
+    setSetupLoading(true);
+    try {
+      const res = await fetch("/api/management/setup-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: trimmedEmail, password: setupPassword }),
+      });
+
+      const json = await res.json();
+      if (!json.ok) {
+        setSetupError(json.message || "Unable to set up your password.");
+        return;
+      }
+
+      setSetupSuccess(
+        "Password set successfully! You can now sign in with your email and password."
+      );
+      // Pre-fill the login form
+      setEmail(trimmedEmail);
+      setPassword("");
+      // Auto-switch after a moment
+      setTimeout(() => {
+        setMode("login");
+        setSetupSuccess(null);
+      }, 3000);
+    } catch (err: any) {
+      console.error("management_setup_password_error", err);
+      setSetupError(err?.message || "Unexpected error. Please try again.");
+    } finally {
+      setSetupLoading(false);
+    }
+  }
+
+  function switchMode(newMode: PageMode) {
+    setMode(newMode);
+    setError(null);
+    setInfo(null);
+    setSetupError(null);
+    setSetupSuccess(null);
+  }
+
   const disabled = loading;
 
   return (
@@ -193,98 +257,186 @@ export default function ManagementLoginPage() {
         <Header />
         <main className="auth-main">
           <div className="auth-card">
-            <h1>Management Login</h1>
-            <p className="auth-subtitle">Secure admin access.</p>
+            {mode === "login" ? (
+              <>
+                <h1>Management Login</h1>
+                <p className="auth-subtitle">Secure admin access.</p>
 
-            {error && <div className="auth-error">{error}</div>}
-            {info && <div className="auth-info">{info}</div>}
+                {error && <div className="auth-error">{error}</div>}
+                {info && <div className="auth-info">{info}</div>}
 
-            {step === "credentials" ? (
-              <form onSubmit={handleCredentialsSubmit}>
-                <div className="auth-fields">
-                  <div className="auth-field">
-                    <label htmlFor="email">Admin Email</label>
-                    <input
-                      id="email"
-                      type="email"
-                      autoComplete="email"
-                      required
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      className="auth-input"
-                      placeholder="name@famousfinds.com"
-                      disabled={disabled}
-                    />
-                  </div>
+                {step === "credentials" ? (
+                  <form onSubmit={handleCredentialsSubmit}>
+                    <div className="auth-fields">
+                      <div className="auth-field">
+                        <label htmlFor="email">Admin Email</label>
+                        <input
+                          id="email"
+                          type="email"
+                          autoComplete="email"
+                          required
+                          value={email}
+                          onChange={(e) => setEmail(e.target.value)}
+                          className="auth-input"
+                          placeholder="name@famousfinds.com"
+                          disabled={disabled}
+                        />
+                      </div>
 
-                  <PasswordInput
-                    label="Password"
-                    value={password}
-                    onChange={setPassword}
-                    name="password"
-                    required
-                    showStrength={false}
-                    placeholder="Enter password"
-                  />
+                      <PasswordInput
+                        label="Password"
+                        value={password}
+                        onChange={setPassword}
+                        name="password"
+                        required
+                        showStrength={false}
+                        placeholder="Enter password"
+                      />
 
-                  <button
-                    type="submit"
-                    disabled={disabled}
-                    className="auth-button-primary"
-                  >
-                    {loading ? "Checking..." : "Sign In"}
-                  </button>
-                </div>
-              </form>
-            ) : (
-              <form onSubmit={handleVerifySubmit}>
-                <p className="auth-secondary-link-inline">
-                  Enter the 6-digit code sent to your email.
-                </p>
-                <div className="auth-fields">
-                  <div className="auth-field">
-                    <label htmlFor="code">Verification Code</label>
-                    <input
-                      id="code"
-                      type="text"
-                      inputMode="numeric"
-                      autoComplete="one-time-code"
-                      maxLength={6}
-                      value={code}
-                      onChange={(e) => setCode(e.target.value)}
-                      className="auth-input auth-code-input"
-                      disabled={disabled}
-                    />
-                  </div>
+                      <button
+                        type="submit"
+                        disabled={disabled}
+                        className="auth-button-primary"
+                      >
+                        {loading ? "Checking..." : "Sign In"}
+                      </button>
+                    </div>
+                  </form>
+                ) : (
+                  <form onSubmit={handleVerifySubmit}>
+                    <p className="auth-secondary-link-inline">
+                      Enter the 6-digit code sent to your email.
+                    </p>
+                    <div className="auth-fields">
+                      <div className="auth-field">
+                        <label htmlFor="code">Verification Code</label>
+                        <input
+                          id="code"
+                          type="text"
+                          inputMode="numeric"
+                          autoComplete="one-time-code"
+                          maxLength={6}
+                          value={code}
+                          onChange={(e) => setCode(e.target.value)}
+                          className="auth-input auth-code-input"
+                          disabled={disabled}
+                        />
+                      </div>
 
-                  <button
-                    type="submit"
-                    disabled={disabled}
-                    className="auth-button-primary"
-                  >
-                    {loading ? "Verifying..." : "Confirm"}
-                  </button>
-                </div>
-                <p className="auth-secondary-link-inline">
+                      <button
+                        type="submit"
+                        disabled={disabled}
+                        className="auth-button-primary"
+                      >
+                        {loading ? "Verifying..." : "Confirm"}
+                      </button>
+                    </div>
+                    <p className="auth-secondary-link-inline">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (disabled) return;
+                          setStep("credentials");
+                          setCode("");
+                          setInfo(null);
+                          setError(null);
+                        }}
+                      >
+                        Back to login
+                      </button>
+                    </p>
+                  </form>
+                )}
+
+                <p className="auth-secondary-link">
                   <button
                     type="button"
-                    onClick={() => {
-                      if (disabled) return;
-                      setStep("credentials");
-                      setCode("");
-                      setInfo(null);
-                      setError(null);
-                    }}
+                    className="auth-link-button"
+                    onClick={() => switchMode("setup")}
                   >
-                    Back to login
+                    New team member? Set up your password
                   </button>
                 </p>
-              </form>
-            )}
+                <p className="auth-secondary-link">
+                  <Link href="/management/forgot-password">
+                    Forgot password?
+                  </Link>
+                </p>
+                <p className="auth-secondary-link">
+                  <Link href="/">Return to Store</Link>
+                </p>
+              </>
+            ) : (
+              <>
+                <h1>Set Up Password</h1>
+                <p className="auth-subtitle">
+                  For registered management team members only. Enter your team
+                  email and choose a password.
+                </p>
 
-            <p className="auth-secondary-link">
-              <Link href="/">Return to Store</Link>
-            </p>
+                {setupError && <div className="auth-error">{setupError}</div>}
+                {setupSuccess && (
+                  <div className="auth-info">{setupSuccess}</div>
+                )}
+
+                <form onSubmit={handleSetupSubmit}>
+                  <div className="auth-fields">
+                    <div className="auth-field">
+                      <label htmlFor="setup-email">Team Email</label>
+                      <input
+                        id="setup-email"
+                        type="email"
+                        autoComplete="email"
+                        required
+                        value={setupEmail}
+                        onChange={(e) => setSetupEmail(e.target.value)}
+                        className="auth-input"
+                        placeholder="name@famousfinds.com"
+                        disabled={setupLoading}
+                      />
+                    </div>
+
+                    <PasswordInput
+                      label="Create Password"
+                      value={setupPassword}
+                      onChange={setSetupPassword}
+                      name="setup-password"
+                      required
+                      showStrength={true}
+                      placeholder="Min 8 characters"
+                    />
+
+                    <PasswordInput
+                      label="Confirm Password"
+                      value={setupConfirm}
+                      onChange={setSetupConfirm}
+                      name="setup-confirm"
+                      required
+                      showStrength={false}
+                      placeholder="Re-enter password"
+                    />
+
+                    <button
+                      type="submit"
+                      disabled={setupLoading}
+                      className="auth-button-primary"
+                    >
+                      {setupLoading ? "Setting up..." : "Set Password"}
+                    </button>
+                  </div>
+                </form>
+
+                <p className="auth-secondary-link">
+                  <button
+                    type="button"
+                    className="auth-link-button"
+                    onClick={() => switchMode("login")}
+                  >
+                    Already have a password? Sign in
+                  </button>
+                </p>
+              </>
+            )}
           </div>
         </main>
         <Footer />
@@ -402,7 +554,7 @@ export default function ManagementLoginPage() {
           font-weight: 600;
         }
         .auth-secondary-link {
-          margin-top: 20px;
+          margin-top: 12px;
           text-align: center;
           font-size: 13px;
         }
@@ -411,6 +563,17 @@ export default function ManagementLoginPage() {
           text-decoration: underline;
         }
         .auth-secondary-link a:hover {
+          color: #111;
+        }
+        .auth-link-button {
+          border: none;
+          background: none;
+          color: #6b7280;
+          text-decoration: underline;
+          cursor: pointer;
+          font-size: 13px;
+        }
+        .auth-link-button:hover {
           color: #111;
         }
         .auth-secondary-link-inline {
