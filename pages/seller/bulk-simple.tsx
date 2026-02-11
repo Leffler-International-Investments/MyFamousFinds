@@ -551,7 +551,7 @@ export default function BulkSimple() {
                 />
               </label>
 
-              <label className="full">
+              <label>
                 <span>Color</span>
                 <div className="color-dropdown">
                   <button
