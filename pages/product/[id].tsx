@@ -11,6 +11,7 @@ import { auth, db, firebaseClientReady } from "../../utils/firebaseClient";
 import { onAuthStateChanged } from "firebase/auth";
 import { doc, setDoc, serverTimestamp } from "firebase/firestore";
 import { useRouter } from "next/router";
+import AuthModal from "../../components/AuthModal";
 
 type ProductPageProps = {
   id: string;
@@ -55,6 +56,9 @@ export default function ProductPage(props: ProductPageProps) {
   const [offerSubmitting, setOfferSubmitting] = useState(false);
   const [offerError, setOfferError] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [showShippingForm, setShowShippingForm] = useState(false);
+  const [authAction, setAuthAction] = useState<"bag" | "offer">("bag");
   const router = useRouter();
 
   // Buyer details must be completed before checkout is enabled
@@ -148,7 +152,53 @@ export default function ProductPage(props: ProductPageProps) {
     });
   }, [brand, currency, db, firebaseClientReady, id, imageUrl, price, title, userId]);
 
-  const handleBuyNow = async () => {
+  const handleAddToBag = () => {
+    if (!allowPurchase) {
+      alert("This item is no longer available.");
+      return;
+    }
+    if (!userId) {
+      setAuthAction("bag");
+      setShowAuthModal(true);
+      return;
+    }
+    // User is signed in — show shipping form
+    setShowShippingForm(true);
+    setTimeout(() => {
+      const el = document.getElementById("buyer-details-form");
+      if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 100);
+  };
+
+  const handleMakeOfferClick = () => {
+    if (!userId) {
+      setAuthAction("offer");
+      setShowAuthModal(true);
+      return;
+    }
+    const form = document.getElementById("offer-form");
+    if (form) form.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
+  const handleAuthSuccess = (uid: string, email: string) => {
+    setUserId(uid);
+    setBuyerDetails((p) => ({ ...p, email: email || p.email }));
+    setShowAuthModal(false);
+    if (authAction === "bag") {
+      setShowShippingForm(true);
+      setTimeout(() => {
+        const el = document.getElementById("buyer-details-form");
+        if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 100);
+    } else {
+      setTimeout(() => {
+        const form = document.getElementById("offer-form");
+        if (form) form.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 100);
+    }
+  };
+
+  const handleCheckout = async () => {
     try {
       if (!allowPurchase) {
         alert("This item is no longer available.");
@@ -156,8 +206,6 @@ export default function ProductPage(props: ProductPageProps) {
       }
       if (!isBuyerDetailsValid) {
         setBuyerTouched(true);
-        const el = document.getElementById("buyer-details-form");
-        if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
         return;
       }
 
@@ -288,30 +336,18 @@ export default function ProductPage(props: ProductPageProps) {
 
             <WishlistButton productId={id} />
 
-            {/* PRIMARY ACTIONS — competitor-style: Add to Bag + Make an Offer */}
+            {/* PRIMARY ACTIONS */}
             <div className="button-row">
               <button
-                onClick={handleBuyNow}
+                onClick={handleAddToBag}
                 disabled={loading || !allowPurchase}
                 className="btn-buy"
               >
-                {loading
-                  ? "Processing..."
-                  : isSold
-                  ? "Sold"
-                  : "Add to Bag"}
+                {isSold ? "Sold" : "Add to Bag"}
               </button>
 
               {allowOffers && !isSold && (
-                <button
-                  onClick={() => {
-                    const form = document.getElementById("offer-form");
-                    if (form) {
-                      form.scrollIntoView({ behavior: "smooth", block: "start" });
-                    }
-                  }}
-                  className="btn-offer"
-                >
+                <button onClick={handleMakeOfferClick} className="btn-offer">
                   Make an offer
                 </button>
               )}
@@ -360,7 +396,8 @@ export default function ProductPage(props: ProductPageProps) {
               <div className="descText">{description || "No additional description provided."}</div>
             </div>
 
-            {/* ✅ REQUIRED BEFORE CHECKOUT */}
+            {/* SHIPPING DETAILS — shown after sign-in via Add to Bag */}
+            {showShippingForm && (
             <div id="buyer-details-form" className="buyer-box">
               <h3 className="buyer-title">Shipping details</h3>
               <p className="buyer-hint">
@@ -521,7 +558,18 @@ export default function ProductPage(props: ProductPageProps) {
               {!isBuyerDetailsValid && buyerTouched && (
                 <div className="buyer-warning">Please fill all required fields (*) to enable checkout.</div>
               )}
+
+              <div className="checkout-row">
+                <button
+                  onClick={handleCheckout}
+                  disabled={loading || !isBuyerDetailsValid}
+                  className="btn-checkout"
+                >
+                  {loading ? "Processing..." : "Proceed to checkout"}
+                </button>
+              </div>
             </div>
+            )}
 
             <div className="protection-box">
               <p className="protection-title">How Famous-Finds protects you</p>
@@ -562,6 +610,12 @@ export default function ProductPage(props: ProductPageProps) {
       </main>
 
       <Footer />
+
+      <AuthModal
+        isOpen={showAuthModal}
+        onClose={() => setShowAuthModal(false)}
+        onSuccess={handleAuthSuccess}
+      />
 
       <style jsx>{`
         .page {
@@ -726,6 +780,29 @@ export default function ProductPage(props: ProductPageProps) {
           border: 1px solid #ffd7b8;
           border-radius: 10px;
           padding: 10px 12px;
+        }
+
+        .checkout-row {
+          margin-top: 16px;
+        }
+        .btn-checkout {
+          width: 100%;
+          padding: 14px 16px;
+          background: #16a34a;
+          color: #fff;
+          border: none;
+          border-radius: 999px;
+          font-size: 15px;
+          font-weight: 700;
+          cursor: pointer;
+          transition: background 0.15s;
+        }
+        .btn-checkout:hover:not(:disabled) {
+          background: #15803d;
+        }
+        .btn-checkout:disabled {
+          opacity: 0.5;
+          cursor: not-allowed;
         }
 
         .button-row {
