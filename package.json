@@ -15,7 +15,7 @@
     "@types/react": "^19.2.0",
     "@types/react-dom": "^19.2.0",
     "baseline-browser-mapping": "^2.9.19",
-    "firebase": "^10.14.1",
+    "firebase": "^12.9.0",
     "firebase-admin": "^12.7.0",
     "formidable": "^3.5.4",
     "next": "^16.1.6",
