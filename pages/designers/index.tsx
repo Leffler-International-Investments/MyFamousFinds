@@ -37,6 +37,7 @@ type DesignersPageProps = {
 const CATEGORY_OPTIONS = [
   "Women",
   "Men",
+  "Kids",
   "Bags",
   "Shoes",
   "Accessories",
