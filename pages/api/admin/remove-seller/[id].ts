@@ -7,6 +7,7 @@ import {
   isFirebaseAdminReady,
   FieldValue,
 } from "../../../../utils/firebaseAdmin";
+import { requireAdmin } from "../../../../utils/adminAuth";
 
 type Ok = { ok: true; updatedListings: number };
 type Err = { error: string };
@@ -28,6 +29,8 @@ export default async function handler(
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed" });
   }
+
+  if (!requireAdmin(req, res)) return;
 
   if (!isFirebaseAdminReady || !adminDb) {
     return res.status(500).json({

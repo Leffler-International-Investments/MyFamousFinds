@@ -4,6 +4,7 @@
 
 import type { NextApiRequest, NextApiResponse } from "next";
 import { adminDb } from "../../../utils/firebaseAdmin";
+import { requireAdmin } from "../../../utils/adminAuth";
 
 type ApiOk = { ok: true; count: number };
 type ApiErr = { ok: false; error: string };
@@ -40,6 +41,8 @@ export default async function handler(
   if (req.method !== "POST") {
     return res.status(405).json({ ok: false, error: "Method not allowed" });
   }
+
+  if (!requireAdmin(req, res)) return;
 
   try {
     const col = adminDb.collection("designers");

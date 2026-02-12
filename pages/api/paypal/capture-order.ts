@@ -4,6 +4,10 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { capturePayPalOrder, getPayPalOrder } from "../../../lib/paypal";
 import { adminDb } from "../../../utils/firebaseAdmin";
+import {
+  sendBuyerOrderConfirmationEmail,
+  sendSellerItemSoldEmail,
+} from "../../../utils/email";
 
 type SuccessResponse = {
   ok: true;
@@ -159,7 +163,7 @@ export default async function handler(
       const listingSnap = await listingRef.get();
       if (listingSnap.exists) {
         await listingRef.update({
-          status: "sold",
+          status: "Sold",
           isSold: true,
           soldAt: Date.now(),
         });
@@ -173,6 +177,47 @@ export default async function handler(
         .doc(pendingOrderId)
         .delete()
         .catch(() => {});
+    }
+
+    // Send buyer order confirmation email
+    const amountStr = amountTotal.toFixed(2);
+    const itemTitle = pendingData.productTitle || "Item";
+    if (payerEmail) {
+      try {
+        await sendBuyerOrderConfirmationEmail({
+          to: payerEmail,
+          buyerName: payerName || undefined,
+          orderId: orderRef.id,
+          itemTitle,
+          amount: amountStr,
+          currency,
+        });
+      } catch (emailErr) {
+        console.error("[capture-order] Buyer confirmation email failed:", emailErr);
+      }
+    }
+
+    // Send seller sold notification email
+    if (sellerId) {
+      try {
+        const sellerDoc = await adminDb.collection("sellers").doc(sellerId).get();
+        const sellerData = sellerDoc.exists ? sellerDoc.data() || {} : {};
+        const sellerEmail = String(
+          sellerData.contactEmail || sellerData.email || sellerId
+        );
+        if (sellerEmail && sellerEmail.includes("@")) {
+          await sendSellerItemSoldEmail({
+            to: sellerEmail,
+            sellerName: String(sellerData.businessName || sellerData.name || ""),
+            itemTitle,
+            amount: amountStr,
+            currency,
+            orderId: orderRef.id,
+          });
+        }
+      } catch (emailErr) {
+        console.error("[capture-order] Seller notification email failed:", emailErr);
+      }
     }
 
     return res.status(200).json({

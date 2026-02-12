@@ -3,6 +3,7 @@
 
 import type { NextApiRequest, NextApiResponse } from "next";
 import { adminDb, isFirebaseAdminReady } from "../../../utils/firebaseAdmin";
+import { requireAdmin } from "../../../utils/adminAuth";
 
 type Agreement = {
   id: string;
@@ -27,6 +28,8 @@ export default async function handler(
   if (req.method !== "GET") {
     return res.status(405).json({ ok: false, message: "Method not allowed." });
   }
+
+  if (!requireAdmin(req, res)) return;
 
   if (!isFirebaseAdminReady || !adminDb) {
     return res

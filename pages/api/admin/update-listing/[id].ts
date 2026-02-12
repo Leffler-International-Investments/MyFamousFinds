@@ -1,6 +1,7 @@
 // FILE: /pages/api/admin/update-listing/[id].ts
 import type { NextApiRequest, NextApiResponse } from "next";
 import { adminDb, isFirebaseAdminReady, FieldValue } from "../../../../utils/firebaseAdmin";
+import { requireAdmin } from "../../../../utils/adminAuth";
 
 const ALLOWED_STATUSES = new Set(["Live", "Pending", "Rejected", "Sold"]);
 const ALLOWED_CONDITIONS = new Set([
@@ -24,6 +25,8 @@ export default async function handler(
     res.setHeader("Allow", ["POST"]);
     return res.status(405).json({ ok: false, error: "Method not allowed" });
   }
+
+  if (!requireAdmin(req, res)) return;
 
   try {
     if (!isFirebaseAdminReady || !adminDb) {

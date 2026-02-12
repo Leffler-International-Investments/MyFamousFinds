@@ -4,6 +4,7 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { adminDb, isFirebaseAdminReady } from "../../../utils/firebaseAdmin";
 import { sendMail } from "../../../utils/email";
+import { requireAdmin } from "../../../utils/adminAuth";
 
 type ActionResponse = { ok: true } | { ok: false; message: string };
 
@@ -14,6 +15,8 @@ export default async function handler(
   if (req.method !== "POST") {
     return res.status(405).json({ ok: false, message: "Method not allowed." });
   }
+
+  if (!requireAdmin(req, res)) return;
 
   const { agreementId, action } = req.body as {
     agreementId?: string;

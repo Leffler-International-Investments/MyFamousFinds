@@ -88,8 +88,7 @@ export default async function handler(
       status === "live" ||
       status === "active" ||
       status === "approved" ||
-      status === "published" ||
-      status === "pending";
+      status === "published";
 
     if (!isLive || isSold) {
       return res.status(409).json({ ok: false, error: "Listing not available" });
@@ -112,9 +111,6 @@ export default async function handler(
     const currency = String(listing.currency || "usd").toUpperCase() || "USD";
 
     const baseUrl = resolveBaseUrl(req);
-    const buyerIdHeader =
-      (req.headers["x-user-id"] as string | undefined) ||
-      (req.headers["x-userid"] as string | undefined);
 
     // Store pending order details in Firestore so we can retrieve them on capture
     const pendingOrderRef = adminDb.collection("pending_orders").doc();
@@ -136,7 +132,6 @@ export default async function handler(
         postalCode: buyerDetails?.postalCode || "",
         country: buyerDetails?.country || "",
       },
-      ...(buyerIdHeader ? { buyerId: buyerIdHeader } : {}),
       createdAt: Date.now(),
     });
 

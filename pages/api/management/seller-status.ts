@@ -5,6 +5,7 @@ import {
   sendSellerInviteEmail,
   sendSellerRejectionEmail,
 } from "../../../utils/email";
+import { requireAdmin } from "../../../utils/adminAuth";
 import crypto from "crypto";
 
 type Response =
@@ -20,6 +21,8 @@ export default async function handler(
       .status(405)
       .json({ ok: false, error: "method_not_allowed" });
   }
+
+  if (!requireAdmin(req, res)) return;
 
   if (!adminDb) {
     return res.status(500).json({ ok: false, error: "Firebase not configured" });

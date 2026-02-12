@@ -333,6 +333,87 @@ export async function sendSellerRejectionEmail(params: {
   await sendMail(to, subject, text, html);
 }
 
+/**
+ * Buyer — order confirmation email
+ */
+export async function sendBuyerOrderConfirmationEmail(params: {
+  to: string;
+  buyerName?: string;
+  orderId: string;
+  itemTitle: string;
+  amount: string;
+  currency?: string;
+}) {
+  const to = (params.to || "").trim();
+  if (!to) throw new Error("sendBuyerOrderConfirmationEmail missing required field: to");
+
+  const name = params.buyerName || "there";
+  const subject = "MyFamousFinds — Order Confirmation";
+  const text =
+    `Hello ${name},\n\n` +
+    `Thank you for your purchase on MyFamousFinds!\n\n` +
+    `Order ID: ${params.orderId}\n` +
+    `Item: ${params.itemTitle}\n` +
+    `Total: ${params.currency || "USD"} ${params.amount}\n\n` +
+    `We will process your order and keep you updated on shipping.\n\n` +
+    `If you have any questions, feel free to reply to this email.\n\n` +
+    `Regards,\nThe MyFamousFinds Team\n`;
+
+  const html =
+    `<p>Hello ${escapeHtml(name)},</p>` +
+    `<p>Thank you for your purchase on <b>MyFamousFinds</b>!</p>` +
+    `<div style="padding:12px;background:#f0fdf4;border-radius:6px;margin:12px 0;">` +
+    `<p style="margin:4px 0;"><b>Order ID:</b> ${escapeHtml(params.orderId)}</p>` +
+    `<p style="margin:4px 0;"><b>Item:</b> ${escapeHtml(params.itemTitle)}</p>` +
+    `<p style="margin:4px 0;"><b>Total:</b> ${escapeHtml(params.currency || "USD")} ${escapeHtml(params.amount)}</p>` +
+    `</div>` +
+    `<p>We will process your order and keep you updated on shipping.</p>` +
+    `<p>If you have any questions, feel free to reply to this email.</p>` +
+    `<p>Regards,<br/>The MyFamousFinds Team</p>`;
+
+  await sendMail(to, subject, text, html);
+}
+
+/**
+ * Seller — item sold notification email
+ */
+export async function sendSellerItemSoldEmail(params: {
+  to: string;
+  sellerName?: string;
+  itemTitle: string;
+  amount: string;
+  currency?: string;
+  orderId: string;
+}) {
+  const to = (params.to || "").trim();
+  if (!to) throw new Error("sendSellerItemSoldEmail missing required field: to");
+
+  const name = params.sellerName || "Seller";
+  const subject = "MyFamousFinds — Your Item Has Been Sold!";
+  const text =
+    `Hello ${name},\n\n` +
+    `Great news — your item has been sold on MyFamousFinds!\n\n` +
+    `Item: ${params.itemTitle}\n` +
+    `Sale Amount: ${params.currency || "USD"} ${params.amount}\n` +
+    `Order ID: ${params.orderId}\n\n` +
+    `Please prepare the item for shipping. You can view the order details ` +
+    `in your Seller Dashboard.\n\n` +
+    `Regards,\nThe MyFamousFinds Team\n`;
+
+  const html =
+    `<p>Hello ${escapeHtml(name)},</p>` +
+    `<p style="font-size:16px;"><b>Great news — your item has been sold on MyFamousFinds!</b></p>` +
+    `<div style="padding:12px;background:#fef3c7;border-radius:6px;margin:12px 0;">` +
+    `<p style="margin:4px 0;"><b>Item:</b> ${escapeHtml(params.itemTitle)}</p>` +
+    `<p style="margin:4px 0;"><b>Sale Amount:</b> ${escapeHtml(params.currency || "USD")} ${escapeHtml(params.amount)}</p>` +
+    `<p style="margin:4px 0;"><b>Order ID:</b> ${escapeHtml(params.orderId)}</p>` +
+    `</div>` +
+    `<p>Please prepare the item for shipping. You can view the order details in your Seller Dashboard.</p>` +
+    `<p>Regards,<br/>The MyFamousFinds Team</p>`;
+
+  await sendMail(to, subject, text, html);
+}
+
 export async function sendTestEmail(to: string) {
   const subject = "MyFamousFinds SMTP Test";
   const text =

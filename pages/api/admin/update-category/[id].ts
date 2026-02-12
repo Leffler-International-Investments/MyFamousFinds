@@ -1,11 +1,14 @@
 // FILE: /pages/api/admin/update-category/[id].ts
 import type { NextApiRequest, NextApiResponse } from "next";
 import { adminDb, isFirebaseAdminReady, FieldValue } from "../../../../utils/firebaseAdmin";
+import { requireAdmin } from "../../../../utils/adminAuth";
 
 const ALLOWED = new Set(["WOMEN", "BAGS", "MEN", "KIDS", "JEWELRY", "WATCHES"]);
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== "POST") return res.status(405).json({ ok: false, error: "Method not allowed" });
+
+  if (!requireAdmin(req, res)) return;
 
   try {
     if (!isFirebaseAdminReady || !adminDb) {

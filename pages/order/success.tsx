@@ -448,7 +448,7 @@ export const getServerSideProps: GetServerSideProps<SuccessProps> = async (ctx) 
               .collection("listings")
               .doc(String(resolvedListingId))
               .update({
-                status: "sold",
+                status: "Sold",
                 isSold: true,
                 soldAt: Date.now(),
               })

@@ -1,6 +1,7 @@
 // FILE: /pages/api/admin/log-manual-notification.ts
 import type { NextApiRequest, NextApiResponse } from "next";
 import { adminDb } from "../../../utils/firebaseAdmin";
+import { requireAdmin } from "../../../utils/adminAuth";
 
 type Data = { ok: true } | { error: string };
 
@@ -11,6 +12,8 @@ export default async function handler(
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed" });
   }
+
+  if (!requireAdmin(req, res)) return;
 
   if (!adminDb) {
     return res.status(500).json({ error: "Firebase not configured" });

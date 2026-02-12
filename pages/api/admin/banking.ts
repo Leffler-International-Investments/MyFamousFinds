@@ -2,13 +2,7 @@
 
 import type { NextApiRequest, NextApiResponse } from "next";
 import { adminDb } from "../../../utils/firebaseAdmin";
-
-// ✅ Restrict to only Ariel (owner) and Dan (developer)
-const ALLOWED_EMAILS = [
-  "ariel@famousfinds.com",
-  "leffleryd@gmail.com",
-  "danyaffa@famousfinds.com"
-];
+import { requireAdmin } from "../../../utils/adminAuth";
 
 type Ok = { ok: true; prefs?: any };
 type Err = { error: string };
@@ -18,6 +12,8 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse<Data>
 ) {
+  if (!requireAdmin(req, res)) return;
+
   const emailParam =
     (req.method === "GET"
       ? req.query.email
@@ -28,14 +24,6 @@ export default async function handler(
 
   if (!email) {
     return res.status(400).json({ error: "Missing admin email" });
-  }
-
-  // 🚫 Restrict access to authorized emails only
-  if (!ALLOWED_EMAILS.includes(email)) {
-    console.warn("Unauthorized attempt to access management payouts:", email);
-    return res
-      .status(403)
-      .json({ error: "Unauthorized access to team payout settings." });
   }
 
   const docRef = adminDb.collection("managementPayoutPrefs").doc(email);

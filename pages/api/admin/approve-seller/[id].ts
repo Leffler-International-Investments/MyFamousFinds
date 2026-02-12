@@ -2,6 +2,7 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { adminDb } from "../../../../utils/firebaseAdmin";
 import { queueEmail } from "../../../../utils/emailOutbox";
+import { requireAdmin } from "../../../../utils/adminAuth";
 import crypto from "crypto";
 
 type Data =
@@ -10,6 +11,7 @@ type Data =
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse<Data>) {
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
+  if (!requireAdmin(req, res)) return;
   if (!adminDb) return res.status(500).json({ error: "Firebase not configured" });
 
   try {
