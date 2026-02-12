@@ -37,7 +37,7 @@ type HomeProps = {
   designerOptions: string[];
 };
 
-const CATEGORY_OPTIONS = ["Women", "Men", "Bags", "Shoes", "Accessories", "Jewelry", "Watches"];
+const CATEGORY_OPTIONS = ["Women", "Men", "Kids", "Bags", "Shoes", "Accessories", "Jewelry", "Watches"];
 
 const CONDITION_OPTIONS = ["New with tags", "New (never used)", "Excellent", "Very good", "Good", "Fair"];
 
@@ -348,11 +348,7 @@ const HomePage: NextPage<HomeProps> = ({
         <section className="hero">
           <div className="hero-copy">
             <p className="eyebrow">Curated pre-loved luxury</p>
-            <h1>Discover, save &amp; shop authenticated designer pieces.</h1>
-            <p className="hero-sub">
-              Browse a hand-picked selection of bags, jewelry, watches and ready-to-wear from trusted sellers. Every
-              piece is vetted so you can shop with confidence.
-            </p>
+            <h1>Famous Closets, Famous Finds</h1>
           </div>
         </section>
 
@@ -674,14 +670,6 @@ const HomePage: NextPage<HomeProps> = ({
           line-height: 1.05;
           color: #0f172a;
         }
-        .hero-sub {
-          margin: 0 0 16px;
-          font-size: 15px;
-          color: #374151;
-          line-height: 1.6;
-          max-width: 52ch;
-        }
-
         .home-section {
           margin-top: 22px;
         }

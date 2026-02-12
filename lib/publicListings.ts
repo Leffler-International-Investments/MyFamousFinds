@@ -22,7 +22,7 @@ export type PublicListing = {
   createdAt?: any;
 };
 
-const CANON = ["WOMEN", "BAGS", "MEN", "JEWELRY", "WATCHES"] as const;
+const CANON = ["WOMEN", "BAGS", "MEN", "KIDS", "JEWELRY", "WATCHES"] as const;
 type CanonCategory = (typeof CANON)[number];
 
 function normCategory(v: any): CanonCategory | "" {
@@ -42,9 +42,12 @@ function normCategory(v: any): CanonCategory | "" {
   )
     return "JEWELRY";
 
+  if (s === "KID" || s === "KIDS" || s === "CHILDREN" || s === "CHILDRENS") return "KIDS";
+
   if (compact.includes("JEWEL")) return "JEWELRY";
   if (compact.includes("WATCH")) return "WATCHES";
   if (compact.includes("BAG")) return "BAGS";
+  if (compact.includes("KIDS") || compact.includes("CHILDREN")) return "KIDS";
   if (compact.includes("WOMEN") || compact.includes("WOMAN")) return "WOMEN";
   if (compact.includes("MEN") || compact.includes("MENS") || compact.includes("MAN"))
     return "MEN";

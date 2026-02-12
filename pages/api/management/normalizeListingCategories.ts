@@ -2,7 +2,7 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { adminDb, isFirebaseAdminReady, FieldValue } from "../../../utils/firebaseAdmin";
 
-const CANON = ["WOMEN", "BAGS", "MEN", "JEWELRY", "WATCHES"] as const;
+const CANON = ["WOMEN", "BAGS", "MEN", "KIDS", "JEWELRY", "WATCHES"] as const;
 type Canon = (typeof CANON)[number];
 
 function normCategory(v: any): Canon | "" {
@@ -11,6 +11,7 @@ function normCategory(v: any): Canon | "" {
   if (s === "WOMAN" || s === "WOMEN") return "WOMEN";
   if (s === "BAG" || s === "BAGS") return "BAGS";
   if (s === "MAN" || s === "MEN" || s === "MENS") return "MEN";
+  if (s === "KID" || s === "KIDS" || s === "CHILDREN" || s === "CHILDRENS") return "KIDS";
   if (s === "JEWELLERY" || s === "JEWELRY") return "JEWELRY";
   return (CANON as readonly string[]).includes(s) ? (s as Canon) : "";
 }

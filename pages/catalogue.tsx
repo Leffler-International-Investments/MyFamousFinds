@@ -32,9 +32,6 @@ export default function PublicCatalogue({ items }: CatalogueProps) {
               Browse all live listings in our marketplace.
             </p>
           </div>
-          <Link href="/" className="cta">
-            ← Back to Home
-          </Link>
         </div>
 
         <section className="sell-card">

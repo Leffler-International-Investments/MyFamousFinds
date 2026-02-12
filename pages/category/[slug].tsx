@@ -64,6 +64,7 @@ function normalize(raw: string | undefined | null): string {
 const CATEGORY_OPTIONS = [
   "Women",
   "Men",
+  "Kids",
   "Bags",
   "Shoes",
   "Accessories",
@@ -118,6 +119,7 @@ const labelMap: Record<string, string> = {
   "new-arrivals": "New Arrivals",
   women: "Women",
   men: "Men",
+  kids: "Kids",
   bags: "Bags",
   jewelry: "Jewelry",
   watches: "Watches",

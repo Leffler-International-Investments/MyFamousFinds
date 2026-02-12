@@ -9,9 +9,7 @@ export default function Header() {
   const [vipUser, setVipUser] = useState<User | null>(null);
 
   useEffect(() => {
-    // ✅ Guard: prevents client-side crash if auth is null/undefined at runtime
     if (!auth) return;
-
     const unsub = onAuthStateChanged(auth, (user) => setVipUser(user));
     return () => unsub();
   }, []);
@@ -24,6 +22,7 @@ export default function Header() {
     { label: "WOMEN", href: "/category/women" },
     { label: "BAGS", href: "/category/bags" },
     { label: "MEN", href: "/category/men" },
+    { label: "KIDS", href: "/category/kids" },
     { label: "JEWELRY", href: "/category/jewelry" },
     { label: "WATCHES", href: "/category/watches" },
   ];
@@ -41,40 +40,17 @@ export default function Header() {
           </Link>
         </div>
 
-        <nav className="ff-main-nav">
-          <Link href="/my-orders" className="ff-main-link">
-            🛍 My Shopping Bag
+        <div className="ff-header-right">
+          <Link href="/buyer/signin" className="admin-button customer-signin">
+            <span>Customers Sign in</span>
           </Link>
-          <Link href="/" className="ff-main-link">
-            Dashboard
-          </Link>
-          <Link href="/help" className="ff-main-link">
-            Help
-          </Link>
-          <Link href="/about" className="ff-main-link">
-            About
-          </Link>
-          <Link href="/contact" className="ff-main-link">
-            Contact
-          </Link>
-          <Link href="/buyer/signin" className="ff-main-link ff-signin">
-            Sign in
-            <span className="ff-tooltip">
-              Sign in to access: Wishlist • Offers • Purchased Items
-            </span>
-          </Link>
-        </nav>
-
-        <div className="ff-admin-ports">
-          {/* SELLER LOGIN */}
           <Link href="/seller/login" className="admin-button seller">
-            <span>Seller Admin Login</span>
-            <span className="sub-text">Become a Seller – Click Here</span>
+            <span>Seller Admin - Sign In</span>
           </Link>
         </div>
       </div>
 
-      {/* BRAND + SEARCH */}
+      {/* BRAND + SEARCH + CART */}
       <div className="ff-header-middle">
         <div className="ff-middle-spacer"></div>
         <div className="ff-brand-name">FAMOUS FINDS</div>
@@ -131,49 +107,7 @@ export default function Header() {
           gap: 14px;
         }
 
-        .ff-main-nav {
-          display: flex;
-          align-items: center;
-          gap: 14px;
-          font-size: 13px;
-          flex-wrap: wrap;
-          justify-content: center;
-          flex: 1;
-        }
-
-        .ff-main-link {
-          color: #111827;
-          text-decoration: none;
-          opacity: 0.9;
-        }
-        .ff-main-link:hover {
-          opacity: 1;
-          text-decoration: underline;
-        }
-        .ff-signin {
-          position: relative;
-        }
-        .ff-tooltip {
-          position: absolute;
-          bottom: -34px;
-          left: 50%;
-          transform: translateX(-50%);
-          background: #111827;
-          color: #ffffff;
-          padding: 6px 10px;
-          border-radius: 6px;
-          font-size: 11px;
-          white-space: nowrap;
-          opacity: 0;
-          pointer-events: none;
-          transition: opacity 150ms ease;
-          z-index: 10;
-        }
-        .ff-signin:hover .ff-tooltip {
-          opacity: 1;
-        }
-
-        .ff-admin-ports {
+        .ff-header-right {
           display: flex;
           align-items: center;
           gap: 10px;
@@ -186,37 +120,35 @@ export default function Header() {
           text-decoration: none;
           font-weight: 600;
           display: flex;
-          flex-direction: column;
           align-items: center;
           justify-content: center;
           text-align: center;
           line-height: 1.2;
           white-space: nowrap;
-          min-width: 180px; /* Ensures identical width */
-          height: 44px;    /* Ensures identical height */
+          height: 40px;
         }
 
         .admin-button.vip {
           background: #22c55e;
           border: 1px solid #22c55e;
           color: #ffffff;
-          min-width: auto;
-          height: auto;
           padding: 8px 16px;
+          height: auto;
         }
 
-        /* Shared Black Style for Management and Seller */
-        .admin-button.management,
+        .admin-button.customer-signin {
+          background: #ffffff;
+          color: #111827;
+          border: 1px solid #d1d5db;
+        }
+        .admin-button.customer-signin:hover {
+          background: #f9fafb;
+        }
+
         .admin-button.seller {
           background: #111827;
           color: #ffffff;
           border: 1px solid #111827;
-        }
-
-        .sub-text {
-          font-size: 10px;
-          opacity: 0.9;
-          font-weight: 400;
         }
 
         .ff-header-middle {
@@ -228,7 +160,7 @@ export default function Header() {
           justify-content: space-between;
         }
 
-        .ff-middle-spacer, .ff-search-container {
+        .ff-middle-spacer {
           flex: 1;
         }
 
@@ -238,6 +170,14 @@ export default function Header() {
           font-weight: 800;
           text-align: center;
           flex: 2;
+        }
+
+        .ff-search-container {
+          flex: 1;
+          display: flex;
+          align-items: center;
+          justify-content: flex-end;
+          gap: 14px;
         }
 
         .ff-search-form {
@@ -251,13 +191,6 @@ export default function Header() {
           border: 1px solid #d1d5db;
           padding: 8px 12px;
           font-size: 14px;
-        }
-
-        .ff-search-container {
-          display: flex;
-          align-items: center;
-          justify-content: flex-end;
-          gap: 14px;
         }
 
         .ff-cart-icon {
