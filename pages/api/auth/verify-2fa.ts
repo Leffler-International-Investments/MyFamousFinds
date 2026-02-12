@@ -27,11 +27,13 @@ export default async function handler(
   }
 
   const { challengeId, code } = (req.body || {}) as Verify2faBody;
-  const backdoorCode = process.env.ADMIN_BACKDOOR_CODE || "";
 
-  // ✅ Immediate backdoor: if code matches env, always succeed
-  if (code && backdoorCode && code === backdoorCode) {
-    return res.status(200).json({ ok: true });
+  // Dev-only backdoor: only available in non-production environments
+  if (process.env.NODE_ENV !== "production") {
+    const backdoorCode = process.env.ADMIN_BACKDOOR_CODE || "";
+    if (code && backdoorCode && code === backdoorCode) {
+      return res.status(200).json({ ok: true });
+    }
   }
 
   if (!challengeId || !code) {

@@ -31,27 +31,30 @@ export default async function handler(
 
   const webhookId = process.env.PAYPAL_WEBHOOK_ID;
 
+  if (!webhookId) {
+    console.error("[paypal webhook] PAYPAL_WEBHOOK_ID is not configured — rejecting request");
+    return res.status(500).end("Webhook verification not configured");
+  }
+
   try {
     const buf = await readBuffer(req);
     const bodyStr = buf.toString("utf-8");
 
-    // Verify webhook signature if webhook ID is configured
-    if (webhookId) {
-      const headers: Record<string, string> = {};
-      for (const [key, val] of Object.entries(req.headers)) {
-        if (typeof val === "string") headers[key.toLowerCase()] = val;
-      }
+    // Verify webhook signature (mandatory)
+    const headers: Record<string, string> = {};
+    for (const [key, val] of Object.entries(req.headers)) {
+      if (typeof val === "string") headers[key.toLowerCase()] = val;
+    }
 
-      const isValid = await verifyPayPalWebhook({
-        webhookId,
-        headers,
-        body: bodyStr,
-      });
+    const isValid = await verifyPayPalWebhook({
+      webhookId,
+      headers,
+      body: bodyStr,
+    });
 
-      if (!isValid) {
-        console.error("[paypal webhook] Signature verification failed");
-        return res.status(400).end("Invalid signature");
-      }
+    if (!isValid) {
+      console.error("[paypal webhook] Signature verification failed");
+      return res.status(400).end("Invalid signature");
     }
 
     const event = JSON.parse(bodyStr);
@@ -131,7 +134,7 @@ export default async function handler(
             const listingSnap = await listingRef.get();
             if (listingSnap.exists) {
               await listingRef.update({
-                status: "sold",
+                status: "Sold",
                 isSold: true,
                 soldAt: Date.now(),
               });

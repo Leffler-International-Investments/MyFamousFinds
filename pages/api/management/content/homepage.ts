@@ -1,6 +1,7 @@
 // FILE: /pages/api/management/content/homepage.ts
 import type { NextApiRequest, NextApiResponse } from "next";
 import { adminDb } from "../../../../utils/firebaseAdmin";
+import { requireAdmin } from "../../../../utils/adminAuth";
 
 type HomepageContent = {
   heroTitle: string;
@@ -46,12 +47,11 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse<HomepageResponse | { ok: boolean; error?: string }>
 ) {
+  if (!requireAdmin(req, res)) return;
+
   if (!adminDb) {
     return res.status(500).json({ ok: false, error: "Firebase not configured" });
   }
-
-  // NOTE: Proper server-side admin auth should be added here later.
-  // This API is currently protected only by the client-side admin UI.
 
   if (req.method === "GET") {
     try {

@@ -2,6 +2,7 @@
 
 import type { NextApiRequest, NextApiResponse } from "next";
 import { adminDb } from "../../../../../utils/firebaseAdmin";
+import { requireAdmin } from "../../../../../utils/adminAuth";
 
 type PageContent = {
   title: string;
@@ -28,6 +29,8 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse<StaticPageResponse>
 ) {
+  if (!requireAdmin(req, res)) return;
+
   const key = normalizeKey(req.query.pageKey);
 
   if (!key) {

@@ -1,6 +1,7 @@
 // FILE: /pages/api/management/updateListing.ts
 import type { NextApiRequest, NextApiResponse } from "next";
 import { adminDb } from "../../../utils/firebaseAdmin";
+import { requireAdmin } from "../../../utils/adminAuth";
 import sharp from "sharp";
 import {
   createWhiteDisplayImage,
@@ -41,6 +42,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (req.method !== "POST") {
       return res.status(405).json({ ok: false, message: "Method not allowed" });
     }
+
+    if (!requireAdmin(req, res)) return;
 
     if (!adminDb) {
       return res.status(500).json({ ok: false, error: "Firebase not configured" });

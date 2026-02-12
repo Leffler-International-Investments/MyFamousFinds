@@ -2,22 +2,7 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { getAuth } from "firebase-admin/auth";
 import { adminDb } from "../../../../utils/firebaseAdmin";
-
-// --- Server-side check for "Owner" role ---
-async function isOwner(req: NextApiRequest): Promise<boolean> {
-  const email = String(
-    req.headers["x-management-email"] || req.body?.requesterEmail || ""
-  ).trim().toLowerCase();
-
-  if (!email) return false;
-
-  const allowList = (process.env.MANAGEMENT_SUPER_EMAILS || "")
-    .split(",")
-    .map((s) => s.trim().toLowerCase())
-    .filter(Boolean);
-
-  return allowList.includes(email);
-}
+import { requireAdmin } from "../../../../utils/adminAuth";
 
 export default async function handler(
   req: NextApiRequest,
@@ -32,9 +17,7 @@ export default async function handler(
   }
 
   // --- 1. Security Check ---
-  if (!(await isOwner(req))) {
-    return res.status(403).json({ ok: false, error: "Not authorized" });
-  }
+  if (!requireAdmin(req, res)) return;
 
   try {
     const { name, email, phone, permissions } = req.body;

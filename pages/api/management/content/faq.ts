@@ -2,6 +2,7 @@
 
 import type { NextApiRequest, NextApiResponse } from "next";
 import { adminDb } from "../../../../utils/firebaseAdmin";
+import { requireAdmin } from "../../../../utils/adminAuth";
 
 type FaqItem = { question: string; answer: string };
 
@@ -13,6 +14,8 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse<FaqResponse>
 ) {
+  if (!requireAdmin(req, res)) return;
+
   if (!adminDb) {
     return res.status(500).json({ ok: false, error: "Firebase not configured" });
   }

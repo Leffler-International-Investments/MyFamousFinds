@@ -78,27 +78,30 @@ export default async function handler(
     challengeId = ch.id;
   }
 
-  // 2) Email or dev mode
-  let devCode: string | undefined;
+  // 2) Send email
+  let emailSent = false;
 
   if (canSendEmail()) {
     try {
       await sendLoginCode(normalizedEmail, code);
-    } catch {
-      devCode = code;
+      emailSent = true;
+    } catch (err) {
+      console.error("[start-2fa] Email send failed:", err);
     }
-  } else {
-    devCode = code;
   }
 
-  // 3) FINAL RESPONSE WITH CORRECT WORDING
-  if (devCode) {
+  // 3) Only expose devCode in non-production environments when email fails
+  if (!emailSent && process.env.NODE_ENV !== "production") {
     return res.status(200).json({
       ok: true,
       challengeId,
-      devCode,
-      message: `Your 6-digit code is: ${devCode}`,
+      devCode: code,
+      message: `[DEV] Your 6-digit code is: ${code}`,
     });
+  }
+
+  if (!emailSent) {
+    console.error("[start-2fa] Email not sent and not in dev mode — code cannot be delivered");
   }
 
   return res.status(200).json({
