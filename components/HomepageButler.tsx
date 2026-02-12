@@ -45,6 +45,16 @@ export default function HomepageButler() {
           z-index: 9999;
           cursor: pointer;
         }
+        @media (max-width: 768px) {
+          .butlerFloatingBtn {
+            width: 44px;
+            height: 44px;
+            font-size: 20px;
+            bottom: 12px;
+            right: 12px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+          }
+        }
       `}</style>
     </>
   );

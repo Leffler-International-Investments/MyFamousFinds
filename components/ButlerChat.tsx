@@ -316,11 +316,24 @@ export default function ButlerChat({ isOpen, onClose }: ButlerChatProps) {
           background: #ef4444;
           color: #fff;
         }
+        @media (max-width: 768px) {
+          .butlerChatPanel {
+            right: 8px;
+            bottom: 64px;
+            width: 280px;
+            max-width: 75vw;
+            font-size: 12px;
+          }
+          .butlerMessages {
+            height: 140px;
+          }
+        }
         @media (max-width: 480px) {
           .butlerChatPanel {
             right: 8px;
-            left: 8px;
-            width: auto;
+            bottom: 64px;
+            width: 260px;
+            max-width: 70vw;
           }
         }
       `}</style>
