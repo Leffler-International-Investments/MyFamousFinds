@@ -20,6 +20,7 @@ type ProductPageProps = {
   currency: string;
   priceLabel: string;
   imageUrl: string;
+  imageUrls: string[];
   condition: string;
   brand: string;
   category: string;
@@ -40,6 +41,7 @@ export default function ProductPage(props: ProductPageProps) {
     currency,
     priceLabel,
     imageUrl,
+    imageUrls,
     condition,
     brand,
     category,
@@ -322,6 +324,20 @@ export default function ProductPage(props: ProductPageProps) {
                 if (currentImgSrc !== FALLBACK_IMG) setCurrentImgSrc(FALLBACK_IMG);
               }}
             />
+            {imageUrls.length > 1 && (
+              <div className="gallery-thumbs">
+                {imageUrls.map((url, i) => (
+                  <button
+                    key={i}
+                    type="button"
+                    className={`gallery-thumb${currentImgSrc === url ? " gallery-thumb--active" : ""}`}
+                    onClick={() => setCurrentImgSrc(url)}
+                  >
+                    <img src={url} alt={`${title} - image ${i + 1}`} />
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
           <div className="details">
@@ -652,6 +668,36 @@ export default function ProductPage(props: ProductPageProps) {
           border-radius: 10px;
           background: #fff;
           border: 1px solid #f0f0f0;
+        }
+        .gallery-thumbs {
+          display: flex;
+          gap: 8px;
+          margin-top: 12px;
+          overflow-x: auto;
+          padding-bottom: 4px;
+        }
+        .gallery-thumb {
+          flex-shrink: 0;
+          width: 60px;
+          height: 60px;
+          border-radius: 8px;
+          overflow: hidden;
+          border: 2px solid #e5e7eb;
+          background: #fff;
+          cursor: pointer;
+          padding: 0;
+        }
+        .gallery-thumb:hover {
+          border-color: #999;
+        }
+        .gallery-thumb--active {
+          border-color: #111827;
+        }
+        .gallery-thumb img {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+          display: block;
         }
         .details {
           width: 100%;
@@ -1050,6 +1096,29 @@ export const getServerSideProps: GetServerSideProps<ProductPageProps> = async (c
           pickFrom(images?.[0])
       ) || "/Famous-Finds-Logo-2.png";
 
+    // Collect all image URLs for gallery display
+    const allImageUrls: string[] = [];
+    const addUrls = (arr: any) => {
+      if (!Array.isArray(arr)) return;
+      for (const item of arr) {
+        const url = normalizeSrc(pickFrom(item));
+        if (url && !allImageUrls.includes(url)) allImageUrls.push(url);
+      }
+    };
+    addUrls(d.imageUrls);
+    addUrls(d.displayImageUrls);
+    addUrls(images);
+    // Ensure primary image is first
+    if (imageUrl && imageUrl !== "/Famous-Finds-Logo-2.png" && !allImageUrls.includes(imageUrl)) {
+      allImageUrls.unshift(imageUrl);
+    } else if (allImageUrls.length > 0 && allImageUrls[0] !== imageUrl) {
+      const idx = allImageUrls.indexOf(imageUrl);
+      if (idx > 0) {
+        allImageUrls.splice(idx, 1);
+        allImageUrls.unshift(imageUrl);
+      }
+    }
+
     const condition = String(d.condition || "").trim();
     const brand = String(d.brand || d.designer || "").trim();
     const category = String(d.category || "").trim();
@@ -1067,6 +1136,7 @@ export const getServerSideProps: GetServerSideProps<ProductPageProps> = async (c
         currency,
         priceLabel,
         imageUrl,
+        imageUrls: allImageUrls,
         condition,
         brand,
         category,

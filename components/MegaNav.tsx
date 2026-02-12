@@ -53,6 +53,15 @@ export default function MegaNav() {
       ],
     },
     {
+      label: "KIDS",
+      href: "/category/kids",
+      submenu: [
+        { label: "All Kids", href: "/category/kids" },
+        { label: "Girls", href: "/category/kids?for=girls" },
+        { label: "Boys", href: "/category/kids?for=boys" },
+      ],
+    },
+    {
       label: "JEWELRY",
       href: "/category/jewelry",
       submenu: [

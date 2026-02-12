@@ -8,6 +8,7 @@ const CATEGORIES: { label: string; slug: string }[] = [
   { label: "Women", slug: "women" },
   { label: "Bags", slug: "bags" },
   { label: "Men", slug: "men" },
+  { label: "Kids", slug: "kids" },
   { label: "Jewelry", slug: "jewelry" },
   { label: "Watches", slug: "watches" },
 ];

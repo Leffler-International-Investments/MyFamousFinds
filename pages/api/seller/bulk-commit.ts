@@ -31,6 +31,7 @@ type IncomingRow = {
   purchase_proof?: string;
   serial_number?: string;
   imageDataUrl?: string | null;
+  imageDataUrls?: string[] | null;
 };
 
 type CleanRow = {
@@ -50,6 +51,8 @@ type CleanRow = {
   image_url?: string | null;
   imageUrl?: string | null;
   displayImageUrl?: string | null;
+  imageUrls?: string[];
+  _rawImageDataUrls?: string[];
 };
 
 type ApiOk = { ok: true; created: number; skipped: number };
@@ -164,6 +167,14 @@ function cleanRow(r: IncomingRow): CleanRow | null {
 
   if (price == null) return null;
 
+  // Collect all image data URLs (prefer imageDataUrls array, fall back to single)
+  const allImageDataUrls: string[] = [];
+  if (Array.isArray(r.imageDataUrls) && r.imageDataUrls.length > 0) {
+    allImageDataUrls.push(...r.imageDataUrls.filter(Boolean));
+  } else if (r.imageDataUrl) {
+    allImageDataUrls.push(r.imageDataUrl);
+  }
+
   return {
     title,
     brand,
@@ -178,7 +189,8 @@ function cleanRow(r: IncomingRow): CleanRow | null {
     _source: "bulk",
     currency: "USD",
     status: "Pending",
-    image_url: r.imageDataUrl || null,
+    image_url: allImageDataUrls[0] || null,
+    _rawImageDataUrls: allImageDataUrls,
   };
 }
 
@@ -225,25 +237,40 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
         continue;
       }
 
-      if (cleaned.image_url) {
-        const stored = await processAndStoreImage(cleaned.image_url);
+      // Process all images (supports multiple per listing)
+      const rawImages = cleaned._rawImageDataUrls || [];
+      const processedUrls: string[] = [];
+
+      for (const imgDataUrl of rawImages) {
+        if (!imgDataUrl) continue;
+        const stored = await processAndStoreImage(imgDataUrl);
         if (stored) {
-          const isBase64 = stored.originalUrl.startsWith("data:");
-          if (isBase64) {
-            // Base64 fallback: store only one copy to stay under Firestore 1MB limit
-            cleaned.image_url = stored.displayUrl;
-            cleaned.imageUrl = stored.displayUrl;
-            cleaned.displayImageUrl = null;
-          } else {
-            // Real Storage URLs: safe to store separate original and display URLs
-            cleaned.image_url = stored.originalUrl;
-            cleaned.imageUrl = stored.originalUrl;
-            cleaned.displayImageUrl = stored.displayUrl;
-          }
+          processedUrls.push(stored.originalUrl);
         } else {
-          cleaned.image_url = await processImage(cleaned.image_url);
+          const fallback = await processImage(imgDataUrl);
+          if (fallback) processedUrls.push(fallback);
         }
       }
+
+      if (processedUrls.length > 0) {
+        // First image becomes the primary display image
+        const primary = processedUrls[0];
+        const isBase64 = primary.startsWith("data:");
+        if (isBase64) {
+          cleaned.image_url = primary;
+          cleaned.imageUrl = primary;
+          cleaned.displayImageUrl = null;
+        } else {
+          cleaned.image_url = primary;
+          cleaned.imageUrl = primary;
+          cleaned.displayImageUrl = primary;
+        }
+        // Store all image URLs
+        cleaned.imageUrls = processedUrls;
+      }
+
+      // Remove internal field before storing
+      delete (cleaned as any)._rawImageDataUrls;
 
       const brandKey = cleaned.brand.toLowerCase();
       const isApprovedDesigner = enforceDesigners && approvedDesigners.has(brandKey);

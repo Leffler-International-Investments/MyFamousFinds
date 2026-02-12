@@ -33,6 +33,7 @@ type Item = {
   purchaseProof?: string;
   images?: File[];
   imageDataUrl?: string;
+  imageDataUrls?: string[];
 };
 
 type BulkCommitOk = {
@@ -61,6 +62,7 @@ const CATEGORIES = [
   "Women",
   "Bags",
   "Men",
+  "Kids",
   "Jewelry",
   "Watches",
 ];
@@ -248,23 +250,32 @@ export default function BulkSimple() {
       .slice(0, 8);
 
     if (!files.length) {
-      update(idx, { images: [], imageDataUrl: undefined });
+      update(idx, { images: [], imageDataUrl: undefined, imageDataUrls: [] });
       return;
     }
 
-    try {
-      const dataUrl = await compressImageFile(files[0]);
-      update(idx, { images: files, imageDataUrl: dataUrl });
-    } catch {
-      // Fallback: use raw file if compression fails
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        const dataUrl =
-          typeof reader.result === "string" ? reader.result : undefined;
-        update(idx, { images: files, imageDataUrl: dataUrl });
-      };
-      reader.readAsDataURL(files[0]);
+    // Compress all selected images
+    const dataUrls: string[] = [];
+    for (const file of files) {
+      try {
+        const dataUrl = await compressImageFile(file);
+        dataUrls.push(dataUrl);
+      } catch {
+        // Fallback: read raw file
+        const raw = await new Promise<string>((resolve) => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve(typeof reader.result === "string" ? reader.result : "");
+          reader.readAsDataURL(file);
+        });
+        if (raw) dataUrls.push(raw);
+      }
     }
+
+    update(idx, {
+      images: files,
+      imageDataUrl: dataUrls[0] || undefined,
+      imageDataUrls: dataUrls,
+    });
   };
 
   const handleDrop = (idx: number, e: React.DragEvent<HTMLDivElement>) => {
@@ -324,9 +335,12 @@ export default function BulkSimple() {
           color: it.color || "",
           price: numericPrice,
           purchase_source: it.purchaseSource || "",
-          purchase_proof: it.purchaseProof || "", 
+          purchase_proof: it.purchaseProof || "",
           serial_number: it.serial || "",
           imageDataUrl: it.imageDataUrl || null,
+          imageDataUrls: it.imageDataUrls && it.imageDataUrls.length > 0
+            ? it.imageDataUrls
+            : null,
         };
       })
       .filter(Boolean) as {
@@ -342,6 +356,7 @@ export default function BulkSimple() {
       purchase_proof?: string;
       serial_number?: string;
       imageDataUrl?: string | null;
+      imageDataUrls?: string[] | null;
     }[];
 
     if (!rows.length) {
