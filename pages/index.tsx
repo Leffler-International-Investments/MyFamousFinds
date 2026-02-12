@@ -650,11 +650,12 @@ const HomePage: NextPage<HomeProps> = ({
         }
 
         .hero {
-          display: grid;
-          grid-template-columns: minmax(0, 3fr) minmax(0, 1fr);
-          gap: 20px;
-          align-items: start;
+          display: flex;
+          justify-content: center;
           margin-bottom: 30px;
+        }
+        .hero-copy {
+          text-align: center;
         }
         .eyebrow {
           font-size: 12px;

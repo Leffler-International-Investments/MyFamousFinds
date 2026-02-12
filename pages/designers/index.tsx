@@ -656,11 +656,32 @@ export const getServerSideProps: GetServerSideProps<DesignersPageProps> =
     try {
       const snapshot = await adminDb
         .collection("listings")
-        .where("status", "==", "Live")
+        .limit(500)
         .get();
 
-      const items: ItemWithMeta[] = snapshot.docs.map((doc) => {
+      const items: ItemWithMeta[] = [];
+      snapshot.docs.forEach((doc) => {
         const d: any = doc.data() || {};
+
+        // Filter by status (case-insensitive, matching homepage)
+        const status = String(d.status || "").trim().toLowerCase();
+        const isLive =
+          !status ||
+          status === "live" ||
+          status === "active" ||
+          status === "approved" ||
+          status === "published" ||
+          status === "pending";
+        if (!isLive) return;
+
+        // Filter out sold items
+        const isSold =
+          d.isSold === true ||
+          d.sold === true ||
+          status === "sold" ||
+          status === "inactive_sold";
+        if (isSold) return;
+
         const brandRaw = d.brand || d.designer || d.designerName || d.brandName || "";
         const categoryRaw = d.category || d.categoryLabel || d.categoryName || "";
         const conditionRaw = d.condition || d.conditionLabel || d.itemCondition || d.conditionText || "";
@@ -670,7 +691,7 @@ export const getServerSideProps: GetServerSideProps<DesignersPageProps> =
         const priceNum = typeof d.price === "number" ? d.price : Number(d.price || 0);
         const price = priceNum ? `US$${priceNum.toLocaleString("en-US")}` : "";
 
-        return {
+        items.push({
           id: doc.id,
           title: d.title || "",
           brand: brandRaw,
@@ -683,7 +704,7 @@ export const getServerSideProps: GetServerSideProps<DesignersPageProps> =
           image: pickImage(d),
           href: `/product/${doc.id}`,
           priceValue: priceNum || 0,
-        };
+        });
       });
 
       let designerOptions: string[] = [];
