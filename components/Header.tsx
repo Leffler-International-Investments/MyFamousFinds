@@ -42,7 +42,7 @@ export default function Header() {
 
         <div className="ff-header-right">
           <Link href="/buyer/signin" className="admin-button customer-signin">
-            <span>Customers Sign in</span>
+            <span>Customer Sign in</span>
           </Link>
           <Link href="/seller/login" className="admin-button seller">
             <span>Seller Admin - Sign In</span>
