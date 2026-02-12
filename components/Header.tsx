@@ -166,8 +166,8 @@ export default function Header() {
 
         .ff-brand-name {
           letter-spacing: 0.25em;
-          font-size: 32px;
-          font-weight: 800;
+          font-size: 44px;
+          font-weight: 900;
           text-align: center;
           flex: 2;
           text-decoration: none;
