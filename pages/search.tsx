@@ -1,6 +1,7 @@
 // FILE: pages/search.tsx
 
 import Head from "next/head";
+import Link from "next/link";
 import type { GetServerSideProps, NextPage } from "next";
 
 import Header from "../components/Header";
@@ -33,11 +34,12 @@ const pickImage = (data: any): string => {
 type Props = {
   items: ProductLike[];
   query: string | null;
+  matchedCategory: string | null;
 };
 
 // ---------- page ----------
 
-const SearchPage: NextPage<Props> = ({ items, query }) => {
+const SearchPage: NextPage<Props> = ({ items, query, matchedCategory }) => {
   const title = query ? `Search: ${query}` : "Search";
 
   return (
@@ -89,6 +91,37 @@ const SearchPage: NextPage<Props> = ({ items, query }) => {
             >
               Type a designer, category or item name into the search box above.
             </p>
+          )}
+
+          {matchedCategory && (
+            <div style={{
+              margin: "0 0 24px",
+              padding: "14px 18px",
+              background: "#f9fafb",
+              border: "1px solid #e5e7eb",
+              borderRadius: "12px",
+              display: "flex",
+              alignItems: "center",
+              gap: "10px",
+            }}>
+              <span style={{ fontSize: "14px", color: "#374151" }}>
+                Browse the full category:
+              </span>
+              <Link
+                href={`/category/${matchedCategory}`}
+                style={{
+                  fontSize: "14px",
+                  fontWeight: 700,
+                  color: "#111827",
+                  textDecoration: "none",
+                  padding: "6px 14px",
+                  border: "1px solid #111827",
+                  borderRadius: "999px",
+                }}
+              >
+                {matchedCategory.charAt(0).toUpperCase() + matchedCategory.slice(1)}
+              </Link>
+            </div>
           )}
 
           {query && items.length === 0 && (
@@ -157,15 +190,36 @@ export const getServerSideProps: GetServerSideProps<Props> = async (
 
   const snapshot = await adminDb
     .collection("listings")
-    .where("status", "==", "Live")
+    .limit(500)
     .get();
 
-  const allItems: ProductLike[] = snapshot.docs.map((doc) => {
+  const allItems: ProductLike[] = [];
+  snapshot.docs.forEach((doc) => {
     const data = doc.data() as any;
-    return {
+
+    // Filter by status (case-insensitive)
+    const status = String(data.status || "").trim().toLowerCase();
+    const isLive =
+      !status ||
+      status === "live" ||
+      status === "active" ||
+      status === "approved" ||
+      status === "published" ||
+      status === "pending";
+    if (!isLive) return;
+
+    // Filter out sold items
+    const isSold =
+      data.isSold === true ||
+      data.sold === true ||
+      status === "sold" ||
+      status === "inactive_sold";
+    if (isSold) return;
+
+    allItems.push({
       id: doc.id,
       title: data.title || "",
-      brand: data.brand || "",
+      brand: data.brand || data.designer || "",
       price: formatPrice(data.price),
       image: pickImage(data),
       href: `/product/${doc.id}`,
@@ -173,10 +227,14 @@ export const getServerSideProps: GetServerSideProps<Props> = async (
       condition: data.condition || "",
       badge: data.condition || "",
       tags: data.tags || [],
-    };
+    } as any);
   });
 
   const needle = query.toLowerCase();
+
+  // Also check if the query matches a site category
+  const SITE_CATEGORIES = ["women", "men", "kids", "bags", "shoes", "accessories", "jewelry", "watches"];
+  const matchedCategory = SITE_CATEGORIES.find((c) => c.includes(needle) || needle.includes(c));
 
   const items = allItems.filter((item: any) => {
     const haystack = [
@@ -195,6 +253,7 @@ export const getServerSideProps: GetServerSideProps<Props> = async (
     props: {
       items,
       query,
+      matchedCategory: matchedCategory || null,
     },
   };
 };
