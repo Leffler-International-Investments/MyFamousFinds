@@ -53,7 +53,7 @@ export default function Header() {
       {/* BRAND + SEARCH + CART */}
       <div className="ff-header-middle">
         <div className="ff-middle-spacer"></div>
-        <Link href="/" className="ff-brand-name">FAMOUS FINDS</Link>
+        <Link href="/" className="ff-brand-name" style={{ fontSize: "44px", fontWeight: 900 }}>FAMOUS FINDS</Link>
         <div className="ff-search-container">
           <form action="/search" className="ff-search-form">
             <input
@@ -166,12 +166,12 @@ export default function Header() {
 
         .ff-brand-name {
           letter-spacing: 0.25em;
-          font-size: 44px;
-          font-weight: 900;
+          font-size: 44px !important;
+          font-weight: 900 !important;
           text-align: center;
           flex: 2;
-          text-decoration: none;
-          color: #111827;
+          text-decoration: none !important;
+          color: #111827 !important;
         }
 
         .ff-search-container {
