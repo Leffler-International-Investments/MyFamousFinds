@@ -12,18 +12,19 @@ import {
 
 function canonCategory(
   input?: any
-): "" | "WOMEN" | "BAGS" | "MEN" | "JEWELRY" | "WATCHES" {
+): "" | "WOMEN" | "BAGS" | "MEN" | "KIDS" | "JEWELRY" | "WATCHES" {
   if (!input) return "";
   const s = String(input).trim().toUpperCase();
 
   if (s === "WOMAN") return "WOMEN";
   if (s === "BAG") return "BAGS";
   if (s === "WATCH") return "WATCHES";
+  if (s === "KID" || s === "KIDS" || s === "CHILDREN" || s === "CHILDRENS") return "KIDS";
 
   // Jewelry variants + common typo
   if (s === "JEWELLERY" || s === "JEWELERY" || s === "JEWELRY") return "JEWELRY";
 
-  if (s === "WOMEN" || s === "BAGS" || s === "MEN" || s === "WATCHES") return s as any;
+  if (s === "WOMEN" || s === "BAGS" || s === "MEN" || s === "KIDS" || s === "WATCHES") return s as any;
 
   return "";
 }

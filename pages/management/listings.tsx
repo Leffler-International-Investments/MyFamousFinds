@@ -25,7 +25,7 @@ type Props = {
   items: Listing[];
 };
 
-const CATEGORIES = ["WOMEN", "BAGS", "MEN", "JEWELRY", "WATCHES"] as const;
+const CATEGORIES = ["WOMEN", "BAGS", "MEN", "KIDS", "JEWELRY", "WATCHES"] as const;
 const CONDITIONS = [
   "New with tags",
   "New (never used)",

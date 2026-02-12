@@ -14,11 +14,30 @@ export default function Footer() {
           <div className="ff-footer-brand">
             <div className="ff-footer-title">FAMOUS FINDS</div>
             <div className="ff-footer-copy">
-              © {year} All rights reserved. Curated pre-loved luxury.
+              &copy; {year} All rights reserved. Curated pre-loved luxury.
             </div>
           </div>
 
-          {/* Links */}
+          {/* Main nav links (moved from header) */}
+          <nav className="ff-footer-nav">
+            <Link href="/my-orders" className="ff-footer-link">
+              My Shopping Bag
+            </Link>
+            <Link href="/" className="ff-footer-link">
+              Dashboard
+            </Link>
+            <Link href="/help" className="ff-footer-link">
+              Help
+            </Link>
+            <Link href="/about" className="ff-footer-link">
+              About
+            </Link>
+            <Link href="/contact" className="ff-footer-link">
+              Contact
+            </Link>
+          </nav>
+
+          {/* Secondary links */}
           <nav className="ff-footer-links">
             <Link href="/buying" className="ff-footer-link">
               Authenticity
@@ -43,12 +62,12 @@ export default function Footer() {
           .ff-footer-inner {
             max-width: 960px;
             margin: 0 auto;
-            padding: 18px 16px 20px;
+            padding: 24px 16px 28px;
             text-align: center;
             display: flex;
             flex-direction: column;
             align-items: center;
-            gap: 8px;
+            gap: 14px;
           }
 
           .ff-footer-brand {
@@ -70,28 +89,46 @@ export default function Footer() {
             color: #9ca3af;
           }
 
-          .ff-footer-links {
-            margin-top: 4px;
+          .ff-footer-nav {
             display: flex;
             justify-content: center;
             align-items: center;
-            column-gap: 64px; /* big visible gap between links */
+            flex-wrap: wrap;
+            gap: 10px 28px;
+          }
+
+          .ff-footer-nav .ff-footer-link {
+            font-size: 13px;
+            color: #f9fafb;
+            font-weight: 500;
+          }
+          .ff-footer-nav .ff-footer-link:hover {
+            color: #93c5fd;
+          }
+
+          .ff-footer-links {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px 48px;
           }
 
           .ff-footer-link {
             font-size: 13px;
-            color: #60a5fa; /* blue */
+            color: #60a5fa;
             text-decoration: none;
           }
 
           .ff-footer-link:hover {
-            color: #93c5fd; /* lighter blue on hover */
+            color: #93c5fd;
             text-decoration: underline;
           }
 
           @media (max-width: 480px) {
+            .ff-footer-nav,
             .ff-footer-links {
-              column-gap: 40px;
+              gap: 8px 20px;
             }
           }
         `}</style>

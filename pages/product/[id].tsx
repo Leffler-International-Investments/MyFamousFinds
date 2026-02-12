@@ -158,7 +158,6 @@ export default function ProductPage(props: ProductPageProps) {
         setBuyerTouched(true);
         const el = document.getElementById("buyer-details-form");
         if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
-        alert("Please complete your buyer details before checkout.");
         return;
       }
 
@@ -289,6 +288,50 @@ export default function ProductPage(props: ProductPageProps) {
 
             <WishlistButton productId={id} />
 
+            {/* PRIMARY ACTIONS — competitor-style: Add to Bag + Make an Offer */}
+            <div className="button-row">
+              <button
+                onClick={handleBuyNow}
+                disabled={loading || !allowPurchase}
+                className="btn-buy"
+              >
+                {loading
+                  ? "Processing..."
+                  : isSold
+                  ? "Sold"
+                  : "Add to Bag"}
+              </button>
+
+              {allowOffers && !isSold && (
+                <button
+                  onClick={() => {
+                    const form = document.getElementById("offer-form");
+                    if (form) {
+                      form.scrollIntoView({ behavior: "smooth", block: "start" });
+                    }
+                  }}
+                  className="btn-offer"
+                >
+                  Make an offer
+                </button>
+              )}
+            </div>
+
+            <div className="auth-badge">
+              <div className="auth-badge-icon">
+                <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#16a34a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                  <polyline points="9 12 11.5 14.5 16 9.5" />
+                </svg>
+              </div>
+              <div className="auth-badge-text">
+                <span className="auth-badge-title">Physical authentication included</span>
+                <span className="auth-badge-desc">
+                  Every item is inspected in-person by our expert team before shipping. You only pay for the real thing — guaranteed.
+                </span>
+              </div>
+            </div>
+
             <div className="meta">
               <div>
                 <div className="metaLabel">Condition</div>
@@ -319,10 +362,9 @@ export default function ProductPage(props: ProductPageProps) {
 
             {/* ✅ REQUIRED BEFORE CHECKOUT */}
             <div id="buyer-details-form" className="buyer-box">
-              <h3 className="buyer-title">Buyer details</h3>
+              <h3 className="buyer-title">Shipping details</h3>
               <p className="buyer-hint">
-                Complete your details below. The <strong>Buy now</strong> button will activate once all
-                required fields are filled.
+                Complete your shipping details to proceed to checkout.
               </p>
 
               <div className="buyer-grid">
@@ -479,51 +521,6 @@ export default function ProductPage(props: ProductPageProps) {
               {!isBuyerDetailsValid && buyerTouched && (
                 <div className="buyer-warning">Please fill all required fields (*) to enable checkout.</div>
               )}
-            </div>
-
-            <div className="button-row">
-              <button
-                onClick={handleBuyNow}
-                disabled={loading || !isBuyerDetailsValid || !allowPurchase}
-                className="btn-buy"
-              >
-                {loading
-                  ? "Processing…"
-                  : isSold
-                  ? "Sold"
-                  : !isBuyerDetailsValid
-                  ? "Complete details to buy"
-                  : "Buy now"}
-              </button>
-
-              {allowOffers && !isSold && (
-                <button
-                  onClick={() => {
-                    const form = document.getElementById("offer-form");
-                    if (form) {
-                      form.scrollIntoView({ behavior: "smooth", block: "start" });
-                    }
-                  }}
-                  className="btn-offer"
-                >
-                  Make an offer
-                </button>
-              )}
-            </div>
-
-            <div className="auth-badge">
-              <div className="auth-badge-icon">
-                <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#16a34a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-                  <polyline points="9 12 11.5 14.5 16 9.5" />
-                </svg>
-              </div>
-              <div className="auth-badge-text">
-                <span className="auth-badge-title">Physical authentication included</span>
-                <span className="auth-badge-desc">
-                  Every item is inspected in-person by our expert team before shipping. You only pay for the real thing — guaranteed.
-                </span>
-              </div>
             </div>
 
             <div className="protection-box">
@@ -739,27 +736,37 @@ export default function ProductPage(props: ProductPageProps) {
         }
         .btn-buy {
           flex: 1;
-          background: #6b6b6b;
+          background: #111827;
           color: #fff;
           border: none;
           border-radius: 999px;
-          padding: 12px 16px;
+          padding: 14px 16px;
           font-weight: 700;
+          font-size: 15px;
           cursor: pointer;
+          transition: background 0.15s;
+        }
+        .btn-buy:hover:not(:disabled) {
+          background: #000;
         }
         .btn-buy:disabled {
-          opacity: 0.6;
+          opacity: 0.5;
           cursor: not-allowed;
         }
         .btn-offer {
           flex: 1;
           background: #fff;
           color: #111;
-          border: 1px solid #ddd;
+          border: 2px solid #111827;
           border-radius: 999px;
-          padding: 12px 16px;
-          font-weight: 800;
+          padding: 14px 16px;
+          font-weight: 700;
+          font-size: 15px;
           cursor: pointer;
+          transition: background 0.15s;
+        }
+        .btn-offer:hover {
+          background: #f3f4f6;
         }
 
         .protection-box {

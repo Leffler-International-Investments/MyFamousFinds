@@ -15,7 +15,7 @@ type CsvRow = {
   serial?: string;
 };
 
-const CANON = ["WOMEN", "BAGS", "MEN", "JEWELRY", "WATCHES"] as const;
+const CANON = ["WOMEN", "BAGS", "MEN", "KIDS", "JEWELRY", "WATCHES"] as const;
 type Canon = (typeof CANON)[number];
 
 function canonCategory(v: any): Canon | "" {
@@ -24,6 +24,7 @@ function canonCategory(v: any): Canon | "" {
   if (s === "WOMAN" || s === "WOMEN") return "WOMEN";
   if (s === "BAG" || s === "BAGS") return "BAGS";
   if (s === "MAN" || s === "MEN" || s === "MENS") return "MEN";
+  if (s === "KID" || s === "KIDS" || s === "CHILDREN" || s === "CHILDRENS") return "KIDS";
   if (s === "JEWELLERY" || s === "JEWELRY") return "JEWELRY";
   if ((CANON as readonly string[]).includes(s)) return s as Canon;
   return "";

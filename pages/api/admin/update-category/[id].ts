@@ -2,7 +2,7 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { adminDb, isFirebaseAdminReady, FieldValue } from "../../../../utils/firebaseAdmin";
 
-const ALLOWED = new Set(["WOMEN", "BAGS", "MEN", "JEWELRY", "WATCHES"]);
+const ALLOWED = new Set(["WOMEN", "BAGS", "MEN", "KIDS", "JEWELRY", "WATCHES"]);
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== "POST") return res.status(405).json({ ok: false, error: "Method not allowed" });
