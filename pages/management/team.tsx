@@ -16,6 +16,7 @@ type TeamMember = {
   id: string;
   name: string;
   email: string;
+  phone?: string;
   role: string;
 };
 
@@ -64,6 +65,7 @@ export default function ManagementTeam() {
         id: json.uid,
         name: payload.name,
         email: payload.email,
+        phone: payload.phone,
         role: payload.role, // Use the role from the form
       };
       setTeamMembers((currentTeam) => [...currentTeam, newUser]);
@@ -181,6 +183,7 @@ export default function ManagementTeam() {
                   </span>
                 </div>
                 <p className="team-card-email">{member.email}</p>
+                {member.phone && <p className="team-card-phone">{member.phone}</p>}
                 <button className="btn-remove">
                   Remove
                 </button>
@@ -328,6 +331,11 @@ export default function ManagementTeam() {
         .team-card-email {
           font-size: 14px;
           color: #4b5563; /* gray-600 */
+          margin-bottom: 4px;
+        }
+        .team-card-phone {
+          font-size: 13px;
+          color: #6b7280; /* gray-500 */
           margin-bottom: 16px;
         }
         
