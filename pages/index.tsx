@@ -352,6 +352,38 @@ const HomePage: NextPage<HomeProps> = ({
           </div>
         </section>
 
+        {/* MOBILE CATEGORY TABS */}
+        <section className="mobile-cats">
+          <div className="mobile-search-bar">
+            <input
+              className="mobile-search-input"
+              placeholder="Search..."
+              value={titleQuery}
+              onChange={(e) => setTitleQuery(e.target.value)}
+            />
+          </div>
+          <div className="mobile-tabs">
+            {[
+              { label: "Women", slug: "women", img: "/images/cat-women.jpg" },
+              { label: "Bags", slug: "bags", img: "/images/cat-bags.jpg" },
+              { label: "Men", slug: "men", img: "/images/cat-men.jpg" },
+              { label: "Kids", slug: "kids", img: "/images/cat-kids.jpg" },
+              { label: "Jewelry", slug: "jewelry", img: "/images/cat-jewelry.jpg" },
+              { label: "Watches", slug: "watches", img: "/images/cat-watches.jpg" },
+            ].map((tab) => (
+              <button
+                key={tab.slug}
+                type="button"
+                className={`mobile-tab${normalize(category) === normalize(tab.label) ? " mobile-tab--active" : ""}`}
+                onClick={() => setCategory(normalize(category) === normalize(tab.label) ? "" : tab.label)}
+              >
+                <div className="mobile-tab-img" style={{ backgroundImage: `url(${tab.img})` }} />
+                <span>{tab.label}</span>
+              </button>
+            ))}
+          </div>
+        </section>
+
         {/* FILTER + RESULTS (LEFT SIDEBAR ALWAYS ON HOMEPAGE) */}
         <section className="home-section">
           <div className="layout">
@@ -873,6 +905,11 @@ const HomePage: NextPage<HomeProps> = ({
           }
         }
 
+        /* Mobile category tabs - hidden on desktop */
+        .mobile-cats {
+          display: none;
+        }
+
         @media (max-width: 980px) {
           .hero {
             grid-template-columns: 1fr;
@@ -888,12 +925,78 @@ const HomePage: NextPage<HomeProps> = ({
             grid-template-columns: repeat(2, minmax(0, 1fr));
           }
         }
+        @media (max-width: 768px) {
+          .mobile-cats {
+            display: block;
+            margin-bottom: 16px;
+          }
+          .mobile-search-bar {
+            margin-bottom: 12px;
+          }
+          .mobile-search-input {
+            width: 100%;
+            border: 1px solid #d1d5db;
+            border-radius: 999px;
+            padding: 10px 16px;
+            font-size: 14px;
+            outline: none;
+            background: #fff;
+          }
+          .mobile-search-input:focus {
+            border-color: #111827;
+          }
+          .mobile-tabs {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+          }
+          .mobile-tab {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 6px;
+            padding: 0;
+            border: 2px solid #e5e7eb;
+            border-radius: 12px;
+            background: #fff;
+            cursor: pointer;
+            overflow: hidden;
+            transition: border-color 0.15s;
+          }
+          .mobile-tab--active {
+            border-color: #111827;
+          }
+          .mobile-tab-img {
+            width: 100%;
+            height: 80px;
+            background-size: cover;
+            background-position: center;
+            background-color: #f3f4f6;
+          }
+          .mobile-tab span {
+            padding: 6px 0 8px;
+            font-size: 13px;
+            font-weight: 600;
+            color: #111827;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+          }
+          /* Hide the full filter sidebar on mobile */
+          .filters {
+            display: none;
+          }
+          .cards {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 10px;
+          }
+        }
         @media (max-width: 560px) {
           h1 {
             font-size: 34px;
           }
           .cards {
-            grid-template-columns: 1fr;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 10px;
           }
         }
       `}</style>

@@ -74,8 +74,13 @@ export default function BuyerDashboardPage() {
         return;
       }
       setUser(u);
-      await loadData(u.uid, u.email || "");
-      setLoading(false);
+      try {
+        await loadData(u.uid, u.email || "");
+      } catch (err) {
+        console.error("Dashboard data load failed:", err);
+      } finally {
+        setLoading(false);
+      }
     });
 
     return () => unsub();
@@ -85,26 +90,53 @@ export default function BuyerDashboardPage() {
   const loadData = async (uid: string, email: string) => {
     if (!db) return;
 
-    const loadCollection = async (name: string) => {
-      const q = query(collection(db, name), where("userId", "==", uid));
-      const snap = await getDocs(q);
-      return snap.docs.map((d) => ({
-        id: d.id,
-        ...(d.data() as any),
-      })) as ItemRow[];
+    const loadCollection = async (name: string): Promise<ItemRow[]> => {
+      try {
+        const q = query(collection(db, name), where("userId", "==", uid));
+        const snap = await getDocs(q);
+        return snap.docs.map((d) => ({
+          id: d.id,
+          ...(d.data() as any),
+        })) as ItemRow[];
+      } catch (err) {
+        console.error(`Failed to load ${name}:`, err);
+        return [];
+      }
     };
 
-    setSavedItems(await loadCollection("buyerSavedItems"));
-    setCartItems(await loadCollection("buyerCartItems"));
-    setViewedItems(await loadCollection("buyerRecentlyViewed"));
-    setActiveOffers(await loadCollection("buyerOffers"));
+    // Load all collections in parallel for faster loading
+    const [saved, cart, viewed, offers] = await Promise.all([
+      loadCollection("buyerSavedItems"),
+      loadCollection("buyerCartItems"),
+      loadCollection("buyerRecentlyViewed"),
+      loadCollection("buyerOffers"),
+    ]);
+    setSavedItems(saved);
+    setCartItems(cart);
+    setViewedItems(viewed);
+    setActiveOffers(offers);
 
     const orders: ItemRow[] = [];
-    if (email) {
-      const ordersByEmail = await getDocs(
-        query(collection(db, "orders"), where("buyerEmail", "==", email))
+    try {
+      if (email) {
+        const ordersByEmail = await getDocs(
+          query(collection(db, "orders"), where("buyerEmail", "==", email))
+        );
+        ordersByEmail.forEach((doc) => {
+          const d: any = doc.data() || {};
+          orders.push({
+            id: doc.id,
+            title: d.listingTitle || d.title || "Purchased item",
+            brand: d.listingBrand || d.brand || "",
+          });
+        });
+      }
+
+      const ordersByUid = await getDocs(
+        query(collection(db, "orders"), where("buyerUid", "==", uid))
       );
-      ordersByEmail.forEach((doc) => {
+      ordersByUid.forEach((doc) => {
+        if (orders.find((o) => o.id === doc.id)) return;
         const d: any = doc.data() || {};
         orders.push({
           id: doc.id,
@@ -112,20 +144,9 @@ export default function BuyerDashboardPage() {
           brand: d.listingBrand || d.brand || "",
         });
       });
+    } catch (err) {
+      console.error("Failed to load orders:", err);
     }
-
-    const ordersByUid = await getDocs(
-      query(collection(db, "orders"), where("buyerUid", "==", uid))
-    );
-    ordersByUid.forEach((doc) => {
-      if (orders.find((o) => o.id === doc.id)) return;
-      const d: any = doc.data() || {};
-      orders.push({
-        id: doc.id,
-        title: d.listingTitle || d.title || "Purchased item",
-        brand: d.listingBrand || d.brand || "",
-      });
-    });
 
     setPurchasedItems(orders);
   };

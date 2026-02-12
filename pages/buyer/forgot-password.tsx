@@ -5,8 +5,6 @@ import Head from "next/head";
 import Link from "next/link";
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
-import { sendPasswordResetEmail } from "firebase/auth";
-import { auth } from "../../utils/firebaseClient";
 
 type Step = "form" | "done";
 
@@ -28,13 +26,21 @@ export default function BuyerForgotPasswordPage() {
 
     setLoading(true);
     try {
-      await sendPasswordResetEmail(auth, trimmed);
+      const res = await fetch("/api/auth/send-password-reset", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: trimmed, role: "buyer" }),
+      });
+      const json = await res.json();
+      if (!json.ok) {
+        setError(json.message || "We couldn't send the reset link. Please try again.");
+        return;
+      }
       setStep("done");
     } catch (err: any) {
       console.error("buyer_forgot_password_error", err);
-      // Gentle message – no leak of internal codes
       setError(
-        "We couldn’t send the reset link. Please check your email and try again."
+        "We couldn't send the reset link. Please check your email and try again."
       );
     } finally {
       setLoading(false);

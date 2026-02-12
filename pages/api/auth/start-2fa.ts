@@ -102,6 +102,12 @@ export default async function handler(
 
   if (!emailSent) {
     console.error("[start-2fa] Email not sent and not in dev mode — code cannot be delivered");
+    return res.status(200).json({
+      ok: true,
+      challengeId,
+      message:
+        "We were unable to send the verification email. Please check that your email address is correct, or contact support if the problem persists.",
+    });
   }
 
   return res.status(200).json({

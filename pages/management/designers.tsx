@@ -17,12 +17,15 @@ import {
   deleteDoc,
 } from "firebase/firestore";
 
+type DesignerCategory = "top" | "trending" | "emerging" | "";
+
 type DesignerRow = {
   id: string;
   name: string;
   slug: string;
   featured?: boolean;
   group?: "watches" | "fashion";
+  designerCategory?: DesignerCategory;
   order?: number;
 };
 
@@ -45,6 +48,7 @@ const ManagementDesigners: NextPage = () => {
   const [newName, setNewName] = useState("");
   const [newGroup, setNewGroup] = useState<"watches" | "fashion">("fashion");
   const [newFeatured, setNewFeatured] = useState(false);
+  const [newDesignerCategory, setNewDesignerCategory] = useState<DesignerCategory>("");
 
   if (!firebaseClientReady) {
     return (
@@ -88,6 +92,18 @@ const ManagementDesigners: NextPage = () => {
     }
   }
 
+  async function updateDesignerCategory(id: string, cat: DesignerCategory) {
+    setErr("");
+    try {
+      await updateDoc(doc(db, "designers", id), { designerCategory: cat });
+      setRows((prev) =>
+        prev.map((r) => (r.id === id ? { ...r, designerCategory: cat } : r))
+      );
+    } catch (e: any) {
+      setErr(e?.message || String(e));
+    }
+  }
+
   async function remove(id: string) {
     if (!confirm("Delete this designer?")) return;
     setErr("");
@@ -110,6 +126,7 @@ const ManagementDesigners: NextPage = () => {
         slug,
         group: newGroup,
         featured: newFeatured,
+        designerCategory: newDesignerCategory,
         order: rows.length + 1,
       };
       const ref = await addDoc(collection(db, "designers"), payload);
@@ -117,6 +134,7 @@ const ManagementDesigners: NextPage = () => {
       setNewName("");
       setNewFeatured(false);
       setNewGroup("fashion");
+      setNewDesignerCategory("");
     } catch (e: any) {
       setErr(e?.message || String(e));
     }
@@ -179,6 +197,17 @@ const ManagementDesigners: NextPage = () => {
               <option value="watches">Watches</option>
             </select>
 
+            <select
+              className="w-full rounded-md border px-3 py-2"
+              value={newDesignerCategory}
+              onChange={(e) => setNewDesignerCategory(e.target.value as DesignerCategory)}
+            >
+              <option value="">No Category</option>
+              <option value="top">Top Designers</option>
+              <option value="trending">Trending Designers</option>
+              <option value="emerging">Emerging Brands</option>
+            </select>
+
             <label className="flex items-center gap-2 text-sm">
               <input
                 type="checkbox"
@@ -212,6 +241,7 @@ const ManagementDesigners: NextPage = () => {
                     <th className="py-2">Name</th>
                     <th className="py-2">Slug</th>
                     <th className="py-2">Group</th>
+                    <th className="py-2">Category</th>
                     <th className="py-2">Featured</th>
                     <th className="py-2">Actions</th>
                   </tr>
@@ -222,6 +252,18 @@ const ManagementDesigners: NextPage = () => {
                       <td className="py-2">{r.name}</td>
                       <td className="py-2">{r.slug}</td>
                       <td className="py-2">{r.group || "fashion"}</td>
+                      <td className="py-2">
+                        <select
+                          className="rounded-md border px-2 py-1 text-xs"
+                          value={r.designerCategory || ""}
+                          onChange={(e) => updateDesignerCategory(r.id, e.target.value as DesignerCategory)}
+                        >
+                          <option value="">None</option>
+                          <option value="top">Top Designers</option>
+                          <option value="trending">Trending</option>
+                          <option value="emerging">Emerging</option>
+                        </select>
+                      </td>
                       <td className="py-2">
                         <button
                           className="rounded-md border px-2 py-1 text-xs"

@@ -24,7 +24,7 @@ export default function Footer() {
               My Shopping Bag
             </Link>
             <Link href="/" className="ff-footer-link">
-              Dashboard
+              Homepage
             </Link>
             <Link href="/help" className="ff-footer-link">
               Help

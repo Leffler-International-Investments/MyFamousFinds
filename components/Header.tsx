@@ -32,12 +32,6 @@ export default function Header() {
       {/* TOP BAR */}
       <div className="ff-header-top">
         <div className="ff-header-left">
-          <Link
-            href={vipUser ? "/club-profile" : "/vip-welcome"}
-            className="admin-button vip"
-          >
-            My VIP Profile
-          </Link>
         </div>
 
         <div className="ff-header-right">

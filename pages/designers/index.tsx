@@ -25,9 +25,18 @@ type ItemWithMeta = ProductLike & {
   color?: string;
 };
 
+type DesignerEntry = {
+  name: string;
+  slug: string;
+  designerCategory?: "top" | "trending" | "emerging" | "";
+};
+
 type DesignersPageProps = {
   items: ItemWithMeta[];
   designerOptions: string[];
+  topDesigners: DesignerEntry[];
+  trendingDesigners: DesignerEntry[];
+  emergingBrands: DesignerEntry[];
 };
 
 // --------------------------------------------------
@@ -99,6 +108,17 @@ function normalize(raw: string | undefined | null): string {
     .trim();
 }
 
+function slugify(input: string) {
+  return input
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/&/g, "and")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
 const pickImage = (data: any): string => {
   if (data.displayImageUrl) return data.displayImageUrl;
   if (data.display_image_url) return data.display_image_url;
@@ -112,14 +132,91 @@ const pickImage = (data: any): string => {
 };
 
 // --------------------------------------------------
+// Designer Section Component
+// --------------------------------------------------
+
+function DesignerSection({
+  title,
+  designers,
+  onSelect,
+}: {
+  title: string;
+  designers: DesignerEntry[];
+  onSelect: (name: string) => void;
+}) {
+  if (!designers.length) return null;
+  return (
+    <div className="designer-section">
+      <h3 className="designer-section-title">{title}</h3>
+      <div className="designer-chips">
+        {designers.map((d) => (
+          <button
+            key={d.slug}
+            type="button"
+            className="designer-chip"
+            onClick={() => onSelect(d.name)}
+          >
+            {d.name}
+          </button>
+        ))}
+      </div>
+      <style jsx>{`
+        .designer-section {
+          margin-bottom: 24px;
+        }
+        .designer-section-title {
+          font-size: 16px;
+          font-weight: 700;
+          color: #111827;
+          margin: 0 0 12px;
+          letter-spacing: 0.04em;
+          text-transform: uppercase;
+          border-bottom: 2px solid #111827;
+          padding-bottom: 6px;
+          display: inline-block;
+        }
+        .designer-chips {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 8px;
+        }
+        .designer-chip {
+          border: 1px solid #d1d5db;
+          background: #ffffff;
+          color: #111827;
+          padding: 8px 16px;
+          border-radius: 999px;
+          font-size: 13px;
+          font-weight: 500;
+          cursor: pointer;
+          transition: all 0.15s ease;
+          white-space: nowrap;
+        }
+        .designer-chip:hover {
+          background: #111827;
+          color: #ffffff;
+          border-color: #111827;
+        }
+      `}</style>
+    </div>
+  );
+}
+
+// --------------------------------------------------
 // Component
 // --------------------------------------------------
 
 const DesignersPage: NextPage<DesignersPageProps> = ({
   items,
   designerOptions,
+  topDesigners,
+  trendingDesigners,
+  emergingBrands,
 }) => {
   const router = useRouter();
+  const [activeTab, setActiveTab] = useState<"designers" | "products">(
+    "designers"
+  );
 
   const baseItems: ItemWithMeta[] = (items || []).map((it: any) => ({
     ...it,
@@ -132,7 +229,7 @@ const DesignersPage: NextPage<DesignersPageProps> = ({
     color: it.color || "",
   }));
 
-  // ✅ Compact dropdown-style filters
+  // Compact dropdown-style filters
   const [titleQuery, setTitleQuery] = useState("");
   const [category, setCategory] = useState("");
   const [designer, setDesigner] = useState("");
@@ -156,6 +253,11 @@ const DesignersPage: NextPage<DesignersPageProps> = ({
     setColor("");
     setMinPrice(0);
     setMaxPrice(100000);
+  };
+
+  const handleDesignerSelect = (name: string) => {
+    setDesigner(name);
+    setActiveTab("products");
   };
 
   const applyFiltersToUrl = () => {
@@ -257,214 +359,275 @@ const DesignersPage: NextPage<DesignersPageProps> = ({
             <span>Designers</span>
           </div>
 
-          <div className="layout">
-            <aside className="filters">
-              <div className="filters-header">
-                <h2>Filters</h2>
-                <button type="button" onClick={resetFilters}>
-                  Clear All
-                </button>
-              </div>
+          {/* Tab Toggle */}
+          <div className="tab-bar">
+            <button
+              type="button"
+              className={`tab-btn${activeTab === "designers" ? " tab-btn--active" : ""}`}
+              onClick={() => setActiveTab("designers")}
+            >
+              Designers
+            </button>
+            <button
+              type="button"
+              className={`tab-btn${activeTab === "products" ? " tab-btn--active" : ""}`}
+              onClick={() => setActiveTab("products")}
+            >
+              All Products
+            </button>
+          </div>
 
-              <details className="filter-block" open>
-                <summary>Title</summary>
-                <div className="filter-body">
-                  <input
-                    className="text-input"
-                    placeholder="Search title..."
-                    value={titleQuery}
-                    onChange={(e) => setTitleQuery(e.target.value)}
-                  />
-                </div>
-              </details>
+          {/* DESIGNERS TAB */}
+          {activeTab === "designers" && (
+            <section className="designers-directory">
+              <DesignerSection
+                title="Top Designers"
+                designers={topDesigners}
+                onSelect={handleDesignerSelect}
+              />
+              <DesignerSection
+                title="Trending Designers"
+                designers={trendingDesigners}
+                onSelect={handleDesignerSelect}
+              />
+              <DesignerSection
+                title="Emerging Brands"
+                designers={emergingBrands}
+                onSelect={handleDesignerSelect}
+              />
 
-              <details className="filter-block">
-                <summary>Category</summary>
-                <div className="filter-body">
-                  <select
-                    className="select"
-                    value={category}
-                    onChange={(e) => setCategory(e.target.value)}
-                  >
-                    <option value="">Any</option>
-                    {CATEGORY_OPTIONS.map((c) => (
-                      <option key={c} value={c}>
-                        {c}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </details>
-
-              <details className="filter-block">
-                <summary>Designer</summary>
-                <div className="filter-body">
-                  <select
-                    className="select"
-                    value={designer}
-                    onChange={(e) => setDesigner(e.target.value)}
-                  >
-                    <option value="">Any</option>
-                    {(designerOptions || []).map((d) => (
-                      <option key={d} value={d}>
-                        {d}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </details>
-
-              <details className="filter-block">
-                <summary>Material</summary>
-                <div className="filter-body">
-                  <input
-                    className="text-input"
-                    list="materials-list"
-                    placeholder="Select or type material..."
-                    value={material}
-                    onChange={(e) => setMaterial(e.target.value)}
-                  />
-                  <datalist id="materials-list">
-                    {MATERIAL_OPTIONS.map((m) => (
-                      <option key={m} value={m} />
-                    ))}
-                  </datalist>
-                </div>
-              </details>
-
-              <details className="filter-block">
-                <summary>Condition</summary>
-                <div className="filter-body">
-                  <select
-                    className="select"
-                    value={condition}
-                    onChange={(e) => setCondition(e.target.value)}
-                  >
-                    <option value="">Any</option>
-                    {CONDITION_OPTIONS.map((c) => (
-                      <option key={c} value={c}>
-                        {c}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </details>
-
-              <details className="filter-block">
-                <summary>Size</summary>
-                <div className="filter-body">
-                  <input
-                    className="text-input"
-                    placeholder="Type size..."
-                    value={size}
-                    onChange={(e) => setSize(e.target.value)}
-                  />
-                </div>
-              </details>
-
-              <details className="filter-block">
-                <summary>Color</summary>
-                <div className="filter-body">
-                  <input
-                    className="text-input"
-                    placeholder="Type color..."
-                    value={color}
-                    onChange={(e) => setColor(e.target.value)}
-                  />
-                </div>
-              </details>
-
-              <details className="filter-block">
-                <summary>Price</summary>
-                <div className="filter-body">
-                  <div className="price-row">
-                    <div className="price-input">
-                      <span>Min</span>
-                      <input
-                        type="number"
-                        value={minPrice}
-                        onChange={(e) =>
-                          setMinPrice(
-                            e.target.value === ""
-                              ? ""
-                              : Number(e.target.value) || 0
-                          )
-                        }
-                      />
-                    </div>
-
-                    <div className="price-input">
-                      <span>Max</span>
-                      <input
-                        type="number"
-                        value={maxPrice}
-                        onChange={(e) =>
-                          setMaxPrice(
-                            e.target.value === ""
-                              ? ""
-                              : Number(e.target.value) || 0
-                          )
-                        }
-                      />
-                    </div>
-                  </div>
-
-                  <button
-                    type="button"
-                    className="apply-btn"
-                    onClick={applyFiltersToUrl}
-                  >
-                    Apply Filters
-                  </button>
-                </div>
-              </details>
-            </aside>
-
-            <section className="results">
-              <div className="results-header">
-                <div>
-                  <h1>All Products</h1>
-                  <p className="results-count">
-                    {resultsCount} {resultsCount === 1 ? "result" : "results"}
-                  </p>
-                </div>
-
-                <div className="sort">
-                  <label>
-                    Sort
-                    <select
-                      value={sortBy}
-                      onChange={(e) =>
-                        setSortBy(
-                          e.target.value as
-                            | "newest"
-                            | "price-asc"
-                            | "price-desc"
-                        )
-                      }
+              {/* All Designers A-Z */}
+              <div className="all-designers">
+                <h3 className="all-designers-title">All Designers</h3>
+                <div className="designer-chips-all">
+                  {(designerOptions || []).map((d) => (
+                    <button
+                      key={d}
+                      type="button"
+                      className="designer-chip-small"
+                      onClick={() => handleDesignerSelect(d)}
                     >
-                      <option value="newest">Newest</option>
-                      <option value="price-asc">Price: Low to High</option>
-                      <option value="price-desc">Price: High to Low</option>
-                    </select>
-                  </label>
-                </div>
-              </div>
-
-              {resultsCount === 0 ? (
-                <div className="empty-state">
-                  <h2>No items match these filters yet.</h2>
-                  <p>Try adjusting your filters or checking back soon.</p>
-                </div>
-              ) : (
-                <div className="grid">
-                  {filteredItems.map((item) => (
-                    <ProductCard key={item.id} {...item} />
+                      {d}
+                    </button>
                   ))}
                 </div>
-              )}
+              </div>
             </section>
-          </div>
+          )}
+
+          {/* PRODUCTS TAB */}
+          {activeTab === "products" && (
+            <div className="layout">
+              <aside className="filters">
+                <div className="filters-header">
+                  <h2>Filters</h2>
+                  <button type="button" onClick={resetFilters}>
+                    Clear All
+                  </button>
+                </div>
+
+                <details className="filter-block" open>
+                  <summary>Title</summary>
+                  <div className="filter-body">
+                    <input
+                      className="text-input"
+                      placeholder="Search title..."
+                      value={titleQuery}
+                      onChange={(e) => setTitleQuery(e.target.value)}
+                    />
+                  </div>
+                </details>
+
+                <details className="filter-block">
+                  <summary>Category</summary>
+                  <div className="filter-body">
+                    <select
+                      className="select"
+                      value={category}
+                      onChange={(e) => setCategory(e.target.value)}
+                    >
+                      <option value="">Any</option>
+                      {CATEGORY_OPTIONS.map((c) => (
+                        <option key={c} value={c}>
+                          {c}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </details>
+
+                <details className="filter-block" open={!!designer}>
+                  <summary>Designer</summary>
+                  <div className="filter-body">
+                    <select
+                      className="select"
+                      value={designer}
+                      onChange={(e) => setDesigner(e.target.value)}
+                    >
+                      <option value="">Any</option>
+                      {(designerOptions || []).map((d) => (
+                        <option key={d} value={d}>
+                          {d}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </details>
+
+                <details className="filter-block">
+                  <summary>Material</summary>
+                  <div className="filter-body">
+                    <input
+                      className="text-input"
+                      list="materials-list"
+                      placeholder="Select or type material..."
+                      value={material}
+                      onChange={(e) => setMaterial(e.target.value)}
+                    />
+                    <datalist id="materials-list">
+                      {MATERIAL_OPTIONS.map((m) => (
+                        <option key={m} value={m} />
+                      ))}
+                    </datalist>
+                  </div>
+                </details>
+
+                <details className="filter-block">
+                  <summary>Condition</summary>
+                  <div className="filter-body">
+                    <select
+                      className="select"
+                      value={condition}
+                      onChange={(e) => setCondition(e.target.value)}
+                    >
+                      <option value="">Any</option>
+                      {CONDITION_OPTIONS.map((c) => (
+                        <option key={c} value={c}>
+                          {c}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </details>
+
+                <details className="filter-block">
+                  <summary>Size</summary>
+                  <div className="filter-body">
+                    <input
+                      className="text-input"
+                      placeholder="Type size..."
+                      value={size}
+                      onChange={(e) => setSize(e.target.value)}
+                    />
+                  </div>
+                </details>
+
+                <details className="filter-block">
+                  <summary>Color</summary>
+                  <div className="filter-body">
+                    <input
+                      className="text-input"
+                      placeholder="Type color..."
+                      value={color}
+                      onChange={(e) => setColor(e.target.value)}
+                    />
+                  </div>
+                </details>
+
+                <details className="filter-block">
+                  <summary>Price</summary>
+                  <div className="filter-body">
+                    <div className="price-row">
+                      <div className="price-input">
+                        <span>Min</span>
+                        <input
+                          type="number"
+                          value={minPrice}
+                          onChange={(e) =>
+                            setMinPrice(
+                              e.target.value === ""
+                                ? ""
+                                : Number(e.target.value) || 0
+                            )
+                          }
+                        />
+                      </div>
+
+                      <div className="price-input">
+                        <span>Max</span>
+                        <input
+                          type="number"
+                          value={maxPrice}
+                          onChange={(e) =>
+                            setMaxPrice(
+                              e.target.value === ""
+                                ? ""
+                                : Number(e.target.value) || 0
+                            )
+                          }
+                        />
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      className="apply-btn"
+                      onClick={applyFiltersToUrl}
+                    >
+                      Apply Filters
+                    </button>
+                  </div>
+                </details>
+              </aside>
+
+              <section className="results">
+                <div className="results-header">
+                  <div>
+                    <h1>
+                      {designer ? `${designer}` : "All Products"}
+                    </h1>
+                    <p className="results-count">
+                      {resultsCount} {resultsCount === 1 ? "result" : "results"}
+                    </p>
+                  </div>
+
+                  <div className="sort">
+                    <label>
+                      Sort
+                      <select
+                        value={sortBy}
+                        onChange={(e) =>
+                          setSortBy(
+                            e.target.value as
+                              | "newest"
+                              | "price-asc"
+                              | "price-desc"
+                          )
+                        }
+                      >
+                        <option value="newest">Newest</option>
+                        <option value="price-asc">Price: Low to High</option>
+                        <option value="price-desc">Price: High to Low</option>
+                      </select>
+                    </label>
+                  </div>
+                </div>
+
+                {resultsCount === 0 ? (
+                  <div className="empty-state">
+                    <h2>No items match these filters yet.</h2>
+                    <p>Try adjusting your filters or checking back soon.</p>
+                  </div>
+                ) : (
+                  <div className="grid">
+                    {filteredItems.map((item) => (
+                      <ProductCard key={item.id} {...item} />
+                    ))}
+                  </div>
+                )}
+              </section>
+            </div>
+          )}
         </div>
       </main>
 
@@ -496,6 +659,75 @@ const DesignersPage: NextPage<DesignersPageProps> = ({
           color: inherit;
           text-decoration: none;
         }
+
+        /* Tab Bar */
+        .tab-bar {
+          display: flex;
+          gap: 0;
+          margin-bottom: 24px;
+          border-bottom: 2px solid #e5e7eb;
+        }
+        .tab-btn {
+          padding: 10px 24px;
+          font-size: 14px;
+          font-weight: 600;
+          color: #6b7280;
+          background: none;
+          border: none;
+          border-bottom: 2px solid transparent;
+          margin-bottom: -2px;
+          cursor: pointer;
+          transition: all 0.15s;
+        }
+        .tab-btn:hover {
+          color: #111827;
+        }
+        .tab-btn--active {
+          color: #111827;
+          border-bottom-color: #111827;
+        }
+
+        /* Designers Directory */
+        .designers-directory {
+          padding: 8px 0;
+        }
+        .all-designers {
+          margin-top: 32px;
+          padding-top: 24px;
+          border-top: 1px solid #e5e7eb;
+        }
+        .all-designers-title {
+          font-size: 16px;
+          font-weight: 700;
+          color: #111827;
+          margin: 0 0 12px;
+          letter-spacing: 0.04em;
+          text-transform: uppercase;
+        }
+        .designer-chips-all {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 6px;
+        }
+        .designer-chip-small {
+          border: 1px solid #e5e7eb;
+          background: #fafafa;
+          color: #374151;
+          padding: 6px 12px;
+          border-radius: 999px;
+          font-size: 12px;
+          font-weight: 500;
+          cursor: pointer;
+          transition: all 0.15s ease;
+          white-space: nowrap;
+        }
+        .designer-chip-small:hover {
+          background: #111827;
+          color: #ffffff;
+          border-color: #111827;
+        }
+
+        /* Products Layout */
         .layout {
           display: grid;
           grid-template-columns: 260px minmax(0, 1fr);
@@ -639,6 +871,13 @@ const DesignersPage: NextPage<DesignersPageProps> = ({
           margin: 0;
           color: #6b7280;
         }
+
+        @media (max-width: 480px) {
+          .grid {
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+          }
+        }
       `}</style>
     </div>
   );
@@ -648,9 +887,17 @@ export default DesignersPage;
 
 export const getServerSideProps: GetServerSideProps<DesignersPageProps> =
   async () => {
-    // ✅ Safety Guard
+    // Safety Guard
     if (!adminDb) {
-      return { props: { items: [], designerOptions: [] } };
+      return {
+        props: {
+          items: [],
+          designerOptions: [],
+          topDesigners: [],
+          trendingDesigners: [],
+          emergingBrands: [],
+        },
+      };
     }
 
     try {
@@ -663,7 +910,6 @@ export const getServerSideProps: GetServerSideProps<DesignersPageProps> =
       snapshot.docs.forEach((doc) => {
         const d: any = doc.data() || {};
 
-        // Filter by status (case-insensitive, matching homepage)
         const status = String(d.status || "").trim().toLowerCase();
         const isLive =
           !status ||
@@ -674,7 +920,6 @@ export const getServerSideProps: GetServerSideProps<DesignersPageProps> =
           status === "pending";
         if (!isLive) return;
 
-        // Filter out sold items
         const isSold =
           d.isSold === true ||
           d.sold === true ||
@@ -682,14 +927,25 @@ export const getServerSideProps: GetServerSideProps<DesignersPageProps> =
           status === "inactive_sold";
         if (isSold) return;
 
-        const brandRaw = d.brand || d.designer || d.designerName || d.brandName || "";
-        const categoryRaw = d.category || d.categoryLabel || d.categoryName || "";
-        const conditionRaw = d.condition || d.conditionLabel || d.itemCondition || d.conditionText || "";
-        const materialRaw = d.material || d.fabric || d.fabrication || d.materialName || "";
+        const brandRaw =
+          d.brand || d.designer || d.designerName || d.brandName || "";
+        const categoryRaw =
+          d.category || d.categoryLabel || d.categoryName || "";
+        const conditionRaw =
+          d.condition ||
+          d.conditionLabel ||
+          d.itemCondition ||
+          d.conditionText ||
+          "";
+        const materialRaw =
+          d.material || d.fabric || d.fabrication || d.materialName || "";
         const sizeRaw = d.size || d.itemSize || "";
         const colorRaw = d.color || d.colour || "";
-        const priceNum = typeof d.price === "number" ? d.price : Number(d.price || 0);
-        const price = priceNum ? `US$${priceNum.toLocaleString("en-US")}` : "";
+        const priceNum =
+          typeof d.price === "number" ? d.price : Number(d.price || 0);
+        const price = priceNum
+          ? `US$${priceNum.toLocaleString("en-US")}`
+          : "";
 
         items.push({
           id: doc.id,
@@ -708,26 +964,64 @@ export const getServerSideProps: GetServerSideProps<DesignersPageProps> =
       });
 
       let designerOptions: string[] = [];
+      let topDesigners: DesignerEntry[] = [];
+      let trendingDesigners: DesignerEntry[] = [];
+      let emergingBrands: DesignerEntry[] = [];
+
       try {
         const ds = await adminDb.collection("designers").get();
-        designerOptions = ds.docs
+        const allDesigners: DesignerEntry[] = ds.docs
           .map((x) => {
             const data = x.data() as any;
             const name = String(data?.name ?? x.id).trim();
             const active = data?.active !== false;
-            return active ? name : "";
+            if (!active || !name) return null;
+            return {
+              name,
+              slug: data.slug || slugify(name),
+              designerCategory: data.designerCategory || "",
+            };
           })
-          .filter(Boolean)
+          .filter(Boolean) as DesignerEntry[];
+
+        designerOptions = allDesigners
+          .map((d) => d.name)
           .sort((a, b) => a.localeCompare(b));
+
+        topDesigners = allDesigners
+          .filter((d) => d.designerCategory === "top")
+          .sort((a, b) => a.name.localeCompare(b.name));
+        trendingDesigners = allDesigners
+          .filter((d) => d.designerCategory === "trending")
+          .sort((a, b) => a.name.localeCompare(b.name));
+        emergingBrands = allDesigners
+          .filter((d) => d.designerCategory === "emerging")
+          .sort((a, b) => a.name.localeCompare(b.name));
       } catch {
         designerOptions = Array.from(
           new Set(items.map((i) => (i.brand || "").trim()).filter(Boolean))
         ).sort((a, b) => a.localeCompare(b));
       }
 
-      return { props: { items, designerOptions } };
+      return {
+        props: {
+          items,
+          designerOptions,
+          topDesigners,
+          trendingDesigners,
+          emergingBrands,
+        },
+      };
     } catch (err) {
       console.error("Error loading designers listings", err);
-      return { props: { items: [], designerOptions: [] } };
+      return {
+        props: {
+          items: [],
+          designerOptions: [],
+          topDesigners: [],
+          trendingDesigners: [],
+          emergingBrands: [],
+        },
+      };
     }
   };
