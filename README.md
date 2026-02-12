@@ -26,3 +26,5 @@ Open http://localhost:3000
 - Replace simulated endpoints with your backend (PayPal Payouts, DB, AI moderation, shipping labels)
 - Add authentication & role‑based admin
 - Add real Checkout flow and Orders state machine
+
+- 
