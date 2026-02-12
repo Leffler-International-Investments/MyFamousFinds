@@ -184,6 +184,7 @@ export const getServerSideProps: GetServerSideProps<Props> = async (
       props: {
         items: [],
         query: null,
+        matchedCategory: null,
       },
     };
   }
