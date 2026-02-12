@@ -25,6 +25,7 @@ type Start2faSuccess = {
   challengeId: string;
   via: "sms" | "email";
   devCode?: string;
+  message?: string;
 };
 type Start2faError = { ok: false; message?: string };
 type Start2faResponse = Start2faSuccess | Start2faError;
@@ -34,7 +35,7 @@ type Verify2faError = { ok: false; message?: string };
 type Verify2faResponse = Verify2faSuccess | Verify2faError;
 
 type PageMode = "login" | "setup";
-type TwoFactorStep = "credentials" | "verify";
+type TwoFactorStep = "credentials" | "choose_method" | "verify";
 
 const SESSION_TTL_MS = 72 * 60 * 60 * 1000;
 
@@ -47,6 +48,7 @@ export default function SellerLoginPage() {
   const [code, setCode] = useState("");
   const [step, setStep] = useState<TwoFactorStep>("credentials");
   const [challengeId, setChallengeId] = useState<string | null>(null);
+  const [chosenMethod, setChosenMethod] = useState<"email" | "sms">("email");
   const [info, setInfo] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -105,10 +107,29 @@ export default function SellerLoginPage() {
         setError(errJson.message || "We couldn't sign you in. Please check your details and try again.");
         return;
       }
+
+      // Credentials OK -> Show method choice
+      setStep("choose_method");
+    } catch (err) {
+      console.error("seller_login_error", err);
+      setError("Unexpected error. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleChooseMethod(method: "email" | "sms") {
+    setError(null);
+    setInfo(null);
+    setChosenMethod(method);
+    setLoading(true);
+
+    try {
+      const trimmedEmail = email.trim().toLowerCase();
       const twofaRes = await fetch("/api/auth/start-2fa", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: trimmedEmail, role: "seller", method: "email" }),
+        body: JSON.stringify({ email: trimmedEmail, role: "seller", method }),
       });
       const twofaJson = (await twofaRes.json()) as Start2faResponse;
       if (!twofaJson.ok) {
@@ -118,12 +139,13 @@ export default function SellerLoginPage() {
       }
       setChallengeId(twofaJson.challengeId);
       setStep("verify");
-      const message = (twofaJson as Start2faSuccess).devCode
-        ? `Your 6-digit code is: ${(twofaJson as Start2faSuccess).devCode}`
-        : "Your 6-digit code has been sent to your email.";
+      const successJson = twofaJson as Start2faSuccess;
+      const message = successJson.devCode
+        ? `Your 6-digit code is: ${successJson.devCode}`
+        : successJson.message || "Code sent.";
       setInfo(message);
     } catch (err) {
-      console.error("seller_login_error", err);
+      console.error("seller_start_2fa_error", err);
       setError("Unexpected error. Please try again.");
     } finally {
       setLoading(false);
@@ -251,9 +273,52 @@ export default function SellerLoginPage() {
                       </div>
                     </div>
                   </form>
+                ) : step === "choose_method" ? (
+                  <div className="method-choice">
+                    <p className="auth-secondary-link-inline">
+                      How would you like to receive your verification code?
+                    </p>
+                    <div className="method-buttons">
+                      <button
+                        type="button"
+                        disabled={disabled}
+                        className="method-button"
+                        onClick={() => handleChooseMethod("email")}
+                      >
+                        <span className="method-icon">&#9993;</span>
+                        <span className="method-label">Email</span>
+                        <span className="method-desc">Send code to your email</span>
+                      </button>
+                      <button
+                        type="button"
+                        disabled={disabled}
+                        className="method-button"
+                        onClick={() => handleChooseMethod("sms")}
+                      >
+                        <span className="method-icon">&#128241;</span>
+                        <span className="method-label">SMS</span>
+                        <span className="method-desc">Send code to your mobile</span>
+                      </button>
+                    </div>
+                    <p className="auth-secondary-link-inline">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (disabled) return;
+                          setStep("credentials");
+                          setError(null);
+                          setInfo(null);
+                        }}
+                      >
+                        Back to login
+                      </button>
+                    </p>
+                  </div>
                 ) : (
                   <form onSubmit={handleVerifySubmit}>
-                    <p className="auth-secondary-link-inline">Enter the 6-digit code sent to your email.</p>
+                    <p className="auth-secondary-link-inline">
+                      Enter the 6-digit code sent to your {chosenMethod === "sms" ? "mobile" : "email"}.
+                    </p>
                     <div className="auth-fields">
                       <div className="auth-field">
                         <label htmlFor="code">Verification Code</label>
@@ -262,7 +327,7 @@ export default function SellerLoginPage() {
                       <button type="submit" disabled={disabled} className="auth-button-primary">{loading ? "Verifying..." : "Confirm Login"}</button>
                     </div>
                     <p className="auth-secondary-link-inline">
-                      <button type="button" onClick={() => { if (disabled) return; setStep("credentials"); setCode(""); setInfo(null); setError(null); }}>Use a different email</button>
+                      <button type="button" onClick={() => { if (disabled) return; setStep("choose_method"); setCode(""); setInfo(null); setError(null); }}>Try a different method</button>
                     </p>
                   </form>
                 )}
@@ -321,6 +386,14 @@ export default function SellerLoginPage() {
         .auth-apply-button-wrapper { margin-top: 20px; }
         .auth-apply-button { display: block; width: 100%; text-align: center; border-radius: 999px; padding: 10px 14px; font-size: 13px; font-weight: 500; background: #fff; color: #111; border: 1px solid #e5e7eb; text-decoration: none; transition: all 0.2s; }
         .auth-apply-button:hover { border-color: #111; background: #fafafa; }
+        .method-choice { display: flex; flex-direction: column; gap: 16px; }
+        .method-buttons { display: flex; gap: 12px; }
+        .method-button { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 20px 12px; border-radius: 16px; border: 1px solid #d1d5db; background: #fafafa; cursor: pointer; transition: all 0.2s ease; }
+        .method-button:hover { border-color: #111; background: #fff; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+        .method-button:disabled { opacity: 0.5; cursor: default; }
+        .method-icon { font-size: 28px; line-height: 1; }
+        .method-label { font-size: 14px; font-weight: 600; color: #111; }
+        .method-desc { font-size: 11px; color: #6b7280; }
         .auth-secondary-link { margin-top: 12px; text-align: center; font-size: 13px; }
         .auth-secondary-link a { color: #6b7280; text-decoration: underline; }
         .auth-secondary-link a:hover { color: #111; }

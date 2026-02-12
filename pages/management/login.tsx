@@ -16,7 +16,7 @@ type ManagementLoginError = {
 type ManagementLoginResponse = ManagementLoginOk | ManagementLoginError;
 
 type PageMode = "login" | "setup";
-type TwoFactorStep = "credentials" | "verify";
+type TwoFactorStep = "credentials" | "choose_method" | "verify";
 
 // 72 hours (3 days)
 const SESSION_TTL_MS = 72 * 60 * 60 * 1000;
@@ -31,6 +31,7 @@ export default function ManagementLoginPage() {
   const [code, setCode] = useState("");
   const [step, setStep] = useState<TwoFactorStep>("credentials");
   const [challengeId, setChallengeId] = useState<string | null>(null);
+  const [chosenMethod, setChosenMethod] = useState<"email" | "sms">("email");
   const [info, setInfo] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -98,14 +99,31 @@ export default function ManagementLoginPage() {
         return;
       }
 
-      // Credentials OK -> Start 2FA
+      // Credentials OK -> Show method choice
+      setStep("choose_method");
+    } catch (err) {
+      console.error("management_login_error", err);
+      setError("Unexpected error. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleChooseMethod(method: "email" | "sms") {
+    setError(null);
+    setInfo(null);
+    setChosenMethod(method);
+    setLoading(true);
+
+    try {
+      const trimmedEmail = email.toLowerCase().trim();
       const twofaRes = await fetch("/api/auth/start-2fa", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           email: trimmedEmail,
           role: "management",
-          method: "email",
+          method,
         }),
       });
 
@@ -121,10 +139,10 @@ export default function ManagementLoginPage() {
 
       const message = twofaJson.devCode
         ? `Your 6-digit code is: ${twofaJson.devCode}`
-        : "Your 6-digit code has been sent to your email.";
+        : twofaJson.message;
       setInfo(message);
     } catch (err) {
-      console.error("management_login_error", err);
+      console.error("management_start_2fa_error", err);
       setError("Unexpected error. Please try again.");
     } finally {
       setLoading(false);
@@ -302,10 +320,51 @@ export default function ManagementLoginPage() {
                       </button>
                     </div>
                   </form>
+                ) : step === "choose_method" ? (
+                  <div className="method-choice">
+                    <p className="auth-secondary-link-inline">
+                      How would you like to receive your verification code?
+                    </p>
+                    <div className="method-buttons">
+                      <button
+                        type="button"
+                        disabled={disabled}
+                        className="method-button"
+                        onClick={() => handleChooseMethod("email")}
+                      >
+                        <span className="method-icon">&#9993;</span>
+                        <span className="method-label">Email</span>
+                        <span className="method-desc">Send code to your email</span>
+                      </button>
+                      <button
+                        type="button"
+                        disabled={disabled}
+                        className="method-button"
+                        onClick={() => handleChooseMethod("sms")}
+                      >
+                        <span className="method-icon">&#128241;</span>
+                        <span className="method-label">SMS</span>
+                        <span className="method-desc">Send code to your mobile</span>
+                      </button>
+                    </div>
+                    <p className="auth-secondary-link-inline">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (disabled) return;
+                          setStep("credentials");
+                          setError(null);
+                          setInfo(null);
+                        }}
+                      >
+                        Back to login
+                      </button>
+                    </p>
+                  </div>
                 ) : (
                   <form onSubmit={handleVerifySubmit}>
                     <p className="auth-secondary-link-inline">
-                      Enter the 6-digit code sent to your email.
+                      Enter the 6-digit code sent to your {chosenMethod === "sms" ? "mobile" : "email"}.
                     </p>
                     <div className="auth-fields">
                       <div className="auth-field">
@@ -336,13 +395,13 @@ export default function ManagementLoginPage() {
                         type="button"
                         onClick={() => {
                           if (disabled) return;
-                          setStep("credentials");
+                          setStep("choose_method");
                           setCode("");
                           setInfo(null);
                           setError(null);
                         }}
                       >
-                        Back to login
+                        Try a different method
                       </button>
                     </p>
                   </form>
@@ -552,6 +611,50 @@ export default function ManagementLoginPage() {
           text-align: center;
           letter-spacing: 0.2em;
           font-weight: 600;
+        }
+        .method-choice {
+          display: flex;
+          flex-direction: column;
+          gap: 16px;
+        }
+        .method-buttons {
+          display: flex;
+          gap: 12px;
+        }
+        .method-button {
+          flex: 1;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 6px;
+          padding: 20px 12px;
+          border-radius: 16px;
+          border: 1px solid #d1d5db;
+          background: #fafafa;
+          cursor: pointer;
+          transition: all 0.2s ease;
+        }
+        .method-button:hover {
+          border-color: #111;
+          background: #fff;
+          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+        }
+        .method-button:disabled {
+          opacity: 0.5;
+          cursor: default;
+        }
+        .method-icon {
+          font-size: 28px;
+          line-height: 1;
+        }
+        .method-label {
+          font-size: 14px;
+          font-weight: 600;
+          color: #111;
+        }
+        .method-desc {
+          font-size: 11px;
+          color: #6b7280;
         }
         .auth-secondary-link {
           margin-top: 12px;

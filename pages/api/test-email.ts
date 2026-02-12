@@ -4,8 +4,8 @@ import type { NextApiRequest, NextApiResponse } from "next";
 import { sendTestEmail } from "../../utils/email";
 
 type Res =
-  | { ok: true; sentTo: string }
-  | { ok: false; error: string };
+  | { ok: true; sentTo: string; smtp: object }
+  | { ok: false; error: string; smtp?: object };
 
 function readBearer(req: NextApiRequest) {
   const h = req.headers.authorization;
@@ -29,7 +29,8 @@ export default async function handler(
       .json({ ok: false, error: "ADMIN_PASSWORD is not set in Vercel env." });
   }
 
-  const pass = readBearer(req);
+  // Accept auth via Bearer header OR ?key= query param (for easy browser testing)
+  const pass = readBearer(req) || String(req.query.key || "").trim();
   if (!pass || pass !== adminPass) {
     return res.status(401).json({ ok: false, error: "Unauthorized" });
   }
@@ -39,14 +40,24 @@ export default async function handler(
     return res.status(400).json({ ok: false, error: "Missing ?to=email" });
   }
 
+  // SMTP diagnostic info (no secrets)
+  const smtp = {
+    host: process.env.SMTP_HOST || "(not set)",
+    port: process.env.SMTP_PORT || "(not set)",
+    user: process.env.SMTP_USER ? `${process.env.SMTP_USER.slice(0, 3)}...` : "(not set)",
+    from: process.env.SMTP_FROM || "(not set)",
+    emailDisabled: process.env.EMAIL_DISABLED || "false",
+  };
+
   try {
     await sendTestEmail(to);
-    return res.status(200).json({ ok: true, sentTo: to });
+    return res.status(200).json({ ok: true, sentTo: to, smtp });
   } catch (e: any) {
     console.error("test-email error", e);
     return res.status(500).json({
       ok: false,
       error: e?.message || "Failed to send test email",
+      smtp,
     });
   }
 }
