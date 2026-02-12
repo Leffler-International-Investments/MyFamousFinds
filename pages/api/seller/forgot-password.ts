@@ -83,31 +83,28 @@ export default async function handler(
       throw err;
     }
 
-    const isDisabled = process.env.EMAIL_DISABLED === "1";
-    if (!isDisabled) {
-      const subject = "MyFamousFinds — Reset Your Seller Password";
-      const text =
-        "Hello,\n\n" +
-        "We received a request to reset your seller account password on MyFamousFinds.\n\n" +
-        "Click the link below to set a new password:\n\n" +
-        `${resetLink}\n\n` +
-        "This link will expire in 1 hour.\n\n" +
-        "If you did not request this, you can safely ignore this email.\n\n" +
-        "Regards,\nThe MyFamousFinds Team";
+    const subject = "MyFamousFinds — Reset Your Seller Password";
+    const text =
+      "Hello,\n\n" +
+      "We received a request to reset your seller account password on MyFamousFinds.\n\n" +
+      "Click the link below to set a new password:\n\n" +
+      `${resetLink}\n\n` +
+      "This link will expire in 1 hour.\n\n" +
+      "If you did not request this, you can safely ignore this email.\n\n" +
+      "Regards,\nThe MyFamousFinds Team";
 
-      const html =
-        "<p>Hello,</p>" +
-        "<p>We received a request to reset your seller account password on <b>MyFamousFinds</b>.</p>" +
-        `<p><a href="${resetLink}" style="display:inline-block;background:#111827;color:#fff;padding:12px 24px;border-radius:999px;text-decoration:none;font-weight:600;">Reset Your Password</a></p>` +
-        "<p>Or copy and paste this link into your browser:</p>" +
-        `<p style="font-size:13px;color:#6b7280;word-break:break-all;">${resetLink}</p>` +
-        "<p style=\"font-size:12px;color:#9ca3af;\">This link will expire in 1 hour.</p>" +
-        "<p>If you did not request this, you can safely ignore this email.</p>" +
-        "<p>Regards,<br/>The MyFamousFinds Team</p>";
+    const html =
+      "<p>Hello,</p>" +
+      "<p>We received a request to reset your seller account password on <b>MyFamousFinds</b>.</p>" +
+      `<p><a href="${resetLink}" style="display:inline-block;background:#111827;color:#fff;padding:12px 24px;border-radius:999px;text-decoration:none;font-weight:600;">Reset Your Password</a></p>` +
+      "<p>Or copy and paste this link into your browser:</p>" +
+      `<p style="font-size:13px;color:#6b7280;word-break:break-all;">${resetLink}</p>` +
+      "<p style=\"font-size:12px;color:#9ca3af;\">This link will expire in 1 hour.</p>" +
+      "<p>If you did not request this, you can safely ignore this email.</p>" +
+      "<p>Regards,<br/>The MyFamousFinds Team</p>";
 
-      await sendMail(email, subject, text, html);
-      console.log(`[seller-forgot-password] Reset email sent to ${email}`);
-    }
+    await sendMail(email, subject, text, html);
+    console.log(`[seller-forgot-password] Reset email sent to ${email}`);
   } catch (err) {
     console.error("[seller-forgot-password] Error:", err);
   }

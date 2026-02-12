@@ -46,7 +46,6 @@ export default async function handler(
     port: process.env.SMTP_PORT || "(not set)",
     user: process.env.SMTP_USER ? `${process.env.SMTP_USER.slice(0, 3)}...` : "(not set)",
     from: process.env.SMTP_FROM || "(not set)",
-    emailDisabled: process.env.EMAIL_DISABLED || "false",
   };
 
   try {

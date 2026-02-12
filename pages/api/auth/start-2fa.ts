@@ -26,7 +26,6 @@ type Start2faResponse =
   | { ok: false; error: string; message?: string };
 
 function canSendEmail() {
-  if (process.env.EMAIL_DISABLED === "1") return false;
   return true;
 }
 

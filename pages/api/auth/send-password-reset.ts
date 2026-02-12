@@ -75,14 +75,6 @@ export default async function handler(
     }
 
     // Send via our SMTP
-    const isDisabled = process.env.EMAIL_DISABLED === "1";
-    if (isDisabled) {
-      console.log(
-        `[send-password-reset] EMAIL_DISABLED=1, reset link: ${resetLink}`
-      );
-      return res.status(200).json(successResponse);
-    }
-
     const subject = "MyFamousFinds — Reset Your Password";
     const text =
       "Hello,\n\n" +
