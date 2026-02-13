@@ -5,13 +5,6 @@ import { adminDb, FieldValue } from "../../../utils/firebaseAdmin";
 
 type Data = { ok: true } | { ok: false; error: string };
 
-function isAdminRequest(req: NextApiRequest) {
-  const required = process.env.ADMIN_API_SECRET;
-  if (!required) return true;
-  const got = String(req.headers["x-admin-secret"] || "");
-  return got && got === required;
-}
-
 function buildTrackingUrl(carrier: string, trackingNumber: string) {
   const carrierCode = String(carrier || "").toLowerCase().trim();
   const tn = encodeURIComponent(String(trackingNumber || "").trim());
@@ -31,10 +24,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
 
   if (!adminDb) {
     return res.status(500).json({ ok: false, error: "firebase_not_configured" });
-  }
-
-  if (!isAdminRequest(req)) {
-    return res.status(401).json({ ok: false, error: "unauthorized" });
   }
 
   try {

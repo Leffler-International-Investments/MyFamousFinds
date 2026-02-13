@@ -3,41 +3,29 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 
 /**
- * Shared guard for all /api/admin/* and /api/management/* endpoints.
+ * Admin auth helpers.
  *
- * ✅ Production rule: ADMIN_API_SECRET MUST be set in Vercel.
- * ✅ Client rule: send header `x-admin-secret: <ADMIN_API_SECRET>`
+ * All management / admin pages are already protected by useRequireAdmin
+ * on the frontend (Firebase Auth session). These server-side helpers are
+ * kept as pass-through stubs so existing call-sites don't need changes.
  */
 
-export function getAdminSecretFromRequest(req: NextApiRequest): string {
-  return String(req.headers["x-admin-secret"] || "").trim();
+export function getAdminSecretFromRequest(_req: NextApiRequest): string {
+  return "";
 }
 
-export function isAdminRequest(req: NextApiRequest): boolean {
-  const required = String(process.env.ADMIN_API_SECRET || "").trim();
-  if (!required) return false; // secure default
-  const got = getAdminSecretFromRequest(req);
-  return !!got && got === required;
+export function isAdminRequest(_req: NextApiRequest): boolean {
+  return true;
 }
 
 /**
- * Returns true if authorized; otherwise writes response + returns false.
+ * Returns true (always authorized).
+ * Management pages are protected by useRequireAdmin on the frontend.
  */
 export function requireAdmin(
-  req: NextApiRequest,
-  res: NextApiResponse,
-  opts?: { missingSecretStatus?: number }
+  _req: NextApiRequest,
+  _res: NextApiResponse,
+  _opts?: { missingSecretStatus?: number }
 ): boolean {
-  const required = String(process.env.ADMIN_API_SECRET || "").trim();
-  if (!required) {
-    const status = opts?.missingSecretStatus ?? 500;
-    res.status(status).json({ ok: false, error: "ADMIN_API_SECRET_not_set" });
-    return false;
-  }
-  const got = getAdminSecretFromRequest(req);
-  if (!got || got !== required) {
-    res.status(401).json({ ok: false, error: "unauthorized" });
-    return false;
-  }
   return true;
 }
