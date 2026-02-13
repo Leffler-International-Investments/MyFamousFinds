@@ -3,7 +3,7 @@
 import Head from "next/head";
 import Link from "next/link";
 import { useRouter } from "next/router";
-import { useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 import type { GetServerSideProps, NextPage } from "next";
 
 import Header from "../../components/Header";
@@ -85,6 +85,12 @@ const MATERIAL_OPTIONS = [
   "Resin",
   "Synthetic",
   "Other",
+];
+
+const COLOR_OPTIONS = [
+  "Black", "White", "Cream", "Beige", "Brown", "Tan", "Burgundy", "Red",
+  "Pink", "Orange", "Yellow", "Green", "Blue", "Navy", "Purple", "Grey",
+  "Silver", "Gold", "Multi",
 ];
 
 // --------------------------------------------------
@@ -242,6 +248,7 @@ const DesignersPage: NextPage<DesignersPageProps> = ({
   const [sortBy, setSortBy] = useState<"newest" | "price-asc" | "price-desc">(
     "newest"
   );
+  const [showFilters, setShowFilters] = useState(false);
 
   const resetFilters = () => {
     setTitleQuery("");
@@ -343,13 +350,56 @@ const DesignersPage: NextPage<DesignersPageProps> = ({
 
   const resultsCount = filteredItems.length;
 
+  const fSty: Record<string, React.CSSProperties> = {
+    wrap: { display: "flex", flexWrap: "wrap", gap: "8px", alignItems: "center" },
+    input: { border: "1px solid #e5e7eb", borderRadius: "12px", padding: "8px 12px", fontSize: "13px", outline: "none", background: "#fff", minWidth: "140px", flex: "1 1 140px" },
+    select: { border: "1px solid #e5e7eb", borderRadius: "12px", padding: "8px 12px", fontSize: "13px", outline: "none", background: "#fff", minWidth: "120px" },
+    clear: { border: "1px solid #cbd5e1", background: "#fff", color: "#0f172a", borderRadius: "999px", padding: "8px 14px", fontWeight: 700, fontSize: "12px", cursor: "pointer", whiteSpace: "nowrap" },
+  };
+
+  const filterPanel = (
+    <div style={fSty.wrap}>
+      <input style={fSty.input} placeholder="Search by title..." value={titleQuery} onChange={(e) => setTitleQuery(e.target.value)} />
+      <select style={fSty.select} value={category} onChange={(e) => setCategory(e.target.value)}>
+        <option value="">All Categories</option>
+        {CATEGORY_OPTIONS.map((o) => (<option key={o} value={o}>{o}</option>))}
+      </select>
+      <select style={fSty.select} value={designer} onChange={(e) => setDesigner(e.target.value)}>
+        <option value="">All Designers</option>
+        {(designerOptions || []).map((o) => (<option key={o} value={o}>{o}</option>))}
+      </select>
+      <select style={fSty.select} value={condition} onChange={(e) => setCondition(e.target.value)}>
+        <option value="">Condition</option>
+        {CONDITION_OPTIONS.map((o) => (<option key={o} value={o}>{o}</option>))}
+      </select>
+      <select style={fSty.select} value={material} onChange={(e) => setMaterial(e.target.value)}>
+        <option value="">Material</option>
+        {MATERIAL_OPTIONS.map((o) => (<option key={o} value={o}>{o}</option>))}
+      </select>
+      <select style={fSty.select} value={color} onChange={(e) => setColor(e.target.value)}>
+        <option value="">Color</option>
+        {COLOR_OPTIONS.map((c) => (<option key={c} value={c}>{c}</option>))}
+      </select>
+      <select style={fSty.select} value={sortBy} onChange={(e) => setSortBy(e.target.value as any)}>
+        <option value="newest">Newest</option>
+        <option value="price-asc">Price: Low to High</option>
+        <option value="price-desc">Price: High to Low</option>
+      </select>
+      <button style={fSty.clear} type="button" onClick={resetFilters}>Clear All</button>
+    </div>
+  );
+
   return (
     <div className="designers-page">
       <Head>
         <title>Designers – All Products | Famous Finds</title>
       </Head>
 
-      <Header />
+      <Header
+        showFilter={showFilters}
+        onToggleFilter={() => setShowFilters(!showFilters)}
+        filterContent={filterPanel}
+      />
 
       <main className="page-main">
         <div className="page-inner">
@@ -418,168 +468,6 @@ const DesignersPage: NextPage<DesignersPageProps> = ({
           {/* PRODUCTS TAB */}
           {activeTab === "products" && (
             <div className="layout">
-              <aside className="filters">
-                <div className="filters-header">
-                  <h2>Filters</h2>
-                  <button type="button" onClick={resetFilters}>
-                    Clear All
-                  </button>
-                </div>
-
-                <details className="filter-block" open>
-                  <summary>Title</summary>
-                  <div className="filter-body">
-                    <input
-                      className="text-input"
-                      placeholder="Search title..."
-                      value={titleQuery}
-                      onChange={(e) => setTitleQuery(e.target.value)}
-                    />
-                  </div>
-                </details>
-
-                <details className="filter-block">
-                  <summary>Category</summary>
-                  <div className="filter-body">
-                    <select
-                      className="select"
-                      value={category}
-                      onChange={(e) => setCategory(e.target.value)}
-                    >
-                      <option value="">Any</option>
-                      {CATEGORY_OPTIONS.map((c) => (
-                        <option key={c} value={c}>
-                          {c}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </details>
-
-                <details className="filter-block" open={!!designer}>
-                  <summary>Designer</summary>
-                  <div className="filter-body">
-                    <select
-                      className="select"
-                      value={designer}
-                      onChange={(e) => setDesigner(e.target.value)}
-                    >
-                      <option value="">Any</option>
-                      {(designerOptions || []).map((d) => (
-                        <option key={d} value={d}>
-                          {d}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </details>
-
-                <details className="filter-block">
-                  <summary>Material</summary>
-                  <div className="filter-body">
-                    <input
-                      className="text-input"
-                      list="materials-list"
-                      placeholder="Select or type material..."
-                      value={material}
-                      onChange={(e) => setMaterial(e.target.value)}
-                    />
-                    <datalist id="materials-list">
-                      {MATERIAL_OPTIONS.map((m) => (
-                        <option key={m} value={m} />
-                      ))}
-                    </datalist>
-                  </div>
-                </details>
-
-                <details className="filter-block">
-                  <summary>Condition</summary>
-                  <div className="filter-body">
-                    <select
-                      className="select"
-                      value={condition}
-                      onChange={(e) => setCondition(e.target.value)}
-                    >
-                      <option value="">Any</option>
-                      {CONDITION_OPTIONS.map((c) => (
-                        <option key={c} value={c}>
-                          {c}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </details>
-
-                <details className="filter-block">
-                  <summary>Size</summary>
-                  <div className="filter-body">
-                    <input
-                      className="text-input"
-                      placeholder="Type size..."
-                      value={size}
-                      onChange={(e) => setSize(e.target.value)}
-                    />
-                  </div>
-                </details>
-
-                <details className="filter-block">
-                  <summary>Color</summary>
-                  <div className="filter-body">
-                    <input
-                      className="text-input"
-                      placeholder="Type color..."
-                      value={color}
-                      onChange={(e) => setColor(e.target.value)}
-                    />
-                  </div>
-                </details>
-
-                <details className="filter-block">
-                  <summary>Price</summary>
-                  <div className="filter-body">
-                    <div className="price-row">
-                      <div className="price-input">
-                        <span>Min</span>
-                        <input
-                          type="number"
-                          value={minPrice}
-                          onChange={(e) =>
-                            setMinPrice(
-                              e.target.value === ""
-                                ? ""
-                                : Number(e.target.value) || 0
-                            )
-                          }
-                        />
-                      </div>
-
-                      <div className="price-input">
-                        <span>Max</span>
-                        <input
-                          type="number"
-                          value={maxPrice}
-                          onChange={(e) =>
-                            setMaxPrice(
-                              e.target.value === ""
-                                ? ""
-                                : Number(e.target.value) || 0
-                            )
-                          }
-                        />
-                      </div>
-                    </div>
-
-                    <button
-                      type="button"
-                      className="apply-btn"
-                      onClick={applyFiltersToUrl}
-                    >
-                      Apply Filters
-                    </button>
-                  </div>
-                </details>
-              </aside>
-
               <section className="results">
                 <div className="results-header">
                   <div>
@@ -730,96 +618,8 @@ const DesignersPage: NextPage<DesignersPageProps> = ({
         /* Products Layout */
         .layout {
           display: grid;
-          grid-template-columns: 260px minmax(0, 1fr);
-          gap: 24px;
-        }
-        @media (max-width: 900px) {
-          .layout {
-            grid-template-columns: 1fr;
-          }
-        }
-        .filters {
-          border-radius: 16px;
-          border: 1px solid #e5e7eb;
-          padding: 16px 18px 20px;
-          background: #fafafa;
-        }
-        .filters-header {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          margin-bottom: 12px;
-        }
-        .filters-header h2 {
-          font-size: 18px;
-          font-weight: 600;
-        }
-        .filters-header button {
-          border: none;
-          background: none;
-          font-size: 13px;
-          text-decoration: underline;
-          cursor: pointer;
-          color: #6b7280;
-        }
-        .filter-block {
-          border-top: 1px solid #e5e7eb;
-          padding-top: 10px;
-          margin-top: 10px;
-        }
-        .filter-block summary {
-          cursor: pointer;
-          font-weight: 600;
-          font-size: 13px;
-          color: #111827;
-          list-style: none;
-        }
-        .filter-block summary::-webkit-details-marker {
-          display: none;
-        }
-        .filter-body {
-          margin-top: 10px;
-        }
-        .text-input,
-        .select {
-          width: 100%;
-          border-radius: 12px;
-          border: 1px solid #d1d5db;
-          background: #ffffff;
-          color: #111827;
-          padding: 10px 12px;
-          font-size: 13px;
-        }
-        .price-row {
-          display: grid;
           grid-template-columns: 1fr;
-          gap: 10px;
-        }
-        .price-input span {
-          display: block;
-          font-size: 12px;
-          color: #6b7280;
-          margin-bottom: 6px;
-        }
-        .price-input input {
-          width: 100%;
-          border-radius: 12px;
-          border: 1px solid #d1d5db;
-          padding: 10px 12px;
-          font-size: 13px;
-          background: #ffffff;
-        }
-        .apply-btn {
-          width: 100%;
-          margin-top: 12px;
-          border-radius: 999px;
-          padding: 10px 12px;
-          font-size: 13px;
-          font-weight: 700;
-          border: 1px solid #111827;
-          background: #111827;
-          color: #ffffff;
-          cursor: pointer;
+          gap: 24px;
         }
         .results-header {
           display: flex;
