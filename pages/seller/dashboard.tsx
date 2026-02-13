@@ -89,10 +89,26 @@ function ConsignmentAgreement({
   const [consignorDate, setConsignorDate] = useState(
     new Date().toISOString().split("T")[0]
   );
+  const [agreementNumber, setAgreementNumber] = useState("");
+  const [agreementDate, setAgreementDate] = useState("");
+  const [insuranceAmount, setInsuranceAmount] = useState("");
+  const [governingLaw, setGoverningLaw] = useState("");
+  const [items, setItems] = useState([
+    { item: "", brand: "", description: "", condition: "", price: "" },
+    { item: "", brand: "", description: "", condition: "", price: "" },
+  ]);
   const [agreed, setAgreed] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const printRef = useRef<HTMLDivElement>(null);
+
+  function updateItem(index: number, field: string, value: string) {
+    setItems((prev) => {
+      const copy = [...prev];
+      copy[index] = { ...copy[index], [field]: value };
+      return copy;
+    });
+  }
 
   async function handleAccept() {
     if (!agreed) {
@@ -179,8 +195,22 @@ function ConsignmentAgreement({
         {/* ---- PAGE 1: PARTIES & CONSIGNED ITEMS ---- */}
         <h1>LUXURY CONSIGNMENT AGREEMENT</h1>
         <p>
-          <strong>Agreement Number:</strong> ___________________<br />
-          <strong>Date:</strong> ___________________
+          <strong>Agreement Number:</strong>{" "}
+          <input
+            type="text"
+            value={agreementNumber}
+            onChange={(e) => setAgreementNumber(e.target.value)}
+            placeholder="Enter agreement number"
+            className="inline-field"
+          /><br />
+          <strong>Date:</strong>{" "}
+          <input
+            type="text"
+            value={agreementDate}
+            onChange={(e) => setAgreementDate(e.target.value)}
+            placeholder="Enter date"
+            className="inline-field"
+          />
         </p>
 
         <h2>1. PARTIES</h2>
@@ -256,20 +286,15 @@ function ConsignmentAgreement({
             </tr>
           </thead>
           <tbody>
-            <tr>
-              <td>&nbsp;</td>
-              <td>&nbsp;</td>
-              <td>&nbsp;</td>
-              <td>&nbsp;</td>
-              <td>&nbsp;</td>
-            </tr>
-            <tr>
-              <td>&nbsp;</td>
-              <td>&nbsp;</td>
-              <td>&nbsp;</td>
-              <td>&nbsp;</td>
-              <td>&nbsp;</td>
-            </tr>
+            {items.map((row, i) => (
+              <tr key={i}>
+                <td><input type="text" value={row.item} onChange={(e) => updateItem(i, "item", e.target.value)} className="table-field" placeholder="#" /></td>
+                <td><input type="text" value={row.brand} onChange={(e) => updateItem(i, "brand", e.target.value)} className="table-field" placeholder="Brand" /></td>
+                <td><input type="text" value={row.description} onChange={(e) => updateItem(i, "description", e.target.value)} className="table-field" placeholder="Description" /></td>
+                <td><input type="text" value={row.condition} onChange={(e) => updateItem(i, "condition", e.target.value)} className="table-field" placeholder="Condition" /></td>
+                <td><input type="text" value={row.price} onChange={(e) => updateItem(i, "price", e.target.value)} className="table-field" placeholder="$0.00" /></td>
+              </tr>
+            ))}
           </tbody>
         </table>
 
@@ -359,10 +384,17 @@ function ConsignmentAgreement({
         {/* ---- PAGE 3: LIABILITY, INDEMNIFICATION, SIGNATURES ---- */}
         <h2>6. LIABILITY AND INSURANCE</h2>
         <p>
-          The Consignee maintains insurance coverage of up to $_____ per item for
-          loss, theft, or damage while items are in the Consignee&apos;s
-          possession. The Consignor is responsible for ensuring adequate insurance
-          coverage beyond this amount if desired.
+          The Consignee maintains insurance coverage of up to $
+          <input
+            type="text"
+            value={insuranceAmount}
+            onChange={(e) => setInsuranceAmount(e.target.value)}
+            placeholder="amount"
+            className="inline-field inline-field-short"
+          />{" "}
+          per item for loss, theft, or damage while items are in the
+          Consignee&apos;s possession. The Consignor is responsible for ensuring
+          adequate insurance coverage beyond this amount if desired.
         </p>
 
         <h2>7. TERM AND TERMINATION</h2>
@@ -383,8 +415,14 @@ function ConsignmentAgreement({
 
         <h2>9. GOVERNING LAW</h2>
         <p>
-          This Agreement shall be governed by the laws of
-          ___________________.
+          This Agreement shall be governed by the laws of{" "}
+          <input
+            type="text"
+            value={governingLaw}
+            onChange={(e) => setGoverningLaw(e.target.value)}
+            placeholder="Enter jurisdiction"
+            className="inline-field"
+          />.
         </p>
 
         <h2>10. SIGNATURES</h2>
@@ -400,7 +438,14 @@ function ConsignmentAgreement({
               <strong>CONSIGNOR</strong>
             </p>
             <p>
-              <strong>Signature:</strong> ___________________
+              <strong>Signature:</strong>{" "}
+              <input
+                type="text"
+                value={consignorName}
+                onChange={(e) => setConsignorName(e.target.value)}
+                placeholder="Type your full name as signature"
+                className="inline-field"
+              />
             </p>
             <p>
               <strong>Print Name:</strong>{" "}
@@ -783,6 +828,27 @@ export default function SellerDashboard() {
         .inline-field::placeholder {
           color: #999;
           font-weight: 400;
+          font-style: italic;
+        }
+        .inline-field-short {
+          width: 120px;
+          max-width: 30%;
+        }
+        .table-field {
+          border: none;
+          background: transparent;
+          font-family: inherit;
+          font-size: inherit;
+          color: #111;
+          padding: 2px 4px;
+          width: 100%;
+          outline: none;
+        }
+        .table-field:focus {
+          background: #fff;
+        }
+        .table-field::placeholder {
+          color: #bbb;
           font-style: italic;
         }
         .sig-block {
