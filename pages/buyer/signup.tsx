@@ -18,6 +18,7 @@ export default function BuyerSignupPage() {
   const router = useRouter();
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
   const [banner, setBanner] = useState<BannerState>(null);
   const [loading, setLoading] = useState(false);
@@ -37,11 +38,30 @@ export default function BuyerSignupPage() {
 
     setLoading(true);
     try {
-      await createUserWithEmailAndPassword(auth, trimmedEmail, password);
+      const cred = await createUserWithEmailAndPassword(auth, trimmedEmail, password);
 
       if (typeof window !== "undefined") {
         window.localStorage.setItem("ff-role", "buyer");
         window.localStorage.setItem("ff-email", trimmedEmail);
+      }
+
+      // Save profile to Firestore (including phone for 2FA)
+      try {
+        const token = await cred.user.getIdToken();
+        await fetch("/api/user/profile", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            fullName: fullName.trim(),
+            email: trimmedEmail,
+            phone: phone.trim(),
+          }),
+        });
+      } catch {
+        // Non-blocking — profile will be created later
       }
 
       router.push("/buyer/dashboard");
@@ -139,6 +159,20 @@ export default function BuyerSignupPage() {
                     placeholder="name@example.com"
                     disabled={disabled}
                     required
+                  />
+                </div>
+
+                <div className="auth-field">
+                  <label htmlFor="phone">Mobile number (for 2FA)</label>
+                  <input
+                    id="phone"
+                    type="tel"
+                    autoComplete="tel"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    className="auth-input"
+                    placeholder="+1 (555) 000-0000"
+                    disabled={disabled}
                   />
                 </div>
 

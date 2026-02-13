@@ -56,6 +56,7 @@ export default function UnifiedSignupPage() {
   // Step 1 — basics
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
   const [banner, setBanner] = useState<BannerState>(null);
   const [loading, setLoading] = useState(false);
@@ -114,6 +115,7 @@ export default function UnifiedSignupPage() {
           body: JSON.stringify({
             fullName: trimmedName,
             email: trimmedEmail,
+            phone: phone.trim(),
           }),
         });
       } catch {
@@ -262,6 +264,20 @@ export default function UnifiedSignupPage() {
                         placeholder="name@example.com"
                         disabled={disabled}
                         required
+                      />
+                    </div>
+
+                    <div className="auth-field">
+                      <label htmlFor="phone">Mobile number (for 2FA)</label>
+                      <input
+                        id="phone"
+                        type="tel"
+                        autoComplete="tel"
+                        value={phone}
+                        onChange={(e) => setPhone(e.target.value)}
+                        className="auth-input"
+                        placeholder="+1 (555) 000-0000"
+                        disabled={disabled}
                       />
                     </div>
 

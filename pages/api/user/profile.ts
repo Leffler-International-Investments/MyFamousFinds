@@ -20,16 +20,22 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   try {
-    const { fullName, email } = req.body || {};
+    const { fullName, email, phone } = req.body || {};
+
+    const profileData: Record<string, any> = {
+      uid: authUser.uid,
+      fullName: fullName || "",
+      email: email || authUser.email || "",
+      updatedAt: FieldValue.serverTimestamp(),
+      createdAt: FieldValue.serverTimestamp(),
+    };
+
+    if (phone !== undefined) {
+      profileData.phone = phone || "";
+    }
 
     await adminDb.collection("users").doc(authUser.uid).set(
-      {
-        uid: authUser.uid,
-        fullName: fullName || "",
-        email: email || authUser.email || "",
-        updatedAt: FieldValue.serverTimestamp(),
-        createdAt: FieldValue.serverTimestamp(),
-      },
+      profileData,
       { merge: true }
     );
 

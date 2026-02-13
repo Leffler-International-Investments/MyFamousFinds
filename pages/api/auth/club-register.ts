@@ -22,12 +22,12 @@ export default async function handler(
     const decodedToken = await adminAuth.verifyIdToken(token);
     const uid = decodedToken.uid;
     const email = decodedToken.email;
-    const { name } = req.body;
+    const { name, phone } = req.body;
 
     // 3. Create the user document in Firestore
     const userRef = adminDb.collection("users").doc(uid);
 
-    const newUserProfile = {
+    const newUserProfile: Record<string, any> = {
       uid: uid,
       email: email,
       name: name || "",
@@ -36,6 +36,10 @@ export default async function handler(
       points: 0,
       createdAt: FieldValue.serverTimestamp(),
     };
+
+    if (phone !== undefined) {
+      newUserProfile.phone = phone || "";
+    }
 
     // --- THIS IS THE CRITICAL FIX FOR YOU ---
     // Using { merge: true } ensures that if an Admin or Seller
