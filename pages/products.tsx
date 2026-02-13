@@ -6,7 +6,7 @@ import type { GetServerSideProps, NextPage } from "next";
 import Header from "../components/Header";
 import Footer from "../components/Footer";
 import ProductCard, { ProductLike } from "../components/ProductCard";
-import { adminDb } from "../utils/firebaseAdmin";
+import { getPublicListings } from "../lib/publicListings";
 
 // ---------------- helpers ----------------
 
@@ -169,34 +169,22 @@ export const getServerSideProps: GetServerSideProps<Props> = async (
   const tag =
     typeof rawTag === "string" && rawTag.length > 0 ? rawTag : null;
 
-  const snapshot = await adminDb
-    .collection("listings")
-    .limit(500)
-    .get();
+  const listings = await getPublicListings({ take: 500 });
 
-  let items: ProductLike[] = [];
-  snapshot.docs.forEach((doc) => {
-    const data = doc.data() as any;
-
-    // Minimal filter: only skip if literally sold
-    const isSold =
-      data.isSold === true ||
-      data.sold === true ||
-      String(data.status || "").toLowerCase().includes("sold");
-    if (isSold) return;
-
-    items.push({
-      id: doc.id,
-      title: data.title || "",
-      brand: data.brand || "",
-      price: formatPrice(data.price),
-      image: pickImage(data),
-      href: `/product/${doc.id}`,
-      category: data.category || "",
-      condition: data.condition || "",
-      badge: data.condition || "",
-      tags: data.tags || [],
-    });
+  let items: ProductLike[] = (listings || []).map((l: any) => {
+    const priceNum = typeof l.price === "number" ? l.price : (typeof l.priceUsd === "number" ? l.priceUsd : 0);
+    return {
+      id: l.id,
+      title: l.title || "",
+      brand: l.brand || "",
+      price: priceNum ? `US$${priceNum.toLocaleString("en-US")}` : "",
+      image: l.displayImageUrl || (Array.isArray(l.images) && l.images[0] ? l.images[0] : ""),
+      href: `/product/${l.id}`,
+      category: l.category || "",
+      condition: l.condition || "",
+      badge: l.condition || "",
+      tags: l.tags || [],
+    };
   });
 
   if (designer) {
