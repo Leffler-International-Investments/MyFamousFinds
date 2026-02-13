@@ -20,7 +20,7 @@ export default async function handler(
   if (!requireAdmin(req, res)) return;
 
   try {
-    const { name, email, phone, permissions } = req.body;
+    const { name, email, phone, role, permissions } = req.body;
 
     if (!name || !email || !phone) {
       return res.status(400).json({ ok: false, error: "Missing required fields." });
@@ -31,19 +31,20 @@ export default async function handler(
     const auth = getAuth();
 
     // --- 2. Create User in Firebase Authentication ---
+    // Note: phone is stored in Firestore only (used by Twilio 2FA),
+    // not passed to Firebase Auth which requires phone verification flow.
     const userRecord = await auth.createUser({
       email: email,
-      phoneNumber: phone,
       displayName: name,
       password: `temp_${Math.random().toString(36).slice(-8)}`,
     });
 
-    // --- 3. Save Permissions in Firestore ---
+    // --- 3. Save Profile & Permissions in Firestore ---
     await adminDb.collection("management_team").doc(userRecord.uid).set({
       name: name,
       email: email,
       phone: phone,
-      role: "Admin",
+      role: role || "Admin",
       permissions: {
         canManageSellers: rawPermissions.perm_sellers || false,
         canManageProducts: rawPermissions.perm_products || false,
@@ -60,6 +61,9 @@ export default async function handler(
     if (err.code === "auth/email-already-exists") {
       return res.status(409).json({ ok: false, error: "Email already in use." });
     }
-    return res.status(500).json({ ok: false, error: "An internal error occurred." });
+    if (err.code === "auth/invalid-email") {
+      return res.status(400).json({ ok: false, error: "Invalid email address." });
+    }
+    return res.status(500).json({ ok: false, error: err?.message || "An internal error occurred." });
   }
 }
