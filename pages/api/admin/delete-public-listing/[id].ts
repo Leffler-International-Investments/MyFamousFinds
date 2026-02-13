@@ -1,10 +1,10 @@
 // FILE: /pages/api/admin/delete-public-listing/[id].ts
-// Deletes a listing using the client SDK (same Firestore the homepage reads from).
-// Falls back to admin SDK if client SDK fails.
+// Deletes a listing using the Admin SDK (bypasses Firestore security rules).
+// The Admin SDK is configured to target the same project as the client SDK
+// (NEXT_PUBLIC_FIREBASE_PROJECT_ID), so it deletes from the same Firestore
+// the homepage reads from.
 
 import type { NextApiRequest, NextApiResponse } from "next";
-import { doc, deleteDoc } from "firebase/firestore";
-import { db } from "../../../../utils/firebaseClient";
 import { adminDb } from "../../../../utils/firebaseAdmin";
 import { requireAdmin } from "../../../../utils/adminAuth";
 
@@ -28,26 +28,15 @@ export default async function handler(
     return res.status(400).json({ ok: false, error: "Missing listing id" });
   }
 
-  // Try client SDK first (same data source as homepage)
-  if (db) {
-    try {
-      await deleteDoc(doc(db, "listings", id));
-      return res.status(200).json({ ok: true });
-    } catch (clientErr: any) {
-      console.warn("Client SDK delete failed, trying admin SDK:", clientErr?.message);
-    }
+  if (!adminDb) {
+    return res.status(500).json({ ok: false, error: "Firebase Admin SDK not initialized" });
   }
 
-  // Fallback to admin SDK
-  if (adminDb) {
-    try {
-      await adminDb.collection("listings").doc(id).delete();
-      return res.status(200).json({ ok: true });
-    } catch (adminErr: any) {
-      console.error("Admin SDK delete also failed:", adminErr?.message);
-      return res.status(500).json({ ok: false, error: adminErr?.message || "Delete failed" });
-    }
+  try {
+    await adminDb.collection("listings").doc(id).delete();
+    return res.status(200).json({ ok: true });
+  } catch (err: any) {
+    console.error("Admin SDK delete failed:", err?.message);
+    return res.status(500).json({ ok: false, error: err?.message || "Delete failed" });
   }
-
-  return res.status(500).json({ ok: false, error: "No Firebase SDK available" });
 }
