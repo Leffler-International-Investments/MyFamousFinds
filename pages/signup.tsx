@@ -11,6 +11,7 @@ import Header from "../components/Header";
 import Footer from "../components/Footer";
 import PasswordInput from "../components/PasswordInput";
 import { auth } from "../utils/firebaseClient";
+import { autoPrefixPhone } from "../utils/phoneFormat";
 
 const INTEREST_OPTIONS = [
   "Bags & Handbags",
@@ -274,7 +275,7 @@ export default function UnifiedSignupPage() {
                         type="tel"
                         autoComplete="tel"
                         value={phone}
-                        onChange={(e) => setPhone(e.target.value)}
+                        onChange={(e) => setPhone(autoPrefixPhone(e.target.value))}
                         className="auth-input"
                         placeholder="+1 (555) 000-0000"
                         disabled={disabled}

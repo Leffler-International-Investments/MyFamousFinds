@@ -5,6 +5,7 @@ import Header from "../../components/Header";
 import Footer from "../../components/Footer";
 import { useRequireOwner } from "../../hooks/useRequireOwner";
 import { useEffect, useState } from "react";
+import { autoPrefixPhone } from "../../utils/phoneFormat";
 
 type Permissions = {
   canManageSellers: boolean;
@@ -236,7 +237,10 @@ export default function ManagementTeam() {
 
             <div className="form-field">
               <label htmlFor="phone">Mobile Number (for 2FA)</label>
-              <input type="tel" id="phone" name="phone" placeholder="+61 478 965 828" required />
+              <input
+                type="tel" id="phone" name="phone" placeholder="+61 478 965 828" required
+                onChange={(e) => { e.target.value = autoPrefixPhone(e.target.value); }}
+              />
               <span className="form-hint">
                 E.164 format: + then country code then number. US: +1404..., AU: +6147...
               </span>
@@ -309,7 +313,7 @@ export default function ManagementTeam() {
                         type="tel"
                         value={editForm.phone}
                         placeholder="+61 478 965 828"
-                        onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
+                        onChange={(e) => setEditForm({ ...editForm, phone: autoPrefixPhone(e.target.value) })}
                       />
                       <span className="form-hint">
                         E.164 format: + then country code then number

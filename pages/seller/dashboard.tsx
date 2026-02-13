@@ -8,6 +8,7 @@ import Header from "../../components/Header";
 import Footer from "../../components/Footer";
 import type { ReactNode } from "react";
 import { useEffect, useState, useRef } from "react";
+import { autoPrefixPhone } from "../../utils/phoneFormat";
 import SellerDashboardTutorial from "../../components/SellerDashboardTutorial";
 import { useRequireSeller } from "../../hooks/useRequireSeller";
 
@@ -219,8 +220,8 @@ function ConsignmentAgreement({
             <input
               type="tel"
               value={consignorPhone}
-              onChange={(e) => setConsignorPhone(e.target.value)}
-              placeholder="Enter your phone number"
+              onChange={(e) => setConsignorPhone(autoPrefixPhone(e.target.value))}
+              placeholder="+1 555 000 0000"
               className="inline-field"
             />
           </p>

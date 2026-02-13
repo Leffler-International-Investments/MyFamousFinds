@@ -11,6 +11,7 @@ import {
 } from "firebase/auth";
 import { auth } from "../utils/firebaseClient";
 import Header from "../components/Header";
+import { autoPrefixPhone } from "../utils/phoneFormat";
 // import Footer from "../components/Footer"; // Footer removed to match auth page design
 import Head from "next/head";
 
@@ -125,7 +126,7 @@ export default function RegisterPage() {
                 type="tel"
                 autoComplete="tel"
                 value={phone}
-                onChange={(e) => setPhone(e.target.value)}
+                onChange={(e) => setPhone(autoPrefixPhone(e.target.value))}
                 className="auth-input"
                 placeholder="+1 (555) 000-0000"
               />

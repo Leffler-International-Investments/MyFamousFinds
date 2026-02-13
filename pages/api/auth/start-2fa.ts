@@ -30,7 +30,62 @@ function canSendEmail() {
 }
 
 /**
- * Look up the user's phone number from Firestore based on role + email.
+ * Look up the user's phone from a single collection by email query.
+ */
+async function findPhoneInCollection(
+  collection: string,
+  email: string,
+  phoneFields: string[] = ["phone"]
+): Promise<string | null> {
+  if (!adminDb) return null;
+
+  // Try doc ID = email first (sellers use this pattern)
+  try {
+    const doc = await adminDb.collection(collection).doc(email).get();
+    if (doc.exists) {
+      const data = doc.data();
+      for (const f of phoneFields) {
+        if (data?.[f]) return data[f];
+      }
+    }
+  } catch { /* doc ID may not be a valid path — skip */ }
+
+  // Query by email field
+  const snap = await adminDb
+    .collection(collection)
+    .where("email", "==", email)
+    .limit(1)
+    .get();
+  if (!snap.empty) {
+    const data = snap.docs[0].data();
+    for (const f of phoneFields) {
+      if (data[f]) return data[f];
+    }
+  }
+
+  // For sellers, also check contactEmail
+  if (collection === "sellers") {
+    const snap2 = await adminDb
+      .collection(collection)
+      .where("contactEmail", "==", email)
+      .limit(1)
+      .get();
+    if (!snap2.empty) {
+      const data = snap2.docs[0].data();
+      for (const f of phoneFields) {
+        if (data[f]) return data[f];
+      }
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Look up the user's phone number from Firestore.
+ * Checks the primary collection for the role first, then falls back
+ * to all other collections so that e.g. a management member logging
+ * into the seller portal can still receive SMS.
  */
 async function lookupPhone(
   email: string,
@@ -38,49 +93,29 @@ async function lookupPhone(
 ): Promise<string | null> {
   if (!adminDb) return null;
 
-  try {
-    if (role === "management") {
-      // Check management_team collection
-      const snap = await adminDb
-        .collection("management_team")
-        .where("email", "==", email)
-        .limit(1)
-        .get();
-      if (!snap.empty) {
-        const data = snap.docs[0].data();
-        return data.phone || null;
-      }
-    } else {
-      // Check sellers collection — 3-step lookup matching seller/login.ts
-      // 1. Doc ID = email
-      let doc = await adminDb.collection("sellers").doc(email).get();
-      if (doc.exists) {
-        const data = doc.data();
-        return data?.phone || data?.contactPhone || null;
-      }
-      // 2. Field email = provided email
-      let snap = await adminDb
-        .collection("sellers")
-        .where("email", "==", email)
-        .limit(1)
-        .get();
-      if (!snap.empty) {
-        const data = snap.docs[0].data();
-        return data.phone || data.contactPhone || null;
-      }
-      // 3. Field contactEmail = provided email
-      snap = await adminDb
-        .collection("sellers")
-        .where("contactEmail", "==", email)
-        .limit(1)
-        .get();
-      if (!snap.empty) {
-        const data = snap.docs[0].data();
-        return data.phone || data.contactPhone || null;
-      }
+  // Order: primary collection first, then fallbacks
+  const searchOrder =
+    role === "management"
+      ? [
+          { col: "management_team", fields: ["phone"] },
+          { col: "sellers", fields: ["phone", "contactPhone"] },
+          { col: "users", fields: ["phone"] },
+          { col: "vip_members", fields: ["phone"] },
+        ]
+      : [
+          { col: "sellers", fields: ["phone", "contactPhone"] },
+          { col: "management_team", fields: ["phone"] },
+          { col: "users", fields: ["phone"] },
+          { col: "vip_members", fields: ["phone"] },
+        ];
+
+  for (const { col, fields } of searchOrder) {
+    try {
+      const phone = await findPhoneInCollection(col, email, fields);
+      if (phone) return phone;
+    } catch (err) {
+      console.error(`[start-2fa] Phone lookup in ${col} failed:`, err);
     }
-  } catch (err) {
-    console.error("[start-2fa] Phone lookup failed:", err);
   }
 
   return null;

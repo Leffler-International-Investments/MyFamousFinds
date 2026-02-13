@@ -5,6 +5,7 @@ import Link from "next/link";
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
 import { FormEvent, useState } from "react";
+import { autoPrefixPhone } from "../../utils/phoneFormat";
 import { useRequireSeller } from "../../hooks/useRequireSeller";
 import { sellerFetch } from "../../utils/sellerClient";
 
@@ -135,6 +136,7 @@ export default function SellerProfile() {
                   placeholder="+1 555 000 0000"
                   className="form-input"
                   required
+                  onChange={(e) => { e.target.value = autoPrefixPhone(e.target.value); }}
                 />
               </div>
               <div className="form-field">

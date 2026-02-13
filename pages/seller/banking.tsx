@@ -7,6 +7,7 @@ import Header from "../../components/Header";
 import Footer from "../../components/Footer";
 import { auth } from "../../utils/firebaseClient";
 import { useRequireSeller } from "../../hooks/useRequireSeller";
+import { autoPrefixPhone } from "../../utils/phoneFormat";
 import { sellerFetch } from "../../utils/sellerClient";
 
 type SellerBankingPrefs = {
@@ -291,7 +292,7 @@ export default function SellerBankingPage() {
                 className="form-input"
                 required
                 value={prefs.phone || ""}
-                onChange={(e) => update("phone", e.target.value)}
+                onChange={(e) => update("phone", autoPrefixPhone(e.target.value))}
                 placeholder="+1 555 000 0000"
               />
             </div>
