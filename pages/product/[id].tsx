@@ -5,11 +5,10 @@ import Head from "next/head";
 import type { GetServerSideProps } from "next";
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
-import { adminDb } from "../../utils/firebaseAdmin";
 import WishlistButton from "../../components/WishlistButton";
 import { auth, db, firebaseClientReady } from "../../utils/firebaseClient";
 import { onAuthStateChanged } from "firebase/auth";
-import { doc, setDoc, serverTimestamp } from "firebase/firestore";
+import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
 import { useRouter } from "next/router";
 import AuthModal from "../../components/AuthModal";
 
@@ -1028,10 +1027,11 @@ export const getServerSideProps: GetServerSideProps<ProductPageProps> = async (c
   }
 
   try {
-    if (!adminDb) return { notFound: true };
+    if (!db) return { notFound: true };
 
-    const docSnap = await adminDb.collection("listings").doc(id).get();
-    if (!docSnap.exists) {
+    const docRef = doc(db, "listings", id);
+    const docSnap = await getDoc(docRef);
+    if (!docSnap.exists()) {
       return { notFound: true };
     }
 
@@ -1039,13 +1039,8 @@ export const getServerSideProps: GetServerSideProps<ProductPageProps> = async (c
 
     const status = String(d.status || "").toLowerCase();
     const isSold = d.isSold === true || d.sold === true || status === "sold";
-    const isLive =
-      status === "live" ||
-      status === "active" ||
-      status === "approved" ||
-      status === "published" ||
-      status === "pending";
-    const allowPurchase = isLive && !isSold;
+    const isRemoved = status === "removed" || status === "deleted" || status === "rejected";
+    const allowPurchase = !isSold && !isRemoved;
 
     const title = String(d.title || d.name || "Untitled");
     const price = typeof d.priceUsd === "number" ? d.priceUsd : Number(d.price || 0);

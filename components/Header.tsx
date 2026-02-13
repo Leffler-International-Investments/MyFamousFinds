@@ -1,11 +1,18 @@
 // FILE: /components/Header.tsx
 
 import Link from "next/link";
+import type React from "react";
 import { useEffect, useState } from "react";
 import { onAuthStateChanged, User } from "firebase/auth";
 import { auth } from "../utils/firebaseClient";
 
-export default function Header() {
+type HeaderProps = {
+  filterContent?: React.ReactNode;
+  showFilter?: boolean;
+  onToggleFilter?: () => void;
+};
+
+export default function Header({ filterContent, showFilter, onToggleFilter }: HeaderProps) {
   const [vipUser, setVipUser] = useState<User | null>(null);
 
   useEffect(() => {
@@ -77,7 +84,25 @@ export default function Header() {
             {item.label}
           </Link>
         ))}
+        {onToggleFilter && (
+          <button
+            type="button"
+            onClick={onToggleFilter}
+            className={`ff-filter-toggle${showFilter ? " ff-filter-toggle--active" : ""}`}
+          >
+            FILTER {showFilter ? "\u25B2" : "\u25BC"}
+          </button>
+        )}
       </nav>
+
+      {/* FILTER DROPDOWN */}
+      {showFilter && filterContent && (
+        <div className="ff-filter-dropdown">
+          <div className="ff-filter-dropdown-inner">
+            {filterContent}
+          </div>
+        </div>
+      )}
 
       <style jsx>{`
         .ff-header {
@@ -85,6 +110,7 @@ export default function Header() {
           background: #ffffff;
           border-bottom: 1px solid #e5e7eb;
           color: #111827;
+          position: relative;
         }
 
         .ff-header-top {
@@ -221,6 +247,41 @@ export default function Header() {
           letter-spacing: 0.12em;
           color: #111827;
           text-decoration: none;
+        }
+
+        .ff-filter-toggle {
+          background: none;
+          border: 1px solid #d1d5db;
+          border-radius: 999px;
+          padding: 6px 14px;
+          cursor: pointer;
+          font-size: 12px;
+          font-weight: 600;
+          letter-spacing: 0.12em;
+          color: #111827;
+          transition: all 0.15s;
+        }
+        .ff-filter-toggle:hover {
+          background: #f3f4f6;
+        }
+        .ff-filter-toggle--active {
+          background: #111827;
+          color: #fff;
+          border-color: #111827;
+        }
+        .ff-filter-toggle--active:hover {
+          background: #1f2937;
+        }
+
+        .ff-filter-dropdown {
+          border-top: 1px solid #e5e7eb;
+          background: #fafafa;
+          padding: 16px 0;
+        }
+        .ff-filter-dropdown-inner {
+          max-width: 1280px;
+          margin: 0 auto;
+          padding: 0 18px;
         }
       `}</style>
     </header>

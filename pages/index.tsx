@@ -3,7 +3,7 @@
 import Head from "next/head";
 import Link from "next/link";
 import type { GetServerSideProps, NextPage } from "next";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { onAuthStateChanged } from "firebase/auth";
 import { collection, query, where, getDocs } from "firebase/firestore";
 
@@ -129,6 +129,7 @@ const HomePage: NextPage<HomeProps> = ({
   const [minPrice, setMinPrice] = useState<number | "">(0);
   const [maxPrice, setMaxPrice] = useState<number | "">(100000);
   const [sortBy, setSortBy] = useState<"newest" | "price-asc" | "price-desc">("newest");
+  const [showFilters, setShowFilters] = useState(false);
 
   // Wishlist state
   const [savedIds, setSavedIds] = useState<Set<string>>(new Set());
@@ -277,6 +278,45 @@ const HomePage: NextPage<HomeProps> = ({
     return Array.isArray(activeMessages) ? activeMessages.filter((m) => m && m.text && m.text.trim()).slice(0, 2) : [];
   }, [activeMessages]);
 
+  const fSty: Record<string, React.CSSProperties> = {
+    wrap: { display: "flex", flexWrap: "wrap", gap: "8px", alignItems: "center" },
+    input: { border: "1px solid #e5e7eb", borderRadius: "12px", padding: "8px 12px", fontSize: "13px", outline: "none", background: "#fff", minWidth: "140px", flex: "1 1 140px" },
+    select: { border: "1px solid #e5e7eb", borderRadius: "12px", padding: "8px 12px", fontSize: "13px", outline: "none", background: "#fff", minWidth: "120px" },
+    clear: { border: "1px solid #cbd5e1", background: "#fff", color: "#0f172a", borderRadius: "999px", padding: "8px 14px", fontWeight: 700, fontSize: "12px", cursor: "pointer", whiteSpace: "nowrap" },
+  };
+
+  const filterPanel = (
+    <div style={fSty.wrap}>
+      <input style={fSty.input} placeholder="Search by title..." value={titleQuery} onChange={(e) => setTitleQuery(e.target.value)} />
+      <select style={fSty.select} value={category} onChange={(e) => setCategory(e.target.value)}>
+        <option value="">All Categories</option>
+        {CATEGORY_OPTIONS.map((o) => (<option key={o} value={o}>{o}</option>))}
+      </select>
+      <select style={fSty.select} value={designer} onChange={(e) => setDesigner(e.target.value)}>
+        <option value="">All Designers</option>
+        {designerOptions.map((o) => (<option key={o} value={o}>{o}</option>))}
+      </select>
+      <select style={fSty.select} value={condition} onChange={(e) => setCondition(e.target.value)}>
+        <option value="">Condition</option>
+        {CONDITION_OPTIONS.map((o) => (<option key={o} value={o}>{o}</option>))}
+      </select>
+      <select style={fSty.select} value={material} onChange={(e) => setMaterial(e.target.value)}>
+        <option value="">Material</option>
+        {MATERIAL_OPTIONS.map((o) => (<option key={o} value={o}>{o}</option>))}
+      </select>
+      <select style={fSty.select} value={color} onChange={(e) => setColor(e.target.value)}>
+        <option value="">Color</option>
+        {COLOR_OPTIONS.map((c) => (<option key={c.label} value={c.label}>{c.label}</option>))}
+      </select>
+      <select style={fSty.select} value={sortBy} onChange={(e) => setSortBy(e.target.value as any)}>
+        <option value="newest">Newest</option>
+        <option value="price-asc">Price: Low to High</option>
+        <option value="price-desc">Price: High to Low</option>
+      </select>
+      <button style={fSty.clear} type="button" onClick={resetFilters}>Clear All</button>
+    </div>
+  );
+
   return (
     <div className="home-wrapper">
       <Head>
@@ -287,7 +327,11 @@ const HomePage: NextPage<HomeProps> = ({
         />
       </Head>
 
-      <Header />
+      <Header
+        showFilter={showFilters}
+        onToggleFilter={() => setShowFilters(!showFilters)}
+        filterContent={filterPanel}
+      />
 
       <main className="wrap">
         {/* ✅ MESSAGE BOARD (RESTORED) */}
@@ -352,236 +396,27 @@ const HomePage: NextPage<HomeProps> = ({
           </div>
         </section>
 
-        {/* ALL ITEMS — full collection grid */}
-        {poolItems.length > 0 && (
-          <section className="showcase">
-            <div className="showcase-header">
-              <h2>Shop Our Collection ({poolItems.length} items)</h2>
-              <Link className="showcase-link" href="/catalogue">
-                View Full Catalogue
-              </Link>
-            </div>
-            <div className="showcase-grid">
-              {poolItems.map((p: any) => (
-                <ProductCard
-                  key={p.id}
-                  {...p}
-                  isSaved={savedIds.has(p.id)}
-                  onToggleWishlist={handleToggleWishlist}
-                />
-              ))}
-            </div>
-          </section>
-        )}
-
-        {/* MOBILE CATEGORY TABS */}
-        <section className="mobile-cats">
-          <div className="mobile-search-bar">
-            <input
-              className="mobile-search-input"
-              placeholder="Search..."
-              value={titleQuery}
-              onChange={(e) => setTitleQuery(e.target.value)}
-            />
+        {/* PRODUCT GRID */}
+        {filteredItems.length === 0 ? (
+          <div className="empty-state">
+            <h3>No items match these filters.</h3>
+            <p className="empty-hint">Try adjusting the FILTER in the header, or click below to reset.</p>
+            <button className="resetBtn" onClick={resetFilters}>
+              Reset filters
+            </button>
           </div>
-          <div className="mobile-tabs">
-            {[
-              { label: "Women", slug: "women", icon: "\uD83D\uDC57", gradient: "linear-gradient(135deg,#fce4ec,#f8bbd0)" },
-              { label: "Bags", slug: "bags", icon: "\uD83D\uDC5C", gradient: "linear-gradient(135deg,#fff3e0,#ffe0b2)" },
-              { label: "Men", slug: "men", icon: "\uD83D\uDC54", gradient: "linear-gradient(135deg,#e3f2fd,#bbdefb)" },
-              { label: "Kids", slug: "kids", icon: "\u2B50", gradient: "linear-gradient(135deg,#f3e5f5,#e1bee7)" },
-              { label: "Jewelry", slug: "jewelry", icon: "\uD83D\uDC8E", gradient: "linear-gradient(135deg,#fff8e1,#ffecb3)" },
-              { label: "Watches", slug: "watches", icon: "\u231A", gradient: "linear-gradient(135deg,#efebe9,#d7ccc8)" },
-            ].map((tab) => (
-              <button
-                key={tab.slug}
-                type="button"
-                className={`mobile-tab${normalize(category) === normalize(tab.label) ? " mobile-tab--active" : ""}`}
-                onClick={() => setCategory(normalize(category) === normalize(tab.label) ? "" : tab.label)}
-              >
-                <div className="mobile-tab-img" style={{ background: tab.gradient, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "28px" }}>{tab.icon}</div>
-                <span>{tab.label}</span>
-              </button>
+        ) : (
+          <div className="cards">
+            {filteredItems.map((p: any) => (
+              <ProductCard
+                key={p.id}
+                {...p}
+                isSaved={savedIds.has(p.id)}
+                onToggleWishlist={handleToggleWishlist}
+              />
             ))}
           </div>
-        </section>
-
-        {/* FILTER + RESULTS (LEFT SIDEBAR ALWAYS ON HOMEPAGE) */}
-        <section className="home-section">
-          <div className="layout">
-            <aside className="filters">
-              <div className="filters-header">
-                <h2>Filters</h2>
-                <button type="button" onClick={resetFilters}>
-                  Clear All
-                </button>
-              </div>
-
-              <details className="filter-block" open>
-                <summary>Title</summary>
-                <div className="filter-body">
-                  <input
-                    className="text-input"
-                    placeholder="Search title..."
-                    value={titleQuery}
-                    onChange={(e) => setTitleQuery(e.target.value)}
-                  />
-                </div>
-              </details>
-
-              <details className="filter-block">
-                <summary>Category</summary>
-                <div className="filter-body">
-                  <select className="select" value={category} onChange={(e) => setCategory(e.target.value)}>
-                    <option value="">All</option>
-                    {CATEGORY_OPTIONS.map((o) => (
-                      <option key={o} value={o}>
-                        {o}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </details>
-
-              <details className="filter-block">
-                <summary>Designer</summary>
-                <div className="filter-body">
-                  <select className="select" value={designer} onChange={(e) => setDesigner(e.target.value)}>
-                    <option value="">All</option>
-                    {designerOptions.map((o) => (
-                      <option key={o} value={o}>
-                        {o}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </details>
-
-              <details className="filter-block">
-                <summary>Condition</summary>
-                <div className="filter-body">
-                  <select className="select" value={condition} onChange={(e) => setCondition(e.target.value)}>
-                    <option value="">All</option>
-                    {CONDITION_OPTIONS.map((o) => (
-                      <option key={o} value={o}>
-                        {o}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </details>
-
-              <details className="filter-block">
-                <summary>Material</summary>
-                <div className="filter-body">
-                  <select className="select" value={material} onChange={(e) => setMaterial(e.target.value)}>
-                    <option value="">All</option>
-                    {MATERIAL_OPTIONS.map((o) => (
-                      <option key={o} value={o}>
-                        {o}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </details>
-
-              <details className="filter-block">
-                <summary>Size</summary>
-                <div className="filter-body">
-                  <input className="text-input" value={size} onChange={(e) => setSize(e.target.value)} placeholder="e.g. medium" />
-                </div>
-              </details>
-
-              <details className="filter-block">
-                <summary>Color</summary>
-                <div className="filter-body">
-                  <div className="color-grid">
-                    {COLOR_OPTIONS.map((c) => {
-                      const isMulti = c.label === "Multi";
-                      const isActive = normalize(color) === normalize(c.label);
-                      return (
-                        <button
-                          key={c.label}
-                          type="button"
-                          className={`color-swatch${isActive ? " color-swatch--active" : ""}`}
-                          title={c.label}
-                          onClick={() => setColor(isActive ? "" : c.label)}
-                        >
-                          <span
-                            className="color-dot"
-                            style={isMulti
-                              ? { background: c.hex }
-                              : { backgroundColor: c.hex }
-                            }
-                          />
-                          <span className="color-label">{c.label}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              </details>
-
-              <details className="filter-block">
-                <summary>Price (USD)</summary>
-                <div className="filter-body price-row">
-                  <input
-                    className="text-input"
-                    placeholder="Min"
-                    value={minPrice}
-                    onChange={(e) => setMinPrice(e.target.value === "" ? "" : Number(e.target.value))}
-                  />
-                  <input
-                    className="text-input"
-                    placeholder="Max"
-                    value={maxPrice}
-                    onChange={(e) => setMaxPrice(e.target.value === "" ? "" : Number(e.target.value))}
-                  />
-                </div>
-              </details>
-
-              <details className="filter-block">
-                <summary>Sort</summary>
-                <div className="filter-body">
-                  <select className="select" value={sortBy} onChange={(e) => setSortBy(e.target.value as any)}>
-                    <option value="newest">Newest</option>
-                    <option value="price-asc">Price: Low → High</option>
-                    <option value="price-desc">Price: High → Low</option>
-                  </select>
-                </div>
-              </details>
-            </aside>
-
-            <div className="results">
-              <div className="results-head">
-                <h2>Browse Listings</h2>
-                <Link className="results-link" href="/designers">
-                  Open full catalogue
-                </Link>
-              </div>
-
-              {filteredItems.length === 0 ? (
-                <div className="empty-state">
-                  <h3>No items match these filters.</h3>
-                  <button className="resetBtn" onClick={resetFilters}>
-                    Reset filters
-                  </button>
-                </div>
-              ) : (
-                <div className="cards">
-                  {filteredItems.map((p: any) => (
-                    <ProductCard
-                      key={p.id}
-                      {...p}
-                      isSaved={savedIds.has(p.id)}
-                      onToggleWishlist={handleToggleWishlist}
-                    />
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-        </section>
+        )}
       </main>
 
       {/* Wishlist toast notification */}
@@ -724,198 +559,27 @@ const HomePage: NextPage<HomeProps> = ({
           line-height: 1.05;
           color: #0f172a;
         }
-        /* Showcase sections (New Arrivals, Trending) */
-        .showcase {
-          background: #fff;
-          border: 1px solid #e5e7eb;
-          border-radius: 16px;
-          padding: 18px;
-          margin-bottom: 24px;
-        }
-        .showcase-header {
-          display: flex;
-          align-items: baseline;
-          justify-content: space-between;
-          gap: 10px;
-          padding-bottom: 12px;
-          border-bottom: 1px solid #eef2f7;
-          margin-bottom: 14px;
-        }
-        .showcase-header h2 {
-          margin: 0;
-          font-size: 20px;
-          color: #0f172a;
-          letter-spacing: -0.01em;
-        }
-        .showcase-link {
-          font-size: 13px;
-          text-decoration: none;
-          color: #0f172a;
-          font-weight: 700;
-        }
-        .showcase-grid {
+        .cards {
           display: grid;
           grid-template-columns: repeat(4, minmax(0, 1fr));
           gap: 14px;
         }
-
-        .home-section {
-          margin-top: 22px;
-        }
-
-        /* Designers-style filter sidebar */
-        .layout {
-          display: grid;
-          grid-template-columns: 320px minmax(0, 1fr);
-          gap: 18px;
-          align-items: start;
-        }
-        .filters {
-          background: #fff;
-          border: 1px solid #e5e7eb;
-          border-radius: 16px;
-          padding: 14px;
-          position: sticky;
-          top: 16px;
-        }
-        .filters-header {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          gap: 10px;
-          margin-bottom: 10px;
-        }
-        .filters-header h2 {
-          margin: 0;
-          font-size: 14px;
-          color: #0f172a;
-          letter-spacing: 0.02em;
-          text-transform: uppercase;
-        }
-        .filters-header button {
-          border: 0;
-          background: transparent;
-          color: #0f172a;
-          font-weight: 700;
-          font-size: 12px;
-          cursor: pointer;
-        }
-        .filter-block {
-          border-top: 1px solid #eef2f7;
-          padding-top: 10px;
-          margin-top: 10px;
-        }
-        .filter-block summary {
-          cursor: pointer;
-          font-weight: 700;
-          font-size: 13px;
-          color: #111827;
-          list-style: none;
-        }
-        .filter-block summary::-webkit-details-marker {
-          display: none;
-        }
-        .filter-body {
-          margin-top: 8px;
-        }
-        .text-input,
-        .select {
-          width: 100%;
-          border: 1px solid #e5e7eb;
-          border-radius: 12px;
-          padding: 10px 12px;
-          font-size: 13px;
-          outline: none;
-          background: #fff;
-        }
-        .price-row {
-          display: grid;
-          grid-template-columns: 1fr 1fr;
-          gap: 10px;
-        }
-
-        /* Color swatch picker */
-        .color-grid {
-          display: grid;
-          grid-template-columns: repeat(4, 1fr);
-          gap: 6px;
-        }
-        .color-swatch {
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          gap: 3px;
-          padding: 4px 2px;
-          border: 2px solid transparent;
-          border-radius: 8px;
-          background: none;
-          cursor: pointer;
-          transition: border-color 0.15s;
-        }
-        .color-swatch:hover {
-          border-color: #d1d5db;
-        }
-        .color-swatch--active {
-          border-color: #111827;
-        }
-        .color-dot {
-          width: 22px;
-          height: 22px;
-          border-radius: 50%;
-          border: 1px solid #d1d5db;
-          display: block;
-          flex-shrink: 0;
-        }
-        .color-label {
-          font-size: 9px;
-          color: #374151;
-          font-weight: 500;
-          line-height: 1.1;
-          text-align: center;
-        }
-
-        .results {
-          background: #fff;
-          border: 1px solid #e5e7eb;
-          border-radius: 16px;
-          padding: 14px;
-        }
-        .results-head {
-          display: flex;
-          align-items: baseline;
-          justify-content: space-between;
-          gap: 10px;
-          padding-bottom: 10px;
-          border-bottom: 1px solid #eef2f7;
-          margin-bottom: 12px;
-        }
-        .results-head h2 {
-          margin: 0;
-          font-size: 18px;
-          color: #0f172a;
-        }
-        .results-link {
-          font-size: 13px;
-          text-decoration: none;
-          color: #0f172a;
-          font-weight: 700;
-        }
-
-        .cards {
-          display: grid;
-          grid-template-columns: repeat(3, minmax(0, 1fr));
-          gap: 12px;
-        }
         .empty-state {
-          padding: 18px;
+          padding: 48px 18px;
           border: 1px dashed #e5e7eb;
-          border-radius: 12px;
+          border-radius: 16px;
           text-align: center;
+          background: #fff;
         }
         .empty-state h3 {
-          margin: 0 0 10px;
-          font-size: 14px;
+          margin: 0 0 6px;
+          font-size: 16px;
           color: #111827;
+        }
+        .empty-hint {
+          margin: 0 0 14px;
+          font-size: 13px;
+          color: #6b7280;
         }
         .resetBtn {
           border: 1px solid #cbd5e1;
@@ -961,101 +625,14 @@ const HomePage: NextPage<HomeProps> = ({
           }
         }
 
-        /* Mobile category tabs - hidden on desktop */
-        .mobile-cats {
-          display: none;
-        }
-
         @media (max-width: 980px) {
-          .hero {
-            grid-template-columns: 1fr;
-          }
-          .showcase-grid {
+          .cards {
             grid-template-columns: repeat(3, minmax(0, 1fr));
           }
-          .layout {
-            grid-template-columns: 1fr;
-          }
-          .filters {
-            position: relative;
-            top: auto;
-          }
-          .cards {
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-          }
         }
-        @media (max-width: 768px) {
-          .mobile-cats {
-            display: block;
-            margin-bottom: 16px;
-          }
-          .mobile-search-bar {
-            margin-bottom: 12px;
-          }
-          .mobile-search-input {
-            width: 100%;
-            border: 1px solid #d1d5db;
-            border-radius: 999px;
-            padding: 10px 16px;
-            font-size: 14px;
-            outline: none;
-            background: #fff;
-          }
-          .mobile-search-input:focus {
-            border-color: #111827;
-          }
-          .mobile-tabs {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 10px;
-          }
-          .mobile-tab {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 6px;
-            padding: 0;
-            border: 2px solid #e5e7eb;
-            border-radius: 12px;
-            background: #fff;
-            cursor: pointer;
-            overflow: hidden;
-            transition: border-color 0.15s;
-          }
-          .mobile-tab--active {
-            border-color: #111827;
-          }
-          .mobile-tab-img {
-            width: 100%;
-            height: 80px;
-            background-size: cover;
-            background-position: center;
-            background-color: #f3f4f6;
-          }
-          .mobile-tab span {
-            padding: 6px 0 8px;
-            font-size: 13px;
-            font-weight: 600;
-            color: #111827;
-            text-transform: uppercase;
-            letter-spacing: 0.06em;
-          }
-          /* Hide the full filter sidebar on mobile */
-          .filters {
-            display: none;
-          }
-          .cards {
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-            gap: 10px;
-          }
-        }
-        @media (max-width: 560px) {
+        @media (max-width: 640px) {
           h1 {
             font-size: 34px;
-          }
-          .showcase-grid {
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-            gap: 10px;
           }
           .cards {
             grid-template-columns: repeat(2, minmax(0, 1fr));
