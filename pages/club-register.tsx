@@ -19,6 +19,7 @@ export default function RegisterPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
+  const [phone, setPhone] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -52,6 +53,7 @@ export default function RegisterPage() {
         body: JSON.stringify({
           name: name,
           email: user.email,
+          phone: phone.trim(),
         }),
       });
 
@@ -115,6 +117,17 @@ export default function RegisterPage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="auth-input" // Use .auth-input class
+              />
+            </div>
+            <div className="auth-field">
+              <label>Mobile number (for 2FA)</label>
+              <input
+                type="tel"
+                autoComplete="tel"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                className="auth-input"
+                placeholder="+1 (555) 000-0000"
               />
             </div>
             <div className="auth-field">

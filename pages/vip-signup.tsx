@@ -13,6 +13,7 @@ export default function VipSignupPage() {
   const router = useRouter();
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -33,6 +34,7 @@ export default function VipSignupPage() {
           uid: cred.user.uid,
           email: cred.user.email,
           fullName,
+          phone: phone.trim(),
         }),
       });
 
@@ -237,6 +239,18 @@ export default function VipSignupPage() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
+                />
+              </div>
+
+              <div className="vip-auth-field">
+                <label className="vip-auth-label">Mobile number (for 2FA)</label>
+                <input
+                  type="tel"
+                  className="vip-auth-input"
+                  placeholder="+1 (555) 000-0000"
+                  autoComplete="tel"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
                 />
               </div>
 

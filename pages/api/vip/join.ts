@@ -7,6 +7,7 @@ type VipMember = {
   uid: string;
   email: string | null;
   fullName: string | null;
+  phone?: string;
   joinedAt: Date;
   points: number;
   tier: "Member" | "Silver" | "Gold" | "Platinum";
@@ -28,7 +29,7 @@ export default async function handler(
   }
 
   try {
-    const { uid, email, fullName } = req.body || {};
+    const { uid, email, fullName, phone } = req.body || {};
 
     if (!uid || !email) {
       return res
@@ -48,6 +49,10 @@ export default async function handler(
       tier: "Member",
       lifetimeSpend: 0,
     };
+
+    if (phone !== undefined) {
+      data.phone = phone || "";
+    }
 
     await docRef.set(data, { merge: true });
 
