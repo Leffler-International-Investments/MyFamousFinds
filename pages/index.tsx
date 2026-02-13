@@ -10,6 +10,7 @@ import { collection, query, where, getDocs } from "firebase/firestore";
 import Header from "../components/Header";
 import Footer from "../components/Footer";
 import ProductCard, { ProductLike } from "../components/ProductCard";
+import { getPublicListings } from "../lib/publicListings";
 import { adminDb } from "../utils/firebaseAdmin";
 import { auth, db, firebaseClientReady } from "../utils/firebaseClient";
 
@@ -1067,102 +1068,37 @@ const HomePage: NextPage<HomeProps> = ({
 };
 
 export const getServerSideProps: GetServerSideProps = async () => {
-  // ✅ Prevent runtime 500 if Firebase Admin env vars are missing/misparsed in Vercel
-  if (!adminDb) {
-    return {
-      props: {
-        trending: [],
-        newArrivals: [],
-        activeMessages: [],
-        designerOptions: [],
-      },
-    };
+  // Use getPublicListings (client SDK) — same data source as category pages
+  // which successfully show all items. The Admin SDK may point to different data.
+  let items: any[] = [];
+  try {
+    const listings = await getPublicListings({ take: 500 });
+    items = (listings || []).map((l: any) => {
+      const priceNum = typeof l.price === "number" ? l.price : (typeof l.priceUsd === "number" ? l.priceUsd : 0);
+      return {
+        id: l.id,
+        title: l.title || "Untitled",
+        brand: l.brand || "",
+        price: priceNum ? `US$${priceNum.toLocaleString("en-US")}` : "",
+        priceValue: priceNum || 0,
+        image: l.displayImageUrl || (Array.isArray(l.images) && l.images[0] ? l.images[0] : ""),
+        href: `/product/${l.id}`,
+        category: l.category || "",
+        condition: l.condition || "",
+        material: l.material || "",
+        size: l.size || "",
+        color: l.color || "",
+        createdAt: l.createdAt?.toMillis?.() || (l.createdAt instanceof Date ? l.createdAt.getTime() : 0),
+        viewCount: 0,
+        sellerId: "",
+      };
+    });
+  } catch (err) {
+    console.error("Error fetching listings via getPublicListings:", err);
   }
 
-  const listings = await adminDb.collection("listings").get();
-
-  const pickImage = (d: any): string => {
-    const fromArray = Array.isArray(d.displayImageUrls)
-      ? d.displayImageUrls
-      : Array.isArray(d.images)
-      ? d.images
-      : Array.isArray(d.imageUrls)
-      ? d.imageUrls
-      : Array.isArray(d.photos)
-      ? d.photos
-      : [];
-    if (Array.isArray(fromArray) && fromArray[0]) return String(fromArray[0]);
-
-    return (
-      d.displayImageUrl ||
-      d.display_image_url ||
-      d.image_url ||
-      d.imageUrl ||
-      d.image ||
-      d.coverImage ||
-      d.coverImageUrl ||
-      ""
-    );
-  };
-
-  const items: any[] = [];
-  listings.docs.forEach((doc) => {
-    const data: any = doc.data() || {};
-
-    // Minimal filter: only skip if literally sold
-    const isSold =
-      data.isSold === true ||
-      data.sold === true ||
-      String(data.status || "").toLowerCase().includes("sold");
-    if (isSold) return;
-
-    const priceNum = typeof data.priceUsd === "number"
-      ? data.priceUsd
-      : typeof data.price === "number"
-      ? data.price
-      : Number(data.price || 0);
-
-    items.push({
-      id: doc.id,
-      title: data.title || data.name || "Untitled",
-      brand: data.brand || data.designer || "",
-      price: priceNum ? `US$${priceNum.toLocaleString("en-US")}` : "",
-      priceValue: priceNum || 0,
-      image: pickImage(data),
-      href: `/product/${doc.id}`,
-      category: data.category || data.categoryLabel || data.menuCategory || "",
-      condition: data.condition || "",
-      material: data.material || "",
-      size: data.size || "",
-      color: data.color || "",
-      createdAt: data.createdAt?.toMillis?.() || 0,
-      viewCount: data.viewCount || 0,
-      sellerId: data.sellerId || "",
-    });
-  });
-
-  const newArrivals = items
-    .slice()
-    .sort((a: any, b: any) => (b.createdAt || 0) - (a.createdAt || 0));
-
-  // Performance-based featuring: prioritize top sellers' items
-  let featuredSellerIds: string[] = [];
-  try {
-    const featuredDoc = await adminDb.collection("cms").doc("featuredSellers").get();
-    if (featuredDoc.exists) {
-      featuredSellerIds = (featuredDoc.data() as any).sellerIds || [];
-    }
-  } catch {}
-
-  let trending = items
-    .slice()
-    .sort((a: any, b: any) => {
-      const aFeatured = featuredSellerIds.includes(a.sellerId) ? 1 : 0;
-      const bFeatured = featuredSellerIds.includes(b.sellerId) ? 1 : 0;
-      if (bFeatured !== aFeatured) return bFeatured - aFeatured;
-      return (b.viewCount || 0) - (a.viewCount || 0);
-    })
-  if (!trending.length) trending = newArrivals;
+  const newArrivals = items.slice();
+  const trending = items.slice();
 
   let activeMessages: BuyerMessage[] = [];
   try {

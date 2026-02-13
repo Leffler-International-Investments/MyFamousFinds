@@ -7,7 +7,7 @@ import Header from "../components/Header";
 import Footer from "../components/Footer";
 import ProductCard, { ProductLike } from "../components/ProductCard";
 import type { GetServerSideProps } from "next";
-import { adminDb } from "../utils/firebaseAdmin";
+import { getPublicListings } from "../lib/publicListings";
 
 type CatalogueProps = {
   items: (ProductLike & { category?: string; condition?: string })[];
@@ -114,82 +114,32 @@ export default function PublicCatalogue({ items }: CatalogueProps) {
   );
 }
 
-// DATA QUERY
+// DATA QUERY — uses getPublicListings (same data source as category pages)
 export const getServerSideProps: GetServerSideProps<CatalogueProps> = async () => {
   try {
-    // No orderBy — Firestore excludes docs missing the ordered field
-    const snap = await adminDb
-      .collection("listings")
-      .get();
+    const listings = await getPublicListings({ take: 500 });
 
-    const liveItems: (ProductLike & { category?: string; condition?: string })[] = [];
-
-    snap.docs.forEach((doc) => {
-      const d: any = doc.data() || {};
-
-      // Minimal filter: only skip if literally sold
-      const isSold =
-        d.isSold === true ||
-        d.sold === true ||
-        String(d.status || "").toLowerCase().includes("sold");
-      if (isSold) return;
-
-      const priceNumber =
-        typeof d.priceUsd === "number"
-          ? d.priceUsd
-          : typeof d.price === "number"
-          ? d.price
-          : Number(d.price || 0);
-      const price = priceNumber
-        ? `US$${priceNumber.toLocaleString("en-US")}`
-        : "";
-
-      // Extract image
-      const fromArray = Array.isArray(d.displayImageUrls)
-        ? d.displayImageUrls
-        : Array.isArray(d.images)
-        ? d.images
-        : Array.isArray(d.imageUrls)
-        ? d.imageUrls
-        : Array.isArray(d.photos)
-        ? d.photos
-        : [];
-      const image =
-        (Array.isArray(fromArray) && fromArray[0] ? String(fromArray[0]) : "") ||
-        d.displayImageUrl ||
-        d.display_image_url ||
-        d.image_url ||
-        d.imageUrl ||
-        d.image ||
-        "";
-
-      liveItems.push({
-        id: doc.id,
-        title: d.title || d.name || "Untitled listing",
-        brand: d.brand || d.designer || "",
-        price,
-        image,
-        href: `/product/${doc.id}`,
-        category: d.category || d.categoryLabel || d.menuCategory || "",
-        condition: d.condition || "",
-        _createdAt: d.createdAt?.toMillis?.() || (d.createdAt instanceof Date ? d.createdAt.getTime() : 0),
-      } as any);
+    const items: (ProductLike & { category?: string; condition?: string })[] = (listings || []).map((l: any) => {
+      const priceNum = typeof l.price === "number" ? l.price : (typeof l.priceUsd === "number" ? l.priceUsd : 0);
+      return {
+        id: l.id,
+        title: l.title || "Untitled listing",
+        brand: l.brand || "",
+        price: priceNum ? `US$${priceNum.toLocaleString("en-US")}` : "",
+        image: l.displayImageUrl || (Array.isArray(l.images) && l.images[0] ? l.images[0] : ""),
+        href: `/product/${l.id}`,
+        category: l.category || "",
+        condition: l.condition || "",
+      };
     });
 
-    // Sort newest first in JS (Firestore orderBy would exclude docs without createdAt)
-    liveItems.sort((a: any, b: any) => (b._createdAt || 0) - (a._createdAt || 0));
-
     return {
-      props: {
-        items: liveItems,
-      },
+      props: { items },
     };
   } catch (err) {
     console.error("Error loading catalogue listings", err);
     return {
-      props: {
-        items: [],
-      },
+      props: { items: [] },
     };
   }
 };
