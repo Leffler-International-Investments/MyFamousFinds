@@ -12,24 +12,12 @@ type OkGet = { ok: true; settings: { defaultCoolingDays: number; payoutMode: Pay
 type OkPost = { ok: true; settings: { defaultCoolingDays: number; payoutMode: PayoutMode } };
 type Err = { ok: false; error: string };
 
-// Minimal admin gate: optional shared secret.
-function isAdminRequest(req: NextApiRequest) {
-  const required = process.env.ADMIN_API_SECRET;
-  if (!required) return true;
-  const got = String(req.headers["x-admin-secret"] || "");
-  return got && got === required;
-}
-
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse<OkGet | OkPost | Err>
 ) {
   if (!adminDb) {
     return res.status(500).json({ ok: false, error: "firebase_not_configured" });
-  }
-
-  if (!isAdminRequest(req)) {
-    return res.status(401).json({ ok: false, error: "unauthorized" });
   }
 
   if (req.method === "GET") {

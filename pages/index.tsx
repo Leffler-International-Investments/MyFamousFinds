@@ -364,12 +364,12 @@ const HomePage: NextPage<HomeProps> = ({
           </div>
           <div className="mobile-tabs">
             {[
-              { label: "Women", slug: "women", img: "/images/cat-women.jpg" },
-              { label: "Bags", slug: "bags", img: "/images/cat-bags.jpg" },
-              { label: "Men", slug: "men", img: "/images/cat-men.jpg" },
-              { label: "Kids", slug: "kids", img: "/images/cat-kids.jpg" },
-              { label: "Jewelry", slug: "jewelry", img: "/images/cat-jewelry.jpg" },
-              { label: "Watches", slug: "watches", img: "/images/cat-watches.jpg" },
+              { label: "Women", slug: "women", icon: "\uD83D\uDC57", gradient: "linear-gradient(135deg,#fce4ec,#f8bbd0)" },
+              { label: "Bags", slug: "bags", icon: "\uD83D\uDC5C", gradient: "linear-gradient(135deg,#fff3e0,#ffe0b2)" },
+              { label: "Men", slug: "men", icon: "\uD83D\uDC54", gradient: "linear-gradient(135deg,#e3f2fd,#bbdefb)" },
+              { label: "Kids", slug: "kids", icon: "\u2B50", gradient: "linear-gradient(135deg,#f3e5f5,#e1bee7)" },
+              { label: "Jewelry", slug: "jewelry", icon: "\uD83D\uDC8E", gradient: "linear-gradient(135deg,#fff8e1,#ffecb3)" },
+              { label: "Watches", slug: "watches", icon: "\u231A", gradient: "linear-gradient(135deg,#efebe9,#d7ccc8)" },
             ].map((tab) => (
               <button
                 key={tab.slug}
@@ -377,7 +377,7 @@ const HomePage: NextPage<HomeProps> = ({
                 className={`mobile-tab${normalize(category) === normalize(tab.label) ? " mobile-tab--active" : ""}`}
                 onClick={() => setCategory(normalize(category) === normalize(tab.label) ? "" : tab.label)}
               >
-                <div className="mobile-tab-img" style={{ backgroundImage: `url(${tab.img})` }} />
+                <div className="mobile-tab-img" style={{ background: tab.gradient, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "28px" }}>{tab.icon}</div>
                 <span>{tab.label}</span>
               </button>
             ))}
