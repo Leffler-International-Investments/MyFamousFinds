@@ -56,27 +56,24 @@ function normCategory(v: any): CanonCategory | "" {
   return "";
 }
 
-function isLiveStatus(v: any): boolean {
+// Only exclude explicitly sold/removed items — show everything else
+function isExcludedStatus(v: any): boolean {
   const s = String(v || "").trim().toLowerCase();
-  if (!s) return true;
   return (
-    s === "live" ||
-    s === "published" ||
-    s === "active" ||
-    s === "approved" ||
-    s === "pending"
+    s === "sold" ||
+    s === "inactive_sold" ||
+    s === "removed" ||
+    s === "deleted" ||
+    s === "rejected" ||
+    s === "archived" ||
+    s === "blocked"
   );
-}
-
-function isSoldStatus(v: any): boolean {
-  const s = String(v || "").trim().toLowerCase();
-  return s === "sold" || s === "inactive_sold";
 }
 
 function isSoldFlag(x: any): boolean {
   if (x?.isSold === true) return true;
   if (x?.sold === true) return true;
-  if (x?.status && isSoldStatus(x.status)) return true;
+  if (x?.status && isExcludedStatus(x.status)) return true;
   return false;
 }
 
@@ -335,7 +332,7 @@ export async function getPublicListings(opts?: {
   snap.forEach((doc) => {
     const d: any = doc.data() || {};
 
-    if (!isLiveStatus(d?.status)) return;
+    if (isExcludedStatus(d?.status)) return;
     if (isSoldFlag(d)) return;
 
     const categoryRaw = extractCategory(d);

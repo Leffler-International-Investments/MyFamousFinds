@@ -910,22 +910,19 @@ export const getServerSideProps: GetServerSideProps<DesignersPageProps> =
       snapshot.docs.forEach((doc) => {
         const d: any = doc.data() || {};
 
+        // Only exclude explicitly sold/removed items — show everything else
         const status = String(d.status || "").trim().toLowerCase();
-        const isLive =
-          !status ||
-          status === "live" ||
-          status === "active" ||
-          status === "approved" ||
-          status === "published" ||
-          status === "pending";
-        if (!isLive) return;
-
-        const isSold =
+        const isSoldOrRemoved =
           d.isSold === true ||
           d.sold === true ||
           status === "sold" ||
-          status === "inactive_sold";
-        if (isSold) return;
+          status === "inactive_sold" ||
+          status === "removed" ||
+          status === "deleted" ||
+          status === "rejected" ||
+          status === "archived" ||
+          status === "blocked";
+        if (isSoldOrRemoved) return;
 
         const brandRaw =
           d.brand || d.designer || d.designerName || d.brandName || "";

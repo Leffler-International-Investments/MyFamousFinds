@@ -171,13 +171,28 @@ export const getServerSideProps: GetServerSideProps<Props> = async (
 
   const snapshot = await adminDb
     .collection("listings")
-    .where("status", "==", "Live")
+    .limit(500)
     .get();
 
-  let items: ProductLike[] = snapshot.docs.map((doc) => {
+  let items: ProductLike[] = [];
+  snapshot.docs.forEach((doc) => {
     const data = doc.data() as any;
 
-    return {
+    // Only exclude explicitly sold/removed items — show everything else
+    const status = String(data.status || "").trim().toLowerCase();
+    const isSoldOrRemoved =
+      data.isSold === true ||
+      data.sold === true ||
+      status === "sold" ||
+      status === "inactive_sold" ||
+      status === "removed" ||
+      status === "deleted" ||
+      status === "rejected" ||
+      status === "archived" ||
+      status === "blocked";
+    if (isSoldOrRemoved) return;
+
+    items.push({
       id: doc.id,
       title: data.title || "",
       brand: data.brand || "",
@@ -188,7 +203,7 @@ export const getServerSideProps: GetServerSideProps<Props> = async (
       condition: data.condition || "",
       badge: data.condition || "",
       tags: data.tags || [],
-    };
+    });
   });
 
   if (designer) {
