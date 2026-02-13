@@ -1087,6 +1087,7 @@ export const getServerSideProps: GetServerSideProps = async () => {
       color: data.color || "",
       createdAt: data.createdAt?.toMillis?.() || 0,
       viewCount: data.viewCount || 0,
+      sellerId: data.sellerId || "",
     });
   });
 
@@ -1095,9 +1096,23 @@ export const getServerSideProps: GetServerSideProps = async () => {
     .sort((a: any, b: any) => (b.createdAt || 0) - (a.createdAt || 0))
     .slice(0, 8);
 
+  // Performance-based featuring: prioritize top sellers' items
+  let featuredSellerIds: string[] = [];
+  try {
+    const featuredDoc = await adminDb.collection("cms").doc("featuredSellers").get();
+    if (featuredDoc.exists) {
+      featuredSellerIds = (featuredDoc.data() as any).sellerIds || [];
+    }
+  } catch {}
+
   let trending = items
     .slice()
-    .sort((a: any, b: any) => (b.viewCount || 0) - (a.viewCount || 0))
+    .sort((a: any, b: any) => {
+      const aFeatured = featuredSellerIds.includes(a.sellerId) ? 1 : 0;
+      const bFeatured = featuredSellerIds.includes(b.sellerId) ? 1 : 0;
+      if (bFeatured !== aFeatured) return bFeatured - aFeatured;
+      return (b.viewCount || 0) - (a.viewCount || 0);
+    })
     .slice(0, 8);
 
   if (!trending.length) trending = newArrivals;

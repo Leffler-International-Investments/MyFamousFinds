@@ -35,12 +35,15 @@ export default function Header() {
         </div>
 
         <div className="ff-header-right">
-          <Link href="/buyer/signin" className="admin-button customer-signin">
-            <span>Customer Sign in</span>
-          </Link>
-          <Link href="/seller/login" className="admin-button seller">
-            <span>Seller Admin - Sign In</span>
-          </Link>
+          {vipUser ? (
+            <Link href="/account" className="admin-button customer-signin">
+              <span>My Account</span>
+            </Link>
+          ) : (
+            <Link href="/login" className="admin-button customer-signin">
+              <span>Sign In</span>
+            </Link>
+          )}
         </div>
       </div>
 
@@ -57,7 +60,7 @@ export default function Header() {
               className="ff-search-input"
             />
           </form>
-          <Link href="/my-orders" className="ff-cart-icon" aria-label="Shopping cart">
+          <Link href="/cart" className="ff-cart-icon" aria-label="Shopping cart">
             <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
               <circle cx="9" cy="21" r="1" />
               <circle cx="20" cy="21" r="1" />

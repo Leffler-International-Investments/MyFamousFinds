@@ -27,6 +27,7 @@ type CartItem = {
   price: number;
   currency: string;
   imageUrl: string;
+  reservedUntil?: number;
 };
 
 type SavedItem = {
@@ -39,6 +40,15 @@ type SavedItem = {
   imageUrl: string;
 };
 
+// Format remaining time for countdown timer
+function formatCountdown(ms: number): string {
+  if (ms <= 0) return "Expired";
+  const totalSeconds = Math.floor(ms / 1000);
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${minutes}:${seconds.toString().padStart(2, "0")}`;
+}
+
 export default function Cart() {
   const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
@@ -46,6 +56,31 @@ export default function Cart() {
   const [savedItems, setSavedItems] = useState<SavedItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionId, setActionId] = useState<string | null>(null);
+  const [now, setNow] = useState(Date.now());
+
+  // Countdown timer — tick every second
+  useEffect(() => {
+    const hasReservations = items.some((i) => i.reservedUntil && i.reservedUntil > Date.now());
+    if (!hasReservations) return;
+
+    const interval = setInterval(() => {
+      const current = Date.now();
+      setNow(current);
+
+      // Auto-release expired items to saved
+      const expired = items.filter(
+        (i) => i.reservedUntil && i.reservedUntil <= current
+      );
+      if (expired.length > 0) {
+        for (const item of expired) {
+          handleSaveForLater(item);
+        }
+      }
+    }, 1000);
+
+    return () => clearInterval(interval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [items]);
 
   useEffect(() => {
     if (!firebaseClientReady || !auth || !db) {
@@ -67,26 +102,55 @@ export default function Cart() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const reserveItem = async (listingId: string): Promise<number | undefined> => {
+    if (!auth?.currentUser) return undefined;
+    try {
+      const token = await auth.currentUser.getIdToken();
+      const res = await fetch("/api/cart/reserve", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ listingId }),
+      });
+      const json = await res.json();
+      if (json.ok && json.reservedUntil) {
+        return json.reservedUntil;
+      }
+    } catch {}
+    return undefined;
+  };
+
   const loadCart = async (uid: string) => {
     if (!db) return;
 
     const cartSnap = await getDocs(
       query(collection(db, "buyerCartItems"), where("userId", "==", uid))
     );
-    setItems(
-      cartSnap.docs.map((d) => {
-        const data: any = d.data() || {};
-        return {
-          id: d.id,
-          listingId: data.listingId || "",
-          title: data.title || "",
-          brand: data.brand || "",
-          price: Number(data.price || 0),
-          currency: data.currency || "USD",
-          imageUrl: data.imageUrl || "",
-        };
+    const cartItems = cartSnap.docs.map((d) => {
+      const data: any = d.data() || {};
+      return {
+        id: d.id,
+        listingId: data.listingId || "",
+        title: data.title || "",
+        brand: data.brand || "",
+        price: Number(data.price || 0),
+        currency: data.currency || "USD",
+        imageUrl: data.imageUrl || "",
+        reservedUntil: data.reservedUntil || undefined,
+      };
+    });
+
+    // Reserve items with 15-minute timers
+    const withReservations = await Promise.all(
+      cartItems.map(async (item) => {
+        const reservedUntil = await reserveItem(item.listingId);
+        return { ...item, reservedUntil };
       })
     );
+
+    setItems(withReservations);
 
     const savedSnap = await getDocs(
       query(collection(db, "buyerSavedItems"), where("userId", "==", uid))
@@ -223,44 +287,65 @@ export default function Cart() {
           ) : (
             <>
               <div className="cart-items">
-                {items.map((item) => (
-                  <div key={item.id} className="cart-item">
-                    {item.imageUrl && (
-                      <img
-                        src={item.imageUrl}
-                        alt={item.title}
-                        className="cart-item-img"
-                      />
-                    )}
-                    <div className="cart-item-info">
-                      <span className="cart-item-title">{item.title}</span>
-                      {item.brand && (
-                        <span className="cart-item-brand">{item.brand}</span>
+                {items.map((item) => {
+                  const remaining = item.reservedUntil
+                    ? item.reservedUntil - now
+                    : 0;
+                  const isExpiring = remaining > 0 && remaining < 3 * 60 * 1000;
+
+                  return (
+                    <div key={item.id} className="cart-item">
+                      {item.reservedUntil && remaining > 0 && (
+                        <div
+                          className={`cart-timer${
+                            isExpiring ? " cart-timer--urgent" : ""
+                          }`}
+                        >
+                          Reserved for {formatCountdown(remaining)}
+                        </div>
                       )}
+                      {item.reservedUntil && remaining <= 0 && (
+                        <div className="cart-timer cart-timer--expired">
+                          Reservation expired — moving to saved items
+                        </div>
+                      )}
+                      {item.imageUrl && (
+                        <img
+                          src={item.imageUrl}
+                          alt={item.title}
+                          className="cart-item-img"
+                        />
+                      )}
+                      <div className="cart-item-info">
+                        <span className="cart-item-title">{item.title}</span>
+                        {item.brand && (
+                          <span className="cart-item-brand">{item.brand}</span>
+                        )}
+                      </div>
+                      <div className="cart-item-actions">
+                        <span className="cart-item-price">
+                          {formatPrice(item.price, item.currency)}
+                        </span>
+                        <button
+                          type="button"
+                          className="btn-save-later"
+                          onClick={() => handleSaveForLater(item)}
+                          disabled={actionId === item.id}
+                        >
+                          {actionId === item.id ? "..." : "Save for later"}
+                        </button>
+                        <button
+                          type="button"
+                          className="btn-remove"
+                          onClick={() => handleRemoveFromCart(item)}
+                          disabled={actionId === item.id}
+                        >
+                          {actionId === item.id ? "..." : "Remove"}
+                        </button>
+                      </div>
                     </div>
-                    <div className="cart-item-actions">
-                      <span className="cart-item-price">
-                        {formatPrice(item.price, item.currency)}
-                      </span>
-                      <button
-                        type="button"
-                        className="btn-save-later"
-                        onClick={() => handleSaveForLater(item)}
-                        disabled={actionId === item.id}
-                      >
-                        {actionId === item.id ? "..." : "Save for later"}
-                      </button>
-                      <button
-                        type="button"
-                        className="btn-remove"
-                        onClick={() => handleRemoveFromCart(item)}
-                        disabled={actionId === item.id}
-                      >
-                        {actionId === item.id ? "..." : "Remove"}
-                      </button>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
 
               <div className="cart-summary">
@@ -546,6 +631,31 @@ export default function Cart() {
           border: none;
           cursor: default;
           white-space: nowrap;
+        }
+        /* Cart reservation timer */
+        .cart-timer {
+          width: 100%;
+          text-align: center;
+          font-size: 12px;
+          font-weight: 600;
+          padding: 6px 10px;
+          border-radius: 8px;
+          background: #eff6ff;
+          color: #1d4ed8;
+          margin-bottom: 4px;
+        }
+        .cart-timer--urgent {
+          background: #fef3c7;
+          color: #92400e;
+          animation: timerPulse 1s ease-in-out infinite;
+        }
+        .cart-timer--expired {
+          background: #fef2f2;
+          color: #b91c1c;
+        }
+        @keyframes timerPulse {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.7; }
         }
       `}</style>
     </>

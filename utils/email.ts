@@ -414,6 +414,79 @@ export async function sendSellerItemSoldEmail(params: {
   await sendMail(to, subject, text, html);
 }
 
+/**
+ * Dynamic pricing suggestion — notify seller of 7-day no-view listing
+ */
+export async function sendPricingSuggestionEmail(params: {
+  to: string;
+  sellerName: string;
+  itemTitle: string;
+  currentPrice: number;
+  suggestedPrice5: number;
+  suggestedPrice10: number;
+}) {
+  const to = (params.to || "").trim();
+  if (!to) throw new Error("sendPricingSuggestionEmail missing required field: to");
+
+  const name = params.sellerName || "Seller";
+  const subject = `MyFamousFinds — Pricing Suggestion for "${params.itemTitle}"`;
+  const text =
+    `Hello ${name},\n\n` +
+    `Your listing "${params.itemTitle}" has been live for over 7 days without views.\n\n` +
+    `Current price: US$${params.currentPrice.toLocaleString()}\n` +
+    `Suggested (5% off): US$${params.suggestedPrice5.toLocaleString()}\n` +
+    `Suggested (10% off): US$${params.suggestedPrice10.toLocaleString()}\n\n` +
+    `Market-competitive pricing helps items sell faster.\n\n` +
+    `Regards,\nThe MyFamousFinds Team`;
+
+  const html =
+    `<p>Hello ${escapeHtml(name)},</p>` +
+    `<p>Your listing <b>"${escapeHtml(params.itemTitle)}"</b> has been live for over 7 days without views.</p>` +
+    `<div style="padding:14px;background:#fef3c7;border-radius:8px;margin:12px 0;">` +
+    `<p style="margin:4px 0;"><b>Current price:</b> US$${params.currentPrice.toLocaleString()}</p>` +
+    `<p style="margin:4px 0;"><b>Suggested (5% off):</b> US$${params.suggestedPrice5.toLocaleString()}</p>` +
+    `<p style="margin:4px 0;"><b>Suggested (10% off):</b> US$${params.suggestedPrice10.toLocaleString()}</p>` +
+    `</div>` +
+    `<p>Market-competitive pricing helps items sell faster.</p>` +
+    `<p>Regards,<br/>The MyFamousFinds Team</p>`;
+
+  await sendMail(to, subject, text, html);
+}
+
+/**
+ * Re-engagement campaign — invite previous buyers to consign
+ */
+export async function sendReengagementEmail(params: {
+  to: string;
+  buyerName: string;
+  itemDescription: string;
+}) {
+  const to = (params.to || "").trim();
+  if (!to) throw new Error("sendReengagementEmail missing required field: to");
+
+  const name = params.buyerName || "there";
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://www.myfamousfinds.com";
+
+  const subject = `Ready to consign that ${params.itemDescription}?`;
+  const text =
+    `Hello ${name},\n\n` +
+    `It's been a while since you purchased "${params.itemDescription}" on Famous Finds.\n\n` +
+    `Ready to consign it? Pre-loved luxury is in demand.\n\n` +
+    `Start here: ${siteUrl}/become-seller\n\n` +
+    `Regards,\nThe Famous Finds Team`;
+
+  const html =
+    `<p>Hello ${escapeHtml(name)},</p>` +
+    `<p>It's been a while since you purchased <b>"${escapeHtml(params.itemDescription)}"</b>.</p>` +
+    `<p>Ready to consign it? Pre-loved luxury is in demand.</p>` +
+    `<p><a href="${siteUrl}/become-seller" ` +
+    `style="display:inline-block;padding:10px 24px;background:#111827;color:#fff;` +
+    `border-radius:999px;text-decoration:none;font-weight:600;">Start Consigning</a></p>` +
+    `<p>Regards,<br/>The Famous Finds Team</p>`;
+
+  await sendMail(to, subject, text, html);
+}
+
 export async function sendTestEmail(to: string) {
   const subject = "MyFamousFinds SMTP Test";
   const text =
