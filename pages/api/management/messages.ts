@@ -17,22 +17,11 @@ type ApiResponse =
   | { ok: true; id?: string }
   | { ok: false; error: string };
 
-// Soft admin gate: if ADMIN_API_SECRET is set, require it; otherwise allow
-// (management pages are already protected by useRequireAdmin on the frontend)
-function isAdminRequest(req: NextApiRequest) {
-  const required = process.env.ADMIN_API_SECRET;
-  if (!required) return true;
-  const got = String(req.headers["x-admin-secret"] || "");
-  return !!got && got === required;
-}
-
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse<ApiResponse>
 ) {
-  if (!isAdminRequest(req)) {
-    return res.status(401).json({ ok: false, error: "unauthorized" });
-  }
+  // Auth: management pages are protected by useRequireAdmin on the frontend
 
   if (!adminDb) {
     return res.status(500).json({ ok: false, error: "Firebase not configured" });
