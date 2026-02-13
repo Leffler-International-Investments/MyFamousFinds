@@ -1,7 +1,7 @@
 // FILE: /pages/api/admin/delete/[id].ts
 import type { NextApiRequest, NextApiResponse } from "next";
-import { adminDb } from "../../../../utils/firebaseAdmin";
 import { requireAdmin } from "../../../../utils/adminAuth";
+import { markListingDeleted } from "../../../../lib/deletedListings";
 
 type ApiResponse = { ok: true } | { ok: false; error: string };
 
@@ -9,10 +9,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
   if (req.method !== "POST" && req.method !== "DELETE") {
     res.setHeader("Allow", ["POST", "DELETE"]);
     return res.status(405).json({ ok: false, error: "Method not allowed" });
-  }
-
-  if (!adminDb) {
-    return res.status(500).json({ ok: false, error: "Firebase not configured" });
   }
 
   if (!requireAdmin(req, res)) {
@@ -25,10 +21,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
   }
 
   try {
-    await adminDb.collection("listings").doc(id).delete();
+    await markListingDeleted(id);
     return res.status(200).json({ ok: true });
   } catch (err: any) {
-    console.error("Error deleting listing", err);
+    console.error("Error marking listing as deleted:", err);
     return res.status(500).json({ ok: false, error: err?.message || "Internal error" });
   }
 }

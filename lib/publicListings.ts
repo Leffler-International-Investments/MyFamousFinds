@@ -316,10 +316,20 @@ export async function getPublicListings(opts?: {
 
   const items: PublicListing[] = [];
 
+  // Fetch soft-deleted IDs from Admin SDK (server-only, safe dynamic import)
+  let deletedIds: Set<string> = new Set();
+  try {
+    const { getDeletedListingIds } = await import("./deletedListings");
+    deletedIds = await getDeletedListingIds();
+  } catch {
+    // Admin SDK unavailable (e.g. client-side) — skip filtering
+  }
+
   snap.forEach((doc) => {
     const d: any = doc.data() || {};
 
     if (isSoldFlag(d)) return;
+    if (deletedIds.has(doc.id)) return;
 
     const categoryRaw = extractCategory(d);
     const images = extractImages(d);
