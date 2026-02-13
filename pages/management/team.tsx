@@ -33,7 +33,8 @@ export default function ManagementTeam() {
     setMessage(null);
     setError(null);
 
-    const formData = new FormData(e.currentTarget);
+    const form = e.currentTarget;
+    const formData = new FormData(form);
     const payload = {
       name: formData.get("name") as string,
       email: formData.get("email") as string,
@@ -69,7 +70,7 @@ export default function ManagementTeam() {
         role: payload.role, // Use the role from the form
       };
       setTeamMembers((currentTeam) => [...currentTeam, newUser]);
-      e.currentTarget.reset();
+      form.reset();
     } catch (err: any) { // <-- THIS IS THE FIX (added '{')
       console.error(err);
       setError(err.message);
