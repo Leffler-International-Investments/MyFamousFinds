@@ -127,19 +127,12 @@ export const getServerSideProps: GetServerSideProps<CatalogueProps> = async () =
     snap.docs.forEach((doc) => {
       const d: any = doc.data() || {};
 
-      // Only exclude explicitly sold/removed items — show everything else
-      const status = String(d.status || "").trim().toLowerCase();
-      const isSoldOrRemoved =
+      // Minimal filter: only skip if literally sold
+      const isSold =
         d.isSold === true ||
         d.sold === true ||
-        status === "sold" ||
-        status === "inactive_sold" ||
-        status === "removed" ||
-        status === "deleted" ||
-        status === "rejected" ||
-        status === "archived" ||
-        status === "blocked";
-      if (isSoldOrRemoved) return;
+        String(d.status || "").toLowerCase().includes("sold");
+      if (isSold) return;
 
       const priceNumber =
         typeof d.priceUsd === "number"
