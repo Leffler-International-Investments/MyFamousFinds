@@ -6,18 +6,37 @@ import Footer from "../../components/Footer";
 import { useRequireOwner } from "../../hooks/useRequireOwner";
 import { useEffect, useState } from "react";
 
-// Define a type for our team member for state
+type Permissions = {
+  canManageSellers: boolean;
+  canManageProducts: boolean;
+  canManageFinance: boolean;
+  canManageSupport: boolean;
+};
+
 type TeamMember = {
   id: string;
   name: string;
   email: string;
   phone?: string;
   role: string;
+  permissions?: Permissions;
+  createdAt?: string;
+  isOwnerStub?: boolean;
 };
 
+const ROLE_OPTIONS = [
+  "Admin",
+  "Owner",
+  "In-house Developer",
+  "MD (Managing Director)",
+  "Financial Manager",
+  "Operations",
+  "Support",
+];
+
 const ownerTeam: TeamMember[] = [
-  { id: "1", name: "Ariel Richardson", email: "arichspot@gmail.com", role: "Owner" },
-  { id: "2", name: "Dan Leffler", email: "leffleryd@gmail.com", role: "Owner" },
+  { id: "1", name: "Ariel Richardson", email: "arichspot@gmail.com", role: "Owner", isOwnerStub: true },
+  { id: "2", name: "Dan Leffler", email: "leffleryd@gmail.com", role: "Owner", isOwnerStub: true },
 ];
 
 export default function ManagementTeam() {
@@ -26,6 +45,53 @@ export default function ManagementTeam() {
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>(ownerTeam);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editForm, setEditForm] = useState<{ name: string; phone: string; role: string; permissions: Permissions }>({
+    name: "", phone: "", role: "Admin",
+    permissions: { canManageSellers: false, canManageProducts: false, canManageFinance: false, canManageSupport: false },
+  });
+  const [updating, setUpdating] = useState(false);
+
+  function startEdit(member: TeamMember) {
+    setEditingId(member.id);
+    setEditForm({
+      name: member.name,
+      phone: member.phone || "",
+      role: member.role,
+      permissions: member.permissions || {
+        canManageSellers: false, canManageProducts: false,
+        canManageFinance: false, canManageSupport: false,
+      },
+    });
+  }
+
+  function cancelEdit() {
+    setEditingId(null);
+  }
+
+  async function handleSaveEdit(memberId: string) {
+    setUpdating(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/management/team/update", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: memberId, ...editForm }),
+      });
+      const json = await res.json();
+      if (!json.ok) throw new Error(json.error || "Failed to update.");
+      setTeamMembers((prev) =>
+        prev.map((m) => m.id === memberId ? { ...m, ...editForm } : m)
+      );
+      setEditingId(null);
+      setMessage("Member updated successfully.");
+    } catch (err: any) {
+      console.error(err);
+      setError(err.message);
+    } finally {
+      setUpdating(false);
+    }
+  }
 
   // Fetch team members from Firestore on mount
   useEffect(() => {
@@ -86,7 +152,14 @@ export default function ManagementTeam() {
         name: payload.name,
         email: payload.email,
         phone: payload.phone,
-        role: payload.role, // Use the role from the form
+        role: payload.role,
+        permissions: {
+          canManageSellers: payload.permissions.perm_sellers,
+          canManageProducts: payload.permissions.perm_products,
+          canManageFinance: payload.permissions.perm_finance,
+          canManageSupport: payload.permissions.perm_support,
+        },
+        createdAt: new Date().toISOString(),
       };
       setTeamMembers((currentTeam) => [...currentTeam, newUser]);
       form.reset();
@@ -189,24 +262,150 @@ export default function ManagementTeam() {
           <div className="team-list-wrapper">
             {teamMembers.map((member) => (
               <div key={member.id} className="team-card">
-                <div className="team-card-header">
-                  <h3>{member.name}</h3>
-                  <span
-                    className={
-                      "status-badge " +
-                      (member.role === "Owner"
-                        ? "status-owner"
-                        : "status-admin")
-                    }
-                  >
-                    {member.role}
-                  </span>
-                </div>
-                <p className="team-card-email">{member.email}</p>
-                {member.phone && <p className="team-card-phone">{member.phone}</p>}
-                <button className="btn-remove">
-                  Remove
-                </button>
+                {editingId === member.id ? (
+                  /* --- Edit Mode --- */
+                  <div className="edit-form">
+                    <div className="form-field">
+                      <label>Full Name</label>
+                      <input
+                        type="text"
+                        value={editForm.name}
+                        onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                      />
+                    </div>
+                    <div className="form-field">
+                      <label>Email</label>
+                      <input type="email" value={member.email} disabled />
+                    </div>
+                    <div className="form-field">
+                      <label>Role / Position</label>
+                      <select
+                        value={editForm.role}
+                        onChange={(e) => setEditForm({ ...editForm, role: e.target.value })}
+                      >
+                        {ROLE_OPTIONS.map((r) => (
+                          <option key={r} value={r}>{r}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="form-field">
+                      <label>Mobile Number</label>
+                      <input
+                        type="tel"
+                        value={editForm.phone}
+                        onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
+                      />
+                    </div>
+                    <fieldset className="form-fieldset">
+                      <legend>Permissions</legend>
+                      <div className="form-check-group">
+                        <div className="form-check">
+                          <input
+                            type="checkbox"
+                            checked={editForm.permissions.canManageSellers}
+                            onChange={(e) => setEditForm({
+                              ...editForm,
+                              permissions: { ...editForm.permissions, canManageSellers: e.target.checked },
+                            })}
+                          />
+                          <label>Seller Management</label>
+                        </div>
+                        <div className="form-check">
+                          <input
+                            type="checkbox"
+                            checked={editForm.permissions.canManageProducts}
+                            onChange={(e) => setEditForm({
+                              ...editForm,
+                              permissions: { ...editForm.permissions, canManageProducts: e.target.checked },
+                            })}
+                          />
+                          <label>Product &amp; Content</label>
+                        </div>
+                        <div className="form-check">
+                          <input
+                            type="checkbox"
+                            checked={editForm.permissions.canManageFinance}
+                            onChange={(e) => setEditForm({
+                              ...editForm,
+                              permissions: { ...editForm.permissions, canManageFinance: e.target.checked },
+                            })}
+                          />
+                          <label className="label-danger">Finance &amp; Payouts</label>
+                        </div>
+                        <div className="form-check">
+                          <input
+                            type="checkbox"
+                            checked={editForm.permissions.canManageSupport}
+                            onChange={(e) => setEditForm({
+                              ...editForm,
+                              permissions: { ...editForm.permissions, canManageSupport: e.target.checked },
+                            })}
+                          />
+                          <label>Support Tickets</label>
+                        </div>
+                      </div>
+                    </fieldset>
+                    <div className="edit-actions">
+                      <button
+                        className="btn-save"
+                        disabled={updating}
+                        onClick={() => handleSaveEdit(member.id)}
+                      >
+                        {updating ? "Saving..." : "Save Changes"}
+                      </button>
+                      <button className="btn-cancel" onClick={cancelEdit}>
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  /* --- View Mode --- */
+                  <>
+                    <div className="team-card-header">
+                      <h3>{member.name}</h3>
+                      <span
+                        className={
+                          "status-badge " +
+                          (member.role === "Owner" ? "status-owner" : "status-admin")
+                        }
+                      >
+                        {member.role}
+                      </span>
+                    </div>
+                    <p className="team-card-email">{member.email}</p>
+                    {member.phone && <p className="team-card-phone">{member.phone}</p>}
+                    {member.permissions && (
+                      <div className="team-card-permissions">
+                        <p className="permissions-label">Permissions</p>
+                        <div className="permissions-tags">
+                          {member.permissions.canManageSellers && <span className="perm-tag">Sellers</span>}
+                          {member.permissions.canManageProducts && <span className="perm-tag">Products</span>}
+                          {member.permissions.canManageFinance && <span className="perm-tag perm-finance">Finance</span>}
+                          {member.permissions.canManageSupport && <span className="perm-tag">Support</span>}
+                          {!member.permissions.canManageSellers && !member.permissions.canManageProducts &&
+                           !member.permissions.canManageFinance && !member.permissions.canManageSupport && (
+                            <span className="perm-tag perm-none">None</span>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                    {member.createdAt && (
+                      <p className="team-card-date">
+                        Added {new Date(member.createdAt).toLocaleDateString()}
+                      </p>
+                    )}
+                    <div className="card-actions">
+                      {!member.isOwnerStub && (
+                        <button className="btn-edit" onClick={() => startEdit(member)}>
+                          Edit
+                        </button>
+                      )}
+                      <button className="btn-remove">
+                        Remove
+                      </button>
+                    </div>
+                  </>
+                )}
               </div>
             ))}
           </div>
@@ -359,13 +558,72 @@ export default function ManagementTeam() {
           margin-bottom: 16px;
         }
         
-        .btn-remove {
-          width: 100%;
+        .team-card-permissions {
+          margin-bottom: 8px;
+        }
+        .permissions-label {
+          font-size: 11px;
+          font-weight: 500;
+          color: #6b7280;
+          text-transform: uppercase;
+          letter-spacing: 0.05em;
+          margin-bottom: 4px;
+        }
+        .permissions-tags {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 4px;
+        }
+        .perm-tag {
+          display: inline-block;
+          font-size: 11px;
+          font-weight: 500;
+          padding: 2px 8px;
+          border-radius: 999px;
+          background: #f0fdf4;
+          color: #166534;
+        }
+        .perm-finance {
+          background: #fef2f2;
+          color: #991b1b;
+        }
+        .perm-none {
+          background: #f3f4f6;
+          color: #6b7280;
+        }
+        .team-card-date {
+          font-size: 12px;
+          color: #9ca3af;
+          margin-bottom: 12px;
+        }
+
+        .card-actions {
+          display: flex;
+          gap: 8px;
+        }
+        .btn-edit {
+          flex: 1;
           text-align: center;
           font-size: 12px;
           font-weight: 500;
-          color: #dc2626; /* red-600 */
-          background: #fee2e2; /* red-100 */
+          color: #1d4ed8;
+          background: #dbeafe;
+          border-radius: 6px;
+          padding: 8px;
+          border: none;
+          cursor: pointer;
+          transition: background-color 150ms;
+        }
+        .btn-edit:hover {
+          background: #bfdbfe;
+        }
+        .btn-remove {
+          flex: 1;
+          text-align: center;
+          font-size: 12px;
+          font-weight: 500;
+          color: #dc2626;
+          background: #fee2e2;
           border-radius: 6px;
           padding: 8px;
           border: none;
@@ -373,7 +631,54 @@ export default function ManagementTeam() {
           transition: background-color 150ms;
         }
         .btn-remove:hover {
-          background: #fecaca; /* red-200 */
+          background: #fecaca;
+        }
+
+        .edit-form {
+          display: flex;
+          flex-direction: column;
+          gap: 12px;
+        }
+        .edit-form input:disabled {
+          background: #f9fafb;
+          color: #9ca3af;
+        }
+        .edit-actions {
+          display: flex;
+          gap: 8px;
+        }
+        .btn-save {
+          flex: 1;
+          text-align: center;
+          font-size: 12px;
+          font-weight: 500;
+          color: #ffffff;
+          background: #111827;
+          border-radius: 6px;
+          padding: 8px;
+          border: none;
+          cursor: pointer;
+        }
+        .btn-save:hover {
+          background: #000;
+        }
+        .btn-save:disabled {
+          opacity: 0.6;
+        }
+        .btn-cancel {
+          flex: 1;
+          text-align: center;
+          font-size: 12px;
+          font-weight: 500;
+          color: #374151;
+          background: #f3f4f6;
+          border-radius: 6px;
+          padding: 8px;
+          border: none;
+          cursor: pointer;
+        }
+        .btn-cancel:hover {
+          background: #e5e7eb;
         }
 
         .status-badge {

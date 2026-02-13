@@ -23,13 +23,23 @@ export default async function handler(
       .orderBy("createdAt", "asc")
       .get();
 
-    const members = snapshot.docs.map((doc) => ({
-      id: doc.id,
-      name: doc.data().name,
-      email: doc.data().email,
-      phone: doc.data().phone || "",
-      role: doc.data().role || "Admin",
-    }));
+    const members = snapshot.docs.map((doc) => {
+      const d = doc.data();
+      return {
+        id: doc.id,
+        name: d.name,
+        email: d.email,
+        phone: d.phone || "",
+        role: d.role || "Admin",
+        permissions: {
+          canManageSellers: d.permissions?.canManageSellers || false,
+          canManageProducts: d.permissions?.canManageProducts || false,
+          canManageFinance: d.permissions?.canManageFinance || false,
+          canManageSupport: d.permissions?.canManageSupport || false,
+        },
+        createdAt: d.createdAt || "",
+      };
+    });
 
     return res.status(200).json({ ok: true, members });
   } catch (err: any) {
