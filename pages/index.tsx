@@ -224,7 +224,7 @@ const HomePage: NextPage<HomeProps> = ({
       seen.add(id);
       uniq.push(p);
     }
-    return uniq.slice(0, 120);
+    return uniq;
   }, [newArrivals, trending]);
 
   const designerOptions = useMemo(() => {
@@ -351,36 +351,17 @@ const HomePage: NextPage<HomeProps> = ({
           </div>
         </section>
 
-        {/* NEW ARRIVALS SHOWCASE */}
-        {newArrivals.length > 0 && (
+        {/* ALL ITEMS — full collection grid */}
+        {poolItems.length > 0 && (
           <section className="showcase">
             <div className="showcase-header">
-              <h2>New Arrivals</h2>
-              <Link className="showcase-link" href="/category/new-arrivals">
-                View All
+              <h2>Shop Our Collection ({poolItems.length} items)</h2>
+              <Link className="showcase-link" href="/catalogue">
+                View Full Catalogue
               </Link>
             </div>
             <div className="showcase-grid">
-              {newArrivals.slice(0, 12).map((p: any) => (
-                <ProductCard
-                  key={p.id}
-                  {...p}
-                  isSaved={savedIds.has(p.id)}
-                  onToggleWishlist={handleToggleWishlist}
-                />
-              ))}
-            </div>
-          </section>
-        )}
-
-        {/* TRENDING NOW SHOWCASE */}
-        {trending.length > 0 && (
-          <section className="showcase">
-            <div className="showcase-header">
-              <h2>Trending Now</h2>
-            </div>
-            <div className="showcase-grid">
-              {trending.slice(0, 8).map((p: any) => (
+              {poolItems.map((p: any) => (
                 <ProductCard
                   key={p.id}
                   {...p}
@@ -1098,7 +1079,7 @@ export const getServerSideProps: GetServerSideProps = async () => {
     };
   }
 
-  const listings = await adminDb.collection("listings").limit(500).get();
+  const listings = await adminDb.collection("listings").get();
 
   const pickImage = (d: any): string => {
     const fromArray = Array.isArray(d.displayImageUrls)
@@ -1128,19 +1109,12 @@ export const getServerSideProps: GetServerSideProps = async () => {
   listings.docs.forEach((doc) => {
     const data: any = doc.data() || {};
 
-    // Only exclude explicitly sold/removed items — show everything else
-    const status = String(data.status || "").trim().toLowerCase();
-    const isSoldOrRemoved =
+    // Minimal filter: only skip if literally sold
+    const isSold =
       data.isSold === true ||
       data.sold === true ||
-      status === "sold" ||
-      status === "inactive_sold" ||
-      status === "removed" ||
-      status === "deleted" ||
-      status === "rejected" ||
-      status === "archived" ||
-      status === "blocked";
-    if (isSoldOrRemoved) return;
+      String(data.status || "").toLowerCase().includes("sold");
+    if (isSold) return;
 
     const priceNum = typeof data.priceUsd === "number"
       ? data.priceUsd
@@ -1169,8 +1143,7 @@ export const getServerSideProps: GetServerSideProps = async () => {
 
   const newArrivals = items
     .slice()
-    .sort((a: any, b: any) => (b.createdAt || 0) - (a.createdAt || 0))
-    .slice(0, 40);
+    .sort((a: any, b: any) => (b.createdAt || 0) - (a.createdAt || 0));
 
   // Performance-based featuring: prioritize top sellers' items
   let featuredSellerIds: string[] = [];
@@ -1189,8 +1162,6 @@ export const getServerSideProps: GetServerSideProps = async () => {
       if (bFeatured !== aFeatured) return bFeatured - aFeatured;
       return (b.viewCount || 0) - (a.viewCount || 0);
     })
-    .slice(0, 20);
-
   if (!trending.length) trending = newArrivals;
 
   let activeMessages: BuyerMessage[] = [];

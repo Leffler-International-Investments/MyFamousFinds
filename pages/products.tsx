@@ -178,19 +178,12 @@ export const getServerSideProps: GetServerSideProps<Props> = async (
   snapshot.docs.forEach((doc) => {
     const data = doc.data() as any;
 
-    // Only exclude explicitly sold/removed items — show everything else
-    const status = String(data.status || "").trim().toLowerCase();
-    const isSoldOrRemoved =
+    // Minimal filter: only skip if literally sold
+    const isSold =
       data.isSold === true ||
       data.sold === true ||
-      status === "sold" ||
-      status === "inactive_sold" ||
-      status === "removed" ||
-      status === "deleted" ||
-      status === "rejected" ||
-      status === "archived" ||
-      status === "blocked";
-    if (isSoldOrRemoved) return;
+      String(data.status || "").toLowerCase().includes("sold");
+    if (isSold) return;
 
     items.push({
       id: doc.id,
