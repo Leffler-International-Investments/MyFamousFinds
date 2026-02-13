@@ -7,6 +7,7 @@ import Header from "../components/Header";
 import Footer from "../components/Footer";
 import ProductCard, { ProductLike } from "../components/ProductCard";
 import { getPublicListings } from "../lib/publicListings";
+import { getDeletedListingIds } from "../lib/deletedListings";
 
 // ---------------- helpers ----------------
 
@@ -169,7 +170,8 @@ export const getServerSideProps: GetServerSideProps<Props> = async (
   const tag =
     typeof rawTag === "string" && rawTag.length > 0 ? rawTag : null;
 
-  const listings = await getPublicListings({ take: 500 });
+  const excludeIds = await getDeletedListingIds();
+  const listings = await getPublicListings({ take: 500, excludeIds });
 
   let items: ProductLike[] = (listings || []).map((l: any) => {
     const priceNum = typeof l.price === "number" ? l.price : (typeof l.priceUsd === "number" ? l.priceUsd : 0);

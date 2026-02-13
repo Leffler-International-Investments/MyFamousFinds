@@ -10,6 +10,7 @@ import Header from "../../components/Header";
 import Footer from "../../components/Footer";
 import { useRequireAdmin } from "../../hooks/useRequireAdmin";
 import { getPublicListings } from "../../lib/publicListings";
+import { getDeletedListingIds } from "../../lib/deletedListings";
 
 type ListingItem = {
   id: string;
@@ -273,7 +274,8 @@ export default function HomepageListings({ items: initialItems }: Props) {
 
 export const getServerSideProps: GetServerSideProps<Props> = async () => {
   try {
-    const listings = await getPublicListings({ take: 500 });
+    const excludeIds = await getDeletedListingIds();
+    const listings = await getPublicListings({ take: 500, excludeIds });
     const items: ListingItem[] = (listings || []).map((l: any) => {
       const priceNum =
         typeof l.price === "number"

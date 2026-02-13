@@ -8,6 +8,7 @@ import Header from "../../components/Header";
 import Footer from "../../components/Footer";
 import ProductCard, { ProductLike } from "../../components/ProductCard";
 import { getPublicListings } from "../../lib/publicListings";
+import { getDeletedListingIds } from "../../lib/deletedListings";
 
 type CategoryProps = {
   slug: string;
@@ -770,9 +771,11 @@ export const getServerSideProps: GetServerSideProps = async (ctx) => {
 
     // For SSR: use tolerant loader so you don't need perfect Firestore category equality
     // ✅ Updated: Using 'take' instead of 'max'
+    const excludeIds = await getDeletedListingIds();
     const listings = await getPublicListings({
       category: wantsCategory ? slug : "",
       take: 500,
+      excludeIds,
     });
 
     const mapped: ProductLike[] = (listings || []).map((l: any) => ({

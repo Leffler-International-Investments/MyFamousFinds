@@ -304,8 +304,10 @@ function looksLikeApparel(x: PublicListing): boolean {
 export async function getPublicListings(opts?: {
   category?: string;
   take?: number;
+  excludeIds?: Set<string>;
 }): Promise<PublicListing[]> {
   const take = Math.min(Math.max(opts?.take ?? 200, 1), 500);
+  const excludeIds = opts?.excludeIds ?? new Set<string>();
 
   const q = query(
     collection(db, "listings"),
@@ -316,20 +318,11 @@ export async function getPublicListings(opts?: {
 
   const items: PublicListing[] = [];
 
-  // Fetch soft-deleted IDs from Admin SDK (server-only, safe dynamic import)
-  let deletedIds: Set<string> = new Set();
-  try {
-    const { getDeletedListingIds } = await import("./deletedListings");
-    deletedIds = await getDeletedListingIds();
-  } catch {
-    // Admin SDK unavailable (e.g. client-side) — skip filtering
-  }
-
   snap.forEach((doc) => {
     const d: any = doc.data() || {};
 
     if (isSoldFlag(d)) return;
-    if (deletedIds.has(doc.id)) return;
+    if (excludeIds.has(doc.id)) return;
 
     const categoryRaw = extractCategory(d);
     const images = extractImages(d);
