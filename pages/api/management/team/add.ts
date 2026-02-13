@@ -3,6 +3,7 @@ import type { NextApiRequest, NextApiResponse } from "next";
 import { getAuth } from "firebase-admin/auth";
 import { adminDb } from "../../../../utils/firebaseAdmin";
 import { requireAdmin } from "../../../../utils/adminAuth";
+import { normalizePhoneE164 } from "../../../../utils/sms";
 
 export default async function handler(
   req: NextApiRequest,
@@ -26,6 +27,7 @@ export default async function handler(
       return res.status(400).json({ ok: false, error: "Missing required fields." });
     }
 
+    const normalizedPhone = normalizePhoneE164(phone);
     const rawPermissions = permissions || {};
 
     const auth = getAuth();
@@ -43,7 +45,7 @@ export default async function handler(
     await adminDb.collection("management_team").doc(userRecord.uid).set({
       name: name,
       email: email,
-      phone: phone,
+      phone: normalizedPhone,
       role: role || "Admin",
       permissions: {
         canManageSellers: rawPermissions.perm_sellers || false,
