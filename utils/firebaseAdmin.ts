@@ -65,8 +65,12 @@ if (!admin.apps.length) {
         "Firebase Admin NOT initialized – missing FIREBASE_SERVICE_ACCOUNT_JSON or FB_PROJECT_ID/FB_CLIENT_EMAIL/FB_PRIVATE_KEY"
       );
     } else {
+      // Use the client SDK's project ID so Admin SDK targets the same Firestore
+      // the homepage reads from (NEXT_PUBLIC_FIREBASE_PROJECT_ID).
+      const clientProjectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
       app = admin.initializeApp({
         credential: admin.credential.cert(sa),
+        ...(clientProjectId ? { projectId: clientProjectId } : {}),
         ...(databaseURL ? { databaseURL } : {}),
       });
     }
