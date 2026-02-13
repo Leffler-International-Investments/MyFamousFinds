@@ -99,18 +99,10 @@ export default function MyOrdersPage() {
                 </tr>
               </thead>
               <tbody>
-                {loading && (
-                  <tr>
-                    <td colSpan={5} className="table-message">
-                      Loading your orders…
-                    </td>
-                  </tr>
-                )}
-
                 {!loading && orders.length === 0 && (
                   <tr>
                     <td colSpan={5} className="table-message">
-                      You haven&apos;t placed any orders yet.
+                      No orders recorded as yet.
                     </td>
                   </tr>
                 )}
