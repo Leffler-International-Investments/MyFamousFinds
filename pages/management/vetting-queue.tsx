@@ -27,7 +27,7 @@ type ManualNotifyInfo = {
 
 type Props = { items: SellerApplication[] };
 
-const BCC_ADDRESSES = "leffleryd@gmail.com,admin@myfamousfinds.com";
+const BCC_ADDRESSES = "admin@myfamousfinds.com";
 
 function buildGmailComposeUrl(info: ManualNotifyInfo): string {
   const to = encodeURIComponent(info.sellerEmail);

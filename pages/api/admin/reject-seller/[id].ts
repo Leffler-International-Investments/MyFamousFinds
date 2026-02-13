@@ -46,7 +46,7 @@ export default async function handler(
     const adminRecipients = String(
       process.env.ADMIN_NOTIFICATION_EMAILS ||
       process.env.ADMIN_EMAIL ||
-      "leffleryd@gmail.com"
+      "admin@myfamousfinds.com"
     )
       .split(",")
       .map((v) => v.trim().toLowerCase())
