@@ -167,6 +167,13 @@ export default function ManagementDashboard({ stats }: Props) {
             linkText="View All"
             linkColor="gray"
           />
+          <DashboardTile
+            title="All Listings on Homepage"
+            description="View and delete any listing currently displayed on the homepage (uses same data source)."
+            href="/management/homepage-listings"
+            linkText="Manage Homepage"
+            linkColor="green"
+          />
         </DashboardSection>
 
         <DashboardSection
