@@ -1,10 +1,12 @@
 // FILE: /components/Footer.tsx
 
 import Link from "next/link";
-import HomepageButler from "./HomepageButler";
+import { useState } from "react";
+import ButlerChat from "./ButlerChat";
 
 export default function Footer() {
   const year = new Date().getFullYear();
+  const [isChatOpen, setIsChatOpen] = useState(false);
 
   return (
     <>
@@ -18,7 +20,7 @@ export default function Footer() {
             </div>
           </div>
 
-          {/* Main nav links (moved from header) */}
+          {/* Main nav links */}
           <nav className="ff-footer-nav">
             <Link href="/my-orders" className="ff-footer-link">
               My Shopping Bag
@@ -36,6 +38,18 @@ export default function Footer() {
               Contact
             </Link>
           </nav>
+
+          {/* AI Butler inline in footer */}
+          <div className="ff-footer-butler">
+            <button
+              className="ff-butler-btn"
+              onClick={() => setIsChatOpen(!isChatOpen)}
+              aria-label="Open AI Butler"
+            >
+              <span className="ff-butler-icon">🤵</span>
+              <span>Ask the AI Butler</span>
+            </button>
+          </div>
 
           {/* Secondary links */}
           <nav className="ff-footer-links">
@@ -106,6 +120,34 @@ export default function Footer() {
             color: #93c5fd;
           }
 
+          .ff-footer-butler {
+            padding: 8px 0;
+          }
+
+          .ff-butler-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 22px;
+            border-radius: 999px;
+            border: 1px solid #334155;
+            background: #1e293b;
+            color: #f9fafb;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.15s, border-color 0.15s;
+          }
+
+          .ff-butler-btn:hover {
+            background: #334155;
+            border-color: #60a5fa;
+          }
+
+          .ff-butler-icon {
+            font-size: 20px;
+          }
+
           .ff-footer-links {
             display: flex;
             justify-content: center;
@@ -134,10 +176,8 @@ export default function Footer() {
         `}</style>
       </footer>
 
-      {/* Keep the floating butler as is */}
-      <div className="butler-floating">
-        <HomepageButler />
-      </div>
+      {/* Butler chat panel */}
+      <ButlerChat isOpen={isChatOpen} onClose={() => setIsChatOpen(false)} />
     </>
   );
 }

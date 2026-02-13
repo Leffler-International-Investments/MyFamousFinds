@@ -9,7 +9,6 @@ import { collection, query, where, getDocs } from "firebase/firestore";
 
 import Header from "../components/Header";
 import Footer from "../components/Footer";
-import HomepageButler from "../components/HomepageButler";
 import ProductCard, { ProductLike } from "../components/ProductCard";
 import { adminDb } from "../utils/firebaseAdmin";
 import { auth, db, firebaseClientReady } from "../utils/firebaseClient";
@@ -270,7 +269,7 @@ const HomePage: NextPage<HomeProps> = ({
       result.sort((a: any, b: any) => parseNum(b.priceValue ?? b.price) - parseNum(a.priceValue ?? a.price));
     if (sortBy === "newest") result.sort((a: any, b: any) => (b.createdAt || 0) - (a.createdAt || 0));
 
-    return result.slice(0, 24);
+    return result.slice(0, 48);
   }, [poolItems, titleQuery, category, designer, condition, material, size, color, minPrice, maxPrice, sortBy]);
 
   const topMessages = useMemo(() => {
@@ -351,6 +350,47 @@ const HomePage: NextPage<HomeProps> = ({
             <h1>Famous Closets, Famous Finds</h1>
           </div>
         </section>
+
+        {/* NEW ARRIVALS SHOWCASE */}
+        {newArrivals.length > 0 && (
+          <section className="showcase">
+            <div className="showcase-header">
+              <h2>New Arrivals</h2>
+              <Link className="showcase-link" href="/category/new-arrivals">
+                View All
+              </Link>
+            </div>
+            <div className="showcase-grid">
+              {newArrivals.slice(0, 12).map((p: any) => (
+                <ProductCard
+                  key={p.id}
+                  {...p}
+                  isSaved={savedIds.has(p.id)}
+                  onToggleWishlist={handleToggleWishlist}
+                />
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* TRENDING NOW SHOWCASE */}
+        {trending.length > 0 && (
+          <section className="showcase">
+            <div className="showcase-header">
+              <h2>Trending Now</h2>
+            </div>
+            <div className="showcase-grid">
+              {trending.slice(0, 8).map((p: any) => (
+                <ProductCard
+                  key={p.id}
+                  {...p}
+                  isSaved={savedIds.has(p.id)}
+                  onToggleWishlist={handleToggleWishlist}
+                />
+              ))}
+            </div>
+          </section>
+        )}
 
         {/* MOBILE CATEGORY TABS */}
         <section className="mobile-cats">
@@ -570,7 +610,6 @@ const HomePage: NextPage<HomeProps> = ({
         </div>
       )}
 
-      <HomepageButler />
       <Footer />
 
       <style jsx>{`
@@ -703,6 +742,41 @@ const HomePage: NextPage<HomeProps> = ({
           line-height: 1.05;
           color: #0f172a;
         }
+        /* Showcase sections (New Arrivals, Trending) */
+        .showcase {
+          background: #fff;
+          border: 1px solid #e5e7eb;
+          border-radius: 16px;
+          padding: 18px;
+          margin-bottom: 24px;
+        }
+        .showcase-header {
+          display: flex;
+          align-items: baseline;
+          justify-content: space-between;
+          gap: 10px;
+          padding-bottom: 12px;
+          border-bottom: 1px solid #eef2f7;
+          margin-bottom: 14px;
+        }
+        .showcase-header h2 {
+          margin: 0;
+          font-size: 20px;
+          color: #0f172a;
+          letter-spacing: -0.01em;
+        }
+        .showcase-link {
+          font-size: 13px;
+          text-decoration: none;
+          color: #0f172a;
+          font-weight: 700;
+        }
+        .showcase-grid {
+          display: grid;
+          grid-template-columns: repeat(4, minmax(0, 1fr));
+          gap: 14px;
+        }
+
         .home-section {
           margin-top: 22px;
         }
@@ -914,6 +988,9 @@ const HomePage: NextPage<HomeProps> = ({
           .hero {
             grid-template-columns: 1fr;
           }
+          .showcase-grid {
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+          }
           .layout {
             grid-template-columns: 1fr;
           }
@@ -993,6 +1070,10 @@ const HomePage: NextPage<HomeProps> = ({
         @media (max-width: 560px) {
           h1 {
             font-size: 34px;
+          }
+          .showcase-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 10px;
           }
           .cards {
             grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1094,7 +1175,7 @@ export const getServerSideProps: GetServerSideProps = async () => {
   const newArrivals = items
     .slice()
     .sort((a: any, b: any) => (b.createdAt || 0) - (a.createdAt || 0))
-    .slice(0, 8);
+    .slice(0, 40);
 
   // Performance-based featuring: prioritize top sellers' items
   let featuredSellerIds: string[] = [];
@@ -1113,7 +1194,7 @@ export const getServerSideProps: GetServerSideProps = async () => {
       if (bFeatured !== aFeatured) return bFeatured - aFeatured;
       return (b.viewCount || 0) - (a.viewCount || 0);
     })
-    .slice(0, 8);
+    .slice(0, 20);
 
   if (!trending.length) trending = newArrivals;
 
