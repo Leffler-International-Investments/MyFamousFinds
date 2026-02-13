@@ -117,9 +117,9 @@ export default function PublicCatalogue({ items }: CatalogueProps) {
 // DATA QUERY
 export const getServerSideProps: GetServerSideProps<CatalogueProps> = async () => {
   try {
+    // No orderBy — Firestore excludes docs missing the ordered field
     const snap = await adminDb
       .collection("listings")
-      .orderBy("createdAt", "desc")
       .get();
 
     const liveItems: (ProductLike & { category?: string; condition?: string })[] = [];
@@ -172,8 +172,12 @@ export const getServerSideProps: GetServerSideProps<CatalogueProps> = async () =
         href: `/product/${doc.id}`,
         category: d.category || d.categoryLabel || d.menuCategory || "",
         condition: d.condition || "",
-      });
+        _createdAt: d.createdAt?.toMillis?.() || (d.createdAt instanceof Date ? d.createdAt.getTime() : 0),
+      } as any);
     });
+
+    // Sort newest first in JS (Firestore orderBy would exclude docs without createdAt)
+    liveItems.sort((a: any, b: any) => (b._createdAt || 0) - (a._createdAt || 0));
 
     return {
       props: {
