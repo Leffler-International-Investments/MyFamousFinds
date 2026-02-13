@@ -33,7 +33,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
     const adminRecipients = String(
       process.env.ADMIN_NOTIFICATION_EMAILS ||
       process.env.ADMIN_EMAIL ||
-      "ita.leff@gmail.com,leffleryd@gmail.com"
+      "leffleryd@gmail.com"
     )
       .split(",")
       .map((v) => v.trim().toLowerCase())
