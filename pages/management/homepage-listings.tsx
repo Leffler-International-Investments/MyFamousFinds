@@ -5,10 +5,12 @@
 import Head from "next/head";
 import Link from "next/link";
 import type { GetServerSideProps } from "next";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { doc, deleteDoc, collection, getDocs } from "firebase/firestore";
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
 import { useRequireAdmin } from "../../hooks/useRequireAdmin";
+import { db } from "../../utils/firebaseClient";
 import { getPublicListings } from "../../lib/publicListings";
 
 type ListingItem = {
@@ -35,19 +37,18 @@ export default function HomepageListings({ items: initialItems }: Props) {
 
   const handleDelete = async (id: string, title: string) => {
     if (!confirm(`Delete "${title}"? This cannot be undone.`)) return;
+    if (!db) {
+      alert("Firebase not initialized. Please refresh the page.");
+      return;
+    }
     setDeleting(id);
     try {
-      const res = await fetch(`/api/admin/delete-public-listing/${id}`, {
-        method: "DELETE",
-      });
-      const data = await res.json();
-      if (data.ok) {
-        setItems((prev) => prev.filter((i) => i.id !== id));
-      } else {
-        alert("Failed to delete: " + (data.error || "Unknown error"));
-      }
-    } catch {
-      alert("Error deleting listing. Please try again.");
+      // Delete directly from the browser using the same Firestore the homepage reads from
+      await deleteDoc(doc(db, "listings", id));
+      setItems((prev) => prev.filter((i) => i.id !== id));
+    } catch (err: any) {
+      console.error("Delete failed:", err);
+      alert("Error deleting listing: " + (err?.message || "Please try again."));
     } finally {
       setDeleting(null);
     }
@@ -56,17 +57,23 @@ export default function HomepageListings({ items: initialItems }: Props) {
   const handleDeleteAll = async () => {
     if (items.length === 0) return;
     if (!confirm(`Delete ALL ${items.length} listings? This cannot be undone.`)) return;
+    if (!db) {
+      alert("Firebase not initialized. Please refresh the page.");
+      return;
+    }
+    setDeleting("all");
+    let deleted = 0;
     for (const item of items) {
       try {
-        await fetch(`/api/admin/delete-public-listing/${item.id}`, {
-          method: "DELETE",
-        });
-      } catch {
-        // continue with next
+        await deleteDoc(doc(db, "listings", item.id));
+        deleted++;
+      } catch (err: any) {
+        console.error(`Failed to delete ${item.id}:`, err);
       }
     }
     setItems([]);
-    alert("All listings have been deleted.");
+    setDeleting(null);
+    alert(`Deleted ${deleted} of ${items.length} listings.`);
   };
 
   const filtered = search.trim()
