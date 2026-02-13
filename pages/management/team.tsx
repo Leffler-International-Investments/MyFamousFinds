@@ -4,12 +4,7 @@ import Link from "next/link";
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
 import { useRequireOwner } from "../../hooks/useRequireOwner";
-import { useState } from "react";
-
-const initialTeam = [
-  { id: "1", name: "Ariel Richardson", email: "arichspot@gmail.com", role: "Owner" },
-  { id: "2", name: "Dan Leffler", email: "leffleryd@gmail.com", role: "Owner" },
-];
+import { useEffect, useState } from "react";
 
 // Define a type for our team member for state
 type TeamMember = {
@@ -20,12 +15,36 @@ type TeamMember = {
   role: string;
 };
 
+const ownerTeam: TeamMember[] = [
+  { id: "1", name: "Ariel Richardson", email: "arichspot@gmail.com", role: "Owner" },
+  { id: "2", name: "Dan Leffler", email: "leffleryd@gmail.com", role: "Owner" },
+];
+
 export default function ManagementTeam() {
   const { loading } = useRequireOwner();
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [teamMembers, setTeamMembers] = useState<TeamMember[]>(initialTeam);
+  const [teamMembers, setTeamMembers] = useState<TeamMember[]>(ownerTeam);
+
+  // Fetch team members from Firestore on mount
+  useEffect(() => {
+    async function fetchTeam() {
+      try {
+        const res = await fetch("/api/management/team/list");
+        const json = await res.json();
+        if (json.ok && json.members) {
+          // Merge owners (always shown) with Firestore members, avoiding duplicates
+          const firestoreEmails = new Set(json.members.map((m: TeamMember) => m.email));
+          const owners = ownerTeam.filter((o) => !firestoreEmails.has(o.email));
+          setTeamMembers([...owners, ...json.members]);
+        }
+      } catch (err) {
+        console.error("Failed to load team members:", err);
+      }
+    }
+    fetchTeam();
+  }, []);
 
   async function handleAddMember(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
