@@ -236,7 +236,10 @@ export default function ManagementTeam() {
 
             <div className="form-field">
               <label htmlFor="phone">Mobile Number (for 2FA)</label>
-              <input type="tel" id="phone" name="phone" placeholder="+14041234567" required />
+              <input type="tel" id="phone" name="phone" placeholder="+61 478 965 828" required />
+              <span className="form-hint">
+                E.164 format: + then country code then number. US: +1404..., AU: +6147...
+              </span>
             </div>
             <fieldset className="form-fieldset">
               <legend>Permissions</legend>
@@ -305,8 +308,12 @@ export default function ManagementTeam() {
                       <input
                         type="tel"
                         value={editForm.phone}
+                        placeholder="+61 478 965 828"
                         onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
                       />
+                      <span className="form-hint">
+                        E.164 format: + then country code then number
+                      </span>
                     </div>
                     <fieldset className="form-fieldset">
                       <legend>Permissions</legend>
@@ -472,6 +479,11 @@ export default function ManagementTeam() {
         }
         .form-field select {
           background: #ffffff;
+        }
+        .form-hint {
+          font-size: 11px;
+          color: #6b7280;
+          margin-top: 2px;
         }
         
         .form-fieldset {

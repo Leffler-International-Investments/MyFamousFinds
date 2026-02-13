@@ -2,6 +2,7 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { adminDb } from "../../../../utils/firebaseAdmin";
 import { requireAdmin } from "../../../../utils/adminAuth";
+import { normalizePhoneE164 } from "../../../../utils/sms";
 
 export default async function handler(
   req: NextApiRequest,
@@ -26,7 +27,7 @@ export default async function handler(
 
     const updateData: Record<string, any> = {};
     if (name !== undefined) updateData.name = name;
-    if (phone !== undefined) updateData.phone = phone;
+    if (phone !== undefined) updateData.phone = normalizePhoneE164(phone);
     if (role !== undefined) updateData.role = role;
     if (permissions !== undefined) {
       updateData.permissions = {
