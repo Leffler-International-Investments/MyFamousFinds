@@ -20,7 +20,7 @@ export default function Footer() {
             </div>
           </div>
 
-          {/* Main nav links */}
+          {/* All links on one scrollable line */}
           <nav className="ff-footer-nav">
             <Link href="/my-orders" className="ff-footer-link">
               My Shopping Bag
@@ -37,6 +37,15 @@ export default function Footer() {
             <Link href="/contact" className="ff-footer-link">
               Contact
             </Link>
+            <Link href="/buying" className="ff-footer-link">
+              Authenticity
+            </Link>
+            <Link href="/privacy" className="ff-footer-link">
+              Privacy
+            </Link>
+            <Link href="/management/login" className="ff-footer-link">
+              Management Admin Login
+            </Link>
           </nav>
 
           {/* AI Butler inline in footer */}
@@ -50,19 +59,6 @@ export default function Footer() {
               <span>Ask the AI Butler</span>
             </button>
           </div>
-
-          {/* Secondary links */}
-          <nav className="ff-footer-links">
-            <Link href="/buying" className="ff-footer-link">
-              Authenticity
-            </Link>
-            <Link href="/privacy" className="ff-footer-link">
-              Privacy
-            </Link>
-            <Link href="/management/login" className="ff-footer-link">
-              Management Admin Login
-            </Link>
-          </nav>
         </div>
 
         <style jsx>{`
@@ -105,23 +101,35 @@ export default function Footer() {
 
           .ff-footer-nav {
             display: flex;
-            justify-content: center;
             align-items: center;
-            flex-wrap: wrap;
-            gap: 10px 28px;
+            gap: 10px 24px;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            max-width: 100%;
+            padding: 4px 0;
+            scrollbar-width: none;
           }
 
-          .ff-footer-nav .ff-footer-link {
+          .ff-footer-nav::-webkit-scrollbar {
+            display: none;
+          }
+
+          .ff-footer-link {
             font-size: 13px;
             color: #f9fafb;
             font-weight: 500;
+            text-decoration: none;
+            white-space: nowrap;
+            flex-shrink: 0;
           }
-          .ff-footer-nav .ff-footer-link:hover {
+
+          .ff-footer-link:hover {
             color: #93c5fd;
+            text-decoration: underline;
           }
 
           .ff-footer-butler {
-            padding: 8px 0;
+            padding: 4px 0;
           }
 
           .ff-butler-btn {
@@ -146,32 +154,6 @@ export default function Footer() {
 
           .ff-butler-icon {
             font-size: 20px;
-          }
-
-          .ff-footer-links {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            flex-wrap: wrap;
-            gap: 10px 48px;
-          }
-
-          .ff-footer-link {
-            font-size: 13px;
-            color: #60a5fa;
-            text-decoration: none;
-          }
-
-          .ff-footer-link:hover {
-            color: #93c5fd;
-            text-decoration: underline;
-          }
-
-          @media (max-width: 480px) {
-            .ff-footer-nav,
-            .ff-footer-links {
-              gap: 8px 20px;
-            }
           }
         `}</style>
       </footer>

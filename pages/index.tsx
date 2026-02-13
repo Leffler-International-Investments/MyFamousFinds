@@ -1098,7 +1098,7 @@ export const getServerSideProps: GetServerSideProps = async () => {
     };
   }
 
-  const listings = await adminDb.collection("listings").limit(200).get();
+  const listings = await adminDb.collection("listings").limit(500).get();
 
   const pickImage = (d: any): string => {
     const fromArray = Array.isArray(d.displayImageUrls)
@@ -1128,24 +1128,19 @@ export const getServerSideProps: GetServerSideProps = async () => {
   listings.docs.forEach((doc) => {
     const data: any = doc.data() || {};
 
-    // Filter by status (case-insensitive, matching publicListings.ts)
+    // Only exclude explicitly sold/removed items — show everything else
     const status = String(data.status || "").trim().toLowerCase();
-    const isLive =
-      !status ||
-      status === "live" ||
-      status === "active" ||
-      status === "approved" ||
-      status === "published" ||
-      status === "pending";
-    if (!isLive) return;
-
-    // Filter out sold items
-    const isSold =
+    const isSoldOrRemoved =
       data.isSold === true ||
       data.sold === true ||
       status === "sold" ||
-      status === "inactive_sold";
-    if (isSold) return;
+      status === "inactive_sold" ||
+      status === "removed" ||
+      status === "deleted" ||
+      status === "rejected" ||
+      status === "archived" ||
+      status === "blocked";
+    if (isSoldOrRemoved) return;
 
     const priceNum = typeof data.priceUsd === "number"
       ? data.priceUsd
