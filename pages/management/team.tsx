@@ -21,7 +21,6 @@ type TeamMember = {
   role: string;
   permissions?: Permissions;
   createdAt?: string;
-  isOwnerStub?: boolean;
 };
 
 const ROLE_OPTIONS = [
@@ -34,17 +33,12 @@ const ROLE_OPTIONS = [
   "Support",
 ];
 
-const ownerTeam: TeamMember[] = [
-  { id: "1", name: "Ariel Richardson", email: "arichspot@gmail.com", role: "Owner", isOwnerStub: true },
-  { id: "2", name: "Dan Leffler", email: "leffleryd@gmail.com", role: "Owner", isOwnerStub: true },
-];
-
 export default function ManagementTeam() {
   const { loading } = useRequireOwner();
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [teamMembers, setTeamMembers] = useState<TeamMember[]>(ownerTeam);
+  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<{ name: string; phone: string; role: string; permissions: Permissions }>({
     name: "", phone: "", role: "Admin",
@@ -93,6 +87,27 @@ export default function ManagementTeam() {
     }
   }
 
+  async function handleRemove(member: TeamMember) {
+    if (!window.confirm(`Remove ${member.name} (${member.email}) from the team? This cannot be undone.`)) {
+      return;
+    }
+    setError(null);
+    try {
+      const res = await fetch("/api/management/team/remove", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: member.id }),
+      });
+      const json = await res.json();
+      if (!json.ok) throw new Error(json.error || "Failed to remove member.");
+      setTeamMembers((prev) => prev.filter((m) => m.id !== member.id));
+      setMessage(`${member.name} has been removed.`);
+    } catch (err: any) {
+      console.error(err);
+      setError(err.message);
+    }
+  }
+
   // Fetch team members from Firestore on mount
   useEffect(() => {
     async function fetchTeam() {
@@ -100,10 +115,7 @@ export default function ManagementTeam() {
         const res = await fetch("/api/management/team/list");
         const json = await res.json();
         if (json.ok && json.members) {
-          // Merge owners (always shown) with Firestore members, avoiding duplicates
-          const firestoreEmails = new Set(json.members.map((m: TeamMember) => m.email));
-          const owners = ownerTeam.filter((o) => !firestoreEmails.has(o.email));
-          setTeamMembers([...owners, ...json.members]);
+          setTeamMembers(json.members);
         }
       } catch (err) {
         console.error("Failed to load team members:", err);
@@ -395,12 +407,10 @@ export default function ManagementTeam() {
                       </p>
                     )}
                     <div className="card-actions">
-                      {!member.isOwnerStub && (
-                        <button className="btn-edit" onClick={() => startEdit(member)}>
-                          Edit
-                        </button>
-                      )}
-                      <button className="btn-remove">
+                      <button className="btn-edit" onClick={() => startEdit(member)}>
+                        Edit
+                      </button>
+                      <button className="btn-remove" onClick={() => handleRemove(member)}>
                         Remove
                       </button>
                     </div>
