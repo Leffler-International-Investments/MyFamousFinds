@@ -6,8 +6,8 @@ import Head from "next/head";
 import Link from "next/link";
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
+import React, { useEffect, useState, useRef } from "react";
 import type { ReactNode } from "react";
-import { useEffect, useState, useRef } from "react";
 import { autoPrefixPhone } from "../../utils/phoneFormat";
 import SellerDashboardTutorial from "../../components/SellerDashboardTutorial";
 import { useRequireSeller } from "../../hooks/useRequireSeller";
@@ -93,6 +93,11 @@ function ConsignmentAgreement({
   const [agreementDate, setAgreementDate] = useState("");
   const [insuranceAmount, setInsuranceAmount] = useState("");
   const [governingLaw, setGoverningLaw] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState<"bank" | "check" | "other">("bank");
+  const [paymentOther, setPaymentOther] = useState("");
+  const [consignorPrintName, setConsignorPrintName] = useState("");
+  const [consigneeSignature, setConsigneeSignature] = useState<string | null>(null);
+  const [consigneePrintName, setConsigneePrintName] = useState("A Rich Wines / MyFamousFinds");
   const [items, setItems] = useState([
     { item: "", brand: "", description: "", condition: "", price: "" },
     { item: "", brand: "", description: "", condition: "", price: "" },
@@ -108,6 +113,26 @@ function ConsignmentAgreement({
       copy[index] = { ...copy[index], [field]: value };
       return copy;
     });
+  }
+
+  function handleSignaturePaste(e: React.ClipboardEvent) {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+    for (let i = 0; i < items.length; i++) {
+      if (items[i].type.startsWith("image/")) {
+        e.preventDefault();
+        const file = items[i].getAsFile();
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+          if (ev.target?.result) {
+            setConsigneeSignature(ev.target.result as string);
+          }
+        };
+        reader.readAsDataURL(file);
+        return;
+      }
+    }
   }
 
   async function handleAccept() {
@@ -347,10 +372,30 @@ function ConsignmentAgreement({
             the 15th date.
           </strong>
         </p>
-        <p>
-          Payment Method: &#9746; Bank Transfer &nbsp; &#9744; Check &nbsp;
-          &#9744; Other: ___________
-        </p>
+        <div className="payment-method-row">
+          <strong>Payment Method:</strong>
+          <label className="payment-option">
+            <input type="radio" name="paymentMethod" checked={paymentMethod === "bank"} onChange={() => setPaymentMethod("bank")} />
+            Bank Transfer
+          </label>
+          <label className="payment-option">
+            <input type="radio" name="paymentMethod" checked={paymentMethod === "check"} onChange={() => setPaymentMethod("check")} />
+            Check
+          </label>
+          <label className="payment-option">
+            <input type="radio" name="paymentMethod" checked={paymentMethod === "other"} onChange={() => setPaymentMethod("other")} />
+            Other:
+            {paymentMethod === "other" && (
+              <input
+                type="text"
+                value={paymentOther}
+                onChange={(e) => setPaymentOther(e.target.value)}
+                placeholder="Specify method"
+                className="inline-field inline-field-short"
+              />
+            )}
+          </label>
+        </div>
 
         <h3>4.3 Pricing and Adjustments</h3>
         <p>
@@ -449,9 +494,13 @@ function ConsignmentAgreement({
             </p>
             <p>
               <strong>Print Name:</strong>{" "}
-              <span className="field-value">
-                {consignorName || "___________________"}
-              </span>
+              <input
+                type="text"
+                value={consignorPrintName}
+                onChange={(e) => setConsignorPrintName(e.target.value)}
+                placeholder="Enter your printed name"
+                className="inline-field"
+              />
             </p>
             <p>
               <strong>Date:</strong>{" "}
@@ -463,10 +512,35 @@ function ConsignmentAgreement({
               <strong>CONSIGNEE</strong>
             </p>
             <p>
-              <strong>Signature:</strong> ___________________
+              <strong>Signature:</strong>
             </p>
+            <div
+              className="signature-paste-area"
+              contentEditable
+              suppressContentEditableWarning
+              onPaste={handleSignaturePaste}
+            >
+              {consigneeSignature ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={consigneeSignature} alt="Signature" className="signature-img" />
+              ) : (
+                <span className="signature-placeholder">Click here and paste (Ctrl+V) your signature image</span>
+              )}
+            </div>
+            {consigneeSignature && (
+              <button type="button" className="signature-clear-btn" onClick={() => setConsigneeSignature(null)}>
+                Remove signature
+              </button>
+            )}
             <p>
-              <strong>Print Name:</strong> A Rich Wines / MyFamousFinds
+              <strong>Print Name:</strong>{" "}
+              <input
+                type="text"
+                value={consigneePrintName}
+                onChange={(e) => setConsigneePrintName(e.target.value)}
+                placeholder="Enter print name"
+                className="inline-field"
+              />
             </p>
             <p>
               <strong>Date:</strong> {today}
@@ -859,6 +933,63 @@ export default function SellerDashboard() {
         .sig-col {
           flex: 1;
         }
+        .payment-method-row {
+          display: flex;
+          flex-wrap: wrap;
+          align-items: center;
+          gap: 16px;
+          margin: 8px 0;
+        }
+        .payment-option {
+          display: inline-flex;
+          align-items: center;
+          gap: 4px;
+          cursor: pointer;
+          font-size: 14px;
+        }
+        .payment-option input[type="radio"] {
+          accent-color: #111;
+          cursor: pointer;
+        }
+        .signature-paste-area {
+          border: 2px dashed #d1d5db;
+          border-radius: 8px;
+          min-height: 80px;
+          padding: 12px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          cursor: text;
+          margin: 4px 0 8px;
+          background: #fafafa;
+          transition: border-color 0.2s;
+        }
+        .signature-paste-area:focus {
+          outline: none;
+          border-color: #111;
+          background: #fff;
+        }
+        .signature-placeholder {
+          color: #999;
+          font-style: italic;
+          font-size: 13px;
+          pointer-events: none;
+        }
+        .signature-img {
+          max-height: 60px;
+          max-width: 100%;
+          object-fit: contain;
+        }
+        .signature-clear-btn {
+          border: none;
+          background: none;
+          color: #b91c1c;
+          font-size: 12px;
+          cursor: pointer;
+          text-decoration: underline;
+          padding: 0;
+          margin-bottom: 6px;
+        }
 
         /* Accept area */
         .agreement-accept-area {
@@ -976,6 +1107,11 @@ export default function SellerDashboard() {
           .agreement-download-btn {
             width: 100%;
             text-align: center;
+          }
+          .payment-method-row {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 8px;
           }
         }
       `}</style>
