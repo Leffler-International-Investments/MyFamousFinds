@@ -6,6 +6,7 @@ import { FormEvent, useState } from "react";
 import { useRouter } from "next/router";
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
+import { autoPrefixPhone } from "../../utils/phoneFormat";
 
 export default function SellerAgreementPage() {
   const router = useRouter();
@@ -116,7 +117,7 @@ export default function SellerAgreementPage() {
                   type="tel"
                   className="input"
                   value={consignorPhone}
-                  onChange={(e) => setConsignorPhone(e.target.value)}
+                  onChange={(e) => setConsignorPhone(autoPrefixPhone(e.target.value))}
                   placeholder="+1 555 000 0000"
                 />
               </div>

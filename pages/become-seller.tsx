@@ -7,6 +7,7 @@ import { FormEvent, useState } from "react";
 import Link from "next/link";
 import Header from "../components/Header";
 import Footer from "../components/Footer";
+import { autoPrefixPhone } from "../utils/phoneFormat";
 
 export default function BecomeSellerPage() {
   const [contactName, setContactName] = useState("");
@@ -134,7 +135,7 @@ export default function BecomeSellerPage() {
                   type="tel"
                   className="input"
                   value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
+                  onChange={(e) => setPhone(autoPrefixPhone(e.target.value))}
                   placeholder="+1 555 000 0000"
                 />
               </div>

@@ -6,6 +6,7 @@ import { FormEvent, useState } from "react";
 import Link from "next/link";
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
+import { autoPrefixPhone } from "../../utils/phoneFormat";
 
 export default function SellerVetting() {
   const [businessName, setBusinessName] = useState("");
@@ -157,7 +158,7 @@ export default function SellerVetting() {
                     type="tel"
                     className="auth-input"
                     value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
+                    onChange={(e) => setPhone(autoPrefixPhone(e.target.value))}
                     placeholder="+61 4XX XXX XXX"
                   />
                 </div>

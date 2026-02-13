@@ -8,6 +8,7 @@ import { createUserWithEmailAndPassword } from "firebase/auth";
 import { auth } from "../utils/firebaseClient";
 import Header from "../components/Header";
 import Footer from "../components/Footer";
+import { autoPrefixPhone } from "../utils/phoneFormat";
 
 export default function VipSignupPage() {
   const router = useRouter();
@@ -250,7 +251,7 @@ export default function VipSignupPage() {
                   placeholder="+1 (555) 000-0000"
                   autoComplete="tel"
                   value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
+                  onChange={(e) => setPhone(autoPrefixPhone(e.target.value))}
                 />
               </div>
 
