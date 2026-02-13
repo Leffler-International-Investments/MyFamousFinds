@@ -279,6 +279,40 @@ export default function ManagementDashboard({ stats }: Props) {
         </DashboardSection>
 
         <DashboardSection
+          title="Marketing & Automation"
+          subtitle="Campaigns, pricing tools, featured sellers, and re-engagement."
+        >
+          <DashboardTile
+            title="Pricing Notifications"
+            description="Send market-based pricing suggestions to sellers with items that have no views after 7 days."
+            href="/api/admin/pricing-notifications"
+            linkText="Run Notifications"
+            linkColor="gold"
+          />
+          <DashboardTile
+            title="Featured Sellers"
+            description="Calculate and update performance-based seller featuring for homepage placement priority."
+            href="/api/admin/featured-sellers"
+            linkText="Update Rankings"
+            linkColor="gold"
+          />
+          <DashboardTile
+            title="Re-engagement Campaigns"
+            description="Send consignment invitations to past buyers (6-12 months). 'Ready to consign that red dress?'"
+            href="/api/admin/reengagement"
+            linkText="Run Campaign"
+            linkColor="gold"
+          />
+          <DashboardTile
+            title="Designer Acceptance"
+            description="Add, review, and manage accepted brands. Enforce luxury tier standards collaboratively."
+            href="/management/designers"
+            linkText="Manage Brands"
+            linkColor="blue"
+          />
+        </DashboardSection>
+
+        <DashboardSection
           title="Platform, Support & Analytics"
           subtitle="Support customers, track performance, and manage internal access."
         >
