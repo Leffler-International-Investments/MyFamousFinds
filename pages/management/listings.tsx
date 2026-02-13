@@ -299,6 +299,44 @@ export default function ManagementListings({ items }: Props) {
             <Link href="/management/dashboard">← Back to Management Dashboard</Link>
           </div>
 
+          {/* Banner: link to homepage listings manager */}
+          <div style={{
+            background: "linear-gradient(135deg, #ecfdf5, #d1fae5)",
+            border: "2px solid #6ee7b7",
+            borderRadius: 16,
+            padding: "20px 24px",
+            marginBottom: 24,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            flexWrap: "wrap",
+            gap: 12,
+          }}>
+            <div>
+              <p style={{ margin: 0, fontWeight: 800, fontSize: 16, color: "#065f46" }}>
+                Looking for homepage items?
+              </p>
+              <p style={{ margin: "4px 0 0", fontSize: 13, color: "#047857" }}>
+                This page only shows items from the Admin database. To view and delete ALL items shown on the homepage, use the Homepage Listings Manager.
+              </p>
+            </div>
+            <Link
+              href="/management/homepage-listings"
+              style={{
+                background: "#059669",
+                color: "#fff",
+                padding: "12px 24px",
+                borderRadius: 999,
+                fontWeight: 700,
+                fontSize: 14,
+                textDecoration: "none",
+                whiteSpace: "nowrap",
+              }}
+            >
+              Open Homepage Listings Manager →
+            </Link>
+          </div>
+
           <div className="filters-bar">
             <input
               type="text"
