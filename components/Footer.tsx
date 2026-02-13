@@ -152,7 +152,7 @@ export default function Footer() {
 
             {/* Sellers Login */}
             <div className="ff-footer-item">
-              <Link href="/seller/login" className="ff-login-btn ff-seller-btn">
+              <Link href="/seller/login" className="ff-login-btn">
                 Sellers Login
               </Link>
             </div>
@@ -161,7 +161,7 @@ export default function Footer() {
             <div className="ff-footer-item">
               <Link
                 href="/management/login"
-                className="ff-login-btn ff-mgmt-btn"
+                className="ff-login-btn"
               >
                 Management Login
               </Link>
@@ -318,7 +318,7 @@ export default function Footer() {
 
           .ff-dropdown-menu {
             position: absolute;
-            bottom: 100%;
+            top: 100%;
             left: 50%;
             transform: translateX(-50%);
             background: #1f2937;
@@ -326,24 +326,28 @@ export default function Footer() {
             border-radius: 8px;
             padding: 6px 0;
             min-width: 170px;
-            box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.4);
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
             z-index: 100;
-            margin-bottom: 4px;
+            margin-top: 4px;
+            display: flex;
+            flex-direction: column;
           }
 
           .ff-dropdown-link {
-            display: block;
-            padding: 8px 16px;
-            font-size: 13px;
-            color: #d1d5db;
-            text-decoration: none;
-            white-space: nowrap;
+            display: block !important;
+            width: 100% !important;
+            padding: 8px 16px !important;
+            font-size: 13px !important;
+            color: #d1d5db !important;
+            text-decoration: none !important;
+            white-space: nowrap !important;
             transition: background 0.12s, color 0.12s;
+            text-align: left;
           }
 
           .ff-dropdown-link:hover {
-            background: #374151;
-            color: #ffffff;
+            background: #374151 !important;
+            color: #ffffff !important;
           }
 
           /* ---- AI Butler button ---- */
@@ -373,33 +377,29 @@ export default function Footer() {
             font-size: 18px;
           }
 
-          /* ---- Login buttons ---- */
+          /* ---- Login buttons (same style as AI Butler pill) ---- */
           .ff-login-btn {
             display: inline-flex;
             align-items: center;
+            gap: 8px;
             padding: 8px 18px;
             border-radius: 999px;
+            border: 1px solid #334155;
+            background: #1e293b;
+            color: #f9fafb;
             font-size: 13px;
             font-weight: 600;
             text-decoration: none;
             white-space: nowrap;
-            transition: filter 0.15s, transform 0.15s;
+            cursor: pointer;
+            transition: background 0.15s, border-color 0.15s;
+            font-family: inherit;
           }
 
           .ff-login-btn:hover {
-            filter: brightness(1.1);
-            transform: translateY(-1px);
-          }
-
-          .ff-seller-btn {
-            background: #000000;
-            color: #ffffff;
-            border: 1px solid #374151;
-          }
-
-          .ff-mgmt-btn {
-            background: linear-gradient(90deg, #d1d5db, #9ca3af);
-            color: #000000;
+            background: #334155;
+            border-color: #60a5fa;
+            color: #f9fafb;
           }
 
           /* ---- Social icons ---- */
@@ -433,13 +433,14 @@ export default function Footer() {
 
             .ff-dropdown-menu {
               position: relative;
-              bottom: auto;
+              top: auto;
               left: auto;
               transform: none;
-              margin-bottom: 0;
               margin-top: 4px;
               box-shadow: none;
               border: 1px solid #374151;
+              display: flex;
+              flex-direction: column;
             }
           }
         `}</style>
