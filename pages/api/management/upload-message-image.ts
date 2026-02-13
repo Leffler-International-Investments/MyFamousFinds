@@ -22,13 +22,6 @@ const STORAGE_BUCKET =
   process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET ||
   "";
 
-function isAdminRequest(req: NextApiRequest) {
-  const required = process.env.ADMIN_API_SECRET;
-  if (!required) return true;
-  const got = String(req.headers["x-admin-secret"] || "");
-  return !!got && got === required;
-}
-
 function parseForm(req: NextApiRequest) {
   const form = formidable({
     multiples: true,
@@ -86,10 +79,6 @@ export default async function handler(
 ) {
   if (req.method !== "POST") {
     return res.status(405).json({ ok: false, error: "Method not allowed" });
-  }
-
-  if (!isAdminRequest(req)) {
-    return res.status(401).json({ ok: false, error: "unauthorized" });
   }
 
   try {
