@@ -152,7 +152,24 @@ export default function Footer() {
 
             {/* Sellers Login */}
             <div className="ff-footer-item">
-              <Link href="/seller/login" className="ff-login-btn">
+              <Link
+                href="/seller/login"
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "8px",
+                  padding: "8px 18px",
+                  borderRadius: "999px",
+                  border: "1px solid #334155",
+                  background: "#1e293b",
+                  color: "#f9fafb",
+                  fontSize: "13px",
+                  fontWeight: 600,
+                  textDecoration: "none",
+                  whiteSpace: "nowrap",
+                  cursor: "pointer",
+                }}
+              >
                 Sellers Login
               </Link>
             </div>
@@ -161,7 +178,21 @@ export default function Footer() {
             <div className="ff-footer-item">
               <Link
                 href="/management/login"
-                className="ff-login-btn"
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "8px",
+                  padding: "8px 18px",
+                  borderRadius: "999px",
+                  border: "1px solid #334155",
+                  background: "#1e293b",
+                  color: "#f9fafb",
+                  fontSize: "13px",
+                  fontWeight: 600,
+                  textDecoration: "none",
+                  whiteSpace: "nowrap",
+                  cursor: "pointer",
+                }}
               >
                 Management Login
               </Link>
@@ -375,31 +406,6 @@ export default function Footer() {
 
           .ff-butler-icon {
             font-size: 18px;
-          }
-
-          /* ---- Login buttons (same style as AI Butler pill) ---- */
-          .ff-login-btn {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            padding: 8px 18px;
-            border-radius: 999px;
-            border: 1px solid #334155;
-            background: #1e293b;
-            color: #f9fafb;
-            font-size: 13px;
-            font-weight: 600;
-            text-decoration: none;
-            white-space: nowrap;
-            cursor: pointer;
-            transition: background 0.15s, border-color 0.15s;
-            font-family: inherit;
-          }
-
-          .ff-login-btn:hover {
-            background: #334155;
-            border-color: #60a5fa;
-            color: #f9fafb;
           }
 
           /* ---- Social icons ---- */
