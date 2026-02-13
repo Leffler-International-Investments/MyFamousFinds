@@ -1,12 +1,10 @@
 // FILE: /pages/api/admin/delete-public-listing/[id].ts
-// Deletes a listing using the Admin SDK (bypasses Firestore security rules).
-// The Admin SDK is configured to target the same project as the client SDK
-// (NEXT_PUBLIC_FIREBASE_PROJECT_ID), so it deletes from the same Firestore
-// the homepage reads from.
+// Soft-deletes a listing from the homepage by storing its ID in the Admin
+// SDK's own Firestore.  The homepage query filters these IDs out.
 
 import type { NextApiRequest, NextApiResponse } from "next";
-import { adminDb } from "../../../../utils/firebaseAdmin";
 import { requireAdmin } from "../../../../utils/adminAuth";
+import { markListingDeleted } from "../../../../lib/deletedListings";
 
 type ApiResponse = { ok: true } | { ok: false; error: string };
 
@@ -28,15 +26,11 @@ export default async function handler(
     return res.status(400).json({ ok: false, error: "Missing listing id" });
   }
 
-  if (!adminDb) {
-    return res.status(500).json({ ok: false, error: "Firebase Admin SDK not initialized" });
-  }
-
   try {
-    await adminDb.collection("listings").doc(id).delete();
+    await markListingDeleted(id);
     return res.status(200).json({ ok: true });
   } catch (err: any) {
-    console.error("Admin SDK delete failed:", err?.message);
+    console.error("Error marking listing as deleted:", err?.message);
     return res.status(500).json({ ok: false, error: err?.message || "Delete failed" });
   }
 }

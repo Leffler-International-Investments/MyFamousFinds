@@ -11,6 +11,7 @@ import Header from "../components/Header";
 import Footer from "../components/Footer";
 import ProductCard, { ProductLike } from "../components/ProductCard";
 import { getPublicListings } from "../lib/publicListings";
+import { getDeletedListingIds } from "../lib/deletedListings";
 import { adminDb } from "../utils/firebaseAdmin";
 import { auth, db, firebaseClientReady } from "../utils/firebaseClient";
 
@@ -649,7 +650,8 @@ export const getServerSideProps: GetServerSideProps = async () => {
   // which successfully show all items. The Admin SDK may point to different data.
   let items: any[] = [];
   try {
-    const listings = await getPublicListings({ take: 500 });
+    const excludeIds = await getDeletedListingIds();
+    const listings = await getPublicListings({ take: 500, excludeIds });
     items = (listings || []).map((l: any) => {
       const priceNum = typeof l.price === "number" ? l.price : (typeof l.priceUsd === "number" ? l.priceUsd : 0);
       return {

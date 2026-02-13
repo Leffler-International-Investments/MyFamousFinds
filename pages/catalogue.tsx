@@ -8,6 +8,7 @@ import Footer from "../components/Footer";
 import ProductCard, { ProductLike } from "../components/ProductCard";
 import type { GetServerSideProps } from "next";
 import { getPublicListings } from "../lib/publicListings";
+import { getDeletedListingIds } from "../lib/deletedListings";
 
 type CatalogueProps = {
   items: (ProductLike & { category?: string; condition?: string })[];
@@ -117,7 +118,8 @@ export default function PublicCatalogue({ items }: CatalogueProps) {
 // DATA QUERY — uses getPublicListings (same data source as category pages)
 export const getServerSideProps: GetServerSideProps<CatalogueProps> = async () => {
   try {
-    const listings = await getPublicListings({ take: 500 });
+    const excludeIds = await getDeletedListingIds();
+    const listings = await getPublicListings({ take: 500, excludeIds });
 
     const items: (ProductLike & { category?: string; condition?: string })[] = (listings || []).map((l: any) => {
       const priceNum = typeof l.price === "number" ? l.price : (typeof l.priceUsd === "number" ? l.priceUsd : 0);
