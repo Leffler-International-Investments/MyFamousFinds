@@ -8,11 +8,13 @@ import Header from "../../components/Header";
 import Footer from "../../components/Footer";
 import { useRequireAdmin } from "../../hooks/useRequireAdmin";
 import { adminDb } from "../../utils/firebaseAdmin";
+import { autoPrefixPhone } from "../../utils/phoneFormat";
 
 type SellerApplication = {
   id: string;
   businessName: string;
   contactEmail: string;
+  phone: string;
   submittedAt: string;
   status: "Pending" | "Approved" | "Rejected" | "Removed";
 };
@@ -89,6 +91,43 @@ export default function ManagementVettingQueue({ items }: Props) {
   const [notifyLogged, setNotifyLogged] = useState(false);
   const [copiedField, setCopiedField] = useState<string | null>(null);
 
+  // Inline editing state
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editForm, setEditForm] = useState({ businessName: "", contactEmail: "", phone: "" });
+  const [saving, setSaving] = useState(false);
+
+  function startEdit(seller: SellerApplication) {
+    setEditingId(seller.id);
+    setEditForm({
+      businessName: seller.businessName,
+      contactEmail: seller.contactEmail,
+      phone: seller.phone,
+    });
+  }
+
+  async function handleSaveEdit(id: string) {
+    setSaving(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/admin/update-seller", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, ...editForm }),
+      });
+      const json = await res.json();
+      if (!res.ok || json.error) throw new Error(json.error || "Failed to update seller.");
+      setLocalItems((prev) =>
+        prev.map((s) => s.id === id ? { ...s, ...editForm } : s)
+      );
+      setEditingId(null);
+    } catch (err: any) {
+      console.error(err);
+      setError(err.message);
+    } finally {
+      setSaving(false);
+    }
+  }
+
   const visible = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return localItems;
@@ -97,6 +136,7 @@ export default function ManagementVettingQueue({ items }: Props) {
       const haystack = [
         s.businessName,
         s.contactEmail,
+        s.phone,
         s.id,
         s.status,
         s.submittedAt,
@@ -452,78 +492,136 @@ export default function ManagementVettingQueue({ items }: Props) {
                 <tr>
                   <th>Business</th>
                   <th>Email</th>
+                  <th>Phone</th>
                   <th>Submitted</th>
                   <th>Status</th>
-                  <th style={{ width: "320px" }}>Actions</th>
+                  <th style={{ width: "380px" }}>Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {hasAny ? (
                   visible.map((s) => (
                     <tr key={s.id}>
-                      <td>{s.businessName || "—"}</td>
-                      <td>
-                        <span className="email-cell">
-                          {s.contactEmail || "—"}
-                          {s.contactEmail && (
-                            <button
-                              className="btn-copy-inline"
-                              onClick={() =>
-                                handleCopy(s.contactEmail, `row-${s.id}`)
-                              }
-                              title="Copy email"
-                            >
-                              {copiedField === `row-${s.id}`
-                                ? "Copied"
-                                : "Copy"}
-                            </button>
-                          )}
-                        </span>
-                      </td>
-                      <td>{s.submittedAt || "—"}</td>
-                      <td>{s.status}</td>
-                      <td>
-                        <div className="actions-cell">
-                          <button
-                            className="btn-small btn-approve"
-                            disabled={
-                              actionLoading === s.id || s.status === "Approved"
-                            }
-                            onClick={() => handleAction(s.id, "approve")}
-                          >
-                            {actionLoading === s.id &&
-                            s.status !== "Approved"
-                              ? "Approving…"
-                              : "Approve"}
-                          </button>
-                          <button
-                            className="btn-small btn-reject"
-                            disabled={
-                              actionLoading === s.id || s.status === "Rejected"
-                            }
-                            onClick={() => handleAction(s.id, "reject")}
-                          >
-                            {actionLoading === s.id &&
-                            s.status !== "Rejected"
-                              ? "Rejecting…"
-                              : "Reject"}
-                          </button>
+                      {editingId === s.id ? (
+                        <>
+                          <td>
+                            <input
+                              className="inline-edit-input"
+                              value={editForm.businessName}
+                              onChange={(e) => setEditForm({ ...editForm, businessName: e.target.value })}
+                            />
+                          </td>
+                          <td>
+                            <input
+                              className="inline-edit-input"
+                              type="email"
+                              value={editForm.contactEmail}
+                              onChange={(e) => setEditForm({ ...editForm, contactEmail: e.target.value })}
+                            />
+                          </td>
+                          <td>
+                            <input
+                              className="inline-edit-input"
+                              type="tel"
+                              placeholder="+61..."
+                              value={editForm.phone}
+                              onChange={(e) => setEditForm({ ...editForm, phone: autoPrefixPhone(e.target.value) })}
+                            />
+                          </td>
+                          <td>{s.submittedAt || "—"}</td>
+                          <td>{s.status}</td>
+                          <td>
+                            <div className="actions-cell">
+                              <button
+                                className="btn-small btn-save-inline"
+                                disabled={saving}
+                                onClick={() => handleSaveEdit(s.id)}
+                              >
+                                {saving ? "Saving…" : "Save"}
+                              </button>
+                              <button
+                                className="btn-small btn-cancel-inline"
+                                onClick={() => setEditingId(null)}
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          </td>
+                        </>
+                      ) : (
+                        <>
+                          <td>{s.businessName || "—"}</td>
+                          <td>
+                            <span className="email-cell">
+                              {s.contactEmail || "—"}
+                              {s.contactEmail && (
+                                <button
+                                  className="btn-copy-inline"
+                                  onClick={() =>
+                                    handleCopy(s.contactEmail, `row-${s.id}`)
+                                  }
+                                  title="Copy email"
+                                >
+                                  {copiedField === `row-${s.id}`
+                                    ? "Copied"
+                                    : "Copy"}
+                                </button>
+                              )}
+                            </span>
+                          </td>
+                          <td>{s.phone || "—"}</td>
+                          <td>{s.submittedAt || "—"}</td>
+                          <td>{s.status}</td>
+                          <td>
+                            <div className="actions-cell">
+                              <button
+                                className="btn-small btn-edit-inline"
+                                onClick={() => startEdit(s)}
+                              >
+                                Edit
+                              </button>
+                              <button
+                                className="btn-small btn-approve"
+                                disabled={
+                                  actionLoading === s.id || s.status === "Approved"
+                                }
+                                onClick={() => handleAction(s.id, "approve")}
+                              >
+                                {actionLoading === s.id &&
+                                s.status !== "Approved"
+                                  ? "Approving…"
+                                  : "Approve"}
+                              </button>
+                              <button
+                                className="btn-small btn-reject"
+                                disabled={
+                                  actionLoading === s.id || s.status === "Rejected"
+                                }
+                                onClick={() => handleAction(s.id, "reject")}
+                              >
+                                {actionLoading === s.id &&
+                                s.status !== "Rejected"
+                                  ? "Rejecting…"
+                                  : "Reject"}
+                              </button>
 
-                          <button
-                            className="btn-small btn-remove"
-                            disabled={actionLoading === s.id}
-                            onClick={() => handleRemove(s.id)}
-                            title="Remove seller/application"
-                          >
-                            {actionLoading === s.id ? "Working…" : "Remove"}
-                          </button>
-                        </div>
-                      </td>
+                              <button
+                                className="btn-small btn-remove"
+                                disabled={actionLoading === s.id}
+                                onClick={() => handleRemove(s.id)}
+                                title="Remove seller/application"
+                              >
+                                {actionLoading === s.id ? "Working…" : "Remove"}
+                              </button>
+                            </div>
+                          </td>
+                        </>
+                      )}
                     </tr>
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={5} style={{ textAlign: "center" }}>
+                    <td colSpan={6} style={{ textAlign: "center" }}>
                       No applications found yet.
                     </td>
                   </tr>
@@ -878,6 +976,42 @@ export default function ManagementVettingQueue({ items }: Props) {
           background: #6b7280;
           color: #ffffff;
         }
+
+        .btn-edit-inline {
+          background: #dbeafe;
+          color: #1d4ed8;
+        }
+        .btn-edit-inline:hover {
+          background: #bfdbfe;
+        }
+
+        .btn-save-inline {
+          background: #059669;
+          color: #ffffff;
+        }
+
+        .btn-cancel-inline {
+          background: #f3f4f6;
+          color: #374151;
+        }
+        .btn-cancel-inline:hover {
+          background: #e5e7eb;
+        }
+
+        .inline-edit-input {
+          width: 100%;
+          min-width: 100px;
+          padding: 4px 8px;
+          border-radius: 6px;
+          border: 1px solid #d1d5db;
+          font-size: 13px;
+          background: #ffffff;
+        }
+        .inline-edit-input:focus {
+          outline: none;
+          border-color: #111827;
+          box-shadow: 0 0 0 1px rgba(17, 24, 39, 0.1);
+        }
       `}</style>
     </>
   );
@@ -897,6 +1031,7 @@ export const getServerSideProps: GetServerSideProps<Props> = async () => {
       id: doc.id,
       businessName: data.businessName || "",
       contactEmail: data.contactEmail || data.email || "",
+      phone: data.phone || data.contactPhone || "",
       submittedAt: data.submittedAt
         ? new Date(data.submittedAt.toDate()).toLocaleString()
         : "",
