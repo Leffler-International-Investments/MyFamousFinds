@@ -2,27 +2,37 @@
 
 import type { NextApiRequest, NextApiResponse } from "next";
 import { adminDb, FieldValue } from "../../../utils/firebaseAdmin";
-import { requireAdmin } from "../../../utils/adminAuth";
 
 // ✅ UPDATED: Added new vivid types here
-type MessageType = 
-  | "info" 
-  | "promo" 
-  | "alert" 
-  | "success" 
-  | "warning" 
-  | "brand" 
+type MessageType =
+  | "info"
+  | "promo"
+  | "alert"
+  | "success"
+  | "warning"
+  | "brand"
   | "luxury";
 
 type ApiResponse =
   | { ok: true; id?: string }
   | { ok: false; error: string };
 
+// Soft admin gate: if ADMIN_API_SECRET is set, require it; otherwise allow
+// (management pages are already protected by useRequireAdmin on the frontend)
+function isAdminRequest(req: NextApiRequest) {
+  const required = process.env.ADMIN_API_SECRET;
+  if (!required) return true;
+  const got = String(req.headers["x-admin-secret"] || "");
+  return !!got && got === required;
+}
+
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse<ApiResponse>
 ) {
-  if (!requireAdmin(req, res)) return;
+  if (!isAdminRequest(req)) {
+    return res.status(401).json({ ok: false, error: "unauthorized" });
+  }
 
   if (!adminDb) {
     return res.status(500).json({ ok: false, error: "Firebase not configured" });
@@ -37,7 +47,7 @@ export default async function handler(
     // CREATE
     // ------------------------------------------------------
     if (method === "POST") {
-      const { text, linkText, linkUrl, imageUrl, videoUrl, type } =
+      const { text, linkText, linkUrl, imageUrl, imageUrls, videoUrl, type } =
         req.body || {};
 
       if (!text || typeof text !== "string") {
@@ -51,6 +61,7 @@ export default async function handler(
         linkText: (linkText || "").trim(),
         linkUrl: (linkUrl || "").trim(),
         imageUrl: (imageUrl || "").trim(),
+        imageUrls: Array.isArray(imageUrls) ? imageUrls : [],
         videoUrl: (videoUrl || "").trim(),
         type: (type as MessageType) || "info",
         active: true,
@@ -65,7 +76,7 @@ export default async function handler(
     // UPDATE FULL MESSAGE
     // ------------------------------------------------------
     if (method === "PUT") {
-      const { id, text, linkText, linkUrl, imageUrl, videoUrl, type } =
+      const { id, text, linkText, linkUrl, imageUrl, imageUrls, videoUrl, type } =
         req.body || {};
 
       if (!id || typeof id !== "string") {
@@ -86,6 +97,7 @@ export default async function handler(
         linkText: (linkText || "").trim(),
         linkUrl: (linkUrl || "").trim(),
         imageUrl: (imageUrl || "").trim(),
+        imageUrls: Array.isArray(imageUrls) ? imageUrls : [],
         videoUrl: (videoUrl || "").trim(),
         type: (type as MessageType) || "info",
         updatedAt: FieldValue.serverTimestamp(),

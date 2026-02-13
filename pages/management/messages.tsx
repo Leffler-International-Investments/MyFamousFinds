@@ -2,7 +2,7 @@
 
 import Head from "next/head";
 import Link from "next/link";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import type { GetServerSideProps } from "next";
 
 import Header from "../../components/Header";
@@ -16,6 +16,7 @@ export type BuyerMessage = {
   linkText?: string;
   linkUrl?: string;
   imageUrl?: string;
+  imageUrls?: string[];
   videoUrl?: string;
   active: boolean;
   type: "info" | "promo" | "alert";
@@ -36,8 +37,11 @@ export default function MessageBoardManagement({ initialMessages }: Props) {
   const [formLinkText, setFormLinkText] = useState("");
   const [formLinkUrl, setFormLinkUrl] = useState("");
   const [formImageUrl, setFormImageUrl] = useState("");
+  const [formImageUrls, setFormImageUrls] = useState<string[]>([]);
   const [formVideoUrl, setFormVideoUrl] = useState("");
   const [formType, setFormType] = useState<"info" | "promo" | "alert">("info");
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const startEdit = (m: BuyerMessage) => {
     setIsEditing(m.id);
@@ -45,6 +49,7 @@ export default function MessageBoardManagement({ initialMessages }: Props) {
     setFormLinkText(m.linkText || "");
     setFormLinkUrl(m.linkUrl || "");
     setFormImageUrl(m.imageUrl || "");
+    setFormImageUrls(m.imageUrls || []);
     setFormVideoUrl(m.videoUrl || "");
     setFormType(m.type);
     if (typeof window !== "undefined") {
@@ -58,8 +63,45 @@ export default function MessageBoardManagement({ initialMessages }: Props) {
     setFormLinkText("");
     setFormLinkUrl("");
     setFormImageUrl("");
+    setFormImageUrls([]);
     setFormVideoUrl("");
     setFormType("info");
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    setUploading(true);
+    try {
+      const formData = new FormData();
+      for (let i = 0; i < files.length; i++) {
+        formData.append("images", files[i]);
+      }
+
+      const res = await fetch("/api/management/upload-message-image", {
+        method: "POST",
+        body: formData,
+      });
+      const json = await res.json();
+
+      if (!res.ok || !json.ok) {
+        throw new Error(json?.error || "Upload failed");
+      }
+
+      setFormImageUrls((prev) => [...prev, ...json.urls]);
+    } catch (error) {
+      console.error("Image upload error:", error);
+      alert("Failed to upload images. Please try again.");
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
+
+  const removeUploadedImage = (index: number) => {
+    setFormImageUrls((prev) => prev.filter((_, i) => i !== index));
   };
 
   const handleSave = async () => {
@@ -74,12 +116,12 @@ export default function MessageBoardManagement({ initialMessages }: Props) {
         linkText: formLinkText.trim(),
         linkUrl: formLinkUrl.trim(),
         imageUrl: formImageUrl.trim(),
+        imageUrls: formImageUrls,
         videoUrl: formVideoUrl.trim(),
         type: formType,
       };
 
       if (isEditing) {
-        // UPDATE via API
         const res = await fetch("/api/management/messages", {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
@@ -94,7 +136,6 @@ export default function MessageBoardManagement({ initialMessages }: Props) {
           prev.map((m) => (m.id === isEditing ? { ...m, ...payload } : m))
         );
       } else {
-        // CREATE via API
         const res = await fetch("/api/management/messages", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -107,11 +148,7 @@ export default function MessageBoardManagement({ initialMessages }: Props) {
 
         const newMessage: BuyerMessage = {
           id: json.id,
-          text: payload.text,
-          linkText: payload.linkText,
-          linkUrl: payload.linkUrl,
-          imageUrl: payload.imageUrl,
-          videoUrl: payload.videoUrl,
+          ...payload,
           type: payload.type as BuyerMessage["type"],
           active: true,
           createdAt: Date.now(),
@@ -166,6 +203,12 @@ export default function MessageBoardManagement({ initialMessages }: Props) {
     }
   };
 
+  const getImageCount = (m: BuyerMessage) => {
+    let count = m.imageUrls?.length || 0;
+    if (m.imageUrl && !m.imageUrls?.includes(m.imageUrl)) count += 1;
+    return count;
+  };
+
   if (loading) return <div className="dashboard-page" />;
 
   return (
@@ -181,7 +224,7 @@ export default function MessageBoardManagement({ initialMessages }: Props) {
             <h1>Message Board</h1>
             <p>Manage the announcements shown to buyers on the homepage.</p>
           </div>
-          <Link href="/management/dashboard">← Back to Dashboard</Link>
+          <Link href="/management/dashboard">&larr; Back to Dashboard</Link>
         </div>
 
         {/* EDITOR CARD */}
@@ -193,15 +236,16 @@ export default function MessageBoardManagement({ initialMessages }: Props) {
               <textarea
                 value={formText}
                 onChange={(e) => setFormText(e.target.value)}
-                placeholder="e.g. Boker Tov Ariel – enjoy your beautiful shop."
+                placeholder="e.g. Exclusive This Week: 20% off all Celebrity-Worn Pieces — shop now before they're gone!"
                 rows={2}
                 spellCheck={true}
                 autoCorrect="on"
                 autoCapitalize="sentences"
               />
               <span className="hint">
-                <span style={{ color: "#059669" }}>✓</span> Spellcheck &amp;
-                Auto-correct enabled.
+                <span style={{ color: "#059669" }}>&#10003;</span> Share special
+                promotions, limited-time offers, new arrivals &amp; featured
+                collections. Spellcheck enabled.
               </span>
             </label>
 
@@ -210,7 +254,7 @@ export default function MessageBoardManagement({ initialMessages }: Props) {
               <input
                 value={formLinkText}
                 onChange={(e) => setFormLinkText(e.target.value)}
-                placeholder="e.g. View Collection"
+                placeholder="e.g. Shop the Collection"
               />
             </label>
 
@@ -238,14 +282,60 @@ export default function MessageBoardManagement({ initialMessages }: Props) {
               </select>
             </label>
 
+            {/* IMAGE UPLOAD */}
+            <div className="span-3 upload-section">
+              <span className="upload-label">Upload Images (Optional)</span>
+              <span className="hint">
+                Add promotional photos — up to 6 images per message.
+              </span>
+
+              <div className="upload-row">
+                <label className="upload-btn">
+                  {uploading ? "Uploading..." : "Choose Images"}
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    onChange={handleImageUpload}
+                    disabled={uploading || formImageUrls.length >= 6}
+                    style={{ display: "none" }}
+                  />
+                </label>
+                {formImageUrls.length > 0 && (
+                  <span className="upload-count">
+                    {formImageUrls.length} image{formImageUrls.length !== 1 ? "s" : ""} attached
+                  </span>
+                )}
+              </div>
+
+              {formImageUrls.length > 0 && (
+                <div className="image-preview-grid">
+                  {formImageUrls.map((url, i) => (
+                    <div key={i} className="image-preview">
+                      <img src={url} alt={`Upload ${i + 1}`} />
+                      <button
+                        type="button"
+                        className="remove-image"
+                        onClick={() => removeUploadedImage(i)}
+                        title="Remove image"
+                      >
+                        &times;
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
             <label>
               Image URL (Optional)
               <input
                 value={formImageUrl}
                 onChange={(e) => setFormImageUrl(e.target.value)}
-                placeholder="https://..."
+                placeholder="https://... (or use upload above)"
               />
-              <span className="hint">Shown under the text as a photo.</span>
+              <span className="hint">Paste an external image link instead.</span>
             </label>
 
             <label>
@@ -262,7 +352,7 @@ export default function MessageBoardManagement({ initialMessages }: Props) {
           </div>
 
           <div className="form-actions">
-            <button className="btn-save" onClick={handleSave}>
+            <button className="btn-save" onClick={handleSave} disabled={uploading}>
               {isEditing ? "Update Message" : "Post Message"}
             </button>
             {isEditing && (
@@ -294,14 +384,18 @@ export default function MessageBoardManagement({ initialMessages }: Props) {
                           <span className="link-preview">[{m.linkText}]</span>
                         )}
                       </p>
-                      {(m.imageUrl || m.videoUrl) && (
+                      {(m.imageUrl || (m.imageUrls && m.imageUrls.length > 0) || m.videoUrl) && (
                         <p className="media-tags">
-                          {m.imageUrl && <span>📷 image</span>}
-                          {m.videoUrl && <span>🎥 video</span>}
+                          {getImageCount(m) > 0 && (
+                            <span>
+                              {getImageCount(m)} image{getImageCount(m) !== 1 ? "s" : ""}
+                            </span>
+                          )}
+                          {m.videoUrl && <span>video</span>}
                         </p>
                       )}
                       <span className="status">
-                        {m.active ? "● Live on site" : "○ Hidden"}
+                        {m.active ? "\u25CF Live on site" : "\u25CB Hidden"}
                       </span>
                     </div>
                   </div>
@@ -386,6 +480,10 @@ export default function MessageBoardManagement({ initialMessages }: Props) {
           border: none;
           cursor: pointer;
         }
+        .btn-save:disabled {
+          opacity: 0.5;
+          cursor: not-allowed;
+        }
         .btn-cancel {
           background: white;
           border: 1px solid #d1d5db;
@@ -393,6 +491,84 @@ export default function MessageBoardManagement({ initialMessages }: Props) {
           border-radius: 99px;
           font-weight: 600;
           cursor: pointer;
+        }
+
+        /* UPLOAD SECTION */
+        .upload-section {
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
+        }
+        .upload-label {
+          font-size: 13px;
+          font-weight: 600;
+          color: #374151;
+        }
+        .upload-row {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+        }
+        .upload-btn {
+          display: inline-flex;
+          align-items: center;
+          padding: 8px 18px;
+          border-radius: 8px;
+          border: 1px dashed #9ca3af;
+          background: #f9fafb;
+          cursor: pointer;
+          font-size: 13px;
+          font-weight: 600;
+          color: #374151;
+          transition: border-color 0.15s, background 0.15s;
+        }
+        .upload-btn:hover {
+          border-color: #111827;
+          background: #f3f4f6;
+        }
+        .upload-count {
+          font-size: 12px;
+          color: #059669;
+          font-weight: 600;
+        }
+        .image-preview-grid {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 10px;
+          margin-top: 4px;
+        }
+        .image-preview {
+          position: relative;
+          width: 90px;
+          height: 90px;
+          border-radius: 8px;
+          overflow: hidden;
+          border: 1px solid #e5e7eb;
+        }
+        .image-preview img {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+        }
+        .remove-image {
+          position: absolute;
+          top: 2px;
+          right: 2px;
+          width: 22px;
+          height: 22px;
+          border-radius: 50%;
+          border: none;
+          background: rgba(0, 0, 0, 0.6);
+          color: white;
+          font-size: 14px;
+          line-height: 1;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+        .remove-image:hover {
+          background: rgba(220, 38, 38, 0.9);
         }
 
         /* VIVID TYPE DROPDOWN */
@@ -410,17 +586,17 @@ export default function MessageBoardManagement({ initialMessages }: Props) {
           box-shadow: 0 0 0 2px rgba(15, 23, 42, 0.2);
         }
         .type-select option[value="info"] {
-          background: #dbeafe; /* bright blue */
+          background: #dbeafe;
           color: #1e3a8a;
           font-weight: 700;
         }
         .type-select option[value="promo"] {
-          background: #fef3c7; /* gold */
+          background: #fef3c7;
           color: #78350f;
           font-weight: 700;
         }
         .type-select option[value="alert"] {
-          background: #fecaca; /* vivid red/pink */
+          background: #fecaca;
           color: #7f1d1d;
           font-weight: 700;
         }
@@ -551,6 +727,7 @@ export const getServerSideProps: GetServerSideProps<Props> = async () => {
         linkText: data.linkText || "",
         linkUrl: data.linkUrl || "",
         imageUrl: data.imageUrl || "",
+        imageUrls: Array.isArray(data.imageUrls) ? data.imageUrls : [],
         videoUrl: data.videoUrl || "",
         active: data.active ?? true,
         type: (data.type as BuyerMessage["type"]) || "info",
