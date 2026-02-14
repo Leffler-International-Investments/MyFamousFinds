@@ -139,6 +139,13 @@ export default function Footer() {
                   >
                     Returns Policy
                   </Link>
+                  <Link
+                    href="/terms"
+                    className="ff-dropdown-link"
+                    onClick={() => setOpenDropdown(null)}
+                  >
+                    Terms &amp; Conditions
+                  </Link>
                 </div>
               )}
             </div>
