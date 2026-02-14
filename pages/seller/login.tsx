@@ -134,6 +134,7 @@ export default function SellerLoginPage() {
       const twofaJson = (await twofaRes.json()) as Start2faResponse;
       if (!twofaJson.ok) {
         const errJson = twofaJson as Start2faError;
+        setStep("credentials");
         setError(errJson.message || "We couldn't start the verification process. Please try again.");
         return;
       }
