@@ -2,7 +2,7 @@
 // Diagnostic endpoint — sends a test SMS to verify Twilio config.
 // Protected by ADMIN_API_SECRET.
 import type { NextApiRequest, NextApiResponse } from "next";
-import { isTwilioConfigured, normalizePhoneE164, sendSms } from "../../../utils/sms";
+import { isTwilioConfigured, normalizePhoneE164, sendSms, twilioConfigDiag } from "../../../utils/sms";
 
 export default async function handler(
   req: NextApiRequest,
@@ -25,11 +25,13 @@ export default async function handler(
   }
 
   // Step 1: Check Twilio config
+  const diag = twilioConfigDiag();
   if (!isTwilioConfigured()) {
     return res.status(200).json({
       ok: false,
       step: "config_check",
       message: "Twilio is NOT configured. Missing one or more env vars: TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_PHONE_NUMBER.",
+      twilioDiag: diag,
     });
   }
 
@@ -52,6 +54,7 @@ export default async function handler(
       to: normalized,
       twilioError: err?.message || "Unknown error",
       message: `SMS send failed: ${err?.message || "Unknown error"}`,
+      twilioDiag: diag,
     });
   }
 }

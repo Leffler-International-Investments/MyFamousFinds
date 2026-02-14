@@ -6,7 +6,7 @@ import {
   isFirebaseAdminReady,
 } from "../../../utils/firebaseAdmin";
 import { sendLoginCode } from "../../../utils/email";
-import { sendLoginCodeSms, isTwilioConfigured } from "../../../utils/sms";
+import { sendLoginCodeSms, isTwilioConfigured, twilioConfigDiag } from "../../../utils/sms";
 import { createChallenge } from "../../../utils/twofaStore";
 
 type Start2faBody = {
@@ -236,11 +236,15 @@ export default async function handler(
     const detail = normalizedRole === "management" && sendError
       ? ` Detail: ${sendError}`
       : "";
+    const diag = normalizedRole === "management" && deliveryMethod === "sms"
+      ? twilioConfigDiag()
+      : undefined;
     return res.status(200).json({
       ok: false,
       error: "send_failed",
       message:
         `We were unable to send the verification code via ${target}. Please try the other method, or contact support if the problem persists.${detail}`,
+      ...(diag ? { twilioDiag: diag } : {}),
     });
   }
 
