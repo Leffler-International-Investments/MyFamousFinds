@@ -12,6 +12,10 @@ const TWILIO_ACCOUNT_SID = cleanEnv(process.env.TWILIO_ACCOUNT_SID);
 const TWILIO_AUTH_TOKEN = cleanEnv(process.env.TWILIO_AUTH_TOKEN);
 const TWILIO_PHONE_NUMBER_RAW = cleanEnv(process.env.TWILIO_PHONE_NUMBER);
 
+// When TWILIO_ACCOUNT_SID is an API Key (starts with SK), the real
+// Account SID (starts with AC) must be provided separately.
+const TWILIO_MAIN_ACCOUNT_SID = cleanEnv(process.env.TWILIO_MAIN_ACCOUNT_SID);
+
 function getClient() {
   if (!TWILIO_ACCOUNT_SID || !TWILIO_AUTH_TOKEN) {
     throw new Error("Twilio is not configured (missing TWILIO_ACCOUNT_SID or TWILIO_AUTH_TOKEN).");
@@ -19,6 +23,20 @@ function getClient() {
   if (!TWILIO_PHONE_NUMBER_RAW) {
     throw new Error("Twilio is not configured (missing TWILIO_PHONE_NUMBER).");
   }
+
+  // API Key auth: TWILIO_ACCOUNT_SID starts with "SK"
+  if (TWILIO_ACCOUNT_SID.startsWith("SK")) {
+    if (!TWILIO_MAIN_ACCOUNT_SID || !TWILIO_MAIN_ACCOUNT_SID.startsWith("AC")) {
+      throw new Error(
+        "TWILIO_ACCOUNT_SID is an API Key (SK...). You must also set TWILIO_MAIN_ACCOUNT_SID to your Account SID (starts with AC). Find it in Twilio Console > Account Info."
+      );
+    }
+    return twilio(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, {
+      accountSid: TWILIO_MAIN_ACCOUNT_SID,
+    });
+  }
+
+  // Standard auth: TWILIO_ACCOUNT_SID starts with "AC"
   return twilio(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN);
 }
 
