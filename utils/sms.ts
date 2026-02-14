@@ -10,20 +10,20 @@ function cleanEnv(v?: string) {
 
 const TWILIO_ACCOUNT_SID = cleanEnv(process.env.TWILIO_ACCOUNT_SID);
 const TWILIO_AUTH_TOKEN = cleanEnv(process.env.TWILIO_AUTH_TOKEN);
-const TWILIO_PHONE_NUMBER = cleanEnv(process.env.TWILIO_PHONE_NUMBER);
+const TWILIO_PHONE_NUMBER_RAW = cleanEnv(process.env.TWILIO_PHONE_NUMBER);
 
 function getClient() {
   if (!TWILIO_ACCOUNT_SID || !TWILIO_AUTH_TOKEN) {
     throw new Error("Twilio is not configured (missing TWILIO_ACCOUNT_SID or TWILIO_AUTH_TOKEN).");
   }
-  if (!TWILIO_PHONE_NUMBER) {
+  if (!TWILIO_PHONE_NUMBER_RAW) {
     throw new Error("Twilio is not configured (missing TWILIO_PHONE_NUMBER).");
   }
   return twilio(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN);
 }
 
 export function isTwilioConfigured(): boolean {
-  return Boolean(TWILIO_ACCOUNT_SID && TWILIO_AUTH_TOKEN && TWILIO_PHONE_NUMBER);
+  return Boolean(TWILIO_ACCOUNT_SID && TWILIO_AUTH_TOKEN && TWILIO_PHONE_NUMBER_RAW);
 }
 
 /**
@@ -45,21 +45,26 @@ export function normalizePhoneE164(raw: string): string {
 }
 
 export async function sendSms(to: string, body: string) {
-  const normalized = normalizePhoneE164(to);
-  const logTag = `[SMS] to=${normalized}`;
+  const normalizedTo = normalizePhoneE164(to);
+  const normalizedFrom = normalizePhoneE164(TWILIO_PHONE_NUMBER_RAW);
+  const logTag = `[SMS] from=${normalizedFrom} to=${normalizedTo}`;
   console.log(`${logTag} — attempting to send`);
   try {
     const client = getClient();
     const message = await client.messages.create({
       body,
-      from: TWILIO_PHONE_NUMBER,
-      to: normalized,
+      from: normalizedFrom,
+      to: normalizedTo,
     });
     console.log(`${logTag} — sent successfully (sid=${message.sid})`);
     return message;
-  } catch (err) {
-    console.error(`${logTag} — FAILED`, err);
-    throw err;
+  } catch (err: any) {
+    const twilioCode = err?.code || "";
+    const twilioMsg = err?.message || "";
+    console.error(`${logTag} — FAILED (code=${twilioCode})`, twilioMsg, err);
+    throw new Error(
+      `SMS failed: ${twilioMsg || "Unknown Twilio error"}${twilioCode ? ` (code ${twilioCode})` : ""}`
+    );
   }
 }
 
