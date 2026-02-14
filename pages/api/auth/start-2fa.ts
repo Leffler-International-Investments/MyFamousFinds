@@ -176,6 +176,7 @@ export default async function handler(
 
   // 2) Send code via chosen method
   let codeSent = false;
+  let sendError = "";
 
   if (deliveryMethod === "sms") {
     // SMS delivery
@@ -200,8 +201,9 @@ export default async function handler(
     try {
       await sendLoginCodeSms(phone, code);
       codeSent = true;
-    } catch (err) {
+    } catch (err: any) {
       console.error("[start-2fa] SMS send failed:", err);
+      sendError = err?.message || "Unknown SMS error";
     }
   } else {
     // Email delivery
@@ -209,8 +211,9 @@ export default async function handler(
       try {
         await sendLoginCode(normalizedEmail, code);
         codeSent = true;
-      } catch (err) {
+      } catch (err: any) {
         console.error("[start-2fa] Email send failed:", err);
+        sendError = err?.message || "Unknown email error";
       }
     }
   }
@@ -228,13 +231,12 @@ export default async function handler(
 
   if (!codeSent) {
     const target = deliveryMethod === "sms" ? "SMS" : "email";
-    console.error(`[start-2fa] ${target} not sent and not in dev mode — code cannot be delivered`);
+    console.error(`[start-2fa] ${target} not sent and not in dev mode — code cannot be delivered. Error: ${sendError}`);
     return res.status(200).json({
-      ok: true,
-      challengeId,
-      via: deliveryMethod,
+      ok: false,
+      error: "send_failed",
       message:
-        `We were unable to send the verification ${target}. Please try the other method, or contact support if the problem persists.`,
+        `We were unable to send the verification code via ${target}. Please try the other method, or contact support if the problem persists.`,
     });
   }
 

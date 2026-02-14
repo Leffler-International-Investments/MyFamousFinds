@@ -130,6 +130,8 @@ export default function ManagementLoginPage() {
       const twofaJson = await twofaRes.json();
 
       if (!twofaJson.ok) {
+        // Stay on the choose_method step so the user can try the other method
+        setStep("choose_method");
         setError(twofaJson.message || "We couldn't start the verification process. Please try again.");
         return;
       }
@@ -143,6 +145,7 @@ export default function ManagementLoginPage() {
       setInfo(message);
     } catch (err) {
       console.error("management_start_2fa_error", err);
+      setStep("choose_method");
       setError("Unexpected error. Please try again.");
     } finally {
       setLoading(false);
