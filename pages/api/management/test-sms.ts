@@ -1,8 +1,8 @@
 // FILE: /pages/api/management/test-sms.ts
-// Diagnostic endpoint — sends a test SMS to verify Twilio config.
+// Diagnostic endpoint — sends a test SMS to verify AWS SNS config.
 // Protected by ADMIN_API_SECRET.
 import type { NextApiRequest, NextApiResponse } from "next";
-import { isTwilioConfigured, normalizePhoneE164, sendSms, twilioConfigDiag } from "../../../utils/sms";
+import { isSmsConfigured, normalizePhoneE164, sendSms } from "../../../utils/sms";
 
 export default async function handler(
   req: NextApiRequest,
@@ -24,14 +24,12 @@ export default async function handler(
     return res.status(400).json({ ok: false, message: "Missing 'to' phone number" });
   }
 
-  // Step 1: Check Twilio config
-  const diag = twilioConfigDiag();
-  if (!isTwilioConfigured()) {
+  // Step 1: Check SMS config
+  if (!isSmsConfigured()) {
     return res.status(200).json({
       ok: false,
       step: "config_check",
-      message: "Twilio is NOT configured. Missing one or more env vars: TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_PHONE_NUMBER.",
-      twilioDiag: diag,
+      message: "AWS SNS is NOT configured. Missing one or more env vars: AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY.",
     });
   }
 
@@ -43,18 +41,17 @@ export default async function handler(
     const result = await sendSms(normalized, "MyFamousFinds SMS test — if you received this, SMS is working!");
     return res.status(200).json({
       ok: true,
-      sid: result.sid,
+      messageId: result.sid,
       to: normalized,
-      message: `Test SMS sent successfully (SID: ${result.sid})`,
+      message: `Test SMS sent successfully (MessageId: ${result.sid})`,
     });
   } catch (err: any) {
     return res.status(200).json({
       ok: false,
-      step: "twilio_send",
+      step: "sns_send",
       to: normalized,
-      twilioError: err?.message || "Unknown error",
+      error: err?.message || "Unknown error",
       message: `SMS send failed: ${err?.message || "Unknown error"}`,
-      twilioDiag: diag,
     });
   }
 }

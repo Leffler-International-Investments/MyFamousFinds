@@ -33,7 +33,7 @@ export default async function handler(
     const auth = getAuth();
 
     // --- 2. Create User in Firebase Authentication ---
-    // Note: phone is stored in Firestore only (used by Twilio 2FA),
+    // Note: phone is stored in Firestore only (used for SMS 2FA),
     // not passed to Firebase Auth which requires phone verification flow.
     const userRecord = await auth.createUser({
       email: email,
