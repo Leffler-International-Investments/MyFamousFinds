@@ -1,10 +1,12 @@
 // FILE: /components/Header.tsx
 
 import Link from "next/link";
+import { useRouter } from "next/router";
 import type React from "react";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { onAuthStateChanged, User } from "firebase/auth";
 import { auth } from "../utils/firebaseClient";
+import { filtersToQuery, queryToFilters } from "../lib/filterConstants";
 
 type HeaderProps = {
   filterContent?: React.ReactNode;
@@ -13,6 +15,7 @@ type HeaderProps = {
 };
 
 export default function Header({ filterContent, showFilter, onToggleFilter }: HeaderProps) {
+  const router = useRouter();
   const [vipUser, setVipUser] = useState<User | null>(null);
 
   useEffect(() => {
@@ -20,6 +23,27 @@ export default function Header({ filterContent, showFilter, onToggleFilter }: He
     const unsub = onAuthStateChanged(auth, (user) => setVipUser(user));
     return () => unsub();
   }, []);
+
+  // Build query string from current URL filter params to carry across page navigations
+  const filterQueryString = useMemo(() => {
+    if (!router.isReady) return "";
+    const parsed = queryToFilters(router.query);
+    const q = filtersToQuery({
+      titleQuery: parsed.titleQuery || "",
+      category: parsed.category || "",
+      designer: parsed.designer || "",
+      condition: parsed.condition || "",
+      material: parsed.material || "",
+      size: parsed.size || "",
+      color: parsed.color || "",
+      minPrice: typeof parsed.minPrice === "number" ? parsed.minPrice : 0,
+      maxPrice: typeof parsed.maxPrice === "number" ? parsed.maxPrice : 1000000,
+      sortBy: parsed.sortBy || "newest",
+    });
+    const params = new URLSearchParams(q);
+    const str = params.toString();
+    return str ? `?${str}` : "";
+  }, [router.isReady, router.query]);
 
   const categoryNav = [
     { label: "NEW ARRIVALS", href: "/category/new-arrivals" },
@@ -33,6 +57,19 @@ export default function Header({ filterContent, showFilter, onToggleFilter }: He
     { label: "JEWELRY", href: "/category/jewelry" },
     { label: "WATCHES", href: "/category/watches" },
   ];
+
+  // Pages that support filter sync
+  const filterSyncPaths = new Set([
+    "/category/new-arrivals",
+    "/catalogue",
+    "/designers",
+    "/category/women",
+    "/category/bags",
+    "/category/men",
+    "/category/kids",
+    "/category/jewelry",
+    "/category/watches",
+  ]);
 
   return (
     <header className="ff-header">
@@ -79,11 +116,17 @@ export default function Header({ filterContent, showFilter, onToggleFilter }: He
 
       {/* CATEGORY BAR */}
       <nav className="ff-category-nav">
-        {categoryNav.map((item) => (
-          <Link key={item.label} href={item.href} className="ff-cat-link">
-            {item.label}
-          </Link>
-        ))}
+        {categoryNav.map((item) => {
+          // Carry filter params to pages that support filtering
+          const href = filterSyncPaths.has(item.href)
+            ? `${item.href}${filterQueryString}`
+            : item.href;
+          return (
+            <Link key={item.label} href={href} className="ff-cat-link">
+              {item.label}
+            </Link>
+          );
+        })}
         {onToggleFilter && (
           <button
             type="button"

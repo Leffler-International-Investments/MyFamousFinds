@@ -3,13 +3,14 @@
 import Head from "next/head";
 import Link from "next/link";
 import { useRouter } from "next/router";
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import type { GetServerSideProps, NextPage } from "next";
 
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
 import ProductCard, { ProductLike } from "../../components/ProductCard";
 import { adminDb } from "../../utils/firebaseAdmin";
+import { queryToFilters, type SortValue } from "../../lib/filterConstants";
 
 // --------------------------------------------------
 // Types
@@ -245,10 +246,26 @@ const DesignersPage: NextPage<DesignersPageProps> = ({
   const [color, setColor] = useState("");
   const [minPrice, setMinPrice] = useState<number | "">(0);
   const [maxPrice, setMaxPrice] = useState<number | "">(100000);
-  const [sortBy, setSortBy] = useState<"newest" | "price-asc" | "price-desc">(
-    "newest"
-  );
+  const [sortBy, setSortBy] = useState<SortValue>("newest");
   const [showFilters, setShowFilters] = useState(false);
+
+  // Initialize filters from URL query params on mount (for cross-page sync)
+  useEffect(() => {
+    if (!router.isReady) return;
+    const parsed = queryToFilters(router.query);
+    if (parsed.titleQuery) setTitleQuery(parsed.titleQuery);
+    if (parsed.category) setCategory(parsed.category);
+    if (parsed.designer) { setDesigner(parsed.designer); setActiveTab("products"); }
+    if (parsed.condition) setCondition(parsed.condition);
+    if (parsed.material) setMaterial(parsed.material);
+    if (parsed.size) setSize(parsed.size);
+    if (parsed.color) setColor(parsed.color);
+    if (typeof parsed.minPrice === "number") setMinPrice(parsed.minPrice);
+    if (typeof parsed.maxPrice === "number") setMaxPrice(parsed.maxPrice);
+    if (parsed.sortBy) setSortBy(parsed.sortBy);
+    if (Object.keys(parsed).length > 0) { setShowFilters(true); setActiveTab("products"); }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [router.isReady]);
 
   const resetFilters = () => {
     setTitleQuery("");
