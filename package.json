@@ -22,7 +22,7 @@
     "react-dom": "19.2.4",
     "sharp": "^0.34.5",
     "stripe": "^17.7.0",
-    "twilio": "^5.12.1"
+    "@aws-sdk/client-sns": "^3.700.0"
   },
   "devDependencies": {
     "@tailwindcss/forms": "^0.5.11",
