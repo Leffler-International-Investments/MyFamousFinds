@@ -232,11 +232,15 @@ export default async function handler(
   if (!codeSent) {
     const target = deliveryMethod === "sms" ? "SMS" : "email";
     console.error(`[start-2fa] ${target} not sent and not in dev mode — code cannot be delivered. Error: ${sendError}`);
+    // Include actual error detail for management users to help debug
+    const detail = normalizedRole === "management" && sendError
+      ? ` Detail: ${sendError}`
+      : "";
     return res.status(200).json({
       ok: false,
       error: "send_failed",
       message:
-        `We were unable to send the verification code via ${target}. Please try the other method, or contact support if the problem persists.`,
+        `We were unable to send the verification code via ${target}. Please try the other method, or contact support if the problem persists.${detail}`,
     });
   }
 
