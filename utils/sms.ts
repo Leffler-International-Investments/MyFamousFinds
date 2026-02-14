@@ -44,6 +44,18 @@ export function isTwilioConfigured(): boolean {
   return Boolean(TWILIO_ACCOUNT_SID && TWILIO_AUTH_TOKEN && TWILIO_PHONE_NUMBER_RAW);
 }
 
+/** Safe diagnostic summary — never exposes full credentials */
+export function twilioConfigDiag(): Record<string, string> {
+  const mask = (v: string) => (v ? `${v.slice(0, 4)}...${v.slice(-4)} (${v.length} chars)` : "(empty)");
+  return {
+    TWILIO_ACCOUNT_SID: mask(TWILIO_ACCOUNT_SID),
+    TWILIO_AUTH_TOKEN: TWILIO_AUTH_TOKEN ? `****...${TWILIO_AUTH_TOKEN.slice(-4)} (${TWILIO_AUTH_TOKEN.length} chars)` : "(empty)",
+    TWILIO_MAIN_ACCOUNT_SID: mask(TWILIO_MAIN_ACCOUNT_SID),
+    TWILIO_PHONE_NUMBER: TWILIO_PHONE_NUMBER_RAW || "(empty)",
+    authMode: TWILIO_ACCOUNT_SID.startsWith("SK") ? "API Key (SK)" : TWILIO_ACCOUNT_SID.startsWith("AC") ? "Standard (AC)" : "unknown prefix",
+  };
+}
+
 /**
  * Normalize a phone number to E.164 format required by Twilio.
  * Strips spaces/dashes/parens, ensures leading "+".
