@@ -9,6 +9,18 @@ import Footer from "../../components/Footer";
 import ProductCard, { ProductLike } from "../../components/ProductCard";
 import { getPublicListings } from "../../lib/publicListings";
 import { getDeletedListingIds } from "../../lib/deletedListings";
+import {
+  CATEGORY_OPTIONS,
+  CONDITION_OPTIONS,
+  MATERIAL_OPTIONS,
+  COLOR_OPTIONS,
+  DEFAULT_DESIGNERS,
+  normalize,
+  parsePrice,
+  queryToFilters,
+  filtersToQuery,
+  type SortValue,
+} from "../../lib/filterConstants";
 
 type CategoryProps = {
   slug: string;
@@ -32,13 +44,6 @@ type PublicDesignersResponse = {
   error?: string;
 };
 
-function parsePrice(price?: string | null): number {
-  if (!price) return 0;
-  const cleaned = price.replace(/[^0-9.,]/g, "").replace(/,/g, "");
-  const asNumber = Number(cleaned);
-  return Number.isFinite(asNumber) ? asNumber : 0;
-}
-
 function canonicalSlug(slug: string): string {
   const s = (slug || "").toLowerCase().trim();
   if (s === "mens") return "men";
@@ -51,76 +56,6 @@ function toUsdString(n?: number): string {
   if (typeof n !== "number") return "";
   return `US$${n.toLocaleString("en-US")}`;
 }
-
-function normalize(raw: string | undefined | null): string {
-  if (!raw) return "";
-  return raw
-    .toString()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
-    .trim();
-}
-
-const CATEGORY_OPTIONS = [
-  "Women",
-  "Men",
-  "Kids",
-  "Bags",
-  "Shoes",
-  "Accessories",
-  "Jewelry",
-  "Watches",
-];
-
-const CONDITION_OPTIONS = [
-  "New with tags",
-  "New (never used)",
-  "Excellent",
-  "Very good",
-  "Good",
-  "Fair",
-];
-
-const MATERIAL_OPTIONS = [
-  "Leather",
-  "Exotic Leather",
-  "Silk",
-  "Cashmere",
-  "Wool",
-  "Linen",
-  "Cotton",
-  "Cotton Blend",
-  "Denim",
-  "Velvet",
-  "Suede",
-  "Canvas",
-  "Metal",
-  "Gold",
-  "Silver",
-  "Plated Metal",
-  "Ceramic",
-  "Crystal",
-  "Resin",
-  "Synthetic",
-  "Other",
-];
-
-const COLOR_OPTIONS = [
-  "Black", "White", "Cream", "Beige", "Brown", "Tan", "Burgundy", "Red",
-  "Pink", "Orange", "Yellow", "Green", "Blue", "Navy", "Purple", "Grey",
-  "Silver", "Gold", "Multi",
-];
-
-const DEFAULT_DESIGNERS = [
-  "Chanel",
-  "Hermès",
-  "Louis Vuitton",
-  "Gucci",
-  "Prada",
-  "Dior",
-  "Rolex",
-];
 
 const labelMap: Record<string, string> = {
   "new-arrivals": "New Arrivals",
@@ -151,6 +86,7 @@ export default function CategoryPage({ slug, label, items }: CategoryProps) {
     }));
   }, [liveItems]);
 
+  // Filter state — initialized from URL query params for cross-page sync
   const [titleQuery, setTitleQuery] = useState("");
   const [category, setCategory] = useState("");
   const [designer, setDesigner] = useState("");
@@ -160,14 +96,35 @@ export default function CategoryPage({ slug, label, items }: CategoryProps) {
   const [color, setColor] = useState("");
   const [minPrice, setMinPrice] = useState<number | "">(0);
   const [maxPrice, setMaxPrice] = useState<number | "">(1000000);
-  const [sortBy, setSortBy] = useState<"newest" | "price-asc" | "price-desc">(
-    "newest"
-  );
+  const [sortBy, setSortBy] = useState<SortValue>("newest");
   const [showFilters, setShowFilters] = useState(false);
+  const [filtersInitialized, setFiltersInitialized] = useState(false);
 
   const [designerOptions, setDesignerOptions] = useState<string[]>(DEFAULT_DESIGNERS);
 
-  // ✅ CRITICAL FIX:
+  // Initialize filters from URL query params on mount (for cross-page sync)
+  useEffect(() => {
+    if (!router.isReady) return;
+    if (filtersInitialized) return;
+    setFiltersInitialized(true);
+
+    const parsed = queryToFilters(router.query);
+    if (parsed.titleQuery) setTitleQuery(parsed.titleQuery);
+    if (parsed.category) setCategory(parsed.category);
+    if (parsed.designer) setDesigner(parsed.designer);
+    if (parsed.condition) setCondition(parsed.condition);
+    if (parsed.material) setMaterial(parsed.material);
+    if (parsed.size) setSize(parsed.size);
+    if (parsed.color) setColor(parsed.color);
+    if (typeof parsed.minPrice === "number") setMinPrice(parsed.minPrice);
+    if (typeof parsed.maxPrice === "number") setMaxPrice(parsed.maxPrice);
+    if (parsed.sortBy) setSortBy(parsed.sortBy);
+
+    // Auto-open filter panel if any filter params are active
+    if (Object.keys(parsed).length > 0) setShowFilters(true);
+  }, [router.isReady, router.query, filtersInitialized]);
+
+  // CRITICAL FIX:
   // When navigating between /category/* pages, Next.js will update props,
   // but React state does NOT auto-sync. Without this, the previous category's
   // items/filters can "stick" (e.g. Women items showing on Men, then "No Results").
@@ -178,26 +135,31 @@ export default function CategoryPage({ slug, label, items }: CategoryProps) {
     setClientLoaded(false);
 
     // Reset any filters from the previous category page
-    setTitleQuery("");
-    setCategory("");
-    setDesigner("");
-    setCondition("");
-    setMaterial("");
-    setSize("");
-    setColor("");
-    setMinPrice(0);
-    setMaxPrice(1000000);
-    setSortBy("newest");
+    // But keep filters that came from URL params on initial load
+    if (filtersInitialized) {
+      // Only read from URL params if we're navigating to a new category page
+      const parsed = queryToFilters(router.query);
+      setTitleQuery(parsed.titleQuery || "");
+      setCategory(parsed.category || "");
+      setDesigner(parsed.designer || "");
+      setCondition(parsed.condition || "");
+      setMaterial(parsed.material || "");
+      setSize(parsed.size || "");
+      setColor(parsed.color || "");
+      setMinPrice(typeof parsed.minPrice === "number" ? parsed.minPrice : 0);
+      setMaxPrice(typeof parsed.maxPrice === "number" ? parsed.maxPrice : 1000000);
+      setSortBy(parsed.sortBy || "newest");
+
+      if (Object.keys(parsed).length > 0) setShowFilters(true);
+    }
   }, [slug]);
 
-  // ✅ Client fallback loader
-  // Runs if SSR returned empty OR SSR returned items that don't match this category (common during migrations)
+  // Client fallback loader
   useEffect(() => {
     let alive = true;
 
     async function loadFallback() {
       const pageSlug = canonicalSlug(slug);
-
       const pageLabel = labelMap[pageSlug] || label;
       const wantsCategory = pageSlug !== "new-arrivals";
 
@@ -211,7 +173,6 @@ export default function CategoryPage({ slug, label, items }: CategoryProps) {
           return c !== String(pageLabel).trim().toLowerCase();
         });
 
-      // If SSR has good-looking items, keep them and skip fallback
       if (ssrHasItems && !ssrLooksWrong) {
         setLoading(false);
         return;
@@ -243,7 +204,6 @@ export default function CategoryPage({ slug, label, items }: CategoryProps) {
 
         if (!alive) return;
 
-        // New Arrivals: newest 60. Category pages: show up to 60 (change if you want more).
         const finalItems = pageSlug === "new-arrivals" ? mapped.slice(0, 60) : mapped.slice(0, 60);
 
         setLiveItems(finalItems);
@@ -309,24 +269,6 @@ export default function CategoryPage({ slug, label, items }: CategoryProps) {
     setMaxPrice(1000000);
     setSortBy("newest");
   }
-
-  const applyFiltersToUrl = () => {
-    const query: Record<string, string> = {};
-
-    if (titleQuery.trim()) query.title = titleQuery.trim();
-    if (category) query.category = category;
-    if (designer) query.designer = designer;
-    if (condition) query.condition = condition;
-    if (material.trim()) query.material = material.trim();
-    if (size.trim()) query.size = size.trim();
-    if (color.trim()) query.color = color.trim();
-    if (typeof minPrice === "number") query.minPrice = String(minPrice);
-    if (typeof maxPrice === "number") query.maxPrice = String(maxPrice);
-
-    router.replace({ pathname: `/category/${slug}`, query }, undefined, {
-      shallow: true,
-    });
-  };
 
   const filteredItems: ItemWithPrice[] = useMemo(() => {
     let result = [...itemsWithPrice];
@@ -570,13 +512,9 @@ export const getServerSideProps: GetServerSideProps = async (ctx) => {
   const slug = canonicalSlug(raw);
   const label = labelMap[slug] || raw;
 
-  // Use Firestore directly for SSR where possible
-  // (but we still have client fallback via getPublicListings if SSR misses/looks wrong).
   try {
     const wantsCategory = slug !== "new-arrivals";
 
-    // For SSR: use tolerant loader so you don't need perfect Firestore category equality
-    // ✅ Updated: Using 'take' instead of 'max'
     const excludeIds = await getDeletedListingIds();
     const listings = await getPublicListings({
       category: wantsCategory ? slug : "",
