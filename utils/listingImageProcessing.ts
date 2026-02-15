@@ -131,7 +131,10 @@ export async function createWhiteDisplayImage(
   const removed = await removeBackgroundIfConfigured(buffer, contentType);
   const workingBuffer = removed || buffer;
 
-  const pipeline = sharp(workingBuffer).rotate().flatten({ background: "#ffffff" });
+  const pipeline = sharp(workingBuffer)
+    .rotate()
+    .resize(800, 1067, { fit: "inside", withoutEnlargement: true })
+    .flatten({ background: "#ffffff" });
 
   return pipeline
     .jpeg({ quality: 85, mozjpeg: true })
