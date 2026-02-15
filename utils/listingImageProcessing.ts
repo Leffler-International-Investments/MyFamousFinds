@@ -2,10 +2,11 @@
 
 import crypto from "crypto";
 import sharp from "sharp";
+import { rembg } from "@remove-background-ai/rembg.js";
 import admin, { isFirebaseAdminReady } from "./firebaseAdmin";
 
 // Env vars:
-// - BACKGROUND_REMOVAL_API_KEY: optional API key for remove.bg background removal.
+// - BACKGROUND_REMOVAL_API_KEY: API key for RemBG (rembg.com) background removal.
 // - FIREBASE_STORAGE_BUCKET or NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET: storage bucket name.
 const BACKGROUND_REMOVAL_API_KEY = process.env.BACKGROUND_REMOVAL_API_KEY || "";
 const STORAGE_BUCKET =
@@ -92,34 +93,30 @@ export async function fetchImageBuffer(url: string): Promise<ImageBuffer> {
 
 async function removeBackgroundIfConfigured(
   buffer: Buffer,
-  contentType: string
+  _contentType: string
 ): Promise<Buffer | null> {
   if (!BACKGROUND_REMOVAL_API_KEY) return null;
 
   try {
-    const form = new FormData();
-    const blob = new Blob([new Uint8Array(buffer)], { type: contentType });
-    form.append("image_file", blob, "upload");
-    form.append("size", "auto");
-
-    const response = await fetch("https://api.remove.bg/v1.0/removebg", {
-      method: "POST",
-      headers: {
-        "X-Api-Key": BACKGROUND_REMOVAL_API_KEY,
+    const result = await rembg({
+      apiKey: BACKGROUND_REMOVAL_API_KEY,
+      inputImage: buffer,
+      options: {
+        format: "png",
+        returnBase64: true,
       },
-      body: form,
     });
 
-    if (!response.ok) {
-      const text = await response.text();
-      console.warn("remove.bg failed:", response.status, text);
+    if (!result?.base64Image) {
+      console.warn("rembg: no image returned");
       return null;
     }
 
-    const arrayBuffer = await response.arrayBuffer();
-    return Buffer.from(arrayBuffer);
+    // Strip data URI prefix if present
+    const base64 = result.base64Image.replace(/^data:image\/\w+;base64,/, "");
+    return Buffer.from(base64, "base64");
   } catch (error) {
-    console.warn("remove.bg error:", error);
+    console.warn("rembg error:", error);
     return null;
   }
 }
