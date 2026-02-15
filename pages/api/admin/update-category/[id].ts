@@ -3,7 +3,10 @@ import type { NextApiRequest, NextApiResponse } from "next";
 import { adminDb, isFirebaseAdminReady, FieldValue } from "../../../../utils/firebaseAdmin";
 import { requireAdmin } from "../../../../utils/adminAuth";
 
-const ALLOWED = new Set(["WOMEN", "BAGS", "MEN", "KIDS", "JEWELRY", "WATCHES"]);
+const ALLOWED = new Set([
+  "WOMEN", "BAGS", "MEN", "KIDS", "JEWELRY", "WATCHES",
+  "SHOES", "CLOTHING", "ACCESSORIES", "PARTY-DRESSES", "NEW-ARRIVALS",
+]);
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== "POST") return res.status(405).json({ ok: false, error: "Method not allowed" });
@@ -28,7 +31,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (!ALLOWED.has(categoryRaw)) {
       return res.status(400).json({
         ok: false,
-        error: "Invalid category. Use: WOMEN, BAGS, MEN, JEWELRY, WATCHES",
+        error: "Invalid category. Use: WOMEN, BAGS, MEN, KIDS, JEWELRY, WATCHES, SHOES, CLOTHING, ACCESSORIES",
       });
     }
 
