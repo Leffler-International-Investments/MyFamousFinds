@@ -26,22 +26,27 @@ function parseFromAddress(raw: string): { name: string; email: string } | null {
 }
 
 /**
- * Gmail SMTP requires the "from" email to match the authenticated user
- * (SMTP_USER) or a verified alias. If SMTP_FROM uses a different email,
- * we keep its display name but swap the email to SMTP_USER so Gmail
- * doesn't reject the message. The original SMTP_FROM email is set as
- * replyTo so responses still reach the intended address.
+ * Use SMTP_FROM as-is when set. Gmail may require the "from" to match
+ * SMTP_USER or a verified "Send mail as" alias — if the address isn't
+ * verified, Gmail silently rewrites the From header rather than rejecting.
+ *
+ * To send from admin@myfamousfinds.com via Gmail:
+ *   1. Add admin@myfamousfinds.com as a "Send mail as" alias in Gmail Settings
+ *   2. Set SMTP_FROM=Famous Finds <admin@myfamousfinds.com> in Vercel
  */
 const parsed = SMTP_FROM_RAW ? parseFromAddress(SMTP_FROM_RAW) : null;
 const fromDisplayName = parsed?.name || "Famous Finds";
 const fromEmail = parsed?.email || "";
 
-// The actual "from" must use SMTP_USER when authenticating with Gmail
-const SMTP_FROM = SMTP_USER
-  ? `${fromDisplayName} <${SMTP_USER}>`
-  : SMTP_FROM_RAW || "Famous Finds <no-reply@myfamousfinds.com>";
+const SMTP_FROM = SMTP_FROM_RAW
+  ? (parsed?.name
+      ? `${parsed.name} <${parsed.email}>`
+      : parsed?.email || SMTP_FROM_RAW)
+  : SMTP_USER
+    ? `Famous Finds <${SMTP_USER}>`
+    : "Famous Finds <no-reply@myfamousfinds.com>";
 
-// If SMTP_FROM specified a different email than SMTP_USER, use it as replyTo
+// Set replyTo to admin address if different from the actual sending address
 const SMTP_REPLY_TO =
   fromEmail && SMTP_USER && fromEmail.toLowerCase() !== SMTP_USER.toLowerCase()
     ? `${fromDisplayName} <${fromEmail}>`
