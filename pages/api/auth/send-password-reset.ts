@@ -51,8 +51,16 @@ export default async function handler(
       process.env.NEXT_PUBLIC_BASE_URL ||
       "https://www.myfamousfinds.com";
 
+    // Management login page is at /management/login, others use /role/signin
+    const continueUrl =
+      role === "management"
+        ? `${siteUrl}/management/login`
+        : role === "seller"
+          ? `${siteUrl}/seller/login`
+          : `${siteUrl}/${role}/signin`;
+
     const actionCodeSettings = {
-      url: `${siteUrl}/${role}/signin`,
+      url: continueUrl,
       handleCodeInApp: false,
     };
 
