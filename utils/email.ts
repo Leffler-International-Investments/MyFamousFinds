@@ -1,5 +1,7 @@
 // FILE: /utils/email.ts
+// Email transport: AWS SES (primary) with Gmail SMTP fallback.
 import nodemailer from "nodemailer";
+import { SESClient, SendEmailCommand } from "@aws-sdk/client-ses";
 
 function cleanEnv(v?: string) {
   return String(v ?? "")
@@ -8,6 +10,33 @@ function cleanEnv(v?: string) {
     .trim();
 }
 
+// ---------- AWS SES config ----------
+const AWS_REGION = cleanEnv(process.env.AWS_REGION) || "us-east-1";
+const AWS_ACCESS_KEY_ID = cleanEnv(process.env.AWS_ACCESS_KEY_ID);
+const AWS_SECRET_ACCESS_KEY = cleanEnv(process.env.AWS_SECRET_ACCESS_KEY);
+const AWS_SES_FROM =
+  cleanEnv(process.env.AWS_SES_FROM) ||
+  cleanEnv(process.env.SMTP_FROM) ||
+  "Famous Finds <admin@myfamousfinds.com>";
+const AWS_SES_REPLY_TO =
+  cleanEnv(process.env.AWS_SES_REPLY_TO) ||
+  "Famous Finds Support <support@myfamousfinds.com>";
+
+function isSesConfigured(): boolean {
+  return Boolean(AWS_ACCESS_KEY_ID && AWS_SECRET_ACCESS_KEY);
+}
+
+function getSesClient() {
+  return new SESClient({
+    region: AWS_REGION,
+    credentials: {
+      accessKeyId: AWS_ACCESS_KEY_ID,
+      secretAccessKey: AWS_SECRET_ACCESS_KEY,
+    },
+  });
+}
+
+// ---------- SMTP (Gmail) config ----------
 const SMTP_HOST = cleanEnv(process.env.SMTP_HOST);
 const SMTP_PORT = Number(cleanEnv(process.env.SMTP_PORT) || "587");
 const SMTP_USER = cleanEnv(process.env.SMTP_USER);
@@ -16,7 +45,6 @@ const SMTP_FROM_RAW = cleanEnv(process.env.SMTP_FROM);
 
 /**
  * Parse a "Display Name <email>" string into its parts.
- * Returns { name, email } or null if no angle-bracket email found.
  */
 function parseFromAddress(raw: string): { name: string; email: string } | null {
   const match = raw.match(/^(.+?)\s*<([^>]+)>$/);
@@ -25,15 +53,6 @@ function parseFromAddress(raw: string): { name: string; email: string } | null {
   return null;
 }
 
-/**
- * Use SMTP_FROM as-is when set. Gmail may require the "from" to match
- * SMTP_USER or a verified "Send mail as" alias — if the address isn't
- * verified, Gmail silently rewrites the From header rather than rejecting.
- *
- * To send from admin@myfamousfinds.com via Gmail:
- *   1. Add admin@myfamousfinds.com as a "Send mail as" alias in Gmail Settings
- *   2. Set SMTP_FROM=Famous Finds <admin@myfamousfinds.com> in Vercel
- */
 const parsed = SMTP_FROM_RAW ? parseFromAddress(SMTP_FROM_RAW) : null;
 const fromDisplayName = parsed?.name || "Famous Finds";
 const fromEmail = parsed?.email || "";
@@ -46,13 +65,12 @@ const SMTP_FROM = SMTP_FROM_RAW
     ? `Famous Finds <${SMTP_USER}>`
     : "Famous Finds <no-reply@myfamousfinds.com>";
 
-// Set replyTo to admin address if different from the actual sending address
 const SMTP_REPLY_TO =
   fromEmail && SMTP_USER && fromEmail.toLowerCase() !== SMTP_USER.toLowerCase()
     ? `${fromDisplayName} <${fromEmail}>`
-    : undefined;
+    : "Famous Finds Support <support@myfamousfinds.com>";
 
-function getTransport() {
+function getSmtpTransport() {
   if (!SMTP_HOST || !SMTP_PORT) {
     throw new Error("SMTP is not configured (missing SMTP_HOST/SMTP_PORT).");
   }
@@ -67,6 +85,8 @@ function getTransport() {
   });
 }
 
+// ---------- Shared helpers ----------
+
 function escapeHtml(s: string) {
   return s
     .replace(/&/g, "&amp;")
@@ -76,6 +96,64 @@ function escapeHtml(s: string) {
     .replace(/'/g, "&#039;");
 }
 
+/**
+ * Send email via AWS SES.
+ */
+async function sendViaSes(
+  to: string,
+  subject: string,
+  text: string,
+  html?: string
+) {
+  const parsedFrom = parseFromAddress(AWS_SES_FROM);
+  const sourceEmail = parsedFrom?.email || AWS_SES_FROM;
+  // SES requires the From to be a verified identity
+  const source = parsedFrom?.name
+    ? `${parsedFrom.name} <${sourceEmail}>`
+    : sourceEmail;
+
+  const client = getSesClient();
+  const command = new SendEmailCommand({
+    Source: source,
+    ReplyToAddresses: [AWS_SES_REPLY_TO],
+    Destination: { ToAddresses: [to] },
+    Message: {
+      Subject: { Data: subject, Charset: "UTF-8" },
+      Body: {
+        Text: { Data: text, Charset: "UTF-8" },
+        ...(html ? { Html: { Data: html, Charset: "UTF-8" } } : {}),
+      },
+    },
+  });
+
+  const result = await client.send(command);
+  return { messageId: result.MessageId || "n/a" };
+}
+
+/**
+ * Send email via SMTP (Gmail fallback).
+ */
+async function sendViaSmtp(
+  to: string,
+  subject: string,
+  text: string,
+  html?: string
+) {
+  const transport = getSmtpTransport();
+  const info = await transport.sendMail({
+    from: SMTP_FROM,
+    ...(SMTP_REPLY_TO ? { replyTo: SMTP_REPLY_TO } : {}),
+    to,
+    subject,
+    text,
+    ...(html ? { html } : {}),
+  });
+  return { messageId: info.messageId ?? "n/a" };
+}
+
+/**
+ * Main sendMail — uses AWS SES when configured, falls back to SMTP.
+ */
 export async function sendMail(
   to: string,
   subject: string,
@@ -84,20 +162,25 @@ export async function sendMail(
 ) {
   const logTag = `[EMAIL] to=${to} subject="${subject}"`;
   console.log(`${logTag} — attempting to send`);
+
+  // Try AWS SES first
+  if (isSesConfigured()) {
+    try {
+      const result = await sendViaSes(to, subject, text, html);
+      console.log(`${logTag} — sent via AWS SES (messageId=${result.messageId})`);
+      return result;
+    } catch (err) {
+      console.error(`${logTag} — AWS SES failed, falling back to SMTP`, err);
+    }
+  }
+
+  // Fallback to SMTP
   try {
-    const transport = getTransport();
-    const info = await transport.sendMail({
-      from: SMTP_FROM,
-      ...(SMTP_REPLY_TO ? { replyTo: SMTP_REPLY_TO } : {}),
-      to,
-      subject,
-      text,
-      ...(html ? { html } : {}),
-    });
-    console.log(`${logTag} — sent successfully (messageId=${info.messageId ?? "n/a"})`);
-    return info;
+    const result = await sendViaSmtp(to, subject, text, html);
+    console.log(`${logTag} — sent via SMTP (messageId=${result.messageId})`);
+    return result;
   } catch (err) {
-    console.error(`${logTag} — FAILED`, err);
+    console.error(`${logTag} — SMTP also FAILED`, err);
     throw err;
   }
 }
