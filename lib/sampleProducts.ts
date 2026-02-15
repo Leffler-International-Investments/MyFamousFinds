@@ -101,10 +101,15 @@ export function findById(id: string) {
 }
 
 export const CATEGORIES = [
+  { slug: 'new-arrivals', label: 'New Arrivals' },
   { slug: 'women', label: 'Women' },
   { slug: 'men', label: 'Men' },
-  { slug: 'shoes', label: 'Shoes' },
   { slug: 'bags', label: 'Bags' },
+  { slug: 'shoes', label: 'Shoes' },
   { slug: 'jewelry', label: 'Jewelry' },
-  { slug: 'party-dresses', label: 'Party Dresses' }
+  { slug: 'watches', label: 'Watches' },
+  { slug: 'kids', label: 'Kids' },
+  { slug: 'clothing', label: 'Clothing' },
+  { slug: 'accessories', label: 'Accessories' },
+  { slug: 'party-dresses', label: 'Party Dresses' },
 ];
