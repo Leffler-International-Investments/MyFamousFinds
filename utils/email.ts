@@ -18,6 +18,9 @@ const AWS_SES_FROM =
   cleanEnv(process.env.AWS_SES_FROM) ||
   cleanEnv(process.env.SMTP_FROM) ||
   "Famous Finds <admin@myfamousfinds.com>";
+const AWS_SES_REPLY_TO =
+  cleanEnv(process.env.AWS_SES_REPLY_TO) ||
+  "Famous Finds Support <support@myfamousfinds.com>";
 
 function isSesConfigured(): boolean {
   return Boolean(AWS_ACCESS_KEY_ID && AWS_SECRET_ACCESS_KEY);
@@ -65,7 +68,7 @@ const SMTP_FROM = SMTP_FROM_RAW
 const SMTP_REPLY_TO =
   fromEmail && SMTP_USER && fromEmail.toLowerCase() !== SMTP_USER.toLowerCase()
     ? `${fromDisplayName} <${fromEmail}>`
-    : undefined;
+    : "Famous Finds Support <support@myfamousfinds.com>";
 
 function getSmtpTransport() {
   if (!SMTP_HOST || !SMTP_PORT) {
@@ -112,6 +115,7 @@ async function sendViaSes(
   const client = getSesClient();
   const command = new SendEmailCommand({
     Source: source,
+    ReplyToAddresses: [AWS_SES_REPLY_TO],
     Destination: { ToAddresses: [to] },
     Message: {
       Subject: { Data: subject, Charset: "UTF-8" },
