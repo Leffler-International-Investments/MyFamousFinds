@@ -6,26 +6,6 @@ import { FormEvent, useState } from "react";
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
 
-// Same public config that is already used in utils/firebaseClient.ts
-const firebaseConfig = {
-  apiKey: "AIzaSyDddxs7XqxDhkfzvFxZigUQlZJu0fZ7VJQ",
-  authDomain: "famous-finds.firebaseapp.com",
-  projectId: "famous-finds",
-  storageBucket: "famous-finds.firebasestorage.app",
-  messagingSenderId: "825808501537",
-  appId: "1:825808501537:web:a0516661171712bd2c9c60",
-  measurementId: "G-NHM648X2ZR",
-};
-
-async function sendResetEmail(email: string) {
-  const { initializeApp, getApps, getApp } = await import("firebase/app");
-  const { getAuth, sendPasswordResetEmail } = await import("firebase/auth");
-
-  const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
-  const auth = getAuth(app);
-  await sendPasswordResetEmail(auth, email);
-}
-
 export default function ManagementForgotPassword() {
   const [email, setEmail] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -36,7 +16,7 @@ export default function ManagementForgotPassword() {
     e.preventDefault();
     setError(null);
 
-    const trimmed = email.trim();
+    const trimmed = email.trim().toLowerCase();
     if (!trimmed) {
       setError("Please enter your email address.");
       return;
@@ -44,7 +24,16 @@ export default function ManagementForgotPassword() {
 
     try {
       setLoading(true);
-      await sendResetEmail(trimmed.toLowerCase());
+      const res = await fetch("/api/auth/send-password-reset", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: trimmed, role: "management" }),
+      });
+      const json = await res.json();
+      if (!json.ok) {
+        setError(json.message || "We couldn't send the reset link. Please try again.");
+        return;
+      }
       setSent(true);
     } catch (err: any) {
       console.error(err);
