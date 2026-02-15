@@ -133,7 +133,10 @@ export async function createWhiteDisplayImage(
 
   const pipeline = sharp(workingBuffer)
     .rotate()
-    .resize(800, 1067, { fit: "inside", withoutEnlargement: true })
+    .resize(800, 1067, {
+      fit: "contain",
+      background: { r: 255, g: 255, b: 255, alpha: 1 },
+    })
     .flatten({ background: "#ffffff" });
 
   return pipeline

@@ -72,7 +72,7 @@ export default async function handler(
       // No Storage bucket — compress to fit in Firestore (<1MB limit)
       const compressedBuffer = await sharp(buffer)
         .rotate()
-        .resize(800, 800, { fit: "inside", withoutEnlargement: true })
+        .resize(800, 1067, { fit: "contain", background: { r: 255, g: 255, b: 255, alpha: 1 } })
         .flatten({ background: "#ffffff" })
         .jpeg({ quality: 70, mozjpeg: true })
         .toBuffer();
