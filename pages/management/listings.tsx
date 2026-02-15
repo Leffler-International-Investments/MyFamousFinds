@@ -34,7 +34,7 @@ const CONDITIONS = [
   "Good",
   "Fair",
 ] as const;
-const STATUSES = ["Live", "Pending", "Rejected", "Sold"] as const;
+const STATUSES = ["Live", "Pending", "Rejected", "Sold", "Delete"] as const;
 
 export default function ManagementListings({ items }: Props) {
   const { loading } = useRequireAdmin();
@@ -254,6 +254,18 @@ export default function ManagementListings({ items }: Props) {
     const nextStatus = (editedStatus[id] || "").trim();
     if (!nextStatus) {
       alert("Please select a status first.");
+      return;
+    }
+
+    // "Delete" triggers the delete flow instead of a status update
+    if (nextStatus === "Delete") {
+      const title = rows.find((l) => l.id === id)?.title || id;
+      handleDelete(id, title);
+      // Reset the select back to the current status
+      setEditedStatus((prev) => ({
+        ...prev,
+        [id]: rows.find((l) => l.id === id)?.status || "Live",
+      }));
       return;
     }
 
@@ -488,8 +500,12 @@ export default function ManagementListings({ items }: Props) {
                             }
                           >
                             {STATUSES.map((s) => (
-                              <option key={s} value={s}>
-                                {s}
+                              <option
+                                key={s}
+                                value={s}
+                                style={s === "Delete" ? { color: "#dc2626" } : undefined}
+                              >
+                                {s === "Delete" ? "--- Delete ---" : s}
                               </option>
                             ))}
                           </select>
