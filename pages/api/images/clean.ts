@@ -27,6 +27,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     const out = await sharp(input)
       .rotate()
+      .resize(800, 1067, { fit: "inside", withoutEnlargement: true })
       .flatten({ background: { r: 255, g: 255, b: 255 } })
       // sharp@0.33 expects an object, not a number:
       .trim({ threshold: 10 })
