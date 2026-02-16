@@ -10,11 +10,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const sellerId = await getSellerId(req);
   if (!sellerId) return res.status(401).json({ error: "unauthorized" });
 
+  console.log("[seller/offers] querying offers for sellerId:", sellerId);
+
   try {
     const snap = await adminDb
       .collection("offers")
       .where("sellerId", "==", sellerId)
-      .orderBy("createdAt", "desc")
       .limit(100)
       .get();
 
@@ -30,8 +31,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         message: String(d.message || ""),
         status: String(d.status || "pending"),
         createdAt: d.createdAt?.toDate?.().toLocaleString("en-US") || "",
+        _ts: d.createdAt?.toDate?.().getTime() || 0,
       };
     });
+
+    // Sort by createdAt descending in memory (avoids composite index requirement)
+    offers.sort((a, b) => ((b as any)._ts || 0) - ((a as any)._ts || 0));
+    offers.forEach((o: any) => delete o._ts);
 
     return res.status(200).json({ offers });
   } catch (err: any) {
