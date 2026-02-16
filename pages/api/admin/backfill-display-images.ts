@@ -76,6 +76,7 @@ export default async function handler(
   }
 
   const max = Math.min(Math.max(Number(req.query.max || 50), 1), 200);
+  const force = req.query.force === "true";
 
   try {
     const snap = await adminDb.collection("listings").limit(max).get();
@@ -86,7 +87,8 @@ export default async function handler(
     for (const doc of snap.docs) {
       const data: any = doc.data() || {};
 
-      if (data.displayImageUrl || data.display_image_url) {
+      // Skip listings that already have a display image, unless force=true
+      if (!force && (data.displayImageUrl || data.display_image_url)) {
         skipped++;
         continue;
       }
