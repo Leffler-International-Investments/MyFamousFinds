@@ -33,6 +33,8 @@ type Item = {
   serial?: string;
   purchaseSource?: string;
   purchaseProof?: string;
+  proofDoc?: File;
+  proofDocDataUrl?: string;
   allowOffers?: boolean;
   images?: File[];
   imageDataUrl?: string;
@@ -159,6 +161,7 @@ export default function BulkSimple() {
   const [submitMessage, setSubmitMessage] = useState<string | null>(null);
 
   const fileInputsRef = useRef<(HTMLInputElement | null)[]>([]);
+  const proofInputsRef = useRef<(HTMLInputElement | null)[]>([]);
 
   useEffect(() => {
     let cancelled = false;
@@ -299,6 +302,36 @@ export default function BulkSimple() {
     });
   };
 
+  const handleProofFile = async (idx: number, fileList: FileList | null) => {
+    const file = Array.from(fileList || [])[0];
+    if (!file) {
+      update(idx, { proofDoc: undefined, proofDocDataUrl: undefined });
+      return;
+    }
+
+    // For images, compress; for PDFs/docs, read as base64 directly
+    if (file.type.startsWith("image/")) {
+      try {
+        const dataUrl = await compressImageFile(file, 1200, 0.8);
+        update(idx, { proofDoc: file, proofDocDataUrl: dataUrl });
+      } catch {
+        const raw = await new Promise<string>((resolve) => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve(typeof reader.result === "string" ? reader.result : "");
+          reader.readAsDataURL(file);
+        });
+        update(idx, { proofDoc: file, proofDocDataUrl: raw || undefined });
+      }
+    } else {
+      const raw = await new Promise<string>((resolve) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(typeof reader.result === "string" ? reader.result : "");
+        reader.readAsDataURL(file);
+      });
+      update(idx, { proofDoc: file, proofDocDataUrl: raw || undefined });
+    }
+  };
+
   const handleDrop = (idx: number, e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     e.stopPropagation();
@@ -359,6 +392,7 @@ export default function BulkSimple() {
           price: numericPrice,
           purchase_source: it.purchaseSource || "",
           purchase_proof: it.purchaseProof || "",
+          proof_doc_url: it.proofDocDataUrl || null,
           serial_number: it.serial || "",
           allowOffers: it.allowOffers !== false,
           imageDataUrl: it.imageDataUrl || null,
@@ -788,6 +822,56 @@ export default function BulkSimple() {
                 </select>
               </label>
 
+              {/* Proof document upload */}
+              <div className="proof-upload-field">
+                <span className="field-label">
+                  Upload Proof Document
+                </span>
+                <p className="proof-hint">
+                  Upload a receipt, bank statement, certificate, or any document that proves authenticity.
+                </p>
+                {it.proofDoc ? (
+                  <div className="proof-file-row">
+                    {it.proofDocDataUrl && it.proofDoc.type.startsWith("image/") && (
+                      <img className="proof-thumb" src={it.proofDocDataUrl} alt="Proof" />
+                    )}
+                    <span className="proof-file-name">{it.proofDoc.name}</span>
+                    <button
+                      type="button"
+                      className="proof-remove-btn"
+                      onClick={() => {
+                        update(idx, { proofDoc: undefined, proofDocDataUrl: undefined });
+                        const input = proofInputsRef.current[idx];
+                        if (input) input.value = "";
+                      }}
+                    >
+                      &times;
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    className="proof-upload-btn"
+                    onClick={() => {
+                      const input = proofInputsRef.current[idx];
+                      if (input) input.click();
+                    }}
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                    Choose file…
+                  </button>
+                )}
+                <input
+                  ref={(el) => {
+                    proofInputsRef.current[idx] = el;
+                  }}
+                  type="file"
+                  accept="image/*,.pdf,.doc,.docx"
+                  style={{ display: "none" }}
+                  onChange={(e) => handleProofFile(idx, e.target.files)}
+                />
+              </div>
+
               {/* Images box */}
               <label className="full">
                 <span>Images (drag & drop or select — up to 8)</span>
@@ -1138,6 +1222,77 @@ export default function BulkSimple() {
           font-size: 12px;
           color: #6b7280;
           text-align: center;
+        }
+
+        /* Proof document upload */
+        .proof-upload-field {
+          display: flex;
+          flex-direction: column;
+        }
+        .proof-hint {
+          font-size: 11px;
+          color: #6b7280;
+          margin: 0 0 8px;
+          line-height: 1.4;
+        }
+        .proof-upload-btn {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          background: #ffffff;
+          color: #374151;
+          border: 1px dashed #d1d5db;
+          border-radius: 8px;
+          padding: 10px 14px;
+          font-size: 13px;
+          font-weight: 600;
+          cursor: pointer;
+          transition: border-color 0.15s, background 0.15s;
+        }
+        .proof-upload-btn:hover {
+          border-color: #2563eb;
+          background: #eff6ff;
+          color: #1d4ed8;
+        }
+        .proof-file-row {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          background: #f9fafb;
+          border: 1px solid #e5e7eb;
+          border-radius: 8px;
+          padding: 8px 10px;
+        }
+        .proof-thumb {
+          width: 40px;
+          height: 40px;
+          border-radius: 6px;
+          object-fit: cover;
+          border: 1px solid #e5e7eb;
+          flex-shrink: 0;
+        }
+        .proof-file-name {
+          flex: 1;
+          font-size: 13px;
+          color: #374151;
+          font-weight: 500;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+          min-width: 0;
+        }
+        .proof-remove-btn {
+          background: none;
+          border: none;
+          color: #9ca3af;
+          font-size: 18px;
+          cursor: pointer;
+          padding: 0 4px;
+          line-height: 1;
+          flex-shrink: 0;
+        }
+        .proof-remove-btn:hover {
+          color: #b91c1c;
         }
 
         /* Details textarea */
