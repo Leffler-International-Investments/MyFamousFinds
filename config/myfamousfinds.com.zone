@@ -1,0 +1,7 @@
+$ORIGIN myfamousfinds.com.
+nl5wucbtqwe2j4oqnhbi32efpwa6j7jr._domainkey 60 IN CNAME nl5wucbtqwe2j4oqnhbi32efpwa6j7jr.dkim.amazonses.com.
+pnbl2z5gtjqs5poinfs4sim3n76y5cd._domainkey 60 IN CNAME pnbl2z5gtjqs5poinfs4sim3n76y5cd.dkim.amazonses.com.
+uduetbrxzyqzlwoyaziiiglxz7mwqivr._domainkey 60 IN CNAME uduetbrxzyqzlwoyaziiiglxz7mwqivr.dkim.amazonses.com.
+mail 60 IN MX 10 feedback-smtp.us-east-1.amazonses.com.
+mail 60 IN TXT "v=spf1 include:amazonses.com ~all"
+_dmarc 60 IN TXT "v=DMARC1; p=none;"
