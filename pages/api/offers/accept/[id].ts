@@ -47,6 +47,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
       itemTitle: String(offer.listingTitle || ""),
       offerAmount: Number(offer.offerAmount || 0),
       currency: String(offer.currency || "USD"),
+      listingId: String(offer.listingId || offer.productId || ""),
     }).catch((err) => console.error("Failed to send offer accepted email:", err));
   }
 
