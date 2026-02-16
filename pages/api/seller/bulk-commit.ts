@@ -31,6 +31,7 @@ type IncomingRow = {
   price?: number | string;
   purchase_source?: string;
   purchase_proof?: string;
+  proof_doc_url?: string | null;
   serial_number?: string;
   allowOffers?: boolean;
   imageDataUrl?: string | null;
@@ -48,6 +49,7 @@ type CleanRow = {
   details: string;
   purchase_source: string;
   purchase_proof: string;
+  proof_doc_url: string | null;
   serial_number: string;
   price: number;
   allowOffers: boolean;
@@ -154,6 +156,7 @@ function cleanRow(r: IncomingRow): CleanRow | null {
   const details = toStr(r.details);
   const purchase_source = toStr(r.purchase_source);
   const purchase_proof = toStr(r.purchase_proof);
+  const proof_doc_url = (typeof r.proof_doc_url === "string" && r.proof_doc_url) ? r.proof_doc_url : null;
   const serial_number = toStr(r.serial_number);
   const price = coercePrice(r.price);
 
@@ -178,6 +181,7 @@ function cleanRow(r: IncomingRow): CleanRow | null {
     details,
     purchase_source,
     purchase_proof,
+    proof_doc_url,
     serial_number,
     price,
     allowOffers: r.allowOffers !== false,
