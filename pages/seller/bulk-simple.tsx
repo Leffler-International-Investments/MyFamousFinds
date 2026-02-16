@@ -27,6 +27,8 @@ type Item = {
   condition?: string;
   size?: string;
   color?: string;
+  customColor?: string;
+  details?: string;
   priceUSD?: string;
   serial?: string;
   purchaseSource?: string;
@@ -333,7 +335,8 @@ export default function BulkSimple() {
           material: it.material || "",
           condition: it.condition || "",
           size: it.size || "",
-          color: it.color || "",
+          color: it.customColor || it.color || "",
+          details: it.details?.trim() || "",
           price: numericPrice,
           purchase_source: it.purchaseSource || "",
           purchase_proof: it.purchaseProof || "",
@@ -579,16 +582,18 @@ export default function BulkSimple() {
                       if (panel) panel.style.display = panel.style.display === "block" ? "none" : "block";
                     }}
                   >
-                    {it.color ? (
+                    {it.color || it.customColor ? (
                       <>
                         <span
                           className="color-circle-sm"
-                          style={it.color === "Multi"
-                            ? { background: "conic-gradient(red,orange,yellow,green,blue,purple,red)" }
-                            : { backgroundColor: COLOR_OPTIONS.find(c => c.label === it.color)?.hex || "#ccc" }
+                          style={it.customColor
+                            ? { backgroundColor: it.customColor }
+                            : it.color === "Multi"
+                              ? { background: "conic-gradient(red,orange,yellow,green,blue,purple,red)" }
+                              : { backgroundColor: COLOR_OPTIONS.find(c => c.label === it.color)?.hex || "#ccc" }
                           }
                         />
-                        {it.color}
+                        {it.customColor ? `Custom (${it.customColor})` : it.color}
                       </>
                     ) : (
                       <span className="color-placeholder">— Select color —</span>
@@ -596,16 +601,51 @@ export default function BulkSimple() {
                     <span className="color-chevron">&#9662;</span>
                   </button>
                   <div className="color-dropdown-panel" style={{ display: "none" }}>
+                    {/* Pick from image */}
+                    {it.imageDataUrls && it.imageDataUrls.length > 0 && (
+                      <button
+                        type="button"
+                        className="color-pick-from-image"
+                        onClick={(e) => {
+                          const panel = e.currentTarget.parentElement as HTMLElement;
+                          if (panel) panel.style.display = "none";
+                          // Show the eyedropper canvas for this item
+                          const eyedropperEl = document.getElementById(`eyedropper-${idx}`);
+                          if (eyedropperEl) eyedropperEl.style.display = "block";
+
+                          // Draw the first image onto the hidden canvas
+                          const canvas = document.getElementById(`eyedropper-canvas-${idx}`) as HTMLCanvasElement;
+                          if (!canvas) return;
+                          const ctx = canvas.getContext("2d");
+                          if (!ctx) return;
+                          const img = new Image();
+                          img.crossOrigin = "anonymous";
+                          img.onload = () => {
+                            const maxW = 400;
+                            const scale = Math.min(maxW / img.width, maxW / img.height, 1);
+                            canvas.width = Math.round(img.width * scale);
+                            canvas.height = Math.round(img.height * scale);
+                            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                          };
+                          img.src = it.imageDataUrls![0];
+                        }}
+                      >
+                        <span className="eyedropper-icon">
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 22l1-1h3l9-9"/><path d="M3 21v-3l9-9"/><circle cx="18" cy="6" r="3"/></svg>
+                        </span>
+                        <span className="color-name">Pick from image</span>
+                      </button>
+                    )}
                     {COLOR_OPTIONS.map((c) => {
                       const isMulti = c.label === "Multi";
-                      const isActive = (it.color || "").toLowerCase() === c.label.toLowerCase();
+                      const isActive = !it.customColor && (it.color || "").toLowerCase() === c.label.toLowerCase();
                       return (
                         <button
                           key={c.label}
                           type="button"
                           className={`color-option${isActive ? " color-option--active" : ""}`}
                           onClick={(e) => {
-                            update(idx, { color: isActive ? "" : c.label });
+                            update(idx, { color: isActive ? "" : c.label, customColor: undefined });
                             const panel = (e.currentTarget.parentElement as HTMLElement);
                             if (panel) panel.style.display = "none";
                           }}
@@ -620,6 +660,84 @@ export default function BulkSimple() {
                     })}
                   </div>
                 </div>
+                {/* Eyedropper overlay for picking color from image */}
+                <div id={`eyedropper-${idx}`} className="eyedropper-overlay" style={{ display: "none" }}>
+                  <div className="eyedropper-container">
+                    <div className="eyedropper-header">
+                      <span>Click on the image to pick a color</span>
+                      <button
+                        type="button"
+                        className="eyedropper-close"
+                        onClick={() => {
+                          const el = document.getElementById(`eyedropper-${idx}`);
+                          if (el) el.style.display = "none";
+                        }}
+                      >
+                        &times;
+                      </button>
+                    </div>
+                    {it.imageDataUrls && it.imageDataUrls.length > 1 && (
+                      <div className="eyedropper-thumbs">
+                        {it.imageDataUrls.map((url, imgIdx) => (
+                          <button
+                            key={imgIdx}
+                            type="button"
+                            className="eyedropper-thumb-btn"
+                            onClick={() => {
+                              const canvas = document.getElementById(`eyedropper-canvas-${idx}`) as HTMLCanvasElement;
+                              if (!canvas) return;
+                              const ctx = canvas.getContext("2d");
+                              if (!ctx) return;
+                              const img = new Image();
+                              img.crossOrigin = "anonymous";
+                              img.onload = () => {
+                                const maxW = 400;
+                                const scale = Math.min(maxW / img.width, maxW / img.height, 1);
+                                canvas.width = Math.round(img.width * scale);
+                                canvas.height = Math.round(img.height * scale);
+                                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                              };
+                              img.src = url;
+                            }}
+                          >
+                            <img src={url} alt={`Image ${imgIdx + 1}`} />
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                    <div className="eyedropper-canvas-wrap">
+                      <canvas
+                        id={`eyedropper-canvas-${idx}`}
+                        className="eyedropper-canvas"
+                        onClick={(e) => {
+                          const canvas = e.currentTarget as HTMLCanvasElement;
+                          const ctx = canvas.getContext("2d");
+                          if (!ctx) return;
+                          const rect = canvas.getBoundingClientRect();
+                          const x = Math.round((e.clientX - rect.left) * (canvas.width / rect.width));
+                          const y = Math.round((e.clientY - rect.top) * (canvas.height / rect.height));
+                          const pixel = ctx.getImageData(x, y, 1, 1).data;
+                          const hex = `#${pixel[0].toString(16).padStart(2,"0")}${pixel[1].toString(16).padStart(2,"0")}${pixel[2].toString(16).padStart(2,"0")}`;
+                          update(idx, { customColor: hex, color: "" });
+                          const el = document.getElementById(`eyedropper-${idx}`);
+                          if (el) el.style.display = "none";
+                        }}
+                      />
+                    </div>
+                    <div className="eyedropper-hint">Tip: click directly on the item to capture its genuine color</div>
+                  </div>
+                </div>
+              </label>
+
+              <label className="full">
+                <span>Details</span>
+                <textarea
+                  className="details-textarea"
+                  value={it.details || ""}
+                  onChange={(e) => update(idx, { details: e.target.value })}
+                  placeholder="Describe the item — e.g., measurements, flaws, special features, history…"
+                  rows={3}
+                />
               </label>
 
               <label>
@@ -967,6 +1085,140 @@ export default function BulkSimple() {
           color: #374151;
           font-weight: 500;
           line-height: 1.1;
+          text-align: center;
+        }
+
+        /* Details textarea */
+        .details-textarea {
+          background: #ffffff;
+          color: #111827;
+          border: 1px solid #d1d5db;
+          border-radius: 8px;
+          padding: 10px;
+          font-size: 14px;
+          width: 100%;
+          resize: vertical;
+          font-family: inherit;
+          line-height: 1.5;
+        }
+        .details-textarea:focus {
+          outline: none;
+          border-color: #000;
+          box-shadow: 0 0 0 1px #000;
+        }
+
+        /* Pick from image button */
+        .color-pick-from-image {
+          grid-column: 1 / -1;
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          padding: 8px 10px;
+          border: 2px dashed #d1d5db;
+          border-radius: 8px;
+          background: #f9fafb;
+          cursor: pointer;
+          font-size: 12px;
+          font-weight: 600;
+          color: #374151;
+          transition: border-color 0.15s, background 0.15s;
+          margin-bottom: 4px;
+        }
+        .color-pick-from-image:hover {
+          border-color: #2563eb;
+          background: #eff6ff;
+          color: #1d4ed8;
+        }
+        .eyedropper-icon {
+          display: flex;
+          align-items: center;
+        }
+
+        /* Eyedropper overlay */
+        .eyedropper-overlay {
+          position: fixed;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          z-index: 100;
+          background: rgba(0,0,0,0.6);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+        .eyedropper-container {
+          background: #fff;
+          border-radius: 12px;
+          padding: 20px;
+          max-width: 460px;
+          width: 90vw;
+          box-shadow: 0 8px 32px rgba(0,0,0,0.25);
+        }
+        .eyedropper-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 12px;
+          font-size: 14px;
+          font-weight: 600;
+          color: #111827;
+        }
+        .eyedropper-close {
+          background: none;
+          border: none;
+          font-size: 22px;
+          cursor: pointer;
+          color: #6b7280;
+          padding: 0 4px;
+          line-height: 1;
+        }
+        .eyedropper-close:hover {
+          color: #111827;
+        }
+        .eyedropper-thumbs {
+          display: flex;
+          gap: 6px;
+          margin-bottom: 10px;
+          overflow-x: auto;
+        }
+        .eyedropper-thumb-btn {
+          width: 48px;
+          height: 48px;
+          border-radius: 6px;
+          overflow: hidden;
+          border: 2px solid #e5e7eb;
+          background: #fff;
+          cursor: pointer;
+          padding: 0;
+          flex-shrink: 0;
+        }
+        .eyedropper-thumb-btn:hover {
+          border-color: #2563eb;
+        }
+        .eyedropper-thumb-btn img {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+          display: block;
+        }
+        .eyedropper-canvas-wrap {
+          border: 1px solid #e5e7eb;
+          border-radius: 8px;
+          overflow: hidden;
+          display: flex;
+          justify-content: center;
+          background: #f9fafb;
+        }
+        .eyedropper-canvas {
+          cursor: crosshair;
+          max-width: 100%;
+          display: block;
+        }
+        .eyedropper-hint {
+          margin-top: 8px;
+          font-size: 12px;
+          color: #6b7280;
           text-align: center;
         }
 
