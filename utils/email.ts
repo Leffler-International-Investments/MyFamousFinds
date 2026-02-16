@@ -581,3 +581,137 @@ export async function sendTestEmail(to: string) {
     "SMTP is working. This is a test email from MyFamousFinds.\n\nIf you received this, seller emails will send on approval.";
   await sendMail(to, subject, text);
 }
+
+/**
+ * Offer — notify seller of a new offer on their listing
+ */
+export async function sendSellerNewOfferEmail(params: {
+  to: string;
+  sellerName?: string;
+  buyerEmail: string;
+  itemTitle: string;
+  offerAmount: number;
+  listingPrice?: number;
+  currency?: string;
+  message?: string;
+  offerId: string;
+}) {
+  const to = (params.to || "").trim();
+  if (!to) throw new Error("sendSellerNewOfferEmail missing required field: to");
+
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://www.myfamousfinds.com";
+  const name = params.sellerName || "Seller";
+  const cur = params.currency || "USD";
+  const subject = `MyFamousFinds — New Offer on "${params.itemTitle}"`;
+
+  const text =
+    `Hello ${name},\n\n` +
+    `You have received a new offer on your listing!\n\n` +
+    `Item: ${params.itemTitle}\n` +
+    (params.listingPrice ? `Listing price: ${cur} $${params.listingPrice.toLocaleString()}\n` : "") +
+    `Offer amount: ${cur} $${params.offerAmount.toLocaleString()}\n` +
+    `Buyer: ${params.buyerEmail}\n` +
+    (params.message ? `Message: ${params.message}\n` : "") +
+    `\nView and respond to this offer in your Seller Dashboard:\n` +
+    `${siteUrl}/seller/offers\n\n` +
+    `Regards,\nThe MyFamousFinds Team\n`;
+
+  const html =
+    `<p>Hello ${escapeHtml(name)},</p>` +
+    `<p style="font-size:16px;"><b>You have received a new offer on your listing!</b></p>` +
+    `<div style="padding:14px;background:#fef3c7;border-radius:8px;margin:12px 0;">` +
+    `<p style="margin:4px 0;"><b>Item:</b> ${escapeHtml(params.itemTitle)}</p>` +
+    (params.listingPrice ? `<p style="margin:4px 0;"><b>Listing price:</b> ${escapeHtml(cur)} $${params.listingPrice.toLocaleString()}</p>` : "") +
+    `<p style="margin:4px 0;"><b>Offer amount:</b> ${escapeHtml(cur)} $${params.offerAmount.toLocaleString()}</p>` +
+    `<p style="margin:4px 0;"><b>Buyer:</b> ${escapeHtml(params.buyerEmail)}</p>` +
+    (params.message ? `<p style="margin:4px 0;"><b>Message:</b> ${escapeHtml(params.message)}</p>` : "") +
+    `</div>` +
+    `<p><a href="${siteUrl}/seller/offers" ` +
+    `style="display:inline-block;padding:10px 24px;background:#111827;color:#fff;` +
+    `border-radius:999px;text-decoration:none;font-weight:600;">View Offers</a></p>` +
+    `<p>Regards,<br/>The MyFamousFinds Team</p>`;
+
+  await sendMail(to, subject, text, html);
+}
+
+/**
+ * Offer — notify buyer that their offer was accepted
+ */
+export async function sendBuyerOfferAcceptedEmail(params: {
+  to: string;
+  buyerName?: string;
+  itemTitle: string;
+  offerAmount: number;
+  currency?: string;
+}) {
+  const to = (params.to || "").trim();
+  if (!to) throw new Error("sendBuyerOfferAcceptedEmail missing required field: to");
+
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://www.myfamousfinds.com";
+  const name = params.buyerName || "there";
+  const cur = params.currency || "USD";
+  const subject = `MyFamousFinds — Your Offer on "${params.itemTitle}" Was Accepted!`;
+
+  const text =
+    `Hello ${name},\n\n` +
+    `Great news — your offer has been accepted!\n\n` +
+    `Item: ${params.itemTitle}\n` +
+    `Accepted amount: ${cur} $${params.offerAmount.toLocaleString()}\n\n` +
+    `You can now complete your purchase on MyFamousFinds.\n` +
+    `${siteUrl}\n\n` +
+    `Regards,\nThe MyFamousFinds Team\n`;
+
+  const html =
+    `<p>Hello ${escapeHtml(name)},</p>` +
+    `<p style="font-size:16px;"><b>Great news — your offer has been accepted!</b></p>` +
+    `<div style="padding:14px;background:#d1fae5;border-radius:8px;margin:12px 0;">` +
+    `<p style="margin:4px 0;"><b>Item:</b> ${escapeHtml(params.itemTitle)}</p>` +
+    `<p style="margin:4px 0;"><b>Accepted amount:</b> ${escapeHtml(cur)} $${params.offerAmount.toLocaleString()}</p>` +
+    `</div>` +
+    `<p><a href="${siteUrl}" ` +
+    `style="display:inline-block;padding:10px 24px;background:#16a34a;color:#fff;` +
+    `border-radius:999px;text-decoration:none;font-weight:600;">Complete Purchase</a></p>` +
+    `<p>Regards,<br/>The MyFamousFinds Team</p>`;
+
+  await sendMail(to, subject, text, html);
+}
+
+/**
+ * Offer — notify buyer that their offer was rejected
+ */
+export async function sendBuyerOfferRejectedEmail(params: {
+  to: string;
+  buyerName?: string;
+  itemTitle: string;
+  offerAmount: number;
+  currency?: string;
+  reason?: string;
+}) {
+  const to = (params.to || "").trim();
+  if (!to) throw new Error("sendBuyerOfferRejectedEmail missing required field: to");
+
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://www.myfamousfinds.com";
+  const name = params.buyerName || "there";
+  const cur = params.currency || "USD";
+  const subject = `MyFamousFinds — Offer Update for "${params.itemTitle}"`;
+
+  const text =
+    `Hello ${name},\n\n` +
+    `Unfortunately, your offer on "${params.itemTitle}" for ${cur} $${params.offerAmount.toLocaleString()} was not accepted.\n\n` +
+    (params.reason ? `Seller's note: ${params.reason}\n\n` : "") +
+    `You can browse more items or make a new offer on MyFamousFinds.\n` +
+    `${siteUrl}\n\n` +
+    `Regards,\nThe MyFamousFinds Team\n`;
+
+  const html =
+    `<p>Hello ${escapeHtml(name)},</p>` +
+    `<p>Unfortunately, your offer on <b>"${escapeHtml(params.itemTitle)}"</b> for ` +
+    `<b>${escapeHtml(cur)} $${params.offerAmount.toLocaleString()}</b> was not accepted.</p>` +
+    (params.reason ? `<p style="padding:10px;background:#fef3c7;border-radius:6px;"><b>Seller's note:</b> ${escapeHtml(params.reason)}</p>` : "") +
+    `<p><a href="${siteUrl}" ` +
+    `style="display:inline-block;padding:10px 24px;background:#111827;color:#fff;` +
+    `border-radius:999px;text-decoration:none;font-weight:600;">Browse Items</a></p>` +
+    `<p>Regards,<br/>The MyFamousFinds Team</p>`;
+
+  await sendMail(to, subject, text, html);
+}

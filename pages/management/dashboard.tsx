@@ -242,6 +242,13 @@ export default function ManagementDashboard({ stats }: Props) {
           subtitle="Track orders, returns, payouts, and tax in one place."
         >
           <DashboardTile
+            title="Buyer Offers"
+            description="View and respond to buyer offers on listings. Accept or reject on behalf of sellers."
+            href="/management/offers"
+            linkText="View Offers"
+            linkColor="gold"
+          />
+          <DashboardTile
             title="Orders Overview"
             description="Search and manage all platform orders from checkout to completion or refund."
             href="/management/orders"

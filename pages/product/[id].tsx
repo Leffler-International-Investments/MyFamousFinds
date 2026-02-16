@@ -266,11 +266,12 @@ export default function ProductPage(props: ProductPageProps) {
     try {
       setOfferSubmitting(true);
 
+      const token = auth?.currentUser ? await auth.currentUser.getIdToken() : "";
       const res = await fetch("/api/offers/create", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          ...(userId ? { "x-user-id": userId } : {}),
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
         body: JSON.stringify({
           productId: id, // ✅ REQUIRED by API
