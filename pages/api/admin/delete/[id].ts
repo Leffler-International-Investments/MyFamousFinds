@@ -1,6 +1,7 @@
 // FILE: /pages/api/admin/delete/[id].ts
 import type { NextApiRequest, NextApiResponse } from "next";
 import { requireAdmin } from "../../../../utils/adminAuth";
+import { adminDb } from "../../../../utils/firebaseAdmin";
 import { markListingDeleted } from "../../../../lib/deletedListings";
 
 type ApiResponse = { ok: true } | { ok: false; error: string };
@@ -21,10 +22,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
   }
 
   try {
+    // Hard-delete the listing document from Firestore
+    await adminDb.collection("listings").doc(id).delete();
+    // Also soft-delete for any cached homepage references
     await markListingDeleted(id);
     return res.status(200).json({ ok: true });
   } catch (err: any) {
-    console.error("Error marking listing as deleted:", err);
+    console.error("Error deleting listing:", err);
     return res.status(500).json({ ok: false, error: err?.message || "Internal error" });
   }
 }
