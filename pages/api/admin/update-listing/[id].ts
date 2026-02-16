@@ -40,7 +40,7 @@ export default async function handler(
     const id = String(req.query.id || "").trim();
     if (!id) return res.status(400).json({ ok: false, error: "Missing listing id" });
 
-    const { price, condition, status } = req.body || {};
+    const { price, condition, status, details } = req.body || {};
     const updates: Record<string, any> = {
       updatedAt: FieldValue?.serverTimestamp ? FieldValue.serverTimestamp() : new Date(),
     };
@@ -79,6 +79,10 @@ export default async function handler(
         updates.soldAt = FieldValue?.serverTimestamp ? FieldValue.serverTimestamp() : new Date();
         updates.isSold = true;
       }
+    }
+
+    if (details !== undefined) {
+      updates.details = String(details || "").trim();
     }
 
     const hasUpdates = Object.keys(updates).length > 1;

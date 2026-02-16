@@ -14,11 +14,11 @@ type Listing = {
   seller: string;
   status: "Live" | "Pending" | "Rejected" | "Sold";
   price: number;
-
-  // existing fields
   brand: string;
   category: string;
   condition: string;
+  details: string;
+  createdAt: string;
 };
 
 type Props = {
@@ -71,6 +71,13 @@ export default function ManagementListings({ items }: Props) {
     () => {
       const init: Record<string, string> = {};
       for (const l of items) init[l.id] = l.status || "Live";
+      return init;
+    }
+  );
+  const [editedDetails, setEditedDetails] = useState<Record<string, string>>(
+    () => {
+      const init: Record<string, string> = {};
+      for (const l of items) init[l.id] = l.details || "";
       return init;
     }
   );
@@ -291,6 +298,32 @@ export default function ManagementListings({ items }: Props) {
     }
   }
 
+  async function handleUpdateDetails(id: string) {
+    if (updatingKey) return;
+    const nextDetails = (editedDetails[id] || "").trim();
+
+    try {
+      setUpdatingKey(`${id}:details`);
+      const res = await fetch(`/api/admin/update-listing/${id}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ details: nextDetails }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok || !json?.ok) {
+        throw new Error(json?.error || "Failed to update details");
+      }
+      setRows((prev) =>
+        prev.map((l) => (l.id === id ? { ...l, details: nextDetails } : l))
+      );
+    } catch (err: any) {
+      console.error("Update details error", err);
+      alert(err?.message || "Unable to update details");
+    } finally {
+      setUpdatingKey(null);
+    }
+  }
+
   if (loading) return <div className="dashboard-page" />;
 
   return (
@@ -382,9 +415,8 @@ export default function ManagementListings({ items }: Props) {
                   <th>Price (US$)</th>
                   <th>Status</th>
 
-                  {/* NEW */}
                   <th>Category</th>
-
+                  <th>Details</th>
                   <th>Actions</th>
                 </tr>
               </thead>
@@ -556,6 +588,31 @@ export default function ManagementListings({ items }: Props) {
                       </td>
 
                       <td>
+                        <div className="edit-cell">
+                          <textarea
+                            className={`edit-textarea ${(editedDetails[l.id] || "").trim() !== (l.details || "").trim() ? "edit-input-dirty" : ""}`}
+                            value={editedDetails[l.id] ?? l.details ?? ""}
+                            onChange={(e) =>
+                              setEditedDetails((prev) => ({
+                                ...prev,
+                                [l.id]: e.target.value,
+                              }))
+                            }
+                            rows={2}
+                            placeholder="Item details…"
+                          />
+                          <button
+                            type="button"
+                            className="btn-table-update"
+                            onClick={() => handleUpdateDetails(l.id)}
+                            disabled={(editedDetails[l.id] || "").trim() === (l.details || "").trim() || updatingKey === `${l.id}:details`}
+                          >
+                            {updatingKey === `${l.id}:details` ? "Saving…" : "Save"}
+                          </button>
+                        </div>
+                      </td>
+
+                      <td>
                         <Link href={`/product/${l.id}`} className="btn-table-view">
                           View
                         </Link>
@@ -586,7 +643,7 @@ export default function ManagementListings({ items }: Props) {
 
                 {visible.length === 0 && (
                   <tr>
-                    <td colSpan={8} className="table-message">
+                    <td colSpan={9} className="table-message">
                       No listings match this filter.
                     </td>
                   </tr>
@@ -814,6 +871,17 @@ export default function ManagementListings({ items }: Props) {
         .edit-select-dirty {
           border: 2px solid #047857;
         }
+        .edit-textarea {
+          border-radius: 6px;
+          border: 1px solid #d1d5db;
+          padding: 6px 8px;
+          font-size: 12px;
+          background: white;
+          width: 180px;
+          min-height: 40px;
+          resize: vertical;
+          font-family: inherit;
+        }
       `}</style>
     </>
   );
@@ -821,13 +889,17 @@ export default function ManagementListings({ items }: Props) {
 
 export const getServerSideProps: GetServerSideProps<Props> = async () => {
   try {
-    const snap = await adminDb.collection("listings").get();
+    const snap = await adminDb.collection("listings").orderBy("createdAt", "desc").get();
 
-    const items: Listing[] = snap.docs.map((doc) => {
+    const items: Listing[] = [];
+    for (const doc of snap.docs) {
       const d: any = doc.data() || {};
-      const rawStatus = (d.status || "").toString();
-      let status: Listing["status"] = "Live";
+      const rawStatus = (d.status || "").toString().toLowerCase();
 
+      // Skip deleted/removed items — they are gone
+      if (rawStatus === "deleted" || rawStatus === "removed") continue;
+
+      let status: Listing["status"] = "Live";
       if (/pending/i.test(rawStatus)) status = "Pending";
       else if (/reject/i.test(rawStatus)) status = "Rejected";
       else if (/sold/i.test(rawStatus)) status = "Sold";
@@ -840,8 +912,10 @@ export const getServerSideProps: GetServerSideProps<Props> = async () => {
         d.itemCondition ||
         d.conditionText ||
         "";
+      const details = d.details || "";
+      const createdAt = d.createdAt?.toDate?.().toLocaleDateString("en-US") || "";
 
-      return {
+      items.push({
         id: doc.id,
         title: d.title || "Untitled listing",
         seller: d.sellerName || d.sellerId || "Seller",
@@ -850,8 +924,10 @@ export const getServerSideProps: GetServerSideProps<Props> = async () => {
         brand: String(brand),
         category: String(category),
         condition: String(condition),
-      };
-    });
+        details: String(details),
+        createdAt,
+      });
+    }
 
     return { props: { items } };
   } catch (err) {

@@ -174,6 +174,13 @@ export default function ManagementDashboard({ stats }: Props) {
             linkText="Manage Homepage"
             linkColor="green"
           />
+          <DashboardTile
+            title="Listing History"
+            description="Full audit trail: every item added, updated, sold, or deleted — by seller, condition, price, category."
+            href="/management/history-listings"
+            linkText="View History"
+            linkColor="gray"
+          />
         </DashboardSection>
 
         <DashboardSection

@@ -24,8 +24,10 @@ type ProductPageProps = {
   brand: string;
   category: string;
   color: string;
+  colorSwatch: string;
   size: string;
   description: string;
+  details: string;
   sellerName: string;
   allowOffers: boolean;
   allowPurchase: boolean;
@@ -45,8 +47,10 @@ export default function ProductPage(props: ProductPageProps) {
     brand,
     category,
     color,
+    colorSwatch,
     size,
     description,
+    details,
     sellerName,
     allowOffers,
     allowPurchase,
@@ -399,7 +403,16 @@ export default function ProductPage(props: ProductPageProps) {
               </div>
               <div>
                 <div className="metaLabel">Color</div>
-                <div className="metaValue">{color || "—"}</div>
+                <div className="metaValue">
+                  {colorSwatch ? (
+                    <span className="color-swatch-row">
+                      <img className="color-swatch-circle" src={colorSwatch} alt="Color swatch" />
+                      {color || ""}
+                    </span>
+                  ) : (
+                    color || "—"
+                  )}
+                </div>
               </div>
               <div>
                 <div className="metaLabel">Size</div>
@@ -411,6 +424,13 @@ export default function ProductPage(props: ProductPageProps) {
               <div className="descLabel">DESCRIPTION</div>
               <div className="descText">{description || "No additional description provided."}</div>
             </div>
+
+            {details && (
+              <div className="desc">
+                <div className="descLabel">DETAILS</div>
+                <div className="descText">{details}</div>
+              </div>
+            )}
 
             {/* SHIPPING DETAILS — shown after sign-in via Add to Bag */}
             {showShippingForm && (
@@ -748,6 +768,19 @@ export default function ProductPage(props: ProductPageProps) {
           font-size: 13px;
           color: #111;
           font-weight: 600;
+        }
+        .color-swatch-row {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+        }
+        .color-swatch-circle {
+          width: 24px;
+          height: 24px;
+          border-radius: 50%;
+          border: 1px solid #e5e7eb;
+          object-fit: cover;
+          vertical-align: middle;
         }
         .desc {
           margin-top: 8px;
@@ -1119,8 +1152,10 @@ export const getServerSideProps: GetServerSideProps<ProductPageProps> = async (c
     const brand = String(d.brand || d.designer || "").trim();
     const category = String(d.category || "").trim();
     const color = String(d.color || d.colour || "").trim();
+    const colorSwatch = String(d.colorSwatch || "").trim();
     const size = String(d.size || "").trim();
     const description = String(d.description || "").trim();
+    const details = String(d.details || "").trim();
     const sellerName = String(d.sellerName || d.seller || "").trim();
     const allowOffers = d.allowOffers !== false;
 
@@ -1137,8 +1172,10 @@ export const getServerSideProps: GetServerSideProps<ProductPageProps> = async (c
         brand,
         category,
         color,
+        colorSwatch,
         size,
         description,
+        details,
         sellerName,
         allowOffers,
         allowPurchase,
