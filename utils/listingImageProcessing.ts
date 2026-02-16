@@ -101,10 +101,12 @@ async function removeBackgroundIfConfigured(
     const result = await rembg({
       apiKey: BACKGROUND_REMOVAL_API_KEY,
       inputImage: buffer,
+      onUploadProgress: () => {},
+      onDownloadProgress: () => {},
       options: {
         format: "png",
         returnBase64: true,
-      },
+      } as any,
     });
 
     if (!result?.base64Image) {
