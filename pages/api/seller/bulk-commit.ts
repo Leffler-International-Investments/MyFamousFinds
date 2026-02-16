@@ -30,6 +30,7 @@ type IncomingRow = {
   purchase_source?: string;
   purchase_proof?: string;
   serial_number?: string;
+  allowOffers?: boolean;
   imageDataUrl?: string | null;
   imageDataUrls?: string[] | null;
 };
@@ -45,6 +46,7 @@ type CleanRow = {
   purchase_proof: string;
   serial_number: string;
   price: number;
+  allowOffers: boolean;
   _source?: "bulk";
   currency: "USD";
   status: "Pending";
@@ -170,6 +172,7 @@ function cleanRow(r: IncomingRow): CleanRow | null {
     purchase_proof,
     serial_number,
     price,
+    allowOffers: r.allowOffers !== false,
     _source: "bulk",
     currency: "USD",
     status: "Pending",
