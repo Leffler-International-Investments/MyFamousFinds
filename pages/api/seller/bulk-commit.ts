@@ -26,6 +26,7 @@ type IncomingRow = {
   condition?: string;
   size?: string;
   color?: string;
+  colorSwatch?: string | null;
   details?: string;
   price?: number | string;
   purchase_source?: string;
@@ -43,6 +44,7 @@ type CleanRow = {
   condition: string;
   size: string;
   color: string;
+  colorSwatch: string | null;
   details: string;
   purchase_source: string;
   purchase_proof: string;
@@ -148,6 +150,7 @@ function cleanRow(r: IncomingRow): CleanRow | null {
   const condition = toStr(r.condition);
   const size = toStr(r.size);
   const color = toStr(r.color);
+  const colorSwatch = (typeof r.colorSwatch === "string" && r.colorSwatch) ? r.colorSwatch : null;
   const details = toStr(r.details);
   const purchase_source = toStr(r.purchase_source);
   const purchase_proof = toStr(r.purchase_proof);
@@ -171,6 +174,7 @@ function cleanRow(r: IncomingRow): CleanRow | null {
     condition,
     size,
     color,
+    colorSwatch,
     details,
     purchase_source,
     purchase_proof,
