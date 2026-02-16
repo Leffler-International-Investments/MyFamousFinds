@@ -118,18 +118,10 @@ async function processAndStoreImage(base64Str: string) {
   if (!parsed) return null;
 
   if (!hasStorageBucket()) {
-    // No Storage bucket — compress to a small JPEG so it fits in Firestore (<1MB limit)
-    const compressedBuffer = await sharp(parsed.buffer)
-      .rotate()
-      .resize(800, 800, {
-        fit: "inside",
-        withoutEnlargement: true,
-      })
-      .flatten({ background: "#ffffff" })
-      .jpeg({ quality: 70, mozjpeg: true })
-      .toBuffer();
-    const compressedUrl = `data:image/jpeg;base64,${compressedBuffer.toString("base64")}`;
-    return { originalUrl: compressedUrl, displayUrl: compressedUrl };
+    // No Storage bucket — process through background removal + white display pipeline
+    const displayBuffer = await createWhiteDisplayImage(parsed.buffer, parsed.contentType);
+    const displayUrl = `data:image/jpeg;base64,${displayBuffer.toString("base64")}`;
+    return { originalUrl: displayUrl, displayUrl };
   }
 
   try {
@@ -137,17 +129,9 @@ async function processAndStoreImage(base64Str: string) {
     return { originalUrl: stored.originalUrl, displayUrl: stored.displayUrl };
   } catch (error) {
     console.warn("Storage upload failed, falling back to compressed data URL:", error);
-    const compressedBuffer = await sharp(parsed.buffer)
-      .rotate()
-      .resize(800, 800, {
-        fit: "inside",
-        withoutEnlargement: true,
-      })
-      .flatten({ background: "#ffffff" })
-      .jpeg({ quality: 70, mozjpeg: true })
-      .toBuffer();
-    const compressedUrl = `data:image/jpeg;base64,${compressedBuffer.toString("base64")}`;
-    return { originalUrl: compressedUrl, displayUrl: compressedUrl };
+    const displayBuffer = await createWhiteDisplayImage(parsed.buffer, parsed.contentType);
+    const displayUrl = `data:image/jpeg;base64,${displayBuffer.toString("base64")}`;
+    return { originalUrl: displayUrl, displayUrl };
   }
 }
 
@@ -239,34 +223,28 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
 
       // Process all images (supports multiple per listing)
       const rawImages = cleaned._rawImageDataUrls || [];
-      const processedUrls: string[] = [];
+      const processedOriginals: string[] = [];
+      let primaryDisplayUrl: string | null = null;
 
       for (const imgDataUrl of rawImages) {
         if (!imgDataUrl) continue;
         const stored = await processAndStoreImage(imgDataUrl);
         if (stored) {
-          processedUrls.push(stored.originalUrl);
+          processedOriginals.push(stored.originalUrl);
+          if (!primaryDisplayUrl) primaryDisplayUrl = stored.displayUrl;
         } else {
           const fallback = await processImage(imgDataUrl);
-          if (fallback) processedUrls.push(fallback);
+          if (fallback) processedOriginals.push(fallback);
         }
       }
 
-      if (processedUrls.length > 0) {
-        // First image becomes the primary display image
-        const primary = processedUrls[0];
-        const isBase64 = primary.startsWith("data:");
-        if (isBase64) {
-          cleaned.image_url = primary;
-          cleaned.imageUrl = primary;
-          cleaned.displayImageUrl = null;
-        } else {
-          cleaned.image_url = primary;
-          cleaned.imageUrl = primary;
-          cleaned.displayImageUrl = primary;
-        }
-        // Store all image URLs
-        cleaned.imageUrls = processedUrls;
+      if (processedOriginals.length > 0) {
+        const primary = processedOriginals[0];
+        cleaned.image_url = primary;
+        cleaned.imageUrl = primary;
+        // Use the processed display image (with background removal) if available
+        cleaned.displayImageUrl = primaryDisplayUrl || (primary.startsWith("data:") ? null : primary);
+        cleaned.imageUrls = processedOriginals;
       }
 
       // Remove internal field before storing

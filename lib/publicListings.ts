@@ -324,6 +324,11 @@ export async function getPublicListings(opts?: {
     if (isSoldFlag(d)) return;
     if (excludeIds.has(doc.id)) return;
 
+    // Only show approved/live listings on the homepage.
+    // Listings with no status (legacy data) are shown by default.
+    const rawStatus = String(d?.status || "").trim().toLowerCase();
+    if (rawStatus && rawStatus !== "live") return;
+
     const categoryRaw = extractCategory(d);
     const images = extractImages(d);
     const price = pickPrice(d);
