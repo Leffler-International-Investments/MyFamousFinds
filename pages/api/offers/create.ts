@@ -2,6 +2,7 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { adminDb, FieldValue } from "../../../utils/firebaseAdmin";
 import { getUserId } from "../../../utils/authServer";
+import { sendSellerNewOfferEmail } from "../../../utils/email";
 
 type Ok = { ok: true; offerId: string };
 type Err = { ok: false; error: string };
@@ -30,6 +31,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
 
   const L: any = listing.data() || {};
   const sellerId = String(L.sellerId || "");
+  const listingTitle = String(L.title || L.name || "");
+  const listingBrand = String(L.brand || L.designer || "");
+  const listingPrice = typeof L.price === "number" ? L.price : undefined;
+  const currency = String(L.currency || "USD");
 
   const ref = await adminDb.collection("offers").add({
     listingId: String(productId),
@@ -37,16 +42,44 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
     sellerId,
     buyerId: String(buyerId),
     buyerEmail: String(buyerEmail || ""),
-    listingTitle: String(L.title || L.name || ""),
-    listingBrand: String(L.brand || L.designer || ""),
+    listingTitle,
+    listingBrand,
     offerAmount: resolved,
     offerPrice: resolved,
-    currency: String(L.currency || "USD"),
+    currency,
     message: String(message || ""),
     status: "pending",
     createdAt: FieldValue.serverTimestamp(),
     updatedAt: FieldValue.serverTimestamp(),
   });
+
+  // Email the seller about the new offer (non-blocking)
+  if (sellerId) {
+    try {
+      // Look up seller email from sellers collection
+      const sellerDoc = await adminDb.collection("sellers").doc(sellerId).get();
+      const sellerData: any = sellerDoc.exists ? sellerDoc.data() : {};
+      const sellerEmail =
+        sellerData?.email || sellerData?.contactEmail || sellerData?.contact_email || "";
+      const sellerName = sellerData?.businessName || sellerData?.name || sellerData?.contactName || "";
+
+      if (sellerEmail) {
+        sendSellerNewOfferEmail({
+          to: sellerEmail,
+          sellerName,
+          buyerEmail: String(buyerEmail || ""),
+          itemTitle: listingTitle,
+          offerAmount: resolved,
+          listingPrice,
+          currency,
+          message: String(message || ""),
+          offerId: ref.id,
+        }).catch((err) => console.error("Failed to send offer email to seller:", err));
+      }
+    } catch (err) {
+      console.error("Error looking up seller for offer email:", err);
+    }
+  }
 
   return res.status(201).json({ ok: true, offerId: ref.id });
 }
