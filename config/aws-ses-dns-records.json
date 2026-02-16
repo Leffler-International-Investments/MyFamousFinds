@@ -1,0 +1,50 @@
+{
+  "_comment": "DNS records required for AWS SES email sending on myfamousfinds.com",
+  "_instructions": "Add these records in your DNS provider (Vercel/Cloudflare/GoDaddy/Namecheap). Most DNS UIs auto-append the domain — use the short 'host' values below, NOT the full FQDN.",
+  "_last_updated": "2026-02-16",
+  "_region": "us-east-1",
+
+  "dkim_cname_records": [
+    {
+      "type": "CNAME",
+      "host": "nl5wucbtqwe2j4oqnhbi32efpwa6j7jr._domainkey",
+      "value": "nl5wucbtqwe2j4oqnhbi32efpwa6j7jr.dkim.amazonses.com",
+      "purpose": "DKIM signature 1 of 3"
+    },
+    {
+      "type": "CNAME",
+      "host": "pnbl2z5gtjqs5poinfs4sim3n76y5cd._domainkey",
+      "value": "pnbl2z5gtjqs5poinfs4sim3n76y5cd.dkim.amazonses.com",
+      "purpose": "DKIM signature 2 of 3"
+    },
+    {
+      "type": "CNAME",
+      "host": "uduetbrxzyqzlwoyaziiiglxz7mwqivr._domainkey",
+      "value": "uduetbrxzyqzlwoyaziiiglxz7mwqivr.dkim.amazonses.com",
+      "purpose": "DKIM signature 3 of 3"
+    }
+  ],
+
+  "mail_from_records": [
+    {
+      "type": "MX",
+      "host": "mail",
+      "value": "feedback-smtp.us-east-1.amazonses.com",
+      "priority": 10,
+      "purpose": "MAIL FROM domain for SES bounce handling"
+    },
+    {
+      "type": "TXT",
+      "host": "mail",
+      "value": "v=spf1 include:amazonses.com ~all",
+      "purpose": "SPF for the mail subdomain (MAIL FROM alignment)"
+    }
+  ],
+
+  "dmarc_record": {
+    "type": "TXT",
+    "host": "_dmarc",
+    "value": "v=DMARC1; p=none;",
+    "purpose": "DMARC policy — monitoring-only (safe to start). Tighten to p=quarantine or p=reject once stable."
+  }
+}
