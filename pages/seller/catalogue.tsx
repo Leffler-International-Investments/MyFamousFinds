@@ -17,7 +17,9 @@ type CatalogueItem = {
   title: string;
   price: number;
   status: string;
-  // whether "Make an offer" is enabled for this listing
+  purchase_proof: string;
+  proof_doc_url: string;
+  details: string;
   allowOffers?: boolean;
 };
 
@@ -155,6 +157,9 @@ export default function SellerCatalogue() {
                   <th>Title</th>
                   <th>Price</th>
                   <th>Status</th>
+                  <th>Details</th>
+                  <th>Proof</th>
+                  <th>Proof Doc</th>
                   <th>Make an offer</th>
                   <th>Actions</th>
                 </tr>
@@ -162,7 +167,7 @@ export default function SellerCatalogue() {
               <tbody>
                 {loading && (
                   <tr>
-                    <td colSpan={5} className="table-message">
+                    <td colSpan={8} className="table-message">
                       Loading your listings…
                     </td>
                   </tr>
@@ -170,7 +175,7 @@ export default function SellerCatalogue() {
 
                 {!loading && !error && items.length === 0 && (
                   <tr>
-                    <td colSpan={5} className="table-message">
+                    <td colSpan={8} className="table-message">
                       You don&apos;t have any listings yet.
                     </td>
                   </tr>
@@ -190,6 +195,28 @@ export default function SellerCatalogue() {
                           })}
                         </td>
                         <td>{x.status}</td>
+                        <td className="cell-details">{x.details || "—"}</td>
+                        <td>
+                          {x.purchase_proof === "Requested" ? (
+                            <span className="proof-requested">Proof requested</span>
+                          ) : (
+                            x.purchase_proof || "—"
+                          )}
+                        </td>
+                        <td>
+                          {x.proof_doc_url ? (
+                            <a
+                              href={x.proof_doc_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="btn-proof-open"
+                            >
+                              View
+                            </a>
+                          ) : (
+                            <span className="no-proof">—</span>
+                          )}
+                        </td>
                         <td>
                           <button
                             className={`btn-offer-toggle ${
@@ -362,6 +389,36 @@ export default function SellerCatalogue() {
         .btn-offer-toggle:disabled {
           opacity: 0.6;
           cursor: default;
+        }
+
+        .cell-details {
+          max-width: 160px;
+          font-size: 12px;
+          color: #9ca3af;
+          white-space: pre-wrap;
+          word-break: break-word;
+        }
+        .proof-requested {
+          color: #f59e0b;
+          font-weight: 600;
+          font-size: 12px;
+        }
+        .no-proof {
+          color: #6b7280;
+          font-size: 12px;
+        }
+        .btn-proof-open {
+          display: inline-block;
+          background: #2563eb;
+          color: #fff;
+          border-radius: 999px;
+          padding: 4px 10px;
+          font-size: 12px;
+          text-decoration: none;
+          white-space: nowrap;
+        }
+        .btn-proof-open:hover {
+          background: #1d4ed8;
         }
 
         .banner {
