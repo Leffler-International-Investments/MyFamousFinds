@@ -31,6 +31,7 @@ type Item = {
   serial?: string;
   purchaseSource?: string;
   purchaseProof?: string;
+  allowOffers?: boolean;
   images?: File[];
   imageDataUrl?: string;
   imageDataUrls?: string[];
@@ -337,6 +338,7 @@ export default function BulkSimple() {
           purchase_source: it.purchaseSource || "",
           purchase_proof: it.purchaseProof || "",
           serial_number: it.serial || "",
+          allowOffers: it.allowOffers !== false,
           imageDataUrl: it.imageDataUrl || null,
           imageDataUrls: it.imageDataUrls && it.imageDataUrls.length > 0
             ? it.imageDataUrls
@@ -630,6 +632,21 @@ export default function BulkSimple() {
                   }
                   placeholder="e.g., 5200"
                 />
+              </label>
+
+              <label className="toggle-label">
+                <span>Allow offers</span>
+                <button
+                  type="button"
+                  className={`toggle${it.allowOffers !== false ? " toggle--on" : ""}`}
+                  onClick={() => update(idx, { allowOffers: it.allowOffers === false ? true : false })}
+                  aria-pressed={it.allowOffers !== false}
+                >
+                  <span className="toggle-knob" />
+                </button>
+                <span className="toggle-hint">
+                  {it.allowOffers !== false ? "Buyers can make offers" : "Fixed price only"}
+                </span>
               </label>
 
               <label>
@@ -951,6 +968,47 @@ export default function BulkSimple() {
           font-weight: 500;
           line-height: 1.1;
           text-align: center;
+        }
+
+        /* Allow offers toggle */
+        .toggle-label {
+          display: flex;
+          flex-direction: column;
+          gap: 6px;
+        }
+        .toggle {
+          position: relative;
+          width: 44px;
+          height: 24px;
+          border-radius: 999px;
+          border: none;
+          background: #d1d5db;
+          cursor: pointer;
+          padding: 0;
+          transition: background 0.2s;
+        }
+        .toggle--on {
+          background: #16a34a;
+        }
+        .toggle-knob {
+          position: absolute;
+          top: 2px;
+          left: 2px;
+          width: 20px;
+          height: 20px;
+          border-radius: 50%;
+          background: #fff;
+          transition: transform 0.2s;
+          box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+        }
+        .toggle--on .toggle-knob {
+          transform: translateX(20px);
+        }
+        .toggle-hint {
+          font-size: 11px !important;
+          color: #6b7280 !important;
+          font-weight: 400 !important;
+          margin-bottom: 0 !important;
         }
 
         .dropzone {

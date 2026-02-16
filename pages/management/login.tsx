@@ -18,8 +18,8 @@ type ManagementLoginResponse = ManagementLoginOk | ManagementLoginError;
 type PageMode = "login" | "setup";
 type TwoFactorStep = "credentials" | "choose_method" | "verify";
 
-// 72 hours (3 days)
-const SESSION_TTL_MS = 72 * 60 * 60 * 1000;
+// 7 days
+const SESSION_TTL_MS = 168 * 60 * 60 * 1000;
 
 export default function ManagementLoginPage() {
   const router = useRouter();
