@@ -643,6 +643,7 @@ export async function sendBuyerOfferAcceptedEmail(params: {
   itemTitle: string;
   offerAmount: number;
   currency?: string;
+  listingId?: string;
 }) {
   const to = (params.to || "").trim();
   if (!to) throw new Error("sendBuyerOfferAcceptedEmail missing required field: to");
@@ -650,6 +651,9 @@ export async function sendBuyerOfferAcceptedEmail(params: {
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://www.myfamousfinds.com";
   const name = params.buyerName || "there";
   const cur = params.currency || "USD";
+  const paymentUrl = params.listingId
+    ? `${siteUrl}/product/${params.listingId}`
+    : siteUrl;
   const subject = `MyFamousFinds — Your Offer on "${params.itemTitle}" Was Accepted!`;
 
   const text =
@@ -657,8 +661,8 @@ export async function sendBuyerOfferAcceptedEmail(params: {
     `Great news — your offer has been accepted!\n\n` +
     `Item: ${params.itemTitle}\n` +
     `Accepted amount: ${cur} $${params.offerAmount.toLocaleString()}\n\n` +
-    `You can now complete your purchase on MyFamousFinds.\n` +
-    `${siteUrl}\n\n` +
+    `You can now complete your purchase by visiting the link below:\n` +
+    `${paymentUrl}\n\n` +
     `Regards,\nThe MyFamousFinds Team\n`;
 
   const html =
@@ -668,9 +672,10 @@ export async function sendBuyerOfferAcceptedEmail(params: {
     `<p style="margin:4px 0;"><b>Item:</b> ${escapeHtml(params.itemTitle)}</p>` +
     `<p style="margin:4px 0;"><b>Accepted amount:</b> ${escapeHtml(cur)} $${params.offerAmount.toLocaleString()}</p>` +
     `</div>` +
-    `<p><a href="${siteUrl}" ` +
-    `style="display:inline-block;padding:10px 24px;background:#16a34a;color:#fff;` +
-    `border-radius:999px;text-decoration:none;font-weight:600;">Complete Purchase</a></p>` +
+    `<p>Complete your purchase now:</p>` +
+    `<p><a href="${paymentUrl}" ` +
+    `style="display:inline-block;padding:12px 28px;background:#16a34a;color:#fff;` +
+    `border-radius:999px;text-decoration:none;font-weight:600;font-size:16px;">Proceed to Payment</a></p>` +
     `<p>Regards,<br/>The MyFamousFinds Team</p>`;
 
   await sendMail(to, subject, text, html);

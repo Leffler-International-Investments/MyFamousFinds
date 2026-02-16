@@ -83,7 +83,7 @@ export default function SellerOffers() {
               <h1>Your Offers</h1>
               <p>Buyer offers on your listings. Accept or decline each offer.</p>
             </div>
-            <Link href="/seller/catalogue">← Back to Catalogue</Link>
+            <Link href="/seller/dashboard">← Back to Dashboard</Link>
           </div>
 
           {error && (

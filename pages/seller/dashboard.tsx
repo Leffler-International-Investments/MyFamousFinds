@@ -120,6 +120,13 @@ export default function SellerDashboard() {
 
           <DashboardSection title="Orders & Performance">
             <DashboardLink
+              href="/seller/offers"
+              title="Buyer Offers"
+              description="Review, accept, or decline buyer offers on your listings."
+              accentColor="green"
+
+            />
+            <DashboardLink
               href="/seller/orders"
               title="Orders"
               description="View new, in-transit, and delivered orders."
