@@ -61,14 +61,9 @@ const SMTP_FROM = SMTP_FROM_RAW
   ? (parsed?.name
       ? `${parsed.name} <${parsed.email}>`
       : parsed?.email || SMTP_FROM_RAW)
-  : SMTP_USER
-    ? `Famous Finds <${SMTP_USER}>`
-    : "Famous Finds <no-reply@myfamousfinds.com>";
+  : "Famous Finds <admin@myfamousfinds.com>";
 
-const SMTP_REPLY_TO =
-  fromEmail && SMTP_USER && fromEmail.toLowerCase() !== SMTP_USER.toLowerCase()
-    ? `${fromDisplayName} <${fromEmail}>`
-    : "Famous Finds Support <support@myfamousfinds.com>";
+const SMTP_REPLY_TO = "Famous Finds Support <support@myfamousfinds.com>";
 
 function getSmtpTransport() {
   if (!SMTP_HOST || !SMTP_PORT) {
