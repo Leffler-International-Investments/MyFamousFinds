@@ -421,16 +421,9 @@ export default function ProductPage(props: ProductPageProps) {
             </div>
 
             <div className="desc">
-              <div className="descLabel">DESCRIPTION</div>
-              <div className="descText">{description || "No additional description provided."}</div>
+              <div className="descLabel">DETAILS</div>
+              <div className="descText">{details || description || "No additional details provided."}</div>
             </div>
-
-            {details && (
-              <div className="desc">
-                <div className="descLabel">DETAILS</div>
-                <div className="descText">{details}</div>
-              </div>
-            )}
 
             {/* SHIPPING DETAILS — shown after sign-in via Add to Bag */}
             {showShippingForm && (
