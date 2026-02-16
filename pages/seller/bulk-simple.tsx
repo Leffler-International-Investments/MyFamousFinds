@@ -26,8 +26,8 @@ type Item = {
   material?: string;
   condition?: string;
   size?: string;
-  color?: string;
-  customColor?: string;
+  colorSwatch?: string;
+  colorName?: string;
   details?: string;
   priceUSD?: string;
   serial?: string;
@@ -104,27 +104,45 @@ const SOURCES = [
 
 const PROOFS = ["Receipt", "Bank statement", "Certificate", "Other"];
 
-const COLOR_OPTIONS: { label: string; hex: string }[] = [
-  { label: "Black", hex: "#000000" },
-  { label: "White", hex: "#FFFFFF" },
-  { label: "Cream", hex: "#FFFDD0" },
-  { label: "Beige", hex: "#D2B48C" },
-  { label: "Brown", hex: "#8B4513" },
-  { label: "Tan", hex: "#C8A97E" },
-  { label: "Burgundy", hex: "#800020" },
-  { label: "Red", hex: "#DC2626" },
-  { label: "Pink", hex: "#EC4899" },
-  { label: "Orange", hex: "#F97316" },
-  { label: "Yellow", hex: "#EAB308" },
-  { label: "Green", hex: "#16A34A" },
-  { label: "Blue", hex: "#2563EB" },
-  { label: "Navy", hex: "#1E3A5F" },
-  { label: "Purple", hex: "#7C3AED" },
-  { label: "Grey", hex: "#9CA3AF" },
-  { label: "Silver", hex: "#C0C0C0" },
-  { label: "Gold", hex: "#D4AF37" },
-  { label: "Multi", hex: "conic-gradient(red,orange,yellow,green,blue,purple,red)" },
-];
+/** Crop a circular swatch from a data-URL image at the given (x,y) centre. */
+const SWATCH_SIZE = 80;
+function cropSwatch(
+  dataUrl: string,
+  cx: number,
+  cy: number,
+  srcW: number,
+  srcH: number,
+): Promise<string> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      const scaleX = img.naturalWidth / srcW;
+      const scaleY = img.naturalHeight / srcH;
+      const r = SWATCH_SIZE / 2;
+      const canvas = document.createElement("canvas");
+      canvas.width = SWATCH_SIZE;
+      canvas.height = SWATCH_SIZE;
+      const ctx = canvas.getContext("2d")!;
+      ctx.beginPath();
+      ctx.arc(r, r, r, 0, Math.PI * 2);
+      ctx.closePath();
+      ctx.clip();
+      ctx.drawImage(
+        img,
+        cx * scaleX - r * scaleX,
+        cy * scaleY - r * scaleY,
+        SWATCH_SIZE * scaleX,
+        SWATCH_SIZE * scaleY,
+        0,
+        0,
+        SWATCH_SIZE,
+        SWATCH_SIZE,
+      );
+      resolve(canvas.toDataURL("image/png"));
+    };
+    img.src = dataUrl;
+  });
+}
 
 function getSellerIdHeader(): string {
   if (typeof window === "undefined") return "";
@@ -335,7 +353,8 @@ export default function BulkSimple() {
           material: it.material || "",
           condition: it.condition || "",
           size: it.size || "",
-          color: it.customColor || it.color || "",
+          color: it.colorName || "",
+          colorSwatch: it.colorSwatch || null,
           details: it.details?.trim() || "",
           price: numericPrice,
           purchase_source: it.purchaseSource || "",
@@ -571,133 +590,87 @@ export default function BulkSimple() {
                 />
               </label>
 
-              <label>
-                <span>Color</span>
-                <div className="color-dropdown">
+              {/* Spot Color — pick from item image like Moss & Spy */}
+              <div className="spot-color-field">
+                <span className="field-label">Color</span>
+
+                {it.colorSwatch ? (
+                  <div className="swatch-preview">
+                    <img className="swatch-circle" src={it.colorSwatch} alt="Color swatch" />
+                    <input
+                      className="swatch-name-input"
+                      value={it.colorName || ""}
+                      onChange={(e) => update(idx, { colorName: e.target.value })}
+                      placeholder="Name this color (e.g., Midnight Blue)"
+                    />
+                    <button
+                      type="button"
+                      className="swatch-change-btn"
+                      onClick={() => {
+                        if (!it.imageDataUrls?.length) return;
+                        const el = document.getElementById(`spot-picker-${idx}`);
+                        if (el) el.style.display = "flex";
+                        // Load first image into picker
+                        const pickerImg = document.getElementById(`spot-img-${idx}`) as HTMLImageElement;
+                        if (pickerImg) pickerImg.src = it.imageDataUrls![0];
+                      }}
+                    >
+                      Change
+                    </button>
+                    <button
+                      type="button"
+                      className="swatch-remove-btn"
+                      onClick={() => update(idx, { colorSwatch: undefined, colorName: undefined })}
+                      aria-label="Remove swatch"
+                    >
+                      &times;
+                    </button>
+                  </div>
+                ) : it.imageDataUrls && it.imageDataUrls.length > 0 ? (
                   <button
                     type="button"
-                    className="color-dropdown-trigger"
-                    onClick={(e) => {
-                      const panel = (e.currentTarget.nextElementSibling as HTMLElement);
-                      if (panel) panel.style.display = panel.style.display === "block" ? "none" : "block";
+                    className="pick-spot-btn"
+                    onClick={() => {
+                      const el = document.getElementById(`spot-picker-${idx}`);
+                      if (el) el.style.display = "flex";
+                      const pickerImg = document.getElementById(`spot-img-${idx}`) as HTMLImageElement;
+                      if (pickerImg) pickerImg.src = it.imageDataUrls![0];
                     }}
                   >
-                    {it.color || it.customColor ? (
-                      <>
-                        <span
-                          className="color-circle-sm"
-                          style={it.customColor
-                            ? { backgroundColor: it.customColor }
-                            : it.color === "Multi"
-                              ? { background: "conic-gradient(red,orange,yellow,green,blue,purple,red)" }
-                              : { backgroundColor: COLOR_OPTIONS.find(c => c.label === it.color)?.hex || "#ccc" }
-                          }
-                        />
-                        {it.customColor ? `Custom (${it.customColor})` : it.color}
-                      </>
-                    ) : (
-                      <span className="color-placeholder">— Select color —</span>
-                    )}
-                    <span className="color-chevron">&#9662;</span>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/></svg>
+                    Pick spot color from image
                   </button>
-                  <div className="color-dropdown-panel" style={{ display: "none" }}>
-                    {/* Pick from image */}
-                    {it.imageDataUrls && it.imageDataUrls.length > 0 && (
-                      <button
-                        type="button"
-                        className="color-pick-from-image"
-                        onClick={(e) => {
-                          const panel = e.currentTarget.parentElement as HTMLElement;
-                          if (panel) panel.style.display = "none";
-                          // Show the eyedropper canvas for this item
-                          const eyedropperEl = document.getElementById(`eyedropper-${idx}`);
-                          if (eyedropperEl) eyedropperEl.style.display = "block";
+                ) : (
+                  <div className="pick-spot-hint">Upload images first, then pick a spot color</div>
+                )}
 
-                          // Draw the first image onto the hidden canvas
-                          const canvas = document.getElementById(`eyedropper-canvas-${idx}`) as HTMLCanvasElement;
-                          if (!canvas) return;
-                          const ctx = canvas.getContext("2d");
-                          if (!ctx) return;
-                          const img = new Image();
-                          img.crossOrigin = "anonymous";
-                          img.onload = () => {
-                            const maxW = 400;
-                            const scale = Math.min(maxW / img.width, maxW / img.height, 1);
-                            canvas.width = Math.round(img.width * scale);
-                            canvas.height = Math.round(img.height * scale);
-                            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-                          };
-                          img.src = it.imageDataUrls![0];
-                        }}
-                      >
-                        <span className="eyedropper-icon">
-                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 22l1-1h3l9-9"/><path d="M3 21v-3l9-9"/><circle cx="18" cy="6" r="3"/></svg>
-                        </span>
-                        <span className="color-name">Pick from image</span>
-                      </button>
-                    )}
-                    {COLOR_OPTIONS.map((c) => {
-                      const isMulti = c.label === "Multi";
-                      const isActive = !it.customColor && (it.color || "").toLowerCase() === c.label.toLowerCase();
-                      return (
-                        <button
-                          key={c.label}
-                          type="button"
-                          className={`color-option${isActive ? " color-option--active" : ""}`}
-                          onClick={(e) => {
-                            update(idx, { color: isActive ? "" : c.label, customColor: undefined });
-                            const panel = (e.currentTarget.parentElement as HTMLElement);
-                            if (panel) panel.style.display = "none";
-                          }}
-                        >
-                          <span
-                            className="color-circle"
-                            style={isMulti ? { background: c.hex } : { backgroundColor: c.hex }}
-                          />
-                          <span className="color-name">{c.label}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-                {/* Eyedropper overlay for picking color from image */}
-                <div id={`eyedropper-${idx}`} className="eyedropper-overlay" style={{ display: "none" }}>
-                  <div className="eyedropper-container">
-                    <div className="eyedropper-header">
-                      <span>Click on the image to pick a color</span>
+                {/* Spot-picker modal */}
+                <div id={`spot-picker-${idx}`} className="spot-picker-overlay" style={{ display: "none" }}>
+                  <div className="spot-picker-modal">
+                    <div className="spot-picker-header">
+                      <span>Click on the item to pick its color</span>
                       <button
                         type="button"
-                        className="eyedropper-close"
+                        className="spot-picker-close"
                         onClick={() => {
-                          const el = document.getElementById(`eyedropper-${idx}`);
+                          const el = document.getElementById(`spot-picker-${idx}`);
                           if (el) el.style.display = "none";
                         }}
                       >
                         &times;
                       </button>
                     </div>
+
                     {it.imageDataUrls && it.imageDataUrls.length > 1 && (
-                      <div className="eyedropper-thumbs">
+                      <div className="spot-picker-thumbs">
                         {it.imageDataUrls.map((url, imgIdx) => (
                           <button
                             key={imgIdx}
                             type="button"
-                            className="eyedropper-thumb-btn"
+                            className="spot-picker-thumb"
                             onClick={() => {
-                              const canvas = document.getElementById(`eyedropper-canvas-${idx}`) as HTMLCanvasElement;
-                              if (!canvas) return;
-                              const ctx = canvas.getContext("2d");
-                              if (!ctx) return;
-                              const img = new Image();
-                              img.crossOrigin = "anonymous";
-                              img.onload = () => {
-                                const maxW = 400;
-                                const scale = Math.min(maxW / img.width, maxW / img.height, 1);
-                                canvas.width = Math.round(img.width * scale);
-                                canvas.height = Math.round(img.height * scale);
-                                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-                              };
-                              img.src = url;
+                              const pickerImg = document.getElementById(`spot-img-${idx}`) as HTMLImageElement;
+                              if (pickerImg) pickerImg.src = url;
                             }}
                           >
                             <img src={url} alt={`Image ${imgIdx + 1}`} />
@@ -705,29 +678,34 @@ export default function BulkSimple() {
                         ))}
                       </div>
                     )}
-                    <div className="eyedropper-canvas-wrap">
-                      <canvas
-                        id={`eyedropper-canvas-${idx}`}
-                        className="eyedropper-canvas"
-                        onClick={(e) => {
-                          const canvas = e.currentTarget as HTMLCanvasElement;
-                          const ctx = canvas.getContext("2d");
-                          if (!ctx) return;
-                          const rect = canvas.getBoundingClientRect();
-                          const x = Math.round((e.clientX - rect.left) * (canvas.width / rect.width));
-                          const y = Math.round((e.clientY - rect.top) * (canvas.height / rect.height));
-                          const pixel = ctx.getImageData(x, y, 1, 1).data;
-                          const hex = `#${pixel[0].toString(16).padStart(2,"0")}${pixel[1].toString(16).padStart(2,"0")}${pixel[2].toString(16).padStart(2,"0")}`;
-                          update(idx, { customColor: hex, color: "" });
-                          const el = document.getElementById(`eyedropper-${idx}`);
+
+                    <div className="spot-picker-image-wrap">
+                      <img
+                        id={`spot-img-${idx}`}
+                        className="spot-picker-image"
+                        alt="Pick a spot"
+                        onClick={async (e) => {
+                          const img = e.currentTarget as HTMLImageElement;
+                          const rect = img.getBoundingClientRect();
+                          const cx = e.clientX - rect.left;
+                          const cy = e.clientY - rect.top;
+                          const swatch = await cropSwatch(
+                            img.src,
+                            cx,
+                            cy,
+                            rect.width,
+                            rect.height,
+                          );
+                          update(idx, { colorSwatch: swatch });
+                          const el = document.getElementById(`spot-picker-${idx}`);
                           if (el) el.style.display = "none";
                         }}
                       />
                     </div>
-                    <div className="eyedropper-hint">Tip: click directly on the item to capture its genuine color</div>
+                    <div className="spot-picker-hint">Click directly on the fabric / surface to capture a genuine color swatch</div>
                   </div>
                 </div>
-              </label>
+              </div>
 
               <label className="full">
                 <span>Details</span>
@@ -995,96 +973,170 @@ export default function BulkSimple() {
           box-shadow: 0 0 0 1px #000;
         }
         
-        /* Color dropdown */
-        .color-dropdown {
-          position: relative;
+        /* Spot Color Picker */
+        .spot-color-field {
+          display: flex;
+          flex-direction: column;
         }
-        .color-dropdown-trigger {
-          width: 100%;
-          background: #ffffff;
-          color: #111827;
-          border: 1px solid #d1d5db;
-          border-radius: 8px;
-          padding: 10px;
-          font-size: 14px;
-          cursor: pointer;
+        .field-label {
+          display: block;
+          font-size: 13px;
+          font-weight: 500;
+          color: #374151;
+          margin-bottom: 6px;
+        }
+        .swatch-preview {
           display: flex;
           align-items: center;
           gap: 8px;
-          text-align: left;
         }
-        .color-dropdown-trigger:focus {
-          outline: none;
-          border-color: #000;
-          box-shadow: 0 0 0 1px #000;
-        }
-        .color-placeholder {
-          color: #9ca3af;
-        }
-        .color-chevron {
-          margin-left: auto;
-          color: #6b7280;
-          font-size: 11px;
-        }
-        .color-circle-sm {
-          width: 16px;
-          height: 16px;
+        .swatch-circle {
+          width: 40px;
+          height: 40px;
           border-radius: 50%;
-          border: 1px solid #d1d5db;
-          display: inline-block;
+          border: 2px solid #e5e7eb;
+          object-fit: cover;
           flex-shrink: 0;
         }
-        .color-dropdown-panel {
-          position: absolute;
-          top: 100%;
-          left: 0;
-          right: 0;
-          z-index: 20;
-          background: #fff;
+        .swatch-name-input {
+          flex: 1;
+          min-width: 0;
+        }
+        .swatch-change-btn {
+          background: #f3f4f6;
+          color: #374151;
           border: 1px solid #d1d5db;
-          border-radius: 8px;
-          margin-top: 4px;
-          padding: 8px;
-          box-shadow: 0 4px 16px rgba(0,0,0,0.10);
-          display: grid;
-          grid-template-columns: repeat(auto-fill, minmax(56px, 1fr));
-          gap: 4px;
-          max-height: 220px;
-          overflow-y: auto;
-        }
-        .color-option {
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          gap: 3px;
-          padding: 5px 2px;
-          border: 2px solid transparent;
-          border-radius: 8px;
-          background: none;
+          border-radius: 6px;
+          padding: 6px 10px;
+          font-size: 12px;
+          font-weight: 600;
           cursor: pointer;
-          transition: border-color 0.15s;
+          white-space: nowrap;
         }
-        .color-option:hover {
-          border-color: #d1d5db;
+        .swatch-change-btn:hover {
+          background: #e5e7eb;
+        }
+        .swatch-remove-btn {
+          background: none;
+          border: none;
+          color: #9ca3af;
+          font-size: 18px;
+          cursor: pointer;
+          padding: 0 4px;
+          line-height: 1;
+        }
+        .swatch-remove-btn:hover {
+          color: #b91c1c;
+        }
+        .pick-spot-btn {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          width: 100%;
+          background: #ffffff;
+          color: #374151;
+          border: 1px dashed #d1d5db;
+          border-radius: 8px;
+          padding: 10px;
+          font-size: 13px;
+          font-weight: 600;
+          cursor: pointer;
+          transition: border-color 0.15s, background 0.15s;
+        }
+        .pick-spot-btn:hover {
+          border-color: #2563eb;
+          background: #eff6ff;
+          color: #1d4ed8;
+        }
+        .pick-spot-hint {
+          font-size: 13px;
+          color: #9ca3af;
+          padding: 10px 0;
+        }
+
+        /* Spot-picker modal overlay */
+        .spot-picker-overlay {
+          position: fixed;
+          inset: 0;
+          z-index: 100;
+          background: rgba(0,0,0,0.6);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+        .spot-picker-modal {
+          background: #fff;
+          border-radius: 12px;
+          padding: 20px;
+          max-width: 520px;
+          width: 92vw;
+          box-shadow: 0 8px 32px rgba(0,0,0,0.25);
+        }
+        .spot-picker-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 12px;
+          font-size: 14px;
+          font-weight: 600;
+          color: #111827;
+        }
+        .spot-picker-close {
+          background: none;
+          border: none;
+          font-size: 22px;
+          cursor: pointer;
+          color: #6b7280;
+          padding: 0 4px;
+          line-height: 1;
+        }
+        .spot-picker-close:hover {
+          color: #111827;
+        }
+        .spot-picker-thumbs {
+          display: flex;
+          gap: 6px;
+          margin-bottom: 10px;
+          overflow-x: auto;
+        }
+        .spot-picker-thumb {
+          width: 48px;
+          height: 48px;
+          border-radius: 6px;
+          overflow: hidden;
+          border: 2px solid #e5e7eb;
+          background: #fff;
+          cursor: pointer;
+          padding: 0;
+          flex-shrink: 0;
+        }
+        .spot-picker-thumb:hover {
+          border-color: #2563eb;
+        }
+        .spot-picker-thumb img {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+          display: block;
+        }
+        .spot-picker-image-wrap {
+          border: 1px solid #e5e7eb;
+          border-radius: 8px;
+          overflow: hidden;
+          display: flex;
+          justify-content: center;
           background: #f9fafb;
         }
-        .color-option--active {
-          border-color: #111827;
-          background: #f3f4f6;
-        }
-        .color-circle {
-          width: 22px;
-          height: 22px;
-          border-radius: 50%;
-          border: 1px solid #d1d5db;
+        .spot-picker-image {
+          cursor: crosshair;
+          max-width: 100%;
+          max-height: 60vh;
           display: block;
-          flex-shrink: 0;
         }
-        .color-name {
-          font-size: 9px;
-          color: #374151;
-          font-weight: 500;
-          line-height: 1.1;
+        .spot-picker-hint {
+          margin-top: 8px;
+          font-size: 12px;
+          color: #6b7280;
           text-align: center;
         }
 
@@ -1105,121 +1157,6 @@ export default function BulkSimple() {
           outline: none;
           border-color: #000;
           box-shadow: 0 0 0 1px #000;
-        }
-
-        /* Pick from image button */
-        .color-pick-from-image {
-          grid-column: 1 / -1;
-          display: flex;
-          align-items: center;
-          gap: 6px;
-          padding: 8px 10px;
-          border: 2px dashed #d1d5db;
-          border-radius: 8px;
-          background: #f9fafb;
-          cursor: pointer;
-          font-size: 12px;
-          font-weight: 600;
-          color: #374151;
-          transition: border-color 0.15s, background 0.15s;
-          margin-bottom: 4px;
-        }
-        .color-pick-from-image:hover {
-          border-color: #2563eb;
-          background: #eff6ff;
-          color: #1d4ed8;
-        }
-        .eyedropper-icon {
-          display: flex;
-          align-items: center;
-        }
-
-        /* Eyedropper overlay */
-        .eyedropper-overlay {
-          position: fixed;
-          top: 0;
-          left: 0;
-          right: 0;
-          bottom: 0;
-          z-index: 100;
-          background: rgba(0,0,0,0.6);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-        }
-        .eyedropper-container {
-          background: #fff;
-          border-radius: 12px;
-          padding: 20px;
-          max-width: 460px;
-          width: 90vw;
-          box-shadow: 0 8px 32px rgba(0,0,0,0.25);
-        }
-        .eyedropper-header {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          margin-bottom: 12px;
-          font-size: 14px;
-          font-weight: 600;
-          color: #111827;
-        }
-        .eyedropper-close {
-          background: none;
-          border: none;
-          font-size: 22px;
-          cursor: pointer;
-          color: #6b7280;
-          padding: 0 4px;
-          line-height: 1;
-        }
-        .eyedropper-close:hover {
-          color: #111827;
-        }
-        .eyedropper-thumbs {
-          display: flex;
-          gap: 6px;
-          margin-bottom: 10px;
-          overflow-x: auto;
-        }
-        .eyedropper-thumb-btn {
-          width: 48px;
-          height: 48px;
-          border-radius: 6px;
-          overflow: hidden;
-          border: 2px solid #e5e7eb;
-          background: #fff;
-          cursor: pointer;
-          padding: 0;
-          flex-shrink: 0;
-        }
-        .eyedropper-thumb-btn:hover {
-          border-color: #2563eb;
-        }
-        .eyedropper-thumb-btn img {
-          width: 100%;
-          height: 100%;
-          object-fit: cover;
-          display: block;
-        }
-        .eyedropper-canvas-wrap {
-          border: 1px solid #e5e7eb;
-          border-radius: 8px;
-          overflow: hidden;
-          display: flex;
-          justify-content: center;
-          background: #f9fafb;
-        }
-        .eyedropper-canvas {
-          cursor: crosshair;
-          max-width: 100%;
-          display: block;
-        }
-        .eyedropper-hint {
-          margin-top: 8px;
-          font-size: 12px;
-          color: #6b7280;
-          text-align: center;
         }
 
         /* Allow offers toggle */
