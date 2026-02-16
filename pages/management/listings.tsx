@@ -18,6 +18,8 @@ type Listing = {
   category: string;
   condition: string;
   details: string;
+  proof_doc_url: string;
+  purchase_proof: string;
   createdAt: string;
 };
 
@@ -417,6 +419,7 @@ export default function ManagementListings({ items }: Props) {
 
                   <th>Category</th>
                   <th>Details</th>
+                  <th>Proof Doc</th>
                   <th>Actions</th>
                 </tr>
               </thead>
@@ -613,6 +616,23 @@ export default function ManagementListings({ items }: Props) {
                       </td>
 
                       <td>
+                        {l.proof_doc_url ? (
+                          <a
+                            href={l.proof_doc_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="btn-proof-open"
+                          >
+                            View proof
+                          </a>
+                        ) : l.purchase_proof === "Requested" ? (
+                          <span className="proof-requested">Requested</span>
+                        ) : (
+                          <span className="no-proof">—</span>
+                        )}
+                      </td>
+
+                      <td>
                         <Link href={`/product/${l.id}`} className="btn-table-view">
                           View
                         </Link>
@@ -643,7 +663,7 @@ export default function ManagementListings({ items }: Props) {
 
                 {visible.length === 0 && (
                   <tr>
-                    <td colSpan={9} className="table-message">
+                    <td colSpan={10} className="table-message">
                       No listings match this filter.
                     </td>
                   </tr>
@@ -871,6 +891,28 @@ export default function ManagementListings({ items }: Props) {
         .edit-select-dirty {
           border: 2px solid #047857;
         }
+        .btn-proof-open {
+          display: inline-block;
+          background: #2563eb;
+          color: #fff;
+          border-radius: 999px;
+          padding: 4px 10px;
+          font-size: 12px;
+          text-decoration: none;
+          white-space: nowrap;
+        }
+        .btn-proof-open:hover {
+          background: #1d4ed8;
+        }
+        .proof-requested {
+          color: #d97706;
+          font-weight: 600;
+          font-size: 12px;
+        }
+        .no-proof {
+          color: #9ca3af;
+          font-size: 12px;
+        }
         .edit-textarea {
           border-radius: 6px;
           border: 1px solid #d1d5db;
@@ -925,6 +967,8 @@ export const getServerSideProps: GetServerSideProps<Props> = async () => {
         category: String(category),
         condition: String(condition),
         details: String(details),
+        proof_doc_url: String(d.proof_doc_url || ""),
+        purchase_proof: String(d.purchase_proof || ""),
         createdAt,
       });
     }

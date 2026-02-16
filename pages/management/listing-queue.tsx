@@ -17,6 +17,8 @@ type Listing = {
   status: "Pending" | "Live" | "Rejected";
   purchase_source?: string;
   purchase_proof?: string;
+  proof_doc_url?: string;
+  details?: string;
   serial_number?: string;
   auth_photos?: string[];
   submittedAt?: string;
@@ -120,8 +122,9 @@ function ManagementListingQueue({ items: initialItems }: Props) {
                   <th>Category</th>
                   <th>Purchased From</th>
                   <th>Proof</th>
+                  <th>Proof Document</th>
                   <th>Serial #</th>
-                  <th>Proof Docs</th>
+                  <th>Details</th>
                   <th>Submitted</th>
                   <th>Status</th>
                   <th>Actions</th>
@@ -140,15 +143,29 @@ function ManagementListingQueue({ items: initialItems }: Props) {
                       </td>
                       <td>{item.category || "—"}</td>
                       <td>{item.purchase_source || "—"}</td>
-                      <td>{item.purchase_proof || "—"}</td>
-                      <td>{item.serial_number || "—"}</td>
                       <td>
-                        {item.auth_photos && item.auth_photos.length > 0
-                          ? `${item.auth_photos.length} photo${
-                              item.auth_photos.length > 1 ? "s" : ""
-                            }`
-                          : "—"}
+                        {item.purchase_proof === "Requested" ? (
+                          <span className="proof-requested">Requested</span>
+                        ) : (
+                          item.purchase_proof || "—"
+                        )}
                       </td>
+                      <td>
+                        {item.proof_doc_url ? (
+                          <a
+                            href={item.proof_doc_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="btn-table btn-proof-view"
+                          >
+                            View proof
+                          </a>
+                        ) : (
+                          <span className="no-proof">Not uploaded</span>
+                        )}
+                      </td>
+                      <td>{item.serial_number || "—"}</td>
+                      <td className="cell-details">{item.details || "—"}</td>
                       <td>{item.submittedAt || "—"}</td>
                       <td>{item.status}</td>
                       <td>
@@ -207,7 +224,7 @@ function ManagementListingQueue({ items: initialItems }: Props) {
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={11} className="table-message">
+                    <td colSpan={12} className="table-message">
                       No pending listings – go enjoy a coffee ☕
                     </td>
                   </tr>
@@ -282,6 +299,28 @@ function ManagementListingQueue({ items: initialItems }: Props) {
           background: #4b5563;
           color: #f9fafb;
         }
+        .btn-proof-view {
+          background: #2563eb;
+          color: #ffffff;
+          text-decoration: none;
+          display: inline-block;
+        }
+        .proof-requested {
+          color: #d97706;
+          font-weight: 600;
+          font-size: 12px;
+        }
+        .no-proof {
+          color: #9ca3af;
+          font-size: 12px;
+        }
+        .cell-details {
+          max-width: 180px;
+          font-size: 12px;
+          color: #4b5563;
+          white-space: pre-wrap;
+          word-break: break-word;
+        }
       `}</style>
     </>
   );
@@ -313,6 +352,8 @@ export const getServerSideProps: GetServerSideProps<Props> = async () => {
         status,
         purchase_source: d.purchase_source || "",
         purchase_proof: d.purchase_proof || "",
+        proof_doc_url: d.proof_doc_url || "",
+        details: d.details || "",
         serial_number: d.serial_number || "",
         auth_photos: d.auth_photos || [],
         submittedAt:

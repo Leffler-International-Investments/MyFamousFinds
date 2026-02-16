@@ -3,7 +3,16 @@ import type { NextApiRequest, NextApiResponse } from "next";
 import { adminDb } from "../../../../utils/firebaseAdmin";
 import { getSellerId } from "../../../../utils/authServer";
 
-type Item = { id: string; title: string; price: number; status: string };
+type Item = {
+  id: string;
+  title: string;
+  price: number;
+  status: string;
+  purchase_proof: string;
+  proof_doc_url: string;
+  details: string;
+  allowOffers?: boolean;
+};
 type ListingsResponse = { ok: true; items: Item[] } | { ok: false; error: string };
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse<ListingsResponse>) {
@@ -35,6 +44,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
         title: data.title || "Untitled listing",
         price: Number(data.price || 0),
         status: data.status || "Draft",
+        purchase_proof: data.purchase_proof || "",
+        proof_doc_url: data.proof_doc_url || "",
+        details: data.details || "",
+        allowOffers: data.allowOffers !== false,
       };
     });
 
