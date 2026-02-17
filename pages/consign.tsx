@@ -116,13 +116,15 @@ export default function ConsignPage() {
         .consign-primary,
         .consign-secondary {
           display: inline-block;
-          border-radius: 999px;
-          padding: 14px 32px;
-          font-size: 15px;
+          border-radius: 8px;
+          padding: 16px 36px;
+          font-size: 16px;
           font-weight: 700;
           text-decoration: none;
+          text-align: center;
           cursor: pointer;
           transition: opacity 0.15s ease, transform 0.15s ease;
+          min-width: 200px;
         }
         .consign-primary:hover,
         .consign-secondary:hover {
@@ -135,9 +137,9 @@ export default function ConsignPage() {
           border: 2px solid #111827;
         }
         .consign-secondary {
-          background: #ffffff;
+          background: #f3f4f6;
           color: #111827;
-          border: 2px solid #111827;
+          border: 2px solid #d1d5db;
         }
         .consign-grid {
           display: grid;
