@@ -89,6 +89,28 @@ export default function MasterCategoryLibraryPage() {
           };
         });
         setCategories(list);
+
+        // Auto-add KIDS if missing from Firestore
+        const existingSlugs = new Set(list.map((c) => c.slug.toLowerCase()));
+        if (!existingSlugs.has("kids")) {
+          const kidsPayload = {
+            name: "KIDS",
+            slug: "kids",
+            position: 55,
+            active: true,
+            submenus: [
+              { id: "kids-10", label: "All Kids", href: "/category/kids", position: 10 },
+              { id: "kids-20", label: "Girls", href: "/category/kids?for=girls", position: 20 },
+              { id: "kids-30", label: "Boys", href: "/category/kids?for=boys", position: 30 },
+              { id: "kids-40", label: "Bags", href: "/category/bags?for=kids", position: 40 },
+              { id: "kids-50", label: "Shoes", href: "/category/shoes?for=kids", position: 50 },
+            ],
+          };
+          const ref = await addDoc(collection(firestoreDb, "menuCategories"), kidsPayload);
+          setCategories((prev) =>
+            [...prev, { id: ref.id, ...kidsPayload }].sort((a, b) => a.position - b.position)
+          );
+        }
       } catch (err: any) {
         console.error("Error loading menu categories", err);
         setError(`Error: ${err.message || "Could not load menu categories."}`);

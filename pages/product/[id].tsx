@@ -32,6 +32,7 @@ type ProductPageProps = {
   allowOffers: boolean;
   allowPurchase: boolean;
   isSold: boolean;
+  proofDocUrl: string;
 };
 
 export default function ProductPage(props: ProductPageProps) {
@@ -55,6 +56,7 @@ export default function ProductPage(props: ProductPageProps) {
     allowOffers,
     allowPurchase,
     isSold,
+    proofDocUrl,
   } = props;
 
   const [loading, setLoading] = useState(false);
@@ -425,6 +427,13 @@ export default function ProductPage(props: ProductPageProps) {
               <div className="descText">{details || description || "No additional details provided."}</div>
             </div>
 
+            {proofDocUrl && (
+              <div className="proof-badge-row">
+                <span className="proof-badge">Authenticity Verified</span>
+                <span className="proof-badge-sub">Proof of purchase on file</span>
+              </div>
+            )}
+
             {/* SHIPPING DETAILS — shown after sign-in via Add to Bag */}
             {showShippingForm && (
             <div id="buyer-details-form" className="buyer-box">
@@ -791,6 +800,33 @@ export default function ProductPage(props: ProductPageProps) {
           line-height: 1.6;
         }
 
+        .proof-badge-row {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          margin-top: 12px;
+          padding: 10px 14px;
+          background: #ecfdf5;
+          border: 1px solid #6ee7b7;
+          border-radius: 10px;
+        }
+        .proof-badge {
+          display: inline-flex;
+          align-items: center;
+          gap: 4px;
+          background: #065f46;
+          color: #fff;
+          font-size: 12px;
+          font-weight: 700;
+          padding: 3px 10px;
+          border-radius: 999px;
+        }
+        .proof-badge-sub {
+          font-size: 12px;
+          color: #047857;
+          font-weight: 500;
+        }
+
         .buyer-box {
           margin-top: 22px;
           border: 1px solid #ececec;
@@ -1151,6 +1187,7 @@ export const getServerSideProps: GetServerSideProps<ProductPageProps> = async (c
     const details = String(d.details || "").trim();
     const sellerName = String(d.sellerName || d.seller || "").trim();
     const allowOffers = d.allowOffers !== false;
+    const proofDocUrl = String(d.proof_doc_url || "").trim();
 
     return {
       props: {
@@ -1173,6 +1210,7 @@ export const getServerSideProps: GetServerSideProps<ProductPageProps> = async (c
         allowOffers,
         allowPurchase,
         isSold,
+        proofDocUrl: proofDocUrl ? "yes" : "",
       },
     };
   } catch (err) {
