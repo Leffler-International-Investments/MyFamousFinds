@@ -7,6 +7,7 @@ import { useRouter } from "next/router";
 import "../styles/globals.css";
 import Layout from "../components/Layout";
 import { ToastProvider } from "../components/Toast";
+import ReviewWidgets from "../components/ReviewWidgets";
 
 const SITE_URL =
   process.env.NEXT_PUBLIC_SITE_URL || "https://www.myfamousfinds.com";
@@ -35,6 +36,13 @@ export default function MyFamousFindsApp({ Component, pageProps }: AppProps) {
           <Component {...pageProps} />
         </Layout>
       </ToastProvider>
+
+      {/* Floating review widget — visible on public-facing pages only */}
+      {!router.pathname.startsWith("/management") &&
+       !router.pathname.startsWith("/seller") && (
+        <ReviewWidgets />
+      )}
+
     </>
   );
 }

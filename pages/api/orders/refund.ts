@@ -1,6 +1,6 @@
 // FILE: pages/api/orders/refund.ts
 import type { NextApiRequest, NextApiResponse } from "next";
-import { adminDb } from "../../../utils/firebaseAdmin";
+import { adminDb, FieldValue } from "../../../utils/firebaseAdmin";
 
 export default async function handler(
   req: NextApiRequest,
@@ -27,7 +27,7 @@ export default async function handler(
       return res.status(404).json({ ok: false, error: "order_not_found" });
     }
 
-    const now = new Date().toISOString();
+    const ts = FieldValue?.serverTimestamp ? FieldValue.serverTimestamp() : new Date();
 
     await ref.set(
       {
@@ -35,9 +35,9 @@ export default async function handler(
         refund: {
           status: "Refunded",
           reason: reason || "",
-          refundedAt: now,
+          refundedAt: ts,
         },
-        updatedAt: new Date(),
+        updatedAt: ts,
       },
       { merge: true }
     );
