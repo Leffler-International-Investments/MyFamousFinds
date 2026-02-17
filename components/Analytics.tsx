@@ -1,10 +1,11 @@
 // FILE: /components/Analytics.tsx
 // Google Analytics 4 integration with e-commerce event helpers.
-import Script from "next/script";
+// The gtag script itself is loaded in _document.tsx for reliable first-paint inclusion.
+// This component handles client-side route-change tracking and exports event helpers.
 import { useRouter } from "next/router";
 import { useEffect } from "react";
 
-const GA_ID = process.env.NEXT_PUBLIC_GA4_ID || "";
+const GA_ID = process.env.NEXT_PUBLIC_GA4_ID || "G-0D7XZTGY27";
 
 declare global {
   interface Window {
@@ -81,7 +82,7 @@ export function trackPurchase(order: {
 export default function Analytics() {
   const router = useRouter();
 
-  // Track page views on route change
+  // Track page views on client-side route changes
   useEffect(() => {
     if (!GA_ID) return;
     const handleRouteChange = (url: string) => {
@@ -91,22 +92,6 @@ export default function Analytics() {
     return () => router.events.off("routeChangeComplete", handleRouteChange);
   }, [router]);
 
-  if (!GA_ID) return null;
-
-  return (
-    <>
-      <Script
-        src={`https://www.googletagmanager.com/gtag/js?id=${GA_ID}`}
-        strategy="afterInteractive"
-      />
-      <Script id="ga4-init" strategy="afterInteractive">
-        {`
-          window.dataLayer = window.dataLayer || [];
-          function gtag(){dataLayer.push(arguments);}
-          gtag('js', new Date());
-          gtag('config', '${GA_ID}');
-        `}
-      </Script>
-    </>
-  );
+  // Script loading is handled in _document.tsx; nothing to render here.
+  return null;
 }
