@@ -3,6 +3,7 @@
 
 import type { NextApiRequest, NextApiResponse } from "next";
 import { adminDb } from "../../utils/firebaseAdmin";
+import { getDeletedListingIds } from "../../lib/deletedListings";
 
 type ButlerResult = {
   id: string;
@@ -231,9 +232,12 @@ export default async function handler(
 
     const hits: Hit[] = [];
 
+    const deletedIds = await getDeletedListingIds();
+
     snap.docs.forEach((doc) => {
       const d: any = doc.data() || {};
 
+      if (deletedIds.has(doc.id)) return;
       if (d.status && !allowedStatuses.includes(d.status)) return;
 
       const title = d.title || "Untitled listing";

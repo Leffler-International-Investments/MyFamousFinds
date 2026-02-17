@@ -6,6 +6,7 @@ import type { GetServerSideProps } from "next";
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
 import { adminDb } from "../../utils/firebaseAdmin";
+import { getDeletedListingIds } from "../../lib/deletedListings";
 import ProductCard, { ProductLike } from "../../components/ProductCard";
 
 /* ---------- helpers ---------- */
@@ -194,7 +195,11 @@ export const getServerSideProps: GetServerSideProps<DesignerProps> = async (
         .get();
     }
 
-    const items: ProductLike[] = listingSnap.docs.map((doc) => {
+    const deletedIds = await getDeletedListingIds();
+
+    const items: ProductLike[] = listingSnap.docs
+      .filter((doc) => !deletedIds.has(doc.id))
+      .map((doc) => {
       const l: any = doc.data() || {};
       const priceNumber = Number(l.price) || 0;
       const image =

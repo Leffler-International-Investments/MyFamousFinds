@@ -8,6 +8,7 @@ import Header from "../components/Header";
 import Footer from "../components/Footer";
 import ProductCard, { ProductLike } from "../components/ProductCard";
 import { adminDb } from "../utils/firebaseAdmin";
+import { getDeletedListingIds } from "../lib/deletedListings";
 
 // ---------- helpers ----------
 
@@ -189,6 +190,8 @@ export const getServerSideProps: GetServerSideProps<Props> = async (
     };
   }
 
+  const deletedIds = await getDeletedListingIds();
+
   const snapshot = await adminDb
     .collection("listings")
     .limit(500)
@@ -196,6 +199,7 @@ export const getServerSideProps: GetServerSideProps<Props> = async (
 
   const allItems: ProductLike[] = [];
   snapshot.docs.forEach((doc) => {
+    if (deletedIds.has(doc.id)) return;
     const data = doc.data() as any;
 
     // Filter by status (case-insensitive)

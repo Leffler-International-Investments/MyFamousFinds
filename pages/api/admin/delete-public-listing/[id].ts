@@ -1,9 +1,10 @@
 // FILE: /pages/api/admin/delete-public-listing/[id].ts
-// Soft-deletes a listing from the homepage by storing its ID in the Admin
-// SDK's own Firestore.  The homepage query filters these IDs out.
+// Deletes a listing: hard-deletes from Firestore AND marks as soft-deleted
+// so it disappears from ALL pages (homepage, search, store, similar items, etc.)
 
 import type { NextApiRequest, NextApiResponse } from "next";
 import { requireAdmin } from "../../../../utils/adminAuth";
+import { adminDb } from "../../../../utils/firebaseAdmin";
 import { markListingDeleted } from "../../../../lib/deletedListings";
 
 type ApiResponse = { ok: true } | { ok: false; error: string };
@@ -27,10 +28,15 @@ export default async function handler(
   }
 
   try {
+    // Hard-delete from Firestore so it's gone from all pages
+    if (adminDb) {
+      await adminDb.collection("listings").doc(id).delete();
+    }
+    // Also soft-delete for any cached references
     await markListingDeleted(id);
     return res.status(200).json({ ok: true });
   } catch (err: any) {
-    console.error("Error marking listing as deleted:", err?.message);
+    console.error("Error deleting listing:", err?.message);
     return res.status(500).json({ ok: false, error: err?.message || "Delete failed" });
   }
 }

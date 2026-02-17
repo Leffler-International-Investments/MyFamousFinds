@@ -2,6 +2,7 @@
 // Dynamic sitemap that includes all live product URLs for SEO.
 import type { NextApiRequest, NextApiResponse } from "next";
 import { adminDb } from "../../utils/firebaseAdmin";
+import { getDeletedListingIds } from "../../lib/deletedListings";
 
 const SITE = "https://www.myfamousfinds.com";
 
@@ -34,8 +35,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   // Dynamic product pages
   try {
     if (adminDb) {
+      const deletedIds = await getDeletedListingIds();
       const snap = await adminDb.collection("listings").limit(2000).get();
       snap.docs.forEach((doc) => {
+        if (deletedIds.has(doc.id)) return;
         const d: any = doc.data() || {};
         const status = String(d.status || "").toLowerCase();
         if (status === "removed" || status === "deleted" || status === "rejected") return;
