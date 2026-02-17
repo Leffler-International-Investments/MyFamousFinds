@@ -25,6 +25,8 @@ export default function SellerOffers() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [counterOfferId, setCounterOfferId] = useState<string | null>(null);
+  const [counterAmount, setCounterAmount] = useState("");
 
   useEffect(() => {
     if (authLoading) return;
@@ -59,6 +61,34 @@ export default function SellerOffers() {
       );
     } catch (err: any) {
       setError(err?.message || "Something went wrong.");
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleCounter = async (id: string) => {
+    const amount = Number(counterAmount);
+    if (!amount || amount <= 0) {
+      setError("Please enter a valid counter amount.");
+      return;
+    }
+    setActionLoading(id);
+    setError(null);
+    try {
+      const res = await sellerFetch(`/api/offers/counter/${id}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ counterAmount: amount }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json.error || "Failed to counter offer");
+      setOffers((prev) =>
+        prev.map((o) => (o.id === id ? { ...o, status: "countered" } : o))
+      );
+      setCounterOfferId(null);
+      setCounterAmount("");
+    } catch (err: any) {
+      setError(err?.message || "Counter offer failed.");
     } finally {
       setActionLoading(null);
     }
@@ -119,13 +149,23 @@ export default function SellerOffers() {
                       <td style={{ maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis" }}>{o.message || "—"}</td>
                       <td style={{ fontSize: 12, whiteSpace: "nowrap" }}>{o.createdAt}</td>
                       <td>
-                        <div style={{ display: "flex", gap: 6 }}>
+                        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
                           <button
                             onClick={() => handleAction(o.id, "accept")}
                             disabled={actionLoading === o.id}
                             className="btn-accept"
                           >
                             {actionLoading === o.id ? "..." : "Accept"}
+                          </button>
+                          <button
+                            onClick={() => {
+                              setCounterOfferId(counterOfferId === o.id ? null : o.id);
+                              setCounterAmount("");
+                            }}
+                            disabled={actionLoading === o.id}
+                            className="btn-counter"
+                          >
+                            Counter
                           </button>
                           <button
                             onClick={() => handleAction(o.id, "reject")}
@@ -135,6 +175,27 @@ export default function SellerOffers() {
                             {actionLoading === o.id ? "..." : "Decline"}
                           </button>
                         </div>
+                        {counterOfferId === o.id && (
+                          <div style={{ display: "flex", gap: 6, marginTop: 6, alignItems: "center" }}>
+                            <input
+                              type="number"
+                              min="1"
+                              step="1"
+                              value={counterAmount}
+                              onChange={(e) => setCounterAmount(e.target.value)}
+                              placeholder={`Counter (${o.currency})`}
+                              style={{ width: 110, padding: "5px 8px", borderRadius: 8, border: "1px solid #d1d5db", fontSize: 13 }}
+                            />
+                            <button
+                              onClick={() => handleCounter(o.id)}
+                              disabled={actionLoading === o.id}
+                              className="btn-accept"
+                              style={{ padding: "5px 12px" }}
+                            >
+                              Send
+                            </button>
+                          </div>
+                        )}
                       </td>
                     </tr>
                   ))
@@ -166,7 +227,7 @@ export default function SellerOffers() {
                         <td>{o.buyerEmail || "—"}</td>
                         <td>${o.offerAmount.toLocaleString()} {o.currency}</td>
                         <td>
-                          <span className={o.status === "accepted" ? "badge-accepted" : "badge-rejected"}>
+                          <span className={o.status === "accepted" ? "badge-accepted" : o.status === "countered" ? "badge-countered" : "badge-rejected"}>
                             {o.status}
                           </span>
                         </td>
@@ -235,6 +296,26 @@ export default function SellerOffers() {
           font-weight: 500;
           background: #d1fae5;
           color: #065f46;
+        }
+        .btn-counter {
+          background: #f59e0b;
+          color: #fff;
+          border: none;
+          border-radius: 999px;
+          padding: 6px 16px;
+          font-size: 13px;
+          font-weight: 600;
+          cursor: pointer;
+        }
+        .btn-counter:hover:not(:disabled) { background: #d97706; }
+        .badge-countered {
+          display: inline-block;
+          border-radius: 999px;
+          padding: 2px 8px;
+          font-size: 12px;
+          font-weight: 500;
+          background: #fef3c7;
+          color: #92400e;
         }
         .badge-rejected {
           display: inline-block;

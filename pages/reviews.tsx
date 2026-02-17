@@ -117,7 +117,7 @@ export const getServerSideProps: GetServerSideProps<Props> = async () => {
     const snap = await adminDb
       .collection("reviews")
       .orderBy("createdAt", "desc")
-      .limit(100)
+      .limit(200)
       .get();
 
     let totalRating = 0;
@@ -134,7 +134,8 @@ export const getServerSideProps: GetServerSideProps<Props> = async () => {
         ratingCount++;
       }
 
-      if (comment) {
+      // Only show 4 and 5 star reviews to customers
+      if (comment && rating >= 4) {
         const createdAt = d.createdAt?.toDate?.()
           ? d.createdAt.toDate().toLocaleDateString("en-US", {
               year: "numeric",

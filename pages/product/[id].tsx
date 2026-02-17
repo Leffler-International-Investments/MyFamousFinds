@@ -7,10 +7,19 @@ import Header from "../../components/Header";
 import Footer from "../../components/Footer";
 import WishlistButton from "../../components/WishlistButton";
 import { auth, db, firebaseClientReady } from "../../utils/firebaseClient";
+import { adminDb } from "../../utils/firebaseAdmin";
 import { onAuthStateChanged } from "firebase/auth";
 import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
 import { useRouter } from "next/router";
 import AuthModal from "../../components/AuthModal";
+
+type SimilarItem = {
+  id: string;
+  title: string;
+  brand: string;
+  price: string;
+  image: string;
+};
 
 type ProductPageProps = {
   id: string;
@@ -29,10 +38,15 @@ type ProductPageProps = {
   description: string;
   details: string;
   sellerName: string;
+  sellerId: string;
+  sellerItemsSold: number;
+  sellerMemberSince: string;
+  sellerVerified: boolean;
   allowOffers: boolean;
   allowPurchase: boolean;
   isSold: boolean;
   proofDocUrl: string;
+  similarItems: SimilarItem[];
 };
 
 export default function ProductPage(props: ProductPageProps) {
@@ -53,10 +67,15 @@ export default function ProductPage(props: ProductPageProps) {
     description,
     details,
     sellerName,
+    sellerId,
+    sellerItemsSold,
+    sellerMemberSince,
+    sellerVerified,
     allowOffers,
     allowPurchase,
     isSold,
     proofDocUrl,
+    similarItems,
   } = props;
 
   const [loading, setLoading] = useState(false);
@@ -96,6 +115,8 @@ export default function ProductPage(props: ProductPageProps) {
   const [currentImgSrc, setCurrentImgSrc] = useState(
     isLikelyValidSrc(imageUrl) ? imageUrl : FALLBACK_IMG
   );
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [lightboxIdx, setLightboxIdx] = useState(0);
 
   useEffect(() => {
     setCurrentImgSrc(isLikelyValidSrc(imageUrl) ? imageUrl : FALLBACK_IMG);
@@ -311,6 +332,44 @@ export default function ProductPage(props: ProductPageProps) {
     <div className="page">
       <Head>
         <title>{title} – Famous Finds</title>
+        <meta name="description" content={`Shop authenticated ${brand} ${title}. ${condition} condition. ${priceLabel}. Physical authentication included.`} />
+        <meta property="og:title" content={`${title} – Famous Finds`} />
+        <meta property="og:description" content={`Authenticated ${brand} ${title}. ${condition} condition.`} />
+        <meta property="og:image" content={imageUrl} />
+        <meta property="og:type" content="product" />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              "@context": "https://schema.org",
+              "@type": "Product",
+              name: title,
+              image: imageUrls.length > 0 ? imageUrls : [imageUrl],
+              description: details || description || `${brand} ${title}`,
+              brand: { "@type": "Brand", name: brand || "Famous Finds" },
+              color: color || undefined,
+              size: size || undefined,
+              category: category || undefined,
+              itemCondition:
+                condition === "New with tags" ? "https://schema.org/NewCondition" :
+                condition === "New (never used)" ? "https://schema.org/NewCondition" :
+                "https://schema.org/UsedCondition",
+              offers: {
+                "@type": "Offer",
+                url: `https://www.myfamousfinds.com/product/${id}`,
+                priceCurrency: currency || "USD",
+                price: price,
+                availability: isSold
+                  ? "https://schema.org/SoldOut"
+                  : "https://schema.org/InStock",
+                seller: {
+                  "@type": "Organization",
+                  name: "Famous Finds",
+                },
+              },
+            }),
+          }}
+        />
       </Head>
 
       <Header />
@@ -325,7 +384,12 @@ export default function ProductPage(props: ProductPageProps) {
             <img
               src={currentImgSrc}
               alt={title}
-              className="image"
+              className="image zoomable"
+              onClick={() => {
+                const idx = imageUrls.indexOf(currentImgSrc);
+                setLightboxIdx(idx >= 0 ? idx : 0);
+                setLightboxOpen(true);
+              }}
               onError={() => {
                 if (currentImgSrc !== FALLBACK_IMG) setCurrentImgSrc(FALLBACK_IMG);
               }}
@@ -349,8 +413,21 @@ export default function ProductPage(props: ProductPageProps) {
           <div className="details">
             <div className="brand">{brand || "FAMOUS-FINDS"}</div>
             <h1 className="title">{title}</h1>
+            <div className="seller-card">
+              <div className="seller-avatar">{(sellerName || "S").charAt(0).toUpperCase()}</div>
+              <div className="seller-info">
+                <span className="seller-name-row">
+                  {sellerName || "Independent Seller"}
+                  {sellerVerified && <span className="seller-verified-badge" title="Verified Seller">Verified</span>}
+                </span>
+                <span className="seller-stats">
+                  {sellerItemsSold > 0 && <span>{sellerItemsSold} sold</span>}
+                  {sellerMemberSince && <span>Member since {sellerMemberSince}</span>}
+                </span>
+              </div>
+            </div>
             <p className="subtitle">
-              Sold by Independent seller. Inspected and shipped via Famous-Finds concierge.
+              Inspected and shipped via Famous-Finds concierge.
             </p>
 
             <div className="price">{priceLabel}</div>
@@ -610,12 +687,13 @@ export default function ProductPage(props: ProductPageProps) {
             )}
 
             <div className="protection-box">
-              <p className="protection-title">How Famous-Finds protects you</p>
+              <p className="protection-title">Buyer Protection Guarantee</p>
               <ul className="protection-list">
-                <li>Funds held securely until your item is authenticated.</li>
-                <li>Every item undergoes physical authentication by our specialists before dispatch.</li>
-                <li>If the item is not as described, you are fully refunded.</li>
-                <li>All payments processed in USD via PayPal.</li>
+                <li><strong>Escrow payment</strong> — Funds held securely until your item is authenticated.</li>
+                <li><strong>Expert authentication</strong> — Every item undergoes physical inspection by our specialists before dispatch.</li>
+                <li><strong>Money-back guarantee</strong> — If the item is not as described, you are fully refunded.</li>
+                <li><strong>Secure checkout</strong> — All payments processed via PayPal Buyer Protection.</li>
+                <li><strong>Returns accepted</strong> — 14-day return window for items not as described.</li>
               </ul>
             </div>
 
@@ -645,6 +723,24 @@ export default function ProductPage(props: ProductPageProps) {
             )}
           </div>
         </div>
+        {/* Similar Items */}
+        {similarItems && similarItems.length > 0 && (
+          <section className="similar-section">
+            <h2 className="similar-title">You may also like</h2>
+            <div className="similar-grid">
+              {similarItems.map((item) => (
+                <a key={item.id} href={`/product/${item.id}`} className="similar-card">
+                  <img src={item.image || "/Famous-Finds-Logo-2.png"} alt={item.title} className="similar-img" />
+                  <div className="similar-body">
+                    <span className="similar-brand">{item.brand}</span>
+                    <span className="similar-name">{item.title}</span>
+                    <span className="similar-price">{item.price}</span>
+                  </div>
+                </a>
+              ))}
+            </div>
+          </section>
+        )}
       </main>
 
       <Footer />
@@ -654,6 +750,41 @@ export default function ProductPage(props: ProductPageProps) {
         onClose={() => setShowAuthModal(false)}
         onSuccess={handleAuthSuccess}
       />
+
+      {/* Image Lightbox / Zoom */}
+      {lightboxOpen && (
+        <div className="lightbox-overlay" onClick={() => setLightboxOpen(false)}>
+          <div className="lightbox-inner" onClick={(e) => e.stopPropagation()}>
+            <button className="lightbox-close" onClick={() => setLightboxOpen(false)}>
+              &times;
+            </button>
+            <img
+              src={imageUrls[lightboxIdx] || currentImgSrc}
+              alt={`${title} - enlarged`}
+              className="lightbox-img"
+            />
+            {imageUrls.length > 1 && (
+              <>
+                <button
+                  className="lightbox-arrow lightbox-prev"
+                  onClick={() => setLightboxIdx((i) => (i - 1 + imageUrls.length) % imageUrls.length)}
+                >
+                  &#8249;
+                </button>
+                <button
+                  className="lightbox-arrow lightbox-next"
+                  onClick={() => setLightboxIdx((i) => (i + 1) % imageUrls.length)}
+                >
+                  &#8250;
+                </button>
+                <div className="lightbox-counter">
+                  {lightboxIdx + 1} / {imageUrls.length}
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
 
       <style jsx>{`
         .page {
@@ -1060,6 +1191,192 @@ export default function ProductPage(props: ProductPageProps) {
           line-height: 1.5;
         }
 
+        .seller-card {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          margin: 8px 0 4px;
+          padding: 10px 14px;
+          background: #f9fafb;
+          border: 1px solid #e5e7eb;
+          border-radius: 12px;
+        }
+        .seller-avatar {
+          width: 36px;
+          height: 36px;
+          border-radius: 999px;
+          background: #111827;
+          color: #fff;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 15px;
+          font-weight: 700;
+          flex-shrink: 0;
+        }
+        .seller-info {
+          display: flex;
+          flex-direction: column;
+          gap: 2px;
+        }
+        .seller-name-row {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          font-size: 13px;
+          font-weight: 700;
+          color: #111;
+        }
+        .seller-verified-badge {
+          background: #dbeafe;
+          color: #1d4ed8;
+          font-size: 10px;
+          font-weight: 800;
+          padding: 2px 7px;
+          border-radius: 999px;
+          letter-spacing: 0.04em;
+        }
+        .seller-stats {
+          display: flex;
+          gap: 10px;
+          font-size: 11px;
+          color: #6b7280;
+        }
+        .seller-stats span { white-space: nowrap; }
+
+        .similar-section {
+          margin-top: 40px;
+          padding-top: 28px;
+          border-top: 1px solid #ececec;
+        }
+        .similar-title {
+          font-size: 20px;
+          font-weight: 700;
+          margin: 0 0 16px;
+          color: #111;
+        }
+        .similar-grid {
+          display: grid;
+          grid-template-columns: repeat(4, minmax(0, 1fr));
+          gap: 14px;
+        }
+        .similar-card {
+          text-decoration: none;
+          color: inherit;
+          border: 1px solid #ececec;
+          border-radius: 12px;
+          overflow: hidden;
+          background: #fff;
+          transition: box-shadow 0.15s;
+        }
+        .similar-card:hover {
+          box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+        }
+        .similar-img {
+          width: 100%;
+          height: 180px;
+          object-fit: cover;
+          display: block;
+          background: #fafafa;
+        }
+        .similar-body {
+          padding: 10px 12px;
+          display: flex;
+          flex-direction: column;
+          gap: 2px;
+        }
+        .similar-brand {
+          font-size: 10px;
+          text-transform: uppercase;
+          letter-spacing: 0.12em;
+          color: #888;
+        }
+        .similar-name {
+          font-size: 13px;
+          font-weight: 600;
+          color: #111;
+          display: -webkit-box;
+          -webkit-line-clamp: 2;
+          -webkit-box-orient: vertical;
+          overflow: hidden;
+        }
+        .similar-price {
+          font-size: 13px;
+          font-weight: 800;
+          color: #111;
+          margin-top: 2px;
+        }
+
+        .zoomable {
+          cursor: zoom-in;
+        }
+        .lightbox-overlay {
+          position: fixed;
+          inset: 0;
+          z-index: 9999;
+          background: rgba(0, 0, 0, 0.92);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          animation: lbFadeIn 0.2s ease;
+        }
+        @keyframes lbFadeIn {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+        .lightbox-inner {
+          position: relative;
+          max-width: 90vw;
+          max-height: 90vh;
+        }
+        .lightbox-img {
+          max-width: 90vw;
+          max-height: 85vh;
+          object-fit: contain;
+          border-radius: 8px;
+          display: block;
+        }
+        .lightbox-close {
+          position: absolute;
+          top: -40px;
+          right: 0;
+          background: none;
+          border: none;
+          color: #fff;
+          font-size: 36px;
+          cursor: pointer;
+          line-height: 1;
+        }
+        .lightbox-arrow {
+          position: absolute;
+          top: 50%;
+          transform: translateY(-50%);
+          background: rgba(255, 255, 255, 0.15);
+          border: none;
+          color: #fff;
+          font-size: 40px;
+          width: 48px;
+          height: 48px;
+          border-radius: 999px;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          backdrop-filter: blur(4px);
+        }
+        .lightbox-arrow:hover {
+          background: rgba(255, 255, 255, 0.3);
+        }
+        .lightbox-prev { left: -60px; }
+        .lightbox-next { right: -60px; }
+        .lightbox-counter {
+          text-align: center;
+          color: #ccc;
+          font-size: 13px;
+          margin-top: 10px;
+          font-weight: 500;
+        }
+
         @media (max-width: 980px) {
           .grid {
             grid-template-columns: 1fr;
@@ -1075,6 +1392,11 @@ export default function ProductPage(props: ProductPageProps) {
           }
           .button-row {
             flex-direction: column;
+          }
+          .lightbox-prev { left: 8px; }
+          .lightbox-next { right: 8px; }
+          .similar-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
           }
         }
       `}</style>
@@ -1186,8 +1508,77 @@ export const getServerSideProps: GetServerSideProps<ProductPageProps> = async (c
     const description = String(d.description || "").trim();
     const details = String(d.details || "").trim();
     const sellerName = String(d.sellerName || d.seller || "").trim();
+    const sellerId = String(d.sellerId || "").trim();
     const allowOffers = d.allowOffers !== false;
     const proofDocUrl = String(d.proof_doc_url || "").trim();
+
+    // Fetch seller stats
+    let sellerItemsSold = 0;
+    let sellerMemberSince = "";
+    let sellerVerified = false;
+    if (sellerId && adminDb) {
+      try {
+        const sellerDoc = await adminDb.collection("sellers").doc(sellerId).get();
+        if (sellerDoc.exists) {
+          const sd: any = sellerDoc.data() || {};
+          sellerVerified = sd.verified === true || sd.status === "approved";
+          const joinDate = sd.createdAt?.toDate?.() || sd.registeredAt?.toDate?.();
+          if (joinDate) {
+            sellerMemberSince = joinDate.toLocaleDateString("en-US", { year: "numeric", month: "short" });
+          }
+        }
+        // Count sold items
+        const soldSnap = await adminDb.collection("orders")
+          .where("sellerId", "==", sellerId)
+          .limit(500)
+          .get();
+        sellerItemsSold = soldSnap.size;
+      } catch (err) {
+        console.error("seller_stats_error", err);
+      }
+    }
+
+    // Fetch similar items (same brand or category, exclude current)
+    const similarItems: SimilarItem[] = [];
+    if (adminDb) {
+      try {
+        let simSnap = brand
+          ? await adminDb.collection("listings")
+              .where("brand", "==", brand)
+              .limit(10)
+              .get()
+          : null;
+
+        if (!simSnap || simSnap.size <= 1) {
+          simSnap = category
+            ? await adminDb.collection("listings")
+                .where("category", "==", category)
+                .limit(10)
+                .get()
+            : null;
+        }
+
+        if (simSnap) {
+          simSnap.docs.forEach((sdoc) => {
+            if (sdoc.id === id) return;
+            if (similarItems.length >= 4) return;
+            const sd: any = sdoc.data() || {};
+            const sStatus = String(sd.status || "").toLowerCase();
+            if (sStatus === "sold" || sStatus === "removed" || sStatus === "deleted" || sd.isSold === true) return;
+            const sPrice = typeof sd.priceUsd === "number" ? sd.priceUsd : Number(sd.price || 0);
+            similarItems.push({
+              id: sdoc.id,
+              title: String(sd.title || sd.name || "Untitled"),
+              brand: String(sd.brand || sd.designer || ""),
+              price: sPrice ? `US$${sPrice.toLocaleString("en-US")}` : "",
+              image: String(sd.displayImageUrl || sd.display_image_url || sd.imageUrl || sd.image_url || ""),
+            });
+          });
+        }
+      } catch (err) {
+        console.error("similar_items_error", err);
+      }
+    }
 
     return {
       props: {
@@ -1207,10 +1598,15 @@ export const getServerSideProps: GetServerSideProps<ProductPageProps> = async (c
         description,
         details,
         sellerName,
+        sellerId,
+        sellerItemsSold,
+        sellerMemberSince,
+        sellerVerified,
         allowOffers,
         allowPurchase,
         isSold,
         proofDocUrl: proofDocUrl ? "yes" : "",
+        similarItems,
       },
     };
   } catch (err) {

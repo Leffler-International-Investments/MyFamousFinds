@@ -8,6 +8,8 @@ import "../styles/globals.css";
 import Layout from "../components/Layout";
 import { ToastProvider } from "../components/Toast";
 import ReviewWidgets from "../components/ReviewWidgets";
+import Analytics from "../components/Analytics";
+import { CurrencyProvider } from "../components/CurrencyToggle";
 
 const SITE_URL =
   process.env.NEXT_PUBLIC_SITE_URL || "https://www.myfamousfinds.com";
@@ -31,11 +33,16 @@ export default function MyFamousFindsApp({ Component, pageProps }: AppProps) {
       </Head>
 
       {/* Your existing layout + pages */}
-      <ToastProvider>
-        <Layout>
-          <Component {...pageProps} />
-        </Layout>
-      </ToastProvider>
+      <CurrencyProvider>
+        <ToastProvider>
+          <Layout>
+            <Component {...pageProps} />
+          </Layout>
+        </ToastProvider>
+      </CurrencyProvider>
+
+      {/* GA4 Analytics */}
+      <Analytics />
 
       {/* Floating review widget — visible on public-facing pages only (hidden during checkout) */}
       {!router.pathname.startsWith("/management") &&

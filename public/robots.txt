@@ -3,4 +3,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://www.myfamousfinds.com/sitemap.xml
+Sitemap: https://www.myfamousfinds.com/api/sitemap

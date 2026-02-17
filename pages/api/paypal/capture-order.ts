@@ -155,6 +155,8 @@ export default async function handler(
       createdAt: Date.now(),
       shippingAddress,
       ...(pendingData.buyerId ? { buyerId: pendingData.buyerId } : {}),
+      vipPointsAwarded: false,
+      reviewRequestSent: false,
     });
 
     // Mark listing as sold
