@@ -3,14 +3,11 @@
 import React, { useState, useEffect, type CSSProperties } from "react";
 import { addReview } from "../lib/firestore";
 import { APP_NAME } from "../lib/appConfig";
+
 export type ReviewWidgetProps = {
   appName?: string;
-  appStoreUrl?: string; // optional override for the app-store review page
-  feedbackEndpoint?: string; // kept for compatibility, not used
 };
-// Change this to your real app-store review URL
-const DEFAULT_APP_STORE_URL =
-  "https://example.com/your-app-store-review-page";
+
 const pillStyle: CSSProperties = {
   position: "fixed",
   bottom: 24,
@@ -29,6 +26,7 @@ const pillStyle: CSSProperties = {
   cursor: "pointer",
   border: "1px solid #e2e8f0",
 };
+
 const modalStyle: CSSProperties = {
   position: "fixed",
   bottom: 24,
@@ -42,12 +40,14 @@ const modalStyle: CSSProperties = {
   width: 300,
   border: "1px solid #334155",
 };
+
 const starButton: CSSProperties = {
   background: "transparent",
   border: "none",
   fontSize: 24,
   cursor: "pointer",
 };
+
 const inputBase: CSSProperties = {
   width: "100%",
   borderRadius: 8,
@@ -57,6 +57,7 @@ const inputBase: CSSProperties = {
   color: "white",
   fontSize: 14,
 };
+
 const buttonBase: CSSProperties = {
   width: "100%",
   padding: "10px",
@@ -66,11 +67,13 @@ const buttonBase: CSSProperties = {
   cursor: "pointer",
   fontSize: 14,
 };
+
 type ReviewStats = {
   count: number;
   average: number | null;
 };
-const ReviewWidgets: React.FC<ReviewWidgetProps> = ({ appStoreUrl }) => {
+
+const ReviewWidgets: React.FC<ReviewWidgetProps> = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [rating, setRating] = useState(5);
   const [comment, setComment] = useState("");
@@ -78,16 +81,14 @@ const ReviewWidgets: React.FC<ReviewWidgetProps> = ({ appStoreUrl }) => {
   const [loading, setLoading] = useState(false);
   const [stats, setStats] = useState<ReviewStats | null>(null);
   const [statsLoading, setStatsLoading] = useState(false);
-  const storeUrl = appStoreUrl || DEFAULT_APP_STORE_URL;
+
   // Load dynamic review stats for the pill (count + average)
   useEffect(() => {
     const fetchStats = async () => {
       try {
         setStatsLoading(true);
         const res = await fetch("/api/review-stats");
-        if (!res.ok) {
-          throw new Error("Failed to load review stats");
-        }
+        if (!res.ok) throw new Error("Failed to load review stats");
         const data = (await res.json()) as {
           success: boolean;
           count?: number;
@@ -107,79 +108,48 @@ const ReviewWidgets: React.FC<ReviewWidgetProps> = ({ appStoreUrl }) => {
     };
     fetchStats();
   }, []);
+
   const handleSubmit = async () => {
     if (!comment.trim()) return;
     setLoading(true);
     try {
-      // Only 4 and 5 star are stored + emailed and sent to the store
-      const isPositive = rating >= 4;
-      if (isPositive) {
-        // 1) Save to Firestore
-        try {
-          await addReview("guest", rating, comment, APP_NAME);
-        } catch (err) {
-          console.error("addReview failed:", err);
-        }
-        // 2) Email notification (via API)
-        try {
-          await fetch("/api/review-email", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              rating,
-              comment,
-              text: comment,
-              appName: APP_NAME,
-            }),
-          });
-        } catch (err) {
-          console.error("Review email send failed:", err);
-        }
-        // 3) Optimistic stats update in UI
-        setStats((prev) => {
-          if (!prev) {
-            return {
-              count: 1,
-              average: rating,
-            };
-          }
-          const newCount = prev.count + 1;
-          const oldAvg = prev.average ?? rating;
-          const newAvg = (oldAvg * prev.count + rating) / newCount;
-          return {
-            count: newCount,
-            average: newAvg,
-          };
+      // Save ALL reviews to Firestore (positive and negative)
+      try {
+        await addReview("guest", rating, comment, APP_NAME);
+      } catch (err) {
+        console.error("addReview failed:", err);
+      }
+
+      // Send email notification via AWS SES
+      try {
+        await fetch("/api/review-email", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            rating,
+            comment,
+            appName: APP_NAME,
+          }),
         });
+      } catch (err) {
+        console.error("Review email send failed:", err);
       }
-      // 4) Show thank-you confirmation
+
+      // Optimistic stats update in UI
+      setStats((prev) => {
+        if (!prev) return { count: 1, average: rating };
+        const newCount = prev.count + 1;
+        const oldAvg = prev.average ?? rating;
+        const newAvg = (oldAvg * prev.count + rating) / newCount;
+        return { count: newCount, average: newAvg };
+      });
+
       setSubmitted(true);
-      // 5) Auto-open app-store page AFTER a short delay (for 4-5 star only)
-      if (isPositive && storeUrl) {
-        try {
-          setTimeout(() => {
-            try {
-              window.open(storeUrl, "_blank", "noopener,noreferrer");
-            } catch (err) {
-              console.error("Failed to open store URL on delayed submit:", err);
-            }
-          }, 2500); // ~2.5s so they can read the message
-        } catch (err) {
-          console.error("setTimeout for store URL failed:", err);
-        }
-      }
     } finally {
       setLoading(false);
     }
   };
-  const handleOpenStore = () => {
-    if (!storeUrl) return;
-    try {
-      window.open(storeUrl, "_blank", "noopener,noreferrer");
-    } catch (err) {
-      console.error("Failed to open store URL:", err);
-    }
-  };
+
   const renderPillText = () => {
     if (statsLoading) {
       return (
@@ -201,14 +171,14 @@ const ReviewWidgets: React.FC<ReviewWidgetProps> = ({ appStoreUrl }) => {
         </>
       );
     }
-    // Fallback if no stats yet
     return (
       <>
         <span style={{ color: "#eab308" }}>★★★★★</span>
-        <span>4.9/5 Reviews</span>
+        <span>Leave a review</span>
       </>
     );
   };
+
   // Closed pill
   if (!isOpen) {
     return (
@@ -217,6 +187,7 @@ const ReviewWidgets: React.FC<ReviewWidgetProps> = ({ appStoreUrl }) => {
       </div>
     );
   }
+
   // Open modal
   return (
     <div style={modalStyle}>
@@ -245,111 +216,51 @@ const ReviewWidgets: React.FC<ReviewWidgetProps> = ({ appStoreUrl }) => {
           ✕
         </button>
       </div>
+
       {submitted ? (
-        rating >= 4 ? (
-          // Positive review (4-5 star): show app store CTA
-          <div
+        <div style={{ textAlign: "center", padding: "12px 0 4px" }}>
+          <p
             style={{
-              textAlign: "center",
-              padding: "12px 0 4px",
+              margin: 0,
+              marginBottom: 10,
+              color: rating >= 4 ? "#4ade80" : "#f97316",
+              fontWeight: 600,
             }}
           >
-            <p
-              style={{
-                margin: 0,
-                marginBottom: 10,
-                color: "#4ade80",
-                fontWeight: 600,
-              }}
-            >
-              Thank you for your feedback!
-            </p>
-            <p
-              style={{
-                margin: 0,
-                marginBottom: 12,
-                fontSize: 13,
-                color: "#cbd5f5",
-              }}
-            >
-              If the store page didn&apos;t open, tap below to leave a quick
-              review in the app store. It helps more people discover {APP_NAME}.
-            </p>
-            <button
-              onClick={handleOpenStore}
-              style={{
-                ...buttonBase,
-                background: "#facc15",
-                color: "#0f172a",
-                marginBottom: 8,
-              }}
-            >
-              Leave a review in the app store
-            </button>
-            <button
-              onClick={() => {
-                setIsOpen(false);
-                setSubmitted(false);
-                setComment("");
-              }}
-              style={{
-                ...buttonBase,
-                background: "#0f172a",
-                color: "#e5e7eb",
-                fontWeight: 500,
-                fontSize: 13,
-              }}
-            >
-              Close
-            </button>
-          </div>
-        ) : (
-          // 1-3 star: internal feedback only, no app-store CTA
-          <div
+            {rating >= 4
+              ? "Thank you for your wonderful feedback!"
+              : "Thank you for your honest feedback."}
+          </p>
+          <p
             style={{
-              textAlign: "center",
-              padding: "12px 0 4px",
+              margin: 0,
+              marginBottom: 12,
+              fontSize: 13,
+              color: "#cbd5f5",
             }}
           >
-            <p
-              style={{
-                margin: 0,
-                marginBottom: 10,
-                color: "#f97316",
-                fontWeight: 600,
-              }}
-            >
-              Thank you for your honest feedback.
-            </p>
-            <p
-              style={{
-                margin: 0,
-                marginBottom: 12,
-                fontSize: 13,
-                color: "#cbd5f5",
-              }}
-            >
-              We&apos;ll review your comments carefully to keep improving{" "}
-              {APP_NAME}.
-            </p>
-            <button
-              onClick={() => {
-                setIsOpen(false);
-                setSubmitted(false);
-                setComment("");
-              }}
-              style={{
-                ...buttonBase,
-                background: "#0f172a",
-                color: "#e5e7eb",
-                fontWeight: 500,
-                fontSize: 13,
-              }}
-            >
-              Close
-            </button>
-          </div>
-        )
+            {rating >= 4
+              ? `Your review helps others discover ${APP_NAME}. We truly appreciate it!`
+              : `We'll review your comments carefully to keep improving ${APP_NAME}.`}
+          </p>
+          <button
+            onClick={() => {
+              setIsOpen(false);
+              setSubmitted(false);
+              setComment("");
+              setRating(5);
+            }}
+            style={{
+              ...buttonBase,
+              background: "#0f172a",
+              color: "#e5e7eb",
+              fontWeight: 500,
+              fontSize: 13,
+            }}
+          >
+            Close
+          </button>
+        </div>
       ) : (
         <>
           <div
@@ -402,7 +313,6 @@ const ReviewWidgets: React.FC<ReviewWidgetProps> = ({ appStoreUrl }) => {
     </div>
   );
 };
+
 export default ReviewWidgets;
-// Keep named export so `import { ReviewWidget } from "../components/ReviewWidgets"`
-// still works.
 export const ReviewWidget = ReviewWidgets;
