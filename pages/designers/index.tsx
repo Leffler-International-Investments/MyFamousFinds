@@ -409,7 +409,7 @@ const DesignersPage: NextPage<DesignersPageProps> = ({
   return (
     <div className="designers-page">
       <Head>
-        <title>Designers – All Products | Famous Finds</title>
+        <title>Designers – Curated Luxury Pieces | Famous Finds</title>
       </Head>
 
       <Header
@@ -440,7 +440,7 @@ const DesignersPage: NextPage<DesignersPageProps> = ({
               className={`tab-btn${activeTab === "products" ? " tab-btn--active" : ""}`}
               onClick={() => setActiveTab("products")}
             >
-              All Products
+              Curated Luxury Pieces
             </button>
           </div>
 
@@ -489,7 +489,7 @@ const DesignersPage: NextPage<DesignersPageProps> = ({
                 <div className="results-header">
                   <div>
                     <h1>
-                      {designer ? `${designer}` : "All Products"}
+                      {designer ? `${designer}` : "Curated Luxury Pieces"}
                     </h1>
                     <p className="results-count">
                       {resultsCount} {resultsCount === 1 ? "result" : "results"}
