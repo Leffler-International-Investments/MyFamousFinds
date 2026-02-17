@@ -122,8 +122,8 @@ export default function ManagementDashboard({ stats }: Props) {
               <p className="stat">{stats.listings.toLocaleString("en-US")}</p>
               <p className="sub-stat">{stats.pendingListings} awaiting review</p>
             </Link>
-            <Link href="/management/orders" className="dashboard-summary-tile">
-              <p className="label">Orders</p>
+            <Link href="/management/purchases" className="dashboard-summary-tile">
+              <p className="label">Purchases</p>
               <p className="stat">{stats.orders.toLocaleString("en-US")}</p>
               <p className="sub-stat">{stats.pendingOrders} in progress</p>
             </Link>
@@ -256,10 +256,10 @@ export default function ManagementDashboard({ stats }: Props) {
             linkColor="gold"
           />
           <DashboardTile
-            title="Orders Overview"
-            description="Search and manage all platform orders from checkout to completion or refund."
-            href="/management/orders"
-            linkText="View Orders"
+            title="Purchases"
+            description="Track every purchase end-to-end: buyer, seller, payment, shipping, and refund support."
+            href="/management/purchases"
+            linkText="View Purchases"
             linkColor="blue"
           />
           <DashboardTile

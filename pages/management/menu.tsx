@@ -360,6 +360,17 @@ export default function MasterCategoryLibraryPage() {
           ],
         },
         {
+          name: "KIDS",
+          position: 55,
+          submenus: [
+            { label: "All Kids", href: "/category/kids", position: 10 },
+            { label: "Girls", href: "/category/kids?for=girls", position: 20 },
+            { label: "Boys", href: "/category/kids?for=boys", position: 30 },
+            { label: "Bags", href: "/category/bags?for=kids", position: 40 },
+            { label: "Shoes", href: "/category/shoes?for=kids", position: 50 },
+          ],
+        },
+        {
           name: "JEWELRY",
           position: 60,
           submenus: [
@@ -645,7 +656,7 @@ export default function MasterCategoryLibraryPage() {
         <section className="card">
           <h2>Add top-level category</h2>
           <p className="muted">
-            Example: NEW ARRIVALS, DESIGNERS, WOMEN, BAGS, MEN, JEWELRY, WATCHES.
+            Example: NEW ARRIVALS, DESIGNERS, WOMEN, BAGS, MEN, KIDS, JEWELRY, WATCHES.
           </p>
           <div className="add-cat">
             <label>

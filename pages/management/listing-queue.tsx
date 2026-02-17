@@ -32,6 +32,11 @@ function ManagementListingQueue({ items: initialItems }: Props) {
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  // Modal state for proof document viewing
+  const [proofModal, setProofModal] = useState<Listing | null>(null);
+  // Modal state for details viewing
+  const [detailsModal, setDetailsModal] = useState<Listing | null>(null);
+
   if (loading) return <div className="dashboard-page" />;
 
   const handleAction = async (
@@ -152,20 +157,31 @@ function ManagementListingQueue({ items: initialItems }: Props) {
                       </td>
                       <td>
                         {item.proof_doc_url ? (
-                          <a
-                            href={item.proof_doc_url}
-                            target="_blank"
-                            rel="noopener noreferrer"
+                          <button
+                            type="button"
                             className="btn-table btn-proof-view"
+                            onClick={() => setProofModal(item)}
                           >
                             View proof
-                          </a>
+                          </button>
                         ) : (
                           <span className="no-proof">Not uploaded</span>
                         )}
                       </td>
                       <td>{item.serial_number || "—"}</td>
-                      <td className="cell-details">{item.details || "—"}</td>
+                      <td>
+                        {item.details ? (
+                          <button
+                            type="button"
+                            className="btn-table btn-details-view"
+                            onClick={() => setDetailsModal(item)}
+                          >
+                            View details
+                          </button>
+                        ) : (
+                          <span className="no-proof">—</span>
+                        )}
+                      </td>
                       <td>{item.submittedAt || "—"}</td>
                       <td>{item.status}</td>
                       <td>
@@ -225,7 +241,7 @@ function ManagementListingQueue({ items: initialItems }: Props) {
                 ) : (
                   <tr>
                     <td colSpan={12} className="table-message">
-                      No pending listings – go enjoy a coffee ☕
+                      No pending listings – go enjoy a coffee
                     </td>
                   </tr>
                 )}
@@ -236,6 +252,63 @@ function ManagementListingQueue({ items: initialItems }: Props) {
 
         <Footer />
       </div>
+
+      {/* PROOF DOCUMENT MODAL */}
+      {proofModal && (
+        <div className="modal-overlay" onClick={() => setProofModal(null)}>
+          <div className="modal-box" onClick={(ev) => ev.stopPropagation()}>
+            <div className="modal-header">
+              <h3>Proof Document — {proofModal.title}</h3>
+              <button type="button" className="modal-close" onClick={() => setProofModal(null)}>
+                ✕
+              </button>
+            </div>
+            <div className="modal-body">
+              {proofModal.proof_doc_url?.startsWith("data:image") ? (
+                <img
+                  src={proofModal.proof_doc_url}
+                  alt="Proof document"
+                  style={{ maxWidth: "100%", borderRadius: 8 }}
+                />
+              ) : proofModal.proof_doc_url?.startsWith("data:application/pdf") ? (
+                <iframe
+                  src={proofModal.proof_doc_url}
+                  style={{ width: "100%", height: 500, border: "none", borderRadius: 8 }}
+                  title="Proof PDF"
+                />
+              ) : (
+                <a
+                  href={proofModal.proof_doc_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="btn-proof-download"
+                >
+                  Open / Download proof document
+                </a>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* DETAILS MODAL */}
+      {detailsModal && (
+        <div className="modal-overlay" onClick={() => setDetailsModal(null)}>
+          <div className="modal-box" onClick={(ev) => ev.stopPropagation()}>
+            <div className="modal-header">
+              <h3>Details — {detailsModal.title}</h3>
+              <button type="button" className="modal-close" onClick={() => setDetailsModal(null)}>
+                ✕
+              </button>
+            </div>
+            <div className="modal-body">
+              <p style={{ fontSize: 14, color: "#374151", lineHeight: 1.6, whiteSpace: "pre-wrap", wordBreak: "break-word", margin: 0 }}>
+                {detailsModal.details}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       <style jsx>{`
         .table-wrapper {
@@ -305,6 +378,16 @@ function ManagementListingQueue({ items: initialItems }: Props) {
           text-decoration: none;
           display: inline-block;
         }
+        .btn-proof-view:hover {
+          background: #1d4ed8;
+        }
+        .btn-details-view {
+          background: #111827;
+          color: #ffffff;
+        }
+        .btn-details-view:hover {
+          background: #1f2937;
+        }
         .proof-requested {
           color: #d97706;
           font-weight: 600;
@@ -314,12 +397,71 @@ function ManagementListingQueue({ items: initialItems }: Props) {
           color: #9ca3af;
           font-size: 12px;
         }
-        .cell-details {
-          max-width: 180px;
-          font-size: 12px;
-          color: #4b5563;
-          white-space: pre-wrap;
-          word-break: break-word;
+
+        /* Modal overlay */
+        .modal-overlay {
+          position: fixed;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          background: rgba(0, 0, 0, 0.5);
+          z-index: 1000;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          padding: 24px;
+        }
+        .modal-box {
+          background: #ffffff;
+          border-radius: 16px;
+          box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3);
+          max-width: 700px;
+          width: 100%;
+          max-height: 80vh;
+          display: flex;
+          flex-direction: column;
+        }
+        .modal-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          padding: 16px 20px;
+          border-bottom: 1px solid #e5e7eb;
+        }
+        .modal-header h3 {
+          margin: 0;
+          font-size: 16px;
+          font-weight: 700;
+          color: #111827;
+        }
+        .modal-close {
+          background: none;
+          border: none;
+          font-size: 18px;
+          cursor: pointer;
+          color: #6b7280;
+          padding: 4px;
+        }
+        .modal-close:hover {
+          color: #111827;
+        }
+        .modal-body {
+          padding: 20px;
+          overflow-y: auto;
+        }
+        .btn-proof-download {
+          display: inline-block;
+          background: #2563eb;
+          color: #fff;
+          border-radius: 999px;
+          padding: 10px 20px;
+          font-size: 14px;
+          font-weight: 600;
+          text-decoration: none;
+        }
+        .btn-proof-download:hover {
+          background: #1d4ed8;
         }
       `}</style>
     </>

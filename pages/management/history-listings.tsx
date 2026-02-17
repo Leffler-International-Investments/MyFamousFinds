@@ -22,6 +22,8 @@ type HistoryEntry = {
   createdAt: string;
   updatedAt: string;
   soldAt: string;
+  proof_doc_url: string;
+  purchase_proof: string;
 };
 
 type Props = {
@@ -32,6 +34,10 @@ export default function HistoryListings({ entries }: Props) {
   const { loading } = useRequireAdmin();
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
+
+  // Modal state for details and proof
+  const [detailsModal, setDetailsModal] = useState<HistoryEntry | null>(null);
+  const [proofModal, setProofModal] = useState<HistoryEntry | null>(null);
 
   const visible = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -103,6 +109,7 @@ export default function HistoryListings({ entries }: Props) {
                   <th>Category</th>
                   <th>Condition</th>
                   <th>Details</th>
+                  <th>Proof</th>
                   <th>Price (US$)</th>
                   <th>Status</th>
                   <th>Updated</th>
@@ -121,7 +128,34 @@ export default function HistoryListings({ entries }: Props) {
                     <td>{e.brand || "—"}</td>
                     <td>{e.category || "—"}</td>
                     <td>{e.condition || "—"}</td>
-                    <td className="cell-details">{e.details || "—"}</td>
+                    <td>
+                      {e.details ? (
+                        <button
+                          type="button"
+                          className="btn-modal-open"
+                          onClick={() => setDetailsModal(e)}
+                        >
+                          View details
+                        </button>
+                      ) : (
+                        <span className="no-data">—</span>
+                      )}
+                    </td>
+                    <td>
+                      {e.proof_doc_url ? (
+                        <button
+                          type="button"
+                          className="btn-modal-open btn-proof"
+                          onClick={() => setProofModal(e)}
+                        >
+                          View proof
+                        </button>
+                      ) : e.purchase_proof === "Requested" ? (
+                        <span className="proof-requested">Requested</span>
+                      ) : (
+                        <span className="no-data">—</span>
+                      )}
+                    </td>
                     <td className="cell-price">{e.price ? `$${e.price.toLocaleString()}` : "—"}</td>
                     <td>
                       <span className={
@@ -142,7 +176,7 @@ export default function HistoryListings({ entries }: Props) {
                 ))}
                 {visible.length === 0 && (
                   <tr>
-                    <td colSpan={11} className="table-message">
+                    <td colSpan={12} className="table-message">
                       No listing history entries found.
                     </td>
                   </tr>
@@ -154,6 +188,61 @@ export default function HistoryListings({ entries }: Props) {
 
         <Footer />
       </div>
+
+      {/* DETAILS MODAL */}
+      {detailsModal && (
+        <div className="modal-overlay" onClick={() => setDetailsModal(null)}>
+          <div className="modal-box" onClick={(ev) => ev.stopPropagation()}>
+            <div className="modal-header">
+              <h3>Details — {detailsModal.title}</h3>
+              <button type="button" className="modal-close" onClick={() => setDetailsModal(null)}>
+                ✕
+              </button>
+            </div>
+            <div className="modal-body">
+              <p className="modal-text">{detailsModal.details}</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* PROOF MODAL */}
+      {proofModal && (
+        <div className="modal-overlay" onClick={() => setProofModal(null)}>
+          <div className="modal-box modal-box-lg" onClick={(ev) => ev.stopPropagation()}>
+            <div className="modal-header">
+              <h3>Proof Document — {proofModal.title}</h3>
+              <button type="button" className="modal-close" onClick={() => setProofModal(null)}>
+                ✕
+              </button>
+            </div>
+            <div className="modal-body">
+              {proofModal.proof_doc_url.startsWith("data:image") ? (
+                <img
+                  src={proofModal.proof_doc_url}
+                  alt="Proof document"
+                  className="modal-proof-img"
+                />
+              ) : proofModal.proof_doc_url.startsWith("data:application/pdf") ? (
+                <iframe
+                  src={proofModal.proof_doc_url}
+                  className="modal-proof-iframe"
+                  title="Proof PDF"
+                />
+              ) : (
+                <a
+                  href={proofModal.proof_doc_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="btn-proof-download"
+                >
+                  Open / Download proof document
+                </a>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       <style jsx>{`
         .filters-bar {
@@ -233,12 +322,9 @@ export default function HistoryListings({ entries }: Props) {
           font-weight: 600;
           white-space: nowrap;
         }
-        .cell-details {
-          max-width: 200px;
+        .no-data {
+          color: #9ca3af;
           font-size: 12px;
-          color: #4b5563;
-          white-space: pre-wrap;
-          word-break: break-word;
         }
         .table-message {
           padding: 24px;
@@ -285,6 +371,119 @@ export default function HistoryListings({ entries }: Props) {
           background: #f3f4f6;
           color: #6b7280;
         }
+
+        .btn-modal-open {
+          background: #111827;
+          color: #fff;
+          border: none;
+          border-radius: 999px;
+          padding: 4px 10px;
+          font-size: 12px;
+          font-weight: 500;
+          cursor: pointer;
+          white-space: nowrap;
+        }
+        .btn-modal-open:hover {
+          background: #1f2937;
+        }
+        .btn-proof {
+          background: #2563eb;
+        }
+        .btn-proof:hover {
+          background: #1d4ed8;
+        }
+        .proof-requested {
+          color: #d97706;
+          font-weight: 600;
+          font-size: 12px;
+        }
+
+        /* Modal overlay */
+        .modal-overlay {
+          position: fixed;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          background: rgba(0, 0, 0, 0.5);
+          z-index: 1000;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          padding: 24px;
+        }
+        .modal-box {
+          background: #ffffff;
+          border-radius: 16px;
+          box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3);
+          max-width: 520px;
+          width: 100%;
+          max-height: 80vh;
+          display: flex;
+          flex-direction: column;
+        }
+        .modal-box-lg {
+          max-width: 700px;
+        }
+        .modal-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          padding: 16px 20px;
+          border-bottom: 1px solid #e5e7eb;
+        }
+        .modal-header h3 {
+          margin: 0;
+          font-size: 16px;
+          font-weight: 700;
+          color: #111827;
+        }
+        .modal-close {
+          background: none;
+          border: none;
+          font-size: 18px;
+          cursor: pointer;
+          color: #6b7280;
+          padding: 4px;
+        }
+        .modal-close:hover {
+          color: #111827;
+        }
+        .modal-body {
+          padding: 20px;
+          overflow-y: auto;
+        }
+        .modal-text {
+          font-size: 14px;
+          color: #374151;
+          line-height: 1.6;
+          white-space: pre-wrap;
+          word-break: break-word;
+          margin: 0;
+        }
+        .modal-proof-img {
+          max-width: 100%;
+          border-radius: 8px;
+        }
+        .modal-proof-iframe {
+          width: 100%;
+          height: 500px;
+          border: none;
+          border-radius: 8px;
+        }
+        .btn-proof-download {
+          display: inline-block;
+          background: #2563eb;
+          color: #fff;
+          border-radius: 999px;
+          padding: 10px 20px;
+          font-size: 14px;
+          font-weight: 600;
+          text-decoration: none;
+        }
+        .btn-proof-download:hover {
+          background: #1d4ed8;
+        }
       `}</style>
     </>
   );
@@ -323,6 +522,8 @@ export const getServerSideProps: GetServerSideProps<Props> = async () => {
         createdAt: d.createdAt?.toDate?.().toLocaleDateString("en-US") || "",
         updatedAt: d.updatedAt?.toDate?.().toLocaleDateString("en-US") || "",
         soldAt: d.soldAt?.toDate?.().toLocaleDateString("en-US") || "",
+        proof_doc_url: String(d.proof_doc_url || ""),
+        purchase_proof: String(d.purchase_proof || ""),
       };
     });
 
