@@ -306,21 +306,21 @@ export default function ManagementDashboard({ stats }: Props) {
           <DashboardTile
             title="Pricing Notifications"
             description="Send market-based pricing suggestions to sellers with items that have no views after 7 days."
-            href="/api/admin/pricing-notifications"
+            href="/management/pricing-notifications"
             linkText="Run Notifications"
             linkColor="gold"
           />
           <DashboardTile
             title="Featured Sellers"
             description="Calculate and update performance-based seller featuring for homepage placement priority."
-            href="/api/admin/featured-sellers"
+            href="/management/featured-sellers"
             linkText="Update Rankings"
             linkColor="gold"
           />
           <DashboardTile
             title="Re-engagement Campaigns"
             description="Send consignment invitations to past buyers (6-12 months). 'Ready to consign that red dress?'"
-            href="/api/admin/reengagement"
+            href="/management/reengagement"
             linkText="Run Campaign"
             linkColor="gold"
           />

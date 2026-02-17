@@ -94,13 +94,13 @@ export default async function handler(
     for (const perf of performances) {
       const sellerRef = adminDb.collection("sellers").doc(perf.sellerId);
 
-      batch.update(sellerRef, {
+      batch.set(sellerRef, {
         performanceScore: perf.score,
         salesLastMonth: perf.salesLastMonth,
         activeListingCount: perf.activeListings,
         isFeatured: perf.isFeatured,
         performanceUpdatedAt: FieldValue.serverTimestamp(),
-      });
+      }, { merge: true });
 
       if (perf.isFeatured) {
         featuredSellers.push(perf.sellerId);

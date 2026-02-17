@@ -1,7 +1,5 @@
 // FILE: /capacitor.config.ts
-import type { CapacitorConfig } from "@capacitor/cli";
-
-const config: CapacitorConfig = {
+const config = {
   appId: "com.myfamousfinds.app",
   appName: "Famous Finds",
   webDir: "out",
