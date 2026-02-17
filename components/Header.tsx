@@ -7,6 +7,7 @@ import { useEffect, useMemo, useState } from "react";
 import { onAuthStateChanged, User } from "firebase/auth";
 import { auth } from "../utils/firebaseClient";
 import { filtersToQuery, queryToFilters } from "../lib/filterConstants";
+import CurrencyToggle from "./CurrencyToggle";
 
 type HeaderProps = {
   filterContent?: React.ReactNode;
@@ -79,6 +80,7 @@ export default function Header({ filterContent, showFilter, onToggleFilter }: He
         </div>
 
         <div className="ff-header-right">
+          <CurrencyToggle />
           {vipUser ? (
             <Link href="/account" className="admin-button customer-signin">
               <span>My Account</span>

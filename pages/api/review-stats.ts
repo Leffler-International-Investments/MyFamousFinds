@@ -17,7 +17,8 @@ export default async function handler(
 
     snap.docs.forEach((doc) => {
       const data = doc.data();
-      if (typeof data.rating === "number") {
+      // Only include 4 and 5 star reviews in public stats
+      if (typeof data.rating === "number" && data.rating >= 4) {
         total += data.rating;
         count++;
       }

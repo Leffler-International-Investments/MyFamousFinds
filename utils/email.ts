@@ -570,6 +570,90 @@ export async function sendReengagementEmail(params: {
   await sendMail(to, subject, text, html);
 }
 
+/**
+ * Post-purchase review request — sent after delivery
+ */
+export async function sendReviewRequestEmail(params: {
+  to: string;
+  buyerName?: string;
+  itemTitle: string;
+  orderId: string;
+}) {
+  const to = (params.to || "").trim();
+  if (!to) throw new Error("sendReviewRequestEmail missing required field: to");
+
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://www.myfamousfinds.com";
+  const name = params.buyerName || "there";
+  const subject = "How was your Famous Finds experience?";
+
+  const text =
+    `Hello ${name},\n\n` +
+    `We hope you are enjoying your "${params.itemTitle}"!\n\n` +
+    `We would love to hear about your experience. Your review helps other buyers ` +
+    `discover authenticated luxury items on Famous Finds.\n\n` +
+    `Leave a review: ${siteUrl}/reviews\n\n` +
+    `Thank you for shopping with us!\n\n` +
+    `Regards,\nThe Famous Finds Team`;
+
+  const html =
+    `<p>Hello ${escapeHtml(name)},</p>` +
+    `<p>We hope you are enjoying your <b>"${escapeHtml(params.itemTitle)}"</b>!</p>` +
+    `<p>We would love to hear about your experience. Your review helps other buyers ` +
+    `discover authenticated luxury items on Famous Finds.</p>` +
+    `<p><a href="${siteUrl}/reviews" ` +
+    `style="display:inline-block;padding:12px 28px;background:#111827;color:#fff;` +
+    `border-radius:999px;text-decoration:none;font-weight:600;">Leave a Review</a></p>` +
+    `<p>Thank you for shopping with us!</p>` +
+    `<p>Regards,<br/>The Famous Finds Team</p>`;
+
+  await sendMail(to, subject, text, html);
+}
+
+/**
+ * Wishlist price drop alert — notify buyer when a wishlisted item's price drops
+ */
+export async function sendWishlistPriceDropEmail(params: {
+  to: string;
+  buyerName?: string;
+  itemTitle: string;
+  oldPrice: number;
+  newPrice: number;
+  currency?: string;
+  listingId: string;
+}) {
+  const to = (params.to || "").trim();
+  if (!to) throw new Error("sendWishlistPriceDropEmail missing required field: to");
+
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://www.myfamousfinds.com";
+  const name = params.buyerName || "there";
+  const cur = params.currency || "USD";
+  const subject = `Price Drop — "${params.itemTitle}" is now ${cur} $${params.newPrice.toLocaleString()}`;
+
+  const text =
+    `Hello ${name},\n\n` +
+    `Great news! An item on your wishlist just dropped in price.\n\n` +
+    `Item: ${params.itemTitle}\n` +
+    `Was: ${cur} $${params.oldPrice.toLocaleString()}\n` +
+    `Now: ${cur} $${params.newPrice.toLocaleString()}\n\n` +
+    `View it here: ${siteUrl}/product/${params.listingId}\n\n` +
+    `Regards,\nThe Famous Finds Team`;
+
+  const html =
+    `<p>Hello ${escapeHtml(name)},</p>` +
+    `<p>Great news! An item on your wishlist just dropped in price.</p>` +
+    `<div style="padding:14px;background:#d1fae5;border-radius:8px;margin:12px 0;">` +
+    `<p style="margin:4px 0;"><b>Item:</b> ${escapeHtml(params.itemTitle)}</p>` +
+    `<p style="margin:4px 0;"><b>Was:</b> <s>${escapeHtml(cur)} $${params.oldPrice.toLocaleString()}</s></p>` +
+    `<p style="margin:4px 0;font-size:18px;"><b>Now:</b> ${escapeHtml(cur)} $${params.newPrice.toLocaleString()}</p>` +
+    `</div>` +
+    `<p><a href="${siteUrl}/product/${params.listingId}" ` +
+    `style="display:inline-block;padding:12px 28px;background:#16a34a;color:#fff;` +
+    `border-radius:999px;text-decoration:none;font-weight:600;">View Item</a></p>` +
+    `<p>Regards,<br/>The Famous Finds Team</p>`;
+
+  await sendMail(to, subject, text, html);
+}
+
 export async function sendTestEmail(to: string) {
   const subject = "MyFamousFinds SMTP Test";
   const text =
