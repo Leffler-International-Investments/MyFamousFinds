@@ -648,29 +648,31 @@ export default function ManagementListings({ items }: Props) {
                       </td>
 
                       <td>
-                        <Link href={`/product/${l.id}`} className="btn-table-view">
-                          View
-                        </Link>
+                        <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
+                          <Link href={`/product/${l.id}`} className="btn-table-view">
+                            View
+                          </Link>
 
-                        {l.status !== "Sold" && (
+                          {l.status !== "Sold" && (
+                            <button
+                              type="button"
+                              className="btn-table-sold"
+                              onClick={() => handleMarkSold(l.id, l.title)}
+                              disabled={sellingId === l.id}
+                            >
+                              {sellingId === l.id ? "Marking…" : "Mark sold"}
+                            </button>
+                          )}
+
                           <button
                             type="button"
-                            className="btn-table-sold"
-                            onClick={() => handleMarkSold(l.id, l.title)}
-                            disabled={sellingId === l.id}
+                            className="btn-delete-prominent"
+                            onClick={() => handleDelete(l.id, l.title)}
+                            disabled={deletingId === l.id}
                           >
-                            {sellingId === l.id ? "Marking…" : "Mark sold"}
+                            {deletingId === l.id ? "Deleting…" : "Delete"}
                           </button>
-                        )}
-
-                        <button
-                          type="button"
-                          className="btn-table-delete"
-                          onClick={() => handleDelete(l.id, l.title)}
-                          disabled={deletingId === l.id}
-                        >
-                          {deletingId === l.id ? "Deleting…" : "Delete"}
-                        </button>
+                        </div>
                       </td>
                     </tr>
                   );
@@ -862,22 +864,24 @@ export default function ManagementListings({ items }: Props) {
           background: #d1fae5;
         }
 
-        .btn-table-delete {
-          font-size: 12px;
-          font-weight: 500;
-          border-radius: 999px;
-          padding: 4px 10px;
-          border: 1px solid #dc2626;
-          background: #fee2e2;
-          color: #b91c1c;
+        .btn-delete-prominent {
+          font-size: 13px;
+          font-weight: 700;
+          border-radius: 8px;
+          padding: 8px 16px;
+          border: 2px solid #dc2626;
+          background: #dc2626;
+          color: #ffffff;
           cursor: pointer;
+          letter-spacing: 0.3px;
         }
-        .btn-table-delete:disabled {
+        .btn-delete-prominent:disabled {
           opacity: 0.7;
           cursor: default;
         }
-        .btn-table-delete:hover:not(:disabled) {
-          background: #fecaca;
+        .btn-delete-prominent:hover:not(:disabled) {
+          background: #b91c1c;
+          border-color: #b91c1c;
         }
 
         /* NEW: Category editor styles */

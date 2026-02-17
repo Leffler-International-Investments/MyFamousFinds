@@ -4,6 +4,7 @@ import Link from "next/link";
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
 import { adminDb } from "../../utils/firebaseAdmin";
+import { getDeletedListingIds } from "../../lib/deletedListings";
 
 type StorePageProps = {
   sellerId: string;
@@ -284,6 +285,8 @@ export async function getServerSideProps(ctx: any) {
 
   const verified = sellerData.verified === true || sellerData.status === "approved";
 
+  const deletedIds = await getDeletedListingIds();
+
   const listingsSnap = await adminDb
     .collection("listings")
     .where("sellerId", "==", sellerId)
@@ -292,6 +295,7 @@ export async function getServerSideProps(ctx: any) {
 
   const listings = listingsSnap.docs
     .filter((doc) => {
+      if (deletedIds.has(doc.id)) return false;
       const d: any = doc.data() || {};
       const status = String(d.status || "").toLowerCase();
       return status !== "sold" && status !== "removed" && status !== "deleted" && d.isSold !== true;

@@ -8,6 +8,7 @@ import Footer from "../../components/Footer";
 import WishlistButton from "../../components/WishlistButton";
 import { auth, db, firebaseClientReady } from "../../utils/firebaseClient";
 import { adminDb } from "../../utils/firebaseAdmin";
+import { getDeletedListingIds } from "../../lib/deletedListings";
 import { onAuthStateChanged } from "firebase/auth";
 import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
 import { useRouter } from "next/router";
@@ -1542,6 +1543,9 @@ export const getServerSideProps: GetServerSideProps<ProductPageProps> = async (c
     const similarItems: SimilarItem[] = [];
     if (adminDb) {
       try {
+        // Load soft-deleted listing IDs to exclude them
+        const deletedIds = await getDeletedListingIds();
+
         let simSnap = brand
           ? await adminDb.collection("listings")
               .where("brand", "==", brand)
@@ -1562,6 +1566,8 @@ export const getServerSideProps: GetServerSideProps<ProductPageProps> = async (c
           simSnap.docs.forEach((sdoc) => {
             if (sdoc.id === id) return;
             if (similarItems.length >= 4) return;
+            // Skip soft-deleted items
+            if (deletedIds.has(sdoc.id)) return;
             const sd: any = sdoc.data() || {};
             // Only show live items (match publicListings.ts filter)
             const sStatus = String(sd.status || "").trim().toLowerCase();

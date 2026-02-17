@@ -5,6 +5,7 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { adminDb, isFirebaseAdminReady } from "../../utils/firebaseAdmin";
 import { getAuthUser } from "../../utils/authServer";
+import { getDeletedListingIds } from "../../lib/deletedListings";
 
 type RecommendedItem = {
   id: string;
@@ -72,7 +73,10 @@ export default async function handler(
       if (d.brand) purchasedBrands.add(d.brand.toLowerCase());
     });
 
-    // 4. Load active listings and score them
+    // 4. Load soft-deleted listing IDs
+    const deletedIds = await getDeletedListingIds();
+
+    // 5. Load active listings and score them
     const listingsSnap = await adminDb
       .collection("listings")
       .where("status", "in", ["Live", "Active", "Approved"])
@@ -84,6 +88,9 @@ export default async function handler(
 
     for (const doc of listingsSnap.docs) {
       const data = doc.data() as any;
+
+      // Skip soft-deleted items
+      if (deletedIds.has(doc.id)) continue;
 
       // Skip items already purchased or saved
       if (purchasedListingIds.has(doc.id) || savedListingIds.has(doc.id)) {
