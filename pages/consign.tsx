@@ -113,8 +113,8 @@ export default function ConsignPage() {
           gap: 12px;
           flex-wrap: wrap;
         }
-        .consign-primary,
-        .consign-secondary {
+        .consign-actions :global(.consign-primary),
+        .consign-actions :global(.consign-secondary) {
           display: inline-block;
           border-radius: 8px;
           padding: 16px 36px;
@@ -126,17 +126,17 @@ export default function ConsignPage() {
           transition: opacity 0.15s ease, transform 0.15s ease;
           min-width: 200px;
         }
-        .consign-primary:hover,
-        .consign-secondary:hover {
+        .consign-actions :global(.consign-primary:hover),
+        .consign-actions :global(.consign-secondary:hover) {
           opacity: 0.88;
           transform: translateY(-1px);
         }
-        .consign-primary {
+        .consign-actions :global(.consign-primary) {
           background: #111827;
           color: #ffffff;
           border: 2px solid #111827;
         }
-        .consign-secondary {
+        .consign-actions :global(.consign-secondary) {
           background: #f3f4f6;
           color: #111827;
           border: 2px solid #d1d5db;
