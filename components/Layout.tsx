@@ -13,7 +13,7 @@ export default function Layout({ title = "FamousFinds", children }: Props) {
     <>
       <Head>
         <title>{title}</title>
-        <meta name="viewport" content="width=device-width,initial-scale=1" />
+        <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=5,viewport-fit=cover" />
       </Head>
       <main className="min-h-screen bg-black text-white">
         {/* Page content */}

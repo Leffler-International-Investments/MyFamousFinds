@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
+import { useRequireAdmin } from "../../hooks/useRequireAdmin";
 import { app as firebaseApp, firebaseClientReady } from "../../utils/firebaseClient";
 import {
   getFirestore,
@@ -39,7 +40,8 @@ function slugify(input: string) {
 }
 
 const ManagementDesigners: NextPage = () => {
-  const db = useMemo(() => getFirestore(firebaseApp!), []);
+  const { loading: authLoading } = useRequireAdmin();
+  const db = useMemo(() => (firebaseApp ? getFirestore(firebaseApp) : null), []);
 
   const [rows, setRows] = useState<DesignerRow[]>([]);
   const [loading, setLoading] = useState(false);
@@ -50,21 +52,30 @@ const ManagementDesigners: NextPage = () => {
   const [newFeatured, setNewFeatured] = useState(false);
   const [newDesignerCategory, setNewDesignerCategory] = useState<DesignerCategory>("");
 
-  if (!firebaseClientReady) {
+  if (authLoading) return <div className="dashboard-page" />;
+
+  if (!firebaseClientReady || !db) {
     return (
-      <>
+      <div className="dashboard-page">
         <Header />
-        <main className="mx-auto max-w-4xl px-4 py-8">
-          <div className="rounded-xl border border-gray-200 bg-white p-6">
-            Firebase env vars are not available in this build environment (Preview/Prod mismatch).
+        <main className="dashboard-main">
+          <div className="dashboard-header">
+            <div>
+              <h1>Designers</h1>
+              <p>Firebase env vars are not available in this build environment.</p>
+            </div>
+            <Link href="/management/dashboard">
+              ← Back to Management Dashboard
+            </Link>
           </div>
         </main>
         <Footer />
-      </>
+      </div>
     );
   }
 
   async function load() {
+    if (!db) return;
     setErr("");
     setLoading(true);
     try {
@@ -81,6 +92,7 @@ const ManagementDesigners: NextPage = () => {
   }
 
   async function toggleFeatured(id: string, current: boolean) {
+    if (!db) return;
     setErr("");
     try {
       await updateDoc(doc(db, "designers", id), { featured: !current });
@@ -93,6 +105,7 @@ const ManagementDesigners: NextPage = () => {
   }
 
   async function updateDesignerCategory(id: string, cat: DesignerCategory) {
+    if (!db) return;
     setErr("");
     try {
       await updateDoc(doc(db, "designers", id), { designerCategory: cat });
@@ -105,6 +118,7 @@ const ManagementDesigners: NextPage = () => {
   }
 
   async function remove(id: string) {
+    if (!db) return;
     if (!confirm("Delete this designer?")) return;
     setErr("");
     try {
@@ -116,6 +130,7 @@ const ManagementDesigners: NextPage = () => {
   }
 
   async function add() {
+    if (!db) return;
     const name = newName.trim();
     if (!name) return;
     setErr("");
@@ -143,153 +158,291 @@ const ManagementDesigners: NextPage = () => {
   return (
     <>
       <Head>
-        <title>Management – Designers</title>
+        <title>Designers — Management</title>
       </Head>
 
-      <Header />
+      <div className="dashboard-page">
+        <Header />
 
-      <main className="mx-auto max-w-5xl px-4 py-10">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-semibold">Designers</h1>
-            <Link
-              href="/management/dashboard"
-              className="text-sm text-gray-500 hover:text-gray-900"
-            >
+        <main className="dashboard-main">
+          <div className="dashboard-header">
+            <div>
+              <h1>Designers</h1>
+              <p>Manage the list of approved designers for seller drop-downs and bulk uploads.</p>
+            </div>
+            <Link href="/management/dashboard">
               ← Back to Management Dashboard
             </Link>
           </div>
 
-          <div className="flex gap-2">
-            <button
-              className="rounded-md border px-3 py-2 text-sm"
-              onClick={load}
-              disabled={loading}
-            >
-              {loading ? "Loading..." : "Load"}
+          <div style={{ marginBottom: 16 }}>
+            <button className="btn-load" onClick={load} disabled={loading}>
+              {loading ? "Loading…" : "Load Designers"}
             </button>
           </div>
-        </div>
 
-        {err ? (
-          <div className="mt-4 rounded-md border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-700">
-            {err}
-          </div>
-        ) : null}
+          {err && <div className="error-banner">{err}</div>}
 
-        <section className="mt-6 rounded-xl border p-4">
-          <h2 className="text-lg font-medium">Add designer</h2>
-
-          <div className="mt-3 grid gap-3 md:grid-cols-3">
-            <input
-              className="w-full rounded-md border px-3 py-2"
-              placeholder="Designer name"
-              value={newName}
-              onChange={(e) => setNewName(e.target.value)}
-            />
-
-            <select
-              className="w-full rounded-md border px-3 py-2"
-              value={newGroup}
-              onChange={(e) => setNewGroup(e.target.value as any)}
-            >
-              <option value="fashion">Fashion</option>
-              <option value="watches">Watches</option>
-            </select>
-
-            <select
-              className="w-full rounded-md border px-3 py-2"
-              value={newDesignerCategory}
-              onChange={(e) => setNewDesignerCategory(e.target.value as DesignerCategory)}
-            >
-              <option value="">No Category</option>
-              <option value="top">Top Designers</option>
-              <option value="trending">Trending Designers</option>
-              <option value="emerging">Emerging Brands</option>
-            </select>
-
-            <label className="flex items-center gap-2 text-sm">
+          <section className="card">
+            <h2>Add Designer</h2>
+            <div className="add-form">
               <input
-                type="checkbox"
-                checked={newFeatured}
-                onChange={(e) => setNewFeatured(e.target.checked)}
+                className="form-input"
+                placeholder="Designer name"
+                value={newName}
+                onChange={(e) => setNewName(e.target.value)}
               />
-              Featured
-            </label>
-          </div>
-
-          <button
-            className="mt-3 rounded-md bg-black px-4 py-2 text-sm text-white"
-            onClick={add}
-          >
-            Add
-          </button>
-        </section>
-
-        <section className="mt-6 rounded-xl border p-4">
-          <h2 className="text-lg font-medium">Existing designers</h2>
-
-          {!rows.length ? (
-            <div className="mt-3 text-sm text-gray-600">
-              No designers loaded. Click “Load”.
+              <select
+                className="form-input"
+                value={newGroup}
+                onChange={(e) => setNewGroup(e.target.value as any)}
+              >
+                <option value="fashion">Fashion</option>
+                <option value="watches">Watches</option>
+              </select>
+              <select
+                className="form-input"
+                value={newDesignerCategory}
+                onChange={(e) => setNewDesignerCategory(e.target.value as DesignerCategory)}
+              >
+                <option value="">No Category</option>
+                <option value="top">Top Designers</option>
+                <option value="trending">Trending Designers</option>
+                <option value="emerging">Emerging Brands</option>
+              </select>
+              <label className="checkbox-label">
+                <input
+                  type="checkbox"
+                  checked={newFeatured}
+                  onChange={(e) => setNewFeatured(e.target.checked)}
+                />
+                Featured
+              </label>
             </div>
-          ) : (
-            <div className="mt-4 overflow-x-auto">
-              <table className="w-full text-left text-sm">
-                <thead>
-                  <tr className="border-b">
-                    <th className="py-2">Name</th>
-                    <th className="py-2">Slug</th>
-                    <th className="py-2">Group</th>
-                    <th className="py-2">Category</th>
-                    <th className="py-2">Featured</th>
-                    <th className="py-2">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {rows.map((r) => (
-                    <tr key={r.id} className="border-b">
-                      <td className="py-2">{r.name}</td>
-                      <td className="py-2">{r.slug}</td>
-                      <td className="py-2">{r.group || "fashion"}</td>
-                      <td className="py-2">
-                        <select
-                          className="rounded-md border px-2 py-1 text-xs"
-                          value={r.designerCategory || ""}
-                          onChange={(e) => updateDesignerCategory(r.id, e.target.value as DesignerCategory)}
-                        >
-                          <option value="">None</option>
-                          <option value="top">Top Designers</option>
-                          <option value="trending">Trending</option>
-                          <option value="emerging">Emerging</option>
-                        </select>
-                      </td>
-                      <td className="py-2">
-                        <button
-                          className="rounded-md border px-2 py-1 text-xs"
-                          onClick={() => toggleFeatured(r.id, !!r.featured)}
-                        >
-                          {r.featured ? "Yes" : "No"}
-                        </button>
-                      </td>
-                      <td className="py-2">
-                        <button
-                          className="rounded-md border px-2 py-1 text-xs"
-                          onClick={() => remove(r.id)}
-                        >
-                          Delete
-                        </button>
-                      </td>
+            <button className="btn-add" onClick={add}>Add Designer</button>
+          </section>
+
+          <section className="card">
+            <h2>Existing Designers ({rows.length})</h2>
+            {!rows.length ? (
+              <p className="empty-msg">No designers loaded. Click "Load Designers" above.</p>
+            ) : (
+              <div className="table-wrapper">
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>Name</th>
+                      <th>Slug</th>
+                      <th>Group</th>
+                      <th>Category</th>
+                      <th>Featured</th>
+                      <th>Actions</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </section>
-      </main>
+                  </thead>
+                  <tbody>
+                    {rows.map((r) => (
+                      <tr key={r.id}>
+                        <td className="name-cell">{r.name}</td>
+                        <td className="slug-cell">{r.slug}</td>
+                        <td>{r.group || "fashion"}</td>
+                        <td>
+                          <select
+                            className="inline-select"
+                            value={r.designerCategory || ""}
+                            onChange={(e) => updateDesignerCategory(r.id, e.target.value as DesignerCategory)}
+                          >
+                            <option value="">None</option>
+                            <option value="top">Top</option>
+                            <option value="trending">Trending</option>
+                            <option value="emerging">Emerging</option>
+                          </select>
+                        </td>
+                        <td>
+                          <button
+                            className="btn-toggle"
+                            onClick={() => toggleFeatured(r.id, !!r.featured)}
+                          >
+                            {r.featured ? "Yes" : "No"}
+                          </button>
+                        </td>
+                        <td>
+                          <button
+                            className="btn-delete"
+                            onClick={() => remove(r.id)}
+                          >
+                            Delete
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </section>
+        </main>
 
-      <Footer />
+        <Footer />
+      </div>
+
+      <style jsx>{`
+        .card {
+          background: #ffffff;
+          border: 1px solid #e5e7eb;
+          border-radius: 16px;
+          padding: 24px;
+          margin-bottom: 24px;
+        }
+        .card h2 {
+          margin: 0 0 16px;
+          font-size: 18px;
+          font-weight: 600;
+          color: #111827;
+        }
+        .add-form {
+          display: grid;
+          gap: 12px;
+          grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+          margin-bottom: 16px;
+        }
+        .form-input {
+          width: 100%;
+          border-radius: 8px;
+          border: 1px solid #d1d5db;
+          padding: 10px 12px;
+          font-size: 14px;
+          font-family: inherit;
+        }
+        .form-input:focus {
+          border-color: #111827;
+          outline: none;
+        }
+        .checkbox-label {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          font-size: 14px;
+          color: #374151;
+        }
+        .btn-load {
+          display: inline-flex;
+          padding: 10px 24px;
+          border-radius: 999px;
+          border: 1px solid #d1d5db;
+          background: #ffffff;
+          font-size: 14px;
+          font-weight: 500;
+          cursor: pointer;
+          transition: all 0.15s;
+        }
+        .btn-load:hover {
+          border-color: #111827;
+          background: #f9fafb;
+        }
+        .btn-load:disabled {
+          opacity: 0.5;
+          cursor: not-allowed;
+        }
+        .btn-add {
+          display: inline-flex;
+          padding: 10px 24px;
+          border-radius: 999px;
+          border: none;
+          background: #111827;
+          color: #fff;
+          font-size: 14px;
+          font-weight: 600;
+          cursor: pointer;
+          transition: opacity 0.2s;
+        }
+        .btn-add:hover { opacity: 0.85; }
+        .error-banner {
+          margin-bottom: 16px;
+          padding: 12px 16px;
+          border-radius: 10px;
+          border: 1px solid #fecaca;
+          background: #fef2f2;
+          color: #991b1b;
+          font-size: 14px;
+        }
+        .empty-msg {
+          font-size: 14px;
+          color: #6b7280;
+        }
+        .table-wrapper {
+          overflow-x: auto;
+          border-radius: 8px;
+          border: 1px solid #e5e7eb;
+        }
+        .data-table {
+          width: 100%;
+          border-collapse: collapse;
+          font-size: 14px;
+        }
+        .data-table thead {
+          background: #f9fafb;
+        }
+        .data-table th {
+          padding: 10px 12px;
+          text-align: left;
+          font-weight: 500;
+          color: #374151;
+          font-size: 13px;
+        }
+        .data-table tbody tr {
+          border-bottom: 1px solid #f3f4f6;
+        }
+        .data-table tbody tr:last-child {
+          border-bottom: none;
+        }
+        .data-table td {
+          padding: 10px 12px;
+          color: #111827;
+        }
+        .name-cell {
+          font-weight: 500;
+        }
+        .slug-cell {
+          font-family: monospace;
+          font-size: 12px;
+          color: #6b7280;
+        }
+        .inline-select {
+          border-radius: 6px;
+          border: 1px solid #d1d5db;
+          padding: 4px 8px;
+          font-size: 13px;
+          font-family: inherit;
+          background: #fff;
+        }
+        .btn-toggle {
+          border-radius: 6px;
+          border: 1px solid #d1d5db;
+          padding: 4px 12px;
+          font-size: 13px;
+          background: #fff;
+          cursor: pointer;
+        }
+        .btn-toggle:hover { border-color: #9ca3af; }
+        .btn-delete {
+          border-radius: 6px;
+          border: 1px solid #fca5a5;
+          padding: 4px 12px;
+          font-size: 13px;
+          background: #fff;
+          color: #b91c1c;
+          cursor: pointer;
+        }
+        .btn-delete:hover {
+          background: #fef2f2;
+          border-color: #ef4444;
+        }
+        @media (max-width: 640px) {
+          .add-form {
+            grid-template-columns: 1fr;
+          }
+        }
+      `}</style>
     </>
   );
 };
