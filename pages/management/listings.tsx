@@ -21,6 +21,7 @@ type Listing = {
   proof_doc_url: string;
   purchase_proof: string;
   createdAt: string;
+  allowOffers: boolean;
 };
 
 type Props = {
@@ -342,6 +343,31 @@ export default function ManagementListings({ items }: Props) {
     }
   }
 
+  async function handleToggleOffers(id: string, allow: boolean) {
+    if (updatingKey) return;
+
+    try {
+      setUpdatingKey(`${id}:offers`);
+      const res = await fetch(`/api/admin/update-listing/${id}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ allowOffers: allow }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok || !json?.ok) {
+        throw new Error(json?.error || "Failed to update offers setting");
+      }
+      setRows((prev) =>
+        prev.map((l) => (l.id === id ? { ...l, allowOffers: allow } : l))
+      );
+    } catch (err: any) {
+      console.error("Toggle offers error", err);
+      alert(err?.message || "Unable to update offers setting");
+    } finally {
+      setUpdatingKey(null);
+    }
+  }
+
   if (loading) return <div className="dashboard-page" />;
 
   return (
@@ -434,6 +460,7 @@ export default function ManagementListings({ items }: Props) {
                   <th>Status</th>
 
                   <th>Category</th>
+                  <th>Offers</th>
                   <th>Details</th>
                   <th>Proof Doc</th>
                   <th>Actions</th>
@@ -606,6 +633,31 @@ export default function ManagementListings({ items }: Props) {
                         </div>
                       </td>
 
+                      {/* Offers toggle: two buttons */}
+                      <td>
+                        <div className="offers-toggle">
+                          <button
+                            type="button"
+                            className={`offers-btn ${l.allowOffers ? "offers-btn--active" : ""}`}
+                            disabled={updatingKey === `${l.id}:offers` || l.allowOffers}
+                            onClick={() => handleToggleOffers(l.id, true)}
+                          >
+                            {updatingKey === `${l.id}:offers` && !l.allowOffers ? "..." : "Yes"}
+                          </button>
+                          <button
+                            type="button"
+                            className={`offers-btn ${!l.allowOffers ? "offers-btn--off" : ""}`}
+                            disabled={updatingKey === `${l.id}:offers` || !l.allowOffers}
+                            onClick={() => handleToggleOffers(l.id, false)}
+                          >
+                            {updatingKey === `${l.id}:offers` && l.allowOffers ? "..." : "No"}
+                          </button>
+                        </div>
+                        <span className="offers-hint">
+                          {l.allowOffers ? "Buyers can make offers" : "Fixed price only"}
+                        </span>
+                      </td>
+
                       <td>
                         <div className="edit-cell">
                           <textarea
@@ -680,7 +732,7 @@ export default function ManagementListings({ items }: Props) {
 
                 {visible.length === 0 && (
                   <tr>
-                    <td colSpan={10} className="table-message">
+                    <td colSpan={11} className="table-message">
                       No listings match this filter.
                     </td>
                   </tr>
@@ -952,6 +1004,49 @@ export default function ManagementListings({ items }: Props) {
         .edit-select-dirty {
           border: 2px solid #047857;
         }
+
+        /* Offers toggle buttons */
+        .offers-toggle {
+          display: inline-flex;
+          border-radius: 8px;
+          overflow: hidden;
+          border: 1px solid #d1d5db;
+        }
+        .offers-btn {
+          padding: 6px 14px;
+          font-size: 12px;
+          font-weight: 600;
+          border: none;
+          cursor: pointer;
+          background: #f9fafb;
+          color: #6b7280;
+          transition: all 0.15s;
+        }
+        .offers-btn:first-child {
+          border-right: 1px solid #d1d5db;
+        }
+        .offers-btn:disabled {
+          cursor: default;
+        }
+        .offers-btn--active {
+          background: #059669;
+          color: #fff;
+        }
+        .offers-btn--off {
+          background: #6b7280;
+          color: #fff;
+        }
+        .offers-btn:hover:not(:disabled):not(.offers-btn--active):not(.offers-btn--off) {
+          background: #e5e7eb;
+        }
+        .offers-hint {
+          display: block;
+          font-size: 10px;
+          color: #9ca3af;
+          margin-top: 4px;
+          white-space: nowrap;
+        }
+
         .btn-proof-open {
           display: inline-block;
           background: #2563eb;
@@ -1150,6 +1245,7 @@ export const getServerSideProps: GetServerSideProps<Props> = async () => {
         proof_doc_url: d.proof_doc_url ? "has_proof" : "",
         purchase_proof: String(d.purchase_proof || ""),
         createdAt,
+        allowOffers: d.allowOffers !== false,
       });
     }
 
