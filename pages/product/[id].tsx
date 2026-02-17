@@ -1538,14 +1538,14 @@ export const getServerSideProps: GetServerSideProps<ProductPageProps> = async (c
       }
     }
 
-    // Fetch similar items (same brand or category, exclude current)
+    // Fetch similar items (same brand or category, only live & unsold)
     const similarItems: SimilarItem[] = [];
     if (adminDb) {
       try {
         let simSnap = brand
           ? await adminDb.collection("listings")
               .where("brand", "==", brand)
-              .limit(10)
+              .limit(20)
               .get()
           : null;
 
@@ -1553,7 +1553,7 @@ export const getServerSideProps: GetServerSideProps<ProductPageProps> = async (c
           simSnap = category
             ? await adminDb.collection("listings")
                 .where("category", "==", category)
-                .limit(10)
+                .limit(20)
                 .get()
             : null;
         }
@@ -1563,8 +1563,11 @@ export const getServerSideProps: GetServerSideProps<ProductPageProps> = async (c
             if (sdoc.id === id) return;
             if (similarItems.length >= 4) return;
             const sd: any = sdoc.data() || {};
-            const sStatus = String(sd.status || "").toLowerCase();
-            if (sStatus === "sold" || sStatus === "removed" || sStatus === "deleted" || sd.isSold === true) return;
+            // Only show live items (match publicListings.ts filter)
+            const sStatus = String(sd.status || "").trim().toLowerCase();
+            if (sStatus && sStatus !== "live") return;
+            // Skip sold items
+            if (sd.isSold === true || sd.sold === true) return;
             const sPrice = typeof sd.priceUsd === "number" ? sd.priceUsd : Number(sd.price || 0);
             similarItems.push({
               id: sdoc.id,
