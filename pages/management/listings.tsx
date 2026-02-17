@@ -164,7 +164,7 @@ export default function ManagementListings({ items }: Props) {
       return;
     }
     if (!CATEGORIES.includes(nextCat as any)) {
-      alert("Invalid category. Use: WOMEN, BAGS, MEN, JEWELRY, WATCHES");
+      alert("Invalid category. Use: WOMEN, BAGS, MEN, KIDS, JEWELRY, WATCHES");
       return;
     }
 
