@@ -13,6 +13,9 @@ type CsvRow = {
   source?: string;
   proof?: string;
   serial?: string;
+  details?: string;
+  colorswatch?: string;
+  material?: string;
 };
 
 const CANON = ["WOMEN", "BAGS", "MEN", "KIDS", "JEWELRY", "WATCHES"] as const;
@@ -58,6 +61,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         condition: (row.condition || "").trim(),
         size: (row.size || "").trim(),
         color: (row.color || "").trim(),
+        colorSwatch: (row.colorswatch || "").trim(),
+        details: (row.details || "").trim(),
+        material: (row.material || "").trim(),
         price: safePrice,
         purchase_source: (row.source || "").trim(),
         purchase_proof: (row.proof || "").trim(),

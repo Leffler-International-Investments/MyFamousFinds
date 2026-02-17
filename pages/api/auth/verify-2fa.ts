@@ -6,6 +6,7 @@ import {
   isFirebaseAdminReady,
 } from "../../../utils/firebaseAdmin";
 import { verifyChallenge } from "../../../utils/twofaStore";
+import { setAdminSessionCookie } from "../../../utils/adminSession";
 
 type Verify2faBody = {
   challengeId?: string;
@@ -51,7 +52,12 @@ export default async function handler(
       const snap = await docRef.get();
 
       if (snap.exists) {
-        const data = snap.data() as { code: string; used?: boolean };
+        const data = snap.data() as {
+          code: string;
+          used?: boolean;
+          role?: string;
+          email?: string;
+        };
 
         if (data.used) {
           return res.status(400).json({
@@ -73,6 +79,11 @@ export default async function handler(
           used: true,
           usedAt: FieldValue.serverTimestamp(),
         });
+
+        // Set admin session cookie for management logins
+        if (data.role === "management" && data.email) {
+          setAdminSessionCookie(res, data.email);
+        }
 
         return res.status(200).json({ ok: true });
       }
@@ -96,6 +107,11 @@ export default async function handler(
         ? "Code already used"
         : "Challenge not found";
     return res.status(400).json({ ok: false, error: mem.reason, message });
+  }
+
+  // Set admin session cookie for management logins (in-memory path)
+  if (mem.role === "management" && mem.email) {
+    setAdminSessionCookie(res, mem.email);
   }
 
   return res.status(200).json({ ok: true });

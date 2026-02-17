@@ -86,5 +86,5 @@ export function verifyChallenge(params: { id: string; code: string }) {
 
   ch.used = true;
   store.set(params.id, ch);
-  return { ok: true as const };
+  return { ok: true as const, email: ch.email, role: ch.role };
 }

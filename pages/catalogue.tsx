@@ -3,7 +3,7 @@
 
 import Head from "next/head";
 import Link from "next/link";
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState, useCallback } from "react";
 import Header from "../components/Header";
 import Footer from "../components/Footer";
 import ProductCard, { ProductLike } from "../components/ProductCard";
@@ -123,7 +123,17 @@ export default function PublicCatalogue({ items }: CatalogueProps) {
     return result;
   }, [itemsWithPrice, filters.titleQuery, filters.category, filters.designer, filters.condition, filters.material, filters.size, filters.color, filters.minPrice, filters.maxPrice, filters.sortBy]);
 
+  const PAGE_SIZE = 40;
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+
+  // Reset visible count when filters change
+  useEffect(() => {
+    setVisibleCount(PAGE_SIZE);
+  }, [filters.titleQuery, filters.category, filters.designer, filters.condition, filters.material, filters.size, filters.color, filters.minPrice, filters.maxPrice, filters.sortBy]);
+
   const resultsCount = filteredItems.length;
+  const paginatedItems = filteredItems.slice(0, visibleCount);
+  const hasMore = visibleCount < filteredItems.length;
 
   const fSty: Record<string, React.CSSProperties> = {
     wrap: { display: "flex", flexWrap: "wrap", gap: "8px", alignItems: "center" },
@@ -194,11 +204,23 @@ export default function PublicCatalogue({ items }: CatalogueProps) {
             </button>
           </div>
         ) : (
-          <div className="catalogue-grid">
-            {filteredItems.map((x) => (
-              <ProductCard key={x.id} {...x} />
-            ))}
-          </div>
+          <>
+            <div className="catalogue-grid">
+              {paginatedItems.map((x) => (
+                <ProductCard key={x.id} {...x} />
+              ))}
+            </div>
+            {hasMore && (
+              <div className="catalogue-load-more">
+                <button
+                  className="catalogue-load-more-btn"
+                  onClick={() => setVisibleCount((c) => c + PAGE_SIZE)}
+                >
+                  Show more ({filteredItems.length - visibleCount} remaining)
+                </button>
+              </div>
+            )}
+          </>
         )}
       </main>
 
@@ -264,6 +286,25 @@ export default function PublicCatalogue({ items }: CatalogueProps) {
         }
         .catalogue-reset-btn:hover {
           background: #1f2937;
+        }
+        .catalogue-load-more {
+          margin-top: 32px;
+          text-align: center;
+        }
+        .catalogue-load-more-btn {
+          border: 1px solid #d1d5db;
+          background: #fff;
+          color: #111827;
+          border-radius: 999px;
+          padding: 12px 32px;
+          font-weight: 600;
+          font-size: 14px;
+          cursor: pointer;
+          transition: all 0.15s ease;
+        }
+        .catalogue-load-more-btn:hover {
+          background: #111827;
+          color: #fff;
         }
         @media (max-width: 980px) {
           .catalogue-grid {
