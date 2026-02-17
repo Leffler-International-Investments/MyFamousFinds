@@ -1,0 +1,75 @@
+/* FILE: styles/parts/mobile-native.css */
+/* Native mobile app safe areas and optimizations for Capacitor */
+
+/* iOS safe area insets for notch and home indicator */
+:root {
+  --safe-area-top: env(safe-area-inset-top, 0px);
+  --safe-area-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-area-left: env(safe-area-inset-left, 0px);
+  --safe-area-right: env(safe-area-inset-right, 0px);
+}
+
+/* Apply safe area to header */
+.ff-header {
+  padding-top: var(--safe-area-top);
+}
+
+/* Apply safe area to footer */
+footer {
+  padding-bottom: var(--safe-area-bottom);
+}
+
+/* Prevent text selection on native buttons (app-like feel) */
+.capacitor-app button,
+.capacitor-app a {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Prevent rubber-banding/bounce on iOS in standalone mode */
+@media (display-mode: standalone) {
+  html {
+    overscroll-behavior: none;
+  }
+
+  body {
+    overscroll-behavior-y: contain;
+  }
+
+  /* Extra padding for the status bar area */
+  .ff-header {
+    padding-top: calc(var(--safe-area-top) + 4px);
+  }
+}
+
+/* Prevent pull-to-refresh in native app */
+body.capacitor-app {
+  overscroll-behavior-y: contain;
+}
+
+/* iOS standalone: prevent double-tap zoom on buttons */
+@supports (-webkit-touch-callout: none) {
+  button, a, input, select, textarea {
+    touch-action: manipulation;
+  }
+}
+
+/* Bottom safe area for floating elements */
+.review-pill {
+  bottom: calc(16px + var(--safe-area-bottom));
+}
+
+/* Mobile keyboard adjustments */
+@media (max-height: 500px) and (orientation: landscape) {
+  .ff-header-middle {
+    padding: 8px 18px 4px;
+  }
+  .ff-brand-name {
+    font-size: 28px !important;
+  }
+  .ff-category-nav {
+    padding: 4px 18px 8px;
+    gap: 12px;
+  }
+}
