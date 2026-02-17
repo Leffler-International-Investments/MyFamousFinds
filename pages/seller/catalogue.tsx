@@ -31,6 +31,7 @@ export default function SellerCatalogue() {
   const [error, setError] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [togglingId, setTogglingId] = useState<string | null>(null);
+  const [proofModal, setProofModal] = useState<CatalogueItem | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -205,14 +206,13 @@ export default function SellerCatalogue() {
                         </td>
                         <td>
                           {x.proof_doc_url ? (
-                            <a
-                              href={x.proof_doc_url}
-                              target="_blank"
-                              rel="noopener noreferrer"
+                            <button
+                              type="button"
                               className="btn-proof-open"
+                              onClick={() => setProofModal(x)}
                             >
                               View
-                            </a>
+                            </button>
                           ) : (
                             <span className="no-proof">—</span>
                           )}
@@ -257,6 +257,44 @@ export default function SellerCatalogue() {
       </main>
 
       <Footer />
+
+      {/* PROOF DOCUMENT MODAL */}
+      {proofModal && (
+        <div className="modal-overlay" onClick={() => setProofModal(null)}>
+          <div className="modal-box" onClick={(ev) => ev.stopPropagation()}>
+            <div className="modal-header">
+              <h3>Proof Document — {proofModal.title}</h3>
+              <button type="button" className="modal-close" onClick={() => setProofModal(null)}>
+                ✕
+              </button>
+            </div>
+            <div className="modal-body">
+              {proofModal.proof_doc_url.startsWith("data:image") ? (
+                <img
+                  src={proofModal.proof_doc_url}
+                  alt="Proof document"
+                  style={{ maxWidth: "100%", borderRadius: 8 }}
+                />
+              ) : proofModal.proof_doc_url.startsWith("data:application/pdf") ? (
+                <iframe
+                  src={proofModal.proof_doc_url}
+                  style={{ width: "100%", height: 500, border: "none", borderRadius: 8 }}
+                  title="Proof PDF"
+                />
+              ) : (
+                <a
+                  href={proofModal.proof_doc_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="btn-proof-dl"
+                >
+                  Open / Download proof document
+                </a>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       <style jsx>{`
         .sell-card {
@@ -411,13 +449,81 @@ export default function SellerCatalogue() {
           display: inline-block;
           background: #2563eb;
           color: #fff;
+          border: none;
           border-radius: 999px;
           padding: 4px 10px;
           font-size: 12px;
           text-decoration: none;
           white-space: nowrap;
+          cursor: pointer;
         }
         .btn-proof-open:hover {
+          background: #1d4ed8;
+        }
+
+        /* Modal overlay */
+        .modal-overlay {
+          position: fixed;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          background: rgba(0, 0, 0, 0.5);
+          z-index: 1000;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          padding: 24px;
+        }
+        .modal-box {
+          background: #ffffff;
+          border-radius: 16px;
+          box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3);
+          max-width: 700px;
+          width: 100%;
+          max-height: 80vh;
+          display: flex;
+          flex-direction: column;
+        }
+        .modal-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          padding: 16px 20px;
+          border-bottom: 1px solid #e5e7eb;
+        }
+        .modal-header h3 {
+          margin: 0;
+          font-size: 16px;
+          font-weight: 700;
+          color: #111827;
+        }
+        .modal-close {
+          background: none;
+          border: none;
+          font-size: 18px;
+          cursor: pointer;
+          color: #6b7280;
+          padding: 4px;
+        }
+        .modal-close:hover {
+          color: #111827;
+        }
+        .modal-body {
+          padding: 20px;
+          overflow-y: auto;
+        }
+        .btn-proof-dl {
+          display: inline-block;
+          background: #2563eb;
+          color: #fff;
+          border-radius: 999px;
+          padding: 10px 20px;
+          font-size: 14px;
+          font-weight: 600;
+          text-decoration: none;
+        }
+        .btn-proof-dl:hover {
           background: #1d4ed8;
         }
 

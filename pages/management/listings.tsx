@@ -84,6 +84,9 @@ export default function ManagementListings({ items }: Props) {
     }
   );
 
+  // Proof modal state
+  const [proofModal, setProofModal] = useState<Listing | null>(null);
+
   const visible = useMemo(() => {
     const q = query.trim().toLowerCase();
     return rows.filter((l) => {
@@ -617,14 +620,13 @@ export default function ManagementListings({ items }: Props) {
 
                       <td>
                         {l.proof_doc_url ? (
-                          <a
-                            href={l.proof_doc_url}
-                            target="_blank"
-                            rel="noopener noreferrer"
+                          <button
+                            type="button"
                             className="btn-proof-open"
+                            onClick={() => setProofModal(l)}
                           >
                             View proof
-                          </a>
+                          </button>
                         ) : l.purchase_proof === "Requested" ? (
                           <span className="proof-requested">Requested</span>
                         ) : (
@@ -675,6 +677,44 @@ export default function ManagementListings({ items }: Props) {
 
         <Footer />
       </div>
+
+      {/* PROOF DOCUMENT MODAL */}
+      {proofModal && (
+        <div className="modal-overlay" onClick={() => setProofModal(null)}>
+          <div className="modal-box" onClick={(ev) => ev.stopPropagation()}>
+            <div className="modal-header">
+              <h3>Proof Document — {proofModal.title}</h3>
+              <button type="button" className="modal-close" onClick={() => setProofModal(null)}>
+                ✕
+              </button>
+            </div>
+            <div className="modal-body">
+              {proofModal.proof_doc_url.startsWith("data:image") ? (
+                <img
+                  src={proofModal.proof_doc_url}
+                  alt="Proof document"
+                  className="modal-proof-img"
+                />
+              ) : proofModal.proof_doc_url.startsWith("data:application/pdf") ? (
+                <iframe
+                  src={proofModal.proof_doc_url}
+                  className="modal-proof-iframe"
+                  title="Proof PDF"
+                />
+              ) : (
+                <a
+                  href={proofModal.proof_doc_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="btn-proof-download"
+                >
+                  Open / Download proof document
+                </a>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       <style jsx>{`
         .filters-bar {
@@ -895,13 +935,91 @@ export default function ManagementListings({ items }: Props) {
           display: inline-block;
           background: #2563eb;
           color: #fff;
+          border: none;
           border-radius: 999px;
           padding: 4px 10px;
           font-size: 12px;
           text-decoration: none;
           white-space: nowrap;
+          cursor: pointer;
         }
         .btn-proof-open:hover {
+          background: #1d4ed8;
+        }
+
+        /* Modal overlay */
+        .modal-overlay {
+          position: fixed;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          background: rgba(0, 0, 0, 0.5);
+          z-index: 1000;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          padding: 24px;
+        }
+        .modal-box {
+          background: #ffffff;
+          border-radius: 16px;
+          box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3);
+          max-width: 700px;
+          width: 100%;
+          max-height: 80vh;
+          display: flex;
+          flex-direction: column;
+        }
+        .modal-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          padding: 16px 20px;
+          border-bottom: 1px solid #e5e7eb;
+        }
+        .modal-header h3 {
+          margin: 0;
+          font-size: 16px;
+          font-weight: 700;
+          color: #111827;
+        }
+        .modal-close {
+          background: none;
+          border: none;
+          font-size: 18px;
+          cursor: pointer;
+          color: #6b7280;
+          padding: 4px;
+        }
+        .modal-close:hover {
+          color: #111827;
+        }
+        .modal-body {
+          padding: 20px;
+          overflow-y: auto;
+        }
+        .modal-proof-img {
+          max-width: 100%;
+          border-radius: 8px;
+        }
+        .modal-proof-iframe {
+          width: 100%;
+          height: 500px;
+          border: none;
+          border-radius: 8px;
+        }
+        .btn-proof-download {
+          display: inline-block;
+          background: #2563eb;
+          color: #fff;
+          border-radius: 999px;
+          padding: 10px 20px;
+          font-size: 14px;
+          font-weight: 600;
+          text-decoration: none;
+        }
+        .btn-proof-download:hover {
           background: #1d4ed8;
         }
         .proof-requested {
