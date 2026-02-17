@@ -26,6 +26,11 @@ export default function MyFamousFindsApp({ Component, pageProps }: AppProps) {
 
   // Save & restore scroll position so "Back to …" links return to where you were
   useEffect(() => {
+    // Prevent browser from doing its own scroll restoration
+    if ("scrollRestoration" in window.history) {
+      window.history.scrollRestoration = "manual";
+    }
+
     const SCROLL_KEY = "ff-scroll-positions";
 
     function getStore(): Record<string, number> {
@@ -37,7 +42,7 @@ export default function MyFamousFindsApp({ Component, pageProps }: AppProps) {
     }
 
     // Before navigating away, save the current scroll position
-    const handleRouteChangeStart = (url: string) => {
+    const handleRouteChangeStart = () => {
       const store = getStore();
       store[router.asPath.split(/[?#]/)[0]] = window.scrollY;
       sessionStorage.setItem(SCROLL_KEY, JSON.stringify(store));
@@ -49,13 +54,30 @@ export default function MyFamousFindsApp({ Component, pageProps }: AppProps) {
       const store = getStore();
       const saved = store[path];
       if (typeof saved === "number" && saved > 0) {
-        // Use requestAnimationFrame to ensure the DOM is painted before scrolling
-        requestAnimationFrame(() => {
-          window.scrollTo(0, saved);
-        });
-        // Clean up the saved position after restoring
+        // Clean up the saved position
         delete store[path];
         sessionStorage.setItem(SCROLL_KEY, JSON.stringify(store));
+
+        // Temporarily disable smooth scrolling so scrollTo jumps instantly
+        // instead of animating (base.css sets scroll-behavior: smooth).
+        const html = document.documentElement;
+        html.style.scrollBehavior = "auto";
+
+        // Robust restore: Next.js Link (scroll={true}) may scroll to top
+        // after this event, and page content may still be loading.
+        // Retry every 50 ms for up to 1 s to override and wait for the
+        // page to be tall enough to reach the saved offset.
+        let attempts = 0;
+        const maxAttempts = 20;
+        const timer = setInterval(() => {
+          window.scrollTo(0, saved);
+          attempts++;
+          if (Math.abs(window.scrollY - saved) < 5 || attempts >= maxAttempts) {
+            clearInterval(timer);
+            // Re-enable smooth scrolling
+            html.style.scrollBehavior = "";
+          }
+        }, 50);
       }
     };
 
