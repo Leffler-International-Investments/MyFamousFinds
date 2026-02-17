@@ -1,8 +1,33 @@
 {
   "_comment": "DNS records required for AWS SES email sending on myfamousfinds.com",
-  "_instructions": "Add these records in your DNS provider (Vercel/Cloudflare/GoDaddy/Namecheap). Most DNS UIs auto-append the domain — use the short 'host' values below, NOT the full FQDN.",
-  "_last_updated": "2026-02-16",
+  "_instructions": "Add these records in your DNS provider (Vercel). Vercel auto-appends the domain — use the short 'host' values below, NOT the full FQDN.",
+  "_last_updated": "2026-02-17",
   "_region": "us-east-1",
+  "_dns_provider": "Vercel (nameservers point to Vercel)",
+  "_verification_endpoint": "GET /api/admin/verify-ses-dns?key=<ADMIN_PASSWORD>  — checks all records via live DNS lookup",
+
+  "_setup_checklist": {
+    "step_1": "Add the 3 DKIM CNAME records in Vercel DNS (see dkim_cname_records below)",
+    "step_2": "Add the MX + TXT records for MAIL FROM (see mail_from_records below)",
+    "step_3": "Add the DMARC TXT record (see dmarc_record below)",
+    "step_4": "Wait up to 72 hours for AWS SES to detect the records and flip DKIM from 'Pending' to 'Verified'",
+    "step_5": "Once verified, click 'Request production access' in AWS SES console to leave sandbox mode",
+    "step_6": "Set AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_SES_FROM, AWS_SES_REPLY_TO in Vercel env vars",
+    "step_7": "Test with GET /api/test-email?to=your@email.com&key=<ADMIN_PASSWORD>"
+  },
+
+  "_troubleshooting": {
+    "dkim_stays_pending": [
+      "Verify CNAME values end exactly with .dkim.amazonses.com (no trailing dot, no extra text)",
+      "Check for domain doubling: host should be 'abc._domainkey' not 'abc._domainkey.myfamousfinds.com' (Vercel auto-appends the domain)",
+      "Run the verification endpoint to see which records resolve and which don't",
+      "DNS propagation can take up to 72 hours — be patient after corrections"
+    ],
+    "mail_from_stays_pending": [
+      "Verify MX record: host 'mail' pointing to 'feedback-smtp.us-east-1.amazonses.com' with priority 10",
+      "Verify SPF TXT record: host 'mail' with value 'v=spf1 include:amazonses.com ~all'"
+    ]
+  },
 
   "dkim_cname_records": [
     {
