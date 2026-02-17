@@ -37,9 +37,10 @@ export default function MyFamousFindsApp({ Component, pageProps }: AppProps) {
         </Layout>
       </ToastProvider>
 
-      {/* Floating review widget — visible on public-facing pages only */}
+      {/* Floating review widget — visible on public-facing pages only (hidden during checkout) */}
       {!router.pathname.startsWith("/management") &&
-       !router.pathname.startsWith("/seller") && (
+       !router.pathname.startsWith("/seller") &&
+       !router.pathname.startsWith("/product") && (
         <ReviewWidgets />
       )}
 

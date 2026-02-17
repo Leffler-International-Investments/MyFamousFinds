@@ -8,6 +8,21 @@ export type ReviewWidgetProps = {
   appName?: string;
 };
 
+const RATE_LIMIT_KEY = "ff-review-last";
+const RATE_LIMIT_MS = 24 * 60 * 60 * 1000; // 24 hours
+
+function isRateLimited(): boolean {
+  if (typeof window === "undefined") return false;
+  const last = Number(localStorage.getItem(RATE_LIMIT_KEY) || "0");
+  return Date.now() - last < RATE_LIMIT_MS;
+}
+
+function markReviewSubmitted() {
+  if (typeof window !== "undefined") {
+    localStorage.setItem(RATE_LIMIT_KEY, String(Date.now()));
+  }
+}
+
 const pillStyle: CSSProperties = {
   position: "fixed",
   bottom: 24,
@@ -77,10 +92,17 @@ const ReviewWidgets: React.FC<ReviewWidgetProps> = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [rating, setRating] = useState(5);
   const [comment, setComment] = useState("");
+  const [reviewerEmail, setReviewerEmail] = useState("");
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
   const [stats, setStats] = useState<ReviewStats | null>(null);
   const [statsLoading, setStatsLoading] = useState(false);
+  const [rateLimited, setRateLimited] = useState(false);
+
+  // Check rate limit on mount
+  useEffect(() => {
+    setRateLimited(isRateLimited());
+  }, []);
 
   // Load dynamic review stats for the pill (count + average)
   useEffect(() => {
@@ -111,6 +133,11 @@ const ReviewWidgets: React.FC<ReviewWidgetProps> = () => {
 
   const handleSubmit = async () => {
     if (!comment.trim()) return;
+    if (isRateLimited()) {
+      setRateLimited(true);
+      return;
+    }
+
     setLoading(true);
     try {
       // Save ALL reviews to Firestore (positive and negative)
@@ -120,7 +147,7 @@ const ReviewWidgets: React.FC<ReviewWidgetProps> = () => {
         console.error("addReview failed:", err);
       }
 
-      // Send email notification via AWS SES
+      // Send email notification via AWS SES (admin + optional reviewer confirmation)
       try {
         await fetch("/api/review-email", {
           method: "POST",
@@ -129,6 +156,7 @@ const ReviewWidgets: React.FC<ReviewWidgetProps> = () => {
             rating,
             comment,
             appName: APP_NAME,
+            reviewerEmail: reviewerEmail.trim() || undefined,
           }),
         });
       } catch (err) {
@@ -144,6 +172,8 @@ const ReviewWidgets: React.FC<ReviewWidgetProps> = () => {
         return { count: newCount, average: newAvg };
       });
 
+      markReviewSubmitted();
+      setRateLimited(true);
       setSubmitted(true);
     } finally {
       setLoading(false);
@@ -155,7 +185,7 @@ const ReviewWidgets: React.FC<ReviewWidgetProps> = () => {
       return (
         <>
           <span style={{ color: "#eab308" }}>★★★★★</span>
-          <span>Loading reviews…</span>
+          <span>Loading reviews...</span>
         </>
       );
     }
@@ -204,6 +234,7 @@ const ReviewWidgets: React.FC<ReviewWidgetProps> = () => {
             setIsOpen(false);
             setSubmitted(false);
             setComment("");
+            setReviewerEmail("");
           }}
           style={{
             background: "transparent",
@@ -217,7 +248,27 @@ const ReviewWidgets: React.FC<ReviewWidgetProps> = () => {
         </button>
       </div>
 
-      {submitted ? (
+      {rateLimited && !submitted ? (
+        <div style={{ textAlign: "center", padding: "12px 0 4px" }}>
+          <p style={{ margin: 0, marginBottom: 10, color: "#94a3b8", fontSize: 13 }}>
+            You already submitted a review recently. Thank you for your feedback!
+          </p>
+          <button
+            onClick={() => {
+              setIsOpen(false);
+            }}
+            style={{
+              ...buttonBase,
+              background: "#0f172a",
+              color: "#e5e7eb",
+              fontWeight: 500,
+              fontSize: 13,
+            }}
+          >
+            Close
+          </button>
+        </div>
+      ) : submitted ? (
         <div style={{ textAlign: "center", padding: "12px 0 4px" }}>
           <p
             style={{
@@ -243,11 +294,17 @@ const ReviewWidgets: React.FC<ReviewWidgetProps> = () => {
               ? `Your review helps others discover ${APP_NAME}. We truly appreciate it!`
               : `We'll review your comments carefully to keep improving ${APP_NAME}.`}
           </p>
+          {reviewerEmail.trim() && (
+            <p style={{ margin: "0 0 12px", fontSize: 12, color: "#94a3b8" }}>
+              A confirmation has been sent to {reviewerEmail.trim()}.
+            </p>
+          )}
           <button
             onClick={() => {
               setIsOpen(false);
               setSubmitted(false);
               setComment("");
+              setReviewerEmail("");
               setRating(5);
             }}
             style={{
@@ -291,8 +348,18 @@ const ReviewWidgets: React.FC<ReviewWidgetProps> = () => {
             style={{
               ...inputBase,
               height: 80,
-              marginBottom: 12,
+              marginBottom: 8,
               resize: "none",
+            }}
+          />
+          <input
+            type="email"
+            value={reviewerEmail}
+            onChange={(e) => setReviewerEmail(e.target.value)}
+            placeholder="Your email (optional, for confirmation)"
+            style={{
+              ...inputBase,
+              marginBottom: 12,
             }}
           />
           <button

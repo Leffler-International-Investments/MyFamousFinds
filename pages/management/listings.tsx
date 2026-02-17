@@ -84,8 +84,21 @@ export default function ManagementListings({ items }: Props) {
     }
   );
 
-  // Proof modal state
+  // Proof modal state with lazy loading
   const [proofModal, setProofModal] = useState<Listing | null>(null);
+  const [proofDocData, setProofDocData] = useState<string>("");
+  const [proofLoading, setProofLoading] = useState(false);
+
+  function openProofModal(listing: Listing) {
+    setProofModal(listing);
+    setProofDocData("");
+    setProofLoading(true);
+    fetch(`/api/admin/proof-doc/${listing.id}`)
+      .then((r) => r.json())
+      .then((data) => setProofDocData(data.proof_doc_url || ""))
+      .catch(() => setProofDocData(""))
+      .finally(() => setProofLoading(false));
+  }
 
   const visible = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -623,7 +636,7 @@ export default function ManagementListings({ items }: Props) {
                           <button
                             type="button"
                             className="btn-proof-open"
-                            onClick={() => setProofModal(l)}
+                            onClick={() => openProofModal(l)}
                           >
                             View proof
                           </button>
@@ -689,27 +702,31 @@ export default function ManagementListings({ items }: Props) {
               </button>
             </div>
             <div className="modal-body">
-              {proofModal.proof_doc_url.startsWith("data:image") ? (
+              {proofLoading ? (
+                <p style={{ padding: 24, textAlign: "center", color: "#6b7280" }}>Loading proof document...</p>
+              ) : proofDocData.startsWith("data:image") ? (
                 <img
-                  src={proofModal.proof_doc_url}
+                  src={proofDocData}
                   alt="Proof document"
                   className="modal-proof-img"
                 />
-              ) : proofModal.proof_doc_url.startsWith("data:application/pdf") ? (
+              ) : proofDocData.startsWith("data:application/pdf") ? (
                 <iframe
-                  src={proofModal.proof_doc_url}
+                  src={proofDocData}
                   className="modal-proof-iframe"
                   title="Proof PDF"
                 />
-              ) : (
+              ) : proofDocData ? (
                 <a
-                  href={proofModal.proof_doc_url}
+                  href={proofDocData}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="btn-proof-download"
                 >
                   Open / Download proof document
                 </a>
+              ) : (
+                <p style={{ padding: 24, textAlign: "center", color: "#6b7280" }}>No proof document available.</p>
               )}
             </div>
           </div>
@@ -1042,6 +1059,47 @@ export default function ManagementListings({ items }: Props) {
           resize: vertical;
           font-family: inherit;
         }
+
+        /* Mobile responsive: stack table as cards */
+        @media (max-width: 768px) {
+          .data-table thead {
+            display: none;
+          }
+          .data-table,
+          .data-table tbody,
+          .data-table tr,
+          .data-table td {
+            display: block;
+            width: 100%;
+          }
+          .data-table tr {
+            border: 1px solid #e5e7eb;
+            border-radius: 12px;
+            margin-bottom: 12px;
+            padding: 12px;
+            background: #fff;
+          }
+          .data-table td {
+            padding: 4px 0;
+            border: none;
+            font-size: 13px;
+          }
+          .data-table td::before {
+            content: attr(data-label);
+            font-weight: 700;
+            color: #6b7280;
+            font-size: 11px;
+            display: block;
+            margin-bottom: 2px;
+          }
+          .edit-input,
+          .edit-select,
+          .cat-select,
+          .edit-textarea {
+            width: 100%;
+            min-width: unset;
+          }
+        }
       `}</style>
     </>
   );
@@ -1085,7 +1143,7 @@ export const getServerSideProps: GetServerSideProps<Props> = async () => {
         category: String(category),
         condition: String(condition),
         details: String(details),
-        proof_doc_url: String(d.proof_doc_url || ""),
+        proof_doc_url: d.proof_doc_url ? "has_proof" : "",
         purchase_proof: String(d.purchase_proof || ""),
         createdAt,
       });

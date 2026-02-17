@@ -182,6 +182,31 @@ export default function ManagementOrders({ initialOrders }: Props) {
             <Link href="/management/dashboard">← Back to Management Dashboard</Link>
           </div>
 
+          <div style={{
+            marginBottom: 16,
+            padding: "12px 16px",
+            borderRadius: 12,
+            background: "#fef3c7",
+            border: "1px solid #f59e0b",
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+          }}>
+            <span style={{ fontSize: 18 }}>&#9888;</span>
+            <div>
+              <strong style={{ fontSize: 13, color: "#92400e" }}>
+                This page has been superseded.
+              </strong>
+              <p style={{ margin: "4px 0 0", fontSize: 13, color: "#78350f" }}>
+                Please use{" "}
+                <Link href="/management/purchases" style={{ fontWeight: 700, textDecoration: "underline", color: "#92400e" }}>
+                  Purchase Orders
+                </Link>{" "}
+                instead — it includes refund support, payment details, and seller payouts.
+              </p>
+            </div>
+          </div>
+
           {error && <p className="banner-error">{error}</p>}
 
           <div className="filters-bar">

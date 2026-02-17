@@ -38,6 +38,19 @@ export default function HistoryListings({ entries }: Props) {
   // Modal state for details and proof
   const [detailsModal, setDetailsModal] = useState<HistoryEntry | null>(null);
   const [proofModal, setProofModal] = useState<HistoryEntry | null>(null);
+  const [proofDocData, setProofDocData] = useState<string>("");
+  const [proofLoading, setProofLoading] = useState(false);
+
+  function openProofModal(listing: any) {
+    setProofModal(listing);
+    setProofDocData("");
+    setProofLoading(true);
+    fetch(`/api/admin/proof-doc/${listing.id}`)
+      .then((r) => r.json())
+      .then((data) => setProofDocData(data.proof_doc_url || ""))
+      .catch(() => setProofDocData(""))
+      .finally(() => setProofLoading(false));
+  }
 
   const visible = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -146,7 +159,7 @@ export default function HistoryListings({ entries }: Props) {
                         <button
                           type="button"
                           className="btn-modal-open btn-proof"
-                          onClick={() => setProofModal(e)}
+                          onClick={() => openProofModal(e)}
                         >
                           View proof
                         </button>
@@ -217,27 +230,31 @@ export default function HistoryListings({ entries }: Props) {
               </button>
             </div>
             <div className="modal-body">
-              {proofModal.proof_doc_url.startsWith("data:image") ? (
+              {proofLoading ? (
+                <p>Loading...</p>
+              ) : proofDocData.startsWith("data:image") ? (
                 <img
-                  src={proofModal.proof_doc_url}
+                  src={proofDocData}
                   alt="Proof document"
                   className="modal-proof-img"
                 />
-              ) : proofModal.proof_doc_url.startsWith("data:application/pdf") ? (
+              ) : proofDocData.startsWith("data:application/pdf") ? (
                 <iframe
-                  src={proofModal.proof_doc_url}
+                  src={proofDocData}
                   className="modal-proof-iframe"
                   title="Proof PDF"
                 />
-              ) : (
+              ) : proofDocData ? (
                 <a
-                  href={proofModal.proof_doc_url}
+                  href={proofDocData}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="btn-proof-download"
                 >
                   Open / Download proof document
                 </a>
+              ) : (
+                <p>No proof document available</p>
               )}
             </div>
           </div>
@@ -522,7 +539,7 @@ export const getServerSideProps: GetServerSideProps<Props> = async () => {
         createdAt: d.createdAt?.toDate?.().toLocaleDateString("en-US") || "",
         updatedAt: d.updatedAt?.toDate?.().toLocaleDateString("en-US") || "",
         soldAt: d.soldAt?.toDate?.().toLocaleDateString("en-US") || "",
-        proof_doc_url: String(d.proof_doc_url || ""),
+        proof_doc_url: d.proof_doc_url ? "has_proof" : "",
         purchase_proof: String(d.purchase_proof || ""),
       };
     });

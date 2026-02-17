@@ -34,6 +34,20 @@ function ManagementListingQueue({ items: initialItems }: Props) {
 
   // Modal state for proof document viewing
   const [proofModal, setProofModal] = useState<Listing | null>(null);
+  const [proofDocData, setProofDocData] = useState<string>("");
+  const [proofLoading, setProofLoading] = useState(false);
+
+  function openProofModal(listing: any) {
+    setProofModal(listing);
+    setProofDocData("");
+    setProofLoading(true);
+    fetch(`/api/admin/proof-doc/${listing.id}`)
+      .then((r) => r.json())
+      .then((data) => setProofDocData(data.proof_doc_url || ""))
+      .catch(() => setProofDocData(""))
+      .finally(() => setProofLoading(false));
+  }
+
   // Modal state for details viewing
   const [detailsModal, setDetailsModal] = useState<Listing | null>(null);
 
@@ -160,7 +174,7 @@ function ManagementListingQueue({ items: initialItems }: Props) {
                           <button
                             type="button"
                             className="btn-table btn-proof-view"
-                            onClick={() => setProofModal(item)}
+                            onClick={() => openProofModal(item)}
                           >
                             View proof
                           </button>
@@ -264,27 +278,33 @@ function ManagementListingQueue({ items: initialItems }: Props) {
               </button>
             </div>
             <div className="modal-body">
-              {proofModal.proof_doc_url?.startsWith("data:image") ? (
-                <img
-                  src={proofModal.proof_doc_url}
-                  alt="Proof document"
-                  style={{ maxWidth: "100%", borderRadius: 8 }}
-                />
-              ) : proofModal.proof_doc_url?.startsWith("data:application/pdf") ? (
-                <iframe
-                  src={proofModal.proof_doc_url}
-                  style={{ width: "100%", height: 500, border: "none", borderRadius: 8 }}
-                  title="Proof PDF"
-                />
+              {proofLoading ? (
+                <p style={{ textAlign: "center", color: "#6b7280" }}>Loading proof document...</p>
+              ) : proofDocData ? (
+                proofDocData.startsWith("data:image") ? (
+                  <img
+                    src={proofDocData}
+                    alt="Proof document"
+                    style={{ maxWidth: "100%", borderRadius: 8 }}
+                  />
+                ) : proofDocData.startsWith("data:application/pdf") ? (
+                  <iframe
+                    src={proofDocData}
+                    style={{ width: "100%", height: 500, border: "none", borderRadius: 8 }}
+                    title="Proof PDF"
+                  />
+                ) : (
+                  <a
+                    href={proofDocData}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="btn-proof-download"
+                  >
+                    Open / Download proof document
+                  </a>
+                )
               ) : (
-                <a
-                  href={proofModal.proof_doc_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="btn-proof-download"
-                >
-                  Open / Download proof document
-                </a>
+                <p style={{ textAlign: "center", color: "#9ca3af" }}>No proof document available.</p>
               )}
             </div>
           </div>
@@ -494,7 +514,7 @@ export const getServerSideProps: GetServerSideProps<Props> = async () => {
         status,
         purchase_source: d.purchase_source || "",
         purchase_proof: d.purchase_proof || "",
-        proof_doc_url: d.proof_doc_url || "",
+        proof_doc_url: d.proof_doc_url ? "has_proof" : "",
         details: d.details || "",
         serial_number: d.serial_number || "",
         auth_photos: d.auth_photos || [],

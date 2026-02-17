@@ -17,6 +17,9 @@ type ParsedRow = {
   source: string;
   proof: string;
   serial: string;
+  details: string;
+  colorswatch: string;
+  material: string;
 };
 
 export default function SellerBulkUploadPage() {
@@ -91,6 +94,9 @@ export default function SellerBulkUploadPage() {
         source: parts[headerIndex["source"]] || "",
         proof: parts[headerIndex["proof"]] || "",
         serial: parts[headerIndex["serial"]] || "",
+        details: headerIndex["details"] != null ? (parts[headerIndex["details"]] || "") : "",
+        colorswatch: headerIndex["colorswatch"] != null ? (parts[headerIndex["colorswatch"]] || "") : "",
+        material: headerIndex["material"] != null ? (parts[headerIndex["material"]] || "") : "",
       };
 
       const nonEmpty = Object.values(row).some((v) => v && v.length > 0);
@@ -233,6 +239,8 @@ export default function SellerBulkUploadPage() {
                       <th>Condition</th>
                       <th>Size</th>
                       <th>Color</th>
+                      <th>Material</th>
+                      <th>Details</th>
                       <th>Price</th>
                       <th>Source</th>
                       <th>Proof</th>
@@ -248,6 +256,8 @@ export default function SellerBulkUploadPage() {
                         <td>{row.condition}</td>
                         <td>{row.size}</td>
                         <td>{row.color}</td>
+                        <td>{row.material}</td>
+                        <td>{row.details}</td>
                         <td>{row.price}</td>
                         <td>{row.source}</td>
                         <td>{row.proof}</td>
