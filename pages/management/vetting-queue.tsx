@@ -43,8 +43,9 @@ function buildGmailComposeUrl(info: ManualNotifyInfo): string {
       "Famous Finds — Your Seller Account Has Been Approved!"
     );
     body = encodeURIComponent(
-      `Hello${info.businessName ? " " + info.businessName : ""},\n\n` +
-        `Great news — your seller account on Famous Finds has been approved!\n\n` +
+      `Great news — your seller account on Famous Finds has been approved!\n\n` +
+        `Let's start building your Famous Closet.\n\n` +
+        `If you need assistance pricing your items, let us know and one of our specialists will schedule a virtual appointment with you.\n\n` +
         `Login here - https://www.myfamousfinds.com/seller/login and complete the registration process.\n\n` +
         `Welcome aboard!\nThe Famous Finds Team`
     );

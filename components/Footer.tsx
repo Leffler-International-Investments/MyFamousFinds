@@ -42,15 +42,14 @@ export default function Footer() {
 
           {/* Main footer navigation row */}
           <nav className="ff-footer-nav">
-            {/* AI Butler button */}
+            {/* AI Concierge link */}
             <div className="ff-footer-item">
               <button
-                className="ff-butler-btn"
+                className="ff-footer-link"
                 onClick={() => setIsChatOpen(!isChatOpen)}
-                aria-label="Open AI Butler"
+                aria-label="Open Famous Concierge"
               >
-                <span className="ff-butler-icon">🤵</span>
-                <span>Ask the AI Butler</span>
+                Ask the Famous Concierge
               </button>
             </div>
 
@@ -157,51 +156,17 @@ export default function Footer() {
               </Link>
             </div>
 
-            {/* Sellers Login */}
+            {/* Sellers */}
             <div className="ff-footer-item">
-              <Link
-                href="/seller/login"
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: "8px",
-                  padding: "8px 18px",
-                  borderRadius: "999px",
-                  border: "1px solid #334155",
-                  background: "#1e293b",
-                  color: "#f9fafb",
-                  fontSize: "13px",
-                  fontWeight: 600,
-                  textDecoration: "none",
-                  whiteSpace: "nowrap",
-                  cursor: "pointer",
-                }}
-              >
-                Sellers Login
+              <Link href="/seller/login" className="ff-footer-link">
+                Sellers
               </Link>
             </div>
 
-            {/* Management Login */}
+            {/* Management */}
             <div className="ff-footer-item">
-              <Link
-                href="/management/login"
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: "8px",
-                  padding: "8px 18px",
-                  borderRadius: "999px",
-                  border: "1px solid #334155",
-                  background: "#1e293b",
-                  color: "#f9fafb",
-                  fontSize: "13px",
-                  fontWeight: 600,
-                  textDecoration: "none",
-                  whiteSpace: "nowrap",
-                  cursor: "pointer",
-                }}
-              >
-                Management Login
+              <Link href="/management/login" className="ff-footer-link">
+                Management
               </Link>
             </div>
           </nav>
@@ -386,33 +351,6 @@ export default function Footer() {
           .ff-dropdown-link:hover {
             background: #374151 !important;
             color: #ffffff !important;
-          }
-
-          /* ---- AI Butler button ---- */
-          .ff-butler-btn {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            padding: 8px 18px;
-            border-radius: 999px;
-            border: 1px solid #334155;
-            background: #1e293b;
-            color: #f9fafb;
-            font-size: 13px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: background 0.15s, border-color 0.15s;
-            font-family: inherit;
-            white-space: nowrap;
-          }
-
-          .ff-butler-btn:hover {
-            background: #334155;
-            border-color: #60a5fa;
-          }
-
-          .ff-butler-icon {
-            font-size: 18px;
           }
 
           /* ---- Social icons ---- */
