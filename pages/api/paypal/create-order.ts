@@ -112,6 +112,9 @@ export default async function handler(
 
     const baseUrl = resolveBaseUrl(req);
 
+    // Capture buyer UID if authenticated
+    const buyerId = String(req.headers["x-user-id"] || "").trim() || undefined;
+
     // Store pending order details in Firestore so we can retrieve them on capture
     const pendingOrderRef = adminDb.collection("pending_orders").doc();
     await pendingOrderRef.set({
@@ -121,6 +124,7 @@ export default async function handler(
       category,
       listingPrice,
       currency,
+      ...(buyerId ? { buyerId } : {}),
       buyerDetails: {
         fullName: buyerDetails?.fullName || "",
         email: buyerDetails?.email || "",

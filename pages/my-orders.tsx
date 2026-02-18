@@ -9,8 +9,7 @@ import {
   collection,
   query,
   where,
-  orderBy,
-  onSnapshot,
+  getDocs,
 } from "firebase/firestore";
 
 type ShippingInfo = {
@@ -33,36 +32,62 @@ export default function MyOrdersPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const unsubAuth = auth.onAuthStateChanged((user) => {
+    const unsubAuth = auth.onAuthStateChanged(async (user) => {
       if (!user) {
         setOrders([]);
         setLoading(false);
         return;
       }
 
-      const q = query(
-        collection(db, "orders"),
-        where("buyerUid", "==", user.uid),
-        orderBy("createdAt", "desc")
-      );
+      // Orders store buyerEmail and buyerId — query both to cover all cases
+      const seen = new Set<string>();
+      const list: Order[] = [];
 
-      const unsubOrders = onSnapshot(q, (snap) => {
-        const list: Order[] = [];
-        snap.forEach((doc) => {
-          const d: any = doc.data() || {};
-          list.push({
-            id: doc.id,
-            title: d.title || d.listingTitle || "Order",
-            priceLabel: d.priceLabel || "",
-            createdAt: d.createdAt,
-            shipping: d.shipping || {},
-          });
+      const pushOrder = (doc: any) => {
+        if (seen.has(doc.id)) return;
+        seen.add(doc.id);
+        const d: any = doc.data() || {};
+        const amt = typeof d.amountTotal === "number" ? d.amountTotal / 100 : 0;
+        const cur = d.currency || "USD";
+        const priceLabel =
+          d.priceLabel ||
+          (amt ? new Intl.NumberFormat("en-US", { style: "currency", currency: cur }).format(amt) : "");
+        list.push({
+          id: doc.id,
+          title: d.title || d.listingTitle || "Order",
+          priceLabel,
+          createdAt: d.createdAt,
+          shipping: d.shipping || {},
         });
-        setOrders(list);
-        setLoading(false);
-      });
+      };
 
-      return () => unsubOrders();
+      try {
+        // Query by buyerId (Firebase UID)
+        const byUid = await getDocs(
+          query(collection(db, "orders"), where("buyerId", "==", user.uid))
+        );
+        byUid.forEach(pushOrder);
+
+        // Query by buyerEmail (buyer's email)
+        if (user.email) {
+          const byEmail = await getDocs(
+            query(collection(db, "orders"), where("buyerEmail", "==", user.email))
+          );
+          byEmail.forEach(pushOrder);
+        }
+
+        // Sort by createdAt descending
+        list.sort((a, b) => {
+          const ta = typeof a.createdAt === "number" ? a.createdAt : 0;
+          const tb = typeof b.createdAt === "number" ? b.createdAt : 0;
+          return tb - ta;
+        });
+      } catch (err) {
+        console.error("Error loading orders:", err);
+      }
+
+      setOrders(list);
+      setLoading(false);
     });
 
     return () => unsubAuth();

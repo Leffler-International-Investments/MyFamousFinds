@@ -214,8 +214,7 @@ export default function VipSignupPage() {
             <h1 className="vip-auth-title">Join the Front Row</h1>
             <p className="vip-auth-subtitle">
               Free membership. Earn points on every purchase, unlock tiers, and
-              get early access to drops — inspired by Nike-style rewards
-              systems.
+              get early access to drops.
             </p>
 
             <form className="vip-auth-form" onSubmit={handleSubmit}>

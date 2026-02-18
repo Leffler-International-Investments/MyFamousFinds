@@ -130,36 +130,31 @@ export default function AccountPage() {
 
     // Load purchase history
     const orders: ItemRow[] = [];
+    const seen = new Set<string>();
+    const pushOrder = (docSnap: any) => {
+      if (seen.has(docSnap.id)) return;
+      seen.add(docSnap.id);
+      const d: any = docSnap.data() || {};
+      const amt = typeof d.amountTotal === "number" ? d.amountTotal / 100 : (d.total || d.amount || 0);
+      orders.push({
+        id: docSnap.id,
+        title: d.listingTitle || d.title || "Purchased item",
+        brand: d.listingBrand || d.brand || "",
+        price: amt,
+        currency: d.currency || "USD",
+      });
+    };
     try {
       if (email) {
         const ordersByEmail = await getDocs(
           query(collection(db, "orders"), where("buyerEmail", "==", email))
         );
-        ordersByEmail.forEach((doc) => {
-          const d: any = doc.data() || {};
-          orders.push({
-            id: doc.id,
-            title: d.listingTitle || d.title || "Purchased item",
-            brand: d.listingBrand || d.brand || "",
-            price: d.total || d.amount || 0,
-            currency: d.currency || "USD",
-          });
-        });
+        ordersByEmail.forEach(pushOrder);
       }
       const ordersByUid = await getDocs(
-        query(collection(db, "orders"), where("buyerUid", "==", uid))
+        query(collection(db, "orders"), where("buyerId", "==", uid))
       );
-      ordersByUid.forEach((doc) => {
-        if (orders.find((o) => o.id === doc.id)) return;
-        const d: any = doc.data() || {};
-        orders.push({
-          id: doc.id,
-          title: d.listingTitle || d.title || "Purchased item",
-          brand: d.listingBrand || d.brand || "",
-          price: d.total || d.amount || 0,
-          currency: d.currency || "USD",
-        });
-      });
+      ordersByUid.forEach(pushOrder);
     } catch {}
     setPurchasedItems(orders);
 
