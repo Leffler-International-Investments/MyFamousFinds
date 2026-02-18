@@ -413,12 +413,46 @@ export default function AccountPage() {
               </div>
 
               {/* Seller section */}
-              <section className={`seller-section${sellerStatus === "approved" ? " seller-section-approved" : ""}`}>
+              {sellerStatus === "approved" ? (
+              <section className="seller-section seller-section-approved">
+                <div className="seller-section-header">
+                  <span className="seller-approved-badge">
+                    <svg width="14" height="14" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M10 0C4.48 0 0 4.48 0 10s4.48 10 10 10 10-4.48 10-10S15.52 0 10 0zm-1 15l-5-5 1.41-1.41L9 12.17l7.59-7.59L18 6l-9 9z" fill="#fff"/>
+                    </svg>
+                    Approved Seller
+                  </span>
+                </div>
+                <div className="seller-activity-stats">
+                  <div className="seller-activity-stat">
+                    <div className="seller-activity-number">{sellerListings}</div>
+                    <div className="seller-activity-label">Listings</div>
+                  </div>
+                  <div className="seller-activity-stat">
+                    <div className="seller-activity-number">{sellerSales}</div>
+                    <div className="seller-activity-label">Sales</div>
+                  </div>
+                  <div className="seller-activity-stat">
+                    <div className="seller-activity-number">{sellerOffers}</div>
+                    <div className="seller-activity-label">Offers</div>
+                  </div>
+                </div>
+                <div className="seller-actions-row">
+                  <Link href="/seller/dashboard" className="btn-seller-dash">
+                    Seller Closet
+                  </Link>
+                  <Link href="/seller/catalogue" className="btn-seller-secondary">
+                    My Listings
+                  </Link>
+                  <Link href="/seller/orders" className="btn-seller-secondary">
+                    My Sales
+                  </Link>
+                </div>
+              </section>
+              ) : (
+              <section className="seller-section">
                 <div className="seller-section-header">
                   <h2>Selling on Famous Finds</h2>
-                  {sellerStatus === "approved" && (
-                    <span className="seller-approved-badge">Approved Seller</span>
-                  )}
                 </div>
                 {sellerStatus === "none" && (
                   <div className="seller-cta">
@@ -439,35 +473,6 @@ export default function AccountPage() {
                     </p>
                   </div>
                 )}
-                {sellerStatus === "approved" && (
-                  <>
-                    <div className="seller-activity-stats">
-                      <div className="seller-activity-stat">
-                        <div className="seller-activity-number">{sellerListings}</div>
-                        <div className="seller-activity-label">Listings</div>
-                      </div>
-                      <div className="seller-activity-stat">
-                        <div className="seller-activity-number">{sellerSales}</div>
-                        <div className="seller-activity-label">Sales</div>
-                      </div>
-                      <div className="seller-activity-stat">
-                        <div className="seller-activity-number">{sellerOffers}</div>
-                        <div className="seller-activity-label">Offers</div>
-                      </div>
-                    </div>
-                    <div className="seller-actions-row">
-                      <Link href="/seller/dashboard" className="btn-seller-dash">
-                        Seller Closet
-                      </Link>
-                      <Link href="/seller/catalogue" className="btn-seller-secondary">
-                        My Listings
-                      </Link>
-                      <Link href="/seller/orders" className="btn-seller-secondary">
-                        My Sales
-                      </Link>
-                    </div>
-                  </>
-                )}
                 {sellerStatus === "rejected" && (
                   <div className="seller-status-card rejected">
                     <p>
@@ -480,6 +485,7 @@ export default function AccountPage() {
                   </div>
                 )}
               </section>
+              )}
 
               {/* Preferences panel */}
               {showPrefs && (
@@ -720,15 +726,15 @@ export default function AccountPage() {
         .seller-approved-badge {
           display: inline-flex;
           align-items: center;
-          gap: 6px;
+          gap: 8px;
           background: #22c55e;
           color: #ffffff;
-          font-size: 12px;
+          font-size: 14px;
           font-weight: 700;
-          padding: 5px 14px;
+          padding: 8px 18px;
           border-radius: 999px;
           text-transform: uppercase;
-          letter-spacing: 0.04em;
+          letter-spacing: 0.05em;
         }
         .seller-cta p {
           font-size: 14px;
