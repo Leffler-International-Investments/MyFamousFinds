@@ -21,6 +21,8 @@ type MgmtStats = {
   pendingOrders: number;
   agreements: number;
   pendingAgreements: number;
+  supportTickets: number;
+  openTickets: number;
 };
 
 type Props = {
@@ -131,6 +133,11 @@ export default function ManagementDashboard({ stats }: Props) {
               <p className="label">Agreements</p>
               <p className="stat">{stats.agreements.toLocaleString("en-US")}</p>
               <p className="sub-stat">{stats.pendingAgreements} awaiting confirmation</p>
+            </Link>
+            <Link href="/management/support-tickets" className="dashboard-summary-tile">
+              <p className="label">Support Tickets</p>
+              <p className="stat">{stats.supportTickets.toLocaleString("en-US")}</p>
+              <p className="sub-stat">{stats.openTickets} open</p>
             </Link>
           </div>
         </section>
@@ -443,6 +450,8 @@ export const getServerSideProps: GetServerSideProps<Props> = async () => {
       pendingOrdersSnap,
       agreementsSnap,
       pendingAgreementsSnap,
+      supportTicketsSnap,
+      openTicketsSnap,
     ] = await Promise.all([
       adminDb.collection("sellers").get(),
       adminDb.collection("sellers").where("status", "==", "Pending").get(),
@@ -461,6 +470,8 @@ export const getServerSideProps: GetServerSideProps<Props> = async () => {
         .collection("consignment_agreements")
         .where("status", "==", "pending_email")
         .get(),
+      adminDb.collection("supportTickets").get(),
+      adminDb.collection("supportTickets").where("status", "==", "Open").get(),
     ]);
 
     const stats: MgmtStats = {
@@ -472,6 +483,8 @@ export const getServerSideProps: GetServerSideProps<Props> = async () => {
       pendingOrders: pendingOrdersSnap.size,
       agreements: agreementsSnap.size,
       pendingAgreements: pendingAgreementsSnap.size,
+      supportTickets: supportTicketsSnap.size,
+      openTickets: openTicketsSnap.size,
     };
 
     return { props: { stats } };
@@ -486,6 +499,8 @@ export const getServerSideProps: GetServerSideProps<Props> = async () => {
       pendingOrders: 0,
       agreements: 0,
       pendingAgreements: 0,
+      supportTickets: 0,
+      openTickets: 0,
     };
     return { props: { stats } };
   }
