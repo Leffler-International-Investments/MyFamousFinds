@@ -295,6 +295,19 @@ export default function Footer() {
             transform: scale(1.15);
           }
 
+          /* ---- Link styles (global for Next.js Link) ---- */
+          :global(.ff-col-link) {
+            font-size: 13px;
+            color: #d1d5db;
+            text-decoration: none;
+            transition: color 0.15s;
+            line-height: 1.4;
+          }
+
+          :global(.ff-col-link:hover) {
+            color: #ffffff;
+          }
+
           /* ---- Responsive: stack on mobile ---- */
           @media (max-width: 768px) {
             .ff-footer-columns {
@@ -316,21 +329,6 @@ export default function Footer() {
           }
         `}</style>
       </footer>
-
-      {/* Global styles for Next.js Link components inside footer columns */}
-      <style jsx global>{`
-        .ff-col-link {
-          font-size: 13px;
-          color: #d1d5db;
-          text-decoration: none;
-          transition: color 0.15s;
-          line-height: 1.4;
-        }
-
-        .ff-col-link:hover {
-          color: #ffffff;
-        }
-      `}</style>
 
       {/* Butler chat panel */}
       <ButlerChat isOpen={isChatOpen} onClose={() => setIsChatOpen(false)} />

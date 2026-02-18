@@ -177,15 +177,7 @@ export default function HelpPage() {
           padding-left: 20px;
           list-style: disc;
         }
-        @media (max-width: 600px) {
-          .card {
-            border-radius: 16px;
-          }
-        }
-      `}</style>
-
-      <style jsx global>{`
-        .card-link {
+        :global(.card-link) {
           display: inline-block;
           margin-top: 8px;
           font-size: 13px;
@@ -194,8 +186,13 @@ export default function HelpPage() {
           text-decoration: none;
           transition: color 0.15s;
         }
-        .card-link:hover {
+        :global(.card-link:hover) {
           color: #6366f1;
+        }
+        @media (max-width: 600px) {
+          .card {
+            border-radius: 16px;
+          }
         }
       `}</style>
     </div>
