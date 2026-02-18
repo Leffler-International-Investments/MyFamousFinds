@@ -333,22 +333,54 @@ export default function ManagementDashboard({ stats }: Props) {
           />
         </DashboardSection>
 
+        <section className="dashboard-section">
+          <div className="dashboard-section-header">
+            <h2 className="dashboard-section-title">Analytics & Reports</h2>
+            <p className="dashboard-section-subtitle">
+              High-level KPIs for buyers, sellers, orders, and marketplace health.{" "}
+              <Link href="/management/analytics" className="analytics-full-link">
+                Open full reports →
+              </Link>
+            </p>
+          </div>
+          <div className="analytics-metrics-grid">
+            <div className="analytics-metric-card">
+              <p className="analytics-metric-label">GMV (Last 30 days)</p>
+              <p className="analytics-metric-value">$0</p>
+              <p className="analytics-metric-note">Live GMV will appear once orders are flowing through the system.</p>
+            </div>
+            <div className="analytics-metric-card">
+              <p className="analytics-metric-label">Active Sellers</p>
+              <p className="analytics-metric-value">{stats.sellers.toLocaleString("en-US")}</p>
+              <p className="analytics-metric-note">{stats.pendingSellers} pending vetting</p>
+            </div>
+            <div className="analytics-metric-card">
+              <p className="analytics-metric-label">Active Listings</p>
+              <p className="analytics-metric-value">{stats.listings.toLocaleString("en-US")}</p>
+              <p className="analytics-metric-note">{stats.pendingListings} awaiting review</p>
+            </div>
+            <div className="analytics-metric-card">
+              <p className="analytics-metric-label">Purchases</p>
+              <p className="analytics-metric-value">{stats.orders.toLocaleString("en-US")}</p>
+              <p className="analytics-metric-note">{stats.pendingOrders} in progress</p>
+            </div>
+            <div className="analytics-metric-card">
+              <p className="analytics-metric-label">Dispute Rate</p>
+              <p className="analytics-metric-value">0.0%</p>
+              <p className="analytics-metric-note">Disputes and chargebacks will be tracked as your marketplace runs.</p>
+            </div>
+          </div>
+        </section>
+
         <DashboardSection
-          title="Platform, Support & Analytics"
-          subtitle="Support customers, track performance, and manage internal access."
+          title="Platform, Support & Tools"
+          subtitle="Support customers, manage messages, and control internal access."
         >
           <DashboardTile
             title="Message Board"
             description="Create or update public announcements visible to buyers on the homepage."
             href="/management/messages"
             linkText="Manage Messages"
-            linkColor="blue"
-          />
-          <DashboardTile
-            title="Analytics & Reports"
-            description="High-level sales and traffic insights across Famous Finds."
-            href="/management/analytics"
-            linkText="View Reports"
             linkColor="blue"
           />
           <DashboardTile
