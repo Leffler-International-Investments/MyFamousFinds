@@ -186,7 +186,7 @@ export default function Footer() {
               </svg>
             </a>
             <a
-              href="#"
+              href="https://www.youtube.com/@myfamousfinds"
               className="ff-social-icon"
               aria-label="YouTube"
               title="YouTube"
@@ -198,7 +198,7 @@ export default function Footer() {
               </svg>
             </a>
             <a
-              href="#"
+              href="https://www.instagram.com/myfamousfinds"
               className="ff-social-icon"
               aria-label="Instagram"
               title="Instagram"
@@ -210,7 +210,7 @@ export default function Footer() {
               </svg>
             </a>
             <a
-              href="#"
+              href="https://www.tiktok.com/@myfamousfind"
               className="ff-social-icon"
               aria-label="TikTok"
               title="TikTok"

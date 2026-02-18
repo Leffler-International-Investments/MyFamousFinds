@@ -44,14 +44,20 @@ export default async function handler(
       .limit(1)
       .get();
 
+    // If a fully-processed order exists (not from webhook), return early
     if (!existingOrder.empty) {
       const existing = existingOrder.docs[0];
-      return res.status(200).json({
-        ok: true,
-        orderId: existing.id,
-        captureId: existing.data().paypalCaptureId || "",
-        status: "already_captured",
-      });
+      const existingData = existing.data() || {};
+      if (existingData.buyerEmail && existingData.source !== "webhook") {
+        return res.status(200).json({
+          ok: true,
+          orderId: existing.id,
+          captureId: existingData.paypalCaptureId || "",
+          status: "already_captured",
+        });
+      }
+      // Otherwise the order was created by the webhook without buyer details
+      // or email notifications — fall through to enrich and notify.
     }
 
     // Capture the order — fall back to reading it if already captured
@@ -139,26 +145,46 @@ export default async function handler(
     const amountTotal = Number(capture?.amount?.value || 0);
     const currency = capture?.amount?.currency_code || "USD";
 
-    // Create the order in Firestore
-    const orderRef = await adminDb.collection("orders").add({
-      paypalOrderId,
-      paypalCaptureId: captureId,
-      listingId: listingId || pendingData.listingId || "",
-      ...(sellerId ? { sellerId } : {}),
-      buyerEmail: payerEmail,
-      buyerName: payerName,
-      listingTitle: pendingData.productTitle || "",
-      listingBrand: pendingData.brand || "",
-      listingCategory: pendingData.category || "",
-      amountTotal: Math.round(amountTotal * 100), // store in cents for consistency
-      currency,
-      status: "paid",
-      createdAt: Date.now(),
-      shippingAddress,
-      ...(pendingData.buyerId ? { buyerId: pendingData.buyerId } : {}),
-      vipPointsAwarded: false,
-      reviewRequestSent: false,
-    });
+    // Create or update the order in Firestore
+    let orderId: string;
+    if (!existingOrder.empty) {
+      // Webhook-created order exists — enrich it with buyer details
+      const existing = existingOrder.docs[0];
+      orderId = existing.id;
+      sellerId = sellerId || existing.data()?.sellerId || "";
+      await adminDb.collection("orders").doc(orderId).update({
+        paypalCaptureId: captureId,
+        buyerEmail: payerEmail,
+        buyerName: payerName,
+        listingTitle: pendingData.productTitle || existing.data()?.listingTitle || "",
+        listingBrand: pendingData.brand || "",
+        listingCategory: pendingData.category || "",
+        shippingAddress,
+        ...(pendingData.buyerId ? { buyerId: pendingData.buyerId } : {}),
+        source: "capture", // mark as fully processed
+      });
+    } else {
+      const orderRef = await adminDb.collection("orders").add({
+        paypalOrderId,
+        paypalCaptureId: captureId,
+        listingId: listingId || pendingData.listingId || "",
+        ...(sellerId ? { sellerId } : {}),
+        buyerEmail: payerEmail,
+        buyerName: payerName,
+        listingTitle: pendingData.productTitle || "",
+        listingBrand: pendingData.brand || "",
+        listingCategory: pendingData.category || "",
+        amountTotal: Math.round(amountTotal * 100), // store in cents for consistency
+        currency,
+        status: "paid",
+        createdAt: Date.now(),
+        shippingAddress,
+        ...(pendingData.buyerId ? { buyerId: pendingData.buyerId } : {}),
+        vipPointsAwarded: false,
+        reviewRequestSent: false,
+      });
+      orderId = orderRef.id;
+    }
 
     // Mark listing as sold
     if (listingId) {
@@ -190,7 +216,7 @@ export default async function handler(
         await sendBuyerOrderConfirmationEmail({
           to: payerEmail,
           buyerName: payerName || undefined,
-          orderId: orderRef.id,
+          orderId,
           itemTitle,
           amount: amountStr,
           currency,
@@ -203,12 +229,12 @@ export default async function handler(
           text:
             `Hello ${payerName || "there"},\n\n` +
             `Thank you for your purchase on MyFamousFinds!\n\n` +
-            `Order ID: ${orderRef.id}\nItem: ${itemTitle}\nTotal: ${currency} ${amountStr}\n\n` +
+            `Order ID: ${orderId}\nItem: ${itemTitle}\nTotal: ${currency} ${amountStr}\n\n` +
             `We will process your order and keep you updated on shipping.\n\n` +
             `Regards,\nThe MyFamousFinds Team\n`,
           eventType: "buyer_order_confirmation",
-          eventKey: `${orderRef.id}:buyer_order_confirmation`,
-          metadata: { orderId: orderRef.id, buyerEmail: payerEmail },
+          eventKey: `${orderId}:buyer_order_confirmation`,
+          metadata: { orderId, buyerEmail: payerEmail },
         }).catch((qErr) => console.error("[capture-order] Outbox queue also failed:", qErr));
       }
     }
@@ -218,7 +244,16 @@ export default async function handler(
       let sellerEmail = "";
       let sellerName = "";
       try {
-        const sellerDoc = await adminDb.collection("sellers").doc(sellerId).get();
+        // Look up seller doc — mirror the 3-step strategy used by getSellerId
+        let sellerDoc = await adminDb.collection("sellers").doc(sellerId).get();
+        if (!sellerDoc.exists) {
+          const byEmail = await adminDb.collection("sellers").where("email", "==", sellerId).limit(1).get();
+          if (!byEmail.empty) sellerDoc = byEmail.docs[0];
+        }
+        if (!sellerDoc.exists) {
+          const byContact = await adminDb.collection("sellers").where("contactEmail", "==", sellerId).limit(1).get();
+          if (!byContact.empty) sellerDoc = byContact.docs[0];
+        }
         const sellerData = sellerDoc.exists ? sellerDoc.data() || {} : {};
         sellerEmail = String(
           sellerData.contactEmail || sellerData.email || sellerId
@@ -233,7 +268,7 @@ export default async function handler(
         const sellerText =
           `Hello ${sellerName || "Seller"},\n\n` +
           `Great news — your item has been sold on MyFamousFinds!\n\n` +
-          `Item: ${itemTitle}\nSale Amount: ${currency} ${amountStr}\nOrder ID: ${orderRef.id}\n\n` +
+          `Item: ${itemTitle}\nSale Amount: ${currency} ${amountStr}\nOrder ID: ${orderId}\n\n` +
           `Please prepare the item for shipping. You can view the order details in your Seller Dashboard.\n\n` +
           `Regards,\nThe MyFamousFinds Team\n`;
         const sellerHtml =
@@ -242,7 +277,7 @@ export default async function handler(
           `<div style="padding:12px;background:#fef3c7;border-radius:6px;margin:12px 0;">` +
           `<p style="margin:4px 0;"><b>Item:</b> ${itemTitle}</p>` +
           `<p style="margin:4px 0;"><b>Sale Amount:</b> ${currency} ${amountStr}</p>` +
-          `<p style="margin:4px 0;"><b>Order ID:</b> ${orderRef.id}</p>` +
+          `<p style="margin:4px 0;"><b>Order ID:</b> ${orderId}</p>` +
           `</div>` +
           `<p>Please prepare the item for shipping. You can view the order details in your Seller Dashboard.</p>` +
           `<p>Regards,<br/>The MyFamousFinds Team</p>`;
@@ -255,7 +290,7 @@ export default async function handler(
             itemTitle,
             amount: amountStr,
             currency,
-            orderId: orderRef.id,
+            orderId,
           });
         } catch (emailErr) {
           console.error("[capture-order] Seller notification email failed, queueing to outbox:", emailErr);
@@ -265,8 +300,8 @@ export default async function handler(
             text: sellerText,
             html: sellerHtml,
             eventType: "seller_item_sold",
-            eventKey: `${orderRef.id}:seller_item_sold:${sellerId}`,
-            metadata: { orderId: orderRef.id, sellerId, sellerEmail, itemTitle },
+            eventKey: `${orderId}:seller_item_sold:${sellerId}`,
+            metadata: { orderId, sellerId, sellerEmail, itemTitle },
           }).catch((qErr) => console.error("[capture-order] Outbox queue also failed:", qErr));
         }
       } else {
@@ -278,9 +313,9 @@ export default async function handler(
 
     return res.status(200).json({
       ok: true,
-      orderId: orderRef.id,
+      orderId,
       captureId,
-      status: "captured",
+      status: existingOrder.empty ? "captured" : "enriched",
     });
   } catch (err: any) {
     const msg = String(err?.message || err || "PayPal capture error");
