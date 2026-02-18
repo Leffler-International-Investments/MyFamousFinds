@@ -333,7 +333,7 @@ export default function ProductPage(props: ProductPageProps) {
     <div className="page">
       <Head>
         <title>{title} – Famous Finds</title>
-        <meta name="description" content={`Shop authenticated ${brand} ${title}. ${condition} condition. ${priceLabel}. Physical authentication included.`} />
+        <meta name="description" content={`Shop authenticated ${brand} ${title}. ${condition} condition. ${priceLabel}. Remote authentication included.`} />
         <meta property="og:title" content={`${title} – Famous Finds`} />
         <meta property="og:description" content={`Authenticated ${brand} ${title}. ${condition} condition.`} />
         <meta property="og:image" content={imageUrl} />
@@ -461,7 +461,7 @@ export default function ProductPage(props: ProductPageProps) {
                 </svg>
               </div>
               <div className="auth-badge-text">
-                <span className="auth-badge-title">Physical authentication included</span>
+                <span className="auth-badge-title">Remote authentication included</span>
                 <span className="auth-badge-desc">
                   Every item is authenticated remotely by our expert team. You only pay for the real thing — guaranteed.
                 </span>
@@ -691,7 +691,7 @@ export default function ProductPage(props: ProductPageProps) {
               <p className="protection-title">Buyer Protection Guarantee</p>
               <ul className="protection-list">
                 <li><strong>Escrow payment</strong> — Funds held securely until your item is authenticated.</li>
-                <li><strong>Expert authentication</strong> — Every item undergoes physical inspection by our specialists before dispatch.</li>
+                <li><strong>Expert authentication</strong> — Every item is authenticated remotely by our expert team.</li>
                 <li><strong>Money-back guarantee</strong> — If the item is not as described, you are fully refunded.</li>
                 <li><strong>Secure checkout</strong> — All payments processed via PayPal Buyer Protection.</li>
                 <li><strong>Returns accepted</strong> — 14-day return window for items not as described.</li>

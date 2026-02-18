@@ -267,12 +267,23 @@ export default function Footer() {
             display: flex;
             align-items: center;
             justify-content: center;
-            gap: 6px;
+            gap: 0;
             flex-wrap: wrap;
           }
 
           .ff-footer-item {
             position: relative;
+            display: flex;
+            align-items: center;
+          }
+
+          .ff-footer-item + .ff-footer-item::before {
+            content: "";
+            display: block;
+            width: 1px;
+            height: 16px;
+            background: #4b5563;
+            margin: 0 4px;
           }
 
           /* ---- Shared link / button style ---- */
@@ -282,7 +293,7 @@ export default function Footer() {
             gap: 4px;
             font-size: 13px;
             color: #d1d5db;
-            font-weight: 600;
+            font-weight: 700;
             text-decoration: none;
             white-space: nowrap;
             background: none;
@@ -292,6 +303,7 @@ export default function Footer() {
             border-radius: 6px;
             transition: color 0.15s, background 0.15s;
             font-family: inherit;
+            letter-spacing: 0.02em;
           }
 
           .ff-footer-link:hover {
@@ -381,6 +393,10 @@ export default function Footer() {
             .ff-footer-nav {
               flex-direction: column;
               gap: 4px;
+            }
+
+            .ff-footer-item + .ff-footer-item::before {
+              display: none;
             }
 
             .ff-dropdown-menu {
