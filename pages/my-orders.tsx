@@ -67,6 +67,11 @@ export default function MyOrdersPage() {
           query(collection(db, "orders"), where("buyerId", "==", user.uid))
         );
         byUid.forEach(pushOrder);
+        // Also check legacy buyerUid field (orders created before buyerId migration)
+        const byLegacyUid = await getDocs(
+          query(collection(db, "orders"), where("buyerUid", "==", user.uid))
+        );
+        byLegacyUid.forEach(pushOrder);
 
         // Query by buyerEmail and buyerFormEmail (buyer's email, may differ from PayPal email)
         if (user.email) {

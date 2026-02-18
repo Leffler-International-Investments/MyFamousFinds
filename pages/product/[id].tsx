@@ -1572,8 +1572,8 @@ export const getServerSideProps: GetServerSideProps<ProductPageProps> = async (c
             // Only show live items (match publicListings.ts filter)
             const sStatus = String(sd.status || "").trim().toLowerCase();
             if (sStatus && sStatus !== "live") return;
-            // Skip sold items
-            if (sd.isSold === true || sd.sold === true) return;
+            // Skip sold items — check all possible sold indicators
+            if (sd.isSold === true || sd.sold === true || sStatus.includes("sold")) return;
             const sPrice = typeof sd.priceUsd === "number" ? sd.priceUsd : Number(sd.price || 0);
             similarItems.push({
               id: sdoc.id,

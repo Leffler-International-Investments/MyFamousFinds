@@ -516,7 +516,9 @@ export const getServerSideProps: GetServerSideProps<Props> = async () => {
     ordersSnap.docs.forEach((d) => {
       const data = d.data() as any;
       const status = String(data.status || "");
-      const total = Number(data.total || data.amount || data.price || 0);
+      // amountTotal is stored in cents; fall back to other field names for legacy orders
+      const rawAmt = Number(data.amountTotal || data.total || data.amount || data.price || 0);
+      const total = data.amountTotal ? rawAmt / 100 : rawAmt;
 
       if (["Pending", "Processing", "Paid"].includes(status)) pendingOrders++;
       if (["Completed", "Delivered"].includes(status)) completedOrders++;
