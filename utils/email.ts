@@ -348,32 +348,24 @@ export async function sendSellerInviteEmail(
     throw new Error("sendSellerInviteEmail missing required fields (to/registerUrl).");
   }
 
-  const subject = "MyFamousFinds — Your Seller Account Has Been Approved!";
+  const loginUrl = registerUrl.replace(/\/seller\/register.*$/, "/seller/login");
+  const subject = "Famous Finds — Your Seller Account Has Been Approved!";
   const text =
     `Hello${businessName ? " " + businessName : ""},\n\n` +
-    `Great news — your seller account on MyFamousFinds has been approved!\n\n` +
-    `Here's what to do next:\n\n` +
-    `1. Complete your registration using the link below:\n   ${registerUrl}\n\n` +
-    `2. Once registered, log in to your Seller Admin console.\n\n` +
-    `3. Complete your banking details so you can receive payouts.\n\n` +
-    `4. Start listing your products!\n\n` +
-    `If you did not apply, you can safely ignore this email.\n\n` +
+    `Great news — your seller account on Famous Finds has been approved!\n\n` +
+    `Let's start building your Famous Closet.\n\n` +
+    `If you need assistance pricing your items, let us know and one of our specialists will schedule a virtual appointment with you.\n\n` +
+    `Login here - ${loginUrl} and complete the registration process.\n\n` +
     `Welcome aboard!\n` +
-    `The MyFamousFinds Team\n`;
+    `The Famous Finds Team\n`;
 
   const html =
     `<p>Hello${businessName ? " " + escapeHtml(businessName) : ""},</p>` +
-    `<p style="font-size:16px;"><b>Great news — your seller account on MyFamousFinds has been approved!</b></p>` +
-    `<p>Here's what to do next:</p>` +
-    `<ol style="line-height:1.8;">` +
-    `<li><b>Complete your registration</b> using the link below:<br/>` +
-    `<a href="${registerUrl}" style="color:#059669;">${escapeHtml(registerUrl)}</a></li>` +
-    `<li>Once registered, <b>log in</b> to your Seller Admin console.</li>` +
-    `<li><b>Complete your banking details</b> so you can receive payouts.</li>` +
-    `<li><b>Start listing your products!</b></li>` +
-    `</ol>` +
-    `<p style="font-size:12px;color:#6b7280;">If you did not apply, you can safely ignore this email.</p>` +
-    `<p>Welcome aboard!<br/>The MyFamousFinds Team</p>`;
+    `<p style="font-size:16px;"><b>Great news — your seller account on Famous Finds has been approved!</b></p>` +
+    `<p>Let&#39;s start building your Famous Closet.</p>` +
+    `<p>If you need assistance pricing your items, let us know and one of our specialists will schedule a virtual appointment with you.</p>` +
+    `<p>Login here - <a href="${loginUrl}" style="color:#059669;">${escapeHtml(loginUrl)}</a> and complete the registration process.</p>` +
+    `<p>Welcome aboard!<br/>The Famous Finds Team</p>`;
 
   await sendMail(to, subject, text, html);
 }

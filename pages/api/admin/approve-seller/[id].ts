@@ -60,8 +60,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
     const jobId = await queueEmail({
       to: email,
       subject: "Famous Finds — Your Seller Account Has Been Approved!",
-      text: `Hello${businessName ? " " + businessName : ""},\n\nGreat news — your seller account on Famous Finds has been approved!\n\nLogin here - ${loginUrl} and complete the registration process.\n\nWelcome aboard!\nThe Famous Finds Team`,
-      html: `<p>Hello${businessName ? " " + businessName : ""},</p><p><b>Great news — your seller account has been approved!</b></p><p>Login here - <a href="${loginUrl}">${loginUrl}</a> and complete the registration process.</p><p>Welcome aboard!<br/>The Famous Finds Team</p>`,
+      text: `Hello${businessName ? " " + businessName : ""},\n\nGreat news — your seller account on Famous Finds has been approved!\n\nLet's start building your Famous Closet.\n\nIf you need assistance pricing your items, let us know and one of our specialists will schedule a virtual appointment with you.\n\nLogin here - ${loginUrl} and complete the registration process.\n\nWelcome aboard!\nThe Famous Finds Team`,
+      html: `<p>Hello${businessName ? " " + businessName : ""},</p><p><b>Great news — your seller account on Famous Finds has been approved!</b></p><p>Let&#39;s start building your Famous Closet.</p><p>If you need assistance pricing your items, let us know and one of our specialists will schedule a virtual appointment with you.</p><p>Login here - <a href="${loginUrl}">${loginUrl}</a> and complete the registration process.</p><p>Welcome aboard!<br/>The Famous Finds Team</p>`,
       eventType: "seller_approved",
       eventKey: `${sellerId}:seller_approved:${today}`,
       metadata: { sellerId, businessName, loginUrl, registerUrl },
