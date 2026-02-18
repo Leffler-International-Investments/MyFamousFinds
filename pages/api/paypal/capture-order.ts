@@ -118,6 +118,9 @@ export default async function handler(
       [payer.name?.given_name, payer.name?.surname].filter(Boolean).join(" ") ||
       pendingData.buyerDetails?.fullName ||
       "";
+    // The form email (typically the buyer's Firebase auth email) may differ from
+    // the PayPal payer email. Store it so the account page can find orders by either.
+    const buyerFormEmail = String(pendingData.buyerDetails?.email || "").trim().toLowerCase();
 
     const shipping = purchaseUnit?.shipping;
     const shippingAddress = shipping?.address
@@ -156,6 +159,7 @@ export default async function handler(
         paypalCaptureId: captureId,
         buyerEmail: payerEmail,
         buyerName: payerName,
+        ...(buyerFormEmail && buyerFormEmail !== payerEmail ? { buyerFormEmail } : {}),
         listingTitle: pendingData.productTitle || existing.data()?.listingTitle || "",
         listingBrand: pendingData.brand || "",
         listingCategory: pendingData.category || "",
@@ -171,6 +175,7 @@ export default async function handler(
         ...(sellerId ? { sellerId } : {}),
         buyerEmail: payerEmail,
         buyerName: payerName,
+        ...(buyerFormEmail && buyerFormEmail !== payerEmail ? { buyerFormEmail } : {}),
         listingTitle: pendingData.productTitle || "",
         listingBrand: pendingData.brand || "",
         listingCategory: pendingData.category || "",

@@ -68,12 +68,16 @@ export default function MyOrdersPage() {
         );
         byUid.forEach(pushOrder);
 
-        // Query by buyerEmail (buyer's email)
+        // Query by buyerEmail and buyerFormEmail (buyer's email, may differ from PayPal email)
         if (user.email) {
           const byEmail = await getDocs(
             query(collection(db, "orders"), where("buyerEmail", "==", user.email))
           );
           byEmail.forEach(pushOrder);
+          const byFormEmail = await getDocs(
+            query(collection(db, "orders"), where("buyerFormEmail", "==", user.email))
+          );
+          byFormEmail.forEach(pushOrder);
         }
 
         // Sort by createdAt descending
