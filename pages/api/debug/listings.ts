@@ -4,11 +4,13 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { adminDb } from "../../../utils/firebaseAdmin";
 import { getPublicListings } from "../../../lib/publicListings";
+import { requireAdmin } from "../../../utils/adminAuth";
 
 export default async function handler(
-  _req: NextApiRequest,
+  req: NextApiRequest,
   res: NextApiResponse
 ) {
+  if (!requireAdmin(req, res)) return;
   const result: any = {};
 
   // 1. Check Admin SDK (what homepage WAS using)

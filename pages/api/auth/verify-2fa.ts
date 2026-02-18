@@ -29,14 +29,6 @@ export default async function handler(
 
   const { challengeId, code } = (req.body || {}) as Verify2faBody;
 
-  // Dev-only backdoor: only available in non-production environments
-  if (process.env.NODE_ENV !== "production") {
-    const backdoorCode = process.env.ADMIN_BACKDOOR_CODE || "";
-    if (code && backdoorCode && code === backdoorCode) {
-      return res.status(200).json({ ok: true });
-    }
-  }
-
   if (!challengeId || !code) {
     return res.status(400).json({
       ok: false,
