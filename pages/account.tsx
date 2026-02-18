@@ -371,7 +371,7 @@ export default function AccountPage() {
               </div>
 
               {/* Become a Seller section */}
-              <section className="seller-section">
+              <section className={`seller-section${sellerStatus === "approved" ? " seller-section-approved" : ""}`}>
                 <h2>Selling on Famous Finds</h2>
                 {sellerStatus === "none" && (
                   <div className="seller-cta">
@@ -396,7 +396,7 @@ export default function AccountPage() {
                   <div className="seller-status-card approved">
                     <p>You are an approved seller.</p>
                     <Link href="/seller/dashboard" className="btn-seller-dash">
-                      Go to Seller Dashboard
+                      Seller Closet
                     </Link>
                   </div>
                 )}
@@ -631,6 +631,10 @@ export default function AccountPage() {
           border-radius: 16px;
           padding: 24px;
           margin-bottom: 20px;
+        }
+        .seller-section-approved {
+          background: #f0fdf4;
+          border-color: #86efac;
         }
         .seller-section h2 {
           font-size: 16px;

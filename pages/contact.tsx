@@ -211,12 +211,6 @@ export default function ContactPage() {
                 support@myfamousfinds.com
               </a>
             </p>
-            <p>
-              Admin:{" "}
-              <a href="mailto:admin@myfamousfinds.com">
-                admin@myfamousfinds.com
-              </a>
-            </p>
           </section>
 
           <section className="card">

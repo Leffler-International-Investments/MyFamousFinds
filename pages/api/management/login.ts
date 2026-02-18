@@ -34,6 +34,9 @@ function getAdminCredentials(): AdminCred[] {
   const legacyAriel = String(process.env.MANAGEMENT_ARIEL_PASSWORD || "");
   if (legacyAriel) out.push({ email: "arich1114@aol.com", password: legacyAriel });
 
+  const legacyItai = String(process.env.MANAGEMENT_ITAI_PASSWORD || "");
+  if (legacyItai) out.push({ email: "itai.leff@gmail.com", password: legacyItai });
+
   const legacyDan = String(process.env.MANAGEMENT_DAN_PASSWORD || "");
   if (legacyDan) out.push({ email: "leffleryd@gmail.com", password: legacyDan });
 
