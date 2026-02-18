@@ -872,9 +872,9 @@ export default function BulkSimple() {
                 />
               </div>
 
-              {/* Images box */}
-              <label className="full">
-                <span>Images (drag & drop or select — up to 8)</span>
+              {/* Images box — uses div (not label) to prevent double-trigger of file input */}
+              <div className="full">
+                <span className="field-label">Images (drag & drop or select — up to 8)</span>
                 <div
                   className="dropzone"
                   onDragOver={(e) => {
@@ -915,7 +915,7 @@ export default function BulkSimple() {
                   style={{ display: "none" }}
                   onChange={(e) => handleFilesChange(idx, e.target.files)}
                 />
-              </label>
+              </div>
             </div>
           </div>
         ))}
