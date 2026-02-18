@@ -463,7 +463,7 @@ export default function ProductPage(props: ProductPageProps) {
               <div className="auth-badge-text">
                 <span className="auth-badge-title">Physical authentication included</span>
                 <span className="auth-badge-desc">
-                  Every item is inspected in-person by our expert team before shipping. You only pay for the real thing — guaranteed.
+                  Every item is authenticated remotely by our expert team. You only pay for the real thing — guaranteed.
                 </span>
               </div>
             </div>
