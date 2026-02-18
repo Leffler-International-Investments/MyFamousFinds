@@ -428,7 +428,7 @@ export default function ProductPage(props: ProductPageProps) {
               </div>
             </div>
             <p className="subtitle">
-              Inspected and shipped via Famous-Finds concierge.
+              Inspected and shipped via Famous Finds concierge.
             </p>
 
             <div className="price">{priceLabel}</div>
