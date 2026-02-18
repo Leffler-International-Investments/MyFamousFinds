@@ -70,6 +70,11 @@ export default function AccountPage() {
   // Seller status
   const [sellerStatus, setSellerStatus] = useState<SellerStatus>("none");
 
+  // Seller activity stats (loaded when seller is approved)
+  const [sellerListings, setSellerListings] = useState(0);
+  const [sellerSales, setSellerSales] = useState(0);
+  const [sellerOffers, setSellerOffers] = useState(0);
+
   // Preferences
   const [showPrefs, setShowPrefs] = useState(false);
   const [interests, setInterests] = useState<string[]>([]);
@@ -93,7 +98,7 @@ export default function AccountPage() {
       }
       setUser(u);
       try {
-        await Promise.all([loadData(u.uid, u.email || ""), loadSellerStatus(u.email || ""), loadPreferences(u.uid)]);
+        await Promise.all([loadData(u.uid, u.email || ""), loadSellerStatus(u.email || ""), loadPreferences(u.uid), loadSellerActivity(u.email || "")]);
       } catch (err) {
         console.error("Account data load failed:", err);
       } finally {
@@ -193,9 +198,9 @@ export default function AccountPage() {
 
     const applyStatus = (data: any) => {
       const status = String(data.status || "").toLowerCase();
-      if (status === "approved") setSellerStatus("approved");
+      if (status === "approved" || status === "active") setSellerStatus("approved");
       else if (status === "pending") setSellerStatus("pending");
-      else if (status === "rejected") setSellerStatus("rejected");
+      else if (status === "rejected" || status === "disabled") setSellerStatus("rejected");
       else setSellerStatus("pending");
     };
 
@@ -223,6 +228,43 @@ export default function AccountPage() {
       if (!byContactEmail.empty) { applyStatus(byContactEmail.docs[0].data()); return; }
     } catch (err) {
       console.error("Failed to load seller status:", err);
+    }
+  };
+
+  const loadSellerActivity = async (email: string) => {
+    if (!db || !email) return;
+    const lowerEmail = email.trim().toLowerCase();
+    const sellerId = lowerEmail.replace(/\./g, "_");
+
+    try {
+      // Count listings by this seller
+      const listingsSnap = await getDocs(
+        query(collection(db, "listings"), where("sellerId", "==", sellerId))
+      );
+      let listingsCount = listingsSnap.size;
+
+      // Also try with raw email as sellerId
+      if (listingsCount === 0) {
+        const listingsByEmail = await getDocs(
+          query(collection(db, "listings"), where("sellerEmail", "==", lowerEmail))
+        );
+        listingsCount = listingsByEmail.size;
+      }
+      setSellerListings(listingsCount);
+
+      // Count sales/orders by this seller
+      const ordersSnap = await getDocs(
+        query(collection(db, "orders"), where("sellerEmail", "==", lowerEmail))
+      );
+      setSellerSales(ordersSnap.size);
+
+      // Count offers on this seller's listings
+      const offersSnap = await getDocs(
+        query(collection(db, "offers"), where("sellerId", "==", sellerId))
+      );
+      setSellerOffers(offersSnap.size);
+    } catch (err) {
+      console.error("Failed to load seller activity:", err);
     }
   };
 
@@ -370,9 +412,14 @@ export default function AccountPage() {
                 </div>
               </div>
 
-              {/* Become a Seller section */}
+              {/* Seller section */}
               <section className={`seller-section${sellerStatus === "approved" ? " seller-section-approved" : ""}`}>
-                <h2>Selling on Famous Finds</h2>
+                <div className="seller-section-header">
+                  <h2>Selling on Famous Finds</h2>
+                  {sellerStatus === "approved" && (
+                    <span className="seller-approved-badge">Approved Seller</span>
+                  )}
+                </div>
                 {sellerStatus === "none" && (
                   <div className="seller-cta">
                     <p>
@@ -393,12 +440,33 @@ export default function AccountPage() {
                   </div>
                 )}
                 {sellerStatus === "approved" && (
-                  <div className="seller-status-card approved">
-                    <p>You are an approved seller.</p>
-                    <Link href="/seller/dashboard" className="btn-seller-dash">
-                      Seller Closet
-                    </Link>
-                  </div>
+                  <>
+                    <div className="seller-activity-stats">
+                      <div className="seller-activity-stat">
+                        <div className="seller-activity-number">{sellerListings}</div>
+                        <div className="seller-activity-label">Listings</div>
+                      </div>
+                      <div className="seller-activity-stat">
+                        <div className="seller-activity-number">{sellerSales}</div>
+                        <div className="seller-activity-label">Sales</div>
+                      </div>
+                      <div className="seller-activity-stat">
+                        <div className="seller-activity-number">{sellerOffers}</div>
+                        <div className="seller-activity-label">Offers</div>
+                      </div>
+                    </div>
+                    <div className="seller-actions-row">
+                      <Link href="/seller/dashboard" className="btn-seller-dash">
+                        Seller Closet
+                      </Link>
+                      <Link href="/seller/catalogue" className="btn-seller-secondary">
+                        My Listings
+                      </Link>
+                      <Link href="/seller/orders" className="btn-seller-secondary">
+                        My Sales
+                      </Link>
+                    </div>
+                  </>
                 )}
                 {sellerStatus === "rejected" && (
                   <div className="seller-status-card rejected">
@@ -633,14 +701,34 @@ export default function AccountPage() {
           margin-bottom: 20px;
         }
         .seller-section-approved {
-          background: #f0fdf4;
-          border-color: #86efac;
+          background: #ecfdf5;
+          border: 2px solid #22c55e;
+          box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.15);
+        }
+        .seller-section-header {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          margin-bottom: 12px;
         }
         .seller-section h2 {
           font-size: 16px;
           font-weight: 600;
-          margin: 0 0 12px;
+          margin: 0;
           color: #111827;
+        }
+        .seller-approved-badge {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          background: #22c55e;
+          color: #ffffff;
+          font-size: 12px;
+          font-weight: 700;
+          padding: 5px 14px;
+          border-radius: 999px;
+          text-transform: uppercase;
+          letter-spacing: 0.04em;
         }
         .seller-cta p {
           font-size: 14px;
@@ -671,27 +759,70 @@ export default function AccountPage() {
           background: #eff6ff;
           color: #1d4ed8;
         }
-        .seller-status-card.approved {
-          background: #ecfdf5;
-          color: #065f46;
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          gap: 12px;
-        }
         .seller-status-card.rejected {
           background: #fef2f2;
           color: #b91c1c;
+        }
+        .seller-activity-stats {
+          display: grid;
+          grid-template-columns: repeat(3, 1fr);
+          gap: 12px;
+          margin-bottom: 16px;
+        }
+        .seller-activity-stat {
+          text-align: center;
+          background: rgba(255, 255, 255, 0.7);
+          border: 1px solid #bbf7d0;
+          border-radius: 12px;
+          padding: 14px 8px;
+        }
+        .seller-activity-number {
+          font-size: 24px;
+          font-weight: 700;
+          color: #065f46;
+        }
+        .seller-activity-label {
+          font-size: 11px;
+          color: #059669;
+          margin-top: 2px;
+          text-transform: uppercase;
+          letter-spacing: 0.05em;
+          font-weight: 600;
+        }
+        .seller-actions-row {
+          display: flex;
+          gap: 10px;
+          flex-wrap: wrap;
         }
         .btn-seller-dash {
           border-radius: 999px;
           background: #059669;
           color: #ffffff;
-          padding: 8px 18px;
+          padding: 10px 20px;
           font-size: 13px;
           font-weight: 600;
           text-decoration: none;
           white-space: nowrap;
+          transition: background 0.15s;
+        }
+        .btn-seller-dash:hover {
+          background: #047857;
+        }
+        .btn-seller-secondary {
+          border-radius: 999px;
+          background: #ffffff;
+          color: #059669;
+          border: 1px solid #86efac;
+          padding: 10px 20px;
+          font-size: 13px;
+          font-weight: 600;
+          text-decoration: none;
+          white-space: nowrap;
+          transition: all 0.15s;
+        }
+        .btn-seller-secondary:hover {
+          background: #f0fdf4;
+          border-color: #059669;
         }
 
         /* Preferences */
