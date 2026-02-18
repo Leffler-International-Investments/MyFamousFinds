@@ -355,6 +355,33 @@ export default function Footer() {
             }
           }
         `}</style>
+
+        {/* Global styles needed because styled-jsx scoping doesn't reach
+            anchor tags rendered inside <Link> child components */}
+        <style jsx global>{`
+          .ff-footer-nav .ff-footer-item a.ff-footer-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 13px;
+            color: #d1d5db;
+            font-weight: 700;
+            text-decoration: none;
+            white-space: nowrap;
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 8px 14px;
+            border-radius: 6px;
+            transition: color 0.15s, background 0.15s;
+            font-family: inherit;
+            letter-spacing: 0.02em;
+          }
+          .ff-footer-nav .ff-footer-item a.ff-footer-link:hover {
+            color: #ffffff;
+            background: rgba(255, 255, 255, 0.06);
+          }
+        `}</style>
       </footer>
 
       {/* Butler chat panel */}

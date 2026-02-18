@@ -516,27 +516,27 @@ export const getServerSideProps: GetServerSideProps<Props> = async () => {
     ordersSnap.docs.forEach((d) => {
       const data = d.data() as any;
       const status = String(data.status || "");
-      // amountTotal is stored in cents; fall back to other field names for legacy orders
-      const rawAmt = Number(data.amountTotal || data.total || data.amount || data.price || 0);
-      const total = data.amountTotal ? rawAmt / 100 : rawAmt;
+      const statusLower = status.toLowerCase();
+      const total = Number(data.amountTotal || data.total || data.amount || data.price || 0);
+      const totalDollars = total > 500 ? total / 100 : total; // amountTotal is stored in cents
 
-      if (["Pending", "Processing", "Paid"].includes(status)) pendingOrders++;
-      if (["Completed", "Delivered"].includes(status)) completedOrders++;
+      if (["pending", "processing", "paid"].includes(statusLower)) pendingOrders++;
+      if (["completed", "delivered"].includes(statusLower)) completedOrders++;
 
-      gmvAllTime += total;
+      gmvAllTime += totalDollars;
 
       let ts = 0;
       if (data.createdAt?.toMillis) ts = data.createdAt.toMillis();
       else if (data.createdAt?.seconds) ts = data.createdAt.seconds * 1000;
       else if (typeof data.createdAt === "number") ts = data.createdAt;
 
-      if (ts >= thirtyDaysAgo) gmv30d += total;
+      if (ts >= thirtyDaysAgo) gmv30d += totalDollars;
 
       const dateStr = ts
         ? new Date(ts).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
         : "—";
 
-      recentOrders.push({ id: d.id, total, status, date: dateStr });
+      recentOrders.push({ id: d.id, total: totalDollars, status, date: dateStr });
     });
 
     recentOrders.sort((a, b) => {
