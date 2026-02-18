@@ -13,7 +13,6 @@ type Ticket = {
   subject: string;
   fromName: string;
   fromEmail: string;
-  sendTo: string;
   message: string;
   status: string;
   createdAt: string;
@@ -123,7 +122,6 @@ export default function ManagementSupportTickets({ tickets }: Props) {
                   <th>Ticket</th>
                   <th>Subject</th>
                   <th>From</th>
-                  <th>Sent To</th>
                   <th>Status</th>
                   <th>Date</th>
                   <th>Action</th>
@@ -135,7 +133,7 @@ export default function ManagementSupportTickets({ tickets }: Props) {
                   const st = statusMap[t.id] || t.status;
                   return (
                     <tr key={t.id} className="ticket-group">
-                      <td colSpan={7} style={{ padding: 0 }}>
+                      <td colSpan={6} style={{ padding: 0 }}>
                         {/* Summary row */}
                         <div
                           className={`ticket-row${isOpen ? " expanded" : ""}`}
@@ -148,13 +146,6 @@ export default function ManagementSupportTickets({ tickets }: Props) {
                           <span className="col-from">
                             {t.fromName ? `${t.fromName} ` : ""}
                             <span className="email-dim">{t.fromEmail}</span>
-                          </span>
-                          <span className="col-sendto">
-                            <span
-                              className={`badge badge-${t.sendTo}`}
-                            >
-                              {t.sendTo}
-                            </span>
                           </span>
                           <span className="col-status">
                             <span
@@ -201,7 +192,7 @@ export default function ManagementSupportTickets({ tickets }: Props) {
                 })}
                 {filtered.length === 0 && (
                   <tr>
-                    <td colSpan={7} className="table-message">
+                    <td colSpan={6} className="table-message">
                       No support tickets
                       {filter !== "all" ? ` with status "${filter}"` : " yet"}.
                     </td>
@@ -274,7 +265,7 @@ export default function ManagementSupportTickets({ tickets }: Props) {
         /* Ticket rows */
         .ticket-row {
           display: grid;
-          grid-template-columns: 80px 1fr 1fr 80px 80px 120px 80px;
+          grid-template-columns: 80px 1fr 1fr 80px 120px 80px;
           align-items: center;
           padding: 8px 12px;
           cursor: pointer;
@@ -322,15 +313,6 @@ export default function ManagementSupportTickets({ tickets }: Props) {
           background: #f3f4f6;
           color: #6b7280;
         }
-        .badge-support {
-          background: #dbeafe;
-          color: #1e40af;
-        }
-        .badge-admin {
-          background: #fef3c7;
-          color: #92400e;
-        }
-
         /* Status button */
         .status-btn {
           padding: 4px 10px;
@@ -381,7 +363,6 @@ export default function ManagementSupportTickets({ tickets }: Props) {
             gap: 4px;
           }
           .col-ticket,
-          .col-sendto,
           .col-date,
           .col-action {
             font-size: 12px;
@@ -407,7 +388,6 @@ export const getServerSideProps: GetServerSideProps<Props> = async () => {
         subject: d.subject || d.topic || "",
         fromName: d.fromName || d.name || "",
         fromEmail: d.fromEmail || d.email || "",
-        sendTo: d.sendTo || "support",
         message: d.message || "",
         status: d.status || "Open",
         createdAt:
