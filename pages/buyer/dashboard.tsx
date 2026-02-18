@@ -117,33 +117,34 @@ export default function BuyerDashboardPage() {
     setActiveOffers(offers);
 
     const orders: ItemRow[] = [];
+    const seenIds = new Set<string>();
+    const pushOrderItem = (docSnap: any) => {
+      if (seenIds.has(docSnap.id)) return;
+      seenIds.add(docSnap.id);
+      const d: any = docSnap.data() || {};
+      orders.push({
+        id: docSnap.id,
+        title: d.listingTitle || d.title || "Purchased item",
+        brand: d.listingBrand || d.brand || "",
+      });
+    };
     try {
       if (email) {
         const ordersByEmail = await getDocs(
           query(collection(db, "orders"), where("buyerEmail", "==", email))
         );
-        ordersByEmail.forEach((doc) => {
-          const d: any = doc.data() || {};
-          orders.push({
-            id: doc.id,
-            title: d.listingTitle || d.title || "Purchased item",
-            brand: d.listingBrand || d.brand || "",
-          });
-        });
+        ordersByEmail.forEach(pushOrderItem);
+        // Also check buyerFormEmail — the checkout form email may differ from PayPal email
+        const ordersByFormEmail = await getDocs(
+          query(collection(db, "orders"), where("buyerFormEmail", "==", email))
+        );
+        ordersByFormEmail.forEach(pushOrderItem);
       }
 
       const ordersByUid = await getDocs(
-        query(collection(db, "orders"), where("buyerUid", "==", uid))
+        query(collection(db, "orders"), where("buyerId", "==", uid))
       );
-      ordersByUid.forEach((doc) => {
-        if (orders.find((o) => o.id === doc.id)) return;
-        const d: any = doc.data() || {};
-        orders.push({
-          id: doc.id,
-          title: d.listingTitle || d.title || "Purchased item",
-          brand: d.listingBrand || d.brand || "",
-        });
-      });
+      ordersByUid.forEach(pushOrderItem);
     } catch (err) {
       console.error("Failed to load orders:", err);
     }

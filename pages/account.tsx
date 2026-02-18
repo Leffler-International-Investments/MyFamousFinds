@@ -116,7 +116,8 @@ export default function AccountPage() {
           id: d.id,
           ...(d.data() as any),
         })) as ItemRow[];
-      } catch {
+      } catch (err) {
+        console.error(`Failed to load ${name}:`, err);
         return [];
       }
     };
@@ -150,12 +151,19 @@ export default function AccountPage() {
           query(collection(db, "orders"), where("buyerEmail", "==", email))
         );
         ordersByEmail.forEach(pushOrder);
+        // Also check buyerFormEmail — the checkout form email may differ from PayPal email
+        const ordersByFormEmail = await getDocs(
+          query(collection(db, "orders"), where("buyerFormEmail", "==", email))
+        );
+        ordersByFormEmail.forEach(pushOrder);
       }
       const ordersByUid = await getDocs(
         query(collection(db, "orders"), where("buyerId", "==", uid))
       );
       ordersByUid.forEach(pushOrder);
-    } catch {}
+    } catch (err) {
+      console.error("Failed to load purchase history:", err);
+    }
     setPurchasedItems(orders);
 
     // Load personalized recommendations
@@ -168,23 +176,49 @@ export default function AccountPage() {
         ...(d.data() as any),
       })) as ItemRow[];
       setRecommendations(recs);
-    } catch {}
+    } catch (err) {
+      console.error("Failed to load recommendations:", err);
+    }
   };
 
   const loadSellerStatus = async (email: string) => {
     if (!db || !email) return;
+    const lowerEmail = email.trim().toLowerCase();
+    const applyFormatId = lowerEmail.replace(/\./g, "_");
+
+    const applyStatus = (data: any) => {
+      const status = String(data.status || "").toLowerCase();
+      if (status === "approved") setSellerStatus("approved");
+      else if (status === "pending") setSellerStatus("pending");
+      else if (status === "rejected") setSellerStatus("rejected");
+      else setSellerStatus("pending");
+    };
+
     try {
-      const sellerId = email.trim().toLowerCase().replace(/\./g, "_");
-      const sellerDoc = await getDoc(doc(db, "sellers", sellerId));
-      if (sellerDoc.exists()) {
-        const data = sellerDoc.data() as any;
-        const status = String(data.status || "").toLowerCase();
-        if (status === "approved") setSellerStatus("approved");
-        else if (status === "pending") setSellerStatus("pending");
-        else if (status === "rejected") setSellerStatus("rejected");
-        else setSellerStatus("pending");
+      // Try raw email as doc ID (profile/onboard/login path)
+      const byRawEmail = await getDoc(doc(db, "sellers", lowerEmail));
+      if (byRawEmail.exists()) { applyStatus(byRawEmail.data()); return; }
+
+      // Try underscore-format doc ID (apply path)
+      if (applyFormatId !== lowerEmail) {
+        const byUnderscoreId = await getDoc(doc(db, "sellers", applyFormatId));
+        if (byUnderscoreId.exists()) { applyStatus(byUnderscoreId.data()); return; }
       }
-    } catch {}
+
+      // Fallback: query by email field
+      const byEmailField = await getDocs(
+        query(collection(db, "sellers"), where("email", "==", lowerEmail))
+      );
+      if (!byEmailField.empty) { applyStatus(byEmailField.docs[0].data()); return; }
+
+      // Fallback: query by contactEmail field
+      const byContactEmail = await getDocs(
+        query(collection(db, "sellers"), where("contactEmail", "==", lowerEmail))
+      );
+      if (!byContactEmail.empty) { applyStatus(byContactEmail.docs[0].data()); return; }
+    } catch (err) {
+      console.error("Failed to load seller status:", err);
+    }
   };
 
   const loadPreferences = async (uid: string) => {
