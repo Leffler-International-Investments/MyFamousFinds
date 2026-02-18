@@ -19,7 +19,6 @@ export default function ContactPage() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [subject, setSubject] = useState("");
-  const [sendTo, setSendTo] = useState<"support" | "admin">("support");
   const [message, setMessage] = useState("");
 
   const [submitting, setSubmitting] = useState(false);
@@ -49,7 +48,7 @@ export default function ContactPage() {
           name: trimmedName,
           email: trimmedEmail,
           topic: subject,
-          sendTo,
+          sendTo: "support",
           message: trimmedMessage,
         }),
       });
@@ -72,7 +71,6 @@ export default function ContactPage() {
       setName("");
       setEmail("");
       setSubject("");
-      setSendTo("support");
       setMessage("");
       setSubmitting(false);
     } catch {
@@ -145,33 +143,6 @@ export default function ContactPage() {
                 ))}
               </select>
             </label>
-
-            {/* Send To */}
-            <fieldset className="field-group">
-              <legend className="field-label">Send To</legend>
-              <div className="radio-row">
-                <label className="radio-label">
-                  <input
-                    type="radio"
-                    name="sendTo"
-                    value="support"
-                    checked={sendTo === "support"}
-                    onChange={() => setSendTo("support")}
-                  />
-                  <span>Support Team</span>
-                </label>
-                <label className="radio-label">
-                  <input
-                    type="radio"
-                    name="sendTo"
-                    value="admin"
-                    checked={sendTo === "admin"}
-                    onChange={() => setSendTo("admin")}
-                  />
-                  <span>Admin / Management</span>
-                </label>
-              </div>
-            </fieldset>
 
             {/* Message */}
             <label className="field-label">
@@ -311,31 +282,6 @@ export default function ContactPage() {
           resize: vertical;
           min-height: 120px;
           font-family: inherit;
-        }
-
-        /* Radio */
-        .field-group {
-          border: none;
-          padding: 0;
-          margin: 0;
-        }
-        .field-group legend {
-          margin-bottom: 6px;
-        }
-        .radio-row {
-          display: flex;
-          gap: 20px;
-        }
-        .radio-label {
-          display: flex;
-          align-items: center;
-          gap: 6px;
-          font-size: 14px;
-          color: #374151;
-          cursor: pointer;
-        }
-        .radio-label input[type="radio"] {
-          accent-color: #111827;
         }
 
         /* Submit */

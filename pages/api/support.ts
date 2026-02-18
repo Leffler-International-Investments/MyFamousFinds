@@ -9,7 +9,7 @@ export default async function handler(
 ) {
   if (req.method !== "POST") return res.status(405).end();
 
-  const { name, email, topic, sendTo, message } = req.body || {};
+  const { name, email, topic, message } = req.body || {};
 
   if (!name || !email || !topic || !message) {
     return res.status(400).json({ ok: false, error: "Please fill in all required fields." });
@@ -17,11 +17,8 @@ export default async function handler(
 
   // Generate a short ticket ID
   const ticketId = Math.random().toString(36).slice(2, 8).toUpperCase();
-  const destination = sendTo === "admin" ? "admin" : "support";
-  const recipientEmail =
-    destination === "admin"
-      ? "admin@myfamousfinds.com"
-      : "support@myfamousfinds.com";
+  const destination = "support";
+  const recipientEmail = "support@myfamousfinds.com";
 
   // Save to Firestore so the management dashboard can view it
   try {
