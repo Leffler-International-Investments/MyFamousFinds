@@ -1,7 +1,8 @@
 // FILE: /components/WishlistButton.tsx
 import { useEffect, useState } from "react";
 import { onAuthStateChanged } from "firebase/auth";
-import { auth, firebaseClientReady } from "../utils/firebaseClient";
+import { auth, db, firebaseClientReady } from "../utils/firebaseClient";
+import { doc, getDoc } from "firebase/firestore";
 import { useRouter } from "next/router";
 import { useToast } from "./Toast";
 
@@ -19,22 +20,39 @@ export default function WishlistButton({ productId }:{ productId:string }){
     return () => unsub();
   }, []);
 
+  // Load initial saved state when userId is available
+  useEffect(() => {
+    if (!userId || !productId || !db) return;
+    const docId = `${userId}_${productId}`;
+    getDoc(doc(db, "buyerSavedItems", docId))
+      .then((snap) => {
+        if (snap.exists()) setOn(true);
+      })
+      .catch(() => {});
+  }, [userId, productId]);
+
   async function t(){
     if (!userId) {
       router.push("/buyer/signin");
       return;
     }
     const next = !on;
-    await fetch("/api/wishlist/toggle",{
-      method:"POST",
-      headers:{
-        "Content-Type":"application/json",
-        ...(userId ? { "x-user-id": userId } : {}),
-      },
-      body: JSON.stringify({ productId, on: next })
-    });
-    setOn(next);
-    showToast(next ? "Product added to your wishlist" : "Product removed from your wishlist");
+    try {
+      const token = await auth.currentUser?.getIdToken();
+      await fetch("/api/wishlist/toggle",{
+        method:"POST",
+        headers:{
+          "Content-Type":"application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ productId, on: next })
+      });
+      setOn(next);
+      showToast(next ? "Product added to your wishlist" : "Product removed from your wishlist");
+    } catch (err) {
+      console.error("wishlist_toggle_error", err);
+      showToast("Could not update your wishlist. Please try again.");
+    }
   }
   return (
     <button className="btn-wishlist" onClick={t} title={on ? "Remove from wishlist" : "Save to wishlist"}>
