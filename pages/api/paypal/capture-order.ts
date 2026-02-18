@@ -8,6 +8,7 @@ import {
   sendBuyerOrderConfirmationEmail,
   sendSellerItemSoldEmail,
 } from "../../../utils/email";
+import { queueEmail } from "../../../utils/emailOutbox";
 
 type SuccessResponse = {
   ok: true;
@@ -195,31 +196,84 @@ export default async function handler(
           currency,
         });
       } catch (emailErr) {
-        console.error("[capture-order] Buyer confirmation email failed:", emailErr);
+        console.error("[capture-order] Buyer confirmation email failed, queueing to outbox:", emailErr);
+        await queueEmail({
+          to: payerEmail,
+          subject: "MyFamousFinds — Order Confirmation",
+          text:
+            `Hello ${payerName || "there"},\n\n` +
+            `Thank you for your purchase on MyFamousFinds!\n\n` +
+            `Order ID: ${orderRef.id}\nItem: ${itemTitle}\nTotal: ${currency} ${amountStr}\n\n` +
+            `We will process your order and keep you updated on shipping.\n\n` +
+            `Regards,\nThe MyFamousFinds Team\n`,
+          eventType: "buyer_order_confirmation",
+          eventKey: `${orderRef.id}:buyer_order_confirmation`,
+          metadata: { orderId: orderRef.id, buyerEmail: payerEmail },
+        }).catch((qErr) => console.error("[capture-order] Outbox queue also failed:", qErr));
       }
     }
 
     // Send seller sold notification email
     if (sellerId) {
+      let sellerEmail = "";
+      let sellerName = "";
       try {
         const sellerDoc = await adminDb.collection("sellers").doc(sellerId).get();
         const sellerData = sellerDoc.exists ? sellerDoc.data() || {} : {};
-        const sellerEmail = String(
+        sellerEmail = String(
           sellerData.contactEmail || sellerData.email || sellerId
         );
-        if (sellerEmail && sellerEmail.includes("@")) {
+        sellerName = String(sellerData.businessName || sellerData.name || "");
+      } catch (lookupErr) {
+        console.error("[capture-order] Seller lookup failed:", lookupErr);
+      }
+
+      if (sellerEmail && sellerEmail.includes("@")) {
+        const sellerSubject = "MyFamousFinds — Your Item Has Been Sold!";
+        const sellerText =
+          `Hello ${sellerName || "Seller"},\n\n` +
+          `Great news — your item has been sold on MyFamousFinds!\n\n` +
+          `Item: ${itemTitle}\nSale Amount: ${currency} ${amountStr}\nOrder ID: ${orderRef.id}\n\n` +
+          `Please prepare the item for shipping. You can view the order details in your Seller Dashboard.\n\n` +
+          `Regards,\nThe MyFamousFinds Team\n`;
+        const sellerHtml =
+          `<p>Hello ${sellerName || "Seller"},</p>` +
+          `<p style="font-size:16px;"><b>Great news — your item has been sold on MyFamousFinds!</b></p>` +
+          `<div style="padding:12px;background:#fef3c7;border-radius:6px;margin:12px 0;">` +
+          `<p style="margin:4px 0;"><b>Item:</b> ${itemTitle}</p>` +
+          `<p style="margin:4px 0;"><b>Sale Amount:</b> ${currency} ${amountStr}</p>` +
+          `<p style="margin:4px 0;"><b>Order ID:</b> ${orderRef.id}</p>` +
+          `</div>` +
+          `<p>Please prepare the item for shipping. You can view the order details in your Seller Dashboard.</p>` +
+          `<p>Regards,<br/>The MyFamousFinds Team</p>`;
+
+        // Try direct send first, queue to outbox on failure
+        try {
           await sendSellerItemSoldEmail({
             to: sellerEmail,
-            sellerName: String(sellerData.businessName || sellerData.name || ""),
+            sellerName,
             itemTitle,
             amount: amountStr,
             currency,
             orderId: orderRef.id,
           });
+        } catch (emailErr) {
+          console.error("[capture-order] Seller notification email failed, queueing to outbox:", emailErr);
+          await queueEmail({
+            to: sellerEmail,
+            subject: sellerSubject,
+            text: sellerText,
+            html: sellerHtml,
+            eventType: "seller_item_sold",
+            eventKey: `${orderRef.id}:seller_item_sold:${sellerId}`,
+            metadata: { orderId: orderRef.id, sellerId, sellerEmail, itemTitle },
+          }).catch((qErr) => console.error("[capture-order] Outbox queue also failed:", qErr));
         }
-      } catch (emailErr) {
-        console.error("[capture-order] Seller notification email failed:", emailErr);
+      } else {
+        console.error(`[capture-order] No valid seller email found for sellerId=${sellerId}`);
       }
+    } else {
+      console.error(`[capture-order] No sellerId on listing ${listingId} — seller notification skipped`);
     }
 
     return res.status(200).json({

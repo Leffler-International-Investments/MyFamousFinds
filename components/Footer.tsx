@@ -149,10 +149,10 @@ export default function Footer() {
               )}
             </div>
 
-            {/* Back to Homepage */}
+            {/* Homepage */}
             <div className="ff-footer-item">
               <Link href="/" className="ff-footer-link">
-                Back to Homepage
+                Homepage
               </Link>
             </div>
 
@@ -282,7 +282,7 @@ export default function Footer() {
             gap: 4px;
             font-size: 13px;
             color: #d1d5db;
-            font-weight: 500;
+            font-weight: 600;
             text-decoration: none;
             white-space: nowrap;
             background: none;
@@ -291,6 +291,7 @@ export default function Footer() {
             padding: 8px 14px;
             border-radius: 6px;
             transition: color 0.15s, background 0.15s;
+            font-family: inherit;
           }
 
           .ff-footer-link:hover {
