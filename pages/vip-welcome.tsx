@@ -4,6 +4,7 @@ import React from "react";
 import Head from "next/head";
 import Link from "next/link";
 import Header from "../components/Header";
+import Footer from "../components/Footer";
 
 // Simple SVG icons for the benefits
 const TicketIcon = () => (
@@ -258,6 +259,8 @@ export default function VipWelcomePage() {
             </p>
           </section>
         </main>
+
+        <Footer />
       </div>
     </>
   );
