@@ -149,6 +149,13 @@ export default function Footer() {
               )}
             </div>
 
+            {/* VIP Club */}
+            <div className="ff-footer-item">
+              <Link href="/vip-welcome" className="ff-footer-link">
+                VIP Club
+              </Link>
+            </div>
+
             {/* Homepage */}
             <div className="ff-footer-item">
               <Link href="/" className="ff-footer-link">
@@ -287,7 +294,8 @@ export default function Footer() {
           }
 
           /* ---- Shared link / button style ---- */
-          .ff-footer-link {
+          .ff-footer-link,
+          :global(.ff-footer-link) {
             display: inline-flex;
             align-items: center;
             gap: 4px;
@@ -306,7 +314,8 @@ export default function Footer() {
             letter-spacing: 0.02em;
           }
 
-          .ff-footer-link:hover {
+          .ff-footer-link:hover,
+          :global(.ff-footer-link:hover) {
             color: #ffffff;
             background: rgba(255, 255, 255, 0.06);
           }

@@ -50,12 +50,19 @@ export default function OrderSuccessPage({
           <div className="checkmark">&#10003;</div>
           <h1 className="heading">Thank you, your order is confirmed.</h1>
           <p className="lead">
-            We&apos;ve emailed your receipt and will notify you as soon as your seller
-            ships your item.
+            We&apos;ve emailed your receipt. Your seller will prepare your item for
+            shipment and tracking details will be updated in your orders once dispatched.
           </p>
 
           <div className="card">
             <h2 className="card-title">Order summary</h2>
+
+            <div className="row">
+              <span className="label">Status</span>
+              <span className="value">
+                <span className="status-badge">Ordered &mdash; Shipment pending</span>
+              </span>
+            </div>
 
             <div className="row">
               <span className="label">Item</span>
@@ -206,6 +213,16 @@ export default function OrderSuccessPage({
             font-family: monospace;
             font-size: 11px;
             word-break: break-all;
+          }
+          .status-badge {
+            display: inline-block;
+            background: #fef3c7;
+            color: #92400e;
+            font-size: 12px;
+            font-weight: 700;
+            padding: 4px 12px;
+            border-radius: 999px;
+            letter-spacing: 0.02em;
           }
           .actions {
             display: flex;
