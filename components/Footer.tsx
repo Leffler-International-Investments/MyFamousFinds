@@ -1,184 +1,139 @@
 // FILE: /components/Footer.tsx
 
 import Link from "next/link";
-import { useState, useRef, useEffect } from "react";
+import { useState } from "react";
 import ButlerChat from "./ButlerChat";
 
 export default function Footer() {
   const year = new Date().getFullYear();
   const [isChatOpen, setIsChatOpen] = useState(false);
-  const [openDropdown, setOpenDropdown] = useState<string | null>(null);
-  const dropdownRef = useRef<HTMLDivElement | null>(null);
-
-  // Close dropdown when clicking outside
-  useEffect(() => {
-    function handleClickOutside(e: MouseEvent) {
-      if (
-        dropdownRef.current &&
-        !dropdownRef.current.contains(e.target as Node)
-      ) {
-        setOpenDropdown(null);
-      }
-    }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
-
-  function toggleDropdown(name: string) {
-    setOpenDropdown((prev) => (prev === name ? null : name));
-  }
 
   return (
     <>
       <footer className="ff-footer">
-        <div className="ff-footer-inner" ref={dropdownRef}>
-          {/* Brand */}
-          <div className="ff-footer-brand">
-            <div className="ff-footer-title">FAMOUS FINDS</div>
-            <div className="ff-footer-copy">
-              &copy; {year} All rights reserved. Curated pre-loved luxury.
-            </div>
-          </div>
-
-          {/* Main footer navigation row */}
-          <nav className="ff-footer-nav">
-            {/* AI Concierge link */}
-            <div className="ff-footer-item">
-              <button
-                className="ff-footer-link"
-                onClick={() => setIsChatOpen(!isChatOpen)}
-                aria-label="Open Famous Concierge"
-              >
-                Ask the Famous Concierge
-              </button>
-            </div>
-
-            {/* My Shop dropdown */}
-            <div className="ff-footer-item ff-dropdown-wrapper">
-              <button
-                className="ff-footer-link ff-dropdown-toggle"
-                onClick={() => toggleDropdown("shop")}
-                aria-expanded={openDropdown === "shop"}
-              >
-                My Shop
-                <span
-                  className={`ff-chevron ${openDropdown === "shop" ? "open" : ""}`}
-                >
-                  ▾
-                </span>
-              </button>
-              {openDropdown === "shop" && (
-                <div className="ff-dropdown-menu">
-                  <Link
-                    href="/my-orders"
-                    className="ff-dropdown-link"
-                    onClick={() => setOpenDropdown(null)}
-                  >
-                    Shopping Bag
+        <div className="ff-footer-inner">
+          {/* ---- Column grid ---- */}
+          <nav className="ff-footer-columns">
+            {/* OUR SERVICES */}
+            <div className="ff-footer-col">
+              <h3 className="ff-col-heading">Our Services</h3>
+              <ul className="ff-col-list">
+                <li>
+                  <Link href="/vip-welcome" className="ff-col-link">
+                    VIP Club
                   </Link>
-                  <Link
-                    href="/buying"
-                    className="ff-dropdown-link"
-                    onClick={() => setOpenDropdown(null)}
+                </li>
+                <li>
+                  <button
+                    className="ff-col-link ff-col-btn"
+                    onClick={() => setIsChatOpen(!isChatOpen)}
                   >
+                    Famous Concierge
+                  </button>
+                </li>
+              </ul>
+            </div>
+
+            {/* BUY */}
+            <div className="ff-footer-col">
+              <h3 className="ff-col-heading">Buy</h3>
+              <ul className="ff-col-list">
+                <li>
+                  <Link href="/buying" className="ff-col-link">
+                    Buying Guide
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/my-orders" className="ff-col-link">
+                    My Orders
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/buying#authenticity" className="ff-col-link">
                     Authenticity
                   </Link>
-                  <Link
-                    href="/privacy"
-                    className="ff-dropdown-link"
-                    onClick={() => setOpenDropdown(null)}
-                  >
-                    Privacy
-                  </Link>
-                </div>
-              )}
+                </li>
+              </ul>
             </div>
 
-            {/* Services dropdown */}
-            <div className="ff-footer-item ff-dropdown-wrapper">
-              <button
-                className="ff-footer-link ff-dropdown-toggle"
-                onClick={() => toggleDropdown("services")}
-                aria-expanded={openDropdown === "services"}
-              >
-                Services
-                <span
-                  className={`ff-chevron ${openDropdown === "services" ? "open" : ""}`}
-                >
-                  ▾
-                </span>
-              </button>
-              {openDropdown === "services" && (
-                <div className="ff-dropdown-menu">
-                  <Link
-                    href="/help"
-                    className="ff-dropdown-link"
-                    onClick={() => setOpenDropdown(null)}
-                  >
-                    Help
+            {/* SELL */}
+            <div className="ff-footer-col">
+              <h3 className="ff-col-heading">Sell</h3>
+              <ul className="ff-col-list">
+                <li>
+                  <Link href="/selling" className="ff-col-link">
+                    How to Sell
                   </Link>
-                  <Link
-                    href="/contact"
-                    className="ff-dropdown-link"
-                    onClick={() => setOpenDropdown(null)}
-                  >
+                </li>
+                <li>
+                  <Link href="/seller/login" className="ff-col-link">
+                    Seller Login
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/seller-terms" className="ff-col-link">
+                    Seller T&amp;Cs
+                  </Link>
+                </li>
+              </ul>
+            </div>
+
+            {/* HELP */}
+            <div className="ff-footer-col">
+              <h3 className="ff-col-heading">Help</h3>
+              <ul className="ff-col-list">
+                <li>
+                  <Link href="/help" className="ff-col-link">
+                    FAQ
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/contact" className="ff-col-link">
                     Contact
                   </Link>
-                  <Link
-                    href="/about"
-                    className="ff-dropdown-link"
-                    onClick={() => setOpenDropdown(null)}
-                  >
+                </li>
+                <li>
+                  <Link href="/shipping" className="ff-col-link">
+                    Shipping &amp; Delivery
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/returns" className="ff-col-link">
+                    Returns
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/privacy" className="ff-col-link">
+                    Privacy
+                  </Link>
+                </li>
+              </ul>
+            </div>
+
+            {/* ABOUT FAMOUS FINDS */}
+            <div className="ff-footer-col">
+              <h3 className="ff-col-heading">About Famous Finds</h3>
+              <ul className="ff-col-list">
+                <li>
+                  <Link href="/about" className="ff-col-link">
                     About
                   </Link>
-                  <Link
-                    href="/returns"
-                    className="ff-dropdown-link"
-                    onClick={() => setOpenDropdown(null)}
-                  >
-                    Returns Policy
-                  </Link>
-                  <Link
-                    href="/terms"
-                    className="ff-dropdown-link"
-                    onClick={() => setOpenDropdown(null)}
-                  >
+                </li>
+                <li>
+                  <Link href="/terms" className="ff-col-link">
                     Terms &amp; Conditions
                   </Link>
-                </div>
-              )}
-            </div>
-
-            {/* VIP Club */}
-            <div className="ff-footer-item">
-              <Link href="/vip-welcome" className="ff-footer-link">
-                VIP Club
-              </Link>
-            </div>
-
-            {/* Homepage */}
-            <div className="ff-footer-item">
-              <Link href="/" className="ff-footer-link">
-                Homepage
-              </Link>
-            </div>
-
-            {/* Sellers */}
-            <div className="ff-footer-item">
-              <Link href="/seller/login" className="ff-footer-link">
-                Sellers
-              </Link>
-            </div>
-
-            {/* Management */}
-            <div className="ff-footer-item">
-              <Link href="/management/login" className="ff-footer-link">
-                Management
-              </Link>
+                </li>
+                <li>
+                  <Link href="/management/login" className="ff-col-link">
+                    Management
+                  </Link>
+                </li>
+              </ul>
             </div>
           </nav>
 
-          {/* Social media icons */}
+          {/* ---- Social media icons ---- */}
           <div className="ff-footer-social">
             <a
               href="#"
@@ -229,6 +184,14 @@ export default function Footer() {
               </svg>
             </a>
           </div>
+
+          {/* ---- Brand + copyright ---- */}
+          <div className="ff-footer-brand">
+            <div className="ff-footer-title">FAMOUS FINDS</div>
+            <div className="ff-footer-copy">
+              &copy; {year} Famous Finds. All rights reserved. Curated pre-loved luxury.
+            </div>
+          </div>
         </div>
 
         <style jsx>{`
@@ -242,19 +205,61 @@ export default function Footer() {
           .ff-footer-inner {
             max-width: 1200px;
             margin: 0 auto;
-            padding: 24px 16px 28px;
-            text-align: center;
+            padding: 40px 24px 32px;
             display: flex;
             flex-direction: column;
             align-items: center;
-            gap: 16px;
+            gap: 28px;
           }
 
+          /* ---- Column grid ---- */
+          .ff-footer-columns {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 32px;
+            width: 100%;
+          }
+
+          .ff-footer-col {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+          }
+
+          .ff-col-heading {
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.12em;
+            color: #9ca3af;
+            margin: 0 0 2px;
+          }
+
+          .ff-col-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+          }
+
+          .ff-col-btn {
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 0;
+            font-family: inherit;
+            text-align: left;
+          }
+
+          /* ---- Brand + copyright ---- */
           .ff-footer-brand {
             display: flex;
             flex-direction: column;
             align-items: center;
             gap: 4px;
+            text-align: center;
           }
 
           .ff-footer-title {
@@ -269,119 +274,12 @@ export default function Footer() {
             color: #9ca3af;
           }
 
-          /* ---- Navigation row ---- */
-          .ff-footer-nav {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 0;
-            flex-wrap: wrap;
-          }
-
-          .ff-footer-item {
-            position: relative;
-            display: flex;
-            align-items: center;
-          }
-
-          .ff-footer-item + .ff-footer-item::before {
-            content: "";
-            display: block;
-            width: 1px;
-            height: 16px;
-            background: #4b5563;
-            margin: 0 4px;
-          }
-
-          /* ---- Shared link / button style ---- */
-          .ff-footer-link,
-          :global(.ff-footer-link) {
-            display: inline-flex;
-            align-items: center;
-            gap: 4px;
-            font-size: 13px;
-            color: #d1d5db;
-            font-weight: 700;
-            text-decoration: none;
-            white-space: nowrap;
-            background: none;
-            border: none;
-            cursor: pointer;
-            padding: 8px 14px;
-            border-radius: 6px;
-            transition: color 0.15s, background 0.15s;
-            font-family: inherit;
-            letter-spacing: 0.02em;
-          }
-
-          .ff-footer-link:hover,
-          :global(.ff-footer-link:hover) {
-            color: #ffffff;
-            background: rgba(255, 255, 255, 0.06);
-          }
-
-          /* ---- Dropdown toggle ---- */
-          .ff-dropdown-toggle {
-            font-family: inherit;
-          }
-
-          .ff-chevron {
-            display: inline-block;
-            font-size: 11px;
-            transition: transform 0.2s;
-            margin-left: 2px;
-          }
-
-          .ff-chevron.open {
-            transform: rotate(180deg);
-          }
-
-          /* ---- Dropdown menu ---- */
-          .ff-dropdown-wrapper {
-            position: relative;
-          }
-
-          .ff-dropdown-menu {
-            position: absolute;
-            top: 100%;
-            left: 50%;
-            transform: translateX(-50%);
-            background: #1f2937;
-            border: 1px solid #374151;
-            border-radius: 8px;
-            padding: 6px 0;
-            min-width: 170px;
-            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
-            z-index: 100;
-            margin-top: 4px;
-            display: flex;
-            flex-direction: column;
-          }
-
-          .ff-dropdown-link {
-            display: block !important;
-            width: 100% !important;
-            padding: 8px 16px !important;
-            font-size: 13px !important;
-            color: #d1d5db !important;
-            text-decoration: none !important;
-            white-space: nowrap !important;
-            transition: background 0.12s, color 0.12s;
-            text-align: left;
-          }
-
-          .ff-dropdown-link:hover {
-            background: #374151 !important;
-            color: #ffffff !important;
-          }
-
           /* ---- Social icons ---- */
           .ff-footer-social {
             display: flex;
             align-items: center;
             justify-content: center;
             gap: 16px;
-            padding-top: 4px;
           }
 
           .ff-social-icon {
@@ -399,29 +297,40 @@ export default function Footer() {
 
           /* ---- Responsive: stack on mobile ---- */
           @media (max-width: 768px) {
-            .ff-footer-nav {
-              flex-direction: column;
-              gap: 4px;
+            .ff-footer-columns {
+              grid-template-columns: repeat(2, 1fr);
+              gap: 24px 16px;
+            }
+          }
+
+          @media (max-width: 480px) {
+            .ff-footer-columns {
+              grid-template-columns: 1fr;
+              gap: 20px;
+              text-align: center;
             }
 
-            .ff-footer-item + .ff-footer-item::before {
-              display: none;
-            }
-
-            .ff-dropdown-menu {
-              position: relative;
-              top: auto;
-              left: auto;
-              transform: none;
-              margin-top: 4px;
-              box-shadow: none;
-              border: 1px solid #374151;
-              display: flex;
-              flex-direction: column;
+            .ff-footer-col {
+              align-items: center;
             }
           }
         `}</style>
       </footer>
+
+      {/* Global styles for Next.js Link components inside footer columns */}
+      <style jsx global>{`
+        .ff-col-link {
+          font-size: 13px;
+          color: #d1d5db;
+          text-decoration: none;
+          transition: color 0.15s;
+          line-height: 1.4;
+        }
+
+        .ff-col-link:hover {
+          color: #ffffff;
+        }
+      `}</style>
 
       {/* Butler chat panel */}
       <ButlerChat isOpen={isChatOpen} onClose={() => setIsChatOpen(false)} />
