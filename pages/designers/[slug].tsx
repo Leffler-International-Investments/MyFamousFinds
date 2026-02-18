@@ -12,11 +12,13 @@ import ProductCard, { ProductLike } from "../../components/ProductCard";
 /* ---------- helpers ---------- */
 const slugify = (s: string) =>
   s
+    .trim()
     .toLowerCase()
-    .normalize("NFKD")
+    .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
+    .replace(/&/g, "and")
     .replace(/[^a-z0-9]+/g, "-")
-    .replace(/(^-|-$)/g, "");
+    .replace(/^-+|-+$/g, "");
 
 type DesignerProps = {
   designer: { id: string; name: string; slug?: string };
@@ -152,12 +154,15 @@ export const getServerSideProps: GetServerSideProps<DesignerProps> = async (
     const decoded = decodeURIComponent(raw);
     const slug = slugify(decoded);
 
+    // 1. Try doc ID = raw URL param
     let docSnap = await adminDb.collection("designers").doc(raw).get();
 
-    if (!docSnap.exists) {
+    // 2. Try doc ID = slugified URL param
+    if (!docSnap.exists && slug !== raw) {
       docSnap = await adminDb.collection("designers").doc(slug).get();
     }
 
+    // 3. Query by slug field
     if (!docSnap.exists) {
       const bySlug = await adminDb
         .collection("designers")
@@ -167,7 +172,40 @@ export const getServerSideProps: GetServerSideProps<DesignerProps> = async (
       if (!bySlug.empty) docSnap = bySlug.docs[0];
     }
 
-    // ✅ REAL 404 (fixes Soft 404 in Google Search Console)
+    // 4. Also try slug without & → and conversion (legacy slugs)
+    if (!docSnap.exists) {
+      const legacySlug = decoded
+        .trim()
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-+|-+$/g, "");
+      if (legacySlug !== slug) {
+        const byLegacy = await adminDb
+          .collection("designers")
+          .where("slug", "==", legacySlug)
+          .limit(1)
+          .get();
+        if (!byLegacy.empty) docSnap = byLegacy.docs[0];
+      }
+    }
+
+    // 5. Full-scan fallback: slugify every designer name and compare
+    //    (designers collection is small, typically <100 docs)
+    if (!docSnap.exists) {
+      const allSnap = await adminDb.collection("designers").get();
+      for (const d of allSnap.docs) {
+        const data = d.data() as any;
+        const name = String(data?.name ?? d.id).trim();
+        if (slugify(name) === slug) {
+          docSnap = d;
+          break;
+        }
+      }
+    }
+
+    // Real 404 only after exhausting all lookup methods
     if (!docSnap.exists) {
       return { notFound: true };
     }
