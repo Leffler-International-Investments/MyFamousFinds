@@ -2,16 +2,18 @@
 
 import Head from "next/head";
 import Link from "next/link";
-import { useState, FormEvent } from "react";
+import { useEffect, useState, FormEvent } from "react";
 import { useRouter } from "next/router";
-import { createUserWithEmailAndPassword } from "firebase/auth";
-import { auth } from "../utils/firebaseClient";
+import { createUserWithEmailAndPassword, onAuthStateChanged, User } from "firebase/auth";
+import { auth, firebaseClientReady } from "../utils/firebaseClient";
 import Header from "../components/Header";
 import Footer from "../components/Footer";
 import { autoPrefixPhone } from "../utils/phoneFormat";
 
 export default function VipSignupPage() {
   const router = useRouter();
+  const [existingUser, setExistingUser] = useState<User | null>(null);
+  const [checkingAuth, setCheckingAuth] = useState(true);
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
@@ -19,6 +21,58 @@ export default function VipSignupPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Check if user is already signed in
+  useEffect(() => {
+    if (!firebaseClientReady || !auth) {
+      setCheckingAuth(false);
+      return;
+    }
+    const unsub = onAuthStateChanged(auth, (user) => {
+      setExistingUser(user);
+      setCheckingAuth(false);
+    });
+    return () => unsub();
+  }, []);
+
+  // Existing customer: just confirm VIP membership
+  async function handleConfirmVip(e: FormEvent) {
+    e.preventDefault();
+    if (!existingUser) return;
+    setError(null);
+    setLoading(true);
+
+    try {
+      const joinRes = await fetch("/api/vip/join", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          uid: existingUser.uid,
+          email: existingUser.email,
+          fullName: existingUser.displayName || fullName || null,
+          phone: phone.trim() || undefined,
+        }),
+      });
+
+      const joinJson = await joinRes.json();
+      if (!joinRes.ok || !joinJson?.ok) {
+        console.error("vip_join_api_error", joinJson);
+        setError("We couldn't activate your VIP membership. Please try again.");
+        return;
+      }
+
+      router.push("/vip-welcome");
+    } catch (err: any) {
+      console.error("vip_confirm_error", err);
+      setError(
+        err?.message ||
+          "Something went wrong. Please try again."
+      );
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  // New user: full signup flow
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setError(null);
@@ -47,10 +101,16 @@ export default function VipSignupPage() {
       router.push("/vip-welcome");
     } catch (err: any) {
       console.error("vip_signup_error", err);
-      setError(
-        err?.message ||
-          "We couldn't create your VIP profile just now. Please try again."
-      );
+      if (err?.code === "auth/email-already-in-use") {
+        setError(
+          "An account with this email already exists. Please sign in first, then come back to join the VIP Club."
+        );
+      } else {
+        setError(
+          err?.message ||
+            "We couldn't create your VIP profile just now. Please try again."
+        );
+      }
     } finally {
       setLoading(false);
     }
@@ -198,6 +258,13 @@ export default function VipSignupPage() {
           text-decoration: underline;
         }
 
+        .vip-auth-user-email {
+          font-size: 14px;
+          color: #111827;
+          font-weight: 600;
+          margin-bottom: 16px;
+        }
+
         @media (max-width: 480px) {
           .vip-auth-card {
             padding: 24px 18px 24px;
@@ -211,80 +278,140 @@ export default function VipSignupPage() {
         <main className="vip-auth-main">
           <section className="vip-auth-card">
             <p className="vip-auth-kicker">VIP CLUB</p>
-            <h1 className="vip-auth-title">Join the Front Row</h1>
-            <p className="vip-auth-subtitle">
-              Free membership. Earn points on every purchase, unlock tiers, and
-              get early access to drops.
-            </p>
 
-            <form className="vip-auth-form" onSubmit={handleSubmit}>
-              <div className="vip-auth-field">
-                <label className="vip-auth-label">Full name</label>
-                <input
-                  type="text"
-                  className="vip-auth-input"
-                  placeholder="First and last name"
-                  value={fullName}
-                  onChange={(e) => setFullName(e.target.value)}
-                  required
-                />
-              </div>
-
-              <div className="vip-auth-field">
-                <label className="vip-auth-label">Email</label>
-                <input
-                  type="email"
-                  className="vip-auth-input"
-                  placeholder="you@example.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                />
-              </div>
-
-              <div className="vip-auth-field">
-                <label className="vip-auth-label">Mobile number (for 2FA)</label>
-                <input
-                  type="tel"
-                  className="vip-auth-input"
-                  placeholder="+1 (555) 000-0000"
-                  autoComplete="tel"
-                  value={phone}
-                  onChange={(e) => setPhone(autoPrefixPhone(e.target.value))}
-                />
-              </div>
-
-              <div className="vip-auth-field">
-                <label className="vip-auth-label">Password</label>
-                <input
-                  type="password"
-                  className="vip-auth-input"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  minLength={6}
-                  required
-                />
-                <p className="vip-auth-hint">
-                  Use at least 6 characters. You’ll use this to sign in to your
-                  VIP profile.
+            {checkingAuth ? (
+              <p className="vip-auth-subtitle">Loading...</p>
+            ) : existingUser ? (
+              <>
+                {/* Existing customer — simplified confirmation */}
+                <h1 className="vip-auth-title">Confirm Your VIP Membership</h1>
+                <p className="vip-auth-subtitle">
+                  You&apos;re already signed in. Just confirm below to activate
+                  your VIP membership and start earning points.
                 </p>
-              </div>
+                <p className="vip-auth-user-email">{existingUser.email}</p>
 
-              {error && <p className="vip-auth-error">{error}</p>}
+                <form className="vip-auth-form" onSubmit={handleConfirmVip}>
+                  {!existingUser.displayName && (
+                    <div className="vip-auth-field">
+                      <label className="vip-auth-label">Full name</label>
+                      <input
+                        type="text"
+                        className="vip-auth-input"
+                        placeholder="First and last name"
+                        value={fullName}
+                        onChange={(e) => setFullName(e.target.value)}
+                      />
+                    </div>
+                  )}
 
-              <button
-                type="submit"
-                className="vip-auth-button"
-                disabled={loading}
-              >
-                {loading ? "Creating your seat..." : "Join the Club"}
-              </button>
-            </form>
+                  <div className="vip-auth-field">
+                    <label className="vip-auth-label">Mobile number (optional)</label>
+                    <input
+                      type="tel"
+                      className="vip-auth-input"
+                      placeholder="+1 (555) 000-0000"
+                      autoComplete="tel"
+                      value={phone}
+                      onChange={(e) => setPhone(autoPrefixPhone(e.target.value))}
+                    />
+                  </div>
 
-            <p className="vip-auth-footer-text">
-              Already a member?{" "}
-              <Link href="/vip-login">Sign in to your VIP profile</Link>
-            </p>
+                  {error && <p className="vip-auth-error">{error}</p>}
+
+                  <button
+                    type="submit"
+                    className="vip-auth-button"
+                    disabled={loading}
+                  >
+                    {loading ? "Activating..." : "Confirm VIP Membership"}
+                  </button>
+                </form>
+              </>
+            ) : (
+              <>
+                {/* New user — full signup form */}
+                <h1 className="vip-auth-title">Join the Front Row</h1>
+                <p className="vip-auth-subtitle">
+                  Free membership. Earn points on every purchase, unlock tiers, and
+                  get early access to drops.
+                </p>
+
+                <form className="vip-auth-form" onSubmit={handleSubmit}>
+                  <div className="vip-auth-field">
+                    <label className="vip-auth-label">Full name</label>
+                    <input
+                      type="text"
+                      className="vip-auth-input"
+                      placeholder="First and last name"
+                      value={fullName}
+                      onChange={(e) => setFullName(e.target.value)}
+                      required
+                    />
+                  </div>
+
+                  <div className="vip-auth-field">
+                    <label className="vip-auth-label">Email</label>
+                    <input
+                      type="email"
+                      className="vip-auth-input"
+                      placeholder="you@example.com"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      required
+                    />
+                  </div>
+
+                  <div className="vip-auth-field">
+                    <label className="vip-auth-label">Mobile number (for 2FA)</label>
+                    <input
+                      type="tel"
+                      className="vip-auth-input"
+                      placeholder="+1 (555) 000-0000"
+                      autoComplete="tel"
+                      value={phone}
+                      onChange={(e) => setPhone(autoPrefixPhone(e.target.value))}
+                    />
+                  </div>
+
+                  <div className="vip-auth-field">
+                    <label className="vip-auth-label">Password</label>
+                    <input
+                      type="password"
+                      className="vip-auth-input"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      minLength={6}
+                      required
+                    />
+                    <p className="vip-auth-hint">
+                      Use at least 6 characters. You'll use this to sign in to your
+                      VIP profile.
+                    </p>
+                  </div>
+
+                  {error && <p className="vip-auth-error">{error}</p>}
+
+                  <button
+                    type="submit"
+                    className="vip-auth-button"
+                    disabled={loading}
+                  >
+                    {loading ? "Creating your seat..." : "Join the Club"}
+                  </button>
+                </form>
+
+                <p className="vip-auth-footer-text">
+                  Already a member?{" "}
+                  <Link href="/vip-login">Sign in to your VIP profile</Link>
+                </p>
+                <p className="vip-auth-footer-text">
+                  Already have an account?{" "}
+                  <Link href="/login">Sign in first</Link>, then come back to
+                  join the VIP Club.
+                </p>
+              </>
+            )}
           </section>
         </main>
 

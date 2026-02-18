@@ -48,7 +48,7 @@ export default function Header({ filterContent, showFilter, onToggleFilter }: He
 
   const categoryNav = [
     { label: "NEW ARRIVALS", href: "/category/new-arrivals" },
-    { label: "FAMOU", href: "/catalogue" },
+    { label: "FAMOUS", href: "/catalogue" },
     { label: "DESIGNERS", href: "/designers" },
     { label: "CONSIGN", href: "/consign" },
     { label: "WOMEN", href: "/category/women" },
