@@ -385,10 +385,10 @@ export default function ManagementDashboard({ stats }: Props) {
           />
           <DashboardTile
             title="Support Tickets"
-            description="View and respond to customer support tickets."
+            description="View and respond to contact form messages from buyers and sellers. Open, close, and reply to tickets."
             href="/management/support-tickets"
             linkText="View Tickets"
-            linkColor="gray"
+            linkColor="blue"
           />
           <DashboardTile
             title="Logs & Audit Trail"
