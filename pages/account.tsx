@@ -161,6 +161,11 @@ export default function AccountPage() {
         query(collection(db, "orders"), where("buyerId", "==", uid))
       );
       ordersByUid.forEach(pushOrder);
+      // Also check legacy buyerUid field (orders created before buyerId migration)
+      const ordersByLegacyUid = await getDocs(
+        query(collection(db, "orders"), where("buyerUid", "==", uid))
+      );
+      ordersByLegacyUid.forEach(pushOrder);
     } catch (err) {
       console.error("Failed to load purchase history:", err);
     }

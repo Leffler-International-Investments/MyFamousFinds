@@ -145,6 +145,11 @@ export default function BuyerDashboardPage() {
         query(collection(db, "orders"), where("buyerId", "==", uid))
       );
       ordersByUid.forEach(pushOrderItem);
+      // Also check legacy buyerUid field (orders created before buyerId migration)
+      const ordersByLegacyUid = await getDocs(
+        query(collection(db, "orders"), where("buyerUid", "==", uid))
+      );
+      ordersByLegacyUid.forEach(pushOrderItem);
     } catch (err) {
       console.error("Failed to load orders:", err);
     }
