@@ -440,24 +440,50 @@ export const getServerSideProps: GetServerSideProps<SuccessProps> = async (ctx) 
             pendingData.currency ||
             "USD";
 
-          // Create order in Firestore
-          const orderRef = await adminDb.collection("orders").add({
-            paypalOrderId,
-            paypalCaptureId: captureId,
-            listingId: resolvedListingId,
-            ...(sellerId ? { sellerId } : {}),
-            buyerEmail: payerEmail,
-            buyerName: payerName,
-            listingTitle: pendingData.productTitle || "",
-            listingBrand: pendingData.brand || "",
-            listingCategory: pendingData.category || "",
-            amountTotal: Math.round(capturedAmount * 100),
-            currency: capturedCurrency,
-            status: "paid",
-            createdAt: Date.now(),
-            shippingAddress,
-            ...(pendingData.buyerId ? { buyerId: pendingData.buyerId } : {}),
-          });
+          // Re-check for existing order (webhook may have created one during capture)
+          const recheck = await adminDb
+            .collection("orders")
+            .where("paypalOrderId", "==", paypalOrderId)
+            .limit(1)
+            .get();
+
+          let orderRef: { id: string };
+          if (!recheck.empty) {
+            // Webhook beat us — use the existing order and enrich it
+            orderRef = recheck.docs[0].ref as any;
+            await adminDb.collection("orders").doc(recheck.docs[0].id).update({
+              paypalCaptureId: captureId,
+              buyerEmail: payerEmail,
+              buyerName: payerName,
+              listingTitle: pendingData.productTitle || recheck.docs[0].data()?.listingTitle || "",
+              listingBrand: pendingData.brand || "",
+              listingCategory: pendingData.category || "",
+              shippingAddress,
+              ...(pendingData.buyerId ? { buyerId: pendingData.buyerId } : {}),
+              source: "capture",
+            });
+            orderRef = { id: recheck.docs[0].id };
+          } else {
+            // Create order in Firestore
+            const newRef = await adminDb.collection("orders").add({
+              paypalOrderId,
+              paypalCaptureId: captureId,
+              listingId: resolvedListingId,
+              ...(sellerId ? { sellerId } : {}),
+              buyerEmail: payerEmail,
+              buyerName: payerName,
+              listingTitle: pendingData.productTitle || "",
+              listingBrand: pendingData.brand || "",
+              listingCategory: pendingData.category || "",
+              amountTotal: Math.round(capturedAmount * 100),
+              currency: capturedCurrency,
+              status: "paid",
+              createdAt: Date.now(),
+              shippingAddress,
+              ...(pendingData.buyerId ? { buyerId: pendingData.buyerId } : {}),
+            });
+            orderRef = newRef;
+          }
 
           // Mark listing as sold
           if (resolvedListingId) {
@@ -510,7 +536,7 @@ export const getServerSideProps: GetServerSideProps<SuccessProps> = async (ctx) 
       }
     }
 
-    const vipUrl = process.env.NEXT_PUBLIC_VIP_URL || process.env.VIP_URL || "/vip-welcome";
+    const vipUrl = process.env.NEXT_PUBLIC_VIP_URL || "/vip-welcome";
 
     return {
       props: {
