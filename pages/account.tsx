@@ -292,39 +292,26 @@ export default function AccountPage() {
             <p className="loading-text">Loading your account...</p>
           ) : (
             <div className="account-body">
-              {/* Quick stats */}
+              {/* Quick stats + navigation */}
               <div className="stats-row">
                 <div className="stat-card">
                   <div className="stat-number">{savedItems.length}</div>
                   <div className="stat-label">Saved Items</div>
                 </div>
-                <div className="stat-card">
+                <Link href="/cart" className="stat-card stat-card-link">
                   <div className="stat-number">{cartItems.length}</div>
-                  <div className="stat-label">In Bag</div>
-                </div>
-                <div className="stat-card">
-                  <div className="stat-number">{purchasedItems.length}</div>
-                  <div className="stat-label">Purchases</div>
-                </div>
-              </div>
-
-              {/* Quick actions */}
-              <div className="actions-row">
-                <Link href="/cart" className="action-card">
-                  <span className="action-icon">&#128717;</span>
-                  <span>Shopping Bag</span>
+                  <div className="stat-label">Shopping Bag</div>
                 </Link>
-                <Link href="/my-orders" className="action-card">
-                  <span className="action-icon">&#128230;</span>
-                  <span>My Orders</span>
+                <Link href="/my-orders" className="stat-card stat-card-link">
+                  <div className="stat-number">{purchasedItems.length}</div>
+                  <div className="stat-label">My Orders</div>
                 </Link>
                 <button
                   type="button"
-                  className="action-card"
+                  className="stat-card stat-card-link"
                   onClick={() => setShowPrefs(!showPrefs)}
                 >
-                  <span className="action-icon">&#9881;</span>
-                  <span>Preferences</span>
+                  <div className="stat-label">Preferences</div>
                 </button>
               </div>
 
@@ -547,9 +534,9 @@ export default function AccountPage() {
         /* Stats */
         .stats-row {
           display: grid;
-          grid-template-columns: repeat(3, 1fr);
+          grid-template-columns: repeat(4, 1fr);
           gap: 12px;
-          margin-bottom: 20px;
+          margin-bottom: 28px;
         }
         .stat-card {
           background: #ffffff;
@@ -557,6 +544,16 @@ export default function AccountPage() {
           border-radius: 16px;
           padding: 20px;
           text-align: center;
+        }
+        .stat-card-link {
+          text-decoration: none;
+          color: inherit;
+          cursor: pointer;
+          transition: all 0.15s;
+        }
+        .stat-card-link:hover {
+          border-color: #111827;
+          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
         }
         .stat-number {
           font-size: 28px;
@@ -569,37 +566,6 @@ export default function AccountPage() {
           margin-top: 4px;
           text-transform: uppercase;
           letter-spacing: 0.05em;
-        }
-
-        /* Actions */
-        .actions-row {
-          display: grid;
-          grid-template-columns: repeat(3, 1fr);
-          gap: 12px;
-          margin-bottom: 28px;
-        }
-        .action-card {
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          gap: 6px;
-          background: #ffffff;
-          border: 1px solid #e5e7eb;
-          border-radius: 16px;
-          padding: 16px;
-          text-decoration: none;
-          color: #111827;
-          font-size: 13px;
-          font-weight: 500;
-          cursor: pointer;
-          transition: all 0.15s;
-        }
-        .action-card:hover {
-          border-color: #111827;
-          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-        }
-        .action-icon {
-          font-size: 24px;
         }
 
         /* Seller section */
@@ -808,9 +774,8 @@ export default function AccountPage() {
         }
 
         @media (max-width: 640px) {
-          .stats-row,
-          .actions-row {
-            grid-template-columns: repeat(3, 1fr);
+          .stats-row {
+            grid-template-columns: repeat(2, 1fr);
             gap: 8px;
           }
           .recs-grid {
