@@ -135,20 +135,20 @@ export default function Footer() {
 
           {/* ---- Social media icons ---- */}
           <div className="ff-footer-social">
-            <a
-              href="#"
-              className="ff-social-icon"
+            <span
+              className="ff-social-icon ff-social-coming-soon"
               aria-label="Facebook"
-              title="Facebook"
-              rel="noopener noreferrer"
-              target="_blank"
+              title="Facebook — Coming soon"
+              role="button"
+              tabIndex={0}
             >
               <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20">
                 <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
               </svg>
-            </a>
+              <span className="ff-tooltip">Facebook will be uploaded soon</span>
+            </span>
             <a
-              href="https://www.youtube.com/@myfamousfinds"
+              href="https://www.youtube.com/myfamousfinds"
               className="ff-social-icon"
               aria-label="YouTube"
               title="YouTube"
@@ -172,7 +172,7 @@ export default function Footer() {
               </svg>
             </a>
             <a
-              href="https://www.tiktok.com/@myfamousfind"
+              href="https://www.tiktok.com/@myfamousfinds"
               className="ff-social-icon"
               aria-label="TikTok"
               title="TikTok"
@@ -293,6 +293,33 @@ export default function Footer() {
           .ff-social-icon:hover {
             color: #ffffff;
             transform: scale(1.15);
+          }
+
+          .ff-social-coming-soon {
+            position: relative;
+            cursor: default;
+          }
+
+          .ff-tooltip {
+            display: none;
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #1f2937;
+            color: #d1d5db;
+            font-size: 11px;
+            white-space: nowrap;
+            padding: 6px 10px;
+            border-radius: 6px;
+            border: 1px solid #374151;
+            margin-bottom: 6px;
+            pointer-events: none;
+          }
+
+          .ff-social-coming-soon:hover .ff-tooltip,
+          .ff-social-coming-soon:focus .ff-tooltip {
+            display: block;
           }
 
           /* ---- Link styles (global for Next.js Link) ---- */
