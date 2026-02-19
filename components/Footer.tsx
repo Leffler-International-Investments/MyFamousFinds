@@ -15,6 +15,12 @@ export default function Footer() {
   const [openSections, setOpenSections] = useState<Set<number>>(new Set());
   const [isMobile, setIsMobile] = useState(false);
 
+  // PWA install prompt state
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+  const [isIOS, setIsIOS] = useState(false);
+  const [isStandalone, setIsStandalone] = useState(false);
+  const [showIOSTip, setShowIOSTip] = useState(false);
+
   useEffect(() => {
     const mq = window.matchMedia("(max-width: 768px)");
     setIsMobile(mq.matches);
@@ -22,6 +28,37 @@ export default function Footer() {
     mq.addEventListener("change", handler);
     return () => mq.removeEventListener("change", handler);
   }, []);
+
+  // Detect PWA install capability
+  useEffect(() => {
+    // Already running as installed app
+    const standalone =
+      window.matchMedia("(display-mode: standalone)").matches ||
+      (window.navigator as any).standalone === true;
+    setIsStandalone(standalone);
+
+    // Detect iOS Safari
+    const ua = navigator.userAgent;
+    setIsIOS(/iPad|iPhone|iPod/.test(ua) && !(window as any).MSStream);
+
+    // Capture the install prompt (Android / Chrome / Edge)
+    const handler = (e: Event) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+    };
+    window.addEventListener("beforeinstallprompt", handler);
+    return () => window.removeEventListener("beforeinstallprompt", handler);
+  }, []);
+
+  const handleInstallClick = async () => {
+    if (deferredPrompt) {
+      deferredPrompt.prompt();
+      const result = await deferredPrompt.userChoice;
+      if (result.outcome === "accepted") setDeferredPrompt(null);
+    } else if (isIOS) {
+      setShowIOSTip((prev) => !prev);
+    }
+  };
 
   const toggleSection = useCallback((index: number) => {
     setOpenSections((prev) => {
@@ -189,6 +226,29 @@ export default function Footer() {
             </a>
           </div>
 
+          {/* ---- Install App button ---- */}
+          {!isStandalone && (deferredPrompt || isIOS) && (
+            <div className="ff-install-section">
+              <button
+                type="button"
+                className="ff-install-btn"
+                onClick={handleInstallClick}
+              >
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                  <polyline points="7 10 12 15 17 10" />
+                  <line x1="12" y1="15" x2="12" y2="3" />
+                </svg>
+                Install App on Your Mobile
+              </button>
+              {showIOSTip && isIOS && (
+                <p className="ff-ios-tip">
+                  Tap the <strong>Share</strong> button in Safari, then select <strong>&quot;Add to Home Screen&quot;</strong>.
+                </p>
+              )}
+            </div>
+          )}
+
           {/* ---- Brand + copyright ---- */}
           <div className="ff-footer-brand">
             <div className="ff-footer-title">FAMOUS FINDS</div>
@@ -334,6 +394,44 @@ export default function Footer() {
           .ff-social-coming-soon:hover .ff-tooltip,
           .ff-social-coming-soon:focus .ff-tooltip {
             display: block;
+          }
+
+          /* ---- Install App button ---- */
+          .ff-install-section {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+          }
+
+          .ff-install-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            border-radius: 999px;
+            border: 1px solid #4b5563;
+            background: rgba(255, 255, 255, 0.06);
+            color: #f9fafb;
+            padding: 12px 28px;
+            font-size: 14px;
+            font-weight: 600;
+            font-family: inherit;
+            cursor: pointer;
+            transition: all 0.2s;
+            white-space: nowrap;
+          }
+
+          .ff-install-btn:hover {
+            background: rgba(255, 255, 255, 0.12);
+            border-color: #9ca3af;
+          }
+
+          .ff-ios-tip {
+            font-size: 12px;
+            color: #9ca3af;
+            text-align: center;
+            margin: 0;
+            line-height: 1.5;
           }
 
           /* ---- Chevron for mobile accordion ---- */
