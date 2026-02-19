@@ -328,6 +328,59 @@ export default function Header({ filterContent, showFilter, onToggleFilter }: He
           margin: 0 auto;
           padding: 0 18px;
         }
+
+        /* ---- Mobile responsive ---- */
+        @media (max-width: 768px) {
+          .ff-header-middle {
+            flex-wrap: wrap;
+            padding: 12px 14px 10px;
+          }
+          .ff-middle-spacer {
+            display: none;
+          }
+          .ff-brand-name {
+            font-size: 28px !important;
+            flex: 1 1 100%;
+            order: -1;
+            margin-bottom: 8px;
+          }
+          .ff-search-container {
+            flex: 1 1 100%;
+            justify-content: center;
+          }
+          .ff-search-input {
+            width: 100%;
+            max-width: 100%;
+          }
+          .ff-search-form {
+            flex: 1;
+          }
+          .ff-category-nav {
+            gap: 12px;
+            padding: 8px 14px 10px;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            flex-wrap: nowrap;
+            justify-content: flex-start;
+            scrollbar-width: none;
+          }
+          .ff-category-nav::-webkit-scrollbar {
+            display: none;
+          }
+          .ff-cat-link {
+            flex-shrink: 0;
+          }
+        }
+
+        @media (max-width: 480px) {
+          .ff-brand-name {
+            font-size: 24px !important;
+            letter-spacing: 0.15em;
+          }
+          .ff-header-top {
+            padding: 8px 12px;
+          }
+        }
       `}</style>
     </header>
   );

@@ -291,17 +291,25 @@ export default function AccountPage() {
 
   const handleSignOut = async () => {
     if (auth) await signOut(auth);
-    if (typeof window !== "undefined") {
-      window.localStorage.removeItem("ff-role");
-      window.localStorage.removeItem("ff-email");
-      window.localStorage.removeItem("ff-session-exp");
-    }
+    try {
+      if (typeof window !== "undefined") {
+        window.localStorage.removeItem("ff-role");
+        window.localStorage.removeItem("ff-email");
+        window.localStorage.removeItem("ff-session-exp");
+      }
+    } catch {}
     router.push("/");
   };
 
-  const role = typeof window !== "undefined"
-    ? window.localStorage.getItem("ff-role")
-    : null;
+  const role = (() => {
+    try {
+      return typeof window !== "undefined"
+        ? window.localStorage.getItem("ff-role")
+        : null;
+    } catch {
+      return null;
+    }
+  })();
 
   if (!firebaseClientReady) {
     return (

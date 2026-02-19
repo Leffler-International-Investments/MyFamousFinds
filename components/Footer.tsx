@@ -1,136 +1,140 @@
 // FILE: /components/Footer.tsx
 
 import Link from "next/link";
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import ButlerChat from "./ButlerChat";
+
+type FooterSection = {
+  title: string;
+  links: { label: string; href?: string; action?: () => void }[];
+};
 
 export default function Footer() {
   const year = new Date().getFullYear();
   const [isChatOpen, setIsChatOpen] = useState(false);
+  const [openSections, setOpenSections] = useState<Set<number>>(new Set());
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 768px)");
+    setIsMobile(mq.matches);
+    const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches);
+    mq.addEventListener("change", handler);
+    return () => mq.removeEventListener("change", handler);
+  }, []);
+
+  const toggleSection = useCallback((index: number) => {
+    setOpenSections((prev) => {
+      const next = new Set(prev);
+      if (next.has(index)) {
+        next.delete(index);
+      } else {
+        next.add(index);
+      }
+      return next;
+    });
+  }, []);
+
+  const sections: FooterSection[] = [
+    {
+      title: "Our Services",
+      links: [
+        { label: "VIP Club", href: "/vip-welcome" },
+        { label: "Famous Concierge", action: () => setIsChatOpen(!isChatOpen) },
+      ],
+    },
+    {
+      title: "Buy",
+      links: [
+        { label: "Buying Guide", href: "/buying" },
+        { label: "My Orders", href: "/my-orders" },
+        { label: "Authenticity", href: "/buying#authenticity" },
+      ],
+    },
+    {
+      title: "Sell",
+      links: [
+        { label: "How to Sell", href: "/selling" },
+        { label: "Seller Login", href: "/seller/login" },
+        { label: "Seller T&Cs", href: "/seller-terms" },
+      ],
+    },
+    {
+      title: "Help",
+      links: [
+        { label: "FAQ", href: "/help" },
+        { label: "Contact", href: "/contact" },
+        { label: "Shipping & Delivery", href: "/shipping" },
+        { label: "Returns", href: "/returns" },
+        { label: "Privacy", href: "/privacy" },
+      ],
+    },
+    {
+      title: "About Famous Finds",
+      links: [
+        { label: "About", href: "/about" },
+        { label: "Terms & Conditions", href: "/terms" },
+        { label: "Management", href: "/management/login" },
+      ],
+    },
+  ];
 
   return (
     <>
       <footer className="ff-footer">
         <div className="ff-footer-inner">
-          {/* ---- Column grid ---- */}
+          {/* ---- Column grid / Accordion ---- */}
           <nav className="ff-footer-columns">
-            {/* OUR SERVICES */}
-            <div className="ff-footer-col">
-              <h3 className="ff-col-heading">Our Services</h3>
-              <ul className="ff-col-list">
-                <li>
-                  <Link href="/vip-welcome" className="ff-col-link">
-                    VIP Club
-                  </Link>
-                </li>
-                <li>
-                  <button
-                    className="ff-col-link ff-col-btn"
-                    onClick={() => setIsChatOpen(!isChatOpen)}
-                  >
-                    Famous Concierge
-                  </button>
-                </li>
-              </ul>
-            </div>
-
-            {/* BUY */}
-            <div className="ff-footer-col">
-              <h3 className="ff-col-heading">Buy</h3>
-              <ul className="ff-col-list">
-                <li>
-                  <Link href="/buying" className="ff-col-link">
-                    Buying Guide
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/my-orders" className="ff-col-link">
-                    My Orders
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/buying#authenticity" className="ff-col-link">
-                    Authenticity
-                  </Link>
-                </li>
-              </ul>
-            </div>
-
-            {/* SELL */}
-            <div className="ff-footer-col">
-              <h3 className="ff-col-heading">Sell</h3>
-              <ul className="ff-col-list">
-                <li>
-                  <Link href="/selling" className="ff-col-link">
-                    How to Sell
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/seller/login" className="ff-col-link">
-                    Seller Login
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/seller-terms" className="ff-col-link">
-                    Seller T&amp;Cs
-                  </Link>
-                </li>
-              </ul>
-            </div>
-
-            {/* HELP */}
-            <div className="ff-footer-col">
-              <h3 className="ff-col-heading">Help</h3>
-              <ul className="ff-col-list">
-                <li>
-                  <Link href="/help" className="ff-col-link">
-                    FAQ
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/contact" className="ff-col-link">
-                    Contact
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/shipping" className="ff-col-link">
-                    Shipping &amp; Delivery
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/returns" className="ff-col-link">
-                    Returns
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/privacy" className="ff-col-link">
-                    Privacy
-                  </Link>
-                </li>
-              </ul>
-            </div>
-
-            {/* ABOUT FAMOUS FINDS */}
-            <div className="ff-footer-col">
-              <h3 className="ff-col-heading">About Famous Finds</h3>
-              <ul className="ff-col-list">
-                <li>
-                  <Link href="/about" className="ff-col-link">
-                    About
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/terms" className="ff-col-link">
-                    Terms &amp; Conditions
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/management/login" className="ff-col-link">
-                    Management
-                  </Link>
-                </li>
-              </ul>
-            </div>
+            {sections.map((section, idx) => {
+              const isOpen = openSections.has(idx);
+              return (
+                <div key={section.title} className={`ff-footer-col${isMobile ? " ff-footer-col--mobile" : ""}`}>
+                  {isMobile ? (
+                    <button
+                      type="button"
+                      className="ff-col-heading ff-col-heading--toggle"
+                      onClick={() => toggleSection(idx)}
+                      aria-expanded={isOpen}
+                    >
+                      <span>{section.title}</span>
+                      <svg
+                        className={`ff-chevron${isOpen ? " ff-chevron--open" : ""}`}
+                        viewBox="0 0 24 24"
+                        width="16"
+                        height="16"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
+                        <polyline points="6 9 12 15 18 9" />
+                      </svg>
+                    </button>
+                  ) : (
+                    <h3 className="ff-col-heading">{section.title}</h3>
+                  )}
+                  <ul className={`ff-col-list${isMobile && !isOpen ? " ff-col-list--hidden" : ""}`}>
+                    {section.links.map((link) => (
+                      <li key={link.label}>
+                        {link.href ? (
+                          <Link href={link.href} className="ff-col-link">
+                            {link.label}
+                          </Link>
+                        ) : (
+                          <button
+                            className="ff-col-link ff-col-btn"
+                            onClick={link.action}
+                          >
+                            {link.label}
+                          </button>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              );
+            })}
           </nav>
 
           {/* ---- Social media icons ---- */}
@@ -212,7 +216,7 @@ export default function Footer() {
             gap: 28px;
           }
 
-          /* ---- Column grid ---- */
+          /* ---- Column grid (desktop) ---- */
           .ff-footer-columns {
             display: grid;
             grid-template-columns: repeat(5, 1fr);
@@ -233,6 +237,12 @@ export default function Footer() {
             letter-spacing: 0.12em;
             color: #9ca3af;
             margin: 0 0 2px;
+            background: none;
+            border: none;
+            padding: 0;
+            font-family: inherit;
+            cursor: default;
+            text-align: left;
           }
 
           .ff-col-list {
@@ -242,6 +252,10 @@ export default function Footer() {
             display: flex;
             flex-direction: column;
             gap: 6px;
+          }
+
+          .ff-col-list--hidden {
+            display: none;
           }
 
           .ff-col-btn {
@@ -322,6 +336,16 @@ export default function Footer() {
             display: block;
           }
 
+          /* ---- Chevron for mobile accordion ---- */
+          .ff-chevron {
+            transition: transform 0.25s ease;
+            flex-shrink: 0;
+          }
+
+          .ff-chevron--open {
+            transform: rotate(180deg);
+          }
+
           /* ---- Link styles (global for Next.js Link) ---- */
           :global(.ff-col-link) {
             font-size: 13px;
@@ -335,23 +359,62 @@ export default function Footer() {
             color: #ffffff;
           }
 
-          /* ---- Responsive: stack on mobile ---- */
+          /* ---- Mobile accordion ---- */
           @media (max-width: 768px) {
             .ff-footer-columns {
-              grid-template-columns: repeat(2, 1fr);
-              gap: 24px 16px;
-            }
-          }
-
-          @media (max-width: 480px) {
-            .ff-footer-columns {
-              grid-template-columns: 1fr;
-              gap: 20px;
-              text-align: center;
+              display: flex;
+              flex-direction: column;
+              gap: 0;
             }
 
-            .ff-footer-col {
+            .ff-footer-col--mobile {
+              border-bottom: 1px solid #1f2937;
+              gap: 0;
+            }
+
+            .ff-col-heading--toggle {
+              display: flex;
               align-items: center;
+              justify-content: space-between;
+              width: 100%;
+              padding: 16px 0;
+              cursor: pointer;
+              color: #f9fafb;
+              font-size: 13px;
+              font-weight: 600;
+              text-transform: uppercase;
+              letter-spacing: 0.08em;
+              margin: 0;
+              -webkit-tap-highlight-color: transparent;
+            }
+
+            .ff-col-list {
+              padding-bottom: 16px;
+              gap: 10px;
+            }
+
+            .ff-col-list--hidden {
+              display: none;
+            }
+
+            :global(.ff-col-link) {
+              font-size: 14px;
+              color: #9ca3af;
+              padding: 2px 0;
+              display: block;
+            }
+
+            .ff-col-btn {
+              text-align: left;
+            }
+
+            .ff-footer-inner {
+              padding: 0 20px 28px;
+              gap: 20px;
+            }
+
+            .ff-footer-social {
+              padding-top: 8px;
             }
           }
         `}</style>
