@@ -2,16 +2,45 @@
 
 import Head from "next/head";
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import Header from "../components/Header";
 import Footer from "../components/Footer";
 
 const SITE_URL = "https://www.myfamousfinds.com";
-const PLAY_STORE_URL =
-  "https://play.google.com/store/apps/details?id=com.myfamousfinds.app";
-const APP_STORE_URL =
-  "https://apps.apple.com/app/famous-finds/id6740000000";
 
 export default function MyFamousFindsAppPage() {
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+  const [isIOS, setIsIOS] = useState(false);
+  const [isStandalone, setIsStandalone] = useState(false);
+  const [installed, setInstalled] = useState(false);
+
+  useEffect(() => {
+    const standalone =
+      window.matchMedia("(display-mode: standalone)").matches ||
+      (window.navigator as any).standalone === true;
+    setIsStandalone(standalone);
+
+    const ua = navigator.userAgent;
+    setIsIOS(/iPad|iPhone|iPod/.test(ua) && !(window as any).MSStream);
+
+    const handler = (e: Event) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+    };
+    window.addEventListener("beforeinstallprompt", handler);
+    return () => window.removeEventListener("beforeinstallprompt", handler);
+  }, []);
+
+  const handleInstall = async () => {
+    if (deferredPrompt) {
+      deferredPrompt.prompt();
+      const result = await deferredPrompt.userChoice;
+      if (result.outcome === "accepted") {
+        setDeferredPrompt(null);
+        setInstalled(true);
+      }
+    }
+  };
   const title = "Get the Famous Finds App — Luxury Resale Marketplace";
   const description =
     "Download Famous Finds on iOS or Android. Shop authenticated luxury bags, watches, jewelry, and fashion from your phone.";
@@ -79,32 +108,41 @@ export default function MyFamousFindsAppPage() {
         </p>
 
         <div style={{ display: "flex", flexDirection: "column", gap: 12, maxWidth: 320, margin: "0 auto 32px" }}>
-          <a
-            href={APP_STORE_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{
-              display: "flex", alignItems: "center", justifyContent: "center", gap: 10,
-              background: "#111827", color: "#fff", padding: "14px 24px", borderRadius: 12,
-              fontSize: 16, fontWeight: 700, textDecoration: "none",
-            }}
-          >
-            Download for iOS
-          </a>
-
-          <a
-            href={PLAY_STORE_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{
-              display: "flex", alignItems: "center", justifyContent: "center", gap: 10,
-              background: "#fff", color: "#111", padding: "14px 24px", borderRadius: 12,
-              fontSize: 16, fontWeight: 700, textDecoration: "none",
-              border: "2px solid #111827",
-            }}
-          >
-            Download for Android
-          </a>
+          {isStandalone || installed ? (
+            <div style={{
+              background: "#ecfdf5", color: "#065f46", padding: "14px 24px", borderRadius: 12,
+              fontSize: 15, fontWeight: 600, textAlign: "center",
+            }}>
+              App installed successfully
+            </div>
+          ) : deferredPrompt ? (
+            <button
+              onClick={handleInstall}
+              style={{
+                display: "flex", alignItems: "center", justifyContent: "center", gap: 10,
+                background: "#111827", color: "#fff", padding: "14px 24px", borderRadius: 12,
+                fontSize: 16, fontWeight: 700, border: "none", cursor: "pointer",
+              }}
+            >
+              Install App Now
+            </button>
+          ) : isIOS ? (
+            <div style={{
+              background: "#f0f9ff", color: "#1e40af", padding: "16px 20px", borderRadius: 12,
+              fontSize: 14, lineHeight: 1.6, textAlign: "left",
+            }}>
+              <strong>Install on iPhone / iPad:</strong><br />
+              Tap the <strong>Share</strong> button in Safari (the square with an arrow), then tap <strong>&quot;Add to Home Screen&quot;</strong>.
+            </div>
+          ) : (
+            <div style={{
+              background: "#f0f9ff", color: "#1e40af", padding: "16px 20px", borderRadius: 12,
+              fontSize: 14, lineHeight: 1.6, textAlign: "left",
+            }}>
+              <strong>Install on your phone:</strong><br />
+              Open this page on your mobile phone, then tap <strong>&quot;Install App Now&quot;</strong> or use your browser menu to <strong>&quot;Add to Home Screen&quot;</strong>.
+            </div>
+          )}
         </div>
 
         <div style={{ background: "#f9fafb", borderRadius: 16, padding: "24px 20px", marginBottom: 32, textAlign: "left" }}>

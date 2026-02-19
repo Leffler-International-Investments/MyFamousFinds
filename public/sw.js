@@ -1,23 +1,31 @@
 // Famous Finds — Service Worker for PWA
 // Provides offline caching and installability
 
-const CACHE_NAME = "famous-finds-v1";
+const CACHE_NAME = "famous-finds-v2";
 const OFFLINE_URL = "/offline.html";
 
 // Static assets to pre-cache on install
 const PRE_CACHE = [
-  "/",
   "/offline.html",
   "/manifest.json",
   "/icons/icon-192x192.png",
   "/icons/icon-512x512.png",
+  "/icons/maskable-icon-512x512.png",
   "/favicon-32x32.png",
 ];
 
-// Install — pre-cache essential assets
+// Install — pre-cache essential assets (gracefully — one failure won't block install)
 self.addEventListener("install", (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(PRE_CACHE))
+    caches.open(CACHE_NAME).then((cache) =>
+      Promise.allSettled(
+        PRE_CACHE.map((url) =>
+          cache.add(url).catch((err) => {
+            console.warn("SW: failed to pre-cache", url, err);
+          })
+        )
+      )
+    )
   );
   self.skipWaiting();
 });

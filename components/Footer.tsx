@@ -229,10 +229,8 @@ export default function Footer() {
           {/* ---- Install App buttons ---- */}
           <div className="ff-install-section">
             <div className="ff-store-badges">
-              <a
-                href="https://apps.apple.com/app/famous-finds/id6740000000"
-                target="_blank"
-                rel="noopener noreferrer"
+              <Link
+                href="/app-store"
                 className="ff-store-badge"
                 aria-label="Download on the App Store"
               >
@@ -245,11 +243,9 @@ export default function Footer() {
                     <text x="42" y="27" fontSize="13" fontWeight="700" fontFamily="Arial, Helvetica, sans-serif" letterSpacing="-0.01em" fill="#fff">App Store</text>
                   </g>
                 </svg>
-              </a>
-              <a
-                href="https://play.google.com/store/apps/details?id=com.myfamousfinds.app"
-                target="_blank"
-                rel="noopener noreferrer"
+              </Link>
+              <Link
+                href="/app-store"
                 className="ff-store-badge"
                 aria-label="Get it on Google Play"
               >
@@ -293,7 +289,7 @@ export default function Footer() {
                     <text x="47" y="27" fontSize="12.5" fontWeight="700" fontFamily="Arial, Helvetica, sans-serif" letterSpacing="-0.02em" fill="#fff">Google Play</text>
                   </g>
                 </svg>
-              </a>
+              </Link>
             </div>
             {!isStandalone && (
               <>
