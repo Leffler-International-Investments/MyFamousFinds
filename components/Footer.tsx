@@ -19,7 +19,7 @@ export default function Footer() {
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [isIOS, setIsIOS] = useState(false);
   const [isStandalone, setIsStandalone] = useState(false);
-  const [showIOSTip, setShowIOSTip] = useState(false);
+  const [showInstallTip, setShowInstallTip] = useState(false);
 
   useEffect(() => {
     const mq = window.matchMedia("(max-width: 768px)");
@@ -55,8 +55,8 @@ export default function Footer() {
       deferredPrompt.prompt();
       const result = await deferredPrompt.userChoice;
       if (result.outcome === "accepted") setDeferredPrompt(null);
-    } else if (isIOS) {
-      setShowIOSTip((prev) => !prev);
+    } else {
+      setShowInstallTip((prev) => !prev);
     }
   };
 
@@ -227,7 +227,7 @@ export default function Footer() {
           </div>
 
           {/* ---- Install App button ---- */}
-          {!isStandalone && (deferredPrompt || isIOS) && (
+          {!isStandalone && (
             <div className="ff-install-section">
               <button
                 type="button"
@@ -241,9 +241,13 @@ export default function Footer() {
                 </svg>
                 Install App on Your Mobile
               </button>
-              {showIOSTip && isIOS && (
-                <p className="ff-ios-tip">
-                  Tap the <strong>Share</strong> button in Safari, then select <strong>&quot;Add to Home Screen&quot;</strong>.
+              {showInstallTip && !deferredPrompt && (
+                <p className="ff-install-tip">
+                  {isIOS ? (
+                    <>Tap the <strong>Share</strong> button in Safari, then select <strong>&quot;Add to Home Screen&quot;</strong>.</>
+                  ) : (
+                    <>Open this site on your mobile phone and tap <strong>&quot;Install App&quot;</strong>, or use your browser menu to <strong>&quot;Add to Home Screen&quot;</strong>.</>
+                  )}
                 </p>
               )}
             </div>
@@ -426,12 +430,13 @@ export default function Footer() {
             border-color: #9ca3af;
           }
 
-          .ff-ios-tip {
+          .ff-install-tip {
             font-size: 12px;
             color: #9ca3af;
             text-align: center;
             margin: 0;
             line-height: 1.5;
+            max-width: 340px;
           }
 
           /* ---- Chevron for mobile accordion ---- */
