@@ -133,12 +133,31 @@ export default function BuyerDashboardPage() {
     };
 
     // Load remaining collections (saved + cart handled by onSnapshot)
-    const [viewed, offers] = await Promise.all([
+    const [viewed] = await Promise.all([
       loadCollection("buyerRecentlyViewed"),
-      loadCollection("buyerOffers"),
     ]);
     setViewedItems(viewed);
-    setActiveOffers(offers);
+
+    // Load offers from the "offers" collection (where they are actually stored)
+    try {
+      const offersQ = query(collection(db, "offers"), where("buyerId", "==", uid));
+      const offersSnap = await getDocs(offersQ);
+      const offersList = offersSnap.docs.map((d) => {
+        const data: any = d.data();
+        return {
+          id: d.id,
+          title: data.listingTitle || data.title || "Offer",
+          brand: data.listingBrand || data.brand || "",
+          price: data.offerAmount || data.offerPrice || data.price || 0,
+          currency: data.currency || "USD",
+          status: data.status || "",
+          listingId: data.listingId || data.productId || "",
+        } as ItemRow;
+      });
+      setActiveOffers(offersList);
+    } catch (err) {
+      console.error("Failed to load offers:", err);
+    }
 
     const orders: ItemRow[] = [];
     const seenIds = new Set<string>();

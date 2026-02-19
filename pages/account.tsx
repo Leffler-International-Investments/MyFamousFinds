@@ -67,6 +67,7 @@ export default function AccountPage() {
   const [savedItems, setSavedItems] = useState<ItemRow[]>([]);
   const [cartItems, setCartItems] = useState<ItemRow[]>([]);
   const [purchasedItems, setPurchasedItems] = useState<ItemRow[]>([]);
+  const [activeOffers, setActiveOffers] = useState<ItemRow[]>([]);
 
   // Seller status
   const [sellerStatus, setSellerStatus] = useState<SellerStatus>("none");
@@ -196,6 +197,28 @@ export default function AccountPage() {
       setRecommendations(recs);
     } catch (err) {
       console.error("Failed to load recommendations:", err);
+    }
+
+    // Load buyer offers from the "offers" collection
+    try {
+      const offersSnap = await getDocs(
+        query(collection(db, "offers"), where("buyerId", "==", uid))
+      );
+      const offersList = offersSnap.docs.map((d) => {
+        const data: any = d.data();
+        return {
+          id: d.id,
+          title: data.listingTitle || data.title || "Offer",
+          brand: data.listingBrand || data.brand || "",
+          price: data.offerAmount || data.offerPrice || data.price || 0,
+          currency: data.currency || "USD",
+          status: data.status || "",
+          listingId: data.listingId || data.productId || "",
+        } as ItemRow;
+      });
+      setActiveOffers(offersList);
+    } catch (err) {
+      console.error("Failed to load offers:", err);
     }
   };
 
@@ -366,7 +389,7 @@ export default function AccountPage() {
           ) : (
             <div className="account-body">
               {/* Quick stats */}
-              <div className="stats-row">
+              <div className="stats-row stats-row-4">
                 <div className="stat-card">
                   <div className="stat-number">{savedItems.length}</div>
                   <div className="stat-label">Saved Items</div>
@@ -374,6 +397,10 @@ export default function AccountPage() {
                 <div className="stat-card">
                   <div className="stat-number">{cartItems.length}</div>
                   <div className="stat-label">In Bag</div>
+                </div>
+                <div className="stat-card">
+                  <div className="stat-number">{activeOffers.length}</div>
+                  <div className="stat-label">Offers</div>
                 </div>
                 <div className="stat-card">
                   <div className="stat-number">{purchasedItems.length}</div>
@@ -408,6 +435,79 @@ export default function AccountPage() {
                   <div className="stat-label">Preferences</div>
                 </div>
               </div>
+
+              {/* Active Offers */}
+              {activeOffers.length > 0 && (
+                <section className="offers-section">
+                  <h2>Your Offers</h2>
+                  <ul className="offers-list">
+                    {activeOffers.map((offer) => (
+                      <li key={offer.id} className="offers-item">
+                        <div className="offers-item-info">
+                          <Link
+                            href={`/product/${offer.listingId || offer.id}`}
+                            className="offers-item-title"
+                          >
+                            {offer.title}
+                          </Link>
+                          <span className="offers-item-meta">
+                            {offer.brand ? `${offer.brand} — ` : ""}
+                            {typeof offer.price === "number" && offer.price > 0
+                              ? offer.price.toLocaleString("en-US", {
+                                  style: "currency",
+                                  currency: offer.currency || "USD",
+                                })
+                              : ""}
+                          </span>
+                        </div>
+                        <span className={`offers-badge offers-badge--${offer.status || "pending"}`}>
+                          {offer.status || "pending"}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+              )}
+
+              {/* Saved Items (Wishlist) */}
+              {savedItems.length > 0 && (
+                <section className="saved-section">
+                  <h2>Saved Items</h2>
+                  <div className="saved-grid">
+                    {savedItems.map((item) => (
+                      <Link
+                        key={item.id}
+                        href={`/product/${item.listingId || item.id}`}
+                        className="saved-card"
+                      >
+                        {item.imageUrl ? (
+                          <img
+                            src={item.imageUrl}
+                            alt={item.title}
+                            className="saved-card-img"
+                          />
+                        ) : (
+                          <div className="saved-card-img-placeholder" />
+                        )}
+                        <div className="saved-card-info">
+                          {item.brand && (
+                            <span className="saved-card-brand">{item.brand}</span>
+                          )}
+                          <span className="saved-card-title">{item.title}</span>
+                          {typeof item.price === "number" && item.price > 0 && (
+                            <span className="saved-card-price">
+                              {item.price.toLocaleString("en-US", {
+                                style: "currency",
+                                currency: item.currency || "USD",
+                              })}
+                            </span>
+                          )}
+                        </div>
+                      </Link>
+                    ))}
+                  </div>
+                </section>
+              )}
 
               {/* Seller section */}
               {sellerStatus === "approved" ? (
@@ -663,6 +763,9 @@ export default function AccountPage() {
           grid-template-columns: repeat(3, 1fr);
           gap: 12px;
           margin-bottom: 12px;
+        }
+        .stats-row-4 {
+          grid-template-columns: repeat(4, 1fr);
         }
         .stat-card {
           background: #ffffff;
@@ -947,6 +1050,138 @@ export default function AccountPage() {
           overflow: hidden;
         }
 
+        /* Offers section */
+        .offers-section {
+          background: #ffffff;
+          border: 1px solid #e5e7eb;
+          border-radius: 16px;
+          padding: 24px;
+          margin-bottom: 20px;
+        }
+        .offers-section h2 {
+          font-size: 16px;
+          font-weight: 600;
+          margin: 0 0 12px;
+          color: #111827;
+        }
+        .offers-list {
+          list-style: none;
+          padding: 0;
+          margin: 0;
+          display: flex;
+          flex-direction: column;
+          gap: 10px;
+        }
+        .offers-item {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          gap: 12px;
+          padding: 12px 14px;
+          background: #f9fafb;
+          border: 1px solid #f3f4f6;
+          border-radius: 12px;
+        }
+        .offers-item-info {
+          display: flex;
+          flex-direction: column;
+          gap: 2px;
+          min-width: 0;
+        }
+        .offers-item-meta {
+          font-size: 12px;
+          color: #6b7280;
+        }
+        .offers-badge {
+          flex-shrink: 0;
+          font-size: 11px;
+          font-weight: 600;
+          padding: 4px 12px;
+          border-radius: 999px;
+          text-transform: capitalize;
+        }
+        .offers-badge--pending {
+          background: #eff6ff;
+          color: #1d4ed8;
+        }
+        .offers-badge--accepted {
+          background: #ecfdf5;
+          color: #059669;
+        }
+        .offers-badge--rejected,
+        .offers-badge--declined {
+          background: #fef2f2;
+          color: #b91c1c;
+        }
+
+        /* Saved Items grid */
+        .saved-section {
+          background: #ffffff;
+          border: 1px solid #e5e7eb;
+          border-radius: 16px;
+          padding: 24px;
+          margin-bottom: 20px;
+        }
+        .saved-section h2 {
+          font-size: 16px;
+          font-weight: 600;
+          margin: 0 0 12px;
+          color: #111827;
+        }
+        .saved-grid {
+          display: grid;
+          grid-template-columns: repeat(4, 1fr);
+          gap: 12px;
+        }
+        .saved-card {
+          text-decoration: none;
+          color: inherit;
+          border: 1px solid #e5e7eb;
+          border-radius: 12px;
+          overflow: hidden;
+          transition: box-shadow 0.2s;
+        }
+        .saved-card:hover {
+          box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+        }
+        .saved-card-img {
+          width: 100%;
+          aspect-ratio: 1;
+          object-fit: cover;
+          display: block;
+        }
+        .saved-card-img-placeholder {
+          width: 100%;
+          aspect-ratio: 1;
+          background: #f3f4f6;
+        }
+        .saved-card-info {
+          padding: 8px 10px;
+          display: flex;
+          flex-direction: column;
+          gap: 2px;
+        }
+        .saved-card-brand {
+          font-size: 10px;
+          font-weight: 600;
+          color: #6b7280;
+          text-transform: uppercase;
+        }
+        .saved-card-title {
+          font-size: 12px;
+          color: #111827;
+          display: -webkit-box;
+          -webkit-line-clamp: 2;
+          -webkit-box-orient: vertical;
+          overflow: hidden;
+        }
+        .saved-card-price {
+          font-size: 13px;
+          font-weight: 700;
+          color: #111827;
+          margin-top: 2px;
+        }
+
         /* Consign section */
         .consign-section {
           background: linear-gradient(135deg, #fef3c7, #fde68a);
@@ -972,9 +1207,32 @@ export default function AccountPage() {
             grid-template-columns: repeat(2, 1fr);
             gap: 8px;
           }
-          .recs-grid {
+          .stats-row-4 {
             grid-template-columns: repeat(2, 1fr);
           }
+          .recs-grid,
+          .saved-grid {
+            grid-template-columns: repeat(2, 1fr);
+          }
+        }
+      `}</style>
+      <style jsx global>{`
+        .offers-item-title {
+          font-size: 14px;
+          font-weight: 500;
+          color: #111827;
+          text-decoration: none;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+        .offers-item-title:hover {
+          color: #2563eb;
+          text-decoration: underline;
+        }
+        .saved-card {
+          text-decoration: none;
+          color: inherit;
         }
       `}</style>
     </>
