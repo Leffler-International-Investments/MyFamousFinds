@@ -98,7 +98,7 @@ export default function AccountPage() {
       }
       setUser(u);
       try {
-        await Promise.all([loadData(u.uid, u.email || ""), loadSellerStatus(u.email || ""), loadPreferences(u.uid), loadSellerActivity(u.email || "")]);
+        await Promise.all([loadData(u.uid, u.email || ""), loadSellerStatus(u), loadPreferences(u.uid), loadSellerActivity(u.email || "")]);
       } catch (err) {
         console.error("Account data load failed:", err);
       } finally {
@@ -191,43 +191,22 @@ export default function AccountPage() {
     }
   };
 
-  const loadSellerStatus = async (email: string) => {
-    if (!db || !email) return;
-    const lowerEmail = email.trim().toLowerCase();
-    const applyFormatId = lowerEmail.replace(/\./g, "_");
-
-    const applyStatus = (data: any) => {
-      const status = String(data.status || "").toLowerCase();
-      // Check both status field AND verified flag for backward compatibility
-      // (sellers approved before the status field was introduced only have verified: true)
-      if (status === "approved" || status === "active" || data.verified === true) setSellerStatus("approved");
-      else if (status === "pending") setSellerStatus("pending");
-      else if (status === "rejected" || status === "disabled") setSellerStatus("rejected");
-      else setSellerStatus("pending");
-    };
+  const loadSellerStatus = async (firebaseUser: User) => {
+    if (!firebaseUser.email) return;
 
     try {
-      // Try raw email as doc ID (profile/onboard/login path)
-      const byRawEmail = await getDoc(doc(db, "sellers", lowerEmail));
-      if (byRawEmail.exists()) { applyStatus(byRawEmail.data()); return; }
+      const token = await firebaseUser.getIdToken();
+      const res = await fetch("/api/seller/check-status", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
 
-      // Try underscore-format doc ID (apply path)
-      if (applyFormatId !== lowerEmail) {
-        const byUnderscoreId = await getDoc(doc(db, "sellers", applyFormatId));
-        if (byUnderscoreId.exists()) { applyStatus(byUnderscoreId.data()); return; }
+      if (!res.ok) {
+        console.error("Seller status check failed:", res.status);
+        return;
       }
 
-      // Fallback: query by email field
-      const byEmailField = await getDocs(
-        query(collection(db, "sellers"), where("email", "==", lowerEmail))
-      );
-      if (!byEmailField.empty) { applyStatus(byEmailField.docs[0].data()); return; }
-
-      // Fallback: query by contactEmail field
-      const byContactEmail = await getDocs(
-        query(collection(db, "sellers"), where("contactEmail", "==", lowerEmail))
-      );
-      if (!byContactEmail.empty) { applyStatus(byContactEmail.docs[0].data()); return; }
+      const json = await res.json() as { status: "none" | "pending" | "approved" | "rejected" };
+      setSellerStatus(json.status);
     } catch (err) {
       console.error("Failed to load seller status:", err);
     }
