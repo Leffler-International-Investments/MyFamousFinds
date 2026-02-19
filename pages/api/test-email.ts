@@ -18,7 +18,7 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse<Res>
 ) {
-  if (req.method !== "GET") {
+  if (req.method !== "GET" && req.method !== "POST") {
     return res.status(405).json({ ok: false, error: "Method not allowed" });
   }
 
@@ -29,15 +29,16 @@ export default async function handler(
       .json({ ok: false, error: "ADMIN_PASSWORD is not set in Vercel env." });
   }
 
-  // Accept auth via Bearer header OR ?key= query param (for easy browser testing)
-  const pass = readBearer(req) || String(req.query.key || "").trim();
+  // Accept auth via Bearer header, ?key= query param, or POST body { key }
+  const bodyKey = req.method === "POST" ? String(req.body?.key || "").trim() : "";
+  const pass = readBearer(req) || bodyKey || String(req.query.key || "").trim();
   if (!pass || pass !== adminPass) {
     return res.status(401).json({ ok: false, error: "Unauthorized" });
   }
 
-  const to = String(req.query.to || "").trim().toLowerCase();
+  const to = String(req.body?.to || req.query.to || "").trim().toLowerCase();
   if (!to || !to.includes("@")) {
-    return res.status(400).json({ ok: false, error: "Missing ?to=email" });
+    return res.status(400).json({ ok: false, error: "Missing to email" });
   }
 
   // SMTP diagnostic info (no secrets)
