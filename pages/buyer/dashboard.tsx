@@ -8,7 +8,7 @@ import Header from "../../components/Header";
 import Footer from "../../components/Footer";
 
 import { onAuthStateChanged, signOut, User } from "firebase/auth";
-import { collection, query, where, getDocs, orderBy, limit, doc, getDoc, setDoc, deleteDoc, serverTimestamp } from "firebase/firestore";
+import { collection, query, where, getDocs, onSnapshot, orderBy, limit, doc, getDoc, setDoc, deleteDoc, serverTimestamp } from "firebase/firestore";
 
 // ✅ Use the shared client initializer (and do NOT init at import-time here)
 import { auth, db, firebaseClientReady } from "../../utils/firebaseClient";
@@ -68,12 +68,33 @@ export default function BuyerDashboardPage() {
       return;
     }
 
+    let unsubSaved: (() => void) | null = null;
+    let unsubCart: (() => void) | null = null;
+
     const unsub = onAuthStateChanged(auth, async (u) => {
       if (!u) {
         router.replace("/buyer/signin");
         return;
       }
       setUser(u);
+
+      // Real-time listeners keep saved items and cart in sync across tabs/pages
+      unsubSaved = onSnapshot(
+        query(collection(db, "buyerSavedItems"), where("userId", "==", u.uid)),
+        (snap) => {
+          setSavedItems(snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) })) as ItemRow[]);
+        },
+        (err) => console.error("Failed to listen to saved items:", err)
+      );
+
+      unsubCart = onSnapshot(
+        query(collection(db, "buyerCartItems"), where("userId", "==", u.uid)),
+        (snap) => {
+          setCartItems(snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) })) as ItemRow[]);
+        },
+        (err) => console.error("Failed to listen to cart items:", err)
+      );
+
       try {
         await loadData(u.uid, u.email || "");
       } catch (err) {
@@ -83,12 +104,19 @@ export default function BuyerDashboardPage() {
       }
     });
 
-    return () => unsub();
+    return () => {
+      unsub();
+      unsubSaved?.();
+      unsubCart?.();
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [previewMode, router]);
 
   const loadData = async (uid: string, email: string) => {
     if (!db) return;
+
+    // NOTE: savedItems and cartItems are loaded via real-time onSnapshot
+    // listeners in the useEffect above, so they stay in sync automatically.
 
     const loadCollection = async (name: string): Promise<ItemRow[]> => {
       try {
@@ -104,15 +132,11 @@ export default function BuyerDashboardPage() {
       }
     };
 
-    // Load all collections in parallel for faster loading
-    const [saved, cart, viewed, offers] = await Promise.all([
-      loadCollection("buyerSavedItems"),
-      loadCollection("buyerCartItems"),
+    // Load remaining collections (saved + cart handled by onSnapshot)
+    const [viewed, offers] = await Promise.all([
       loadCollection("buyerRecentlyViewed"),
       loadCollection("buyerOffers"),
     ]);
-    setSavedItems(saved);
-    setCartItems(cart);
     setViewedItems(viewed);
     setActiveOffers(offers);
 

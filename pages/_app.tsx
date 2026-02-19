@@ -24,6 +24,15 @@ export default function MyFamousFindsApp({ Component, pageProps }: AppProps) {
     initNativePlugins();
   }, []);
 
+  // Register PWA service worker
+  useEffect(() => {
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.register("/sw.js").catch((err) => {
+        console.error("SW registration failed:", err);
+      });
+    }
+  }, []);
+
   // Save & restore scroll position so "Back to …" links return to where you were
   useEffect(() => {
     // Prevent browser from doing its own scroll restoration
