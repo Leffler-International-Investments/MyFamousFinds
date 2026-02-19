@@ -198,7 +198,9 @@ export default function AccountPage() {
 
     const applyStatus = (data: any) => {
       const status = String(data.status || "").toLowerCase();
-      if (status === "approved" || status === "active") setSellerStatus("approved");
+      // Check both status field AND verified flag for backward compatibility
+      // (sellers approved before the status field was introduced only have verified: true)
+      if (status === "approved" || status === "active" || data.verified === true) setSellerStatus("approved");
       else if (status === "pending") setSellerStatus("pending");
       else if (status === "rejected" || status === "disabled") setSellerStatus("rejected");
       else setSellerStatus("pending");

@@ -530,7 +530,16 @@ export default function ManagementVettingQueue({ items }: Props) {
                             />
                           </td>
                           <td>{s.submittedAt || "—"}</td>
-                          <td>{s.status}</td>
+                          <td>
+                            <span className={
+                              s.status === "Approved" ? "status-badge status-approved" :
+                              s.status === "Rejected" ? "status-badge status-rejected" :
+                              s.status === "Pending" ? "status-badge status-pending" :
+                              ""
+                            }>
+                              {s.status}
+                            </span>
+                          </td>
                           <td>
                             <div className="actions-cell">
                               <button
@@ -572,7 +581,16 @@ export default function ManagementVettingQueue({ items }: Props) {
                           </td>
                           <td>{s.phone || "—"}</td>
                           <td>{s.submittedAt || "—"}</td>
-                          <td>{s.status}</td>
+                          <td>
+                            <span className={
+                              s.status === "Approved" ? "status-badge status-approved" :
+                              s.status === "Rejected" ? "status-badge status-rejected" :
+                              s.status === "Pending" ? "status-badge status-pending" :
+                              ""
+                            }>
+                              {s.status}
+                            </span>
+                          </td>
                           <td>
                             <div className="actions-cell">
                               <button
@@ -1013,6 +1031,28 @@ export default function ManagementVettingQueue({ items }: Props) {
           border-color: #111827;
           box-shadow: 0 0 0 1px rgba(17, 24, 39, 0.1);
         }
+
+        /* ── Status badges ── */
+        .status-badge {
+          display: inline-block;
+          padding: 3px 10px;
+          border-radius: 999px;
+          font-size: 12px;
+          font-weight: 700;
+          letter-spacing: 0.3px;
+        }
+        .status-approved {
+          background: #d1fae5;
+          color: #065f46;
+        }
+        .status-rejected {
+          background: #fee2e2;
+          color: #991b1b;
+        }
+        .status-pending {
+          background: #dbeafe;
+          color: #1e40af;
+        }
       `}</style>
     </>
   );
@@ -1028,6 +1068,12 @@ export const getServerSideProps: GetServerSideProps<Props> = async () => {
 
   const items: SellerApplication[] = snapshot.docs.map((doc) => {
     const data = doc.data() as any;
+    // Normalize status: sellers approved before the status field was introduced
+    // may only have verified: true without a proper status value
+    let status: SellerApplication["status"] = (data.status as any) || "Pending";
+    if (data.verified === true && status !== "Approved" && status !== "Rejected" && status !== "Removed") {
+      status = "Approved";
+    }
     return {
       id: doc.id,
       businessName: data.businessName || "",
@@ -1036,7 +1082,7 @@ export const getServerSideProps: GetServerSideProps<Props> = async () => {
       submittedAt: data.submittedAt
         ? new Date(data.submittedAt.toDate()).toLocaleString()
         : "",
-      status: (data.status as any) || "Pending",
+      status,
     };
   });
 
