@@ -75,6 +75,14 @@ export default async function handler(
       .doc(trimmedEmail)
       .get();
 
+    // Try underscore-format doc ID (apply path: email.replace(/\./g, "_"))
+    if (!sellerSnap.exists) {
+      const underscoreId = trimmedEmail.replace(/\./g, "_");
+      if (underscoreId !== trimmedEmail) {
+        sellerSnap = await adminDb.collection("sellers").doc(underscoreId).get();
+      }
+    }
+
     if (!sellerSnap.exists) {
       const byEmail = await adminDb
         .collection("sellers")

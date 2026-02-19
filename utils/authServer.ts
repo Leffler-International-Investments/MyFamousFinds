@@ -62,7 +62,15 @@ export async function getSellerId(req: NextApiRequest): Promise<string | null> {
     // 1) doc id = email
     let sellerSnap: any = await adminDb.collection("sellers").doc(email).get();
 
-    // 2) where email == ...
+    // 2) doc id = underscore format (apply path: email.replace(/\./g, "_"))
+    if (!sellerSnap.exists) {
+      const underscoreId = email.replace(/\./g, "_");
+      if (underscoreId !== email) {
+        sellerSnap = await adminDb.collection("sellers").doc(underscoreId).get();
+      }
+    }
+
+    // 3) where email == ...
     if (!sellerSnap.exists) {
       const byEmail = await adminDb
         .collection("sellers")
@@ -72,7 +80,7 @@ export async function getSellerId(req: NextApiRequest): Promise<string | null> {
       if (!byEmail.empty) sellerSnap = byEmail.docs[0];
     }
 
-    // 3) where contactEmail == ...
+    // 4) where contactEmail == ...
     if (!sellerSnap.exists) {
       const byContactEmail = await adminDb
         .collection("sellers")
