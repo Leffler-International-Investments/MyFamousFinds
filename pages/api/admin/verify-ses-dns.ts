@@ -102,18 +102,19 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ) {
-  if (req.method !== "GET") {
-    return res.status(405).json({ ok: false, error: "GET only" });
+  if (req.method !== "GET" && req.method !== "POST") {
+    return res.status(405).json({ ok: false, error: "GET or POST only" });
   }
 
-  // Auth check
+  // Auth check — accepts key via query param, Bearer header, or POST body
   const adminPass = String(process.env.ADMIN_PASSWORD || "").trim();
   if (!adminPass) {
     return res
       .status(500)
       .json({ ok: false, error: "ADMIN_PASSWORD is not set." });
   }
-  const pass = readBearer(req) || String(req.query.key || "").trim();
+  const bodyKey = req.method === "POST" ? String(req.body?.key || "").trim() : "";
+  const pass = readBearer(req) || bodyKey || String(req.query.key || "").trim();
   if (!pass || pass !== adminPass) {
     return res.status(401).json({ ok: false, error: "Unauthorized" });
   }
