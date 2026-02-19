@@ -14,6 +14,7 @@ import {
   query,
   where,
   getDocs,
+  onSnapshot,
   doc,
   getDoc,
   setDoc,
@@ -91,12 +92,33 @@ export default function AccountPage() {
       return;
     }
 
+    let unsubSaved: (() => void) | null = null;
+    let unsubCart: (() => void) | null = null;
+
     const unsub = onAuthStateChanged(auth, async (u) => {
       if (!u) {
         router.replace("/login");
         return;
       }
       setUser(u);
+
+      // Real-time listeners keep saved items and cart in sync across tabs/pages
+      unsubSaved = onSnapshot(
+        query(collection(db, "buyerSavedItems"), where("userId", "==", u.uid)),
+        (snap) => {
+          setSavedItems(snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) })) as ItemRow[]);
+        },
+        (err) => console.error("Failed to listen to saved items:", err)
+      );
+
+      unsubCart = onSnapshot(
+        query(collection(db, "buyerCartItems"), where("userId", "==", u.uid)),
+        (snap) => {
+          setCartItems(snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) })) as ItemRow[]);
+        },
+        (err) => console.error("Failed to listen to cart items:", err)
+      );
+
       try {
         await Promise.all([loadData(u.uid, u.email || ""), loadSellerStatus(u), loadPreferences(u.uid), loadSellerActivity(u.email || "")]);
       } catch (err) {
@@ -106,33 +128,19 @@ export default function AccountPage() {
       }
     });
 
-    return () => unsub();
+    return () => {
+      unsub();
+      unsubSaved?.();
+      unsubCart?.();
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const loadData = async (uid: string, email: string) => {
     if (!db) return;
 
-    const loadCollection = async (name: string): Promise<ItemRow[]> => {
-      try {
-        const q = query(collection(db, name), where("userId", "==", uid));
-        const snap = await getDocs(q);
-        return snap.docs.map((d) => ({
-          id: d.id,
-          ...(d.data() as any),
-        })) as ItemRow[];
-      } catch (err) {
-        console.error(`Failed to load ${name}:`, err);
-        return [];
-      }
-    };
-
-    const [saved, cart] = await Promise.all([
-      loadCollection("buyerSavedItems"),
-      loadCollection("buyerCartItems"),
-    ]);
-    setSavedItems(saved);
-    setCartItems(cart);
+    // NOTE: savedItems and cartItems are loaded via real-time onSnapshot
+    // listeners in the useEffect above, so they stay in sync automatically.
 
     // Load purchase history
     const orders: ItemRow[] = [];
