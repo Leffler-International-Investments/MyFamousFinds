@@ -147,6 +147,14 @@ export default async function handler(
   // 4. DMARC record
   results.push(await checkTxt(`_dmarc.${DOMAIN}`, "v=DMARC1"));
 
+  // 5. Root-domain inbound MX (required so support@... can receive mail)
+  results.push(
+    await checkMx(DOMAIN, "inbound-smtp.us-east-1.amazonaws.com")
+  );
+
+  // 6. Root-domain SPF
+  results.push(await checkTxt(DOMAIN, "include:amazonses.com"));
+
   const allOk = results.every((r) => r.ok);
 
   return res.status(200).json({

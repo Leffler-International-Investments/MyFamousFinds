@@ -1,19 +1,32 @@
 {
-  "_comment": "DNS records required for AWS SES email sending on myfamousfinds.com",
+  "_comment": "DNS records required for AWS SES email (outbound + inbound) on myfamousfinds.com",
   "_instructions": "Add these records in your DNS provider (Vercel). Vercel auto-appends the domain — use the short 'host' values below, NOT the full FQDN.",
-  "_last_updated": "2026-02-17",
+  "_last_updated": "2026-02-20",
   "_region": "us-east-1",
   "_dns_provider": "Vercel (nameservers point to Vercel)",
   "_verification_endpoint": "GET /api/admin/verify-ses-dns?key=<ADMIN_PASSWORD>  — checks all records via live DNS lookup",
 
   "_setup_checklist": {
     "step_1": "Add the 3 DKIM CNAME records in Vercel DNS (see dkim_cname_records below)",
-    "step_2": "Add the MX + TXT records for MAIL FROM (see mail_from_records below)",
+    "step_2": "Add the MX + TXT records for MAIL FROM subdomain (see mail_from_records below)",
     "step_3": "Add the DMARC TXT record (see dmarc_record below)",
-    "step_4": "Wait up to 72 hours for AWS SES to detect the records and flip DKIM from 'Pending' to 'Verified'",
-    "step_5": "Once verified, click 'Request production access' in AWS SES console to leave sandbox mode",
-    "step_6": "Set AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_SES_FROM, AWS_SES_REPLY_TO in Vercel env vars",
-    "step_7": "Test with GET /api/test-email?to=your@email.com&key=<ADMIN_PASSWORD>"
+    "step_4": "Add the root-domain INBOUND MX + SPF records (see inbound_email_records below)",
+    "step_5": "Wait up to 72 hours for AWS SES to detect the records and flip DKIM from 'Pending' to 'Verified'",
+    "step_6": "Once verified, click 'Request production access' in AWS SES console to leave sandbox mode",
+    "step_7": "Set up SES inbound receiving (see _inbound_email_setup below)",
+    "step_8": "Set AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_SES_FROM, AWS_SES_REPLY_TO in Vercel env vars",
+    "step_9": "Test outbound: GET /api/test-email?to=your@email.com&key=<ADMIN_PASSWORD>",
+    "step_10": "Test inbound: send an email to support@myfamousfinds.com and verify it arrives"
+  },
+
+  "_inbound_email_setup": {
+    "_why": "Without root-domain MX records, emails to *@myfamousfinds.com fall back to the A record (your web server), which does not speak SMTP — causing 'unable to read banner / timed out' bounces.",
+    "step_1": "Add the root-domain MX and SPF records below in Vercel DNS (see inbound_email_records)",
+    "step_2_aws_console": "In AWS SES > Email receiving > Create rule set, add a receipt rule for support@myfamousfinds.com",
+    "step_3_actions": "Add an SNS action that publishes to a topic (e.g. 'myfamousfinds-inbound-email')",
+    "step_4_sns_subscription": "Subscribe the SNS topic to your app's webhook: POST https://www.myfamousfinds.com/api/ses/inbound",
+    "step_5_activate": "Set the rule set as active in SES",
+    "step_6_env_var": "Set SUPPORT_INBOX in Vercel env if you want a quick fallback — replies go to that address instead"
   },
 
   "_troubleshooting": {
@@ -26,6 +39,12 @@
     "mail_from_stays_pending": [
       "Verify MX record: host 'mail' pointing to 'feedback-smtp.us-east-1.amazonses.com' with priority 10",
       "Verify SPF TXT record: host 'mail' with value 'v=spf1 include:amazonses.com ~all'"
+    ],
+    "inbound_bounces": [
+      "Run: dig MX myfamousfinds.com +short — you should see '10 inbound-smtp.us-east-1.amazonaws.com.'",
+      "If you see NO MX result, the root-domain MX record is missing — add it in Vercel DNS",
+      "If MX resolves but emails still bounce, check the SES receipt rule set is active and the SNS topic is subscribed",
+      "Set SUPPORT_INBOX env var as a quick workaround — replies go to that real inbox"
     ]
   },
 
@@ -56,13 +75,29 @@
       "host": "mail",
       "value": "feedback-smtp.us-east-1.amazonses.com",
       "priority": 10,
-      "purpose": "MAIL FROM domain for SES bounce handling"
+      "purpose": "MAIL FROM domain for SES bounce handling (outbound)"
     },
     {
       "type": "TXT",
       "host": "mail",
       "value": "v=spf1 include:amazonses.com ~all",
       "purpose": "SPF for the mail subdomain (MAIL FROM alignment)"
+    }
+  ],
+
+  "inbound_email_records": [
+    {
+      "type": "MX",
+      "host": "@",
+      "value": "inbound-smtp.us-east-1.amazonaws.com",
+      "priority": 10,
+      "purpose": "Root-domain MX — tells the world to deliver mail for *@myfamousfinds.com to SES inbound. WITHOUT THIS RECORD emails to support@ bounce."
+    },
+    {
+      "type": "TXT",
+      "host": "@",
+      "value": "v=spf1 include:amazonses.com ~all",
+      "purpose": "Root-domain SPF — authorizes SES to send on behalf of the bare domain"
     }
   ],
 

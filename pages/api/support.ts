@@ -18,7 +18,12 @@ export default async function handler(
   // Generate a short ticket ID
   const ticketId = Math.random().toString(36).slice(2, 8).toUpperCase();
   const destination = "support";
-  const recipientEmail = "support@myfamousfinds.com";
+  // Send to the admin inbox (which actually exists), not support@
+  // which has no inbound mailbox configured yet.
+  const recipientEmail =
+    process.env.ADMIN_EMAIL ||
+    process.env.ADMIN_NOTIFICATION_EMAILS?.split(",")[0]?.trim() ||
+    "admin@myfamousfinds.com";
 
   // Save to Firestore so the management dashboard can view it
   try {

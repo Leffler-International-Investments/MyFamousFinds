@@ -19,8 +19,14 @@ const AWS_SECRET_ACCESS_KEY = cleanEnv(process.env.AWS_SECRET_ACCESS_KEY);
 const AWS_SES_FROM =
   cleanEnv(process.env.AWS_SES_FROM) ||
   "Famous Finds <admin@myfamousfinds.com>";
+// IMPORTANT: The Reply-To address MUST point to an inbox that can actually
+// receive mail.  support@myfamousfinds.com only works once:
+//   1. Root-domain MX records are added (see config/aws-ses-dns-records.json), AND
+//   2. An inbox / alias / SES inbound rule exists for that address.
+// Until then, set SUPPORT_INBOX to an address that works (e.g. your Gmail).
 const AWS_SES_REPLY_TO =
   cleanEnv(process.env.AWS_SES_REPLY_TO) ||
+  cleanEnv(process.env.SUPPORT_INBOX) ||
   "Famous Finds Support <support@myfamousfinds.com>";
 
 function isSesConfigured(): boolean {
@@ -64,7 +70,9 @@ const SMTP_FROM = SMTP_FROM_RAW
       : parsed?.email || SMTP_FROM_RAW)
   : "Famous Finds <admin@myfamousfinds.com>";
 
-const SMTP_REPLY_TO = "Famous Finds Support <support@myfamousfinds.com>";
+const SMTP_REPLY_TO =
+  cleanEnv(process.env.SUPPORT_INBOX) ||
+  "Famous Finds Support <support@myfamousfinds.com>";
 
 function getSmtpTransport() {
   if (!SMTP_HOST || !SMTP_PORT) {
