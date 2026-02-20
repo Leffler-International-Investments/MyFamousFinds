@@ -233,18 +233,31 @@ export default function UnifiedSignupPage() {
     try {
       if (auth.currentUser) {
         const token = await auth.currentUser.getIdToken();
-        await fetch("/api/user/preferences", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({
-            interests,
-            preferredSize,
-            ageRange,
+        const headers = {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        };
+
+        // Save preferences + phone/smsOptIn in parallel
+        await Promise.all([
+          fetch("/api/user/preferences", {
+            method: "POST",
+            headers,
+            body: JSON.stringify({
+              interests,
+              preferredSize,
+              ageRange,
+            }),
           }),
-        });
+          fetch("/api/user/profile", {
+            method: "POST",
+            headers,
+            body: JSON.stringify({
+              phone: phone.trim(),
+              smsOptIn,
+            }),
+          }),
+        ]);
       }
     } catch {
       // Non-blocking
@@ -481,6 +494,29 @@ export default function UnifiedSignupPage() {
                       </button>
                     ))}
                   </div>
+                </div>
+
+                <div className="pref-section">
+                  <label className="pref-label">Mobile number</label>
+                  <input
+                    type="tel"
+                    autoComplete="tel"
+                    value={phone}
+                    onChange={(e) => setPhone(autoPrefixPhone(e.target.value))}
+                    className="auth-input"
+                    placeholder="+1 (555) 000-0000"
+                  />
+                  <label className="sms-optin" style={{ marginTop: 10 }}>
+                    <input
+                      type="checkbox"
+                      checked={smsOptIn}
+                      onChange={(e) => setSmsOptIn(e.target.checked)}
+                    />
+                    <span>
+                      I'd like to receive text message updates about new
+                      arrivals, price drops, and order notifications.
+                    </span>
+                  </label>
                 </div>
 
                 <div className="pref-actions">
