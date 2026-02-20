@@ -1,4 +1,5 @@
 {
+  "id": "/",
   "name": "Famous Finds — Luxury Resale",
   "short_name": "Famous Finds",
   "description": "Authenticated luxury second-hand marketplace. Shop curated designer bags, watches, jewelry, and fashion.",
@@ -21,5 +22,21 @@
     { "src": "/icons/icon-384x384.png", "sizes": "384x384", "type": "image/png" },
     { "src": "/icons/icon-512x512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
     { "src": "/icons/maskable-icon-512x512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "screenshots": [
+    {
+      "src": "/icons/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Famous Finds — Luxury Resale"
+    },
+    {
+      "src": "/icons/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "Famous Finds — Luxury Resale"
+    }
   ]
 }
