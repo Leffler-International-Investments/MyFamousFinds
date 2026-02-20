@@ -58,8 +58,8 @@ export default function Footer() {
 
   const handleInstallClick = async () => {
     if (isStandalone) {
-      // Already installed — navigate to app-store page for sharing/install info
-      window.location.href = "/app-store";
+      // Already running as installed PWA — just show confirmation
+      setShowInstallTip(true);
       return;
     }
     // Check again in case the prompt arrived after initial render
@@ -264,7 +264,11 @@ export default function Footer() {
             </button>
             {showInstallTip && (
               <div className="ff-install-tip">
-                {isIOS ? (
+                {isStandalone ? (
+                  <p>
+                    The app is already installed on your device.
+                  </p>
+                ) : isIOS ? (
                   <p>
                     Tap the{" "}
                     <span style={{ fontSize: 16 }}>&#x2191;&#xFE0E;</span>{" "}
