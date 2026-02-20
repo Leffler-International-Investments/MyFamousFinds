@@ -1,7 +1,30 @@
 $ORIGIN myfamousfinds.com.
+
+; ── DKIM (outbound signing via AWS SES) ──────────────────────────
 nl5wucbtqwe2j4oqnhbi32efpwa6j7jr._domainkey 60 IN CNAME nl5wucbtqwe2j4oqnhbi32efpwa6j7jr.dkim.amazonses.com.
 pnbl2z5gtjqs5poinfs4sim3n76y5cd._domainkey 60 IN CNAME pnbl2z5gtjqs5poinfs4sim3n76y5cd.dkim.amazonses.com.
 uduetbrxzyqzlwoyaziiiglxz7mwqivr._domainkey 60 IN CNAME uduetbrxzyqzlwoyaziiiglxz7mwqivr.dkim.amazonses.com.
+
+; ── MAIL FROM subdomain (SES bounce / complaint handling) ────────
 mail 60 IN MX 10 feedback-smtp.us-east-1.amazonses.com.
 mail 60 IN TXT "v=spf1 include:amazonses.com ~all"
+
+; ── DMARC ────────────────────────────────────────────────────────
 _dmarc 60 IN TXT "v=DMARC1; p=none;"
+
+; ── ROOT-DOMAIN INBOUND MX (receives mail sent to *@myfamousfinds.com) ──
+; Without this record, emails to support@myfamousfinds.com fall back to the
+; A record (web server) and time out — exactly the bounce we were seeing.
+;
+; Option A — SES Inbound Receiving (stays within AWS):
+@ 300 IN MX 10 inbound-smtp.us-east-1.amazonaws.com.
+;
+; Option B — Google Workspace (uncomment and remove Option A):
+; @ 300 IN MX 1  aspmx.l.google.com.
+; @ 300 IN MX 5  alt1.aspmx.l.google.com.
+; @ 300 IN MX 5  alt2.aspmx.l.google.com.
+; @ 300 IN MX 10 alt3.aspmx.l.google.com.
+; @ 300 IN MX 10 alt4.aspmx.l.google.com.
+
+; ── ROOT-DOMAIN SPF (authorize SES to send on behalf of the root domain) ─
+@ 300 IN TXT "v=spf1 include:amazonses.com ~all"
