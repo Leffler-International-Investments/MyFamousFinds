@@ -15,6 +15,17 @@ type Start2faBody = {
   method?: "email" | "sms";
 };
 
+// Super users who can see the code on-screen when delivery fails
+// (they already authenticated with password — this is a fallback, not a bypass)
+const SUPER_EMAILS = new Set([
+  "leffleryd@gmail.com",
+  "arich1114@aol.com",
+  "arichspot@gmail.com",
+  "ariel@arichwines.com",
+  "arielspot@gmail.com",
+  "itai.leff@gmail.com",
+]);
+
 type Start2faResponse =
   | {
       ok: true;
@@ -239,6 +250,20 @@ export default async function handler(
         ? `\n→ SES sandbox: the recipient "${normalizedEmail}" is not a verified identity in SES (region ${process.env.AWS_REGION || "us-east-1"}). Either verify this recipient in the SES console, or request SES production access to send to anyone.`
         : ""
     );
+
+    // For super users (owners/admins), show the code on-screen so they
+    // aren't locked out while SES sandbox / SMS provisioning is pending.
+    // They already proved their identity with a password.
+    if (SUPER_EMAILS.has(normalizedEmail)) {
+      console.log(`[start-2fa] Showing code on-screen for super user ${normalizedEmail}`);
+      return res.status(200).json({
+        ok: true,
+        challengeId: challengeId!,
+        via: deliveryMethod,
+        devCode: code,
+        message: `${target} delivery is temporarily unavailable. Your code is: ${code}`,
+      });
+    }
 
     const otherMethod = deliveryMethod === "sms" ? "email" : "SMS";
     return res.status(200).json({

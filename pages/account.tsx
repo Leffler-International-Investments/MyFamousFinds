@@ -535,6 +535,9 @@ export default function AccountPage() {
                   </div>
                 </div>
                 <div className="seller-actions-row">
+                  <Link href="/seller/bulk-simple" className="btn-seller-add-item">
+                    + Add Item
+                  </Link>
                   <Link href="/seller/dashboard" className="btn-seller-dash">
                     Seller Closet
                   </Link>
@@ -899,6 +902,20 @@ export default function AccountPage() {
           display: flex;
           gap: 10px;
           flex-wrap: wrap;
+        }
+        .btn-seller-add-item {
+          border-radius: 999px;
+          background: #111827;
+          color: #ffffff;
+          padding: 10px 20px;
+          font-size: 13px;
+          font-weight: 700;
+          text-decoration: none;
+          white-space: nowrap;
+          transition: background 0.15s;
+        }
+        .btn-seller-add-item:hover {
+          background: #1f2937;
         }
         .btn-seller-dash {
           border-radius: 999px;
