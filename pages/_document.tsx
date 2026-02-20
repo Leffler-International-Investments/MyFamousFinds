@@ -25,6 +25,13 @@ export default function Document() {
           </>
         )}
 
+        {/* Capture PWA install prompt before React hydrates (so it's never lost) */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `window.__pwaInstallPrompt=null;window.addEventListener("beforeinstallprompt",function(e){e.preventDefault();window.__pwaInstallPrompt=e;});`,
+          }}
+        />
+
         {/* PWA manifest */}
         <link rel="manifest" href="/manifest.json" />
         <meta name="theme-color" content="#111827" />

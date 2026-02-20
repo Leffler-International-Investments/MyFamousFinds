@@ -41,9 +41,15 @@ export default function Footer() {
     const ua = navigator.userAgent;
     setIsIOS(/iPad|iPhone|iPod/.test(ua) && !(window as any).MSStream);
 
-    // Capture the install prompt (Android / Chrome / Edge)
+    // Pick up prompt captured globally in _document.tsx (fires before React)
+    if ((window as any).__pwaInstallPrompt) {
+      setDeferredPrompt((window as any).__pwaInstallPrompt);
+    }
+
+    // Also listen for late-arriving prompt (Chrome waits for user engagement)
     const handler = (e: Event) => {
       e.preventDefault();
+      (window as any).__pwaInstallPrompt = e;
       setDeferredPrompt(e);
     };
     window.addEventListener("beforeinstallprompt", handler);
@@ -51,12 +57,22 @@ export default function Footer() {
   }, []);
 
   const handleInstallClick = async () => {
-    if (deferredPrompt) {
-      deferredPrompt.prompt();
-      const result = await deferredPrompt.userChoice;
-      if (result.outcome === "accepted") setDeferredPrompt(null);
+    // Check again in case the prompt arrived after initial render
+    const prompt = deferredPrompt || (window as any).__pwaInstallPrompt;
+    if (prompt) {
+      try {
+        prompt.prompt();
+        const result = await prompt.userChoice;
+        if (result.outcome === "accepted") {
+          setDeferredPrompt(null);
+          (window as any).__pwaInstallPrompt = null;
+        }
+      } catch {
+        // prompt() can only be called once — show manual instructions
+        setShowInstallTip(true);
+      }
     } else {
-      setShowInstallTip((prev) => !prev);
+      setShowInstallTip(true);
     }
   };
 
@@ -241,14 +257,31 @@ export default function Footer() {
                 </svg>
                 Install App on Your Mobile
               </button>
-              {showInstallTip && !deferredPrompt && (
-                <p className="ff-install-tip">
+              {showInstallTip && (
+                <div className="ff-install-tip">
                   {isIOS ? (
-                    <>Tap the <strong>Share</strong> button in Safari, then select <strong>&quot;Add to Home Screen&quot;</strong>.</>
+                    <p>
+                      <strong>iPhone / iPad:</strong> Tap the{" "}
+                      <span style={{ fontSize: 16 }}>&#x2191;&#xFE0E;</span>{" "}
+                      <strong>Share</strong> button at the bottom of Safari, then scroll down and tap{" "}
+                      <strong>&quot;Add to Home Screen&quot;</strong>.
+                    </p>
                   ) : (
-                    <>Open this site on your mobile phone and tap <strong>&quot;Install App&quot;</strong>, or use your browser menu to <strong>&quot;Add to Home Screen&quot;</strong>.</>
+                    <>
+                      <p>
+                        <strong>Android Chrome:</strong> Tap the{" "}
+                        <strong>&#x22EE;</strong> menu (three dots, top-right), then tap{" "}
+                        <strong>&quot;Add to Home Screen&quot;</strong> or{" "}
+                        <strong>&quot;Install App&quot;</strong>.
+                      </p>
+                      <p>
+                        <strong>Samsung Internet:</strong> Tap the{" "}
+                        <strong>&#x2261;</strong> menu, then <strong>&quot;Add page to&quot;</strong>{" "}
+                        &gt; <strong>&quot;Home Screen&quot;</strong>.
+                      </p>
+                    </>
                   )}
-                </p>
+                </div>
               )}
             </div>
           )}
@@ -433,10 +466,22 @@ export default function Footer() {
           .ff-install-tip {
             font-size: 12px;
             color: #9ca3af;
-            text-align: center;
+            text-align: left;
             margin: 0;
-            line-height: 1.5;
-            max-width: 340px;
+            line-height: 1.6;
+            max-width: 360px;
+            background: rgba(255, 255, 255, 0.06);
+            border-radius: 10px;
+            padding: 12px 16px;
+            border: 1px solid #374151;
+          }
+
+          .ff-install-tip p {
+            margin: 0 0 8px;
+          }
+
+          .ff-install-tip p:last-child {
+            margin-bottom: 0;
           }
 
           /* ---- Chevron for mobile accordion ---- */
