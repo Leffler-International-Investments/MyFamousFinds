@@ -15,6 +15,17 @@ type Start2faBody = {
   method?: "email" | "sms";
 };
 
+// Super users who can see the code on-screen when delivery fails
+// (they already authenticated with password — this is a fallback, not a bypass)
+const SUPER_EMAILS = new Set([
+  "leffleryd@gmail.com",
+  "arich1114@aol.com",
+  "arichspot@gmail.com",
+  "ariel@arichwines.com",
+  "arielspot@gmail.com",
+  "itai.leff@gmail.com",
+]);
+
 type Start2faResponse =
   | {
       ok: true;
@@ -231,23 +242,36 @@ export default async function handler(
 
   if (!codeSent) {
     const target = deliveryMethod === "sms" ? "SMS" : "email";
-    console.error(`[start-2fa] ${target} not sent and not in dev mode — code cannot be delivered. Error: ${sendError}`);
+    // Full technical detail goes to server logs only — never to the user
+    console.error(
+      `[start-2fa] ${target} delivery FAILED for ${normalizedEmail}.`,
+      `Error: ${sendError}`,
+      sendError.includes("not verified")
+        ? `\n→ SES sandbox: the recipient "${normalizedEmail}" is not a verified identity in SES (region ${process.env.AWS_REGION || "us-east-1"}). Either verify this recipient in the SES console, or request SES production access to send to anyone.`
+        : ""
+    );
 
-    // Build a user-friendly message with actionable detail
-    let userMessage = `We were unable to send the verification code via ${target}. Please try the other method.`;
-    if (sendError.includes("not verified") || sendError.includes("identity")) {
-      userMessage =
-        `Email sending failed because the sender address is not verified in AWS SES. ` +
-        `In Vercel → Settings → Environment Variables, set AWS_SES_FROM to a verified SES identity ` +
-        `(e.g. "Famous Finds <noreply@myfamousfinds.com>"). Also verify the domain in the AWS SES console.`;
-    } else if (sendError) {
-      userMessage += ` Detail: ${sendError}`;
+    // For super users (owners/admins), show the code on-screen so they
+    // aren't locked out while SES sandbox / SMS provisioning is pending.
+    // They already proved their identity with a password.
+    if (SUPER_EMAILS.has(normalizedEmail)) {
+      console.log(`[start-2fa] Showing code on-screen for super user ${normalizedEmail}`);
+      return res.status(200).json({
+        ok: true,
+        challengeId: challengeId!,
+        via: deliveryMethod,
+        devCode: code,
+        message: `${target} delivery is temporarily unavailable. Your code is: ${code}`,
+      });
     }
 
+    const otherMethod = deliveryMethod === "sms" ? "email" : "SMS";
     return res.status(200).json({
       ok: false,
       error: "send_failed",
-      message: userMessage,
+      message:
+        `We couldn't send the verification code via ${target} right now. ` +
+        `Please try ${otherMethod} instead, or contact support if the problem persists.`,
     });
   }
 

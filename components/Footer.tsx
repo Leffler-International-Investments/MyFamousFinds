@@ -242,8 +242,8 @@ export default function Footer() {
             </a>
           </div>
 
-          {/* ---- Install App button (mobile only) ---- */}
-          {isMobile && !isStandalone && (
+          {/* ---- Install App button ---- */}
+          {!isStandalone && (
             <div className="ff-install-section">
               <button
                 type="button"

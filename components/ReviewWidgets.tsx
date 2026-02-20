@@ -50,7 +50,8 @@ const modalBaseStyle: CSSProperties = {
   padding: 20,
   borderRadius: 16,
   boxShadow: "0 20px 50px rgba(0, 0, 0, 0.5)",
-  width: 300,
+  width: "calc(100vw - 32px)",
+  maxWidth: 300,
   border: "1px solid #334155",
   touchAction: "none",
 };
@@ -283,11 +284,17 @@ const ReviewWidgets: React.FC<ReviewWidgetProps> = () => {
     );
   }
 
-  // Open modal
+  // Open modal — centered on screen so it never overflows on mobile
+  const modalPosStyle: CSSProperties = {
+    left: "50%",
+    bottom: 24,
+    transform: "translateX(-50%)",
+  };
+
   return (
     <div
       ref={dragRef}
-      style={{ ...modalBaseStyle, ...posStyle }}
+      style={{ ...modalBaseStyle, ...modalPosStyle }}
     >
       <div
         style={{
