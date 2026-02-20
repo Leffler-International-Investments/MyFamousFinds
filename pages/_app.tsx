@@ -24,11 +24,13 @@ export default function MyFamousFindsApp({ Component, pageProps }: AppProps) {
     initNativePlugins();
   }, []);
 
-  // Register PWA service worker
+  // Register PWA service worker — deferred until page is fully loaded
   useEffect(() => {
     if ("serviceWorker" in navigator) {
-      navigator.serviceWorker.register("/sw.js").catch((err) => {
-        console.error("SW registration failed:", err);
+      window.addEventListener("load", () => {
+        navigator.serviceWorker.register("/sw.js").catch((err) => {
+          console.error("SW registration failed:", err);
+        });
       });
     }
   }, []);
@@ -68,25 +70,15 @@ export default function MyFamousFindsApp({ Component, pageProps }: AppProps) {
         sessionStorage.setItem(SCROLL_KEY, JSON.stringify(store));
 
         // Temporarily disable smooth scrolling so scrollTo jumps instantly
-        // instead of animating (base.css sets scroll-behavior: smooth).
         const html = document.documentElement;
         html.style.scrollBehavior = "auto";
 
-        // Robust restore: Next.js Link (scroll={true}) may scroll to top
-        // after this event, and page content may still be loading.
-        // Retry every 50 ms for up to 1 s to override and wait for the
-        // page to be tall enough to reach the saved offset.
-        let attempts = 0;
-        const maxAttempts = 20;
-        const timer = setInterval(() => {
+        // Restore scroll after a single frame — let Next.js finish its
+        // scroll-to-top first, then override once.
+        requestAnimationFrame(() => {
           window.scrollTo(0, saved);
-          attempts++;
-          if (Math.abs(window.scrollY - saved) < 5 || attempts >= maxAttempts) {
-            clearInterval(timer);
-            // Re-enable smooth scrolling
-            html.style.scrollBehavior = "";
-          }
-        }, 50);
+          html.style.scrollBehavior = "";
+        });
       }
     };
 
