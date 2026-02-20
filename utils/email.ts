@@ -14,9 +14,10 @@ function cleanEnv(v?: string) {
 const AWS_REGION = cleanEnv(process.env.AWS_REGION) || "us-east-1";
 const AWS_ACCESS_KEY_ID = cleanEnv(process.env.AWS_ACCESS_KEY_ID);
 const AWS_SECRET_ACCESS_KEY = cleanEnv(process.env.AWS_SECRET_ACCESS_KEY);
+// SES sender must be a verified identity in AWS — NEVER fall back to SMTP_FROM
+// (which is typically a personal Gmail and will be rejected by SES).
 const AWS_SES_FROM =
   cleanEnv(process.env.AWS_SES_FROM) ||
-  cleanEnv(process.env.SMTP_FROM) ||
   "Famous Finds <admin@myfamousfinds.com>";
 const AWS_SES_REPLY_TO =
   cleanEnv(process.env.AWS_SES_REPLY_TO) ||
@@ -102,10 +103,12 @@ async function sendViaSes(
 ) {
   const parsedFrom = parseFromAddress(AWS_SES_FROM);
   const sourceEmail = parsedFrom?.email || AWS_SES_FROM;
-  // SES requires the From to be a verified identity
+  // SES requires the From to be a verified identity (domain or email)
   const source = parsedFrom?.name
     ? `${parsedFrom.name} <${sourceEmail}>`
     : sourceEmail;
+
+  console.log(`[SES] Sending from="${source}" to="${to}" subject="${subject}"`);
 
   const client = getSesClient();
   const command = new SendEmailCommand({
@@ -121,8 +124,22 @@ async function sendViaSes(
     },
   });
 
-  const result = await client.send(command);
-  return { messageId: result.MessageId || "n/a" };
+  try {
+    const result = await client.send(command);
+    return { messageId: result.MessageId || "n/a" };
+  } catch (err: any) {
+    const msg = err?.message || "";
+    // Provide clear guidance for common SES errors
+    if (msg.includes("not verified") || msg.includes("identity")) {
+      console.error(
+        `[SES] IDENTITY NOT VERIFIED — The sender "${sourceEmail}" is not verified in AWS SES (region: ${AWS_REGION}).`,
+        `\nFix: In Vercel, set AWS_SES_FROM to a verified SES identity (e.g. noreply@myfamousfinds.com).`,
+        `\nAlso ensure the domain or email is verified in the AWS SES console.`,
+        `\nIf SES is in sandbox mode, the recipient "${to}" must also be verified.`
+      );
+    }
+    throw err;
+  }
 }
 
 /**
