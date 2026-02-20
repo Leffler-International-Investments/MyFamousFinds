@@ -12,7 +12,10 @@ body {
   font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
   background: #ffffff;
   color: #111111;
-  scroll-behavior: smooth;
+}
+
+/* Only hide horizontal overflow on body (not html — breaks iOS scroll) */
+body {
   overflow-x: hidden;
 }
 
