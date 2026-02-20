@@ -1,6 +1,6 @@
 // FILE: components/ReviewWidgets.tsx
 "use client";
-import React, { useState, useEffect, type CSSProperties } from "react";
+import React, { useState, useEffect, useRef, useCallback, type CSSProperties } from "react";
 import { addReview } from "../lib/firestore";
 import { APP_NAME } from "../lib/appConfig";
 
@@ -23,10 +23,8 @@ function markReviewSubmitted() {
   }
 }
 
-const pillStyle: CSSProperties = {
+const pillBaseStyle: CSSProperties = {
   position: "fixed",
-  bottom: 24,
-  right: 24,
   zIndex: 50,
   background: "#ffffff",
   color: "#0f172a",
@@ -38,14 +36,14 @@ const pillStyle: CSSProperties = {
   display: "flex",
   alignItems: "center",
   gap: 6,
-  cursor: "pointer",
+  cursor: "grab",
   border: "1px solid #e2e8f0",
+  touchAction: "none",
+  userSelect: "none",
 };
 
-const modalStyle: CSSProperties = {
+const modalBaseStyle: CSSProperties = {
   position: "fixed",
-  bottom: 24,
-  right: 24,
   zIndex: 51,
   background: "#1e293b",
   color: "white",
@@ -54,6 +52,7 @@ const modalStyle: CSSProperties = {
   boxShadow: "0 20px 50px rgba(0, 0, 0, 0.5)",
   width: 300,
   border: "1px solid #334155",
+  touchAction: "none",
 };
 
 const starButton: CSSProperties = {
@@ -98,6 +97,57 @@ const ReviewWidgets: React.FC<ReviewWidgetProps> = () => {
   const [stats, setStats] = useState<ReviewStats | null>(null);
   const [statsLoading, setStatsLoading] = useState(false);
   const [rateLimited, setRateLimited] = useState(false);
+
+  // Draggable state
+  const [pos, setPos] = useState({ x: 0, y: 0 });
+  const [posReady, setPosReady] = useState(false);
+  const dragRef = useRef<HTMLDivElement>(null);
+  const dragging = useRef(false);
+  const dragOffset = useRef({ x: 0, y: 0 });
+  const hasMoved = useRef(false);
+
+  // Set initial position (bottom-right) after mount
+  useEffect(() => {
+    const x = window.innerWidth - 24;
+    const y = window.innerHeight - 24;
+    setPos({ x, y });
+    setPosReady(true);
+  }, []);
+
+  const clamp = useCallback((x: number, y: number, el: HTMLElement) => {
+    const r = el.getBoundingClientRect();
+    return {
+      x: Math.max(r.width / 2, Math.min(window.innerWidth - r.width / 2, x)),
+      y: Math.max(r.height / 2, Math.min(window.innerHeight - r.height / 2, y)),
+    };
+  }, []);
+
+  const onPointerDown = useCallback((e: React.PointerEvent) => {
+    const el = dragRef.current;
+    if (!el) return;
+    dragging.current = true;
+    hasMoved.current = false;
+    const r = el.getBoundingClientRect();
+    dragOffset.current = {
+      x: e.clientX - (r.left + r.width / 2),
+      y: e.clientY - (r.top + r.height / 2),
+    };
+    el.setPointerCapture(e.pointerId);
+  }, []);
+
+  const onPointerMove = useCallback((e: React.PointerEvent) => {
+    if (!dragging.current || !dragRef.current) return;
+    hasMoved.current = true;
+    const nx = e.clientX - dragOffset.current.x;
+    const ny = e.clientY - dragOffset.current.y;
+    const clamped = clamp(nx, ny, dragRef.current);
+    setPos(clamped);
+  }, [clamp]);
+
+  const onPointerUp = useCallback((e: React.PointerEvent) => {
+    dragging.current = false;
+    if (dragRef.current) dragRef.current.releasePointerCapture(e.pointerId);
+  }, []);
 
   // Check rate limit on mount
   useEffect(() => {
@@ -209,10 +259,25 @@ const ReviewWidgets: React.FC<ReviewWidgetProps> = () => {
     );
   };
 
+  if (!posReady) return null;
+
+  const posStyle: CSSProperties = {
+    left: pos.x,
+    top: pos.y,
+    transform: "translate(-100%, -100%)",
+  };
+
   // Closed pill
   if (!isOpen) {
     return (
-      <div onClick={() => setIsOpen(true)} style={pillStyle}>
+      <div
+        ref={dragRef}
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={onPointerUp}
+        onClick={() => { if (!hasMoved.current) setIsOpen(true); }}
+        style={{ ...pillBaseStyle, ...posStyle }}
+      >
         {renderPillText()}
       </div>
     );
@@ -220,7 +285,10 @@ const ReviewWidgets: React.FC<ReviewWidgetProps> = () => {
 
   // Open modal
   return (
-    <div style={modalStyle}>
+    <div
+      ref={dragRef}
+      style={{ ...modalBaseStyle, ...posStyle }}
+    >
       <div
         style={{
           display: "flex",

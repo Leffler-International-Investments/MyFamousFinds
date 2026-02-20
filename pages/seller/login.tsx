@@ -9,8 +9,7 @@ import Header from "../../components/Header";
 import Footer from "../../components/Footer";
 import PasswordInput from "../../components/PasswordInput";
 
-import { auth } from "../../utils/firebaseClient";
-import { signInWithEmailAndPassword } from "firebase/auth";
+// Password verification is now handled server-side by the API (like management login)
 
 type LoginSuccess = { ok: true; sellerId: string };
 type LoginError = {
@@ -75,16 +74,11 @@ export default function SellerLoginPage() {
     }
     setLoading(true);
     try {
-      try {
-        await signInWithEmailAndPassword(auth, trimmedEmail, trimmedPassword);
-      } catch (authErr) {
-        setError("Incorrect email or password. Please try again.");
-        return;
-      }
+      // Send password to the API for server-side verification (same as management login)
       const res = await fetch("/api/seller/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: trimmedEmail }),
+        body: JSON.stringify({ email: trimmedEmail, password: trimmedPassword }),
       });
       const json = (await res.json()) as LoginResponse;
       if (!json.ok) {

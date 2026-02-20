@@ -4,7 +4,7 @@ import { adminDb, isFirebaseAdminReady } from "../../../utils/firebaseAdmin";
 
 type LoginPayload = {
   email?: string;
-  password?: string; // kept for backward compatibility (ignored)
+  password?: string;
 };
 
 type LoginResponse =
@@ -30,6 +30,35 @@ function isApprovedStatus(status: unknown) {
   return s === "approved";
 }
 
+/**
+ * Verify password via Firebase Auth REST API (same approach as management login).
+ */
+async function verifyFirebaseAuthPassword(
+  email: string,
+  password: string
+): Promise<boolean> {
+  const apiKey = process.env.NEXT_PUBLIC_FIREBASE_API_KEY;
+  if (!apiKey) return false;
+
+  try {
+    const resp = await fetch(
+      `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${apiKey}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email,
+          password,
+          returnSecureToken: false,
+        }),
+      }
+    );
+    return resp.ok;
+  } catch {
+    return false;
+  }
+}
+
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse<LoginResponse>
@@ -42,7 +71,7 @@ export default async function handler(
     });
   }
 
-  const { email } = req.body as LoginPayload;
+  const { email, password } = req.body as LoginPayload;
 
   if (!email) {
     return res.status(400).json({
@@ -55,9 +84,35 @@ export default async function handler(
   const trimmedEmail = email.trim().toLowerCase();
   const isSuperSeller = SUPER_SELLER_EMAILS.has(trimmedEmail);
 
-  // If Firebase Admin is not configured, still allow SUPER sellers
+  // If Firebase Admin is not configured, still allow SUPER sellers with password check
   if (!isFirebaseAdminReady || !adminDb) {
     if (isSuperSeller) {
+      if (password) {
+        // Check env-var passwords or Firebase Auth REST API
+        const adminEmail = String(process.env.ADMIN_EMAIL || "").trim().toLowerCase();
+        const adminPassword = String(process.env.ADMIN_PASSWORD || "");
+        const envMatch =
+          (adminEmail === trimmedEmail && adminPassword === password) ||
+          (process.env.MANAGEMENT_DAN_PASSWORD && trimmedEmail === "leffleryd@gmail.com" && process.env.MANAGEMENT_DAN_PASSWORD === password) ||
+          (process.env.MANAGEMENT_ARIEL_PASSWORD && trimmedEmail === "arich1114@aol.com" && process.env.MANAGEMENT_ARIEL_PASSWORD === password) ||
+          (process.env.MANAGEMENT_ITAI_PASSWORD && trimmedEmail === "itai.leff@gmail.com" && process.env.MANAGEMENT_ITAI_PASSWORD === password);
+
+        if (envMatch) {
+          return res.status(200).json({ ok: true, sellerId: "super-seller" });
+        }
+
+        const firebaseOk = await verifyFirebaseAuthPassword(trimmedEmail, password);
+        if (firebaseOk) {
+          return res.status(200).json({ ok: true, sellerId: "super-seller" });
+        }
+
+        return res.status(401).json({
+          ok: false,
+          code: "bad_credentials",
+          message: "Incorrect email or password.",
+        });
+      }
+      // No password provided (legacy)
       return res.status(200).json({ ok: true, sellerId: "super-seller" });
     }
     return res.status(500).json({
@@ -147,8 +202,43 @@ export default async function handler(
       });
     }
 
-    // ✅ IMPORTANT CHANGE:
-    // We do NOT verify passwords here anymore (Firebase Auth handles that on the client).
+    // Verify password server-side (same as management login)
+    if (password) {
+      // Super sellers can also use env-var passwords
+      if (isSuperSeller) {
+        const envPasswords: { email: string; password: string }[] = [];
+        const legacyAriel = String(process.env.SELLER_ARIEL_PASSWORD || process.env.MANAGEMENT_ARIEL_PASSWORD || "");
+        if (legacyAriel) envPasswords.push({ email: "arich1114@aol.com", password: legacyAriel });
+        const legacyItai = String(process.env.SELLER_ITAI_PASSWORD || process.env.MANAGEMENT_ITAI_PASSWORD || "");
+        if (legacyItai) envPasswords.push({ email: "itai.leff@gmail.com", password: legacyItai });
+        const legacyDan = String(process.env.SELLER_DAN_PASSWORD || process.env.MANAGEMENT_DAN_PASSWORD || "");
+        if (legacyDan) envPasswords.push({ email: "leffleryd@gmail.com", password: legacyDan });
+        const adminEmail = String(process.env.ADMIN_EMAIL || "").trim().toLowerCase();
+        const adminPassword = String(process.env.ADMIN_PASSWORD || "");
+        if (adminEmail && adminPassword) envPasswords.push({ email: adminEmail, password: adminPassword });
+
+        const envMatch = envPasswords.find(
+          (c) => c.email === trimmedEmail && c.password === password
+        );
+        if (envMatch) {
+          return res.status(200).json({ ok: true, sellerId });
+        }
+      }
+
+      // Check password via Firebase Auth REST API
+      const firebaseOk = await verifyFirebaseAuthPassword(trimmedEmail, password);
+      if (firebaseOk) {
+        return res.status(200).json({ ok: true, sellerId });
+      }
+
+      return res.status(401).json({
+        ok: false,
+        code: "bad_credentials",
+        message: "Incorrect email or password.",
+      });
+    }
+
+    // No password provided — legacy flow (client already verified via Firebase Auth)
     return res.status(200).json({ ok: true, sellerId });
   } catch (err) {
     console.error("seller_login_api_error", err);

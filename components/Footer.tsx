@@ -242,8 +242,8 @@ export default function Footer() {
             </a>
           </div>
 
-          {/* ---- Install App button ---- */}
-          {!isStandalone && (
+          {/* ---- Install App button (mobile only) ---- */}
+          {isMobile && !isStandalone && (
             <div className="ff-install-section">
               <button
                 type="button"
@@ -261,25 +261,17 @@ export default function Footer() {
                 <div className="ff-install-tip">
                   {isIOS ? (
                     <p>
-                      <strong>iPhone / iPad:</strong> Tap the{" "}
+                      Tap the{" "}
                       <span style={{ fontSize: 16 }}>&#x2191;&#xFE0E;</span>{" "}
-                      <strong>Share</strong> button at the bottom of Safari, then scroll down and tap{" "}
+                      <strong>Share</strong> button at the bottom of Safari, then tap{" "}
                       <strong>&quot;Add to Home Screen&quot;</strong>.
                     </p>
                   ) : (
-                    <>
-                      <p>
-                        <strong>Android Chrome:</strong> Tap the{" "}
-                        <strong>&#x22EE;</strong> menu (three dots, top-right), then tap{" "}
-                        <strong>&quot;Add to Home Screen&quot;</strong> or{" "}
-                        <strong>&quot;Install App&quot;</strong>.
-                      </p>
-                      <p>
-                        <strong>Samsung Internet:</strong> Tap the{" "}
-                        <strong>&#x2261;</strong> menu, then <strong>&quot;Add page to&quot;</strong>{" "}
-                        &gt; <strong>&quot;Home Screen&quot;</strong>.
-                      </p>
-                    </>
+                    <p>
+                      Tap the <strong>&#x22EE;</strong> menu (top-right), then tap{" "}
+                      <strong>&quot;Install App&quot;</strong> or{" "}
+                      <strong>&quot;Add to Home Screen&quot;</strong>.
+                    </p>
                   )}
                 </div>
               )}
