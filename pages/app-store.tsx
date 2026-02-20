@@ -11,11 +11,19 @@ const SITE_URL = "https://www.myfamousfinds.com";
 export default function MyFamousFindsAppPage() {
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [isIOS, setIsIOS] = useState(false);
+  const [isAndroid, setIsAndroid] = useState(false);
   const [installed, setInstalled] = useState(false);
 
   useEffect(() => {
     const ua = navigator.userAgent;
     setIsIOS(/iPad|iPhone|iPod/.test(ua) && !(window as any).MSStream);
+    setIsAndroid(/Android/.test(ua));
+
+    // Detect if already running as installed PWA
+    const standalone =
+      window.matchMedia("(display-mode: standalone)").matches ||
+      (window.navigator as any).standalone === true;
+    if (standalone) setInstalled(true);
 
     // Pick up prompt captured globally in _document.tsx
     if ((window as any).__pwaInstallPrompt) {
@@ -113,13 +121,13 @@ export default function MyFamousFindsAppPage() {
           Make offers, track orders, and get notified about price drops.
         </p>
 
-        <div style={{ display: "flex", flexDirection: "column", gap: 12, maxWidth: 320, margin: "0 auto 32px" }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 12, maxWidth: 360, margin: "0 auto 32px" }}>
           {installed ? (
             <div style={{
               background: "#ecfdf5", color: "#065f46", padding: "14px 24px", borderRadius: 12,
               fontSize: 15, fontWeight: 600, textAlign: "center",
             }}>
-              App installed successfully
+              App installed — you&apos;re all set!
             </div>
           ) : deferredPrompt ? (
             <button
@@ -135,18 +143,40 @@ export default function MyFamousFindsAppPage() {
           ) : isIOS ? (
             <div style={{
               background: "#f0f9ff", color: "#1e40af", padding: "16px 20px", borderRadius: 12,
-              fontSize: 14, lineHeight: 1.6, textAlign: "left",
+              fontSize: 14, lineHeight: 1.8, textAlign: "left",
             }}>
-              <strong>Install on iPhone / iPad:</strong><br />
-              Tap the <strong>Share</strong> button in Safari (the square with an arrow), then tap <strong>&quot;Add to Home Screen&quot;</strong>.
+              <strong style={{ fontSize: 15 }}>Install on iPhone / iPad:</strong>
+              <ol style={{ margin: "8px 0 0", paddingLeft: 20 }}>
+                <li>Make sure you are using <strong>Safari</strong> (not Chrome or another browser)</li>
+                <li>Tap the <strong>Share</strong> button <span style={{ fontSize: 16 }}>&#x2191;&#xFE0E;</span> at the bottom of the screen</li>
+                <li>Scroll down and tap <strong>&quot;Add to Home Screen&quot;</strong></li>
+                <li>Tap <strong>&quot;Add&quot;</strong> in the top-right corner</li>
+              </ol>
+            </div>
+          ) : isAndroid ? (
+            <div style={{
+              background: "#f0f9ff", color: "#1e40af", padding: "16px 20px", borderRadius: 12,
+              fontSize: 14, lineHeight: 1.8, textAlign: "left",
+            }}>
+              <strong style={{ fontSize: 15 }}>Install on Android:</strong>
+              <ol style={{ margin: "8px 0 0", paddingLeft: 20 }}>
+                <li>Make sure you are using <strong>Chrome</strong></li>
+                <li>Tap the <strong>&#x22EE;</strong> menu (three dots, top-right)</li>
+                <li>Tap <strong>&quot;Add to Home Screen&quot;</strong> or <strong>&quot;Install App&quot;</strong></li>
+                <li>Tap <strong>&quot;Install&quot;</strong> to confirm</li>
+              </ol>
             </div>
           ) : (
             <div style={{
               background: "#f0f9ff", color: "#1e40af", padding: "16px 20px", borderRadius: 12,
-              fontSize: 14, lineHeight: 1.6, textAlign: "left",
+              fontSize: 14, lineHeight: 1.8, textAlign: "left",
             }}>
-              <strong>Install on your phone:</strong><br />
-              Open this page on your mobile phone, then tap <strong>&quot;Install App Now&quot;</strong> or use your browser menu to <strong>&quot;Add to Home Screen&quot;</strong>.
+              <strong style={{ fontSize: 15 }}>Add to Home Screen:</strong>
+              <ol style={{ margin: "8px 0 0", paddingLeft: 20 }}>
+                <li>Open this page on your mobile phone in <strong>Chrome</strong> (Android) or <strong>Safari</strong> (iPhone)</li>
+                <li>Open the browser menu</li>
+                <li>Tap <strong>&quot;Add to Home Screen&quot;</strong> or <strong>&quot;Install App&quot;</strong></li>
+              </ol>
             </div>
           )}
         </div>
