@@ -845,7 +845,7 @@ export default function AccountPage() {
           margin: 0 0 12px;
           line-height: 1.5;
         }
-        .btn-become-seller {
+        :global(.btn-become-seller) {
           display: inline-block;
           border-radius: 999px;
           background: #111827;
@@ -856,7 +856,7 @@ export default function AccountPage() {
           text-decoration: none;
           transition: opacity 0.2s;
         }
-        .btn-become-seller:hover {
+        :global(.btn-become-seller:hover) {
           opacity: 0.9;
         }
         .seller-status-card {
@@ -903,7 +903,8 @@ export default function AccountPage() {
           gap: 10px;
           flex-wrap: wrap;
         }
-        .btn-seller-add-item {
+        /* :global() needed — styled-jsx scoping doesn't reach <Link> anchors */
+        :global(.btn-seller-add-item) {
           border-radius: 999px;
           background: #111827;
           color: #ffffff;
@@ -913,11 +914,12 @@ export default function AccountPage() {
           text-decoration: none;
           white-space: nowrap;
           transition: background 0.15s;
+          display: inline-block;
         }
-        .btn-seller-add-item:hover {
+        :global(.btn-seller-add-item:hover) {
           background: #1f2937;
         }
-        .btn-seller-dash {
+        :global(.btn-seller-dash) {
           border-radius: 999px;
           background: #059669;
           color: #ffffff;
@@ -927,11 +929,12 @@ export default function AccountPage() {
           text-decoration: none;
           white-space: nowrap;
           transition: background 0.15s;
+          display: inline-block;
         }
-        .btn-seller-dash:hover {
+        :global(.btn-seller-dash:hover) {
           background: #047857;
         }
-        .btn-seller-secondary {
+        :global(.btn-seller-secondary) {
           border-radius: 999px;
           background: #ffffff;
           color: #059669;
@@ -942,8 +945,9 @@ export default function AccountPage() {
           text-decoration: none;
           white-space: nowrap;
           transition: all 0.15s;
+          display: inline-block;
         }
-        .btn-seller-secondary:hover {
+        :global(.btn-seller-secondary:hover) {
           background: #f0fdf4;
           border-color: #059669;
         }
@@ -1029,36 +1033,37 @@ export default function AccountPage() {
           grid-template-columns: repeat(4, 1fr);
           gap: 12px;
         }
-        .rec-card {
+        :global(.rec-card) {
           text-decoration: none;
           color: inherit;
           border: 1px solid #e5e7eb;
           border-radius: 12px;
           overflow: hidden;
           transition: box-shadow 0.2s;
+          display: block;
         }
-        .rec-card:hover {
+        :global(.rec-card:hover) {
           box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
         }
-        .rec-img {
+        :global(.rec-card .rec-img) {
           width: 100%;
           aspect-ratio: 1;
           object-fit: cover;
           display: block;
         }
-        .rec-info {
+        :global(.rec-card .rec-info) {
           padding: 8px 10px;
           display: flex;
           flex-direction: column;
           gap: 2px;
         }
-        .rec-brand {
+        :global(.rec-card .rec-brand) {
           font-size: 10px;
           font-weight: 600;
           color: #6b7280;
           text-transform: uppercase;
         }
-        .rec-title {
+        :global(.rec-card .rec-title) {
           font-size: 12px;
           color: #111827;
           display: -webkit-box;
@@ -1150,41 +1155,42 @@ export default function AccountPage() {
           grid-template-columns: repeat(4, 1fr);
           gap: 12px;
         }
-        .saved-card {
+        :global(.saved-card) {
           text-decoration: none;
           color: inherit;
           border: 1px solid #e5e7eb;
           border-radius: 12px;
           overflow: hidden;
           transition: box-shadow 0.2s;
+          display: block;
         }
-        .saved-card:hover {
+        :global(.saved-card:hover) {
           box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
         }
-        .saved-card-img {
+        :global(.saved-card .saved-card-img) {
           width: 100%;
           aspect-ratio: 1;
           object-fit: cover;
           display: block;
         }
-        .saved-card-img-placeholder {
+        :global(.saved-card .saved-card-img-placeholder) {
           width: 100%;
           aspect-ratio: 1;
           background: #f3f4f6;
         }
-        .saved-card-info {
+        :global(.saved-card .saved-card-info) {
           padding: 8px 10px;
           display: flex;
           flex-direction: column;
           gap: 2px;
         }
-        .saved-card-brand {
+        :global(.saved-card .saved-card-brand) {
           font-size: 10px;
           font-weight: 600;
           color: #6b7280;
           text-transform: uppercase;
         }
-        .saved-card-title {
+        :global(.saved-card .saved-card-title) {
           font-size: 12px;
           color: #111827;
           display: -webkit-box;
@@ -1192,7 +1198,7 @@ export default function AccountPage() {
           -webkit-box-orient: vertical;
           overflow: hidden;
         }
-        .saved-card-price {
+        :global(.saved-card .saved-card-price) {
           font-size: 13px;
           font-weight: 700;
           color: #111827;
