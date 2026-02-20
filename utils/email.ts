@@ -672,6 +672,53 @@ export async function sendWishlistPriceDropEmail(params: {
   await sendMail(to, subject, text, html);
 }
 
+/**
+ * Proof Request — notify seller that proof of purchase/authenticity is needed
+ */
+export async function sendProofRequestEmail(params: {
+  to: string;
+  sellerName?: string;
+  itemTitle: string;
+  listingId: string;
+}) {
+  const to = (params.to || "").trim();
+  if (!to) throw new Error("sendProofRequestEmail missing required field: to");
+
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://www.myfamousfinds.com";
+  const name = params.sellerName || "Seller";
+  const subject = `MyFamousFinds — Proof of Purchase Requested for "${params.itemTitle}"`;
+
+  const text =
+    `Hello ${name},\n\n` +
+    `Our review team has requested proof of purchase or authenticity documentation ` +
+    `for your listing:\n\n` +
+    `Item: ${params.itemTitle}\n\n` +
+    `Please upload a receipt, invoice, certificate of authenticity, or other proof ` +
+    `of purchase in your Seller Catalogue:\n` +
+    `${siteUrl}/seller/catalogue\n\n` +
+    `Until proof is provided, your listing will remain on hold.\n\n` +
+    `If you have any questions, feel free to reply to this email.\n\n` +
+    `Regards,\nThe MyFamousFinds Team\n`;
+
+  const html =
+    `<p>Hello ${escapeHtml(name)},</p>` +
+    `<p>Our review team has requested <b>proof of purchase or authenticity documentation</b> ` +
+    `for your listing:</p>` +
+    `<div style="padding:14px;background:#fef3c7;border-radius:8px;margin:12px 0;">` +
+    `<p style="margin:4px 0;font-size:16px;"><b>${escapeHtml(params.itemTitle)}</b></p>` +
+    `</div>` +
+    `<p>Please upload a receipt, invoice, certificate of authenticity, or other proof ` +
+    `of purchase in your Seller Catalogue.</p>` +
+    `<p><a href="${siteUrl}/seller/catalogue" ` +
+    `style="display:inline-block;padding:12px 28px;background:#f59e0b;color:#000;` +
+    `border-radius:999px;text-decoration:none;font-weight:600;">Upload Proof</a></p>` +
+    `<p style="font-size:13px;color:#6b7280;">Until proof is provided, your listing will remain on hold.</p>` +
+    `<p>If you have any questions, feel free to reply to this email.</p>` +
+    `<p>Regards,<br/>The MyFamousFinds Team</p>`;
+
+  await sendMail(to, subject, text, html);
+}
+
 export async function sendTestEmail(to: string) {
   const subject = "MyFamousFinds SMTP Test";
   const text =

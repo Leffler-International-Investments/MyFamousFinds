@@ -20,7 +20,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   try {
-    const { fullName, email, phone } = req.body || {};
+    const { fullName, email, phone, smsOptIn } = req.body || {};
 
     const profileData: Record<string, any> = {
       uid: authUser.uid,
@@ -32,6 +32,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     if (phone !== undefined) {
       profileData.phone = phone || "";
+    }
+
+    if (smsOptIn !== undefined) {
+      profileData.smsOptIn = Boolean(smsOptIn);
     }
 
     await adminDb.collection("users").doc(authUser.uid).set(
