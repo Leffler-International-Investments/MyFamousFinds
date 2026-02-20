@@ -226,97 +226,32 @@ export default function Footer() {
             </a>
           </div>
 
-          {/* ---- Install App buttons ---- */}
-          <div className="ff-install-section">
-            <div className="ff-store-badges">
-              <Link
-                href="/app-store"
-                className="ff-store-badge"
-                aria-label="Download on the App Store"
+          {/* ---- Install App button ---- */}
+          {!isStandalone && (
+            <div className="ff-install-section">
+              <button
+                type="button"
+                className="ff-install-btn"
+                onClick={handleInstallClick}
               >
-                <svg viewBox="0 0 120 40" width="120" height="40" xmlns="http://www.w3.org/2000/svg">
-                  <rect width="120" height="40" rx="6" fill="#000" />
-                  <g fill="#fff">
-                    <path d="M24.77 20.3a4.95 4.95 0 0 1 2.36-4.15 5.07 5.07 0 0 0-3.99-2.16c-1.68-.18-3.31 1.01-4.17 1.01-.87 0-2.19-.99-3.62-.96a5.33 5.33 0 0 0-4.49 2.73c-1.93 3.34-.49 8.27 1.36 10.97.93 1.33 2.02 2.81 3.44 2.76 1.39-.06 1.91-.89 3.59-.89 1.67 0 2.15.89 3.59.86 1.49-.02 2.44-1.33 3.33-2.67a10.96 10.96 0 0 0 1.52-3.11 4.78 4.78 0 0 1-2.92-4.39z" />
-                    <path d="M22.04 12.21a4.87 4.87 0 0 0 1.12-3.49 4.96 4.96 0 0 0-3.21 1.66 4.64 4.64 0 0 0-1.14 3.37 4.1 4.1 0 0 0 3.23-1.54z" />
-                    <text x="42" y="15" fontSize="7.5" fontWeight="400" fontFamily="Arial, Helvetica, sans-serif" letterSpacing="0.02em" fill="#fff">Download on the</text>
-                    <text x="42" y="27" fontSize="13" fontWeight="700" fontFamily="Arial, Helvetica, sans-serif" letterSpacing="-0.01em" fill="#fff">App Store</text>
-                  </g>
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                  <polyline points="7 10 12 15 17 10" />
+                  <line x1="12" y1="15" x2="12" y2="3" />
                 </svg>
-              </Link>
-              <Link
-                href="/app-store"
-                className="ff-store-badge"
-                aria-label="Get it on Google Play"
-              >
-                <svg viewBox="0 0 135 40" width="135" height="40" xmlns="http://www.w3.org/2000/svg">
-                  <rect width="135" height="40" rx="6" fill="#000" />
-                  <g>
-                    <defs>
-                      <linearGradient id="gp-a" x1="21.8" y1="33.29" x2="5.02" y2="16.51" gradientUnits="userSpaceOnUse">
-                        <stop offset="0" stopColor="#00A0FF" />
-                        <stop offset=".01" stopColor="#00A1FF" />
-                        <stop offset=".26" stopColor="#00BEFF" />
-                        <stop offset=".51" stopColor="#00D2FF" />
-                        <stop offset=".76" stopColor="#00DFFF" />
-                        <stop offset="1" stopColor="#00E3FF" />
-                      </linearGradient>
-                      <linearGradient id="gp-b" x1="33.83" y1="20" x2="9.64" y2="20" gradientUnits="userSpaceOnUse">
-                        <stop offset="0" stopColor="#FFE000" />
-                        <stop offset=".41" stopColor="#FFBD00" />
-                        <stop offset=".78" stopColor="#FFA500" />
-                        <stop offset="1" stopColor="#FF9C00" />
-                      </linearGradient>
-                      <linearGradient id="gp-c" x1="24.83" y1="22.3" x2="2.07" y2="45.05" gradientUnits="userSpaceOnUse">
-                        <stop offset="0" stopColor="#FF3A44" />
-                        <stop offset="1" stopColor="#C31162" />
-                      </linearGradient>
-                      <linearGradient id="gp-d" x1="7.3" y1="0" x2="17.46" y2="10.17" gradientUnits="userSpaceOnUse">
-                        <stop offset="0" stopColor="#32A071" />
-                        <stop offset=".07" stopColor="#2DA771" />
-                        <stop offset=".48" stopColor="#15CF74" />
-                        <stop offset=".8" stopColor="#06E775" />
-                        <stop offset="1" stopColor="#00F076" />
-                      </linearGradient>
-                    </defs>
-                    <path d="M10.44 7.54a2.18 2.18 0 0 0-.5 1.52v21.88a2.18 2.18 0 0 0 .5 1.52l.08.08L22.9 20.16v-.32L10.52 7.46z" fill="url(#gp-a)" />
-                    <path d="M27.03 24.29l-4.13-4.13v-.32l4.13-4.13.09.05 4.89 2.78c1.4.79 1.4 2.09 0 2.89l-4.89 2.78z" fill="url(#gp-b)" />
-                    <path d="M27.12 24.24L22.9 20 10.44 32.46a1.83 1.83 0 0 0 2.33.07l14.35-8.29" fill="url(#gp-c)" />
-                    <path d="M27.12 15.76L12.77 7.47a1.83 1.83 0 0 0-2.33.07L22.9 20l4.22-4.24z" fill="url(#gp-d)" />
-                  </g>
-                  <g fill="#fff">
-                    <text x="47" y="14" fontSize="6.5" fontWeight="400" fontFamily="Arial, Helvetica, sans-serif" letterSpacing="0.04em" fill="#fff">GET IT ON</text>
-                    <text x="47" y="27" fontSize="12.5" fontWeight="700" fontFamily="Arial, Helvetica, sans-serif" letterSpacing="-0.02em" fill="#fff">Google Play</text>
-                  </g>
-                </svg>
-              </Link>
+                Install App on Your Mobile
+              </button>
+              {showInstallTip && !deferredPrompt && (
+                <p className="ff-install-tip">
+                  {isIOS ? (
+                    <>Tap the <strong>Share</strong> button in Safari, then select <strong>&quot;Add to Home Screen&quot;</strong>.</>
+                  ) : (
+                    <>Open this site on your mobile phone and tap <strong>&quot;Install App&quot;</strong>, or use your browser menu to <strong>&quot;Add to Home Screen&quot;</strong>.</>
+                  )}
+                </p>
+              )}
             </div>
-            {!isStandalone && (
-              <>
-                <button
-                  type="button"
-                  className="ff-install-btn"
-                  onClick={handleInstallClick}
-                >
-                  <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                    <polyline points="7 10 12 15 17 10" />
-                    <line x1="12" y1="15" x2="12" y2="3" />
-                  </svg>
-                  Install App on Your Mobile
-                </button>
-                {showInstallTip && !deferredPrompt && (
-                  <p className="ff-install-tip">
-                    {isIOS ? (
-                      <>Tap the <strong>Share</strong> button in Safari, then select <strong>&quot;Add to Home Screen&quot;</strong>.</>
-                    ) : (
-                      <>Open this site on your mobile phone and tap <strong>&quot;Install App&quot;</strong>, or use your browser menu to <strong>&quot;Add to Home Screen&quot;</strong>.</>
-                    )}
-                  </p>
-                )}
-              </>
-            )}
-          </div>
+          )}
 
           {/* ---- Brand + copyright ---- */}
           <div className="ff-footer-brand">
@@ -465,36 +400,12 @@ export default function Footer() {
             display: block;
           }
 
-          /* ---- Install App buttons ---- */
+          /* ---- Install App button ---- */
           .ff-install-section {
             display: flex;
             flex-direction: column;
             align-items: center;
-            gap: 14px;
-          }
-
-          .ff-store-badges {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 12px;
-            flex-wrap: wrap;
-          }
-
-          .ff-store-badge {
-            display: inline-flex;
-            transition: opacity 0.2s, transform 0.2s;
-            border-radius: 6px;
-            overflow: hidden;
-          }
-
-          .ff-store-badge:hover {
-            opacity: 0.85;
-            transform: scale(1.04);
-          }
-
-          .ff-store-badge svg {
-            display: block;
+            gap: 10px;
           }
 
           .ff-install-btn {
