@@ -73,7 +73,7 @@ export default function BuyerDashboardPage() {
 
     const unsub = onAuthStateChanged(auth, async (u) => {
       if (!u) {
-        router.replace("/buyer/signin");
+        router.replace("/login");
         return;
       }
       setUser(u);

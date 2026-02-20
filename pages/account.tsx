@@ -416,26 +416,26 @@ export default function AccountPage() {
             <div className="account-body">
               {/* Quick stats */}
               <div className="stats-row stats-row-4">
-                <div className="stat-card">
+                <div className="stat-card stat-card-link" onClick={() => { const el = document.getElementById("saved-section"); if (el) el.scrollIntoView({ behavior: "smooth" }); }} role="button" tabIndex={0}>
                   <div className="stat-number">{savedItems.length}</div>
                   <div className="stat-label">Saved Items</div>
                 </div>
-                <div className="stat-card">
+                <div className="stat-card stat-card-link" onClick={() => router.push("/cart")} role="button" tabIndex={0}>
                   <div className="stat-number">{cartItems.length}</div>
                   <div className="stat-label">In Bag</div>
                 </div>
-                <div className="stat-card">
+                <div className="stat-card stat-card-link" onClick={() => { const el = document.getElementById("offers-section"); if (el) el.scrollIntoView({ behavior: "smooth" }); }} role="button" tabIndex={0}>
                   <div className="stat-number">{activeOffers.length}</div>
                   <div className="stat-label">Offers</div>
                 </div>
-                <div className="stat-card">
+                <div className="stat-card stat-card-link" onClick={() => router.push("/my-orders")} role="button" tabIndex={0}>
                   <div className="stat-number">{purchasedItems.length}</div>
                   <div className="stat-label">Purchases</div>
                 </div>
               </div>
 
               {/* Quick actions */}
-              <div className="stats-row actions-row-bottom">
+              <div className="stats-row stats-row-4 actions-row-bottom">
                 <div
                   className="stat-card stat-card-link"
                   onClick={() => router.push("/cart")}
@@ -452,19 +452,38 @@ export default function AccountPage() {
                 >
                   <div className="stat-label">My Orders</div>
                 </div>
+                {sellerStatus === "approved" ? (
+                  <div
+                    className="stat-card stat-card-link"
+                    onClick={() => router.push("/seller/offers")}
+                    role="button"
+                    tabIndex={0}
+                  >
+                    <div className="stat-label">Offers</div>
+                  </div>
+                ) : (
+                  <div
+                    className="stat-card stat-card-link"
+                    onClick={() => setShowPrefs(!showPrefs)}
+                    role="button"
+                    tabIndex={0}
+                  >
+                    <div className="stat-label">Preferences</div>
+                  </div>
+                )}
                 <div
                   className="stat-card stat-card-link"
-                  onClick={() => setShowPrefs(!showPrefs)}
+                  onClick={() => router.push("/app-store")}
                   role="button"
                   tabIndex={0}
                 >
-                  <div className="stat-label">Preferences</div>
+                  <div className="stat-label">Install App</div>
                 </div>
               </div>
 
               {/* Active Offers */}
               {activeOffers.length > 0 && (
-                <section className="offers-section">
+                <section id="offers-section" className="offers-section">
                   <h2>Your Offers</h2>
                   <ul className="offers-list">
                     {activeOffers.map((offer) => (
@@ -497,7 +516,7 @@ export default function AccountPage() {
 
               {/* Saved Items (Wishlist) */}
               {savedItems.length > 0 && (
-                <section className="saved-section">
+                <section id="saved-section" className="saved-section">
                   <h2>Saved Items</h2>
                   <div className="saved-grid">
                     {savedItems.map((item) => (
@@ -713,27 +732,6 @@ export default function AccountPage() {
                 </section>
               )}
 
-              {/* Recent purchases — consignment opportunity */}
-              {purchasedItems.length > 0 && (
-                <section className="consign-section">
-                  <h2>Ready to Consign?</h2>
-                  <p className="consign-text">
-                    Loved something you bought? When you are ready to part with
-                    it, list it on Famous Finds and earn from your pre-loved
-                    pieces.
-                  </p>
-                  {sellerStatus === "none" && (
-                    <Link href="/become-seller" className="btn-become-seller">
-                      Start Selling
-                    </Link>
-                  )}
-                  {sellerStatus === "approved" && (
-                    <Link href="/seller/dashboard" className="btn-seller-dash">
-                      List an Item
-                    </Link>
-                  )}
-                </section>
-              )}
             </div>
           )}
         </div>
@@ -1229,26 +1227,6 @@ export default function AccountPage() {
           font-weight: 700;
           color: #111827;
           margin-top: 2px;
-        }
-
-        /* Consign section */
-        .consign-section {
-          background: linear-gradient(135deg, #fef3c7, #fde68a);
-          border-radius: 16px;
-          padding: 24px;
-          margin-bottom: 20px;
-        }
-        .consign-section h2 {
-          font-size: 16px;
-          font-weight: 600;
-          margin: 0 0 8px;
-          color: #92400e;
-        }
-        .consign-text {
-          font-size: 14px;
-          color: #78350f;
-          margin: 0 0 12px;
-          line-height: 1.5;
         }
 
         @media (max-width: 640px) {

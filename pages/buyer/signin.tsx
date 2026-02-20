@@ -112,8 +112,12 @@ export default function BuyerSigninPage() {
               <Link href="/buyer/forgot-password">Forgot password?</Link>
             </p>
             <p className="auth-secondary-link">
-              Don’t have an account?{" "}
+              Don't have an account?{" "}
               <Link href="/buyer/signup">Create one</Link>
+            </p>
+            <p className="auth-secondary-link">
+              Have a promo code?{" "}
+              <Link href="/login">Use it here</Link>
             </p>
           </div>
         </main>
