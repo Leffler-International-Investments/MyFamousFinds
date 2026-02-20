@@ -33,7 +33,7 @@ export default function WishlistButton({ productId }:{ productId:string }){
 
   async function t(){
     if (!userId) {
-      router.push("/buyer/signin");
+      router.push("/login");
       return;
     }
     const next = !on;

@@ -57,6 +57,11 @@ export default function Footer() {
   }, []);
 
   const handleInstallClick = async () => {
+    if (isStandalone) {
+      // Already installed — navigate to app-store page for sharing/install info
+      window.location.href = "/app-store";
+      return;
+    }
     // Check again in case the prompt arrived after initial render
     const prompt = deferredPrompt || (window as any).__pwaInstallPrompt;
     if (prompt) {
@@ -255,16 +260,11 @@ export default function Footer() {
                 <polyline points="7 10 12 15 17 10" />
                 <line x1="12" y1="15" x2="12" y2="3" />
               </svg>
-              {isStandalone ? "Share App with Friends" : "Install App on Your Mobile"}
+              Install App on Your Mobile
             </button>
             {showInstallTip && (
               <div className="ff-install-tip">
-                {isStandalone ? (
-                  <p>
-                    Share <strong>myfamousfinds.com</strong> with friends — they
-                    can install it from their browser with one tap!
-                  </p>
-                ) : isIOS ? (
+                {isIOS ? (
                   <p>
                     Tap the{" "}
                     <span style={{ fontSize: 16 }}>&#x2191;&#xFE0E;</span>{" "}

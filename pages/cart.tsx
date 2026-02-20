@@ -7,17 +7,7 @@ import Header from "../components/Header";
 import Footer from "../components/Footer";
 
 import { onAuthStateChanged, User } from "firebase/auth";
-import {
-  collection,
-  query,
-  where,
-  getDocs,
-  doc,
-  deleteDoc,
-  setDoc,
-  serverTimestamp,
-} from "firebase/firestore";
-import { auth, db, firebaseClientReady } from "../utils/firebaseClient";
+import { auth, firebaseClientReady } from "../utils/firebaseClient";
 
 type CartItem = {
   id: string;
@@ -83,18 +73,18 @@ export default function Cart() {
   }, [items]);
 
   useEffect(() => {
-    if (!firebaseClientReady || !auth || !db) {
+    if (!firebaseClientReady || !auth) {
       setLoading(false);
       return;
     }
 
     const unsub = onAuthStateChanged(auth, async (u) => {
       if (!u) {
-        router.replace("/buyer/signin");
+        router.replace("/login");
         return;
       }
       setUser(u);
-      await loadCart(u.uid);
+      await loadCart(u);
       setLoading(false);
     });
 
@@ -102,10 +92,16 @@ export default function Cart() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const reserveItem = async (listingId: string): Promise<number | undefined> => {
-    if (!auth?.currentUser) return undefined;
+  const getToken = async (): Promise<string | null> => {
     try {
-      const token = await auth.currentUser.getIdToken();
+      return auth?.currentUser ? await auth.currentUser.getIdToken() : null;
+    } catch {
+      return null;
+    }
+  };
+
+  const reserveItem = async (listingId: string, token: string): Promise<number | undefined> => {
+    try {
       const res = await fetch("/api/cart/reserve", {
         method: "POST",
         headers: {
@@ -122,61 +118,53 @@ export default function Cart() {
     return undefined;
   };
 
-  const loadCart = async (uid: string) => {
-    if (!db) return;
+  const loadCart = async (firebaseUser: User) => {
+    try {
+      const token = await firebaseUser.getIdToken();
 
-    const cartSnap = await getDocs(
-      query(collection(db, "buyerCartItems"), where("userId", "==", uid))
-    );
-    const cartItems = cartSnap.docs.map((d) => {
-      const data: any = d.data() || {};
-      return {
-        id: d.id,
-        listingId: data.listingId || "",
-        title: data.title || "",
-        brand: data.brand || "",
-        price: Number(data.price || 0),
-        currency: data.currency || "USD",
-        imageUrl: data.imageUrl || "",
-        reservedUntil: data.reservedUntil || undefined,
-      };
-    });
+      // Load cart and saved items via API (bypasses Firestore rules)
+      const res = await fetch("/api/cart/data", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const json = await res.json();
 
-    // Reserve items with 15-minute timers
-    const withReservations = await Promise.all(
-      cartItems.map(async (item) => {
-        const reservedUntil = await reserveItem(item.listingId);
-        return { ...item, reservedUntil };
-      })
-    );
+      if (json.ok) {
+        const cartItems: CartItem[] = json.cartItems || [];
+        const saved: SavedItem[] = json.savedItems || [];
 
-    setItems(withReservations);
+        // Reserve items with 15-minute timers
+        const withReservations = await Promise.all(
+          cartItems.map(async (item: CartItem) => {
+            const reservedUntil = await reserveItem(item.listingId, token);
+            return { ...item, reservedUntil };
+          })
+        );
 
-    const savedSnap = await getDocs(
-      query(collection(db, "buyerSavedItems"), where("userId", "==", uid))
-    );
-    setSavedItems(
-      savedSnap.docs.map((d) => {
-        const data: any = d.data() || {};
-        return {
-          id: d.id,
-          listingId: data.listingId || "",
-          title: data.title || "",
-          brand: data.brand || "",
-          price: Number(data.price || 0),
-          currency: data.currency || "USD",
-          imageUrl: data.imageUrl || "",
-        };
-      })
-    );
+        setItems(withReservations);
+        setSavedItems(saved);
+      }
+    } catch (err) {
+      console.error("Failed to load cart data:", err);
+    }
   };
 
   const handleRemoveFromCart = async (item: CartItem) => {
-    if (!db) return;
     setActionId(item.id);
     try {
-      await deleteDoc(doc(db, "buyerCartItems", item.id));
-      setItems((prev) => prev.filter((i) => i.id !== item.id));
+      const token = await getToken();
+      if (!token) return;
+      const res = await fetch("/api/cart/save-for-later", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ listingId: item.listingId, action: "remove" }),
+      });
+      const json = await res.json();
+      if (json.ok) {
+        setItems((prev) => prev.filter((i) => i.id !== item.id));
+      }
     } catch (err) {
       console.error("Remove from cart failed:", err);
     } finally {
@@ -185,31 +173,28 @@ export default function Cart() {
   };
 
   const handleSaveForLater = async (item: CartItem) => {
-    if (!db || !user) return;
+    if (!user) return;
     setActionId(item.id);
     try {
-      const savedDocId = `${user.uid}_${item.listingId}`;
-      await setDoc(
-        doc(db, "buyerSavedItems", savedDocId),
-        {
-          userId: user.uid,
-          listingId: item.listingId,
-          title: item.title,
-          brand: item.brand,
-          price: item.price,
-          currency: item.currency,
-          imageUrl: item.imageUrl,
-          updatedAt: serverTimestamp(),
-          createdAt: serverTimestamp(),
+      const token = await getToken();
+      if (!token) return;
+      const res = await fetch("/api/cart/save-for-later", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
         },
-        { merge: true }
-      );
-      await deleteDoc(doc(db, "buyerCartItems", item.id));
-      setItems((prev) => prev.filter((i) => i.id !== item.id));
-      setSavedItems((prev) => {
-        if (prev.find((s) => s.listingId === item.listingId)) return prev;
-        return [...prev, { ...item, id: savedDocId }];
+        body: JSON.stringify({ listingId: item.listingId, action: "save" }),
       });
+      const json = await res.json();
+      if (json.ok) {
+        setItems((prev) => prev.filter((i) => i.id !== item.id));
+        setSavedItems((prev) => {
+          if (prev.find((s) => s.listingId === item.listingId)) return prev;
+          const savedDocId = `${user.uid}_${item.listingId}`;
+          return [...prev, { ...item, id: savedDocId }];
+        });
+      }
     } catch (err) {
       console.error("Save for later failed:", err);
     } finally {
@@ -218,29 +203,27 @@ export default function Cart() {
   };
 
   const handleMoveToCart = async (item: SavedItem) => {
-    if (!db || !user) return;
+    if (!user) return;
     setActionId(item.id);
     try {
-      const cartDocId = `${user.uid}_${item.listingId}`;
-      await setDoc(
-        doc(db, "buyerCartItems", cartDocId),
-        {
-          userId: user.uid,
-          listingId: item.listingId,
-          title: item.title,
-          brand: item.brand,
-          price: item.price,
-          currency: item.currency,
-          imageUrl: item.imageUrl,
-          updatedAt: serverTimestamp(),
-          createdAt: serverTimestamp(),
+      const token = await getToken();
+      if (!token) return;
+      const res = await fetch("/api/cart/save-for-later", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
         },
-        { merge: true }
-      );
-      setItems((prev) => {
-        if (prev.find((c) => c.listingId === item.listingId)) return prev;
-        return [...prev, { ...item, id: cartDocId }];
+        body: JSON.stringify({ listingId: item.listingId, action: "move-to-cart" }),
       });
+      const json = await res.json();
+      if (json.ok) {
+        const cartDocId = `${user.uid}_${item.listingId}`;
+        setItems((prev) => {
+          if (prev.find((c) => c.listingId === item.listingId)) return prev;
+          return [...prev, { ...item, id: cartDocId }];
+        });
+      }
     } catch (err) {
       console.error("Move to cart failed:", err);
     } finally {
@@ -267,8 +250,8 @@ export default function Cart() {
         <div className="cart-wrap">
           <div className="cart-header">
             <h1>My Shopping Bag</h1>
-            <Link href="/buyer/dashboard" className="back-link">
-              ← Back to Dashboard
+            <Link href="/account" className="back-link">
+              &#8592; Back to Account
             </Link>
           </div>
 

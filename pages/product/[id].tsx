@@ -277,7 +277,7 @@ export default function ProductPage(props: ProductPageProps) {
     setOfferError(null);
     if (!userId) {
       setOfferError("Please sign in to make an offer.");
-      router.push("/buyer/signin");
+      router.push("/login");
       return;
     }
 

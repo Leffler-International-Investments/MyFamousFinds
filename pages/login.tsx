@@ -59,6 +59,49 @@ export default function UnifiedLoginPage() {
   const [chosenMethod, setChosenMethod] = useState<"email" | "sms">("email");
   const [code, setCode] = useState("");
 
+  // Promo code state
+  const [showPromo, setShowPromo] = useState(false);
+  const [promoCode, setPromoCode] = useState("");
+  const [promoLoading, setPromoLoading] = useState(false);
+  const [promoError, setPromoError] = useState<string | null>(null);
+
+  async function handlePromoSubmit(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setPromoError(null);
+    const trimmed = promoCode.trim();
+    if (!trimmed) {
+      setPromoError("Please enter your promo code.");
+      return;
+    }
+    setPromoLoading(true);
+    try {
+      const res = await fetch("/api/auth/verify-promo", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code: trimmed }),
+      });
+      const json = await res.json();
+      if (json.ok) {
+        // Promo code valid — store promo access and redirect to app
+        if (typeof window !== "undefined") {
+          window.localStorage.setItem("ff-role", "promo");
+          window.localStorage.setItem("ff-promo-access", "true");
+          window.localStorage.setItem(
+            "ff-session-exp",
+            String(Date.now() + SESSION_TTL_MS)
+          );
+        }
+        router.push(from || "/");
+      } else {
+        setPromoError("Invalid promo code. Please try again.");
+      }
+    } catch {
+      setPromoError("Something went wrong. Please try again.");
+    } finally {
+      setPromoLoading(false);
+    }
+  }
+
   const from =
     typeof router.query.from === "string" ? router.query.from : null;
 
@@ -428,6 +471,44 @@ export default function UnifiedLoginPage() {
                 <Link href="/signup">Create one</Link>
               </p>
             </div>
+
+            {/* Promo code section */}
+            <div className="promo-section">
+              {!showPromo ? (
+                <button
+                  type="button"
+                  className="promo-toggle"
+                  onClick={() => setShowPromo(true)}
+                >
+                  Have a promo code?
+                </button>
+              ) : (
+                <form onSubmit={handlePromoSubmit} className="promo-form">
+                  <p className="promo-label">Enter your promo code</p>
+                  {promoError && (
+                    <p className="promo-error">{promoError}</p>
+                  )}
+                  <div className="promo-row">
+                    <input
+                      type="text"
+                      value={promoCode}
+                      onChange={(e) => setPromoCode(e.target.value)}
+                      className="promo-input"
+                      placeholder="Promo code"
+                      autoComplete="off"
+                      disabled={promoLoading}
+                    />
+                    <button
+                      type="submit"
+                      className="promo-btn"
+                      disabled={promoLoading}
+                    >
+                      {promoLoading ? "..." : "Go"}
+                    </button>
+                  </div>
+                </form>
+              )}
+            </div>
           </div>
         </main>
         <Footer />
@@ -630,6 +711,78 @@ export default function UnifiedLoginPage() {
         .auth-secondary-link a:hover {
           color: #000000;
         }
+
+        /* Promo code */
+        .promo-section {
+          margin-top: 20px;
+          padding-top: 16px;
+          border-top: 1px solid #e5e7eb;
+          text-align: center;
+        }
+        .promo-toggle {
+          font-size: 13px;
+          color: #6b7280;
+          background: none;
+          border: none;
+          cursor: pointer;
+          text-decoration: underline;
+          text-underline-offset: 2px;
+        }
+        .promo-toggle:hover {
+          color: #111827;
+        }
+        .promo-form {
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
+        }
+        .promo-label {
+          font-size: 13px;
+          font-weight: 500;
+          color: #374151;
+          margin: 0;
+        }
+        .promo-error {
+          font-size: 12px;
+          color: #b91c1c;
+          margin: 0;
+        }
+        .promo-row {
+          display: flex;
+          gap: 8px;
+        }
+        .promo-input {
+          flex: 1;
+          border-radius: 999px;
+          border: 1px solid #d1d5db;
+          background: #f9fafb;
+          padding: 8px 14px;
+          font-size: 14px;
+          color: #111827;
+        }
+        .promo-input:focus {
+          outline: none;
+          border-color: #111827;
+          background: #ffffff;
+        }
+        .promo-btn {
+          border-radius: 999px;
+          background: #111827;
+          color: #ffffff;
+          border: none;
+          padding: 8px 20px;
+          font-size: 14px;
+          font-weight: 600;
+          cursor: pointer;
+        }
+        .promo-btn:hover {
+          opacity: 0.9;
+        }
+        .promo-btn:disabled {
+          opacity: 0.6;
+          cursor: default;
+        }
+
         .social-buttons {
           display: flex;
           flex-direction: column;

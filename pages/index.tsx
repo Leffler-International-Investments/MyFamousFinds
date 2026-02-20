@@ -170,7 +170,7 @@ const HomePage: NextPage<HomeProps> = ({
   const handleToggleWishlist = useCallback(
     async (productId: string) => {
       if (!auth?.currentUser) {
-        window.location.href = "/buyer/signin";
+        window.location.href = "/login";
         return;
       }
       const wasSaved = savedIds.has(productId);
