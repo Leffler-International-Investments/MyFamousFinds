@@ -21,17 +21,5 @@
     { "src": "/icons/icon-384x384.png", "sizes": "384x384", "type": "image/png" },
     { "src": "/icons/icon-512x512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
     { "src": "/icons/maskable-icon-512x512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
-  ],
-  "prefer_related_applications": false,
-  "related_applications": [
-    {
-      "platform": "play",
-      "url": "https://play.google.com/store/apps/details?id=com.myfamousfinds.app",
-      "id": "com.myfamousfinds.app"
-    },
-    {
-      "platform": "itunes",
-      "url": "https://apps.apple.com/app/famous-finds/id6740000000"
-    }
   ]
 }
