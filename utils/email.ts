@@ -147,7 +147,11 @@ async function sendViaSmtp(
 }
 
 /**
- * Main sendMail — uses AWS SES when configured, falls back to SMTP.
+ * Main sendMail — uses AWS SES when configured.
+ * SMTP is only used when SES credentials are NOT set at all (local dev).
+ * When SES IS configured, failures are thrown — never silently fall back
+ * to Gmail/SMTP so that production emails always come from the verified
+ * AWS SES domain (admin@myfamousfinds.com).
  */
 export async function sendMail(
   to: string,
@@ -158,24 +162,21 @@ export async function sendMail(
   const logTag = `[EMAIL] to=${to} subject="${subject}"`;
   console.log(`${logTag} — attempting to send`);
 
-  // Try AWS SES first
+  // AWS SES is the primary (and production) transport
   if (isSesConfigured()) {
-    try {
-      const result = await sendViaSes(to, subject, text, html);
-      console.log(`${logTag} — sent via AWS SES (messageId=${result.messageId})`);
-      return result;
-    } catch (err) {
-      console.error(`${logTag} — AWS SES failed, falling back to SMTP`, err);
-    }
+    const result = await sendViaSes(to, subject, text, html);
+    console.log(`${logTag} — sent via AWS SES (messageId=${result.messageId})`);
+    return result;
   }
 
-  // Fallback to SMTP
+  // SMTP only used in local dev when SES credentials are not set
+  console.warn(`${logTag} — AWS SES not configured, using SMTP fallback (dev only)`);
   try {
     const result = await sendViaSmtp(to, subject, text, html);
     console.log(`${logTag} — sent via SMTP (messageId=${result.messageId})`);
     return result;
   } catch (err) {
-    console.error(`${logTag} — SMTP also FAILED`, err);
+    console.error(`${logTag} — SMTP FAILED`, err);
     throw err;
   }
 }
