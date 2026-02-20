@@ -29,10 +29,6 @@ footer {
 
 /* Prevent rubber-banding/bounce on iOS in standalone mode */
 @media (display-mode: standalone) {
-  html {
-    overscroll-behavior: none;
-  }
-
   body {
     overscroll-behavior-y: contain;
   }
