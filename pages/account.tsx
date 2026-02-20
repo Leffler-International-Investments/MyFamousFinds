@@ -103,7 +103,33 @@ export default function AccountPage() {
       }
       setUser(u);
 
-      // Real-time listeners keep saved items and cart in sync across tabs/pages
+      // Primary data source: server-side API (admin SDK — bypasses Firestore rules)
+      try {
+        const token = await u.getIdToken();
+        const res = await fetch("/api/account/data", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (res.ok) {
+          const json = await res.json();
+          if (json.ok) {
+            setSavedItems(json.savedItems || []);
+            setCartItems(json.cartItems || []);
+            setActiveOffers(json.offers || []);
+            setPurchasedItems(json.purchases || []);
+            setSellerListings(json.sellerListings || 0);
+            setSellerSales(json.sellerSales || 0);
+            setSellerOffers(json.sellerOffers || 0);
+          }
+        }
+      } catch (err) {
+        console.error("API account data load failed, falling back to client:", err);
+        // Fallback: try client-side Firestore queries
+        try {
+          await Promise.all([loadData(u.uid, u.email || ""), loadSellerActivity(u.email || "")]);
+        } catch {}
+      }
+
+      // Real-time listeners keep saved items and cart in sync after initial load
       unsubSaved = onSnapshot(
         query(collection(db, "buyerSavedItems"), where("userId", "==", u.uid)),
         (snap) => {
@@ -121,7 +147,7 @@ export default function AccountPage() {
       );
 
       try {
-        await Promise.all([loadData(u.uid, u.email || ""), loadSellerStatus(u), loadPreferences(u.uid), loadSellerActivity(u.email || "")]);
+        await Promise.all([loadSellerStatus(u), loadPreferences(u.uid)]);
       } catch (err) {
         console.error("Account data load failed:", err);
       } finally {
