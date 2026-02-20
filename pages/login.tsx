@@ -39,7 +39,7 @@ type Verify2faSuccess = { ok: true };
 type Verify2faError = { ok: false; message?: string };
 type Verify2faResponse = Verify2faSuccess | Verify2faError;
 
-type TwoFactorStep = "credentials" | "verify";
+type TwoFactorStep = "credentials" | "choose_method" | "verify";
 
 const SESSION_TTL_MS = 72 * 60 * 60 * 1000;
 
@@ -86,8 +86,7 @@ export default function UnifiedLoginPage() {
       if (sellerJson.ok) {
         setEmail(userEmail);
         setIsSeller(true);
-        setLoading(false);
-        await handleChooseMethod("email");
+        setStep("choose_method");
         return;
       }
 
@@ -135,10 +134,9 @@ export default function UnifiedLoginPage() {
       const sellerJson = (await sellerRes.json()) as LoginResponse;
 
       if (sellerJson.ok) {
-        // User is an approved seller — require 2FA via email
+        // User is an approved seller — let them pick 2FA method
         setIsSeller(true);
-        setLoading(false);
-        await handleChooseMethod("email");
+        setStep("choose_method");
         return;
       }
 
@@ -331,10 +329,53 @@ export default function UnifiedLoginPage() {
                 </div>
               </form>
               </>
+            ) : step === "choose_method" ? (
+              <div className="method-choice">
+                <p className="auth-secondary-text">
+                  Seller account detected. How would you like to receive your verification code?
+                </p>
+                {error && <div className="auth-error">{error}</div>}
+                <div className="method-buttons">
+                  <button
+                    type="button"
+                    disabled={disabled}
+                    className="method-button"
+                    onClick={() => handleChooseMethod("email")}
+                  >
+                    <span className="method-icon">&#9993;</span>
+                    <span className="method-label">Email</span>
+                    <span className="method-desc">Send code to my email</span>
+                  </button>
+                  <button
+                    type="button"
+                    disabled={disabled}
+                    className="method-button"
+                    onClick={() => handleChooseMethod("sms")}
+                  >
+                    <span className="method-icon">&#128241;</span>
+                    <span className="method-label">SMS</span>
+                    <span className="method-desc">Send code to my phone</span>
+                  </button>
+                </div>
+                <p className="auth-secondary-text">
+                  <button
+                    type="button"
+                    className="auth-link-button"
+                    onClick={() => {
+                      setStep("credentials");
+                      setIsSeller(false);
+                      setError(null);
+                      setInfo(null);
+                    }}
+                  >
+                    Back to login
+                  </button>
+                </p>
+              </div>
             ) : (
               <form onSubmit={handleVerifySubmit}>
                 <p className="auth-secondary-text">
-                  Enter the 6-digit code sent to your email.
+                  Enter the 6-digit code sent to your {chosenMethod === "sms" ? "phone" : "email"}.
                 </p>
                 <div className="auth-fields">
                   <div className="auth-field">

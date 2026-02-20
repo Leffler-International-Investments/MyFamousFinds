@@ -231,23 +231,22 @@ export default async function handler(
 
   if (!codeSent) {
     const target = deliveryMethod === "sms" ? "SMS" : "email";
-    console.error(`[start-2fa] ${target} not sent and not in dev mode — code cannot be delivered. Error: ${sendError}`);
+    // Full technical detail goes to server logs only — never to the user
+    console.error(
+      `[start-2fa] ${target} delivery FAILED for ${normalizedEmail}.`,
+      `Error: ${sendError}`,
+      sendError.includes("not verified")
+        ? `\n→ SES sandbox: the recipient "${normalizedEmail}" is not a verified identity in SES (region ${process.env.AWS_REGION || "us-east-1"}). Either verify this recipient in the SES console, or request SES production access to send to anyone.`
+        : ""
+    );
 
-    // Build a user-friendly message with actionable detail
-    let userMessage = `We were unable to send the verification code via ${target}. Please try the other method.`;
-    if (sendError.includes("not verified") || sendError.includes("identity")) {
-      userMessage =
-        `Email sending failed because the sender address is not verified in AWS SES. ` +
-        `In Vercel → Settings → Environment Variables, set AWS_SES_FROM to a verified SES identity ` +
-        `(e.g. "Famous Finds <noreply@myfamousfinds.com>"). Also verify the domain in the AWS SES console.`;
-    } else if (sendError) {
-      userMessage += ` Detail: ${sendError}`;
-    }
-
+    const otherMethod = deliveryMethod === "sms" ? "email" : "SMS";
     return res.status(200).json({
       ok: false,
       error: "send_failed",
-      message: userMessage,
+      message:
+        `We couldn't send the verification code via ${target} right now. ` +
+        `Please try ${otherMethod} instead, or contact support if the problem persists.`,
     });
   }
 
