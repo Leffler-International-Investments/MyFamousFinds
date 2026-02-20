@@ -13,13 +13,14 @@ export default function MyFamousFindsAppPage() {
   const [isIOS, setIsIOS] = useState(false);
   const [isAndroid, setIsAndroid] = useState(false);
   const [installed, setInstalled] = useState(false);
+  const [installing, setInstalling] = useState(false);
 
   useEffect(() => {
     const ua = navigator.userAgent;
     setIsIOS(/iPad|iPhone|iPod/.test(ua) && !(window as any).MSStream);
     setIsAndroid(/Android/.test(ua));
 
-    // Detect if already running as installed PWA
+    // Only trust standalone mode — the app is already running as an installed PWA
     const standalone =
       window.matchMedia("(display-mode: standalone)").matches ||
       (window.navigator as any).standalone === true;
@@ -30,13 +31,26 @@ export default function MyFamousFindsAppPage() {
       setDeferredPrompt((window as any).__pwaInstallPrompt);
     }
 
-    const handler = (e: Event) => {
+    const promptHandler = (e: Event) => {
       e.preventDefault();
       (window as any).__pwaInstallPrompt = e;
       setDeferredPrompt(e);
     };
-    window.addEventListener("beforeinstallprompt", handler);
-    return () => window.removeEventListener("beforeinstallprompt", handler);
+    window.addEventListener("beforeinstallprompt", promptHandler);
+
+    // Listen for the REAL install confirmation from the browser
+    const installedHandler = () => {
+      setInstalling(false);
+      setInstalled(true);
+      setDeferredPrompt(null);
+      (window as any).__pwaInstallPrompt = null;
+    };
+    window.addEventListener("appinstalled", installedHandler);
+
+    return () => {
+      window.removeEventListener("beforeinstallprompt", promptHandler);
+      window.removeEventListener("appinstalled", installedHandler);
+    };
   }, []);
 
   const handleInstall = async () => {
@@ -46,9 +60,18 @@ export default function MyFamousFindsAppPage() {
         prompt.prompt();
         const result = await prompt.userChoice;
         if (result.outcome === "accepted") {
+          // User accepted the prompt — show "installing" state while we
+          // wait for the real "appinstalled" event from the browser.
+          setInstalling(true);
           setDeferredPrompt(null);
           (window as any).__pwaInstallPrompt = null;
-          setInstalled(true);
+          // Fallback: if appinstalled never fires within 30s, reset
+          setTimeout(() => {
+            setInstalling((prev) => {
+              if (prev) return false; // timed out — go back to instructions
+              return prev;
+            });
+          }, 30000);
         }
       } catch {
         // prompt() already used — can't re-prompt
@@ -128,6 +151,13 @@ export default function MyFamousFindsAppPage() {
               fontSize: 15, fontWeight: 600, textAlign: "center",
             }}>
               App installed — you&apos;re all set!
+            </div>
+          ) : installing ? (
+            <div style={{
+              background: "#fffbeb", color: "#92400e", padding: "14px 24px", borderRadius: 12,
+              fontSize: 15, fontWeight: 600, textAlign: "center",
+            }}>
+              Installing… check your home screen shortly.
             </div>
           ) : deferredPrompt ? (
             <button
