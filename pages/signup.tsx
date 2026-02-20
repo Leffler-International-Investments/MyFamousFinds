@@ -86,7 +86,8 @@ export default function UnifiedSignupPage() {
           : new FacebookAuthProvider();
       const result = await signInWithPopup(auth, authProvider);
       const userEmail = (result.user.email || "").toLowerCase();
-      const displayName = result.user.displayName || "";
+      // Prefer the name the user typed; fall back to the social profile name
+      const displayName = fullName.trim() || result.user.displayName || "";
 
       if (typeof window !== "undefined") {
         window.localStorage.setItem("ff-role", "buyer");
@@ -97,7 +98,7 @@ export default function UnifiedSignupPage() {
         );
       }
 
-      // Save basic profile to Firestore
+      // Save basic profile to Firestore (includes phone + smsOptIn entered above)
       try {
         const token = await result.user.getIdToken();
         await fetch("/api/user/profile", {
@@ -109,7 +110,8 @@ export default function UnifiedSignupPage() {
           body: JSON.stringify({
             fullName: displayName,
             email: userEmail,
-            phone: "",
+            phone: phone.trim(),
+            smsOptIn,
           }),
         });
       } catch {
@@ -238,26 +240,15 @@ export default function UnifiedSignupPage() {
           Authorization: `Bearer ${token}`,
         };
 
-        // Save preferences + phone/smsOptIn in parallel
-        await Promise.all([
-          fetch("/api/user/preferences", {
-            method: "POST",
-            headers,
-            body: JSON.stringify({
-              interests,
-              preferredSize,
-              ageRange,
-            }),
+        await fetch("/api/user/preferences", {
+          method: "POST",
+          headers,
+          body: JSON.stringify({
+            interests,
+            preferredSize,
+            ageRange,
           }),
-          fetch("/api/user/profile", {
-            method: "POST",
-            headers,
-            body: JSON.stringify({
-              phone: phone.trim(),
-              smsOptIn,
-            }),
-          }),
-        ]);
+        });
       }
     } catch {
       // Non-blocking
@@ -312,12 +303,56 @@ export default function UnifiedSignupPage() {
                   </div>
                 )}
 
+                {/* Shared fields — collected before any sign-up method */}
+                <div className="auth-fields" style={{ marginBottom: 16 }}>
+                  <div className="auth-field">
+                    <label htmlFor="name">Full name</label>
+                    <input
+                      id="name"
+                      type="text"
+                      autoComplete="name"
+                      value={fullName}
+                      onChange={(e) => setFullName(e.target.value)}
+                      className="auth-input"
+                      placeholder="Your name"
+                      disabled={disabled}
+                    />
+                  </div>
+
+                  <div className="auth-field">
+                    <label htmlFor="phone">Mobile number</label>
+                    <input
+                      id="phone"
+                      type="tel"
+                      autoComplete="tel"
+                      value={phone}
+                      onChange={(e) => setPhone(autoPrefixPhone(e.target.value))}
+                      className="auth-input"
+                      placeholder="+1 (555) 000-0000"
+                      disabled={disabled}
+                    />
+                  </div>
+
+                  <label className="sms-optin">
+                    <input
+                      type="checkbox"
+                      checked={smsOptIn}
+                      onChange={(e) => setSmsOptIn(e.target.checked)}
+                      disabled={disabled}
+                    />
+                    <span>
+                      I'd like to receive text message updates about new
+                      arrivals, price drops, and order notifications.
+                    </span>
+                  </label>
+                </div>
+
                 <div className="social-buttons">
                   <button
                     type="button"
                     className="social-btn"
                     onClick={() => handleSocialSignUp("google")}
-                    disabled={disabled}
+                    disabled={disabled || !fullName.trim()}
                   >
                     <svg viewBox="0 0 24 24" width="20" height="20">
                       <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4"/>
@@ -331,7 +366,7 @@ export default function UnifiedSignupPage() {
                     type="button"
                     className="social-btn social-btn--fb"
                     onClick={() => handleSocialSignUp("facebook")}
-                    disabled={disabled}
+                    disabled={disabled || !fullName.trim()}
                   >
                     <svg viewBox="0 0 24 24" width="20" height="20" fill="#1877F2">
                       <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
@@ -347,21 +382,6 @@ export default function UnifiedSignupPage() {
                 <form onSubmit={handleBasicsSubmit}>
                   <div className="auth-fields">
                     <div className="auth-field">
-                      <label htmlFor="name">Full name</label>
-                      <input
-                        id="name"
-                        type="text"
-                        autoComplete="name"
-                        value={fullName}
-                        onChange={(e) => setFullName(e.target.value)}
-                        className="auth-input"
-                        placeholder="Your name"
-                        disabled={disabled}
-                        required
-                      />
-                    </div>
-
-                    <div className="auth-field">
                       <label htmlFor="email">Email</label>
                       <input
                         id="email"
@@ -376,33 +396,6 @@ export default function UnifiedSignupPage() {
                       />
                     </div>
 
-                    <div className="auth-field">
-                      <label htmlFor="phone">Mobile number</label>
-                      <input
-                        id="phone"
-                        type="tel"
-                        autoComplete="tel"
-                        value={phone}
-                        onChange={(e) => setPhone(autoPrefixPhone(e.target.value))}
-                        className="auth-input"
-                        placeholder="+1 (555) 000-0000"
-                        disabled={disabled}
-                      />
-                    </div>
-
-                    <label className="sms-optin">
-                      <input
-                        type="checkbox"
-                        checked={smsOptIn}
-                        onChange={(e) => setSmsOptIn(e.target.checked)}
-                        disabled={disabled}
-                      />
-                      <span>
-                        I'd like to receive text message updates about new
-                        arrivals, price drops, and order notifications.
-                      </span>
-                    </label>
-
                     <PasswordInput
                       label="Password"
                       name="password"
@@ -416,7 +409,7 @@ export default function UnifiedSignupPage() {
                     <button
                       type="submit"
                       className="auth-button-primary"
-                      disabled={disabled}
+                      disabled={disabled || !fullName.trim()}
                     >
                       {loading ? "Creating account..." : "Create Account"}
                     </button>
@@ -494,29 +487,6 @@ export default function UnifiedSignupPage() {
                       </button>
                     ))}
                   </div>
-                </div>
-
-                <div className="pref-section">
-                  <label className="pref-label">Mobile number</label>
-                  <input
-                    type="tel"
-                    autoComplete="tel"
-                    value={phone}
-                    onChange={(e) => setPhone(autoPrefixPhone(e.target.value))}
-                    className="auth-input"
-                    placeholder="+1 (555) 000-0000"
-                  />
-                  <label className="sms-optin" style={{ marginTop: 10 }}>
-                    <input
-                      type="checkbox"
-                      checked={smsOptIn}
-                      onChange={(e) => setSmsOptIn(e.target.checked)}
-                    />
-                    <span>
-                      I'd like to receive text message updates about new
-                      arrivals, price drops, and order notifications.
-                    </span>
-                  </label>
                 </div>
 
                 <div className="pref-actions">
