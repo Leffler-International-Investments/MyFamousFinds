@@ -64,6 +64,7 @@ export default function UnifiedSignupPage() {
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
+  const [smsOptIn, setSmsOptIn] = useState(false);
   const [password, setPassword] = useState("");
   const [banner, setBanner] = useState<BannerState>(null);
   const [loading, setLoading] = useState(false);
@@ -178,6 +179,7 @@ export default function UnifiedSignupPage() {
             fullName: trimmedName,
             email: trimmedEmail,
             phone: phone.trim(),
+            smsOptIn,
           }),
         });
       } catch {
@@ -362,7 +364,7 @@ export default function UnifiedSignupPage() {
                     </div>
 
                     <div className="auth-field">
-                      <label htmlFor="phone">Mobile number (for 2FA)</label>
+                      <label htmlFor="phone">Mobile number</label>
                       <input
                         id="phone"
                         type="tel"
@@ -374,6 +376,19 @@ export default function UnifiedSignupPage() {
                         disabled={disabled}
                       />
                     </div>
+
+                    <label className="sms-optin">
+                      <input
+                        type="checkbox"
+                        checked={smsOptIn}
+                        onChange={(e) => setSmsOptIn(e.target.checked)}
+                        disabled={disabled}
+                      />
+                      <span>
+                        I'd like to receive text message updates about new
+                        arrivals, price drops, and order notifications.
+                      </span>
+                    </label>
 
                     <PasswordInput
                       label="Password"
@@ -542,6 +557,24 @@ export default function UnifiedSignupPage() {
           font-size: 13px;
           font-weight: 500;
           color: #374151;
+        }
+        .sms-optin {
+          display: flex;
+          align-items: flex-start;
+          gap: 10px;
+          cursor: pointer;
+          font-size: 13px;
+          color: #374151;
+          line-height: 1.4;
+          margin-top: -4px;
+        }
+        .sms-optin input[type="checkbox"] {
+          margin-top: 2px;
+          width: 16px;
+          height: 16px;
+          flex-shrink: 0;
+          accent-color: #111827;
+          cursor: pointer;
         }
         :global(.auth-input) {
           width: 100%;
