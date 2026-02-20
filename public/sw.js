@@ -1,7 +1,7 @@
 // Famous Finds — Service Worker for PWA
-// Provides offline caching and installability
+// Lightweight: caches static assets only, never intercepts page navigations.
 
-const CACHE_NAME = "famous-finds-v2";
+const CACHE_NAME = "famous-finds-v3";
 const OFFLINE_URL = "/offline.html";
 
 // Static assets to pre-cache on install
@@ -10,21 +10,14 @@ const PRE_CACHE = [
   "/manifest.json",
   "/icons/icon-192x192.png",
   "/icons/icon-512x512.png",
-  "/icons/maskable-icon-512x512.png",
   "/favicon-32x32.png",
 ];
 
-// Install — pre-cache essential assets (gracefully — one failure won't block install)
+// Install — pre-cache essentials
 self.addEventListener("install", (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) =>
-      Promise.allSettled(
-        PRE_CACHE.map((url) =>
-          cache.add(url).catch((err) => {
-            console.warn("SW: failed to pre-cache", url, err);
-          })
-        )
-      )
+      Promise.allSettled(PRE_CACHE.map((url) => cache.add(url).catch(() => {})))
     )
   );
   self.skipWaiting();
@@ -35,31 +28,37 @@ self.addEventListener("activate", (event) => {
   event.waitUntil(
     caches.keys().then((keys) =>
       Promise.all(
-        keys
-          .filter((key) => key !== CACHE_NAME)
-          .map((key) => caches.delete(key))
+        keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key))
       )
     )
   );
   self.clients.claim();
 });
 
-// Fetch — network-first for pages/API, cache-first for static assets
+// Fetch — only intercept static assets; let everything else go straight to network
 self.addEventListener("fetch", (event) => {
   const { request } = event;
   const url = new URL(request.url);
 
-  // Skip non-GET requests and cross-origin requests
+  // Only handle same-origin GET requests
   if (request.method !== "GET" || url.origin !== self.location.origin) return;
 
-  // API calls — network only (no caching)
-  if (url.pathname.startsWith("/api/")) return;
+  // Never intercept API calls or page navigations — let them go to network normally
+  if (url.pathname.startsWith("/api/") || request.mode === "navigate") {
+    // For page navigations, only provide offline fallback when network is down
+    if (request.mode === "navigate") {
+      event.respondWith(
+        fetch(request).catch(() => caches.match(OFFLINE_URL))
+      );
+    }
+    return;
+  }
 
-  // Static assets (images, fonts, icons) — cache-first
+  // Static assets (JS, CSS, images, fonts, icons) — cache-first
   if (
     url.pathname.startsWith("/icons/") ||
     url.pathname.startsWith("/_next/static/") ||
-    url.pathname.match(/\.(png|jpg|jpeg|svg|webp|gif|ico|woff2?)$/)
+    url.pathname.match(/\.(png|jpg|jpeg|svg|webp|gif|ico|woff2?|css|js)$/)
   ) {
     event.respondWith(
       caches.match(request).then(
@@ -74,21 +73,5 @@ self.addEventListener("fetch", (event) => {
           })
       )
     );
-    return;
   }
-
-  // Pages — network-first, fall back to cache, then offline page
-  event.respondWith(
-    fetch(request)
-      .then((response) => {
-        if (response.ok) {
-          const clone = response.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
-        }
-        return response;
-      })
-      .catch(() =>
-        caches.match(request).then((cached) => cached || caches.match(OFFLINE_URL))
-      )
-  );
 });
