@@ -1,6 +1,7 @@
 // FILE: /components/Footer.tsx
 
 import Link from "next/link";
+import { useRouter } from "next/router";
 import { useCallback, useEffect, useState } from "react";
 import ButlerChat from "./ButlerChat";
 
@@ -11,14 +12,14 @@ type FooterSection = {
 
 export default function Footer() {
   const year = new Date().getFullYear();
+  const router = useRouter();
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [openSections, setOpenSections] = useState<Set<number>>(new Set());
   const [isMobile, setIsMobile] = useState(false);
 
   // PWA install prompt state
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
-  const [isIOS, setIsIOS] = useState(false);
-  const [showInstallTip, setShowInstallTip] = useState(false);
+  const [isStandalone, setIsStandalone] = useState(false);
 
   useEffect(() => {
     const mq = window.matchMedia("(max-width: 768px)");
@@ -28,11 +29,13 @@ export default function Footer() {
     return () => mq.removeEventListener("change", handler);
   }, []);
 
-  // Detect PWA install capability
+  // Detect PWA install capability & standalone mode
   useEffect(() => {
-    // Detect iOS Safari
-    const ua = navigator.userAgent;
-    setIsIOS(/iPad|iPhone|iPod/.test(ua) && !(window as any).MSStream);
+    // Detect if already running as installed PWA
+    const standalone =
+      window.matchMedia("(display-mode: standalone)").matches ||
+      (window.navigator as any).standalone === true;
+    setIsStandalone(standalone);
 
     // Pick up prompt captured globally in _document.tsx (fires before React)
     if ((window as any).__pwaInstallPrompt) {
@@ -59,14 +62,15 @@ export default function Footer() {
         if (result.outcome === "accepted") {
           setDeferredPrompt(null);
           (window as any).__pwaInstallPrompt = null;
+          setIsStandalone(true);
         }
       } catch {
-        // prompt() can only be called once — show manual instructions
-        setShowInstallTip(true);
+        // prompt() can only be called once — navigate to app-store page
+        router.push("/app-store");
       }
     } else {
-      // No native prompt (iOS Safari, or already installed) — show manual instructions
-      setShowInstallTip(true);
+      // No native prompt — navigate to app-store page with full instructions
+      router.push("/app-store");
     }
   };
 
@@ -237,39 +241,23 @@ export default function Footer() {
             </a>
           </div>
 
-          {/* ---- Install App button (always visible, including on mobile/standalone) ---- */}
-          <div className="ff-install-section">
-            <button
-              type="button"
-              className="ff-install-btn"
-              onClick={handleInstallClick}
-            >
-              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                <polyline points="7 10 12 15 17 10" />
-                <line x1="12" y1="15" x2="12" y2="3" />
-              </svg>
-              Install App on Your Mobile
-            </button>
-            {showInstallTip && (
-              <div className="ff-install-tip">
-                {isIOS ? (
-                  <p>
-                    Tap the{" "}
-                    <span style={{ fontSize: 16 }}>&#x2191;&#xFE0E;</span>{" "}
-                    <strong>Share</strong> button at the bottom of Safari, then tap{" "}
-                    <strong>&quot;Add to Home Screen&quot;</strong>.
-                  </p>
-                ) : (
-                  <p>
-                    Tap the <strong>&#x22EE;</strong> menu (top-right), then tap{" "}
-                    <strong>&quot;Install App&quot;</strong> or{" "}
-                    <strong>&quot;Add to Home Screen&quot;</strong>.
-                  </p>
-                )}
-              </div>
-            )}
-          </div>
+          {/* ---- Install App button (hidden when already running as installed PWA) ---- */}
+          {!isStandalone && (
+            <div className="ff-install-section">
+              <button
+                type="button"
+                className="ff-install-btn"
+                onClick={handleInstallClick}
+              >
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                  <polyline points="7 10 12 15 17 10" />
+                  <line x1="12" y1="15" x2="12" y2="3" />
+                </svg>
+                Add to Home Screen
+              </button>
+            </div>
+          )}
 
           {/* ---- Brand + copyright ---- */}
           <div className="ff-footer-brand">
@@ -448,26 +436,6 @@ export default function Footer() {
             border-color: #9ca3af;
           }
 
-          .ff-install-tip {
-            font-size: 12px;
-            color: #9ca3af;
-            text-align: left;
-            margin: 0;
-            line-height: 1.6;
-            max-width: 360px;
-            background: rgba(255, 255, 255, 0.06);
-            border-radius: 10px;
-            padding: 12px 16px;
-            border: 1px solid #374151;
-          }
-
-          .ff-install-tip p {
-            margin: 0 0 8px;
-          }
-
-          .ff-install-tip p:last-child {
-            margin-bottom: 0;
-          }
 
           /* ---- Chevron for mobile accordion ---- */
           .ff-chevron {
