@@ -88,15 +88,6 @@ export default function AccountPage() {
   const [recommendations, setRecommendations] = useState<ItemRow[]>([]);
 
   // PWA install
-  const [pwaInstalled, setPwaInstalled] = useState(false);
-
-  useEffect(() => {
-    const standalone =
-      window.matchMedia("(display-mode: standalone)").matches ||
-      (window.navigator as any).standalone === true;
-    setPwaInstalled(standalone);
-  }, []);
-
   const handlePwaInstall = async () => {
     const prompt = (window as any).__pwaInstallPrompt;
     if (prompt) {
@@ -105,15 +96,11 @@ export default function AccountPage() {
         const result = await prompt.userChoice;
         if (result.outcome === "accepted") {
           (window as any).__pwaInstallPrompt = null;
-          setPwaInstalled(true);
         }
       } catch {
-        // prompt() already used — open install page as fallback
+        // prompt() already used — open install page with manual instructions
         window.open("/app-store", "_blank");
       }
-    } else if (pwaInstalled) {
-      // Already installed, nothing to do
-      return;
     } else {
       // No prompt available (iOS or desktop) — show install page with instructions
       window.open("/app-store", "_blank");
@@ -510,9 +497,7 @@ export default function AccountPage() {
                   role="button"
                   tabIndex={0}
                 >
-                  <div className="stat-label">
-                    {pwaInstalled ? "App Installed" : "Install App"}
-                  </div>
+                  <div className="stat-label">Install App</div>
                 </div>
               </div>
 

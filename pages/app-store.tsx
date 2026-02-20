@@ -11,20 +11,20 @@ const SITE_URL = "https://www.myfamousfinds.com";
 export default function MyFamousFindsAppPage() {
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [isIOS, setIsIOS] = useState(false);
-  const [isStandalone, setIsStandalone] = useState(false);
   const [installed, setInstalled] = useState(false);
 
   useEffect(() => {
-    const standalone =
-      window.matchMedia("(display-mode: standalone)").matches ||
-      (window.navigator as any).standalone === true;
-    setIsStandalone(standalone);
-
     const ua = navigator.userAgent;
     setIsIOS(/iPad|iPhone|iPod/.test(ua) && !(window as any).MSStream);
 
+    // Pick up prompt captured globally in _document.tsx
+    if ((window as any).__pwaInstallPrompt) {
+      setDeferredPrompt((window as any).__pwaInstallPrompt);
+    }
+
     const handler = (e: Event) => {
       e.preventDefault();
+      (window as any).__pwaInstallPrompt = e;
       setDeferredPrompt(e);
     };
     window.addEventListener("beforeinstallprompt", handler);
@@ -32,12 +32,18 @@ export default function MyFamousFindsAppPage() {
   }, []);
 
   const handleInstall = async () => {
-    if (deferredPrompt) {
-      deferredPrompt.prompt();
-      const result = await deferredPrompt.userChoice;
-      if (result.outcome === "accepted") {
-        setDeferredPrompt(null);
-        setInstalled(true);
+    const prompt = deferredPrompt || (window as any).__pwaInstallPrompt;
+    if (prompt) {
+      try {
+        prompt.prompt();
+        const result = await prompt.userChoice;
+        if (result.outcome === "accepted") {
+          setDeferredPrompt(null);
+          (window as any).__pwaInstallPrompt = null;
+          setInstalled(true);
+        }
+      } catch {
+        // prompt() already used — can't re-prompt
       }
     }
   };
@@ -108,7 +114,7 @@ export default function MyFamousFindsAppPage() {
         </p>
 
         <div style={{ display: "flex", flexDirection: "column", gap: 12, maxWidth: 320, margin: "0 auto 32px" }}>
-          {isStandalone || installed ? (
+          {installed ? (
             <div style={{
               background: "#ecfdf5", color: "#065f46", padding: "14px 24px", borderRadius: 12,
               fontSize: 15, fontWeight: 600, textAlign: "center",

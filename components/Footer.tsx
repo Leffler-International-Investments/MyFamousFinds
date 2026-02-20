@@ -18,7 +18,6 @@ export default function Footer() {
   // PWA install prompt state
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [isIOS, setIsIOS] = useState(false);
-  const [isStandalone, setIsStandalone] = useState(false);
   const [showInstallTip, setShowInstallTip] = useState(false);
 
   useEffect(() => {
@@ -31,12 +30,6 @@ export default function Footer() {
 
   // Detect PWA install capability
   useEffect(() => {
-    // Already running as installed app
-    const standalone =
-      window.matchMedia("(display-mode: standalone)").matches ||
-      (window.navigator as any).standalone === true;
-    setIsStandalone(standalone);
-
     // Detect iOS Safari
     const ua = navigator.userAgent;
     setIsIOS(/iPad|iPhone|iPod/.test(ua) && !(window as any).MSStream);
@@ -57,12 +50,7 @@ export default function Footer() {
   }, []);
 
   const handleInstallClick = async () => {
-    if (isStandalone) {
-      // Already running as installed PWA — just show confirmation
-      setShowInstallTip(true);
-      return;
-    }
-    // Check again in case the prompt arrived after initial render
+    // Check for a captured beforeinstallprompt (works on Chrome/Edge/Android)
     const prompt = deferredPrompt || (window as any).__pwaInstallPrompt;
     if (prompt) {
       try {
@@ -77,6 +65,7 @@ export default function Footer() {
         setShowInstallTip(true);
       }
     } else {
+      // No native prompt (iOS Safari, or already installed) — show manual instructions
       setShowInstallTip(true);
     }
   };
@@ -264,11 +253,7 @@ export default function Footer() {
             </button>
             {showInstallTip && (
               <div className="ff-install-tip">
-                {isStandalone ? (
-                  <p>
-                    The app is already installed on your device.
-                  </p>
-                ) : isIOS ? (
+                {isIOS ? (
                   <p>
                     Tap the{" "}
                     <span style={{ fontSize: 16 }}>&#x2191;&#xFE0E;</span>{" "}
