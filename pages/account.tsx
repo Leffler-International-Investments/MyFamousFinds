@@ -22,6 +22,7 @@ import {
   serverTimestamp,
 } from "firebase/firestore";
 import { auth, db, firebaseClientReady } from "../utils/firebaseClient";
+import { setRoleSession } from "../utils/roleSession";
 
 const INTEREST_OPTIONS = [
   "Bags & Handbags",
@@ -284,6 +285,13 @@ export default function AccountPage() {
 
       const json = await res.json() as { status: "none" | "pending" | "approved" | "rejected" };
       setSellerStatus(json.status);
+
+      // When confirmed as approved seller, establish the seller role session
+      // so seller dashboard pages (which use useRequireSeller) grant access
+      // without requiring a separate seller login.
+      if (json.status === "approved" && firebaseUser.email) {
+        setRoleSession("seller", firebaseUser.email);
+      }
     } catch (err) {
       console.error("Failed to load seller status:", err);
     }
