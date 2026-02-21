@@ -411,8 +411,25 @@ export default function SellerCatalogue() {
       )}
 
       <style jsx>{`
+        /* ---- Full-width left-aligned layout ---- */
+        .section {
+          max-width: 1400px;
+          margin: 28px 0 28px 0;
+          padding: 0 32px;
+        }
+
+        .section-header {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          margin-bottom: 16px;
+        }
+
         /* ---- Section header mobile ---- */
         @media (max-width: 700px) {
+          .section {
+            padding: 0 16px;
+          }
           .section-header {
             flex-direction: column;
             align-items: flex-start;
@@ -425,6 +442,7 @@ export default function SellerCatalogue() {
           border-radius: 16px;
           padding: 18px 18px 20px;
           border: 1px solid #1f2937;
+          width: 100%;
         }
 
         .actions-bar {
@@ -474,6 +492,7 @@ export default function SellerCatalogue() {
           border-collapse: collapse;
           font-size: 14px;
           color: #e5e7eb;
+          table-layout: fixed;
         }
 
         .catalogue-table th,
@@ -481,6 +500,42 @@ export default function SellerCatalogue() {
           padding: 10px 12px;
           text-align: left;
           border-bottom: 1px solid #374151;
+          vertical-align: middle;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+
+        .catalogue-table th:nth-child(1),
+        .catalogue-table td:nth-child(1) {
+          width: 22%;
+        }
+        .catalogue-table th:nth-child(2),
+        .catalogue-table td:nth-child(2) {
+          width: 10%;
+        }
+        .catalogue-table th:nth-child(3),
+        .catalogue-table td:nth-child(3) {
+          width: 10%;
+        }
+        .catalogue-table th:nth-child(4),
+        .catalogue-table td:nth-child(4) {
+          width: 16%;
+        }
+        .catalogue-table th:nth-child(5),
+        .catalogue-table td:nth-child(5) {
+          width: 10%;
+        }
+        .catalogue-table th:nth-child(6),
+        .catalogue-table td:nth-child(6) {
+          width: 8%;
+        }
+        .catalogue-table th:nth-child(7),
+        .catalogue-table td:nth-child(7) {
+          width: 11%;
+        }
+        .catalogue-table th:nth-child(8),
+        .catalogue-table td:nth-child(8) {
+          width: 13%;
         }
 
         .catalogue-table th {
@@ -488,6 +543,7 @@ export default function SellerCatalogue() {
           text-transform: uppercase;
           color: #9ca3af;
           font-weight: 500;
+          white-space: nowrap;
         }
 
         .catalogue-table tr:last-child td {
