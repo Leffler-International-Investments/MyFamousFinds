@@ -1,6 +1,6 @@
 // FILE: /components/ProductCard.tsx
 import Link from "next/link";
-import { useState } from "react";
+import { useWishlistContext } from "./WishlistContext";
 
 export type ProductLike = {
   id: string;
@@ -22,8 +22,8 @@ type Props = ProductLike & {
 };
 
 export default function ProductCard({ isSaved, onToggleWishlist, ...p }: Props) {
-  const [localLiked, setLocalLiked] = useState(false);
-  const liked = isSaved !== undefined ? isSaved : localLiked;
+  const { savedIds, toggleWishlist } = useWishlistContext();
+  const liked = isSaved !== undefined ? isSaved : savedIds.has(p.id);
 
   const handleHeartClick = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -31,7 +31,7 @@ export default function ProductCard({ isSaved, onToggleWishlist, ...p }: Props) 
     if (onToggleWishlist) {
       onToggleWishlist(p.id);
     } else {
-      setLocalLiked(!localLiked);
+      toggleWishlist(p.id);
     }
   };
 
