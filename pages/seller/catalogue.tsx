@@ -291,7 +291,7 @@ export default function SellerCatalogue() {
                     </div>
 
                     {x.details && (
-                      <div className="mobile-card-row">
+                      <div className="mobile-card-row mobile-card-row--stacked">
                         <span className="mobile-label">Details</span>
                         <span className="mobile-value mobile-details">
                           {x.details}
@@ -685,9 +685,8 @@ export default function SellerCatalogue() {
 
         .mobile-card-header {
           display: flex;
-          justify-content: space-between;
-          align-items: flex-start;
-          gap: 12px;
+          flex-direction: column;
+          gap: 6px;
           margin-bottom: 12px;
           padding-bottom: 10px;
           border-bottom: 1px solid #1f2937;
@@ -699,17 +698,13 @@ export default function SellerCatalogue() {
           font-weight: 600;
           color: #e5e7eb !important;
           line-height: 1.3;
-          flex: 1;
-          min-width: 0;
           word-break: break-word;
         }
 
         .mobile-card-price {
-          font-size: 15px;
+          font-size: 17px;
           font-weight: 700;
           color: #ffffff !important;
-          white-space: nowrap;
-          flex-shrink: 0;
         }
 
         .mobile-card-rows {
@@ -722,8 +717,13 @@ export default function SellerCatalogue() {
         .mobile-card-row {
           display: flex;
           justify-content: space-between;
-          align-items: center;
+          align-items: flex-start;
           gap: 12px;
+        }
+
+        .mobile-card-row.mobile-card-row--stacked {
+          flex-direction: column;
+          gap: 4px;
         }
 
         .mobile-label {
@@ -741,11 +741,15 @@ export default function SellerCatalogue() {
           word-break: break-word;
         }
 
+        .mobile-card-row--stacked .mobile-value {
+          text-align: left;
+        }
+
         .mobile-details {
           font-size: 12px;
           color: #9ca3af !important;
-          max-width: 60%;
           white-space: pre-wrap;
+          line-height: 1.5;
         }
 
         .mobile-card-actions {
