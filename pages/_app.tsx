@@ -8,6 +8,7 @@ import { useEffect } from "react";
 import "../styles/globals.css";
 import Layout from "../components/Layout";
 import { ToastProvider } from "../components/Toast";
+import { WishlistProvider } from "../components/WishlistContext";
 import ReviewWidgets from "../components/ReviewWidgets";
 import Analytics from "../components/Analytics";
 import { CurrencyProvider } from "../components/CurrencyToggle";
@@ -109,9 +110,11 @@ export default function MyFamousFindsApp({ Component, pageProps }: AppProps) {
       {/* Your existing layout + pages */}
       <CurrencyProvider>
         <ToastProvider>
-          <Layout>
-            <Component {...pageProps} />
-          </Layout>
+          <WishlistProvider>
+            <Layout>
+              <Component {...pageProps} />
+            </Layout>
+          </WishlistProvider>
         </ToastProvider>
       </CurrencyProvider>
 
