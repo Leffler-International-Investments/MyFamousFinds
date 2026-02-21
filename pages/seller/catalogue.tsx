@@ -150,7 +150,8 @@ export default function SellerCatalogue() {
 
         {error && <p className="banner error">{error}</p>}
 
-        <section className="sell-card">
+        {/* DESKTOP TABLE VIEW */}
+        <section className="sell-card desktop-table">
           <div className="table-overflow-wrapper">
             <table className="catalogue-table">
               <thead>
@@ -254,6 +255,119 @@ export default function SellerCatalogue() {
             </table>
           </div>
         </section>
+
+        {/* MOBILE CARD VIEW */}
+        <section className="mobile-cards">
+          {loading && (
+            <p className="mobile-message">Loading your listings…</p>
+          )}
+
+          {!loading && !error && items.length === 0 && (
+            <p className="mobile-message">
+              You don&apos;t have any listings yet.
+            </p>
+          )}
+
+          {!loading &&
+            !error &&
+            items.map((x) => {
+              const offersOn = !!x.allowOffers;
+              return (
+                <div key={x.id} className="mobile-item-card">
+                  <div className="mobile-card-header">
+                    <h3 className="mobile-card-title">{x.title}</h3>
+                    <span className="mobile-card-price">
+                      US$
+                      {x.price.toLocaleString("en-US", {
+                        maximumFractionDigits: 0,
+                      })}
+                    </span>
+                  </div>
+
+                  <div className="mobile-card-rows">
+                    <div className="mobile-card-row">
+                      <span className="mobile-label">Status</span>
+                      <span className="mobile-value">{x.status}</span>
+                    </div>
+
+                    {x.details && (
+                      <div className="mobile-card-row">
+                        <span className="mobile-label">Details</span>
+                        <span className="mobile-value mobile-details">
+                          {x.details}
+                        </span>
+                      </div>
+                    )}
+
+                    <div className="mobile-card-row">
+                      <span className="mobile-label">Proof</span>
+                      <span className="mobile-value">
+                        {x.purchase_proof === "Requested" ? (
+                          <span className="proof-requested">
+                            Proof requested
+                          </span>
+                        ) : (
+                          x.purchase_proof || "—"
+                        )}
+                      </span>
+                    </div>
+
+                    <div className="mobile-card-row">
+                      <span className="mobile-label">Proof Doc</span>
+                      <span className="mobile-value">
+                        {x.proof_doc_url ? (
+                          <button
+                            type="button"
+                            className="btn-proof-open"
+                            onClick={() => setProofModal(x)}
+                          >
+                            View
+                          </button>
+                        ) : (
+                          "—"
+                        )}
+                      </span>
+                    </div>
+
+                    <div className="mobile-card-row">
+                      <span className="mobile-label">Make an offer</span>
+                      <span className="mobile-value">
+                        <button
+                          className={`btn-offer-toggle ${
+                            offersOn ? "on" : "off"
+                          }`}
+                          disabled={togglingId === x.id}
+                          onClick={() => handleToggleOffers(x)}
+                        >
+                          {togglingId === x.id
+                            ? "Updating..."
+                            : offersOn
+                            ? "Enabled"
+                            : "Disabled"}
+                        </button>
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="mobile-card-actions">
+                    <Link
+                      href={`/product/${x.id}`}
+                      className="btn-table-view"
+                    >
+                      View
+                    </Link>
+                    <button
+                      onClick={() => handleDelete(x.id)}
+                      disabled={deletingId === x.id}
+                      className="btn-table-delete"
+                    >
+                      {deletingId === x.id ? "Deleting..." : "Delete"}
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+        </section>
       </main>
 
       <Footer />
@@ -297,6 +411,15 @@ export default function SellerCatalogue() {
       )}
 
       <style jsx>{`
+        /* ---- Section header mobile ---- */
+        @media (max-width: 700px) {
+          .section-header {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 12px;
+          }
+        }
+
         .sell-card {
           background: #111827;
           border-radius: 16px;
@@ -330,6 +453,16 @@ export default function SellerCatalogue() {
         .btn-secondary {
           border: 1px solid #fff;
           color: #fff;
+        }
+
+        @media (max-width: 700px) {
+          .actions-bar {
+            flex-direction: column;
+          }
+          .btn-primary,
+          .btn-secondary {
+            text-align: center;
+          }
         }
 
         .table-overflow-wrapper {
@@ -461,6 +594,119 @@ export default function SellerCatalogue() {
           background: #1d4ed8;
         }
 
+        /* ---- Desktop table / Mobile cards toggle ---- */
+        .mobile-cards {
+          display: none;
+        }
+
+        @media (max-width: 700px) {
+          .desktop-table {
+            display: none;
+          }
+          .mobile-cards {
+            display: block;
+          }
+        }
+
+        /* ---- Mobile card styles ---- */
+        .mobile-message {
+          text-align: center;
+          color: #9ca3af;
+          padding: 32px 16px;
+          font-size: 14px;
+          background: #111827;
+          border-radius: 16px;
+          border: 1px solid #1f2937;
+        }
+
+        .mobile-item-card {
+          background: #111827;
+          border: 1px solid #1f2937;
+          border-radius: 14px;
+          padding: 16px;
+          margin-bottom: 12px;
+        }
+
+        .mobile-card-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: flex-start;
+          gap: 12px;
+          margin-bottom: 12px;
+          padding-bottom: 10px;
+          border-bottom: 1px solid #1f2937;
+        }
+
+        .mobile-card-title {
+          margin: 0;
+          font-size: 15px;
+          font-weight: 600;
+          color: #e5e7eb !important;
+          line-height: 1.3;
+          flex: 1;
+          min-width: 0;
+          word-break: break-word;
+        }
+
+        .mobile-card-price {
+          font-size: 15px;
+          font-weight: 700;
+          color: #ffffff !important;
+          white-space: nowrap;
+          flex-shrink: 0;
+        }
+
+        .mobile-card-rows {
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
+          margin-bottom: 14px;
+        }
+
+        .mobile-card-row {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          gap: 12px;
+        }
+
+        .mobile-label {
+          font-size: 12px;
+          text-transform: uppercase;
+          color: #9ca3af !important;
+          font-weight: 500;
+          flex-shrink: 0;
+        }
+
+        .mobile-value {
+          font-size: 13px;
+          color: #e5e7eb !important;
+          text-align: right;
+          word-break: break-word;
+        }
+
+        .mobile-details {
+          font-size: 12px;
+          color: #9ca3af !important;
+          max-width: 60%;
+          white-space: pre-wrap;
+        }
+
+        .mobile-card-actions {
+          display: flex;
+          gap: 10px;
+          padding-top: 12px;
+          border-top: 1px solid #1f2937;
+        }
+
+        .mobile-card-actions .btn-table-view,
+        .mobile-card-actions .btn-table-delete {
+          flex: 1;
+          text-align: center;
+          padding: 8px 12px;
+          font-size: 13px;
+        }
+
         /* Modal overlay */
         .modal-overlay {
           position: fixed;
@@ -525,6 +771,15 @@ export default function SellerCatalogue() {
         }
         .btn-proof-dl:hover {
           background: #1d4ed8;
+        }
+
+        @media (max-width: 700px) {
+          .modal-overlay {
+            padding: 12px;
+          }
+          .modal-header h3 {
+            font-size: 14px;
+          }
         }
 
         .banner {
