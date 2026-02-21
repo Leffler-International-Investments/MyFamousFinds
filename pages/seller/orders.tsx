@@ -146,7 +146,8 @@ export default function SellerOrders() {
             </div>
           </div>
 
-          <section className="sell-card" style={{ marginTop: 18 }}>
+          {/* DESKTOP TABLE VIEW */}
+          <section className="sell-card desktop-table" style={{ marginTop: 18 }}>
             <div className="table-overflow-wrapper">
               <table className="catalogue-table">
                 <thead>
@@ -223,6 +224,83 @@ export default function SellerOrders() {
                 </tbody>
               </table>
             </div>
+          </section>
+
+          {/* MOBILE CARD VIEW */}
+          <section className="mobile-cards" style={{ marginTop: 18 }}>
+            {loading && (
+              <p className="mobile-message">Loading orders…</p>
+            )}
+
+            {error && (
+              <p className="mobile-message mobile-error">{error}</p>
+            )}
+
+            {!loading && !error && visible.length === 0 && (
+              <p className="mobile-message">No orders found.</p>
+            )}
+
+            {!loading &&
+              !error &&
+              visible.map((r) => (
+                <div key={r.id} className="mobile-order-card">
+                  <div className="mobile-card-top">
+                    <div>
+                      <div className="cell-strong">{r.listingTitle || r.item || "Item"}</div>
+                      <div className="muted">{formatMoney(r)}</div>
+                    </div>
+                    <div style={{ textAlign: "right" }}>
+                      {renderStatus(r)}
+                    </div>
+                  </div>
+
+                  <div className="mobile-card-rows">
+                    <div className="mobile-card-row">
+                      <span className="mobile-label">Order</span>
+                      <span className="mobile-value">
+                        <span className="cell-strong">{r.id}</span>
+                        {r.createdAt && (
+                          <span className="muted" style={{ display: "block" }}>
+                            {formatLocal(r.createdAt)}
+                          </span>
+                        )}
+                      </span>
+                    </div>
+
+                    <div className="mobile-card-row">
+                      <span className="mobile-label">Buyer</span>
+                      <span className="mobile-value">
+                        <span className="cell-strong">
+                          {r.buyerName || r.buyer || "Buyer"}
+                        </span>
+                        {r.buyerEmail && (
+                          <span className="muted" style={{ display: "block" }}>
+                            {r.buyerEmail}
+                          </span>
+                        )}
+                      </span>
+                    </div>
+
+                    <div className="mobile-card-row">
+                      <span className="mobile-label">Ship to</span>
+                      <span className="mobile-value">
+                        {renderShipTo(r.shippingAddress)}
+                      </span>
+                    </div>
+
+                    <div className="mobile-card-row">
+                      <span className="mobile-label">Ship by</span>
+                      <span className="mobile-value">
+                        {renderDeadline(r.shipDeadlineAt)}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="mobile-card-action">
+                    {renderAction(r)}
+                  </div>
+                </div>
+              ))}
           </section>
 
           <div style={{ height: 26 }} />
@@ -451,6 +529,112 @@ export default function SellerOrders() {
           color: #9ca3af;
           font-size: 11px;
           user-select: none;
+        }
+
+        /* ---- Desktop / Mobile toggle ---- */
+        .mobile-cards { display: none; }
+
+        @media (max-width: 700px) {
+          .desktop-table { display: none; }
+          .mobile-cards { display: block; }
+
+          .page-head {
+            flex-direction: column;
+          }
+          .search-wrap {
+            min-width: unset;
+            width: 100%;
+          }
+          .search {
+            max-width: 100%;
+          }
+        }
+
+        /* ---- Mobile card styles ---- */
+        .mobile-message {
+          text-align: center;
+          color: #9ca3af;
+          padding: 32px 16px;
+          font-size: 13px;
+          background: #111827;
+          border-radius: 16px;
+          border: 1px solid #1f2937;
+        }
+        .mobile-error {
+          color: #f87171;
+        }
+
+        .mobile-order-card {
+          background: #111827;
+          border: 1px solid #1f2937;
+          border-radius: 14px;
+          padding: 16px;
+          margin-bottom: 12px;
+        }
+
+        .mobile-card-top {
+          display: flex;
+          justify-content: space-between;
+          align-items: flex-start;
+          gap: 12px;
+          padding-bottom: 12px;
+          border-bottom: 1px solid #1f2937;
+        }
+
+        .mobile-card-rows {
+          display: flex;
+          flex-direction: column;
+          gap: 10px;
+          padding: 12px 0;
+        }
+
+        .mobile-card-row {
+          display: flex;
+          justify-content: space-between;
+          align-items: flex-start;
+          gap: 12px;
+        }
+
+        .mobile-label {
+          font-size: 11px;
+          text-transform: uppercase;
+          color: #9ca3af;
+          font-weight: 500;
+          flex-shrink: 0;
+          padding-top: 2px;
+        }
+
+        .mobile-value {
+          font-size: 12px;
+          color: #e5e7eb;
+          text-align: right;
+          word-break: break-word;
+        }
+
+        .mobile-card-action {
+          border-top: 1px solid #1f2937;
+          padding-top: 12px;
+        }
+
+        .mobile-card-action .action-box {
+          align-items: stretch;
+          min-width: unset;
+          width: 100%;
+        }
+
+        .mobile-card-action .action-row {
+          justify-content: stretch;
+        }
+
+        .mobile-card-action .small-input {
+          width: auto;
+          flex: 1;
+          min-width: 0;
+        }
+
+        .mobile-card-action .small-select {
+          width: auto;
+          flex: 0 0 auto;
         }
       `}</style>
     </>

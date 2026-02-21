@@ -228,8 +228,9 @@ export default function SellerBulkUploadPage() {
               <p className="muted">Nothing parsed yet.</p>
             )}
 
+            {/* DESKTOP: review table */}
             {rows.length > 0 && (
-              <div className="table-wrapper">
+              <div className="table-wrapper desktop-table">
                 <table className="data-table">
                   <thead>
                     <tr>
@@ -268,6 +269,33 @@ export default function SellerBulkUploadPage() {
                 </table>
               </div>
             )}
+
+            {/* MOBILE: review cards */}
+            {rows.length > 0 && (
+              <div className="mobile-cards">
+                {rows.map((row, idx) => (
+                  <div key={idx} className="mobile-bulk-card">
+                    <div className="mobile-bulk-header">
+                      <span className="mobile-bulk-num">#{idx + 1}</span>
+                      <strong className="mobile-bulk-title">{row.title || "Untitled"}</strong>
+                      {row.price && <span className="mobile-bulk-price">${row.price}</span>}
+                    </div>
+                    <div className="mobile-bulk-rows">
+                      {row.brand && <div className="mobile-bulk-row"><span className="mb-label">Brand</span><span className="mb-val">{row.brand}</span></div>}
+                      {row.category && <div className="mobile-bulk-row"><span className="mb-label">Category</span><span className="mb-val">{row.category}</span></div>}
+                      {row.condition && <div className="mobile-bulk-row"><span className="mb-label">Condition</span><span className="mb-val">{row.condition}</span></div>}
+                      {row.size && <div className="mobile-bulk-row"><span className="mb-label">Size</span><span className="mb-val">{row.size}</span></div>}
+                      {row.color && <div className="mobile-bulk-row"><span className="mb-label">Color</span><span className="mb-val">{row.color}</span></div>}
+                      {row.material && <div className="mobile-bulk-row"><span className="mb-label">Material</span><span className="mb-val">{row.material}</span></div>}
+                      {row.details && <div className="mobile-bulk-row"><span className="mb-label">Details</span><span className="mb-val">{row.details}</span></div>}
+                      {row.source && <div className="mobile-bulk-row"><span className="mb-label">Source</span><span className="mb-val">{row.source}</span></div>}
+                      {row.proof && <div className="mobile-bulk-row"><span className="mb-label">Proof</span><span className="mb-val">{row.proof}</span></div>}
+                      {row.serial && <div className="mobile-bulk-row"><span className="mb-label">Serial</span><span className="mb-val">{row.serial}</span></div>}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </section>
 
           {/* STEP 3 */}
@@ -300,6 +328,86 @@ export default function SellerBulkUploadPage() {
         </main>
 
         <Footer />
+
+        <style jsx>{`
+          .mobile-cards { display: none; }
+
+          @media (max-width: 700px) {
+            .desktop-table { display: none; }
+            .mobile-cards { display: block; }
+
+            .section-top-row {
+              flex-direction: column;
+              gap: 8px;
+            }
+          }
+
+          .mobile-bulk-card {
+            background: #fff;
+            border: 1px solid #e5e7eb;
+            border-radius: 10px;
+            padding: 14px;
+            margin-bottom: 10px;
+          }
+
+          .mobile-bulk-header {
+            display: flex;
+            align-items: baseline;
+            gap: 8px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #f3f4f6;
+            flex-wrap: wrap;
+          }
+
+          .mobile-bulk-num {
+            font-size: 11px;
+            color: #9ca3af;
+            font-weight: 600;
+          }
+
+          .mobile-bulk-title {
+            flex: 1;
+            font-size: 14px;
+            color: #111827;
+            min-width: 0;
+            word-break: break-word;
+          }
+
+          .mobile-bulk-price {
+            font-size: 14px;
+            font-weight: 700;
+            color: #111827;
+            white-space: nowrap;
+          }
+
+          .mobile-bulk-rows {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            padding-top: 8px;
+          }
+
+          .mobile-bulk-row {
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+          }
+
+          .mb-label {
+            font-size: 11px;
+            text-transform: uppercase;
+            color: #6b7280;
+            font-weight: 600;
+            flex-shrink: 0;
+          }
+
+          .mb-val {
+            font-size: 13px;
+            color: #111827;
+            text-align: right;
+            word-break: break-word;
+          }
+        `}</style>
       </div>
     </>
   );

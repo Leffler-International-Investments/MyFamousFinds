@@ -211,8 +211,8 @@ export default function SellerWallet() {
             </div>
           </section>
 
-          {/* Payout history (using sell-card style from catalogue) */}
-          <section className="sell-card" style={{ marginTop: "40px" }}>
+          {/* Payout history — DESKTOP TABLE */}
+          <section className="sell-card desktop-table" style={{ marginTop: "40px" }}>
             <h2>Payout history</h2>
             <div className="table-overflow-wrapper">
               <table className="catalogue-table">
@@ -261,6 +261,41 @@ export default function SellerWallet() {
                 </tbody>
               </table>
             </div>
+          </section>
+
+          {/* Payout history — MOBILE CARDS */}
+          <section className="mobile-cards" style={{ marginTop: "40px" }}>
+            <h2 style={{ fontSize: 14, fontWeight: 600, marginBottom: 12 }}>Payout history</h2>
+            {loading && (
+              <p className="mobile-message">Loading history...</p>
+            )}
+            {!loading && !data?.payouts.length && (
+              <p className="mobile-message">No payout history found.</p>
+            )}
+            {!loading &&
+              data?.payouts.map((p) => (
+                <div key={p.id} className="mobile-payout-card">
+                  <div className="mobile-payout-top">
+                    <span className="mobile-payout-amount">{p.amount}</span>
+                    <span className="status-badge status-paid">{p.status}</span>
+                  </div>
+                  <div className="mobile-payout-rows">
+                    <div className="mobile-payout-row">
+                      <span className="mp-label">Date</span>
+                      <span className="mp-value">{p.date}</span>
+                    </div>
+                    <div className="mobile-payout-row">
+                      <span className="mp-label">Destination</span>
+                      <span className="mp-value">{p.destination}</span>
+                    </div>
+                  </div>
+                  <div className="mobile-payout-footer">
+                    <Link href="/seller/statements" className="table-link">
+                      View statement
+                    </Link>
+                  </div>
+                </div>
+              ))}
           </section>
         </main>
         <Footer />
@@ -480,6 +515,78 @@ export default function SellerWallet() {
         .status-paid {
           background: #064e3b; /* green-900 */
           color: #6ee7b7; /* emerald-300 */
+        }
+
+        /* ---- Desktop / Mobile toggle ---- */
+        .mobile-cards { display: none; }
+
+        @media (max-width: 700px) {
+          .desktop-table { display: none; }
+          .mobile-cards { display: block; }
+        }
+
+        .mobile-message {
+          text-align: center;
+          color: #9ca3af;
+          padding: 24px 16px;
+          font-size: 13px;
+          background: #111827;
+          border-radius: 12px;
+          border: 1px solid #1f2937;
+        }
+
+        .mobile-payout-card {
+          background: #111827;
+          border: 1px solid #1f2937;
+          border-radius: 12px;
+          padding: 14px;
+          margin-bottom: 10px;
+        }
+
+        .mobile-payout-top {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          padding-bottom: 10px;
+          border-bottom: 1px solid #1f2937;
+        }
+
+        .mobile-payout-amount {
+          font-weight: 600;
+          font-size: 15px;
+          color: #fff;
+        }
+
+        .mobile-payout-rows {
+          display: flex;
+          flex-direction: column;
+          gap: 6px;
+          padding: 10px 0;
+        }
+
+        .mobile-payout-row {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          gap: 12px;
+        }
+
+        .mp-label {
+          font-size: 11px;
+          text-transform: uppercase;
+          color: #9ca3af;
+          font-weight: 500;
+        }
+
+        .mp-value {
+          font-size: 12px;
+          color: #e5e7eb;
+          text-align: right;
+        }
+
+        .mobile-payout-footer {
+          padding-top: 8px;
+          border-top: 1px solid #1f2937;
         }
       `}</style>
     </>
