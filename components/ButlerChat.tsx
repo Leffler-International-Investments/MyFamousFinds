@@ -179,15 +179,46 @@ export default function ButlerChat({ isOpen, onClose }: ButlerChatProps) {
   }
 
   /* ── Voice dictation (robust Web Speech API) ── */
-  async function ensureMicPermission() {
-    // Some browsers (esp. Safari) behave better if mic permission is requested first.
+  async function ensureMicPermission(): Promise<boolean> {
+    // Check permission state first (Permissions API, where available)
+    try {
+      const status = await navigator.permissions.query({
+        name: "microphone" as PermissionName,
+      });
+      if (status.state === "denied") {
+        alert(
+          "Microphone access is blocked for this site.\n\n" +
+            "To fix this:\n" +
+            "1. Tap the lock / site-info icon in the address bar\n" +
+            "2. Find \"Microphone\" and change it to \"Allow\"\n" +
+            "3. Reload the page and try again"
+        );
+        return false;
+      }
+    } catch {
+      // Permissions API not supported — fall through to getUserMedia
+    }
+
+    // Request mic access so the browser shows its permission prompt
     try {
       const md = (navigator as any)?.mediaDevices;
-      if (!md?.getUserMedia) return;
+      if (!md?.getUserMedia) return true;
       const stream = await md.getUserMedia({ audio: true });
       stream.getTracks().forEach((t: any) => t.stop());
-    } catch {
-      // ignore; SpeechRecognition will surface the real error via onerror
+      return true;
+    } catch (err: any) {
+      if (err?.name === "NotAllowedError" || err?.name === "PermissionDeniedError") {
+        alert(
+          "Microphone access was denied.\n\n" +
+            "To fix this:\n" +
+            "1. Tap the lock / site-info icon in the address bar\n" +
+            "2. Find \"Microphone\" and change it to \"Allow\"\n" +
+            "3. Reload the page and try again"
+        );
+        return false;
+      }
+      // Other errors (e.g. no mic hardware) — let SpeechRecognition handle it
+      return true;
     }
   }
 
@@ -274,7 +305,8 @@ export default function ButlerChat({ isOpen, onClose }: ButlerChatProps) {
       return;
     }
 
-    await ensureMicPermission();
+    const micAllowed = await ensureMicPermission();
+    if (!micAllowed) return;
 
     // Create a fresh instance each session (more reliable across browsers)
     const rec = buildRecognitionInstance();
