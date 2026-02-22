@@ -1,6 +1,7 @@
 // FILE: /pages/buying.tsx
 
 import Head from "next/head";
+import Link from "next/link";
 import Header from "../components/Header";
 import Footer from "../components/Footer";
 
@@ -76,7 +77,7 @@ export default function BuyingPage() {
           </p>
         </div>
 
-        <div className="card">
+        <div className="card" id="authenticity">
           <h2>5. Authenticity Guarantee</h2>
           <p>
             All listings are reviewed before going live on the platform. Famous
@@ -84,6 +85,11 @@ export default function BuyingPage() {
             ensure the integrity of every item listed. If you receive an item
             you believe is not authentic, contact us within 72 hours of
             delivery for assistance.
+          </p>
+          <p style={{ marginTop: 10 }}>
+            <Link href="/authenticity" style={{ color: "#2563eb", textDecoration: "underline", fontWeight: 600, fontSize: 14 }}>
+              Learn more about our authentication process →
+            </Link>
           </p>
         </div>
 
