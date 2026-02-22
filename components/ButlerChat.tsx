@@ -1,6 +1,10 @@
 // FILE: /components/ButlerChat.tsx
 
 import { useState, useRef, useEffect, useCallback } from "react";
+import {
+  isSpeechAvailable,
+  startSpeechRecognition,
+} from "../utils/speechRecognition";
 
 type ButlerChatProps = {
   isOpen: boolean;
@@ -19,24 +23,13 @@ type ChatMessage =
   | { id: number; role: "user"; text: string }
   | { id: number; role: "butler"; text: string; results?: ButlerResult[] };
 
-/* ── Resolve the SpeechRecognition constructor (standard + webkit) ── */
-function getSpeechRecognition(): (new () => any) | null {
-  if (typeof window === "undefined") return null;
-  return (
-    (window as any).SpeechRecognition ||
-    (window as any).webkitSpeechRecognition ||
-    null
-  );
-}
-
 export default function ButlerChat({ isOpen, onClose }: ButlerChatProps) {
   const [input, setInput] = useState("");
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [listening, setListening] = useState(false);
 
-  const recognitionRef = useRef<any>(null);
+  const stopSpeechRef = useRef<(() => void) | null>(null);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
-  const voiceTranscriptRef = useRef<string>("");
 
   /* ── Draggable state ── */
   const panelRef = useRef<HTMLDivElement>(null);
@@ -171,86 +164,62 @@ export default function ButlerChat({ isOpen, onClose }: ButlerChatProps) {
     sendMessage();
   }
 
-  /* ── Voice dictation ── */
-  function handleVoice() {
-    if (listening) {
-      recognitionRef.current?.stop();
+  /* ── Voice dictation (cross-platform: native + web) ── */
+  const handleVoice = useCallback(async () => {
+    // If already listening, stop
+    if (listening && stopSpeechRef.current) {
+      stopSpeechRef.current();
+      stopSpeechRef.current = null;
       return;
     }
 
-    const SpeechRecognitionClass = getSpeechRecognition();
-    if (!SpeechRecognitionClass) {
-      alert(
-        "Voice recognition is not supported in this browser. Please try Chrome, Edge, or Safari."
-      );
+    if (!isSpeechAvailable()) {
+      // Show error in chat instead of alert
+      setMessages((m) => [
+        ...m,
+        {
+          id: Date.now(),
+          role: "butler",
+          text: "Voice input is not available in this browser. Please try Chrome, Edge, or Safari.",
+        },
+      ]);
       return;
     }
 
-    const rec = new SpeechRecognitionClass();
-    recognitionRef.current = rec;
-    voiceTranscriptRef.current = "";
-
-    rec.lang = "en-US";
-    rec.continuous = false;
-    rec.interimResults = true;
-
-    rec.onstart = () => setListening(true);
-
-    rec.onend = () => {
-      setListening(false);
-      recognitionRef.current = null;
-
-      // Auto-send the final transcript
-      const finalText = voiceTranscriptRef.current.trim();
-      if (finalText) {
-        setInput("");
-        sendMessage(finalText);
-        voiceTranscriptRef.current = "";
-      }
-    };
-
-    rec.onerror = () => {
-      setListening(false);
-      recognitionRef.current = null;
-      voiceTranscriptRef.current = "";
-    };
-
-    rec.onresult = (event: any) => {
-      let interimTranscript = "";
-      let finalTranscript = "";
-
-      for (let i = 0; i < event.results.length; i++) {
-        const result = event.results[i];
-        if (result.isFinal) {
-          finalTranscript += result[0].transcript;
-        } else {
-          interimTranscript += result[0].transcript;
+    const stopFn = await startSpeechRecognition({
+      onStart: () => setListening(true),
+      onResult: (transcript) => {
+        setInput(transcript);
+      },
+      onEnd: (finalTranscript) => {
+        setListening(false);
+        stopSpeechRef.current = null;
+        const text = finalTranscript.trim();
+        if (text) {
+          setInput("");
+          sendMessage(text);
         }
-      }
+      },
+      onError: (message) => {
+        setListening(false);
+        stopSpeechRef.current = null;
+        // Show error in chat so user can see it
+        setMessages((m) => [
+          ...m,
+          { id: Date.now(), role: "butler", text: message },
+        ]);
+      },
+    });
 
-      voiceTranscriptRef.current = finalTranscript || interimTranscript;
-      setInput(voiceTranscriptRef.current);
-    };
+    stopSpeechRef.current = stopFn;
+  }, [listening, sendMessage]);
 
-    // Just start — browser shows its own permission dialog automatically
-    try {
-      rec.start();
-    } catch {
-      setListening(false);
-      recognitionRef.current = null;
-    }
-  }
-
-  /* ── Cleanup recognition on unmount / close ── */
+  /* ── Cleanup speech on unmount / close ── */
   useEffect(() => {
     return () => {
-      if (recognitionRef.current) {
-        try {
-          recognitionRef.current.abort();
-        } catch {
-          // ignore
-        }
-        recognitionRef.current = null;
+      if (stopSpeechRef.current) {
+        stopSpeechRef.current();
+        stopSpeechRef.current = null;
       }
     };
   }, []);

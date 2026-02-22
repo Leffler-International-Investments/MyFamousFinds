@@ -3,6 +3,10 @@ import React, { useState, useRef } from "react";
 import Head from "next/head";
 import Header from "../components/Header";
 import Footer from "../components/Footer";
+import {
+  isSpeechAvailable,
+  startSpeechRecognition,
+} from "../utils/speechRecognition";
 
 // Type for the form payload
 type FormPayload = {
@@ -14,7 +18,7 @@ type FormPayload = {
 export default function ConciergePage() {
   const [requestText, setRequestText] = useState("");
   const [listening, setListening] = useState(false);
-  const recognitionRef = useRef<any>(null); // For fluent voice
+  const stopSpeechRef = useRef<(() => void) | null>(null);
   
   // New state for the AI flow
   const [isLoading, setIsLoading] = useState(false);
@@ -70,47 +74,36 @@ export default function ConciergePage() {
     setHumanSent(true); // Show final "thank you" message
   }
 
-  // 3. UPGRADED handleVoice from ButlerChat for fluent results
-  function handleVoice(e: React.MouseEvent<HTMLButtonElement>) {
-    e.preventDefault(); // Prevent form submission
-    
-    if (listening) {
-      if (recognitionRef.current) {
-        recognitionRef.current.stop();
-      }
-      setListening(false);
+  // 3. Cross-platform voice input (native + web)
+  async function handleVoice(e: React.MouseEvent<HTMLButtonElement>) {
+    e.preventDefault();
+
+    if (listening && stopSpeechRef.current) {
+      stopSpeechRef.current();
+      stopSpeechRef.current = null;
       return;
     }
 
-    if (!("webkitSpeechRecognition" in window)) {
-      alert("Voice recognition not supported in this browser.");
+    if (!isSpeechAvailable()) {
+      alert("Voice input is not available. Please try Chrome, Edge, or Safari.");
       return;
     }
-    
-    const rec = new (window as any).webkitSpeechRecognition();
-    recognitionRef.current = rec;
-    rec.lang = "en-US";
-    rec.continuous = true;
-    rec.interimResults = true;
-    
-    rec.onstart = () => setListening(true);
-    rec.onend = () => {
-      setListening(false);
-      recognitionRef.current = null;
-    };
-    rec.onerror = (event: any) => {
-      console.error("Speech recognition error:", event.error);
-      setListening(false);
-    };
-    rec.onresult = (event: any) => {
-      const transcript = Array.from(event.results)
-        .map((result: any) => result[0])
-        .map((result: any) => result.transcript)
-        .join('');
-      setRequestText(transcript); // Update the textarea state live
-    };
-    
-    rec.start();
+
+    const stopFn = await startSpeechRecognition({
+      onStart: () => setListening(true),
+      onResult: (transcript) => setRequestText(transcript),
+      onEnd: () => {
+        setListening(false);
+        stopSpeechRef.current = null;
+      },
+      onError: (message) => {
+        setListening(false);
+        stopSpeechRef.current = null;
+        alert(message);
+      },
+    });
+
+    stopSpeechRef.current = stopFn;
   }
 
   // 4. RENDER logic based on state
