@@ -28,18 +28,20 @@ const pillBaseStyle: CSSProperties = {
   zIndex: 50,
   background: "#ffffff",
   color: "#0f172a",
-  padding: "8px 16px",
-  borderRadius: 999,
+  padding: "8px 14px",
+  borderRadius: 20,
   boxShadow: "0 10px 25px rgba(0, 0, 0, 0.3)",
   fontWeight: 600,
   fontSize: 14,
   display: "flex",
+  flexDirection: "column",
   alignItems: "center",
-  gap: 6,
+  gap: 2,
   cursor: "grab",
   border: "1px solid #e2e8f0",
   touchAction: "none",
   userSelect: "none",
+  whiteSpace: "nowrap",
 };
 
 const modalBaseStyle: CSSProperties = {

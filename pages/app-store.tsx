@@ -53,6 +53,8 @@ export default function MyFamousFindsAppPage() {
     };
   }, []);
 
+  const [showFallback, setShowFallback] = useState(false);
+
   const handleInstall = async () => {
     const prompt = deferredPrompt || (window as any).__pwaInstallPrompt;
     if (prompt) {
@@ -68,14 +70,18 @@ export default function MyFamousFindsAppPage() {
           // Fallback: if appinstalled never fires within 30s, reset
           setTimeout(() => {
             setInstalling((prev) => {
-              if (prev) return false; // timed out — go back to instructions
+              if (prev) return false; // timed out — go back to button
               return prev;
             });
           }, 30000);
         }
       } catch {
-        // prompt() already used — can't re-prompt
+        // prompt() already used — show fallback
+        setShowFallback(true);
       }
+    } else {
+      // No native prompt available (e.g. iOS Safari) — show brief fallback
+      setShowFallback(true);
     }
   };
   const title = "Get the Famous Finds App — Luxury Resale Marketplace";
@@ -159,55 +165,26 @@ export default function MyFamousFindsAppPage() {
             }}>
               Installing… check your home screen shortly.
             </div>
-          ) : deferredPrompt ? (
-            <button
-              onClick={handleInstall}
-              style={{
-                display: "flex", alignItems: "center", justifyContent: "center", gap: 10,
-                background: "#111827", color: "#fff", padding: "14px 24px", borderRadius: 12,
-                fontSize: 16, fontWeight: 700, border: "none", cursor: "pointer",
-              }}
-            >
-              Install App Now
-            </button>
-          ) : isIOS ? (
-            <div style={{
-              background: "#f0f9ff", color: "#1e40af", padding: "16px 20px", borderRadius: 12,
-              fontSize: 14, lineHeight: 1.8, textAlign: "left",
-            }}>
-              <strong style={{ fontSize: 15 }}>Install on iPhone / iPad:</strong>
-              <ol style={{ margin: "8px 0 0", paddingLeft: 20 }}>
-                <li>Make sure you are using <strong>Safari</strong> (not Chrome or another browser)</li>
-                <li>Tap the <strong>Share</strong> button <span style={{ fontSize: 16 }}>&#x2191;&#xFE0E;</span> at the bottom of the screen</li>
-                <li>Scroll down and tap <strong>&quot;Add to Home Screen&quot;</strong></li>
-                <li>Tap <strong>&quot;Add&quot;</strong> in the top-right corner</li>
-              </ol>
-            </div>
-          ) : isAndroid ? (
-            <div style={{
-              background: "#f0f9ff", color: "#1e40af", padding: "16px 20px", borderRadius: 12,
-              fontSize: 14, lineHeight: 1.8, textAlign: "left",
-            }}>
-              <strong style={{ fontSize: 15 }}>Install on Android:</strong>
-              <ol style={{ margin: "8px 0 0", paddingLeft: 20 }}>
-                <li>Make sure you are using <strong>Chrome</strong></li>
-                <li>Tap the <strong>&#x22EE;</strong> menu (three dots, top-right)</li>
-                <li>Tap <strong>&quot;Add to Home Screen&quot;</strong> or <strong>&quot;Install App&quot;</strong></li>
-                <li>Tap <strong>&quot;Install&quot;</strong> to confirm</li>
-              </ol>
-            </div>
           ) : (
-            <div style={{
-              background: "#f0f9ff", color: "#1e40af", padding: "16px 20px", borderRadius: 12,
-              fontSize: 14, lineHeight: 1.8, textAlign: "left",
-            }}>
-              <strong style={{ fontSize: 15 }}>Add to Home Screen:</strong>
-              <ol style={{ margin: "8px 0 0", paddingLeft: 20 }}>
-                <li>Open this page on your mobile phone in <strong>Chrome</strong> (Android) or <strong>Safari</strong> (iPhone)</li>
-                <li>Open the browser menu</li>
-                <li>Tap <strong>&quot;Add to Home Screen&quot;</strong> or <strong>&quot;Install App&quot;</strong></li>
-              </ol>
-            </div>
+            <>
+              <button
+                onClick={handleInstall}
+                style={{
+                  display: "flex", alignItems: "center", justifyContent: "center", gap: 10,
+                  background: "#111827", color: "#fff", padding: "14px 24px", borderRadius: 12,
+                  fontSize: 16, fontWeight: 700, border: "none", cursor: "pointer",
+                }}
+              >
+                Install App Now
+              </button>
+              {showFallback && (
+                <p style={{ fontSize: 14, color: "#555", margin: "4px 0 0", lineHeight: 1.5 }}>
+                  {isIOS
+                    ? "Tap the Share button in Safari, then \"Add to Home Screen\"."
+                    : "Tap the browser menu, then \"Add to Home Screen\" or \"Install App\"."}
+                </p>
+              )}
+            </>
           )}
         </div>
 
