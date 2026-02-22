@@ -1,6 +1,6 @@
 // FILE: /components/ButlerChat.tsx
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 
 type ButlerChatProps = {
   isOpen: boolean;
@@ -19,6 +19,16 @@ type ChatMessage =
   | { id: number; role: "user"; text: string }
   | { id: number; role: "butler"; text: string; results?: ButlerResult[] };
 
+/* ── Resolve the SpeechRecognition constructor (standard + webkit) ── */
+function getSpeechRecognition(): (new () => any) | null {
+  if (typeof window === "undefined") return null;
+  return (
+    (window as any).SpeechRecognition ||
+    (window as any).webkitSpeechRecognition ||
+    null
+  );
+}
+
 export default function ButlerChat({ isOpen, onClose }: ButlerChatProps) {
   const [input, setInput] = useState("");
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -26,119 +36,250 @@ export default function ButlerChat({ isOpen, onClose }: ButlerChatProps) {
 
   const recognitionRef = useRef<any>(null);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
+  const voiceTranscriptRef = useRef<string>("");
 
+  /* ── Draggable state ── */
+  const panelRef = useRef<HTMLDivElement>(null);
+  const [pos, setPos] = useState<{ x: number; y: number } | null>(null);
+  const dragging = useRef(false);
+  const dragOffset = useRef({ x: 0, y: 0 });
+  const hasMoved = useRef(false);
+
+  /* Set initial position on mount (bottom-right) */
+  useEffect(() => {
+    if (isOpen && !pos) {
+      setPos({
+        x: window.innerWidth - 16,
+        y: window.innerHeight - 16,
+      });
+    }
+  }, [isOpen, pos]);
+
+  /* Scroll chat to bottom on new messages */
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  async function handleSend() {
-    if (!input.trim()) return;
-
-    const text = input.trim();
-    setInput("");
-
-    const userMessage: ChatMessage = {
-      id: Date.now(),
-      role: "user",
-      text,
+  /* ── Clamp helper to keep panel on screen ── */
+  const clamp = useCallback((x: number, y: number) => {
+    const el = panelRef.current;
+    if (!el) return { x, y };
+    const r = el.getBoundingClientRect();
+    return {
+      x: Math.max(r.width / 2, Math.min(window.innerWidth - r.width / 2, x)),
+      y: Math.max(r.height / 2, Math.min(window.innerHeight - r.height / 2, y)),
     };
-    setMessages((m) => [...m, userMessage]);
+  }, []);
 
-    const lower = text.toLowerCase();
+  /* ── Pointer event handlers for drag ── */
+  const onPointerDown = useCallback((e: React.PointerEvent) => {
+    const el = panelRef.current;
+    if (!el) return;
+    dragging.current = true;
+    hasMoved.current = false;
+    const r = el.getBoundingClientRect();
+    dragOffset.current = {
+      x: e.clientX - (r.left + r.width / 2),
+      y: e.clientY - (r.top + r.height / 2),
+    };
+    el.setPointerCapture(e.pointerId);
+  }, []);
 
-    // "open it" / "open" / "buy it" → open first result
-    if (lower === "open it" || lower === "open" || lower === "buy it") {
-      const lastWithResults = [...messages]
-        .reverse()
-        .find((msg) => msg.role === "butler" && (msg as any).results?.length);
+  const onPointerMove = useCallback(
+    (e: React.PointerEvent) => {
+      if (!dragging.current) return;
+      hasMoved.current = true;
+      const nx = e.clientX - dragOffset.current.x;
+      const ny = e.clientY - dragOffset.current.y;
+      setPos(clamp(nx, ny));
+    },
+    [clamp]
+  );
 
-      const target = (lastWithResults as any)?.results?.[0] as
-        | ButlerResult
-        | undefined;
+  const onPointerUp = useCallback((e: React.PointerEvent) => {
+    dragging.current = false;
+    if (panelRef.current) panelRef.current.releasePointerCapture(e.pointerId);
+  }, []);
 
-      if (target && typeof window !== "undefined") {
-        window.location.href = target.href;
+  /* ── Send a message (can be called with explicit text or reads from input) ── */
+  const sendMessage = useCallback(
+    async (explicitText?: string) => {
+      const text = (explicitText ?? input).trim();
+      if (!text) return;
+
+      if (!explicitText) setInput("");
+
+      const userMessage: ChatMessage = { id: Date.now(), role: "user", text };
+      setMessages((m) => [...m, userMessage]);
+
+      const lower = text.toLowerCase();
+
+      // "open it" / "open" / "buy it" → open first result
+      if (lower === "open it" || lower === "open" || lower === "buy it") {
+        setMessages((prev) => {
+          const lastWithResults = [...prev]
+            .reverse()
+            .find(
+              (msg) => msg.role === "butler" && (msg as any).results?.length
+            );
+          const target = (lastWithResults as any)?.results?.[0] as
+            | ButlerResult
+            | undefined;
+          if (target && typeof window !== "undefined") {
+            window.location.href = target.href;
+          }
+          return prev;
+        });
         return;
       }
-    }
 
-    try {
-      const res = await fetch("/api/butler", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ query: text }),
-      });
+      try {
+        const res = await fetch("/api/butler", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ query: text }),
+        });
 
-      if (!res.ok) throw new Error("API request failed");
+        if (!res.ok) throw new Error("API request failed");
 
-      const data = await res.json();
+        const data = await res.json();
 
-      const butlerMessage: ChatMessage = {
-        id: Date.now() + 1,
-        role: "butler",
-        text: data.answer || "",
-        results: data.results || [],
-      };
+        const butlerMessage: ChatMessage = {
+          id: Date.now() + 1,
+          role: "butler",
+          text: data.answer || "",
+          results: data.results || [],
+        };
 
-      setMessages((m) => [...m, butlerMessage]);
-    } catch (e) {
-      console.error(e);
-      const errorMessage: ChatMessage = {
-        id: Date.now() + 2,
-        role: "butler",
-        text: "I’m having trouble reaching the catalogue right now.",
-      };
-      setMessages((m) => [...m, errorMessage]);
-    }
+        setMessages((m) => [...m, butlerMessage]);
+      } catch (e) {
+        console.error(e);
+        const errorMessage: ChatMessage = {
+          id: Date.now() + 2,
+          role: "butler",
+          text: "I'm having trouble reaching the catalogue right now.",
+        };
+        setMessages((m) => [...m, errorMessage]);
+      }
+    },
+    [input]
+  );
+
+  function handleSend() {
+    sendMessage();
   }
 
+  /* ── Voice dictation ── */
   function handleVoice() {
     if (listening) {
       recognitionRef.current?.stop();
       return;
     }
 
-    if (
-      typeof window === "undefined" ||
-      !(window as any).webkitSpeechRecognition
-    ) {
-      alert("Voice recognition not supported in this browser.");
+    const SpeechRecognitionClass = getSpeechRecognition();
+    if (!SpeechRecognitionClass) {
+      alert(
+        "Voice recognition is not supported in this browser. Please try Chrome, Edge, or Safari."
+      );
       return;
     }
 
-    const rec = new (window as any).webkitSpeechRecognition();
+    const rec = new SpeechRecognitionClass();
     recognitionRef.current = rec;
+    voiceTranscriptRef.current = "";
 
     rec.lang = "en-US";
     rec.continuous = false;
-    rec.interimResults = false;
+    rec.interimResults = true;
 
     rec.onstart = () => setListening(true);
+
     rec.onend = () => {
       setListening(false);
       recognitionRef.current = null;
+
+      // Auto-send the final transcript
+      const finalText = voiceTranscriptRef.current.trim();
+      if (finalText) {
+        setInput("");
+        sendMessage(finalText);
+        voiceTranscriptRef.current = "";
+      }
     };
-    rec.onerror = () => {
+
+    rec.onerror = (event: any) => {
       setListening(false);
       recognitionRef.current = null;
+      voiceTranscriptRef.current = "";
+
+      if (event.error === "not-allowed" || event.error === "permission-denied") {
+        alert(
+          "Microphone access was denied. Please allow microphone permission in your browser settings."
+        );
+      } else if (event.error === "no-speech") {
+        // User didn't say anything — silently reset
+      } else if (event.error !== "aborted") {
+        alert("Voice recognition error. Please try again.");
+      }
     };
 
     rec.onresult = (event: any) => {
-      const transcript = Array.from(event.results)
-        .map((r: any) => r[0].transcript)
-        .join(" ");
+      let interimTranscript = "";
+      let finalTranscript = "";
 
-      setInput((prev) => (prev ? `${prev} ${transcript}` : transcript));
+      for (let i = 0; i < event.results.length; i++) {
+        const result = event.results[i];
+        if (result.isFinal) {
+          finalTranscript += result[0].transcript;
+        } else {
+          interimTranscript += result[0].transcript;
+        }
+      }
+
+      // Store the best transcript so far
+      voiceTranscriptRef.current = finalTranscript || interimTranscript;
+
+      // Show live preview in the input field
+      setInput(voiceTranscriptRef.current);
     };
 
     rec.start();
   }
 
-  if (!isOpen) return null;
+  /* ── Cleanup recognition on unmount / close ── */
+  useEffect(() => {
+    return () => {
+      if (recognitionRef.current) {
+        try {
+          recognitionRef.current.abort();
+        } catch {
+          // ignore
+        }
+        recognitionRef.current = null;
+      }
+    };
+  }, []);
+
+  if (!isOpen || !pos) return null;
+
+  const panelStyle: React.CSSProperties = {
+    position: "fixed",
+    left: pos.x,
+    top: pos.y,
+    transform: "translate(-100%, -100%)",
+    zIndex: 10000,
+  };
 
   return (
-    <div className="butlerChatPanel">
-      <div className="butlerChatHeader">
+    <div ref={panelRef} className="butlerChatPanel" style={panelStyle}>
+      {/* ── Drag handle (header) ── */}
+      <div
+        className="butlerChatHeader"
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={onPointerUp}
+        style={{ touchAction: "none", userSelect: "none" }}
+      >
         <span className="butlerChatTitle">🤵 AI Butler</span>
         <button
           className="butlerCloseBtn"
@@ -153,7 +294,7 @@ export default function ButlerChat({ isOpen, onClose }: ButlerChatProps) {
         {messages.length === 0 && (
           <div className="butlerWelcome">
             Ask me for something in the catalogue — I am your personal style
-            butler. Try “Prada bag” or “Rolex watch”.
+            butler. Try &quot;Prada bag&quot; or &quot;Rolex watch&quot;.
           </div>
         )}
 
@@ -198,7 +339,7 @@ export default function ButlerChat({ isOpen, onClose }: ButlerChatProps) {
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && handleSend()}
-          placeholder="Ask the butler… I am your personal style butler"
+          placeholder="Ask the butler…"
           className="butlerInput"
         />
         <button onClick={handleSend} className="butlerSendBtn">
@@ -207,6 +348,7 @@ export default function ButlerChat({ isOpen, onClose }: ButlerChatProps) {
         <button
           onClick={handleVoice}
           className={`butlerVoiceBtn ${listening ? "listening" : ""}`}
+          title={listening ? "Stop listening" : "Voice input"}
         >
           🎙️
         </button>
@@ -214,24 +356,24 @@ export default function ButlerChat({ isOpen, onClose }: ButlerChatProps) {
 
       <style jsx>{`
         .butlerChatPanel {
-          position: fixed;
-          bottom: 16px;
-          right: 16px;
-          width: 320px;
+          width: 340px;
           max-width: 90vw;
           background: #ffffff;
           color: #000000;
           border-radius: 16px;
           box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
-          padding: 12px;
+          padding: 0 12px 12px;
           font-size: 13px;
-          z-index: 10000;
         }
         .butlerChatHeader {
           display: flex;
           justify-content: space-between;
           align-items: center;
-          margin-bottom: 6px;
+          padding: 12px 0 6px;
+          cursor: grab;
+        }
+        .butlerChatHeader:active {
+          cursor: grabbing;
         }
         .butlerChatTitle {
           font-weight: 600;
@@ -295,6 +437,7 @@ export default function ButlerChat({ isOpen, onClose }: ButlerChatProps) {
           border: 1px solid #9ca3af;
           padding: 4px 6px;
           font-size: 13px;
+          font-family: inherit;
         }
         .butlerSendBtn,
         .butlerVoiceBtn {
@@ -311,29 +454,33 @@ export default function ButlerChat({ isOpen, onClose }: ButlerChatProps) {
         .butlerVoiceBtn {
           background: #e5e7eb;
           color: #111827;
+          transition: background 0.2s;
         }
         .butlerVoiceBtn.listening {
           background: #ef4444;
           color: #fff;
+          animation: pulse-mic 1s infinite;
         }
+
+        @keyframes pulse-mic {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.6; }
+        }
+
         @media (max-width: 768px) {
           .butlerChatPanel {
-            right: 8px;
-            bottom: 64px;
-            width: 280px;
-            max-width: 75vw;
+            width: 300px;
+            max-width: 85vw;
             font-size: 12px;
           }
           .butlerMessages {
-            height: 140px;
+            height: 160px;
           }
         }
         @media (max-width: 480px) {
           .butlerChatPanel {
-            right: 8px;
-            bottom: 64px;
-            width: 260px;
-            max-width: 70vw;
+            width: 280px;
+            max-width: 80vw;
           }
         }
       `}</style>
