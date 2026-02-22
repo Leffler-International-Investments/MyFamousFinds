@@ -538,6 +538,44 @@ export default function Footer() {
         `}</style>
       </footer>
 
+      {/* ---- Floating AI Butler button (always visible) ---- */}
+      {!isChatOpen && (
+        <button
+          type="button"
+          onClick={() => setIsChatOpen(true)}
+          aria-label="Open AI Butler"
+          style={{
+            position: "fixed",
+            bottom: 20,
+            right: 20,
+            zIndex: 9999,
+            width: 56,
+            height: 56,
+            borderRadius: "50%",
+            border: "none",
+            background: "#111827",
+            color: "#ffffff",
+            fontSize: 28,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            cursor: "pointer",
+            boxShadow: "0 6px 20px rgba(0, 0, 0, 0.3)",
+            transition: "transform 0.15s, box-shadow 0.15s",
+          }}
+          onMouseEnter={(e) => {
+            (e.currentTarget as HTMLButtonElement).style.transform = "scale(1.1)";
+            (e.currentTarget as HTMLButtonElement).style.boxShadow = "0 8px 28px rgba(0, 0, 0, 0.4)";
+          }}
+          onMouseLeave={(e) => {
+            (e.currentTarget as HTMLButtonElement).style.transform = "scale(1)";
+            (e.currentTarget as HTMLButtonElement).style.boxShadow = "0 6px 20px rgba(0, 0, 0, 0.3)";
+          }}
+        >
+          🤵
+        </button>
+      )}
+
       {/* Butler chat panel */}
       <ButlerChat isOpen={isChatOpen} onClose={() => setIsChatOpen(false)} />
     </>

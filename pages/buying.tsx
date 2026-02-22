@@ -80,15 +80,14 @@ export default function BuyingPage() {
         <div className="card" id="authenticity">
           <h2>5. Authenticity Guarantee</h2>
           <p>
-            All listings are reviewed before going live on the platform. Famous
-            Finds checks photos, descriptions, and brand accuracy to help
-            ensure the integrity of every item listed. If you receive an item
-            you believe is not authentic, contact us within 72 hours of
-            delivery for assistance.
+            Every item listed on Famous Finds goes through our rigorous,
+            multi-stage authentication process before it reaches you.
+            We take authenticity seriously — it is the foundation of our
+            marketplace.
           </p>
-          <p style={{ marginTop: 10 }}>
-            <Link href="/authenticity" style={{ color: "#2563eb", textDecoration: "underline", fontWeight: 600, fontSize: 14 }}>
-              Learn more about our authentication process →
+          <p style={{ marginTop: 12 }}>
+            <Link href="/authenticity" style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "#111827", color: "#fff", padding: "10px 20px", borderRadius: 999, fontWeight: 600, fontSize: 14, textDecoration: "none" }}>
+              View Our Full Authenticity Process →
             </Link>
           </p>
         </div>
