@@ -23,6 +23,8 @@ type MgmtStats = {
   pendingAgreements: number;
   supportTickets: number;
   openTickets: number;
+  authComplaints: number;
+  openAuthComplaints: number;
 };
 
 type Props = {
@@ -138,6 +140,11 @@ export default function ManagementDashboard({ stats }: Props) {
               <p className="label">Support Tickets</p>
               <p className="stat">{stats.supportTickets.toLocaleString("en-US")}</p>
               <p className="sub-stat">{stats.openTickets} open</p>
+            </Link>
+            <Link href="/management/authentication-complaints" className="dashboard-summary-tile">
+              <p className="label">Auth Complaints</p>
+              <p className="stat">{stats.authComplaints.toLocaleString("en-US")}</p>
+              <p className="sub-stat">{stats.openAuthComplaints} open</p>
             </Link>
           </div>
         </section>
@@ -459,6 +466,8 @@ export const getServerSideProps: GetServerSideProps<Props> = async () => {
       pendingAgreementsSnap,
       supportTicketsSnap,
       openTicketsSnap,
+      authComplaintsSnap,
+      openAuthComplaintsSnap,
     ] = await Promise.all([
       adminDb.collection("sellers").get(),
       adminDb.collection("sellers").where("status", "==", "Pending").get(),
@@ -479,6 +488,8 @@ export const getServerSideProps: GetServerSideProps<Props> = async () => {
         .get(),
       adminDb.collection("supportTickets").get(),
       adminDb.collection("supportTickets").where("status", "==", "Open").get(),
+      adminDb.collection("authenticationComplaints").get(),
+      adminDb.collection("authenticationComplaints").where("status", "==", "Open").get(),
     ]);
 
     const stats: MgmtStats = {
@@ -492,6 +503,8 @@ export const getServerSideProps: GetServerSideProps<Props> = async () => {
       pendingAgreements: pendingAgreementsSnap.size,
       supportTickets: supportTicketsSnap.size,
       openTickets: openTicketsSnap.size,
+      authComplaints: authComplaintsSnap.size,
+      openAuthComplaints: openAuthComplaintsSnap.size,
     };
 
     return { props: { stats } };
@@ -508,6 +521,8 @@ export const getServerSideProps: GetServerSideProps<Props> = async () => {
       pendingAgreements: 0,
       supportTickets: 0,
       openTickets: 0,
+      authComplaints: 0,
+      openAuthComplaints: 0,
     };
     return { props: { stats } };
   }

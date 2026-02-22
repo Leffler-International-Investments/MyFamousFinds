@@ -209,14 +209,10 @@ export default function ButlerChat({ isOpen, onClose }: ButlerChatProps) {
       }
     };
 
-    rec.onerror = (event: any) => {
+    rec.onerror = () => {
       setListening(false);
       recognitionRef.current = null;
       voiceTranscriptRef.current = "";
-      // Let the browser handle permission UI — no custom alerts needed
-      if (event.error !== "no-speech" && event.error !== "aborted") {
-        console.error("Voice recognition error:", event.error);
-      }
     };
 
     rec.onresult = (event: any) => {
@@ -232,48 +228,16 @@ export default function ButlerChat({ isOpen, onClose }: ButlerChatProps) {
         }
       }
 
-      // Store the best transcript so far
       voiceTranscriptRef.current = finalTranscript || interimTranscript;
-
-      // Show live preview in the input field
       setInput(voiceTranscriptRef.current);
     };
 
-    // Request microphone permission, then start recognition
-    if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-      navigator.mediaDevices
-        .getUserMedia({ audio: true })
-        .then((stream) => {
-          // Permission granted — stop the probe stream (SpeechRecognition manages its own)
-          stream.getTracks().forEach((t) => t.stop());
-          try {
-            rec.start();
-          } catch (err) {
-            console.error("Speech recognition start failed:", err);
-            setListening(false);
-            recognitionRef.current = null;
-          }
-        })
-        .catch(() => {
-          // Permission denied or unavailable — try starting directly
-          // (some browsers handle SpeechRecognition permission separately)
-          try {
-            rec.start();
-          } catch (err) {
-            console.error("Speech recognition start failed:", err);
-            setListening(false);
-            recognitionRef.current = null;
-          }
-        });
-    } else {
-      // Fallback: try starting directly (older browsers)
-      try {
-        rec.start();
-      } catch (err) {
-        console.error("Speech recognition start failed:", err);
-        setListening(false);
-        recognitionRef.current = null;
-      }
+    // Just start — browser shows its own permission dialog automatically
+    try {
+      rec.start();
+    } catch {
+      setListening(false);
+      recognitionRef.current = null;
     }
   }
 
