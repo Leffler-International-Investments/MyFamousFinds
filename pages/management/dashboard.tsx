@@ -398,6 +398,13 @@ export default function ManagementDashboard({ stats }: Props) {
             linkColor="blue"
           />
           <DashboardTile
+            title="Authentication Complaints"
+            description="Review buyer-submitted authenticity concerns. Investigate, respond, and resolve complaints."
+            href="/management/authentication-complaints"
+            linkText="View Complaints"
+            linkColor="gold"
+          />
+          <DashboardTile
             title="Logs & Audit Trail"
             description="Review a history of important admin and system actions."
             href="/management/logs"

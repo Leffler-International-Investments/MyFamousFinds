@@ -342,11 +342,10 @@ export default function AuthenticityPage() {
                 <AlertIcon />
                 <h3>Dedicated Support</h3>
                 <p>
-                  Have a question about authenticity? Our team responds promptly. Report
-                  any concerns to{" "}
-                  <a href="mailto:ip@famousfinds.com" className="text-link">
-                    ip@famousfinds.com
-                  </a>{" "}
+                  Have a question about authenticity? Our team responds promptly.{" "}
+                  <Link href="/authentication-complaint" className="text-link">
+                    Submit an authenticity complaint
+                  </Link>{" "}
                   and we will take immediate action.
                 </p>
               </div>

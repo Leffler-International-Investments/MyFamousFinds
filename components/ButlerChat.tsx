@@ -20,7 +20,7 @@ type ChatMessage =
   | { id: number; role: "butler"; text: string; results?: ButlerResult[] };
 
 /* ── Resolve the SpeechRecognition constructor (standard + webkit) ── */
-function getSpeechRecognition(): (new () => SpeechRecognition) | null {
+function getSpeechRecognition(): (new () => any) | null {
   if (typeof window === "undefined") return null;
   return (
     (window as any).SpeechRecognition ||

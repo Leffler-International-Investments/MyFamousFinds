@@ -29,12 +29,11 @@ export default function AuthenticityPolicy() {
         <h2>For Buyers</h2>
         <p>
           Famous Finds reviews listings but cannot guarantee the authenticity of
-          each individual item. If you suspect a counterfeit, contact us
-          immediately at{" "}
-          <a href="mailto:ip@famousfinds.com" className="link">
-            ip@famousfinds.com
-          </a>
-          .
+          each individual item. If you suspect a counterfeit, please{" "}
+          <a href="/authentication-complaint" className="link">
+            submit an authenticity complaint
+          </a>{" "}
+          immediately so our team can investigate.
         </p>
 
         <h2>Brand &amp; IP Complaints</h2>
