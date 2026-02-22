@@ -213,15 +213,9 @@ export default function ButlerChat({ isOpen, onClose }: ButlerChatProps) {
       setListening(false);
       recognitionRef.current = null;
       voiceTranscriptRef.current = "";
-
-      if (event.error === "not-allowed" || event.error === "permission-denied") {
-        alert(
-          "Microphone access was denied. Please allow microphone permission in your browser settings."
-        );
-      } else if (event.error === "no-speech") {
-        // User didn't say anything — silently reset
-      } else if (event.error !== "aborted") {
-        alert("Voice recognition error. Please try again.");
+      // Let the browser handle permission UI — no custom alerts needed
+      if (event.error !== "no-speech" && event.error !== "aborted") {
+        console.error("Voice recognition error:", event.error);
       }
     };
 
@@ -245,12 +239,12 @@ export default function ButlerChat({ isOpen, onClose }: ButlerChatProps) {
       setInput(voiceTranscriptRef.current);
     };
 
-    // Request microphone permission first, then start recognition
+    // Request microphone permission, then start recognition
     if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
       navigator.mediaDevices
         .getUserMedia({ audio: true })
         .then((stream) => {
-          // Permission granted — stop the stream (SpeechRecognition manages its own)
+          // Permission granted — stop the probe stream (SpeechRecognition manages its own)
           stream.getTracks().forEach((t) => t.stop());
           try {
             rec.start();
@@ -258,17 +252,18 @@ export default function ButlerChat({ isOpen, onClose }: ButlerChatProps) {
             console.error("Speech recognition start failed:", err);
             setListening(false);
             recognitionRef.current = null;
-            alert(
-              "Could not start voice recognition. Please check your microphone and try again."
-            );
           }
         })
         .catch(() => {
-          setListening(false);
-          recognitionRef.current = null;
-          alert(
-            "Microphone access is required for voice input. Please allow microphone permission in your browser settings and try again."
-          );
+          // Permission denied or unavailable — try starting directly
+          // (some browsers handle SpeechRecognition permission separately)
+          try {
+            rec.start();
+          } catch (err) {
+            console.error("Speech recognition start failed:", err);
+            setListening(false);
+            recognitionRef.current = null;
+          }
         });
     } else {
       // Fallback: try starting directly (older browsers)
@@ -278,9 +273,6 @@ export default function ButlerChat({ isOpen, onClose }: ButlerChatProps) {
         console.error("Speech recognition start failed:", err);
         setListening(false);
         recognitionRef.current = null;
-        alert(
-          "Could not start voice recognition. Please make sure you are using HTTPS and your browser supports microphone access."
-        );
       }
     }
   }

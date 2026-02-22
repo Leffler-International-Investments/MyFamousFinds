@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/router";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import ButlerChat from "./ButlerChat";
 
 type FooterSection = {
@@ -19,6 +19,13 @@ export default function Footer() {
 
   // PWA install prompt state
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+
+  // Draggable Butler button state
+  const [butlerPos, setButlerPos] = useState({ x: 0, y: 0 });
+  const [butlerPosReady, setButlerPosReady] = useState(false);
+  const butlerDragging = useRef(false);
+  const butlerDragOffset = useRef({ x: 0, y: 0 });
+  const butlerHasMoved = useRef(false);
 
   useEffect(() => {
     const mq = window.matchMedia("(max-width: 768px)");
@@ -43,6 +50,45 @@ export default function Footer() {
     };
     window.addEventListener("beforeinstallprompt", handler);
     return () => window.removeEventListener("beforeinstallprompt", handler);
+  }, []);
+
+  // Set initial Butler button position (to the LEFT of the review widget)
+  useEffect(() => {
+    setButlerPos({
+      x: window.innerWidth - 200,
+      y: window.innerHeight - 54,
+    });
+    setButlerPosReady(true);
+  }, []);
+
+  const butlerOnPointerDown = useCallback(
+    (e: React.PointerEvent) => {
+      butlerDragging.current = true;
+      butlerHasMoved.current = false;
+      butlerDragOffset.current = {
+        x: e.clientX - butlerPos.x,
+        y: e.clientY - butlerPos.y,
+      };
+      (e.target as HTMLElement).setPointerCapture(e.pointerId);
+    },
+    [butlerPos]
+  );
+
+  const butlerOnPointerMove = useCallback((e: React.PointerEvent) => {
+    if (!butlerDragging.current) return;
+    butlerHasMoved.current = true;
+    const nx = e.clientX - butlerDragOffset.current.x;
+    const ny = e.clientY - butlerDragOffset.current.y;
+    const half = 28; // half of 56px button
+    setButlerPos({
+      x: Math.max(half, Math.min(window.innerWidth - half, nx)),
+      y: Math.max(half, Math.min(window.innerHeight - half, ny)),
+    });
+  }, []);
+
+  const butlerOnPointerUp = useCallback((e: React.PointerEvent) => {
+    butlerDragging.current = false;
+    (e.target as HTMLElement).releasePointerCapture(e.pointerId);
   }, []);
 
   const handleInstallClick = async () => {
@@ -538,16 +584,22 @@ export default function Footer() {
         `}</style>
       </footer>
 
-      {/* ---- Floating AI Butler button (always visible) ---- */}
-      {!isChatOpen && (
+      {/* ---- Floating AI Butler button (draggable, beside review widget) ---- */}
+      {!isChatOpen && butlerPosReady && (
         <button
           type="button"
-          onClick={() => setIsChatOpen(true)}
+          onPointerDown={butlerOnPointerDown}
+          onPointerMove={butlerOnPointerMove}
+          onPointerUp={butlerOnPointerUp}
+          onClick={() => {
+            if (!butlerHasMoved.current) setIsChatOpen(true);
+          }}
           aria-label="Open AI Butler"
           style={{
             position: "fixed",
-            bottom: 20,
-            right: 20,
+            left: butlerPos.x,
+            top: butlerPos.y,
+            transform: "translate(-50%, -50%)",
             zIndex: 9999,
             width: 56,
             height: 56,
@@ -559,17 +611,10 @@ export default function Footer() {
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            cursor: "pointer",
+            cursor: "grab",
             boxShadow: "0 6px 20px rgba(0, 0, 0, 0.3)",
-            transition: "transform 0.15s, box-shadow 0.15s",
-          }}
-          onMouseEnter={(e) => {
-            (e.currentTarget as HTMLButtonElement).style.transform = "scale(1.1)";
-            (e.currentTarget as HTMLButtonElement).style.boxShadow = "0 8px 28px rgba(0, 0, 0, 0.4)";
-          }}
-          onMouseLeave={(e) => {
-            (e.currentTarget as HTMLButtonElement).style.transform = "scale(1)";
-            (e.currentTarget as HTMLButtonElement).style.boxShadow = "0 6px 20px rgba(0, 0, 0, 0.3)";
+            touchAction: "none",
+            userSelect: "none",
           }}
         >
           🤵
