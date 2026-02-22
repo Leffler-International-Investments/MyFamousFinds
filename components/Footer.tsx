@@ -91,7 +91,7 @@ export default function Footer() {
       links: [
         { label: "Buying Guide", href: "/buying" },
         { label: "My Orders", href: "/my-orders" },
-        { label: "Authenticity", href: "/buying#authenticity" },
+        { label: "Authenticity", href: "/authenticity" },
       ],
     },
     {
