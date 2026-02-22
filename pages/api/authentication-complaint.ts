@@ -44,6 +44,28 @@ export default async function handler(
     console.error("[AUTH-COMPLAINT] Firestore write failed:", err);
   }
 
+  // Propagate authentication complaint to disputes so management can track it there too
+  try {
+    if (adminDb) {
+      await adminDb.collection("disputes").add({
+        orderId: orderNumber ? String(orderNumber).trim() : "",
+        openedBy: String(email).trim().toLowerCase(),
+        buyerEmail: String(email).trim().toLowerCase(),
+        sellerEmail: "",
+        role: "Buyer",
+        reason: `Authentication Complaint (Ref #${refId}): ${String(itemDescription || "").trim()}`,
+        details: String(concern).trim(),
+        status: "OPEN",
+        source: "authentication-complaint",
+        complaintRefId: refId,
+        createdAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
+      });
+    }
+  } catch (err) {
+    console.error("[AUTH-COMPLAINT] Dispute propagation failed:", err);
+  }
+
   // Send email notification to support
   try {
     const subjectLine = `[Authentication Complaint] Ref #${refId} — from ${name}`;

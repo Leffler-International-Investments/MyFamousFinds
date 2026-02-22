@@ -1,10 +1,7 @@
 // FILE: /components/ButlerChat.tsx
 
 import { useState, useRef, useEffect, useCallback } from "react";
-import {
-  isSpeechAvailable,
-  startSpeechRecognition,
-} from "../utils/speechRecognition";
+import type React from "react";
 
 type ButlerChatProps = {
   isOpen: boolean;
@@ -23,13 +20,27 @@ type ChatMessage =
   | { id: number; role: "user"; text: string }
   | { id: number; role: "butler"; text: string; results?: ButlerResult[] };
 
+/* ── Resolve the SpeechRecognition constructor (standard + webkit) ── */
+function getSpeechRecognition(): (new () => any) | null {
+  if (typeof window === "undefined") return null;
+  return (
+    (window as any).SpeechRecognition ||
+    (window as any).webkitSpeechRecognition ||
+    null
+  );
+}
+
 export default function ButlerChat({ isOpen, onClose }: ButlerChatProps) {
   const [input, setInput] = useState("");
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [listening, setListening] = useState(false);
 
-  const stopSpeechRef = useRef<(() => void) | null>(null);
+  const recognitionRef = useRef<any>(null);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
+
+  // Keep final + interim separately (prevents duplicate transcripts in Chrome)
+  const voiceFinalRef = useRef<string>("");
+  const voiceInterimRef = useRef<string>("");
 
   /* ── Draggable state ── */
   const panelRef = useRef<HTMLDivElement>(null);
@@ -68,17 +79,20 @@ export default function ButlerChat({ isOpen, onClose }: ButlerChatProps) {
   }, []);
 
   /* ── Pointer event handlers for drag ── */
-  const onPointerDown = useCallback((e: React.PointerEvent) => {
-    if (!pos) return;
-    dragging.current = true;
-    hasMoved.current = false;
-    // Offset from pointer to the panel's current top-left position
-    dragOffset.current = {
-      x: e.clientX - pos.x,
-      y: e.clientY - pos.y,
-    };
-    (e.target as HTMLElement).setPointerCapture(e.pointerId);
-  }, [pos]);
+  const onPointerDown = useCallback(
+    (e: React.PointerEvent) => {
+      if (!pos) return;
+      dragging.current = true;
+      hasMoved.current = false;
+      // Offset from pointer to the panel's current top-left position
+      dragOffset.current = {
+        x: e.clientX - pos.x,
+        y: e.clientY - pos.y,
+      };
+      (e.target as HTMLElement).setPointerCapture(e.pointerId);
+    },
+    [pos]
+  );
 
   const onPointerMove = useCallback(
     (e: React.PointerEvent) => {
@@ -164,65 +178,152 @@ export default function ButlerChat({ isOpen, onClose }: ButlerChatProps) {
     sendMessage();
   }
 
-  /* ── Voice dictation (cross-platform: native + web) ── */
-  const handleVoice = useCallback(async () => {
-    // If already listening, stop
-    if (listening && stopSpeechRef.current) {
-      stopSpeechRef.current();
-      stopSpeechRef.current = null;
-      return;
+  /* ── Voice dictation (robust Web Speech API) ── */
+  async function ensureMicPermission() {
+    // Some browsers (esp. Safari) behave better if mic permission is requested first.
+    try {
+      const md = (navigator as any)?.mediaDevices;
+      if (!md?.getUserMedia) return;
+      const stream = await md.getUserMedia({ audio: true });
+      stream.getTracks().forEach((t: any) => t.stop());
+    } catch {
+      // ignore; SpeechRecognition will surface the real error via onerror
     }
+  }
 
-    if (!isSpeechAvailable()) {
-      // Show error in chat instead of alert
-      setMessages((m) => [
-        ...m,
-        {
-          id: Date.now(),
-          role: "butler",
-          text: "Voice input is not available in this browser. Please try Chrome, Edge, or Safari.",
-        },
-      ]);
-      return;
-    }
+  function buildRecognitionInstance() {
+    const SpeechRecognitionClass = getSpeechRecognition();
+    if (!SpeechRecognitionClass) return null;
 
-    const stopFn = await startSpeechRecognition({
-      onStart: () => setListening(true),
-      onResult: (transcript) => {
-        setInput(transcript);
-      },
-      onEnd: (finalTranscript) => {
-        setListening(false);
-        stopSpeechRef.current = null;
-        const text = finalTranscript.trim();
-        if (text) {
-          setInput("");
-          sendMessage(text);
-        }
-      },
-      onError: (message) => {
-        setListening(false);
-        stopSpeechRef.current = null;
-        // Show error in chat so user can see it
-        setMessages((m) => [
-          ...m,
-          { id: Date.now(), role: "butler", text: message },
-        ]);
-      },
-    });
+    const rec = new SpeechRecognitionClass();
+    rec.lang = "en-US";
+    rec.continuous = false;
+    rec.interimResults = true;
 
-    stopSpeechRef.current = stopFn;
-  }, [listening, sendMessage]);
+    rec.onstart = () => setListening(true);
 
-  /* ── Cleanup speech on unmount / close ── */
-  useEffect(() => {
-    return () => {
-      if (stopSpeechRef.current) {
-        stopSpeechRef.current();
-        stopSpeechRef.current = null;
+    rec.onerror = (e: any) => {
+      setListening(false);
+      recognitionRef.current = null;
+      voiceFinalRef.current = "";
+      voiceInterimRef.current = "";
+
+      const err = e?.error;
+      if (err === "not-allowed" || err === "service-not-allowed") {
+        alert(
+          "Microphone permission is blocked. Please allow microphone access for this site, then try again."
+        );
+      } else if (err) {
+        // eslint-disable-next-line no-console
+        console.warn("Speech recognition error:", err, e);
       }
     };
-  }, []);
+
+    rec.onresult = (event: any) => {
+      let interim = "";
+      let finalAppend = "";
+
+      // Use resultIndex to avoid duplicating earlier results
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        const result = event.results[i];
+        const transcript = result?.[0]?.transcript ?? "";
+        if (result.isFinal) finalAppend += transcript;
+        else interim += transcript;
+      }
+
+      if (finalAppend) voiceFinalRef.current += finalAppend;
+      voiceInterimRef.current = interim;
+
+      const combined = `${voiceFinalRef.current}${voiceInterimRef.current}`.trimStart();
+      setInput(combined);
+    };
+
+    rec.onend = () => {
+      setListening(false);
+      recognitionRef.current = null;
+
+      const finalText = `${voiceFinalRef.current}${voiceInterimRef.current}`.trim();
+      voiceFinalRef.current = "";
+      voiceInterimRef.current = "";
+
+      if (finalText) {
+        setInput("");
+        sendMessage(finalText);
+      }
+    };
+
+    return rec;
+  }
+
+  async function handleVoice() {
+    // stop if already listening
+    if (listening) {
+      try {
+        recognitionRef.current?.stop();
+      } catch {
+        // ignore
+      }
+      return;
+    }
+
+    const SpeechRecognitionClass = getSpeechRecognition();
+    if (!SpeechRecognitionClass) {
+      alert(
+        "Voice recognition is not supported in this browser. Please try Chrome, Edge, or Safari."
+      );
+      return;
+    }
+
+    await ensureMicPermission();
+
+    // Create a fresh instance each session (more reliable across browsers)
+    const rec = buildRecognitionInstance();
+    if (!rec) return;
+
+    recognitionRef.current = rec;
+    voiceFinalRef.current = "";
+    voiceInterimRef.current = "";
+
+    try {
+      rec.start();
+    } catch (e: any) {
+      try {
+        rec.abort();
+      } catch {
+        // ignore
+      }
+      recognitionRef.current = null;
+      setListening(false);
+      // eslint-disable-next-line no-console
+      console.warn("Speech recognition start failed:", e);
+    }
+  }
+
+  /* ── Cleanup recognition on unmount / close ── */
+  useEffect(() => {
+    if (!isOpen && recognitionRef.current) {
+      try {
+        recognitionRef.current.abort();
+      } catch {
+        // ignore
+      }
+      recognitionRef.current = null;
+      setListening(false);
+      voiceFinalRef.current = "";
+      voiceInterimRef.current = "";
+    }
+
+    return () => {
+      if (recognitionRef.current) {
+        try {
+          recognitionRef.current.abort();
+        } catch {
+          // ignore
+        }
+        recognitionRef.current = null;
+      }
+    };
+  }, [isOpen]);
 
   if (!isOpen || !pos) return null;
 
@@ -281,9 +382,7 @@ export default function ButlerChat({ isOpen, onClose }: ButlerChatProps) {
                           {item.title}
                         </div>
                         {item.price && (
-                          <div className="butlerResultPrice">
-                            {item.price}
-                          </div>
+                          <div className="butlerResultPrice">{item.price}</div>
                         )}
                         <div className="butlerResultLink">View listing →</div>
                       </a>
@@ -426,8 +525,13 @@ export default function ButlerChat({ isOpen, onClose }: ButlerChatProps) {
         }
 
         @keyframes pulse-mic {
-          0%, 100% { opacity: 1; }
-          50% { opacity: 0.6; }
+          0%,
+          100% {
+            opacity: 1;
+          }
+          50% {
+            opacity: 0.6;
+          }
         }
 
         @media (max-width: 768px) {
