@@ -718,12 +718,6 @@ export default function AuthenticityPage() {
           flex-wrap: wrap;
         }
 
-        .text-link {
-          color: #2563eb;
-          text-decoration: underline;
-          text-underline-offset: 2px;
-        }
-
         /* ── Mobile ── */
         @media (max-width: 768px) {
           .hero {
@@ -810,6 +804,14 @@ export default function AuthenticityPage() {
         }
         .cta-btn-secondary:hover {
           border-color: #111827;
+        }
+        .text-link {
+          color: #2563eb;
+          text-decoration: underline;
+          text-underline-offset: 2px;
+        }
+        .text-link:hover {
+          color: #1d4ed8;
         }
       `}</style>
     </div>

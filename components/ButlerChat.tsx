@@ -45,12 +45,15 @@ export default function ButlerChat({ isOpen, onClose }: ButlerChatProps) {
   const dragOffset = useRef({ x: 0, y: 0 });
   const hasMoved = useRef(false);
 
-  /* Set initial position on mount (bottom-right) */
+  /* Set initial position on mount (bottom-right, using top-left coords) */
   useEffect(() => {
     if (isOpen && !pos) {
+      // Panel is ~340px wide, ~320px tall; place it bottom-right with 16px margin
+      const panelW = Math.min(340, window.innerWidth * 0.9);
+      const panelH = 320;
       setPos({
-        x: window.innerWidth - 16,
-        y: window.innerHeight - 16,
+        x: window.innerWidth - panelW - 16,
+        y: window.innerHeight - panelH - 16,
       });
     }
   }, [isOpen, pos]);
@@ -60,30 +63,29 @@ export default function ButlerChat({ isOpen, onClose }: ButlerChatProps) {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  /* ── Clamp helper to keep panel on screen ── */
+  /* ── Clamp helper to keep panel on screen (using top-left coords) ── */
   const clamp = useCallback((x: number, y: number) => {
     const el = panelRef.current;
     if (!el) return { x, y };
     const r = el.getBoundingClientRect();
     return {
-      x: Math.max(r.width / 2, Math.min(window.innerWidth - r.width / 2, x)),
-      y: Math.max(r.height / 2, Math.min(window.innerHeight - r.height / 2, y)),
+      x: Math.max(0, Math.min(window.innerWidth - r.width, x)),
+      y: Math.max(0, Math.min(window.innerHeight - r.height, y)),
     };
   }, []);
 
   /* ── Pointer event handlers for drag ── */
   const onPointerDown = useCallback((e: React.PointerEvent) => {
-    const el = panelRef.current;
-    if (!el) return;
+    if (!pos) return;
     dragging.current = true;
     hasMoved.current = false;
-    const r = el.getBoundingClientRect();
+    // Offset from pointer to the panel's current top-left position
     dragOffset.current = {
-      x: e.clientX - (r.left + r.width / 2),
-      y: e.clientY - (r.top + r.height / 2),
+      x: e.clientX - pos.x,
+      y: e.clientY - pos.y,
     };
-    el.setPointerCapture(e.pointerId);
-  }, []);
+    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+  }, [pos]);
 
   const onPointerMove = useCallback(
     (e: React.PointerEvent) => {
@@ -98,7 +100,7 @@ export default function ButlerChat({ isOpen, onClose }: ButlerChatProps) {
 
   const onPointerUp = useCallback((e: React.PointerEvent) => {
     dragging.current = false;
-    if (panelRef.current) panelRef.current.releasePointerCapture(e.pointerId);
+    (e.target as HTMLElement).releasePointerCapture(e.pointerId);
   }, []);
 
   /* ── Send a message (can be called with explicit text or reads from input) ── */
@@ -243,7 +245,44 @@ export default function ButlerChat({ isOpen, onClose }: ButlerChatProps) {
       setInput(voiceTranscriptRef.current);
     };
 
-    rec.start();
+    // Request microphone permission first, then start recognition
+    if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+      navigator.mediaDevices
+        .getUserMedia({ audio: true })
+        .then((stream) => {
+          // Permission granted — stop the stream (SpeechRecognition manages its own)
+          stream.getTracks().forEach((t) => t.stop());
+          try {
+            rec.start();
+          } catch (err) {
+            console.error("Speech recognition start failed:", err);
+            setListening(false);
+            recognitionRef.current = null;
+            alert(
+              "Could not start voice recognition. Please check your microphone and try again."
+            );
+          }
+        })
+        .catch(() => {
+          setListening(false);
+          recognitionRef.current = null;
+          alert(
+            "Microphone access is required for voice input. Please allow microphone permission in your browser settings and try again."
+          );
+        });
+    } else {
+      // Fallback: try starting directly (older browsers)
+      try {
+        rec.start();
+      } catch (err) {
+        console.error("Speech recognition start failed:", err);
+        setListening(false);
+        recognitionRef.current = null;
+        alert(
+          "Could not start voice recognition. Please make sure you are using HTTPS and your browser supports microphone access."
+        );
+      }
+    }
   }
 
   /* ── Cleanup recognition on unmount / close ── */
@@ -266,7 +305,6 @@ export default function ButlerChat({ isOpen, onClose }: ButlerChatProps) {
     position: "fixed",
     left: pos.x,
     top: pos.y,
-    transform: "translate(-100%, -100%)",
     zIndex: 10000,
   };
 
