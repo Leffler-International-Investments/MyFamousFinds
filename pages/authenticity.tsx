@@ -326,7 +326,11 @@ export default function AuthenticityPage() {
                 <p>
                   After delivery, you have a full 72-hour window to inspect your
                   item. If anything concerns you — a detail that does not match, a
-                  material that feels wrong — report it and we investigate immediately.
+                  material that feels wrong —{" "}
+                  <Link href="/authentication-complaint" className="text-link">
+                    submit a complaint
+                  </Link>{" "}
+                  and we investigate immediately.
                 </p>
               </div>
               <div className="protection-card">
