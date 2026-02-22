@@ -170,8 +170,10 @@ export default function SellerWallet() {
                 </dl>
               ) : (
                 <p className="bank-warning">
-                  No payout account connected. Please set your PayPal email in
-                  Banking &amp; Payouts.
+                  No payout account connected. Please set your PayPal email in{" "}
+                  <Link href="/seller/banking" style={{ color: "#1d4ed8", textDecoration: "underline" }}>
+                    Banking &amp; Payouts
+                  </Link>.
                 </p>
               )}
 
@@ -307,22 +309,22 @@ export default function SellerWallet() {
         }
         .back-link a {
           font-size: 14px;
-          color: #9ca3af; /* gray-400 */
+          color: #6b7280;
         }
         .back-link a:hover {
-          color: #e5e7eb; /* gray-200 */
+          color: #111827;
         }
         h1 {
           font-size: 24px;
           font-weight: 600;
-          color: white;
+          color: #111827;
         }
         .subtitle {
           margin-top: 4px;
           font-size: 14px;
-          color: #9ca3af; /* gray-400 */
+          color: #6b7280;
         }
-        
+
         .banner {
           margin-top: 16px;
           padding: 8px 10px;
@@ -330,10 +332,10 @@ export default function SellerWallet() {
           font-size: 13px;
         }
         .banner.error {
-          background: #7f1d1d; /* red-900 */
-          color: #fee2e2; /* red-100 */
+          background: #fef2f2;
+          color: #991b1b;
         }
-        
+
         .metrics-grid {
           margin-top: 24px;
           display: grid;
@@ -344,28 +346,34 @@ export default function SellerWallet() {
             grid-template-columns: repeat(3, 1fr);
           }
         }
-        
+
         .metric-card {
-          border-radius: 12px;
-          border: 1px solid #1f2937; /* neutral-800 */
-          background: #030712; /* neutral-950 */
-          padding: 16px;
+          border-radius: 16px;
+          border: 1px solid #e5e7eb;
+          background: #ffffff;
+          padding: 18px 20px;
+          box-shadow: 0 4px 12px rgba(15, 23, 42, 0.04);
         }
         .metric-label {
           font-size: 12px;
-          color: #9ca3af; /* gray-400 */
+          text-transform: uppercase;
+          letter-spacing: 0.06em;
+          color: #6b7280;
+          font-weight: 600;
         }
         .metric-value {
           margin-top: 8px;
-          font-size: 20px;
-          font-weight: 600;
+          font-size: 24px;
+          font-weight: 700;
+          color: #111827;
+          letter-spacing: -0.02em;
         }
         .metric-note {
           margin-top: 4px;
           font-size: 12px;
-          color: #6b7280; /* gray-500 */
+          color: #9ca3af;
         }
-        
+
         .info-grid {
           margin-top: 32px;
           display: grid;
@@ -376,47 +384,49 @@ export default function SellerWallet() {
             grid-template-columns: minmax(0, 1.6fr) minmax(0, 1.2fr);
           }
         }
-        
+
         .info-card {
-          border-radius: 12px;
-          border: 1px solid #1f2937; /* neutral-800 */
-          background: #030712; /* neutral-950 */
+          border-radius: 16px;
+          border: 1px solid #e5e7eb;
+          background: #ffffff;
           padding: 20px;
+          box-shadow: 0 4px 12px rgba(15, 23, 42, 0.04);
         }
         .info-card h2 {
           font-size: 14px;
           font-weight: 600;
+          color: #111827;
         }
         .info-note {
           margin-top: 8px;
           font-size: 12px;
-          color: #9ca3af; /* gray-400 */
+          color: #6b7280;
         }
         .info-list {
           margin-top: 8px;
           list-style-type: disc;
           padding-left: 16px;
           font-size: 12px;
-          color: #9ca3af; /* gray-400 */
+          color: #6b7280;
           display: flex;
           flex-direction: column;
           gap: 4px;
         }
-        
+
         .bank-loading {
           margin-top: 16px;
           font-size: 12px;
-          color: #9ca3af; /* gray-400 */
+          color: #6b7280;
         }
         .bank-warning {
           margin-top: 16px;
           font-size: 12px;
-          color: #facc15; /* yellow-400 */
+          color: #b45309;
         }
         .bank-details {
           margin-top: 16px;
           font-size: 12px;
-          color: #d1d5db; /* gray-300 */
+          color: #374151;
           display: flex;
           flex-direction: column;
           gap: 4px;
@@ -427,6 +437,7 @@ export default function SellerWallet() {
         }
         .detail-row dd {
           font-weight: 500;
+          color: #111827;
         }
 
         .payout-action {
@@ -436,35 +447,37 @@ export default function SellerWallet() {
           align-items: flex-start;
           gap: 8px;
         }
-        
+
         .btn-primary {
           border-radius: 999px;
-          background: white;
-          padding: 6px 12px;
-          font-size: 12px;
-          font-weight: 500;
-          color: black;
+          background: #111827;
+          padding: 8px 16px;
+          font-size: 13px;
+          font-weight: 600;
+          color: #ffffff;
           border: none;
           cursor: pointer;
         }
         .btn-primary:hover {
-          background: #e5e7eb; /* gray-200 */
+          background: #000000;
         }
         .btn-primary:disabled {
-          opacity: 0.6;
+          opacity: 0.5;
+          cursor: default;
         }
-        
-        /* From catalogue.tsx */
+
         .sell-card {
-          background: #111827;
+          background: #ffffff;
           border-radius: 16px;
           padding: 18px 18px 20px;
-          border: 1px solid #1f2937;
+          border: 1px solid #e5e7eb;
+          box-shadow: 0 4px 12px rgba(15, 23, 42, 0.04);
         }
         .sell-card h2 {
           margin-bottom: 12px;
           font-size: 14px;
           font-weight: 600;
+          color: #111827;
         }
         .table-overflow-wrapper {
           overflow-x: auto;
@@ -473,18 +486,18 @@ export default function SellerWallet() {
           width: 100%;
           border-collapse: collapse;
           font-size: 12px;
-          color: #e5e7eb;
+          color: #374151;
         }
         .catalogue-table th,
         .catalogue-table td {
           padding: 8px 10px;
           text-align: left;
-          border-bottom: 1px solid #374151;
+          border-bottom: 1px solid #e5e7eb;
         }
         .catalogue-table th {
           font-size: 11px;
           text-transform: uppercase;
-          color: #9ca3af;
+          color: #6b7280;
           font-weight: 500;
         }
         .catalogue-table tr:last-child td {
@@ -492,19 +505,19 @@ export default function SellerWallet() {
         }
         .table-message {
           text-align: center;
-          color: #9ca3af;
+          color: #6b7280;
           padding: 24px;
         }
         .table-link {
           font-size: 11px;
-          color: #d1d5db; /* gray-300 */
+          color: #1d4ed8;
           text-decoration: underline;
           text-underline-offset: 2px;
         }
         .table-link:hover {
           text-decoration: none;
         }
-        
+
         .status-badge {
           display: inline-flex;
           border-radius: 999px;
@@ -513,8 +526,8 @@ export default function SellerWallet() {
           font-weight: 500;
         }
         .status-paid {
-          background: #064e3b; /* green-900 */
-          color: #6ee7b7; /* emerald-300 */
+          background: #ecfdf5;
+          color: #047857;
         }
 
         /* ---- Desktop / Mobile toggle ---- */
@@ -527,20 +540,21 @@ export default function SellerWallet() {
 
         .mobile-message {
           text-align: center;
-          color: #9ca3af;
+          color: #6b7280;
           padding: 24px 16px;
           font-size: 13px;
-          background: #111827;
+          background: #ffffff;
           border-radius: 12px;
-          border: 1px solid #1f2937;
+          border: 1px solid #e5e7eb;
         }
 
         .mobile-payout-card {
-          background: #111827;
-          border: 1px solid #1f2937;
+          background: #ffffff;
+          border: 1px solid #e5e7eb;
           border-radius: 12px;
           padding: 14px;
           margin-bottom: 10px;
+          box-shadow: 0 4px 12px rgba(15, 23, 42, 0.04);
         }
 
         .mobile-payout-top {
@@ -548,13 +562,13 @@ export default function SellerWallet() {
           justify-content: space-between;
           align-items: center;
           padding-bottom: 10px;
-          border-bottom: 1px solid #1f2937;
+          border-bottom: 1px solid #e5e7eb;
         }
 
         .mobile-payout-amount {
           font-weight: 600;
           font-size: 15px;
-          color: #fff;
+          color: #111827;
         }
 
         .mobile-payout-rows {
@@ -574,19 +588,19 @@ export default function SellerWallet() {
         .mp-label {
           font-size: 11px;
           text-transform: uppercase;
-          color: #9ca3af;
+          color: #6b7280;
           font-weight: 500;
         }
 
         .mp-value {
           font-size: 12px;
-          color: #e5e7eb;
+          color: #374151;
           text-align: right;
         }
 
         .mobile-payout-footer {
           padding-top: 8px;
-          border-top: 1px solid #1f2937;
+          border-top: 1px solid #e5e7eb;
         }
       `}</style>
     </>
