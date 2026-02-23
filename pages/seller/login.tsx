@@ -8,6 +8,8 @@ import { FormEvent, useState } from "react";
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
 import PasswordInput from "../../components/PasswordInput";
+import { signInWithEmailAndPassword } from "firebase/auth";
+import { auth } from "../../utils/firebaseClient";
 
 // Password verification is now handled server-side by the API (like management login)
 
@@ -176,6 +178,18 @@ export default function SellerLoginPage() {
         window.localStorage.setItem("ff-email", email.toLowerCase().trim());
         window.localStorage.setItem("ff-session-exp", String(Date.now() + SESSION_TTL_MS));
       }
+
+      // Establish Firebase Auth session so sellerFetch can get Bearer tokens
+      try {
+        if (auth && password) {
+          await signInWithEmailAndPassword(auth, email.trim().toLowerCase(), password);
+        }
+      } catch (e) {
+        // Non-fatal: localStorage session is sufficient for role-based page access.
+        // Bearer tokens may be unavailable for some API calls.
+        console.warn("[seller-login] Firebase Auth sign-in skipped:", e);
+      }
+
       if (from) router.push(from);
       else router.push("/seller/dashboard");
     } catch (err) {

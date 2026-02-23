@@ -28,6 +28,7 @@ export default async function handler(
       website,
       otherPlatforms,
       vettingNotes,
+      paypalEmail,
     } = req.body || {};
 
     if (!businessName || !email) {
@@ -53,6 +54,11 @@ export default async function handler(
       vettingNotes: vettingNotes || "",
       updatedAt: now,
     };
+
+    // Save PayPal email if provided
+    if (typeof paypalEmail === "string" && paypalEmail.trim()) {
+      data.paypalEmail = paypalEmail.trim().toLowerCase();
+    }
 
     // Only set status to "Pending" for new profiles — never overwrite approved status
     if (!snap.exists) {
