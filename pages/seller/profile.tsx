@@ -38,6 +38,7 @@ export default function SellerProfile() {
       website: String(formData.get("website") || ""),
       otherPlatforms: String(formData.get("otherPlatforms") || ""),
       vettingNotes: String(formData.get("vettingNotes") || ""),
+      paypalEmail: paypalEmail.trim(),
     };
 
     try {

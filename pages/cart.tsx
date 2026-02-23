@@ -556,15 +556,24 @@ export default function Cart() {
           width: 100%;
           border-radius: 999px;
           background: #111827;
-          padding: 10px 0;
-          font-size: 14px;
-          font-weight: 500;
+          padding: 14px 0;
+          font-size: 16px;
+          font-weight: 600;
           color: white;
           text-align: center;
           text-decoration: none;
+          letter-spacing: 0.02em;
+          box-shadow: 0 4px 14px rgba(0, 0, 0, 0.15);
+          transition: background 0.2s ease, box-shadow 0.2s ease, transform 0.1s ease;
         }
         .btn-checkout:hover {
           background: #1f2937;
+          box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
+          transform: translateY(-1px);
+        }
+        .btn-checkout:active {
+          transform: translateY(0);
+          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
         }
         .saved-section {
           margin-top: 40px;

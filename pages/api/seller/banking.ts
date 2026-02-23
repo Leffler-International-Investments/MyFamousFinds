@@ -62,6 +62,7 @@ export default async function handler(
         postalCode,
         country,
         phone,
+        paypalEmail,
         pausePayouts,
         payoutSchedule,
         notes,
@@ -77,6 +78,11 @@ export default async function handler(
         });
       }
 
+      const normalizedPaypalEmail =
+        typeof paypalEmail === "string" && paypalEmail.trim()
+          ? paypalEmail.trim().toLowerCase()
+          : "";
+
       await docRef.set(
         {
           email,
@@ -89,6 +95,7 @@ export default async function handler(
           postalCode: postalCode || "",
           country: country || "United States",
           phone: phone || "",
+          paypalEmail: normalizedPaypalEmail,
           pausePayouts: !!pausePayouts,
           payoutSchedule: payoutSchedule || "Weekly",
           notes: notes || "",
@@ -98,6 +105,19 @@ export default async function handler(
         },
         { merge: true }
       );
+
+      // Sync PayPal email to the sellers collection (used by the payout API)
+      if (normalizedPaypalEmail) {
+        try {
+          const sellerRef = adminDb.collection("sellers").doc(email);
+          await sellerRef.set(
+            { paypalEmail: normalizedPaypalEmail },
+            { merge: true }
+          );
+        } catch (syncErr) {
+          console.warn("seller_banking_paypal_sync_warning", syncErr);
+        }
+      }
 
       return res.status(200).json({ ok: true });
     }
