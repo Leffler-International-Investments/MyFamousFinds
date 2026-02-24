@@ -30,8 +30,16 @@ export default async function handler(
     return res.status(405).json({ ok: false, error: "Method not allowed" });
   }
 
-  // Require authenticated seller
-  const sellerId = await getSellerId(req);
+  // Require authenticated seller.
+  // In non-production environments, allow a test key header for terminal testing.
+  const testKey = req.headers["x-ups-test-key"] as string | undefined;
+  const envTestKey = process.env.UPS_TEST_KEY;
+  const isDevBypass =
+    process.env.NODE_ENV !== "production" &&
+    envTestKey &&
+    testKey === envTestKey;
+
+  const sellerId = isDevBypass ? "__dev__" : await getSellerId(req);
   if (!sellerId) {
     return res.status(401).json({ ok: false, error: "unauthorized" });
   }

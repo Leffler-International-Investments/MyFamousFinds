@@ -71,6 +71,8 @@ export default function SellerOrders() {
       { carrier: string; trackingNumber: string; signatureRequired: boolean }
     >
   >({});
+  const [generatingLabelId, setGeneratingLabelId] = useState<string | null>(null);
+  const [labelResult, setLabelResult] = useState<Record<string, { trackingNumber: string; labelUrl: string; trackingUrl: string } | null>>({});
 
   useEffect(() => {
     if (authLoading) return;
@@ -531,6 +533,16 @@ export default function SellerOrders() {
           user-select: none;
         }
 
+        .label-result {
+          display: flex;
+          flex-direction: column;
+          gap: 6px;
+          padding: 8px 10px;
+          background: rgba(20, 83, 45, 0.15);
+          border: 1px solid #14532d;
+          border-radius: 10px;
+        }
+
         /* ---- Desktop / Mobile toggle ---- */
         .mobile-cards { display: none; }
 
@@ -780,6 +792,44 @@ export default function SellerOrders() {
         </div>
 
         <div className="action-row">
+          <button
+            type="button"
+            className="btn"
+            disabled={generatingLabelId === r.id}
+            onClick={() => onGenerateLabel(r.id)}
+            title="Generate a UPS shipping label for this order"
+          >
+            {generatingLabelId === r.id ? "Generating…" : "Generate UPS Label"}
+          </button>
+        </div>
+
+        {labelResult[r.id] && (
+          <div className="label-result">
+            <div className="muted" style={{ textAlign: "right" }}>
+              Tracking: {labelResult[r.id]!.trackingNumber}
+            </div>
+            <div className="action-row">
+              <a
+                className="btn"
+                href={labelResult[r.id]!.labelUrl}
+                target="_blank"
+                rel="noreferrer"
+              >
+                Download Label
+              </a>
+              <a
+                className="btn"
+                href={labelResult[r.id]!.trackingUrl}
+                target="_blank"
+                rel="noreferrer"
+              >
+                Track
+              </a>
+            </div>
+          </div>
+        )}
+
+        <div className="action-row">
           <label className="checkbox" title="Required for release of funds">
             <input
               type="checkbox"
@@ -805,10 +855,65 @@ export default function SellerOrders() {
         </div>
 
         <div className="muted" style={{ textAlign: "right" }}>
-          Tip: Ship with signature required and enter tracking.
+          Tip: Generate a UPS label or enter tracking manually, then mark shipped.
         </div>
       </div>
     );
+  }
+
+  async function onGenerateLabel(orderId: string) {
+    try {
+      setGeneratingLabelId(orderId);
+      setError(null);
+
+      const res = await sellerFetch("/api/ups/generate-order-label", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          orderId,
+          seller: {
+            name: "Seller",
+            phone: "",
+            address1: "",
+            city: "",
+            state: "",
+            zip: "",
+          },
+          pkg: {
+            weightLbs: 3,
+            lengthIn: 16,
+            widthIn: 12,
+            heightIn: 6,
+          },
+        }),
+      });
+
+      const json = await res.json();
+      if (!res.ok || !json?.ok) throw new Error(json?.error || "Failed to generate label.");
+
+      setLabelResult((prev) => ({
+        ...prev,
+        [orderId]: {
+          trackingNumber: json.trackingNumber,
+          labelUrl: json.labelUrl,
+          trackingUrl: json.trackingUrl,
+        },
+      }));
+
+      // Auto-fill the tracking number and carrier
+      setEditing((prev) => ({
+        ...prev,
+        [orderId]: {
+          ...(prev[orderId] || { signatureRequired: true }),
+          carrier: "UPS",
+          trackingNumber: json.trackingNumber,
+        },
+      }));
+    } catch (e: any) {
+      setError(e?.message || "Failed to generate shipping label.");
+    } finally {
+      setGeneratingLabelId(null);
+    }
   }
 
   async function onMarkShipped(orderId: string) {

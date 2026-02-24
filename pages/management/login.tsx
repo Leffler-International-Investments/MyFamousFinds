@@ -6,6 +6,7 @@ import { FormEvent, useState } from "react";
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
 import PasswordInput from "../../components/PasswordInput";
+import PhoneVerificationPopup from "../../components/PhoneVerificationPopup";
 
 type ManagementLoginOk = { ok: true; managementId: string };
 type ManagementLoginError = {
@@ -16,7 +17,7 @@ type ManagementLoginError = {
 type ManagementLoginResponse = ManagementLoginOk | ManagementLoginError;
 
 type PageMode = "login" | "setup";
-type TwoFactorStep = "credentials" | "choose_method" | "verify";
+type TwoFactorStep = "credentials" | "choose_method" | "phone_verify" | "verify";
 
 // 7 days
 const SESSION_TTL_MS = 168 * 60 * 60 * 1000;
@@ -113,8 +114,19 @@ export default function ManagementLoginPage() {
     setError(null);
     setInfo(null);
     setChosenMethod(method);
-    setLoading(true);
 
+    if (method === "sms") {
+      // Show AWS-compliant phone verification popup before sending
+      setStep("phone_verify");
+      return;
+    }
+
+    // Email flow — send immediately
+    await sendTwoFactorCode(method);
+  }
+
+  async function sendTwoFactorCode(method: "email" | "sms") {
+    setLoading(true);
     try {
       const trimmedEmail = email.toLowerCase().trim();
       const twofaRes = await fetch("/api/auth/start-2fa", {
@@ -130,7 +142,6 @@ export default function ManagementLoginPage() {
       const twofaJson = await twofaRes.json();
 
       if (!twofaJson.ok) {
-        // Stay on the choose_method step so the user can try the other method
         setStep("choose_method");
         setError(twofaJson.message || "We couldn't start the verification process. Please try again.");
         return;
@@ -323,6 +334,21 @@ export default function ManagementLoginPage() {
                       </button>
                     </div>
                   </form>
+                ) : step === "phone_verify" ? (
+                  <>
+                    <PhoneVerificationPopup
+                      loading={loading}
+                      onSendCode={() => sendTwoFactorCode("sms")}
+                      onBack={() => {
+                        setStep("choose_method");
+                        setError(null);
+                        setInfo(null);
+                      }}
+                    />
+                    <p className="auth-secondary-link-inline" style={{ marginTop: 12 }}>
+                      Waiting for phone verification…
+                    </p>
+                  </>
                 ) : step === "choose_method" ? (
                   <div className="method-choice">
                     <p className="auth-secondary-link-inline">
