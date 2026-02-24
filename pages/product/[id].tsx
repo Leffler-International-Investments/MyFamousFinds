@@ -6,6 +6,8 @@ import type { GetServerSideProps } from "next";
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
 import WishlistButton from "../../components/WishlistButton";
+import RecentlyViewed, { recordRecentView } from "../../components/RecentlyViewed";
+import DutyCalculator from "../../components/DutyCalculator";
 import { auth, db, firebaseClientReady } from "../../utils/firebaseClient";
 import { adminDb } from "../../utils/firebaseAdmin";
 import { getDeletedListingIds } from "../../lib/deletedListings";
@@ -123,6 +125,17 @@ export default function ProductPage(props: ProductPageProps) {
     setCurrentImgSrc(isLikelyValidSrc(imageUrl) ? imageUrl : FALLBACK_IMG);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [imageUrl]);
+
+  // Record view in localStorage for Recently Viewed section
+  useEffect(() => {
+    recordRecentView({
+      id,
+      title,
+      brand,
+      price: priceLabel,
+      image: imageUrl,
+    });
+  }, [id, title, brand, priceLabel, imageUrl]);
 
   const isBuyerDetailsValid = (() => {
     const b = buyerDetails;
@@ -453,6 +466,16 @@ export default function ProductPage(props: ProductPageProps) {
               )}
             </div>
 
+            {!isSold && (
+              <div className="protected-badge">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#16a34a" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                  <polyline points="9 12 11.5 14.5 16 9.5" />
+                </svg>
+                <span>Protected by Famous Finds — Buyer Protection Guarantee</span>
+              </div>
+            )}
+
             <div className="auth-badge">
               <div className="auth-badge-icon">
                 <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#16a34a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -698,6 +721,9 @@ export default function ProductPage(props: ProductPageProps) {
               </ul>
             </div>
 
+            {/* Duties & Taxes Calculator for international buyers */}
+            <DutyCalculator price={price} currency={currency} category={category} />
+
             {allowOffers && !isSold && (
               <div className="offer-wrap" id="offer-form">
                 <h3 className="offer-title">Make an offer</h3>
@@ -742,6 +768,9 @@ export default function ProductPage(props: ProductPageProps) {
             </div>
           </section>
         )}
+
+        {/* Recently Viewed */}
+        <RecentlyViewed excludeId={id} />
       </main>
 
       <Footer />
@@ -1159,6 +1188,25 @@ export default function ProductPage(props: ProductPageProps) {
           color: #b00020;
           font-weight: 800;
           font-size: 12px;
+        }
+
+        .protected-badge {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          margin-top: 10px;
+          padding: 8px 14px;
+          background: #f0fdf4;
+          border: 1px solid #bbf7d0;
+          border-radius: 999px;
+          width: fit-content;
+        }
+        .protected-badge span {
+          font-size: 12px;
+          font-weight: 700;
+          color: #15803d;
+          letter-spacing: 0.01em;
+          white-space: nowrap;
         }
 
         .auth-badge {

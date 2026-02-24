@@ -42,13 +42,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
       ""
   );
 
+  const currentPrice = Number(listing.priceUsd || listing.price || 0);
+
   await ref.set(
     {
       userId: String(userId),
       listingId: String(productId),
       title: String(listing.title || listing.name || ""),
       brand: String(listing.brand || listing.designer || ""),
-      price: Number(listing.price || 0),
+      price: currentPrice,
+      savedPrice: currentPrice,
       currency: String(listing.currency || "USD"),
       imageUrl,
       updatedAt: FieldValue.serverTimestamp(),
