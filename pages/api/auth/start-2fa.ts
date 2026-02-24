@@ -254,7 +254,29 @@ export default async function handler(
     // For super users (owners/admins), show the code on-screen so they
     // aren't locked out while SES sandbox / SMS provisioning is pending.
     // They already proved their identity with a password.
-    if (SUPER_EMAILS.has(normalizedEmail)) {
+    // Check hardcoded list first, then fall back to Firestore isSuperSeller flag.
+    let isSuperUser = SUPER_EMAILS.has(normalizedEmail);
+    if (!isSuperUser && adminDb) {
+      try {
+        const sellerDoc = await adminDb.collection("sellers").doc(normalizedEmail).get();
+        if (sellerDoc.exists && sellerDoc.data()?.isSuperSeller) {
+          isSuperUser = true;
+        }
+        if (!isSuperUser) {
+          const byEmail = await adminDb
+            .collection("sellers")
+            .where("email", "==", normalizedEmail)
+            .limit(1)
+            .get();
+          if (!byEmail.empty && byEmail.docs[0].data()?.isSuperSeller) {
+            isSuperUser = true;
+          }
+        }
+      } catch (err) {
+        console.error("[start-2fa] Firestore super-seller lookup failed:", err);
+      }
+    }
+    if (isSuperUser) {
       console.log(`[start-2fa] Showing code on-screen for super user ${normalizedEmail}`);
       return res.status(200).json({
         ok: true,

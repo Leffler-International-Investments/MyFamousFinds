@@ -444,7 +444,6 @@ export default function UnifiedLoginPage() {
                 <p className="auth-secondary-text">
                   Seller account detected. How would you like to receive your verification code?
                 </p>
-                {error && <div className="auth-error">{error}</div>}
                 <div className="method-buttons">
                   <button
                     type="button"
