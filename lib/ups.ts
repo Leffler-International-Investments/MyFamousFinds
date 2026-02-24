@@ -106,6 +106,8 @@ export interface CreateLabelParams {
   pkg: UpsPackage;
   /** UPS service code, e.g. "03" = UPS Ground */
   serviceCode?: string;
+  /** Label image format: "GIF" (default) or "PDF". */
+  labelFormat?: "GIF" | "PDF";
 }
 
 export interface CreateLabelResult {
@@ -127,7 +129,9 @@ export async function createShippingLabel(
     throw new Error("UPS_ACCOUNT_NUMBER is not configured.");
   }
 
-  const { seller, buyer, pkg, serviceCode = "03" } = params;
+  const { seller, buyer, pkg, serviceCode = "03", labelFormat: reqFormat } = params;
+  // Default to env-configured format, then "GIF"
+  const labelFmt = reqFormat || (process.env.UPS_LABEL_FORMAT as "GIF" | "PDF") || "GIF";
 
   const shipmentBody = {
     ShipmentRequest: {
@@ -213,8 +217,8 @@ export async function createShippingLabel(
       },
       LabelSpecification: {
         LabelImageFormat: {
-          Code: "GIF",
-          Description: "GIF",
+          Code: labelFmt,
+          Description: labelFmt,
         },
         LabelStockSize: {
           Height: "6",
