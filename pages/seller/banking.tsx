@@ -68,6 +68,7 @@ export default function SellerBankingPage() {
             postalCode: json.prefs.postalCode || "",
             country: json.prefs.country || "United States",
             phone: json.prefs.phone || "",
+            paypalEmail: json.prefs.paypalEmail || "",
             pausePayouts: Boolean(json.prefs.pausePayouts),
             payoutSchedule: json.prefs.payoutSchedule || "Weekly",
             notes: json.prefs.notes || "",
