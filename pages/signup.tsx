@@ -3,12 +3,14 @@
 
 import Head from "next/head";
 import Link from "next/link";
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/router";
 import {
   createUserWithEmailAndPassword,
   updateProfile,
   signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult,
   GoogleAuthProvider,
   FacebookAuthProvider,
 } from "firebase/auth";
@@ -75,6 +77,52 @@ export default function UnifiedSignupPage() {
   const [ageRange, setAgeRange] = useState("");
   const [savingPrefs, setSavingPrefs] = useState(false);
 
+  // Handle redirect result from signInWithRedirect (fallback for popup failures)
+  useEffect(() => {
+    if (!auth) return;
+    getRedirectResult(auth)
+      .then(async (result) => {
+        if (!result) return;
+        const userEmail = (result.user.email || "").toLowerCase();
+        const displayName = fullName.trim() || result.user.displayName || "";
+
+        if (typeof window !== "undefined") {
+          window.localStorage.setItem("ff-role", "buyer");
+          window.localStorage.setItem("ff-email", userEmail);
+          window.localStorage.setItem(
+            "ff-session-exp",
+            String(Date.now() + 72 * 60 * 60 * 1000)
+          );
+        }
+
+        try {
+          const token = await result.user.getIdToken();
+          await fetch("/api/user/profile", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({
+              fullName: displayName,
+              email: userEmail,
+              phone: phone.trim(),
+              smsOptIn,
+            }),
+          });
+        } catch {
+          // Non-blocking
+        }
+
+        setStep("preferences");
+      })
+      .catch((err) => {
+        if (err?.code === "auth/popup-closed-by-user") return;
+        console.error("redirect_result_error", err);
+      });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   async function handleSocialSignUp(provider: "google" | "facebook") {
     if (!auth) return;
     setBanner(null);
@@ -84,7 +132,20 @@ export default function UnifiedSignupPage() {
         provider === "google"
           ? new GoogleAuthProvider()
           : new FacebookAuthProvider();
-      const result = await signInWithPopup(auth, authProvider);
+
+      let result;
+      try {
+        result = await signInWithPopup(auth, authProvider);
+      } catch (popupErr: any) {
+        if (popupErr?.code === "auth/popup-closed-by-user") {
+          setLoading(false);
+          return;
+        }
+        console.warn("Popup sign-up failed, falling back to redirect:", popupErr?.code);
+        await signInWithRedirect(auth, authProvider);
+        return; // page will reload after redirect
+      }
+
       const userEmail = (result.user.email || "").toLowerCase();
       // Prefer the name the user typed; fall back to the social profile name
       const displayName = fullName.trim() || result.user.displayName || "";
@@ -123,10 +184,15 @@ export default function UnifiedSignupPage() {
     } catch (err: any) {
       console.error("social_signup_error", err);
       if (err?.code === "auth/popup-closed-by-user") return;
-      setBanner({
-        type: "error",
-        message: "Sign-up failed. Please try again.",
-      });
+      const msg =
+        err?.code === "auth/unauthorized-domain"
+          ? "This domain is not authorized for sign-up. Please contact support."
+          : err?.code === "auth/popup-blocked"
+          ? "Popup was blocked. Redirecting..."
+          : err?.code === "auth/account-exists-with-different-credential"
+          ? "An account already exists with this email using a different sign-in method."
+          : "Sign-up failed. Please try again.";
+      setBanner({ type: "error", message: msg });
     } finally {
       setLoading(false);
     }

@@ -9,6 +9,7 @@ import {
   sendSellerItemSoldEmail,
 } from "../../../utils/email";
 import { queueEmail } from "../../../utils/emailOutbox";
+import { tryAutoGenerateLabel } from "../../../utils/autoGenerateLabel";
 
 type SuccessResponse = {
   ok: true;
@@ -315,6 +316,11 @@ export default async function handler(
     } else {
       console.error(`[capture-order] No sellerId on listing ${listingId} — seller notification skipped`);
     }
+
+    // Trigger UPS label generation (non-blocking — don't fail the payment flow)
+    tryAutoGenerateLabel(orderId).catch((labelErr) => {
+      console.error("[capture-order] Auto-label generation failed (non-blocking):", labelErr);
+    });
 
     return res.status(200).json({
       ok: true,

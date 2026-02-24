@@ -4,10 +4,12 @@
 import Head from "next/head";
 import Link from "next/link";
 import { useRouter } from "next/router";
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import {
   signInWithEmailAndPassword,
   signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult,
   GoogleAuthProvider,
   FacebookAuthProvider,
 } from "firebase/auth";
@@ -65,6 +67,47 @@ export default function UnifiedLoginPage() {
   const [promoLoading, setPromoLoading] = useState(false);
   const [promoError, setPromoError] = useState<string | null>(null);
 
+  // Handle redirect result from signInWithRedirect (fallback for popup failures)
+  useEffect(() => {
+    if (!auth) return;
+    getRedirectResult(auth)
+      .then(async (result) => {
+        if (!result) return;
+        const userEmail = (result.user.email || "").toLowerCase();
+
+        // Check if user is also a seller
+        const sellerRes = await fetch("/api/seller/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: userEmail }),
+        });
+        const sellerJson = (await sellerRes.json()) as LoginResponse;
+
+        if (sellerJson.ok) {
+          setEmail(userEmail);
+          setIsSeller(true);
+          setStep("choose_method");
+          return;
+        }
+
+        // Sign in as buyer
+        if (typeof window !== "undefined") {
+          window.localStorage.setItem("ff-role", "buyer");
+          window.localStorage.setItem("ff-email", userEmail);
+          window.localStorage.setItem(
+            "ff-session-exp",
+            String(Date.now() + SESSION_TTL_MS)
+          );
+        }
+        router.push(from || "/account");
+      })
+      .catch((err) => {
+        if (err?.code === "auth/popup-closed-by-user") return;
+        console.error("redirect_result_error", err);
+      });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   async function handlePromoSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setPromoError(null);
@@ -115,7 +158,21 @@ export default function UnifiedLoginPage() {
         provider === "google"
           ? new GoogleAuthProvider()
           : new FacebookAuthProvider();
-      const result = await signInWithPopup(auth, authProvider);
+
+      let result;
+      try {
+        result = await signInWithPopup(auth, authProvider);
+      } catch (popupErr: any) {
+        // If popup was blocked or failed (not user-closed), fall back to redirect
+        if (popupErr?.code === "auth/popup-closed-by-user") {
+          setLoading(false);
+          return;
+        }
+        console.warn("Popup sign-in failed, falling back to redirect:", popupErr?.code);
+        await signInWithRedirect(auth, authProvider);
+        return; // page will reload after redirect
+      }
+
       const userEmail = (result.user.email || "").toLowerCase();
 
       // Check if user is also a seller
@@ -146,7 +203,17 @@ export default function UnifiedLoginPage() {
     } catch (err: any) {
       console.error("social_login_error", err);
       if (err?.code === "auth/popup-closed-by-user") return;
-      setError("Sign-in failed. Please try again.");
+      const msg =
+        err?.code === "auth/unauthorized-domain"
+          ? "This domain is not authorized for sign-in. Please contact support."
+          : err?.code === "auth/popup-blocked"
+          ? "Popup was blocked. Redirecting..."
+          : err?.code === "auth/cancelled-popup-request"
+          ? "Sign-in was cancelled. Please try again."
+          : err?.code === "auth/account-exists-with-different-credential"
+          ? "An account already exists with this email using a different sign-in method."
+          : "Sign-in failed. Please try again.";
+      setError(msg);
     } finally {
       setLoading(false);
     }
