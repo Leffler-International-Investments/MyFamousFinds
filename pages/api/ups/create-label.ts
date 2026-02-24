@@ -1,5 +1,7 @@
 // FILE: /pages/api/ups/create-label.ts
 // Creates a UPS shipment and returns tracking number + shipping label.
+// Requires seller auth — never expose label generation publicly.
+//
 // POST /api/ups/create-label
 //   Body: { seller, buyer, pkg, serviceCode? }
 //   Returns: { ok, trackingNumber, labelBase64, labelFormat }
@@ -9,6 +11,7 @@ import {
   createShippingLabel,
   type CreateLabelParams,
 } from "../../../lib/ups";
+import { getSellerId } from "../../../utils/authServer";
 
 type SuccessResponse = {
   ok: true;
@@ -25,6 +28,12 @@ export default async function handler(
   if (req.method !== "POST") {
     res.setHeader("Allow", "POST");
     return res.status(405).json({ ok: false, error: "Method not allowed" });
+  }
+
+  // Require authenticated seller
+  const sellerId = await getSellerId(req);
+  if (!sellerId) {
+    return res.status(401).json({ ok: false, error: "unauthorized" });
   }
 
   try {
