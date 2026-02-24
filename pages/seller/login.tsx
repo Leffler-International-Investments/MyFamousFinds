@@ -8,6 +8,7 @@ import { FormEvent, useState } from "react";
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
 import PasswordInput from "../../components/PasswordInput";
+import PhoneVerificationPopup from "../../components/PhoneVerificationPopup";
 import { signInWithEmailAndPassword } from "firebase/auth";
 import { auth } from "../../utils/firebaseClient";
 
@@ -36,7 +37,7 @@ type Verify2faError = { ok: false; message?: string };
 type Verify2faResponse = Verify2faSuccess | Verify2faError;
 
 type PageMode = "login" | "setup";
-type TwoFactorStep = "credentials" | "choose_method" | "verify";
+type TwoFactorStep = "credentials" | "choose_method" | "phone_verify" | "verify";
 
 const SESSION_TTL_MS = 168 * 60 * 60 * 1000; // 7 days
 
@@ -118,8 +119,19 @@ export default function SellerLoginPage() {
     setError(null);
     setInfo(null);
     setChosenMethod(method);
-    setLoading(true);
 
+    if (method === "sms") {
+      // Show AWS-compliant phone verification popup before sending
+      setStep("phone_verify");
+      return;
+    }
+
+    // Email flow — send immediately
+    await sendTwoFactorCode(method);
+  }
+
+  async function sendTwoFactorCode(method: "email" | "sms") {
+    setLoading(true);
     try {
       const trimmedEmail = email.trim().toLowerCase();
       const twofaRes = await fetch("/api/auth/start-2fa", {
@@ -282,6 +294,21 @@ export default function SellerLoginPage() {
                       </div>
                     </div>
                   </form>
+                ) : step === "phone_verify" ? (
+                  <>
+                    <PhoneVerificationPopup
+                      loading={loading}
+                      onSendCode={() => sendTwoFactorCode("sms")}
+                      onBack={() => {
+                        setStep("choose_method");
+                        setError(null);
+                        setInfo(null);
+                      }}
+                    />
+                    <p className="auth-secondary-link-inline" style={{ marginTop: 12 }}>
+                      Waiting for phone verification…
+                    </p>
+                  </>
                 ) : step === "choose_method" ? (
                   <div className="method-choice">
                     <p className="auth-secondary-link-inline">

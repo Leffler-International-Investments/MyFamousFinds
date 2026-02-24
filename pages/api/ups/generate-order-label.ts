@@ -25,6 +25,7 @@ import admin, { adminDb, FieldValue, isFirebaseAdminReady } from "../../../utils
 import { getSellerId } from "../../../utils/authServer";
 import { createShippingLabel, type UpsAddress, type UpsPackage } from "../../../lib/ups";
 import { sendMail } from "../../../utils/email";
+import { queueEmail } from "../../../utils/emailOutbox";
 
 const STORAGE_BUCKET =
   process.env.FIREBASE_STORAGE_BUCKET ||
@@ -138,6 +139,19 @@ export default async function handler(
       return res.status(403).json({ ok: false, error: "forbidden" });
     }
 
+    // ── Verify order is paid (PayPal) before generating a label ──
+    const isPaid =
+      order.paypalCaptured === true ||
+      String(order.paypalStatus || "").toUpperCase() === "COMPLETED" ||
+      String(order.status || "").toLowerCase() === "paid" ||
+      String(order.fulfillment?.stage || "").toUpperCase() === "PAID";
+    if (!isPaid) {
+      return res.status(400).json({
+        ok: false,
+        error: "Order has not been paid yet — cannot generate shipping label",
+      });
+    }
+
     // ── Idempotency: if order already has tracking + label, return existing data ──
     const existingShipping = order.shipping;
     if (
@@ -232,7 +246,7 @@ export default async function handler(
       { merge: true }
     );
 
-    // Email seller with a download link (not base64)
+    // Email seller with a download link — queue via email_outbox for reliable delivery
     try {
       let sellerEmail = "";
       const sellerDoc = await adminDb.collection("sellers").doc(sellerId).get();
@@ -243,28 +257,42 @@ export default async function handler(
 
       if (sellerEmail && sellerEmail.includes("@")) {
         const itemTitle = order.listingTitle || "Item";
-        await sendMail(
-          sellerEmail,
-          "MyFamousFinds — Your UPS Shipping Label Is Ready",
+        const subject = "MyFamousFinds — Your UPS Shipping Label Is Ready";
+        const text =
           `Hello ${seller.name},\n\n` +
-            `Your UPS shipping label for order ${orderId} is ready!\n\n` +
-            `Item: ${itemTitle}\n` +
-            `Tracking Number: ${result.trackingNumber}\n` +
-            `Track: ${trackingUrl}\n\n` +
-            `Download your label: ${labelUrl}\n\n` +
-            `Regards,\nThe MyFamousFinds Team\n`,
+          `Your UPS shipping label for order ${orderId} is ready!\n\n` +
+          `Item: ${itemTitle}\n` +
+          `Tracking Number: ${result.trackingNumber}\n` +
+          `Track: ${trackingUrl}\n\n` +
+          `Download your label: ${labelUrl}\n\n` +
+          `Regards,\nThe MyFamousFinds Team\n`;
+        const html =
           `<p>Hello ${seller.name},</p>` +
-            `<p style="font-size:16px;"><b>Your UPS shipping label is ready!</b></p>` +
-            `<div style="padding:12px;background:#dbeafe;border-radius:6px;margin:12px 0;">` +
-            `<p style="margin:4px 0;"><b>Order:</b> ${orderId}</p>` +
-            `<p style="margin:4px 0;"><b>Item:</b> ${itemTitle}</p>` +
-            `<p style="margin:4px 0;"><b>Tracking:</b> <a href="${trackingUrl}">${result.trackingNumber}</a></p>` +
-            `</div>` +
-            `<p><a href="${labelUrl}" ` +
-            `style="display:inline-block;padding:12px 28px;background:#2563eb;color:#fff;` +
-            `border-radius:999px;text-decoration:none;font-weight:600;">Download Shipping Label</a></p>` +
-            `<p>Regards,<br/>The MyFamousFinds Team</p>`,
-        );
+          `<p style="font-size:16px;"><b>Your UPS shipping label is ready!</b></p>` +
+          `<div style="padding:12px;background:#dbeafe;border-radius:6px;margin:12px 0;">` +
+          `<p style="margin:4px 0;"><b>Order:</b> ${orderId}</p>` +
+          `<p style="margin:4px 0;"><b>Item:</b> ${itemTitle}</p>` +
+          `<p style="margin:4px 0;"><b>Tracking:</b> <a href="${trackingUrl}">${result.trackingNumber}</a></p>` +
+          `</div>` +
+          `<p><a href="${labelUrl}" ` +
+          `style="display:inline-block;padding:12px 28px;background:#2563eb;color:#fff;` +
+          `border-radius:999px;text-decoration:none;font-weight:600;">Download Shipping Label</a></p>` +
+          `<p>Regards,<br/>The MyFamousFinds Team</p>`;
+
+        // Try email_outbox first (reliable, with retry), fall back to direct send
+        const queued = await queueEmail({
+          to: sellerEmail,
+          subject,
+          text,
+          html,
+          eventType: "shipping_label_ready",
+          eventKey: `${orderId}:shipping_label_ready`,
+          metadata: { orderId, trackingNumber: result.trackingNumber },
+        });
+        if (!queued) {
+          // Outbox duplicate or unavailable — send directly as fallback
+          await sendMail(sellerEmail, subject, text, html);
+        }
       }
     } catch (emailErr) {
       // Label was generated successfully — don't fail the whole request for email issues

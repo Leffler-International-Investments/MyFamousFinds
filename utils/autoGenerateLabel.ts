@@ -9,6 +9,7 @@ import crypto from "crypto";
 import admin, { adminDb, FieldValue, isFirebaseAdminReady } from "./firebaseAdmin";
 import { createShippingLabel, type UpsAddress, type UpsPackage } from "../lib/ups";
 import { sendMail } from "./email";
+import { queueEmail } from "./emailOutbox";
 
 const STORAGE_BUCKET =
   process.env.FIREBASE_STORAGE_BUCKET ||
@@ -221,7 +222,7 @@ export async function tryAutoGenerateLabel(orderId: string): Promise<void> {
 
   console.log(`[autoGenerateLabel] Label generated for order ${orderId}: ${result.trackingNumber}`);
 
-  // Email seller with a download link
+  // Email seller with a download link — queue via email_outbox for reliable delivery
   try {
     let sellerEmail = "";
     const sellerDoc = await adminDb.collection("sellers").doc(sellerId).get();
@@ -232,31 +233,44 @@ export async function tryAutoGenerateLabel(orderId: string): Promise<void> {
 
     if (sellerEmail && sellerEmail.includes("@")) {
       const itemTitle = order.listingTitle || "Item";
-      await sendMail(
-        sellerEmail,
-        "MyFamousFinds — Your UPS Shipping Label Is Ready",
+      const subject = "MyFamousFinds — Your UPS Shipping Label Is Ready";
+      const text =
         `Hello ${sellerAddress.name},\n\n` +
-          `Your UPS shipping label for order ${orderId} has been automatically generated!\n\n` +
-          `Item: ${itemTitle}\n` +
-          `Tracking Number: ${result.trackingNumber}\n` +
-          `Track: ${trackingUrl}\n\n` +
-          `Download your label: ${labelUrl}\n\n` +
-          `Please ship the item as soon as possible.\n\n` +
-          `Regards,\nThe MyFamousFinds Team\n`,
+        `Your UPS shipping label for order ${orderId} has been automatically generated!\n\n` +
+        `Item: ${itemTitle}\n` +
+        `Tracking Number: ${result.trackingNumber}\n` +
+        `Track: ${trackingUrl}\n\n` +
+        `Download your label: ${labelUrl}\n\n` +
+        `Please ship the item as soon as possible.\n\n` +
+        `Regards,\nThe MyFamousFinds Team\n`;
+      const html =
         `<p>Hello ${sellerAddress.name},</p>` +
-          `<p style="font-size:16px;"><b>Your UPS shipping label is ready!</b></p>` +
-          `<p>A shipping label has been automatically generated after payment was confirmed.</p>` +
-          `<div style="padding:12px;background:#dbeafe;border-radius:6px;margin:12px 0;">` +
-          `<p style="margin:4px 0;"><b>Order:</b> ${orderId}</p>` +
-          `<p style="margin:4px 0;"><b>Item:</b> ${itemTitle}</p>` +
-          `<p style="margin:4px 0;"><b>Tracking:</b> <a href="${trackingUrl}">${result.trackingNumber}</a></p>` +
-          `</div>` +
-          `<p><a href="${labelUrl}" ` +
-          `style="display:inline-block;padding:12px 28px;background:#2563eb;color:#fff;` +
-          `border-radius:999px;text-decoration:none;font-weight:600;">Download Shipping Label</a></p>` +
-          `<p>Please ship the item as soon as possible.</p>` +
-          `<p>Regards,<br/>The MyFamousFinds Team</p>`,
-      );
+        `<p style="font-size:16px;"><b>Your UPS shipping label is ready!</b></p>` +
+        `<p>A shipping label has been automatically generated after payment was confirmed.</p>` +
+        `<div style="padding:12px;background:#dbeafe;border-radius:6px;margin:12px 0;">` +
+        `<p style="margin:4px 0;"><b>Order:</b> ${orderId}</p>` +
+        `<p style="margin:4px 0;"><b>Item:</b> ${itemTitle}</p>` +
+        `<p style="margin:4px 0;"><b>Tracking:</b> <a href="${trackingUrl}">${result.trackingNumber}</a></p>` +
+        `</div>` +
+        `<p><a href="${labelUrl}" ` +
+        `style="display:inline-block;padding:12px 28px;background:#2563eb;color:#fff;` +
+        `border-radius:999px;text-decoration:none;font-weight:600;">Download Shipping Label</a></p>` +
+        `<p>Please ship the item as soon as possible.</p>` +
+        `<p>Regards,<br/>The MyFamousFinds Team</p>`;
+
+      // Try email_outbox first (reliable, with retry), fall back to direct send
+      const queued = await queueEmail({
+        to: sellerEmail,
+        subject,
+        text,
+        html,
+        eventType: "shipping_label_auto_generated",
+        eventKey: `${orderId}:shipping_label_auto_generated`,
+        metadata: { orderId, trackingNumber: result.trackingNumber },
+      });
+      if (!queued) {
+        await sendMail(sellerEmail, subject, text, html);
+      }
     }
   } catch (emailErr) {
     // Label was generated — don't fail for email issues
