@@ -3,6 +3,8 @@ import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import {
   signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   GoogleAuthProvider,
@@ -31,37 +33,66 @@ export default function AuthModal({ isOpen, onClose, onSuccess }: Props) {
     setMounted(true);
   }, []);
 
+  // Handle redirect result from signInWithRedirect (fallback for popup failures)
+  useEffect(() => {
+    if (!auth) return;
+    getRedirectResult(auth)
+      .then((result) => {
+        if (result) {
+          onSuccess(result.user.uid, result.user.email || "");
+        }
+      })
+      .catch((err) => {
+        if (err?.code !== "auth/popup-closed-by-user") {
+          console.error("redirect_result_error", err);
+        }
+      });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   if (!isOpen || !mounted) return null;
 
-  const handleGoogleSignIn = async () => {
+  const handleSocialSignIn = async (providerType: "google" | "facebook") => {
     if (!auth) return;
     setError("");
     setLoading(true);
     try {
-      const provider = new GoogleAuthProvider();
-      const result = await signInWithPopup(auth, provider);
+      const provider =
+        providerType === "google"
+          ? new GoogleAuthProvider()
+          : new FacebookAuthProvider();
+
+      let result;
+      try {
+        result = await signInWithPopup(auth, provider);
+      } catch (popupErr: any) {
+        if (popupErr?.code === "auth/popup-closed-by-user") {
+          setLoading(false);
+          return;
+        }
+        console.warn("Popup sign-in failed, falling back to redirect:", popupErr?.code);
+        await signInWithRedirect(auth, provider);
+        return;
+      }
+
       onSuccess(result.user.uid, result.user.email || "");
     } catch (err: any) {
-      setError(err?.message || "Google sign-in failed. Please try again.");
+      if (err?.code === "auth/popup-closed-by-user") return;
+      const label = providerType === "google" ? "Google" : "Facebook";
+      const msg =
+        err?.code === "auth/unauthorized-domain"
+          ? "This domain is not authorized for sign-in. Please contact support."
+          : err?.code === "auth/account-exists-with-different-credential"
+          ? "An account already exists with this email using a different sign-in method."
+          : `${label} sign-in failed. Please try again.`;
+      setError(msg);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleFacebookSignIn = async () => {
-    if (!auth) return;
-    setError("");
-    setLoading(true);
-    try {
-      const provider = new FacebookAuthProvider();
-      const result = await signInWithPopup(auth, provider);
-      onSuccess(result.user.uid, result.user.email || "");
-    } catch (err: any) {
-      setError(err?.message || "Facebook sign-in failed. Please try again.");
-    } finally {
-      setLoading(false);
-    }
-  };
+  const handleGoogleSignIn = () => handleSocialSignIn("google");
+  const handleFacebookSignIn = () => handleSocialSignIn("facebook");
 
   const handleEmailSignIn = async (e: React.FormEvent) => {
     e.preventDefault();

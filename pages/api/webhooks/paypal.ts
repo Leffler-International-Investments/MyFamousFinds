@@ -4,6 +4,7 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { adminDb } from "../../../utils/firebaseAdmin";
 import { verifyPayPalWebhook } from "../../../lib/paypal";
+import { tryAutoGenerateLabel } from "../../../utils/autoGenerateLabel";
 
 export const config = {
   api: { bodyParser: false },
@@ -114,7 +115,7 @@ export default async function handler(
             }
           }
 
-          await adminDb.collection("orders").add({
+          const newOrderRef = await adminDb.collection("orders").add({
             paypalOrderId,
             paypalCaptureId: captureId,
             listingId: customId,
@@ -140,6 +141,17 @@ export default async function handler(
               });
             }
           }
+
+          // Trigger UPS label generation (non-blocking)
+          tryAutoGenerateLabel(newOrderRef.id).catch((labelErr) => {
+            console.error("[paypal webhook] Auto-label generation failed (non-blocking):", labelErr);
+          });
+        } else {
+          // Order already exists — try label generation if not done yet
+          const existingId = existingOrder.docs[0].id;
+          tryAutoGenerateLabel(existingId).catch((labelErr) => {
+            console.error("[paypal webhook] Auto-label generation failed (non-blocking):", labelErr);
+          });
         }
       }
     }
