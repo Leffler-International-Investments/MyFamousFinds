@@ -338,9 +338,13 @@ export default function Cart() {
                     {formatPrice(cartTotal)}
                   </span>
                 </div>
-                <Link href="/checkout" className="btn-checkout">
+                <button
+                  type="button"
+                  className="btn-checkout"
+                  onClick={() => router.push("/checkout")}
+                >
                   Proceed to checkout
-                </Link>
+                </button>
               </div>
             </>
           )}
@@ -554,6 +558,7 @@ export default function Cart() {
           display: block;
           margin-top: 12px;
           width: 100%;
+          border: none;
           border-radius: 999px;
           background: #111827;
           padding: 14px 0;
@@ -563,6 +568,7 @@ export default function Cart() {
           text-align: center;
           text-decoration: none;
           letter-spacing: 0.02em;
+          cursor: pointer;
           box-shadow: 0 4px 14px rgba(0, 0, 0, 0.15);
           transition: background 0.2s ease, box-shadow 0.2s ease, transform 0.1s ease;
         }
