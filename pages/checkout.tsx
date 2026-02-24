@@ -323,6 +323,13 @@ export default function CheckoutPage() {
                 >
                   {submitting ? "Processing..." : "Pay with PayPal"}
                 </button>
+                <div className="protected-badge">
+                  <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#16a34a" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                    <polyline points="9 12 11.5 14.5 16 9.5" />
+                  </svg>
+                  <span>Protected by Famous Finds — Buyer Protection Guarantee</span>
+                </div>
                 <p className="checkout-secure">
                   Secure payment processed by PayPal
                 </p>
@@ -536,6 +543,24 @@ export default function CheckoutPage() {
         .btn-pay:disabled {
           opacity: 0.6;
           cursor: default;
+        }
+        .protected-badge {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 8px;
+          margin-top: 10px;
+          padding: 8px 14px;
+          background: #f0fdf4;
+          border: 1px solid #bbf7d0;
+          border-radius: 999px;
+        }
+        .protected-badge span {
+          font-size: 12px;
+          font-weight: 700;
+          color: #15803d;
+          letter-spacing: 0.01em;
+          white-space: nowrap;
         }
         .checkout-secure {
           margin-top: 8px;
