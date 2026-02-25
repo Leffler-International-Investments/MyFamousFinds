@@ -5,10 +5,14 @@
 // POST /api/ups/generate-order-label
 // Body: {
 //   orderId: string,
-//   seller: { name, phone, address1, address2?, city, state, zip, country? },
 //   pkg:    { weightLbs, lengthIn, widthIn, heightIn },
 //   serviceCode?: string,   // default "03" = UPS Ground
 //   labelFormat?: "GIF" | "PDF",
+//
+//   // Optional override (normally NOT needed):
+//   // If not provided, the API will look up the seller's stored address
+//   // from seller_banking (preferred) or sellers profile.
+//   seller?: { name, phone, address1, address2?, city, state, zip, country? },
 // }
 //
 // The buyer address is pulled from the order's shippingAddress field.
@@ -21,9 +25,17 @@
 
 import type { NextApiRequest, NextApiResponse } from "next";
 import crypto from "crypto";
-import admin, { adminDb, FieldValue, isFirebaseAdminReady } from "../../../utils/firebaseAdmin";
+import admin, {
+  adminDb,
+  FieldValue,
+  isFirebaseAdminReady,
+} from "../../../utils/firebaseAdmin";
 import { getSellerId } from "../../../utils/authServer";
-import { createShippingLabel, type UpsAddress, type UpsPackage } from "../../../lib/ups";
+import {
+  createShippingLabel,
+  type UpsAddress,
+  type UpsPackage,
+} from "../../../lib/ups";
 import { sendMail } from "../../../utils/email";
 import { queueEmail } from "../../../utils/emailOutbox";
 
@@ -69,14 +81,15 @@ async function uploadLabelToStorage(
   if (!bucket) {
     throw new Error(
       "Firebase Storage is not configured — cannot upload label. " +
-      "Set FIREBASE_STORAGE_BUCKET in env."
+        "Set FIREBASE_STORAGE_BUCKET in env."
     );
   }
 
   const ext = labelFormat.toLowerCase(); // "gif" or "pdf"
   const path = `shipping-labels/${orderId}/label.${ext}`;
   const buffer = Buffer.from(labelBase64, "base64");
-  const contentType = CONTENT_TYPES[labelFormat.toUpperCase()] || "application/octet-stream";
+  const contentType =
+    CONTENT_TYPES[labelFormat.toUpperCase()] || "application/octet-stream";
   const token = crypto.randomUUID();
 
   await bucket.file(path).save(buffer, {
@@ -93,6 +106,108 @@ async function uploadLabelToStorage(
   return buildDownloadUrl(STORAGE_BUCKET, path, token);
 }
 
+// ── Seller address resolution ─────────────────────────────────────────
+//
+// IMPORTANT: UPS label creation needs a complete shipper ("from") address.
+// In the UI, we should NOT hardcode blank seller address fields.
+// This API now auto-resolves the address server-side.
+//
+// Priority:
+//  1) Explicit seller address provided in request (override)
+//  2) seller_banking/<sellerEmail> (preferred)
+//  3) sellers/<sellerId> profile address (fallback, if present)
+
+function isCompleteAddress(a: Partial<UpsAddress> | undefined | null) {
+  return !!(a && a.name && a.address1 && a.city && a.state && a.zip);
+}
+
+async function getSellerAddressFromStorage(
+  sellerId: string
+): Promise<UpsAddress | null> {
+  if (!adminDb) return null;
+
+  // 1) Pull seller email/name/phone
+  let sellerEmail = "";
+  let sellerName = "";
+  let sellerPhone = "";
+
+  const sellerDoc = await adminDb.collection("sellers").doc(sellerId).get();
+  if (sellerDoc.exists) {
+    const sd: any = sellerDoc.data() || {};
+    sellerEmail = String(sd.contactEmail || sd.email || "")
+      .trim()
+      .toLowerCase();
+    sellerName = String(sd.businessName || sd.name || "");
+    sellerPhone = String(sd.phone || "");
+  }
+
+  if (!sellerEmail) {
+    const byEmail = await adminDb
+      .collection("sellers")
+      .where("email", "==", sellerId)
+      .limit(1)
+      .get();
+    if (!byEmail.empty) {
+      const sd: any = byEmail.docs[0].data() || {};
+      sellerEmail = String(sd.contactEmail || sd.email || "")
+        .trim()
+        .toLowerCase();
+      sellerName = String(sd.businessName || sd.name || "");
+      sellerPhone = String(sd.phone || "");
+    }
+  }
+
+  // 2) Prefer seller_banking doc (structured payout/shipping address)
+  if (sellerEmail) {
+    const bankingDoc = await adminDb
+      .collection("seller_banking")
+      .doc(sellerEmail)
+      .get();
+    if (bankingDoc.exists) {
+      const b: any = bankingDoc.data() || {};
+      if (b.addressLine1 && b.city && b.state && b.postalCode) {
+        return {
+          name: b.legalName || sellerName || sellerId,
+          phone: b.phone || sellerPhone || "",
+          address1: b.addressLine1,
+          address2: b.addressLine2 || "",
+          city: b.city,
+          state: b.state,
+          zip: b.postalCode,
+          country: b.country || "US",
+        };
+      }
+    }
+  }
+
+  // 3) Fallback: if seller profile has an address block
+  if (sellerDoc.exists) {
+    const sd: any = sellerDoc.data() || {};
+    const addr = sd.address || sd.shippingAddress || null;
+
+    if (
+      addr &&
+      (addr.line1 || addr.address1) &&
+      addr.city &&
+      (addr.state || addr.stateProvince) &&
+      (addr.postalCode || addr.zip)
+    ) {
+      return {
+        name: sellerName || sellerId,
+        phone: sellerPhone || "",
+        address1: addr.line1 || addr.address1,
+        address2: addr.line2 || addr.address2 || "",
+        city: addr.city,
+        state: addr.state || addr.stateProvince,
+        zip: addr.postalCode || addr.zip,
+        country: addr.country || "US",
+      };
+    }
+  }
+
+  return null;
+}
+
 // ── Handler ───────────────────────────────────────────────────────────
 
 export default async function handler(
@@ -105,7 +220,9 @@ export default async function handler(
   }
 
   if (!adminDb) {
-    return res.status(500).json({ ok: false, error: "Firebase not configured" });
+    return res
+      .status(500)
+      .json({ ok: false, error: "Firebase not configured" });
   }
 
   // Authenticate seller
@@ -115,16 +232,17 @@ export default async function handler(
   }
 
   try {
-    const { orderId, seller, pkg, serviceCode, labelFormat: reqLabelFormat } = req.body || {};
+    const { orderId, seller, pkg, serviceCode, labelFormat: reqLabelFormat } =
+      req.body || {};
 
     if (!orderId) {
       return res.status(400).json({ ok: false, error: "Missing orderId" });
     }
-    if (!seller?.name || !seller?.address1 || !seller?.city || !seller?.state || !seller?.zip) {
-      return res.status(400).json({ ok: false, error: "Missing or incomplete seller address" });
-    }
     if (!pkg?.weightLbs || !pkg?.lengthIn || !pkg?.widthIn || !pkg?.heightIn) {
-      return res.status(400).json({ ok: false, error: "Missing or incomplete package dimensions/weight" });
+      return res.status(400).json({
+        ok: false,
+        error: "Missing or incomplete package dimensions/weight",
+      });
     }
 
     // Load order and verify ownership
@@ -145,6 +263,7 @@ export default async function handler(
       String(order.paypalStatus || "").toUpperCase() === "COMPLETED" ||
       String(order.status || "").toLowerCase() === "paid" ||
       String(order.fulfillment?.stage || "").toUpperCase() === "PAID";
+
     if (!isPaid) {
       return res.status(400).json({
         ok: false,
@@ -154,14 +273,15 @@ export default async function handler(
 
     // ── Idempotency: if order already has tracking + label, return existing data ──
     const existingShipping = order.shipping;
-    if (
-      existingShipping?.trackingNumber &&
-      existingShipping?.labelUrl
-    ) {
+    if (existingShipping?.trackingNumber && existingShipping?.labelUrl) {
       return res.status(200).json({
         ok: true,
         trackingNumber: existingShipping.trackingNumber,
-        trackingUrl: existingShipping.trackingUrl || `https://www.ups.com/track?loc=en_US&tracknum=${encodeURIComponent(existingShipping.trackingNumber)}`,
+        trackingUrl:
+          existingShipping.trackingUrl ||
+          `https://www.ups.com/track?loc=en_US&tracknum=${encodeURIComponent(
+            existingShipping.trackingNumber
+          )}`,
         labelFormat: existingShipping.labelFormat || "GIF",
         labelUrl: existingShipping.labelUrl,
         alreadyGenerated: true,
@@ -188,16 +308,31 @@ export default async function handler(
       country: sa.country || "US",
     };
 
-    const sellerAddress: UpsAddress = {
-      name: seller.name,
-      phone: seller.phone || "",
-      address1: seller.address1,
-      address2: seller.address2 || "",
-      city: seller.city,
-      state: seller.state,
-      zip: seller.zip,
-      country: seller.country || "US",
-    };
+    // Resolve seller address (override -> stored)
+    let sellerAddress: UpsAddress | null = null;
+
+    if (isCompleteAddress(seller)) {
+      sellerAddress = {
+        name: seller.name,
+        phone: seller.phone || "",
+        address1: seller.address1,
+        address2: seller.address2 || "",
+        city: seller.city,
+        state: seller.state,
+        zip: seller.zip,
+        country: seller.country || "US",
+      };
+    } else {
+      sellerAddress = await getSellerAddressFromStorage(String(sellerId));
+    }
+
+    if (!sellerAddress) {
+      return res.status(400).json({
+        ok: false,
+        error:
+          "Seller shipping address not found. Please complete Seller Banking / Payout details (address) first.",
+      });
+    }
 
     const pkgData: UpsPackage = {
       weightLbs: Number(pkg.weightLbs),
@@ -208,7 +343,11 @@ export default async function handler(
 
     // Validate label format
     const labelFormat: "GIF" | "PDF" =
-      reqLabelFormat === "PDF" ? "PDF" : reqLabelFormat === "GIF" ? "GIF" : undefined as any;
+      reqLabelFormat === "PDF"
+        ? "PDF"
+        : reqLabelFormat === "GIF"
+        ? "GIF"
+        : (undefined as any);
 
     // Create shipment + label via UPS
     const result = await createShippingLabel({
@@ -219,7 +358,9 @@ export default async function handler(
       labelFormat: labelFormat || undefined,
     });
 
-    const trackingUrl = `https://www.ups.com/track?loc=en_US&tracknum=${encodeURIComponent(result.trackingNumber)}`;
+    const trackingUrl = `https://www.ups.com/track?loc=en_US&tracknum=${encodeURIComponent(
+      result.trackingNumber
+    )}`;
 
     // Upload label to Firebase Storage
     const labelUrl = await uploadLabelToStorage(
@@ -249,9 +390,9 @@ export default async function handler(
     // Email seller with a download link — queue via email_outbox for reliable delivery
     try {
       let sellerEmail = "";
-      const sellerDoc = await adminDb.collection("sellers").doc(sellerId).get();
-      if (sellerDoc.exists) {
-        const sd: any = sellerDoc.data() || {};
+      const sellerDoc2 = await adminDb.collection("sellers").doc(sellerId).get();
+      if (sellerDoc2.exists) {
+        const sd: any = sellerDoc2.data() || {};
         sellerEmail = sd.contactEmail || sd.email || "";
       }
 
@@ -259,44 +400,29 @@ export default async function handler(
         const itemTitle = order.listingTitle || "Item";
         const subject = "MyFamousFinds — Your UPS Shipping Label Is Ready";
         const text =
-          `Hello ${seller.name},\n\n` +
+          `Hello ${sellerAddress.name},\n\n` +
           `Your UPS shipping label for order ${orderId} is ready!\n\n` +
           `Item: ${itemTitle}\n` +
           `Tracking Number: ${result.trackingNumber}\n` +
           `Track: ${trackingUrl}\n\n` +
-          `Download your label: ${labelUrl}\n\n` +
-          `Regards,\nThe MyFamousFinds Team\n`;
-        const html =
-          `<p>Hello ${seller.name},</p>` +
-          `<p style="font-size:16px;"><b>Your UPS shipping label is ready!</b></p>` +
-          `<div style="padding:12px;background:#dbeafe;border-radius:6px;margin:12px 0;">` +
-          `<p style="margin:4px 0;"><b>Order:</b> ${orderId}</p>` +
-          `<p style="margin:4px 0;"><b>Item:</b> ${itemTitle}</p>` +
-          `<p style="margin:4px 0;"><b>Tracking:</b> <a href="${trackingUrl}">${result.trackingNumber}</a></p>` +
-          `</div>` +
-          `<p><a href="${labelUrl}" ` +
-          `style="display:inline-block;padding:12px 28px;background:#2563eb;color:#fff;` +
-          `border-radius:999px;text-decoration:none;font-weight:600;">Download Shipping Label</a></p>` +
-          `<p>Regards,<br/>The MyFamousFinds Team</p>`;
+          `Download label: ${labelUrl}\n\n` +
+          `Thank you,\nMyFamousFinds`;
 
-        // Try email_outbox first (reliable, with retry), fall back to direct send
-        const queued = await queueEmail({
+        // Send immediately AND queue (belt & suspenders)
+        await sendMail({ to: sellerEmail, subject, text }).catch(() => {});
+        await queueEmail({
           to: sellerEmail,
           subject,
           text,
-          html,
-          eventType: "shipping_label_ready",
-          eventKey: `${orderId}:shipping_label_ready`,
-          metadata: { orderId, trackingNumber: result.trackingNumber },
-        });
-        if (!queued) {
-          // Outbox duplicate or unavailable — send directly as fallback
-          await sendMail(sellerEmail, subject, text, html);
-        }
+          meta: {
+            kind: "ups_label_ready",
+            orderId: String(orderId),
+            sellerId: String(sellerId),
+          },
+        }).catch(() => {});
       }
-    } catch (emailErr) {
-      // Label was generated successfully — don't fail the whole request for email issues
-      console.error("[ups/generate-order-label] Email notification failed:", emailErr);
+    } catch (e) {
+      console.warn("[generate-order-label] Seller email notification failed:", e);
     }
 
     return res.status(200).json({
@@ -307,8 +433,11 @@ export default async function handler(
       labelUrl,
     });
   } catch (err: any) {
-    const msg = String(err?.message || err || "UPS label generation error");
-    console.error("[ups/generate-order-label] Error:", msg, err);
-    return res.status(500).json({ ok: false, error: msg });
+    console.error("[generate-order-label] Error:", err);
+
+    return res.status(500).json({
+      ok: false,
+      error: err?.message || "Failed to generate UPS label",
+    });
   }
 }
