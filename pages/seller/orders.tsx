@@ -50,6 +50,21 @@ type OrderRow = {
   fulfillment?: FulfillmentInfo | null;
 };
 
+type UpsDiag = {
+  ok: boolean;
+  title: string;
+  details?: string;
+};
+
+type UpsDiagnosticsResponse = {
+  ok: boolean;
+  checks: UpsDiag[];
+  summary: {
+    readyForProductionLabel: boolean;
+    notes: string[];
+  };
+};
+
 function getSellerIdHeader(): string {
   if (typeof window === "undefined") return "";
   return String(window.localStorage.getItem("ff-seller-id") || "").trim();
@@ -66,13 +81,18 @@ export default function SellerOrders() {
   const [savingId, setSavingId] = useState<string | null>(null);
 
   const [editing, setEditing] = useState<
-    Record<
-      string,
-      { carrier: string; trackingNumber: string; signatureRequired: boolean }
-    >
+    Record<string, { carrier: string; trackingNumber: string; signatureRequired: boolean }>
   >({});
   const [generatingLabelId, setGeneratingLabelId] = useState<string | null>(null);
-  const [labelResult, setLabelResult] = useState<Record<string, { trackingNumber: string; labelUrl: string; trackingUrl: string } | null>>({});
+  const [labelResult, setLabelResult] = useState<
+    Record<string, { trackingNumber: string; labelUrl: string; trackingUrl: string } | null>
+  >({});
+
+  // NEW: Diagnostics state
+  const [diagOpen, setDiagOpen] = useState(false);
+  const [diagLoading, setDiagLoading] = useState(false);
+  const [diagError, setDiagError] = useState<string | null>(null);
+  const [diagData, setDiagData] = useState<UpsDiagnosticsResponse | null>(null);
 
   useEffect(() => {
     if (authLoading) return;
@@ -104,12 +124,7 @@ export default function SellerOrders() {
       const title = String(r.listingTitle || r.item || "").toLowerCase();
       const buyerName = String(r.buyerName || r.buyer || "").toLowerCase();
       const buyerEmail = String(r.buyerEmail || "").toLowerCase();
-      return (
-        id.includes(q) ||
-        title.includes(q) ||
-        buyerName.includes(q) ||
-        buyerEmail.includes(q)
-      );
+      return id.includes(q) || title.includes(q) || buyerName.includes(q) || buyerEmail.includes(q);
     });
   }, [rows, query]);
 
@@ -133,8 +148,8 @@ export default function SellerOrders() {
             <div>
               <h1 className="page-title">My Orders</h1>
               <p className="subtitle">
-                When an item is sold, you’ll see the buyer’s details and shipping address here.
-                Ship with <strong>Signature Required</strong>, then enter the tracking number.
+                When an item is sold, you’ll see the buyer’s details and shipping address here. Ship with{" "}
+                <strong>Signature Required</strong>, then enter the tracking number.
               </p>
             </div>
 
@@ -195,22 +210,16 @@ export default function SellerOrders() {
                       <tr key={r.id}>
                         <td>
                           <div className="cell-strong">{r.id}</div>
-                          <div className="muted">
-                            {r.createdAt ? formatLocal(r.createdAt) : ""}
-                          </div>
+                          <div className="muted">{r.createdAt ? formatLocal(r.createdAt) : ""}</div>
                         </td>
 
                         <td>
-                          <div className="cell-strong">
-                            {r.listingTitle || r.item || "Item"}
-                          </div>
+                          <div className="cell-strong">{r.listingTitle || r.item || "Item"}</div>
                           <div className="muted">{formatMoney(r)}</div>
                         </td>
 
                         <td>
-                          <div className="cell-strong">
-                            {r.buyerName || r.buyer || "Buyer"}
-                          </div>
+                          <div className="cell-strong">{r.buyerName || r.buyer || "Buyer"}</div>
                           <div className="muted">{r.buyerEmail || ""}</div>
                         </td>
 
@@ -230,17 +239,11 @@ export default function SellerOrders() {
 
           {/* MOBILE CARD VIEW */}
           <section className="mobile-cards" style={{ marginTop: 18 }}>
-            {loading && (
-              <p className="mobile-message">Loading orders…</p>
-            )}
+            {loading && <p className="mobile-message">Loading orders…</p>}
 
-            {error && (
-              <p className="mobile-message mobile-error">{error}</p>
-            )}
+            {error && <p className="mobile-message mobile-error">{error}</p>}
 
-            {!loading && !error && visible.length === 0 && (
-              <p className="mobile-message">No orders found.</p>
-            )}
+            {!loading && !error && visible.length === 0 && <p className="mobile-message">No orders found.</p>}
 
             {!loading &&
               !error &&
@@ -251,9 +254,7 @@ export default function SellerOrders() {
                       <div className="cell-strong">{r.listingTitle || r.item || "Item"}</div>
                       <div className="muted">{formatMoney(r)}</div>
                     </div>
-                    <div style={{ textAlign: "right" }}>
-                      {renderStatus(r)}
-                    </div>
+                    <div style={{ textAlign: "right" }}>{renderStatus(r)}</div>
                   </div>
 
                   <div className="mobile-card-rows">
@@ -272,9 +273,7 @@ export default function SellerOrders() {
                     <div className="mobile-card-row">
                       <span className="mobile-label">Buyer</span>
                       <span className="mobile-value">
-                        <span className="cell-strong">
-                          {r.buyerName || r.buyer || "Buyer"}
-                        </span>
+                        <span className="cell-strong">{r.buyerName || r.buyer || "Buyer"}</span>
                         {r.buyerEmail && (
                           <span className="muted" style={{ display: "block" }}>
                             {r.buyerEmail}
@@ -285,25 +284,86 @@ export default function SellerOrders() {
 
                     <div className="mobile-card-row">
                       <span className="mobile-label">Ship to</span>
-                      <span className="mobile-value">
-                        {renderShipTo(r.shippingAddress)}
-                      </span>
+                      <span className="mobile-value">{renderShipTo(r.shippingAddress)}</span>
                     </div>
 
                     <div className="mobile-card-row">
                       <span className="mobile-label">Ship by</span>
-                      <span className="mobile-value">
-                        {renderDeadline(r.shipDeadlineAt)}
-                      </span>
+                      <span className="mobile-value">{renderDeadline(r.shipDeadlineAt)}</span>
                     </div>
                   </div>
 
-                  <div className="mobile-card-action">
-                    {renderAction(r)}
-                  </div>
+                  <div className="mobile-card-action">{renderAction(r)}</div>
                 </div>
               ))}
           </section>
+
+          {/* Diagnostics Modal */}
+          {diagOpen && (
+            <div className="diag-overlay" role="dialog" aria-modal="true">
+              <div className="diag-modal">
+                <div className="diag-head">
+                  <div>
+                    <div className="diag-title">UPS Diagnostics</div>
+                    <div className="muted" style={{ marginTop: 4 }}>
+                      This checks env vars + Firebase + seller address readiness for label generation.
+                    </div>
+                  </div>
+
+                  <button className="btn" type="button" onClick={() => setDiagOpen(false)}>
+                    Close
+                  </button>
+                </div>
+
+                <div style={{ marginTop: 12 }}>
+                  {diagLoading ? (
+                    <div className="muted">Running checks…</div>
+                  ) : diagError ? (
+                    <div className="diag-error">{diagError}</div>
+                  ) : diagData ? (
+                    <>
+                      <div className="diag-summary">
+                        <span className={`badge ${diagData.summary.readyForProductionLabel ? "good" : "warn"}`}>
+                          {diagData.summary.readyForProductionLabel ? "READY" : "NOT READY"}
+                        </span>
+                        <span className="muted" style={{ marginLeft: 10 }}>
+                          Production label roadmap status
+                        </span>
+                      </div>
+
+                      {diagData.summary.notes?.length ? (
+                        <ul className="diag-notes">
+                          {diagData.summary.notes.map((n, idx) => (
+                            <li key={idx}>{n}</li>
+                          ))}
+                        </ul>
+                      ) : null}
+
+                      <div className="diag-list">
+                        {diagData.checks.map((c, idx) => (
+                          <div key={idx} className="diag-item">
+                            <span className={`badge ${c.ok ? "good" : "warn"}`}>{c.ok ? "PASS" : "FAIL"}</span>
+                            <div className="diag-item-body">
+                              <div className="cell-strong">{c.title}</div>
+                              {c.details ? <div className="muted">{c.details}</div> : null}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </>
+                  ) : (
+                    <div className="muted">No results yet.</div>
+                  )}
+                </div>
+
+                <div style={{ marginTop: 14, display: "flex", gap: 10, justifyContent: "flex-end", flexWrap: "wrap" }}>
+                  <button className="btn btn-primary" type="button" disabled={diagLoading} onClick={runDiagnostics}>
+                    {diagLoading ? "Checking…" : "Run Diagnostics"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
 
           <div style={{ height: 26 }} />
         </main>
@@ -544,11 +604,17 @@ export default function SellerOrders() {
         }
 
         /* ---- Desktop / Mobile toggle ---- */
-        .mobile-cards { display: none; }
+        .mobile-cards {
+          display: none;
+        }
 
         @media (max-width: 700px) {
-          .desktop-table { display: none; }
-          .mobile-cards { display: block; }
+          .desktop-table {
+            display: none;
+          }
+          .mobile-cards {
+            display: block;
+          }
 
           .page-head {
             flex-direction: column;
@@ -648,6 +714,78 @@ export default function SellerOrders() {
           width: auto;
           flex: 0 0 auto;
         }
+
+        /* Diagnostics modal */
+        .diag-overlay {
+          position: fixed;
+          inset: 0;
+          background: rgba(0, 0, 0, 0.6);
+          display: flex;
+          justify-content: center;
+          align-items: flex-start;
+          padding: 24px 16px;
+          z-index: 1000;
+        }
+        .diag-modal {
+          width: 100%;
+          max-width: 720px;
+          background: #111827;
+          border: 1px solid #1f2937;
+          border-radius: 16px;
+          padding: 16px;
+          margin-top: 40px;
+        }
+        .diag-head {
+          display: flex;
+          justify-content: space-between;
+          align-items: flex-start;
+          gap: 12px;
+        }
+        .diag-title {
+          font-size: 16px;
+          font-weight: 700;
+          color: #ffffff;
+        }
+        .diag-error {
+          padding: 10px 12px;
+          border-radius: 12px;
+          border: 1px solid rgba(248, 113, 113, 0.45);
+          background: rgba(248, 113, 113, 0.1);
+          color: #fecaca;
+          font-size: 12px;
+        }
+        .diag-summary {
+          display: flex;
+          align-items: center;
+          padding: 10px 12px;
+          border-radius: 12px;
+          border: 1px solid #1f2937;
+          background: #0b1220;
+        }
+        .diag-notes {
+          margin: 10px 0 0;
+          padding-left: 18px;
+          color: #d1d5db;
+          font-size: 12px;
+        }
+        .diag-list {
+          margin-top: 12px;
+          display: grid;
+          gap: 10px;
+        }
+        .diag-item {
+          display: flex;
+          gap: 10px;
+          align-items: flex-start;
+          padding: 10px 12px;
+          border-radius: 12px;
+          border: 1px solid #1f2937;
+          background: rgba(0, 0, 0, 0.18);
+        }
+        .diag-item-body {
+          flex: 1;
+          min-width: 0;
+        }
       `}</style>
     </>
   );
@@ -683,25 +821,17 @@ export default function SellerOrders() {
     const overdue = diff < 0;
     const soon = diff >= 0 && diff <= 24 * 60 * 60 * 1000;
 
-    return (
-      <span className={`badge ${overdue ? "warn" : soon ? "warn" : "good"}`}>
-        {overdue ? `Overdue • ${label}` : label}
-      </span>
-    );
+    return <span className={`badge ${overdue ? "warn" : soon ? "warn" : "good"}`}>{overdue ? `Overdue • ${label}` : label}</span>;
   }
 
   function renderStatus(r: OrderRow) {
     const stage = String(r.fulfillment?.stage || "").toUpperCase();
     const status = String(r.status || "").toUpperCase();
 
-    if (stage === "PAID" || status === "PAID")
-      return <span className="badge neutral">SOLD – SHIP NOW</span>;
-    if (stage === "SHIPPED" || status === "SHIPPED")
-      return <span className="badge good">Shipped</span>;
-    if (stage === "DELIVERED" || status === "DELIVERED")
-      return <span className="badge good">Delivered</span>;
-    if (stage === "SIGNATURE_CONFIRMED")
-      return <span className="badge good">Signature Confirmed</span>;
+    if (stage === "PAID" || status === "PAID") return <span className="badge neutral">SOLD – SHIP NOW</span>;
+    if (stage === "SHIPPED" || status === "SHIPPED") return <span className="badge good">Shipped</span>;
+    if (stage === "DELIVERED" || status === "DELIVERED") return <span className="badge good">Delivered</span>;
+    if (stage === "SIGNATURE_CONFIRMED") return <span className="badge good">Signature Confirmed</span>;
 
     return <span className="badge neutral">{r.status || "—"}</span>;
   }
@@ -734,12 +864,7 @@ export default function SellerOrders() {
 
           <div className="action-row">
             {ship.trackingUrl ? (
-              <a
-                className="btn"
-                href={ship.trackingUrl}
-                target="_blank"
-                rel="noreferrer"
-              >
+              <a className="btn" href={ship.trackingUrl} target="_blank" rel="noreferrer">
                 Open Tracking
               </a>
             ) : (
@@ -792,6 +917,20 @@ export default function SellerOrders() {
         </div>
 
         <div className="action-row">
+          {/* NEW: Diagnostics button */}
+          <button
+            type="button"
+            className="btn"
+            onClick={() => {
+              setDiagOpen(true);
+              setDiagError(null);
+              setDiagData(null);
+            }}
+            title="Run checks to confirm UPS + Firebase config and seller address readiness"
+          >
+            UPS Diagnostics
+          </button>
+
           <button
             type="button"
             className="btn"
@@ -809,20 +948,10 @@ export default function SellerOrders() {
               Tracking: {labelResult[r.id]!.trackingNumber}
             </div>
             <div className="action-row">
-              <a
-                className="btn"
-                href={labelResult[r.id]!.labelUrl}
-                target="_blank"
-                rel="noreferrer"
-              >
+              <a className="btn" href={labelResult[r.id]!.labelUrl} target="_blank" rel="noreferrer">
                 Download Label
               </a>
-              <a
-                className="btn"
-                href={labelResult[r.id]!.trackingUrl}
-                target="_blank"
-                rel="noreferrer"
-              >
+              <a className="btn" href={labelResult[r.id]!.trackingUrl} target="_blank" rel="noreferrer">
                 Track
               </a>
             </div>
@@ -844,12 +973,7 @@ export default function SellerOrders() {
             Signature required
           </label>
 
-          <button
-            type="button"
-            className="btn btn-primary"
-            disabled={savingId === r.id}
-            onClick={() => onMarkShipped(r.id)}
-          >
+          <button type="button" className="btn btn-primary" disabled={savingId === r.id} onClick={() => onMarkShipped(r.id)}>
             {savingId === r.id ? "Saving…" : "Mark Shipped"}
           </button>
         </div>
@@ -861,24 +985,38 @@ export default function SellerOrders() {
     );
   }
 
+  // NEW: run diagnostics (server checks envs + Firebase + seller address)
+  async function runDiagnostics() {
+    try {
+      setDiagLoading(true);
+      setDiagError(null);
+      setDiagData(null);
+
+      const res = await sellerFetch("/api/ups/diagnostics", { method: "POST" });
+      const json = await res.json();
+
+      if (!res.ok || !json?.ok) throw new Error(json?.error || "Diagnostics failed.");
+
+      setDiagData(json as UpsDiagnosticsResponse);
+    } catch (e: any) {
+      setDiagError(e?.message || "Diagnostics failed.");
+    } finally {
+      setDiagLoading(false);
+    }
+  }
+
   async function onGenerateLabel(orderId: string) {
     try {
       setGeneratingLabelId(orderId);
       setError(null);
 
+      // ✅ FIX: Do NOT send blank seller address from the UI.
+      // The server should resolve seller address from Firestore (seller_banking / seller profile).
       const res = await sellerFetch("/api/ups/generate-order-label", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           orderId,
-          seller: {
-            name: "Seller",
-            phone: "",
-            address1: "",
-            city: "",
-            state: "",
-            zip: "",
-          },
           pkg: {
             weightLbs: 3,
             lengthIn: 16,
