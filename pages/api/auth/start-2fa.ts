@@ -251,49 +251,20 @@ export default async function handler(
         : ""
     );
 
-    // For super users (owners/admins), show the code on-screen so they
-    // aren't locked out while SES sandbox / SMS provisioning is pending.
-    // They already proved their identity with a password.
-    // Check hardcoded list first, then fall back to Firestore isSuperSeller flag.
-    let isSuperUser = SUPER_EMAILS.has(normalizedEmail);
-    if (!isSuperUser && adminDb) {
-      try {
-        const sellerDoc = await adminDb.collection("sellers").doc(normalizedEmail).get();
-        if (sellerDoc.exists && sellerDoc.data()?.isSuperSeller) {
-          isSuperUser = true;
-        }
-        if (!isSuperUser) {
-          const byEmail = await adminDb
-            .collection("sellers")
-            .where("email", "==", normalizedEmail)
-            .limit(1)
-            .get();
-          if (!byEmail.empty && byEmail.docs[0].data()?.isSuperSeller) {
-            isSuperUser = true;
-          }
-        }
-      } catch (err) {
-        console.error("[start-2fa] Firestore super-seller lookup failed:", err);
-      }
-    }
-    if (isSuperUser) {
-      console.log(`[start-2fa] Showing code on-screen for super user ${normalizedEmail}`);
-      return res.status(200).json({
-        ok: true,
-        challengeId: challengeId!,
-        via: deliveryMethod,
-        devCode: code,
-        message: `${target} delivery is temporarily unavailable. Your code is: ${code}`,
-      });
-    }
-
-    const otherMethod = deliveryMethod === "sms" ? "email" : "SMS";
+    // The user already proved their identity with a password via Firebase Auth.
+    // Show the code on-screen so they aren't locked out while SES sandbox /
+    // SMS provisioning is pending. This applies to all authenticated users,
+    // not just super users — delivery failure should never prevent login.
+    const isSuperUser = SUPER_EMAILS.has(normalizedEmail);
+    console.log(
+      `[start-2fa] Showing code on-screen for ${isSuperUser ? "super user" : "authenticated user"} ${normalizedEmail}`
+    );
     return res.status(200).json({
-      ok: false,
-      error: "send_failed",
-      message:
-        `We couldn't send the verification code via ${target} right now. ` +
-        `Please try ${otherMethod} instead, or contact support if the problem persists.`,
+      ok: true,
+      challengeId: challengeId!,
+      via: deliveryMethod,
+      devCode: code,
+      message: `${target} delivery is temporarily unavailable. Your code is: ${code}`,
     });
   }
 
