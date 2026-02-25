@@ -107,15 +107,6 @@ async function uploadLabelToStorage(
 }
 
 // ── Seller address resolution ─────────────────────────────────────────
-//
-// IMPORTANT: UPS label creation needs a complete shipper ("from") address.
-// In the UI, we should NOT hardcode blank seller address fields.
-// This API now auto-resolves the address server-side.
-//
-// Priority:
-//  1) Explicit seller address provided in request (override)
-//  2) seller_banking/<sellerEmail> (preferred)
-//  3) sellers/<sellerId> profile address (fallback, if present)
 
 function isCompleteAddress(a: Partial<UpsAddress> | undefined | null) {
   return !!(a && a.name && a.address1 && a.city && a.state && a.zip);
@@ -126,7 +117,6 @@ async function getSellerAddressFromStorage(
 ): Promise<UpsAddress | null> {
   if (!adminDb) return null;
 
-  // 1) Pull seller email/name/phone
   let sellerEmail = "";
   let sellerName = "";
   let sellerPhone = "";
@@ -157,7 +147,6 @@ async function getSellerAddressFromStorage(
     }
   }
 
-  // 2) Prefer seller_banking doc (structured payout/shipping address)
   if (sellerEmail) {
     const bankingDoc = await adminDb
       .collection("seller_banking")
@@ -180,7 +169,6 @@ async function getSellerAddressFromStorage(
     }
   }
 
-  // 3) Fallback: if seller profile has an address block
   if (sellerDoc.exists) {
     const sd: any = sellerDoc.data() || {};
     const addr = sd.address || sd.shippingAddress || null;
@@ -225,7 +213,6 @@ export default async function handler(
       .json({ ok: false, error: "Firebase not configured" });
   }
 
-  // Authenticate seller
   const sellerId = await getSellerId(req);
   if (!sellerId) {
     return res.status(401).json({ ok: false, error: "unauthorized" });
@@ -245,7 +232,6 @@ export default async function handler(
       });
     }
 
-    // Load order and verify ownership
     const orderRef = adminDb.collection("orders").doc(String(orderId));
     const orderSnap = await orderRef.get();
     if (!orderSnap.exists) {
@@ -257,7 +243,6 @@ export default async function handler(
       return res.status(403).json({ ok: false, error: "forbidden" });
     }
 
-    // ── Verify order is paid (PayPal) before generating a label ──
     const isPaid =
       order.paypalCaptured === true ||
       String(order.paypalStatus || "").toUpperCase() === "COMPLETED" ||
@@ -271,7 +256,6 @@ export default async function handler(
       });
     }
 
-    // ── Idempotency: if order already has tracking + label, return existing data ──
     const existingShipping = order.shipping;
     if (existingShipping?.trackingNumber && existingShipping?.labelUrl) {
       return res.status(200).json({
@@ -288,7 +272,6 @@ export default async function handler(
       });
     }
 
-    // Extract buyer shipping address from the order
     const sa = order.shippingAddress;
     if (!sa || !sa.line1 || !sa.city || !sa.state || !sa.postal_code) {
       return res.status(400).json({
@@ -308,7 +291,6 @@ export default async function handler(
       country: sa.country || "US",
     };
 
-    // Resolve seller address (override -> stored)
     let sellerAddress: UpsAddress | null = null;
 
     if (isCompleteAddress(seller)) {
@@ -341,7 +323,6 @@ export default async function handler(
       heightIn: Number(pkg.heightIn),
     };
 
-    // Validate label format
     const labelFormat: "GIF" | "PDF" =
       reqLabelFormat === "PDF"
         ? "PDF"
@@ -349,7 +330,6 @@ export default async function handler(
         ? "GIF"
         : (undefined as any);
 
-    // Create shipment + label via UPS
     const result = await createShippingLabel({
       seller: sellerAddress,
       buyer: buyerAddress,
@@ -362,14 +342,12 @@ export default async function handler(
       result.trackingNumber
     )}`;
 
-    // Upload label to Firebase Storage
     const labelUrl = await uploadLabelToStorage(
       String(orderId),
       result.labelBase64,
       result.labelFormat
     );
 
-    // Store tracking + label URL on the order (no base64 in Firestore)
     await orderRef.set(
       {
         updatedAt: FieldValue.serverTimestamp(),
@@ -387,7 +365,6 @@ export default async function handler(
       { merge: true }
     );
 
-    // Email seller with a download link — queue via email_outbox for reliable delivery
     try {
       let sellerEmail = "";
       const sellerDoc2 = await adminDb.collection("sellers").doc(sellerId).get();
@@ -408,13 +385,14 @@ export default async function handler(
           `Download label: ${labelUrl}\n\n` +
           `Thank you,\nMyFamousFinds`;
 
-        // Send immediately AND queue (belt & suspenders)
         await sendMail({ to: sellerEmail, subject, text }).catch(() => {});
+        
+        // Renamed 'meta' to 'metadata' here:
         await queueEmail({
           to: sellerEmail,
           subject,
           text,
-          meta: {
+          metadata: {
             kind: "ups_label_ready",
             orderId: String(orderId),
             sellerId: String(sellerId),
@@ -434,7 +412,6 @@ export default async function handler(
     });
   } catch (err: any) {
     console.error("[generate-order-label] Error:", err);
-
     return res.status(500).json({
       ok: false,
       error: err?.message || "Failed to generate UPS label",
