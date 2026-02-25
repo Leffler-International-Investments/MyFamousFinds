@@ -10,6 +10,7 @@ import {
 } from "../../../utils/email";
 import { queueEmail } from "../../../utils/emailOutbox";
 import { tryAutoGenerateLabel } from "../../../utils/autoGenerateLabel";
+import { getPayoutSettings } from "../../../lib/payoutSettings";
 
 type SuccessResponse = {
   ok: true;
@@ -149,6 +150,29 @@ export default async function handler(
     const amountTotal = Number(capture?.amount?.value || 0);
     const currency = capture?.amount?.currency_code || "USD";
 
+    // Determine payout eligibility based on cooling period
+    let payoutField: Record<string, any> = {};
+    try {
+      const payoutSettings = await getPayoutSettings();
+      const coolingDays = payoutSettings.defaultCoolingDays || 7;
+      const eligibleAt = new Date(Date.now() + coolingDays * 24 * 60 * 60 * 1000).toISOString();
+      payoutField = {
+        payout: {
+          status: coolingDays === 0 ? "ELIGIBLE" : "PENDING",
+          eligibleAt,
+          platformCommissionPct: 15,
+        },
+      };
+    } catch {
+      // Default to ELIGIBLE if settings lookup fails
+      payoutField = {
+        payout: {
+          status: "ELIGIBLE",
+          platformCommissionPct: 15,
+        },
+      };
+    }
+
     // Create or update the order in Firestore
     let orderId: string;
     if (!existingOrder.empty) {
@@ -183,9 +207,11 @@ export default async function handler(
         amountTotal: Math.round(amountTotal * 100), // store in cents for consistency
         currency,
         status: "paid",
+        source: "capture",
         createdAt: Date.now(),
         shippingAddress,
         ...(pendingData.buyerId ? { buyerId: pendingData.buyerId } : {}),
+        ...payoutField,
         vipPointsAwarded: false,
         reviewRequestSent: false,
       });

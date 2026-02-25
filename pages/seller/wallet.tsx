@@ -27,6 +27,7 @@ type WalletData = {
   lifetime: number;
   payouts: PayoutRow[];
   account: BankAccount | null;
+  paypalEmail?: string | null;
   upcomingDate: string | null;
 };
 
@@ -157,6 +158,17 @@ export default function SellerWallet() {
 
               {loading ? (
                 <p className="bank-loading">Loading account...</p>
+              ) : data?.paypalEmail ? (
+                <dl className="bank-details">
+                  <div className="detail-row">
+                    <dt>Method</dt>
+                    <dd>PayPal</dd>
+                  </div>
+                  <div className="detail-row">
+                    <dt>PayPal email</dt>
+                    <dd>{data.paypalEmail}</dd>
+                  </div>
+                </dl>
               ) : data?.account ? (
                 <dl className="bank-details">
                   <div className="detail-row">
