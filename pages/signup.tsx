@@ -126,7 +126,7 @@ export default function UnifiedSignupPage() {
             ? "An account already exists with this email using a different sign-in method."
             : err?.code === "auth/operation-not-allowed"
             ? "This sign-in method is not enabled. Please contact support."
-            : "Sign-up failed. Please try again.";
+            : `Sign-up failed. Please try again.${err?.code ? ` (${err.code})` : ""}`;
         setBanner({ type: "error", message: msg });
       });
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -200,7 +200,9 @@ export default function UnifiedSignupPage() {
           ? "Popup was blocked. Redirecting..."
           : err?.code === "auth/account-exists-with-different-credential"
           ? "An account already exists with this email using a different sign-in method."
-          : "Sign-up failed. Please try again.";
+          : err?.code === "auth/operation-not-allowed"
+          ? "This sign-in method is not enabled. Please contact support."
+          : `Sign-up failed. Please try again.${err?.code ? ` (${err.code})` : ""}`;
       setBanner({ type: "error", message: msg });
     } finally {
       setLoading(false);

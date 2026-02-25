@@ -52,7 +52,7 @@ export default function AuthModal({ isOpen, onClose, onSuccess }: Props) {
             ? "An account already exists with this email using a different sign-in method."
             : err?.code === "auth/operation-not-allowed"
             ? "This sign-in method is not enabled. Please contact support."
-            : "Sign-in failed. Please try again.";
+            : `Sign-in failed. Please try again.${err?.code ? ` (${err.code})` : ""}`;
         setError(msg);
       });
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -92,7 +92,13 @@ export default function AuthModal({ isOpen, onClose, onSuccess }: Props) {
           ? "This domain is not authorized for sign-in. Please contact support."
           : err?.code === "auth/account-exists-with-different-credential"
           ? "An account already exists with this email using a different sign-in method."
-          : `${label} sign-in failed. Please try again.`;
+          : err?.code === "auth/operation-not-allowed"
+          ? "This sign-in method is not enabled. Please contact support."
+          : err?.code === "auth/popup-blocked"
+          ? "Popup was blocked. Redirecting..."
+          : err?.code === "auth/cancelled-popup-request"
+          ? "Sign-in was cancelled. Please try again."
+          : `${label} sign-in failed. Please try again.${err?.code ? ` (${err.code})` : ""}`;
       setError(msg);
     } finally {
       setLoading(false);
