@@ -45,10 +45,39 @@ export default async function handler(
       return res.status(500).json({ ok: false, error: "Firebase not configured" });
     }
 
-    // Load seller's PayPal email
+    // Load seller's PayPal email (check sellers doc first, then seller_banking)
     const sellerDoc = await adminDb.collection("sellers").doc(sellerId).get();
     const sellerData: any = sellerDoc.exists ? sellerDoc.data() : {};
-    const paypalEmail = sellerData?.paypalEmail || null;
+    let paypalEmail = sellerData?.paypalEmail || null;
+
+    // Fallback: check seller_banking collection (keyed by email)
+    if (!paypalEmail) {
+      const sellerEmail = String(
+        sellerData?.contactEmail || sellerData?.email || sellerId || ""
+      ).trim().toLowerCase();
+      if (sellerEmail) {
+        try {
+          const bankingDoc = await adminDb
+            .collection("seller_banking")
+            .doc(sellerEmail)
+            .get();
+          if (bankingDoc.exists) {
+            const bankingData: any = bankingDoc.data() || {};
+            paypalEmail = bankingData.paypalEmail || null;
+            // Sync back to sellers collection so future lookups are faster
+            if (paypalEmail) {
+              await adminDb
+                .collection("sellers")
+                .doc(sellerId)
+                .set({ paypalEmail }, { merge: true })
+                .catch(() => {});
+            }
+          }
+        } catch {
+          // Non-blocking
+        }
+      }
+    }
 
     // Load payout history from Firestore
     let payouts: PayoutRow[] = [];

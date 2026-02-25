@@ -43,9 +43,17 @@ export default function AuthModal({ isOpen, onClose, onSuccess }: Props) {
         }
       })
       .catch((err) => {
-        if (err?.code !== "auth/popup-closed-by-user") {
-          console.error("redirect_result_error", err);
-        }
+        if (err?.code === "auth/popup-closed-by-user") return;
+        console.error("redirect_result_error", err);
+        const msg =
+          err?.code === "auth/unauthorized-domain"
+            ? "This domain is not authorized for sign-in. Please contact support."
+            : err?.code === "auth/account-exists-with-different-credential"
+            ? "An account already exists with this email using a different sign-in method."
+            : err?.code === "auth/operation-not-allowed"
+            ? "This sign-in method is not enabled. Please contact support."
+            : "Sign-in failed. Please try again.";
+        setError(msg);
       });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
