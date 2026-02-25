@@ -178,12 +178,35 @@ async function sendViaSmtp(
  * to Gmail/SMTP so that production emails always come from the verified
  * AWS SES domain (admin@myfamousfinds.com).
  */
+
+// ✅ NEW: support both positional args AND object args (for UPS label route)
+type SendMailArgsObject = {
+  to: string;
+  subject: string;
+  text: string;
+  html?: string;
+};
+
 export async function sendMail(
   to: string,
   subject: string,
   text: string,
   html?: string
+): Promise<{ messageId: string }>;
+export async function sendMail(
+  args: SendMailArgsObject
+): Promise<{ messageId: string }>;
+export async function sendMail(
+  a: string | SendMailArgsObject,
+  b?: string,
+  c?: string,
+  d?: string
 ) {
+  const to = typeof a === "string" ? a : a.to;
+  const subject = typeof a === "string" ? (b || "") : a.subject;
+  const text = typeof a === "string" ? (c || "") : a.text;
+  const html = typeof a === "string" ? d : a.html;
+
   const logTag = `[EMAIL] to=${to} subject="${subject}"`;
   console.log(`${logTag} — attempting to send`);
 
