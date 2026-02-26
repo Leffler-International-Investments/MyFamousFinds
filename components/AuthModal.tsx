@@ -46,7 +46,9 @@ export default function AuthModal({ isOpen, onClose, onSuccess }: Props) {
         if (err?.code === "auth/popup-closed-by-user") return;
         console.error("redirect_result_error", err);
         const msg =
-          err?.code === "auth/unauthorized-domain"
+          err?.code === "auth/internal-error"
+            ? "Google sign-in is temporarily unavailable. This may be due to a backend configuration change. Please try email sign-in, or try again later."
+            : err?.code === "auth/unauthorized-domain"
             ? "This domain is not authorized for sign-in. Please contact support."
             : err?.code === "auth/account-exists-with-different-credential"
             ? "An account already exists with this email using a different sign-in method."
@@ -78,6 +80,12 @@ export default function AuthModal({ isOpen, onClose, onSuccess }: Props) {
           setLoading(false);
           return;
         }
+        // auth/internal-error means the OAuth config itself is broken (e.g.
+        // project ownership transfer, revoked credentials). Redirect would
+        // fail with the same error, so surface the message immediately.
+        if (popupErr?.code === "auth/internal-error") {
+          throw popupErr;
+        }
         console.warn("Popup sign-in failed, falling back to redirect:", popupErr?.code);
         await signInWithRedirect(auth, provider);
         return;
@@ -88,7 +96,9 @@ export default function AuthModal({ isOpen, onClose, onSuccess }: Props) {
       if (err?.code === "auth/popup-closed-by-user") return;
       const label = providerType === "google" ? "Google" : "Facebook";
       const msg =
-        err?.code === "auth/unauthorized-domain"
+        err?.code === "auth/internal-error"
+          ? `${label} sign-in is temporarily unavailable. This may be due to a backend configuration change. Please try email sign-in, or try again later.`
+          : err?.code === "auth/unauthorized-domain"
           ? "This domain is not authorized for sign-in. Please contact support."
           : err?.code === "auth/account-exists-with-different-credential"
           ? "An account already exists with this email using a different sign-in method."

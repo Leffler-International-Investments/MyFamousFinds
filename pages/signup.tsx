@@ -120,7 +120,9 @@ export default function UnifiedSignupPage() {
         if (err?.code === "auth/popup-closed-by-user") return;
         console.error("redirect_result_error", err);
         const msg =
-          err?.code === "auth/unauthorized-domain"
+          err?.code === "auth/internal-error"
+            ? "Google sign-up is temporarily unavailable. This may be due to a backend configuration change. Please sign up with email and password, or try again later."
+            : err?.code === "auth/unauthorized-domain"
             ? "This domain is not authorized for sign-up. Please contact support."
             : err?.code === "auth/account-exists-with-different-credential"
             ? "An account already exists with this email using a different sign-in method."
@@ -149,6 +151,12 @@ export default function UnifiedSignupPage() {
         if (popupErr?.code === "auth/popup-closed-by-user") {
           setLoading(false);
           return;
+        }
+        // auth/internal-error means the OAuth config itself is broken (e.g.
+        // project ownership transfer, revoked credentials). Redirect would
+        // fail with the same error, so surface the message immediately.
+        if (popupErr?.code === "auth/internal-error") {
+          throw popupErr;
         }
         console.warn("Popup sign-up failed, falling back to redirect:", popupErr?.code);
         await signInWithRedirect(auth, authProvider);
@@ -194,7 +202,9 @@ export default function UnifiedSignupPage() {
       console.error("social_signup_error", err);
       if (err?.code === "auth/popup-closed-by-user") return;
       const msg =
-        err?.code === "auth/unauthorized-domain"
+        err?.code === "auth/internal-error"
+          ? "Google sign-up is temporarily unavailable. This may be due to a backend configuration change. Please sign up with email and password, or try again later."
+          : err?.code === "auth/unauthorized-domain"
           ? "This domain is not authorized for sign-up. Please contact support."
           : err?.code === "auth/popup-blocked"
           ? "Popup was blocked. Redirecting..."
