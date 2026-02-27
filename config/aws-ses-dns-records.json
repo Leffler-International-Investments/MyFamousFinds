@@ -1,7 +1,7 @@
 {
-  "_comment": "DNS records required for AWS SES email (outbound + inbound) on myfamousfinds.com",
+  "_comment": "DNS records required for AWS SES email (outbound) + Google Workspace (inbound) on myfamousfinds.com",
   "_instructions": "Add these records in your DNS provider (Vercel). Vercel auto-appends the domain — use the short 'host' values below, NOT the full FQDN.",
-  "_last_updated": "2026-02-20",
+  "_last_updated": "2026-02-27",
   "_region": "us-east-1",
   "_dns_provider": "Vercel (nameservers point to Vercel)",
   "_verification_endpoint": "GET /api/admin/verify-ses-dns?key=<ADMIN_PASSWORD>  — checks all records via live DNS lookup",
@@ -85,21 +85,37 @@
     }
   ],
 
-  "inbound_email_records": [
+  "google_workspace_verification": {
+    "type": "TXT",
+    "host": "@",
+    "value": "google-site-verification=my1vWF-xFvgmgNQdV5lqtmPMZ6Sgzxv7JYJFz9EaAec",
+    "purpose": "Domain ownership verification for Google Workspace"
+  },
+
+  "google_workspace_mx_records": [
+    { "type": "MX", "host": "@", "value": "aspmx.l.google.com",      "priority": 1,  "purpose": "Google Workspace primary mail server" },
+    { "type": "MX", "host": "@", "value": "alt1.aspmx.l.google.com",  "priority": 5,  "purpose": "Google Workspace alternate mail server 1" },
+    { "type": "MX", "host": "@", "value": "alt2.aspmx.l.google.com",  "priority": 5,  "purpose": "Google Workspace alternate mail server 2" },
+    { "type": "MX", "host": "@", "value": "alt3.aspmx.l.google.com",  "priority": 10, "purpose": "Google Workspace alternate mail server 3" },
+    { "type": "MX", "host": "@", "value": "alt4.aspmx.l.google.com",  "priority": 10, "purpose": "Google Workspace alternate mail server 4" }
+  ],
+
+  "inbound_email_records_ses_legacy": [
     {
       "type": "MX",
       "host": "@",
       "value": "inbound-smtp.us-east-1.amazonaws.com",
       "priority": 10,
-      "purpose": "Root-domain MX — tells the world to deliver mail for *@myfamousfinds.com to SES inbound. WITHOUT THIS RECORD emails to support@ bounce."
-    },
-    {
-      "type": "TXT",
-      "host": "@",
-      "value": "v=spf1 include:amazonses.com ~all",
-      "purpose": "Root-domain SPF — authorizes SES to send on behalf of the bare domain"
+      "purpose": "LEGACY — SES inbound MX. Replaced by Google Workspace MX records above."
     }
   ],
+
+  "root_domain_spf": {
+    "type": "TXT",
+    "host": "@",
+    "value": "v=spf1 include:amazonses.com include:_spf.google.com ~all",
+    "purpose": "Root-domain SPF — authorizes BOTH AWS SES (outbound transactional) and Google Workspace (Gmail) to send on behalf of the domain"
+  },
 
   "dmarc_record": {
     "type": "TXT",

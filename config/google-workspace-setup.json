@@ -1,0 +1,77 @@
+{
+  "_comment": "Google Workspace setup guide for myfamousfinds.com",
+  "_last_updated": "2026-02-27",
+  "_dns_provider": "Vercel (nameservers point to Vercel)",
+
+  "setup_checklist": {
+    "step_1_verify_domain": {
+      "status": "ACTION REQUIRED",
+      "description": "Add Google domain verification TXT record in Vercel DNS",
+      "instructions": [
+        "Go to vercel.com → your project → Settings → Domains → myfamousfinds.com → DNS Records",
+        "Add new record: Type=TXT, Name=(leave empty for root @), Value=google-site-verification=my1vWF-xFvgmgNQdV5lqtmPMZ6Sgzxv7JYJFz9EaAec, TTL=60",
+        "Go back to Google Workspace admin and click 'Verify'",
+        "Note: DNS propagation can take a few minutes to 48 hours, but Vercel is usually fast (under 5 minutes)"
+      ]
+    },
+
+    "step_2_update_mx_records": {
+      "status": "ACTION REQUIRED",
+      "description": "Switch MX records from AWS SES Inbound to Google Workspace in Vercel DNS",
+      "instructions": [
+        "In Vercel DNS, DELETE the existing MX record: @ → inbound-smtp.us-east-1.amazonaws.com (priority 10)",
+        "Add these 5 Google Workspace MX records:",
+        "  MX  @  aspmx.l.google.com       priority 1",
+        "  MX  @  alt1.aspmx.l.google.com   priority 5",
+        "  MX  @  alt2.aspmx.l.google.com   priority 5",
+        "  MX  @  alt3.aspmx.l.google.com   priority 10",
+        "  MX  @  alt4.aspmx.l.google.com   priority 10"
+      ],
+      "impact": "Inbound emails to *@myfamousfinds.com will now be delivered to Gmail instead of AWS SES. The SES inbound webhook (/api/ses/inbound) will stop receiving new emails."
+    },
+
+    "step_3_update_spf": {
+      "status": "ACTION REQUIRED",
+      "description": "Update SPF record to authorize both AWS SES and Google Workspace",
+      "instructions": [
+        "In Vercel DNS, find the existing root TXT record with value: v=spf1 include:amazonses.com ~all",
+        "Update it to: v=spf1 include:amazonses.com include:_spf.google.com ~all",
+        "This ensures both AWS SES (transactional emails from app) and Google Workspace (Gmail) can send as @myfamousfinds.com"
+      ]
+    },
+
+    "step_4_setup_gmail": {
+      "status": "AFTER VERIFICATION",
+      "description": "Set up Gmail accounts in Google Workspace Admin",
+      "instructions": [
+        "Go to admin.google.com",
+        "Create user accounts (e.g., support@myfamousfinds.com, admin@myfamousfinds.com)",
+        "Configure email routing rules if needed",
+        "Set up email signatures"
+      ]
+    },
+
+    "step_5_app_considerations": {
+      "status": "IMPORTANT NOTE",
+      "description": "Your app still sends transactional emails via AWS SES — this continues to work",
+      "details": [
+        "AWS SES OUTBOUND (transactional emails) remains unchanged — the app sends from admin@myfamousfinds.com via SES",
+        "DKIM signing via SES continues to work — no changes needed",
+        "INBOUND email now goes to Gmail instead of the SES webhook at /api/ses/inbound",
+        "If you need inbound emails processed by the app, set up Gmail forwarding rules to forward to the SES inbound endpoint, OR use Google Workspace routing to forward a copy to the app webhook"
+      ]
+    }
+  },
+
+  "dns_records_summary": {
+    "verification_txt": "google-site-verification=my1vWF-xFvgmgNQdV5lqtmPMZ6Sgzxv7JYJFz9EaAec",
+    "mx_records": [
+      "@ MX 1  aspmx.l.google.com",
+      "@ MX 5  alt1.aspmx.l.google.com",
+      "@ MX 5  alt2.aspmx.l.google.com",
+      "@ MX 10 alt3.aspmx.l.google.com",
+      "@ MX 10 alt4.aspmx.l.google.com"
+    ],
+    "updated_spf": "v=spf1 include:amazonses.com include:_spf.google.com ~all"
+  }
+}
