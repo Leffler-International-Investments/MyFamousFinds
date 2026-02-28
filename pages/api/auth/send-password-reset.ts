@@ -41,7 +41,10 @@ export default async function handler(
   };
 
   if (!isFirebaseAdminReady || !adminAuth) {
-    console.error("[send-password-reset] Firebase Admin not configured");
+    console.error(
+      "[send-password-reset] CRITICAL: Firebase Admin not configured — email WILL NOT be sent.",
+      "Set FIREBASE_SERVICE_ACCOUNT_JSON (or FB_PROJECT_ID + FB_CLIENT_EMAIL + FB_PRIVATE_KEY) in Vercel env vars."
+    );
     return res.status(200).json(successResponse);
   }
 

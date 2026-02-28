@@ -147,9 +147,9 @@ export default async function handler(
   // 4. DMARC record
   results.push(await checkTxt(`_dmarc.${DOMAIN}`, "v=DMARC1"));
 
-  // 5. Root-domain inbound MX (required so support@... can receive mail)
+  // 5. Root-domain inbound MX (Google Workspace handles inbound mail)
   results.push(
-    await checkMx(DOMAIN, "inbound-smtp.us-east-1.amazonaws.com")
+    await checkMx(DOMAIN, "aspmx.l.google.com")
   );
 
   // 6. Root-domain SPF
