@@ -41,9 +41,11 @@
       "Verify SPF TXT record: host 'mail' with value 'v=spf1 include:amazonses.com ~all'"
     ],
     "inbound_bounces": [
-      "Run: dig MX myfamousfinds.com +short — you should see '10 inbound-smtp.us-east-1.amazonaws.com.'",
-      "If you see NO MX result, the root-domain MX record is missing — add it in Vercel DNS",
-      "If MX resolves but emails still bounce, check the SES receipt rule set is active and the SNS topic is subscribed",
+      "NOTE: Inbound email now routes to Google Workspace (Gmail), NOT SES inbound",
+      "Run: dig MX myfamousfinds.com +short — you should see Google MX servers (aspmx.l.google.com etc.)",
+      "The old SES inbound MX record (inbound-smtp.us-east-1.amazonaws.com) has been replaced by Google Workspace MX records",
+      "If inbound emails are not arriving in Gmail, check that Itai has completed domain verification in admin.google.com",
+      "If you need inbound emails processed by the app, set up Gmail forwarding rules to the /api/ses/inbound webhook",
       "Set SUPPORT_INBOX env var as a quick workaround — replies go to that real inbox"
     ]
   },
