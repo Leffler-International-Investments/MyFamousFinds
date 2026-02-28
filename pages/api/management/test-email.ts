@@ -2,9 +2,12 @@
 
 import type { NextApiRequest, NextApiResponse } from "next";
 import { sendTestEmail } from "../../../utils/email";
+import { requireAdmin } from "../../../utils/adminAuth";
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== "POST") return res.status(405).json({ ok: false, error: "method_not_allowed" });
+
+  if (!requireAdmin(req, res)) return;
 
   try {
     const { to } = (req.body || {}) as { to?: string };
