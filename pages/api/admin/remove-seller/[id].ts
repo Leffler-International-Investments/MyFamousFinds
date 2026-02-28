@@ -64,7 +64,7 @@ export default async function handler(
         status: "Removed",
         removedAt: FieldValue.serverTimestamp(),
         removedReason: reason || null,
-        updatedAt: Date.now(),
+        updatedAt: FieldValue.serverTimestamp(),
       },
       { merge: true }
     );
@@ -108,7 +108,7 @@ export default async function handler(
           {
             status: "Removed",
             removedAt: FieldValue.serverTimestamp(),
-            updatedAt: Date.now(),
+            updatedAt: FieldValue.serverTimestamp(),
           },
           { merge: true }
         );

@@ -8,11 +8,11 @@ type AdminUser = { email: string; password: string };
 const MANAGEMENT_ADMINS: AdminUser[] = [
   {
     email: "arich1114@aol.com",
-    password: process.env.MANAGEMENT_ARIEL_PASSWORD || "Ariel-Admin-123!",
+    password: process.env.MANAGEMENT_ARIEL_PASSWORD || "",
   },
   {
     email: "leffleryd@gmail.com",
-    password: process.env.MANAGEMENT_DAN_PASSWORD || "Dan-Admin-123!",
+    password: process.env.MANAGEMENT_DAN_PASSWORD || "",
   },
 ];
 
@@ -35,7 +35,7 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
     (u) => u.email.toLowerCase() === normalizedEmail
   );
 
-  if (!user || user.password !== suppliedPassword) {
+  if (!user || !user.password || user.password !== suppliedPassword) {
     return res.status(401).json({ error: "Invalid email or password" });
   }
 

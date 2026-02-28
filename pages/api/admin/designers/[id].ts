@@ -14,6 +14,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
   const id = String(req.query.id || "");
   if (!id) return res.status(400).json({ ok: false, error: "missing_id" });
 
+  if (!adminDb) {
+    return res.status(500).json({ ok: false, error: "Firebase not configured" });
+  }
+
   try {
     if (req.method === "DELETE") {
       await adminDb.collection("designers").doc(id).delete();

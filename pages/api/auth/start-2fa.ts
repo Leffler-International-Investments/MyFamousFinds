@@ -246,7 +246,7 @@ export default async function handler(
     console.error(
       `[start-2fa] ${target} delivery FAILED for ${normalizedEmail}.`,
       `Error: ${sendError}`,
-      sendError.includes("not verified")
+      String(sendError).includes("not verified")
         ? `\n→ SES sandbox: the recipient "${normalizedEmail}" is not a verified identity in SES (region ${process.env.AWS_REGION || "us-east-1"}). Either verify this recipient in the SES console, or request SES production access to send to anyone.`
         : ""
     );

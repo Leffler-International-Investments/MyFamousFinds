@@ -7,6 +7,7 @@ import fs from "fs/promises";
 import sharp from "sharp";
 import crypto from "crypto";
 import admin, { isFirebaseAdminReady } from "../../../utils/firebaseAdmin";
+import { requireAdmin } from "../../../utils/adminAuth";
 
 export const config = {
   api: {
@@ -80,6 +81,9 @@ export default async function handler(
   if (req.method !== "POST") {
     return res.status(405).json({ ok: false, error: "Method not allowed" });
   }
+
+  // Verify management session (server-side)
+  if (!requireAdmin(req, res)) return;
 
   try {
     const { files } = await parseForm(req);

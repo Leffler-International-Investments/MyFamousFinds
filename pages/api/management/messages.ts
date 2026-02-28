@@ -2,6 +2,7 @@
 
 import type { NextApiRequest, NextApiResponse } from "next";
 import { adminDb, FieldValue } from "../../../utils/firebaseAdmin";
+import { requireAdmin } from "../../../utils/adminAuth";
 
 // ✅ UPDATED: Added new vivid types here
 type MessageType =
@@ -21,7 +22,8 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse<ApiResponse>
 ) {
-  // Auth: management pages are protected by useRequireAdmin on the frontend
+  // Verify management session (server-side)
+  if (!requireAdmin(req, res)) return;
 
   if (!adminDb) {
     return res.status(500).json({ ok: false, error: "Firebase not configured" });
