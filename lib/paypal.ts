@@ -251,6 +251,14 @@ export async function verifyPayPalWebhook(params: {
   headers: Record<string, string>;
   body: string;
 }): Promise<boolean> {
+  let parsedEvent: any;
+  try {
+    parsedEvent = JSON.parse(params.body);
+  } catch {
+    console.error("[verifyPayPalWebhook] Failed to parse webhook body as JSON");
+    return false;
+  }
+
   const verifyBody = {
     auth_algo: params.headers["paypal-auth-algo"],
     cert_url: params.headers["paypal-cert-url"],
@@ -258,7 +266,7 @@ export async function verifyPayPalWebhook(params: {
     transmission_sig: params.headers["paypal-transmission-sig"],
     transmission_time: params.headers["paypal-transmission-time"],
     webhook_id: params.webhookId,
-    webhook_event: JSON.parse(params.body),
+    webhook_event: parsedEvent,
   };
 
   const res = await paypalFetch("/v1/notifications/verify-webhook-signature", {

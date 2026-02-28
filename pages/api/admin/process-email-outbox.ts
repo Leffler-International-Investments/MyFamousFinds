@@ -26,12 +26,14 @@ export default async function handler(
     return res.status(405).json({ error: "Method not allowed" });
   }
 
-  // Allow cron secret or admin session to trigger
-  const cronSecret = process.env.CRON_SECRET;
-  const authHeader = req.headers.authorization;
-  if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
-    // Fall through — admin session check will be handled by cookie/auth
-    // For now, allow any POST (admin pages are protected at the route level)
+  // Verify authorization: cron secret or admin API secret
+  const secret =
+    req.headers.authorization?.replace("Bearer ", "") ||
+    (req.query.secret as string | undefined) ||
+    "";
+  const expected = process.env.CRON_SECRET || process.env.ADMIN_API_SECRET;
+  if (!expected || secret !== expected) {
+    return res.status(401).json({ error: "Unauthorized" });
   }
 
   const jobs = await getPendingEmails(10);

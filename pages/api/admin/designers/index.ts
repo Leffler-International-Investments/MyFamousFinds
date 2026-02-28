@@ -22,6 +22,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
     return res.status(401).json({ ok: false, error: "unauthorized" });
   }
 
+  if (!adminDb) {
+    return res.status(500).json({ ok: false, error: "Firebase not configured" });
+  }
+
   try {
     if (req.method === "GET") {
       const q = String(req.query.q || "").toLowerCase().trim();

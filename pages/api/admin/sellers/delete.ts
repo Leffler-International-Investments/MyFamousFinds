@@ -4,14 +4,14 @@ import { adminAuth as firebaseAdminAuth } from "../../../../utils/firebaseAdmin"
 import { requireAdmin } from "../../../../utils/adminAuth";
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  if (req.method !== "POST") return res.status(405).send("Method not allowed");
+  if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
 
   // Verify management session — any authorised management team member can delete
   if (!requireAdmin(req, res)) return;
 
   try {
     const { sellerId } = req.body || {};
-    if (!sellerId) return res.status(400).send("Missing sellerId");
+    if (!sellerId) return res.status(400).json({ error: "Missing sellerId" });
 
     // Look up the seller doc to get their email before deleting
     const sellerRef = adminDb.collection("sellers").doc(String(sellerId));
@@ -43,6 +43,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(200).json({ ok: true });
   } catch (e: any) {
     console.error(e);
-    return res.status(500).send(e?.message || "Server error");
+    return res.status(500).json({ error: e?.message || "Server error" });
   }
 }

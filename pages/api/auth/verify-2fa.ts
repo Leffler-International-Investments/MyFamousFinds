@@ -52,7 +52,7 @@ export default async function handler(
         };
 
         if (data.used) {
-          return res.status(400).json({
+          return res.status(401).json({
             ok: false,
             error: "already_used",
             message: "Code already used",
@@ -60,7 +60,7 @@ export default async function handler(
         }
 
         if (data.code !== code) {
-          return res.status(400).json({
+          return res.status(401).json({
             ok: false,
             error: "invalid_code",
             message: "Invalid code",
