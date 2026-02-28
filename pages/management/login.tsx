@@ -150,10 +150,7 @@ export default function ManagementLoginPage() {
       setChallengeId(twofaJson.challengeId);
       setStep("verify");
 
-      const message = twofaJson.devCode
-        ? `Your 6-digit code is: ${twofaJson.devCode}`
-        : twofaJson.message;
-      setInfo(message);
+      setInfo(twofaJson.message || "Code sent.");
     } catch (err) {
       console.error("management_start_2fa_error", err);
       setStep("choose_method");

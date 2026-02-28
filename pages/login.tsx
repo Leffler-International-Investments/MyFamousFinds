@@ -306,10 +306,7 @@ export default function UnifiedLoginPage() {
       setChallengeId(twofaJson.challengeId);
       setStep("verify");
       const successJson = twofaJson as Start2faSuccess;
-      const message = successJson.devCode
-        ? `Your 6-digit code is: ${successJson.devCode}`
-        : successJson.message || "Code sent.";
-      setInfo(message);
+      setInfo(successJson.message || "Code sent.");
     } catch (err) {
       console.error("seller_start_2fa_error", err);
       setError("Unexpected error. Please try again.");

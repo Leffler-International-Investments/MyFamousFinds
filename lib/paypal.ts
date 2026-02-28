@@ -9,6 +9,13 @@ const PAYPAL_API_BASE =
 
 let cachedToken: { token: string; expiresAt: number } | null = null;
 
+// Log the resolved PayPal environment at startup for diagnostics
+console.log(
+  `[PayPal] Configured: base=${PAYPAL_API_BASE} env=${process.env.PAYPAL_ENV || "(not set)"} ` +
+  `clientId=${(process.env.PAYPAL_CLIENT_ID || "").trim() ? "set" : "MISSING"} ` +
+  `secret=${(process.env.PAYPAL_CLIENT_SECRET || "").trim() ? "set" : "MISSING"}`
+);
+
 /**
  * Get an OAuth2 access token from PayPal (client-credentials grant).
  * Cached until ~5 minutes before expiry.
@@ -38,6 +45,25 @@ export async function getPayPalAccessToken(): Promise<string> {
 
   if (!res.ok) {
     const text = await res.text();
+    // Provide clear diagnostic info for the most common PayPal auth failure
+    if (res.status === 401) {
+      const isSandboxUrl = PAYPAL_API_BASE.includes("sandbox");
+      console.error(
+        `[PayPal] 401 invalid_client — AUTHENTICATION FAILED\n` +
+        `  API Base URL: ${PAYPAL_API_BASE}\n` +
+        `  Environment: ${isSandboxUrl ? "SANDBOX" : "LIVE"}\n` +
+        `  Client ID starts with: ${clientId.slice(0, 8)}…\n` +
+        `  Secret length: ${secret.length} chars\n` +
+        `  PAYPAL_ENV env var: ${process.env.PAYPAL_ENV || "(not set)"}\n` +
+        `\n  COMMON CAUSES:\n` +
+        `  1. Sandbox credentials used with Live API URL (or vice versa)\n` +
+        `  2. Wrong PAYPAL_CLIENT_SECRET (copied from wrong app, rotated, or has extra spaces)\n` +
+        `  3. Vercel env vars not applied to Production (updated Development but not Production)\n` +
+        `\n  FIX: In Vercel → Settings → Environment Variables, ensure PAYPAL_CLIENT_ID,\n` +
+        `  PAYPAL_CLIENT_SECRET, and PAYPAL_API_BASE are set for the correct environment,\n` +
+        `  then redeploy.`
+      );
+    }
     throw new Error(`PayPal auth failed (${res.status}): ${text}`);
   }
 
