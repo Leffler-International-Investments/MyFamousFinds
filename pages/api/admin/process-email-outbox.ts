@@ -21,7 +21,8 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse<Data | { error: string }>
 ) {
-  if (req.method !== "POST") {
+  // Accept both GET (Vercel Cron) and POST (admin dashboard / manual trigger)
+  if (req.method !== "POST" && req.method !== "GET") {
     return res.status(405).json({ error: "Method not allowed" });
   }
 
