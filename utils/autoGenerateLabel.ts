@@ -6,6 +6,7 @@
 // Non-blocking: callers should fire-and-forget (catch errors, don't fail payment flow).
 
 import crypto from "crypto";
+import sharp from "sharp";
 import admin, { adminDb, FieldValue, isFirebaseAdminReady } from "./firebaseAdmin";
 import { createShippingLabel, type UpsAddress, type UpsPackage } from "../lib/ups";
 import { sendMail } from "./email";
@@ -50,10 +51,26 @@ async function uploadLabelToStorage(
     throw new Error("Firebase Storage is not configured — cannot upload label.");
   }
 
-  const ext = labelFormat.toLowerCase();
+  let buffer: Buffer = Buffer.from(labelBase64, "base64");
+  let contentType = CONTENT_TYPES[labelFormat.toUpperCase()] || "application/octet-stream";
+  let ext = labelFormat.toLowerCase();
+
+  // For GIF labels, flatten to white background PNG so transparency doesn't cause issues
+  if (labelFormat.toUpperCase() === "GIF") {
+    try {
+      const processed = await sharp(buffer)
+        .flatten({ background: { r: 255, g: 255, b: 255 } })
+        .png()
+        .toBuffer();
+      buffer = Buffer.from(processed);
+      contentType = "image/png";
+      ext = "png";
+    } catch (err) {
+      console.warn("[autoGenerateLabel] Failed to process label image, using original:", err);
+    }
+  }
+
   const path = `shipping-labels/${orderId}/label.${ext}`;
-  const buffer = Buffer.from(labelBase64, "base64");
-  const contentType = CONTENT_TYPES[labelFormat.toUpperCase()] || "application/octet-stream";
   const token = crypto.randomUUID();
 
   await bucket.file(path).save(buffer, {

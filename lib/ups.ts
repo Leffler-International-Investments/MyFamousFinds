@@ -133,6 +133,10 @@ export async function createShippingLabel(
   // Default to env-configured format, then "GIF"
   const labelFmt = reqFormat || (process.env.UPS_LABEL_FORMAT as "GIF" | "PDF") || "GIF";
 
+  // UPS requires non-empty phone numbers — use a placeholder if missing
+  const sellerPhone = seller.phone?.replace(/\D/g, "") || "0000000000";
+  const buyerPhone = buyer.phone?.replace(/\D/g, "") || "0000000000";
+
   const shipmentBody = {
     ShipmentRequest: {
       Request: {
@@ -146,7 +150,7 @@ export async function createShippingLabel(
         Description: "MyFamousFinds Order",
         Shipper: {
           Name: seller.name,
-          Phone: { Number: seller.phone },
+          Phone: { Number: sellerPhone },
           ShipperNumber: accountNumber,
           Address: {
             AddressLine: [seller.address1, seller.address2 || ""].filter(
@@ -160,7 +164,7 @@ export async function createShippingLabel(
         },
         ShipTo: {
           Name: buyer.name,
-          Phone: { Number: buyer.phone },
+          Phone: { Number: buyerPhone },
           Address: {
             AddressLine: [buyer.address1, buyer.address2 || ""].filter(Boolean),
             City: buyer.city,
@@ -171,7 +175,7 @@ export async function createShippingLabel(
         },
         ShipFrom: {
           Name: seller.name,
-          Phone: { Number: seller.phone },
+          Phone: { Number: sellerPhone },
           Address: {
             AddressLine: [seller.address1, seller.address2 || ""].filter(
               Boolean
@@ -220,6 +224,8 @@ export async function createShippingLabel(
           Code: labelFmt,
           Description: labelFmt,
         },
+        // HTTPUserAgent is required for GIF/PNG label formats
+        ...(labelFmt === "GIF" ? { HTTPUserAgent: "Mozilla/5.0" } : {}),
         LabelStockSize: {
           Height: "6",
           Width: "4",
