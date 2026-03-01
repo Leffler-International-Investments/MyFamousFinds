@@ -13,10 +13,12 @@ export default function SellerForgotPasswordPage() {
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [debug, setDebug] = useState<string | null>(null);
   const [resendCount, setResendCount] = useState(0);
 
   async function requestReset(emailAddr: string) {
     setError(null);
+    setDebug(null);
     setLoading(true);
 
     try {
@@ -33,15 +35,22 @@ export default function SellerForgotPasswordPage() {
           json?.error ||
           (res.status === 429
             ? "Too many requests. Please wait a few minutes and try again."
-            : "Unable to send reset link. Please try again.");
+            : res.status === 500
+              ? "Server error — see details below."
+              : `Request failed with status ${res.status}`);
         setError(msg);
+        if (json?.debug) setDebug(json.debug);
         return false;
       }
 
       return true;
     } catch (err: any) {
       console.error("seller_forgot_password_error", err);
-      setError(err?.message || "Something went wrong. Please try again.");
+      setError(
+        err?.message === "Failed to fetch"
+          ? "Network error — could not reach the server. Check your connection."
+          : err?.message || "Something went wrong. Please try again."
+      );
       return false;
     } finally {
       setLoading(false);
@@ -72,6 +81,7 @@ export default function SellerForgotPasswordPage() {
     if (ok) {
       setResendCount((c) => c + 1);
       setError(null);
+      setDebug(null);
     }
   }
 
@@ -97,6 +107,12 @@ export default function SellerForgotPasswordPage() {
             </p>
 
             {error && <div className="errorBox">{error}</div>}
+            {debug && (
+              <details className="debugBox">
+                <summary>Technical details (for admin)</summary>
+                <pre>{debug}</pre>
+              </details>
+            )}
 
             <form onSubmit={handleSubmit} className="form">
               <label htmlFor="email">Email address</label>
@@ -128,6 +144,12 @@ export default function SellerForgotPasswordPage() {
             </p>
 
             {error && <div className="errorBox">{error}</div>}
+            {debug && (
+              <details className="debugBox">
+                <summary>Technical details (for admin)</summary>
+                <pre>{debug}</pre>
+              </details>
+            )}
 
             {resendCount > 0 && !error && (
               <div className="successBox">
@@ -145,6 +167,7 @@ export default function SellerForgotPasswordPage() {
                 onClick={() => {
                   setStep("form");
                   setError(null);
+                  setDebug(null);
                   setResendCount(0);
                 }}
               >
@@ -210,12 +233,38 @@ export default function SellerForgotPasswordPage() {
 
         .errorBox {
           margin-bottom: 14px;
-          padding: 8px 10px;
+          padding: 10px 12px;
           border-radius: 8px;
           border: 1px solid #f87171;
           background: #fef2f2;
           color: #b91c1c;
           font-size: 0.85rem;
+          line-height: 1.5;
+        }
+
+        .debugBox {
+          margin-bottom: 14px;
+          padding: 8px 10px;
+          border-radius: 8px;
+          border: 1px solid #fbbf24;
+          background: #fffbeb;
+          font-size: 0.8rem;
+          color: #92400e;
+        }
+
+        .debugBox summary {
+          cursor: pointer;
+          font-weight: 500;
+          font-size: 0.8rem;
+        }
+
+        .debugBox pre {
+          margin: 6px 0 0;
+          white-space: pre-wrap;
+          word-break: break-all;
+          font-size: 0.75rem;
+          line-height: 1.4;
+          color: #78350f;
         }
 
         .successBox {
