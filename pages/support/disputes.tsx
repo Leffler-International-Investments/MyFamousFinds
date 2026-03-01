@@ -2,15 +2,26 @@
 import Head from "next/head";
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
+import { auth, firebaseClientReady } from "../../utils/firebaseClient";
+import { onAuthStateChanged, User } from "firebase/auth";
 
 export default function Disputes() {
   const [busy, setBusy] = useState(false);
   const [ok, setOk] = useState(false);
+  const [error, setError] = useState("");
+  const [user, setUser] = useState<User | null>(null);
+
+  useEffect(() => {
+    if (!firebaseClientReady || !auth) return;
+    const unsub = onAuthStateChanged(auth, (u) => setUser(u));
+    return () => unsub();
+  }, []);
 
   async function submit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setBusy(true);
+    setError("");
 
     // Build a plain object from the form WITHOUT using FormData.entries()
     const formData = new FormData(e.currentTarget);
@@ -19,14 +30,30 @@ export default function Disputes() {
       payload[key] = String(value);
     });
 
-    await fetch("/api/disputes/create", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
+    try {
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      if (user) {
+        const token = await user.getIdToken();
+        headers["Authorization"] = `Bearer ${token}`;
+      }
 
-    setOk(true);
-    setBusy(false);
+      const r = await fetch("/api/disputes/create", {
+        method: "POST",
+        headers,
+        body: JSON.stringify(payload),
+      });
+
+      if (!r.ok) {
+        const data = await r.json().catch(() => ({}));
+        throw new Error(data.error || "Failed to submit dispute");
+      }
+
+      setOk(true);
+    } catch (e: any) {
+      setError(e.message || "Something went wrong. Please try again.");
+    } finally {
+      setBusy(false);
+    }
   }
 
   return (
@@ -69,6 +96,7 @@ export default function Disputes() {
             <button className="btn" disabled={busy}>
               {busy ? "Submitting…" : "Submit"}
             </button>
+            {error && <div className="err">{error}</div>}
           </form>
         )}
       </main>
@@ -125,6 +153,11 @@ export default function Disputes() {
           background: #0f0f0f;
           padding: 16px;
           border-radius: 10px;
+        }
+        .err {
+          margin-top: 8px;
+          color: #f87171;
+          font-size: 13px;
         }
         @media (max-width: 900px) {
           .form {

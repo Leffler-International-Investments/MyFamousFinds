@@ -4,8 +4,22 @@ import Head from "next/head";
 import Link from "next/link";
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
+import { useRequireAdmin } from "../../hooks/useRequireAdmin";
 
 export default function ManagementSupport() {
+  const { loading } = useRequireAdmin();
+
+  if (loading) {
+    return (
+      <div className="dashboard-page">
+        <Head><title>Support – Management Console | MyFamousFinds</title></Head>
+        <Header />
+        <main className="dashboard-main"><p>Checking admin access…</p></main>
+        <Footer />
+      </div>
+    );
+  }
+
   return (
     <div className="dashboard-page">
       <Head>

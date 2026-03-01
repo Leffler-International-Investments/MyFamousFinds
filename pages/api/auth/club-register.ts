@@ -32,7 +32,7 @@ export default async function handler(
       email: email,
       name: name || "",
       // role: "customer", // We DON'T set role, to avoid overwriting "admin" or "seller"
-      vipTier: "Bronze", // Starting tier
+      vipTier: "Member", // Starting tier (matches VIP system)
       points: 0,
       createdAt: FieldValue.serverTimestamp(),
     };

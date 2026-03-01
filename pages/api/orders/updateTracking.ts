@@ -2,6 +2,7 @@
 
 import type { NextApiRequest, NextApiResponse } from "next";
 import { adminDb, FieldValue } from "../../../utils/firebaseAdmin";
+import { isAdminRequest } from "../../../utils/adminAuth";
 
 type Data = { ok: true } | { ok: false; error: string };
 
@@ -24,6 +25,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
 
   if (!adminDb) {
     return res.status(500).json({ ok: false, error: "firebase_not_configured" });
+  }
+
+  if (!isAdminRequest(req)) {
+    return res.status(401).json({ ok: false, error: "unauthorized" });
   }
 
   try {

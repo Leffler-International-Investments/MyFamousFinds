@@ -21,10 +21,11 @@ type Props = {
 };
 
 function StarDisplay({ rating }: { rating: number }) {
+  const clamped = Math.max(0, Math.min(5, Math.round(rating)));
   return (
     <span style={{ color: "#eab308", fontSize: 18, letterSpacing: 2 }}>
-      {"★".repeat(rating)}
-      {"☆".repeat(5 - rating)}
+      {"★".repeat(clamped)}
+      {"☆".repeat(5 - clamped)}
     </span>
   );
 }

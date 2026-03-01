@@ -1,7 +1,7 @@
 // FILE: /components/WishlistContext.tsx
 // App-wide wishlist state: loads saved IDs once per user, provides toggle for ProductCard.
 
-import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
+import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/router";
 import { useToast } from "./Toast";
 

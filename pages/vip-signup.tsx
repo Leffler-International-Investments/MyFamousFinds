@@ -96,6 +96,8 @@ export default function VipSignupPage() {
       const joinJson = await joinRes.json();
       if (!joinRes.ok || !joinJson?.ok) {
         console.error("vip_join_api_error", joinJson);
+        setError("Account created but we couldn't activate your VIP membership. Please try again from your account page.");
+        return;
       }
 
       router.push("/vip-welcome");

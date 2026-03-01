@@ -125,20 +125,17 @@ export default function ButlerChat({ isOpen, onClose }: ButlerChatProps) {
 
       // "open it" / "open" / "buy it" → open first result
       if (lower === "open it" || lower === "open" || lower === "buy it") {
-        setMessages((prev) => {
-          const lastWithResults = [...prev]
-            .reverse()
-            .find(
-              (msg) => msg.role === "butler" && (msg as any).results?.length
-            );
-          const target = (lastWithResults as any)?.results?.[0] as
-            | ButlerResult
-            | undefined;
-          if (target && typeof window !== "undefined") {
-            window.location.href = target.href;
-          }
-          return prev;
-        });
+        const lastWithResults = [...messages]
+          .reverse()
+          .find(
+            (msg) => msg.role === "butler" && (msg as any).results?.length
+          );
+        const target = (lastWithResults as any)?.results?.[0] as
+          | ButlerResult
+          | undefined;
+        if (target && typeof window !== "undefined") {
+          window.location.href = target.href;
+        }
         return;
       }
 
@@ -171,7 +168,7 @@ export default function ButlerChat({ isOpen, onClose }: ButlerChatProps) {
         setMessages((m) => [...m, errorMessage]);
       }
     },
-    [input]
+    [input, messages]
   );
 
   function handleSend() {

@@ -32,6 +32,10 @@ export default function MyOrdersPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (!auth || !db) {
+      setLoading(false);
+      return;
+    }
     const unsubAuth = auth.onAuthStateChanged(async (user) => {
       if (!user) {
         setOrders([]);
@@ -85,12 +89,15 @@ export default function MyOrdersPage() {
           byFormEmail.forEach(pushOrder);
         }
 
-        // Sort by createdAt descending
-        list.sort((a, b) => {
-          const ta = typeof a.createdAt === "number" ? a.createdAt : 0;
-          const tb = typeof b.createdAt === "number" ? b.createdAt : 0;
-          return tb - ta;
-        });
+        // Sort by createdAt descending (handles Firestore timestamps and plain numbers)
+        const toMs = (v: any): number => {
+          if (!v) return 0;
+          if (typeof v === "number") return v;
+          if (typeof v.toMillis === "function") return v.toMillis();
+          if (v.seconds) return v.seconds * 1000;
+          return 0;
+        };
+        list.sort((a, b) => toMs(b.createdAt) - toMs(a.createdAt));
       } catch (err) {
         console.error("Error loading orders:", err);
       }

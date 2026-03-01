@@ -37,6 +37,7 @@ export default function BuyerSigninPage() {
       if (typeof window !== "undefined") {
         window.localStorage.setItem("ff-role", "buyer");
         window.localStorage.setItem("ff-email", trimmedEmail);
+        window.localStorage.setItem("ff-session-exp", String(Date.now() + 168 * 60 * 60 * 1000));
       }
 
       if (from) {

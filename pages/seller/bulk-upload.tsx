@@ -5,6 +5,7 @@ import { useState } from "react";
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
 import { sellerFetch } from "../../utils/sellerClient";
+import { useRequireSeller } from "../../hooks/useRequireSeller";
 
 type ParsedRow = {
   title: string;
@@ -23,6 +24,7 @@ type ParsedRow = {
 };
 
 export default function SellerBulkUploadPage() {
+  const { loading: authLoading } = useRequireSeller();
   const [raw, setRaw] = useState("");
   const [rows, setRows] = useState<ParsedRow[]>([]);
   const [errors, setErrors] = useState<string | null>(null);
@@ -146,6 +148,19 @@ export default function SellerBulkUploadPage() {
     } finally {
       setIsSubmitting(false);
     }
+  }
+
+  if (authLoading) {
+    return (
+      <>
+        <Head><title>Bulk Upload Listings — Seller</title></Head>
+        <div className="dashboard-page">
+          <Header />
+          <main className="dashboard-main"><p>Checking seller access…</p></main>
+          <Footer />
+        </div>
+      </>
+    );
   }
 
   return (

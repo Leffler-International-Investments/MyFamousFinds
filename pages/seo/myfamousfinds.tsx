@@ -2,6 +2,8 @@
 
 import Head from "next/head";
 import Link from "next/link";
+import Header from "../../components/Header";
+import Footer from "../../components/Footer";
 import config from "../../config/myfamousfinds.json";
 
 export default function MyFamousFindsSeoPage() {
@@ -64,8 +66,10 @@ export default function MyFamousFindsSeoPage() {
         />
       </Head>
 
-      <main className="mx-auto max-w-3xl px-4 py-10 prose prose-slate">
-        <h1>{config.name} – Curated Designer Resale Marketplace</h1>
+      <Header />
+
+      <main style={{ maxWidth: 768, margin: "0 auto", padding: "40px 16px 60px" }}>
+        <h1 style={{ fontSize: 28, fontWeight: 700, marginBottom: 16 }}>{config.name} – Curated Designer Resale Marketplace</h1>
 
         <p>
           <strong>{config.name}</strong> connects buyers with authenticated
@@ -89,11 +93,11 @@ export default function MyFamousFindsSeoPage() {
 
         <p>
           Start exploring:{" "}
-          <Link href="/">
-            <a>visit the {config.name} homepage</a>
-          </Link>
+          <Link href="/">visit the {config.name} homepage</Link>
         </p>
       </main>
+
+      <Footer />
     </>
   );
 }

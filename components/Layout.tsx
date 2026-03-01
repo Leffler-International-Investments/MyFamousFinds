@@ -1,6 +1,5 @@
 // FILE: /components/Layout.tsx
 import Head from "next/head";
-import Link from "next/link";
 import { ReactNode } from "react";
 
 type Props = {

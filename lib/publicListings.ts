@@ -22,7 +22,7 @@ export type PublicListing = {
   createdAt?: any;
 };
 
-const CANON = ["WOMEN", "BAGS", "MEN", "KIDS", "JEWELRY", "WATCHES"] as const;
+const CANON = ["WOMEN", "BAGS", "MEN", "KIDS", "JEWELRY", "WATCHES", "SHOES", "ACCESSORIES"] as const;
 type CanonCategory = (typeof CANON)[number];
 
 function normCategory(v: any): CanonCategory | "" {
@@ -44,6 +44,9 @@ function normCategory(v: any): CanonCategory | "" {
 
   if (s === "KID" || s === "KIDS" || s === "CHILDREN" || s === "CHILDRENS") return "KIDS";
 
+  if (s === "SHOE" || s === "SHOES" || s === "FOOTWEAR") return "SHOES";
+  if (s === "ACCESSORY" || s === "ACCESSORIES" || s === "ACC") return "ACCESSORIES";
+
   if (compact.includes("JEWEL")) return "JEWELRY";
   if (compact.includes("WATCH")) return "WATCHES";
   if (compact.includes("BAG")) return "BAGS";
@@ -51,6 +54,8 @@ function normCategory(v: any): CanonCategory | "" {
   if (compact.includes("WOMEN") || compact.includes("WOMAN")) return "WOMEN";
   if (compact.includes("MEN") || compact.includes("MENS") || compact.includes("MAN"))
     return "MEN";
+  if (compact.includes("SHOE") || compact.includes("FOOTWEAR")) return "SHOES";
+  if (compact.includes("ACCESSOR")) return "ACCESSORIES";
 
   if ((CANON as readonly string[]).includes(s)) return s as CanonCategory;
   return "";
@@ -309,6 +314,8 @@ export async function getPublicListings(opts?: {
   const take = Math.min(Math.max(opts?.take ?? 200, 1), 500);
   const excludeIds = opts?.excludeIds ?? new Set<string>();
 
+  if (!db) return [];
+
   const q = query(
     collection(db, "listings"),
     orderBy("createdAt", "desc"),
@@ -344,6 +351,7 @@ export async function getPublicListings(opts?: {
         .trim()
         || undefined,
       price: typeof price === "number" ? price : undefined,
+      priceUsd: typeof price === "number" ? price : undefined,
       currency: String(d?.currency || d?.pricing?.currency || "USD"),
       category: categoryRaw || undefined,
       condition: String(d?.condition || "").trim() || undefined,

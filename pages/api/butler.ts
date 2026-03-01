@@ -155,6 +155,13 @@ export default async function handler(
       .json({ error: "Please tell me what you're looking for." });
   }
 
+  if (!adminDb) {
+    return res.status(200).json({
+      answer: "Our search is temporarily unavailable. Please try again shortly.",
+      results: [],
+    });
+  }
+
   // AI Customer Service: handle common inquiries with refined responses
   const qLower = userQuery.toLowerCase();
 

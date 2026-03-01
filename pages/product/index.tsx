@@ -98,19 +98,43 @@ export default function ProductsPage({ items }: Props) {
 }
 
 export const getServerSideProps: GetServerSideProps<Props> = async () => {
+  if (!adminDb) {
+    return { props: { items: [] } };
+  }
+
   const snapshot = await adminDb.collection("listings").get();
 
   const items: ProductLike[] = snapshot.docs.map((doc) => {
     const data = doc.data() as any;
+
+    // Extract first available image
+    const images = data.displayImageUrls || data.images || data.imageUrls || [];
+    const image =
+      (typeof data.displayImageUrl === "string" && data.displayImageUrl) ||
+      (Array.isArray(images) && images.length > 0 ? images[0] : "") ||
+      "";
+
+    // Format price as display string
+    const rawPrice = Number(data.priceUsd || data.price || 0);
+    const price = rawPrice
+      ? `$${rawPrice.toLocaleString("en-US", { maximumFractionDigits: 0 })}`
+      : undefined;
+
     return {
       id: doc.id,
-      ...data,
-    } as ProductLike;
+      title: String(data.title || data.name || "Untitled"),
+      brand: String(data.brand || data.designer || "").trim() || undefined,
+      price,
+      image,
+      href: `/product/${doc.id}`,
+      category: String(data.category || "").trim() || undefined,
+      condition: String(data.condition || "").trim() || undefined,
+    };
   });
 
   return {
     props: {
-      items,
+      items: JSON.parse(JSON.stringify(items)),
     },
   };
 };
