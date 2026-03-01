@@ -68,14 +68,12 @@ export default async function handler(
       handleCodeInApp: false,
     });
   } catch (err: any) {
-    if (
-      err.code === "auth/user-not-found" ||
-      err.code === "auth/email-not-found"
-    ) {
+    const code = err?.code || "";
+    if (code === "auth/user-not-found" || code === "auth/email-not-found") {
       console.log(`[send-password-reset] No account found for ${email}`);
       return res.status(200).json(successResponse);
     }
-    console.error("[send-password-reset] Error generating link:", err);
+    console.error(`[send-password-reset] Error generating link: code=${code} message=${err?.message}`, err);
     return res.status(200).json(successResponse);
   }
 
