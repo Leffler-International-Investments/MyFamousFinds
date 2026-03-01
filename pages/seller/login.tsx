@@ -9,7 +9,7 @@ import Header from "../../components/Header";
 import Footer from "../../components/Footer";
 import PasswordInput from "../../components/PasswordInput";
 import PhoneVerificationPopup from "../../components/PhoneVerificationPopup";
-import { signInWithEmailAndPassword } from "firebase/auth";
+import { signInWithCustomToken, signInWithEmailAndPassword } from "firebase/auth";
 import { auth } from "../../utils/firebaseClient";
 
 // Password verification is now handled server-side by the API (like management login)
@@ -32,7 +32,7 @@ type Start2faSuccess = {
 type Start2faError = { ok: false; message?: string };
 type Start2faResponse = Start2faSuccess | Start2faError;
 
-type Verify2faSuccess = { ok: true };
+type Verify2faSuccess = { ok: true; firebaseToken?: string };
 type Verify2faError = { ok: false; message?: string };
 type Verify2faResponse = Verify2faSuccess | Verify2faError;
 
@@ -188,15 +188,21 @@ export default function SellerLoginPage() {
         window.localStorage.setItem("ff-session-exp", String(Date.now() + SESSION_TTL_MS));
       }
 
-      // Establish Firebase Auth session so sellerFetch can get Bearer tokens
+      // Establish Firebase Auth session so sellerFetch can get Bearer tokens.
+      // Prefer the custom token from verify-2fa (always works, doesn't
+      // depend on the user having a matching Firebase Auth password).
+      // Fall back to email/password sign-in as a last resort.
       try {
-        if (auth && password) {
+        const successJson = json as Verify2faSuccess;
+        if (auth && successJson.firebaseToken) {
+          await signInWithCustomToken(auth, successJson.firebaseToken);
+        } else if (auth && password) {
           await signInWithEmailAndPassword(auth, email.trim().toLowerCase(), password);
         }
       } catch (e) {
         // Non-fatal: localStorage session is sufficient for role-based page access.
         // Bearer tokens may be unavailable for some API calls.
-        console.warn("[seller-login] Firebase Auth sign-in skipped:", e);
+        console.warn("[seller-login] Firebase Auth sign-in failed:", e);
       }
 
       if (from) router.push(from);

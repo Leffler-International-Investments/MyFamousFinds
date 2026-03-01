@@ -73,6 +73,16 @@ export async function sendSms(to: string, body: string) {
     const code = err?.name || err?.code || "";
     const msg = err?.message || "";
     console.error(`${logTag} — FAILED (${code})`, msg, err);
+    // Extra guidance for common SNS failures
+    if (msg.includes("sandbox") || msg.includes("OptInRequired") || code === "AuthorizationError") {
+      console.error(
+        `${logTag} — HINT: Your AWS account may be in SMS sandbox mode.\n` +
+        `  In sandbox mode, SMS can only be sent to verified phone numbers.\n` +
+        `  To send to any number (including international +61 AU, +972 IL):\n` +
+        `  1. Go to AWS SNS Console → Text messaging (SMS) → Exit SMS sandbox\n` +
+        `  2. Increase your monthly SMS spending limit above $1 (default).`
+      );
+    }
     throw new Error(
       `SMS failed: ${msg || "Unknown AWS SNS error"}${code ? ` (${code})` : ""}`
     );

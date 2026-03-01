@@ -2,6 +2,7 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import {
   adminDb,
+  adminAuth,
   FieldValue,
   isFirebaseAdminReady,
 } from "../../../utils/firebaseAdmin";
@@ -14,8 +15,43 @@ type Verify2faBody = {
 };
 
 type Verify2faResponse =
-  | { ok: true }
+  | { ok: true; firebaseToken?: string }
   | { ok: false; error: string; message?: string };
+
+/**
+ * After successful 2FA, ensure the user has a Firebase Auth account and
+ * return a custom token so the client can establish a Firebase Auth session.
+ * This is critical for seller API calls (sellerFetch uses Bearer tokens).
+ */
+async function generateFirebaseCustomToken(
+  email: string | undefined
+): Promise<string | undefined> {
+  if (!adminAuth || !email) return undefined;
+
+  try {
+    let uid: string;
+
+    try {
+      const userRecord = await adminAuth.getUserByEmail(email);
+      uid = userRecord.uid;
+    } catch (err: any) {
+      if (err.code === "auth/user-not-found") {
+        // Create a Firebase Auth user so the client can get ID tokens
+        const newUser = await adminAuth.createUser({ email });
+        uid = newUser.uid;
+        console.log(`[verify-2fa] Created Firebase Auth user for ${email} (uid=${uid})`);
+      } else {
+        throw err;
+      }
+    }
+
+    const token = await adminAuth.createCustomToken(uid);
+    return token;
+  } catch (err) {
+    console.warn("[verify-2fa] Failed to generate Firebase custom token:", err);
+    return undefined;
+  }
+}
 
 export default async function handler(
   req: NextApiRequest,
@@ -77,7 +113,13 @@ export default async function handler(
           setAdminSessionCookie(res, data.email);
         }
 
-        return res.status(200).json({ ok: true });
+        // Generate Firebase custom token so the client can establish
+        // a Firebase Auth session (needed for Bearer tokens in sellerFetch)
+        const firebaseToken = await generateFirebaseCustomToken(data.email);
+
+        return res
+          .status(200)
+          .json({ ok: true, ...(firebaseToken ? { firebaseToken } : {}) });
       }
     } catch (err) {
       console.error(
@@ -106,5 +148,10 @@ export default async function handler(
     setAdminSessionCookie(res, mem.email);
   }
 
-  return res.status(200).json({ ok: true });
+  // Generate Firebase custom token (in-memory path)
+  const firebaseToken = await generateFirebaseCustomToken(mem.email);
+
+  return res
+    .status(200)
+    .json({ ok: true, ...(firebaseToken ? { firebaseToken } : {}) });
 }
