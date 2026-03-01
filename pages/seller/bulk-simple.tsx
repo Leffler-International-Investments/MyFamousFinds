@@ -458,7 +458,7 @@ export default function BulkSimple() {
           }
           if (res.status === 401) {
             throw new Error(
-              "Your session has expired. Please log out and sign in again."
+              "Authentication failed. Please refresh the page and try again."
             );
           }
           if (res.status === 504 || res.status === 502) {
@@ -931,12 +931,12 @@ export default function BulkSimple() {
                     Click to choose images or drop them here
                   </span>
 
-                  {it.images && it.images.length > 0 && (
+                  {it.imageDataUrls && it.imageDataUrls.length > 0 && (
                     <div className="thumbs">
-                      {it.images.map((file, i) => (
+                      {it.imageDataUrls.map((dataUrl, i) => (
                         <div className="thumb" key={i}>
                           <img
-                            src={URL.createObjectURL(file)}
+                            src={dataUrl}
                             alt={`Image ${i + 1}`}
                           />
                         </div>
