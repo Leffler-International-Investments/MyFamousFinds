@@ -307,7 +307,7 @@ export default function ManagementLoginPage() {
                           value={email}
                           onChange={(e) => setEmail(e.target.value)}
                           className="auth-input"
-                          placeholder="name@famousfinds.com"
+                          placeholder="name@myfamousfinds.com"
                           disabled={disabled}
                         />
                       </div>
@@ -476,7 +476,7 @@ export default function ManagementLoginPage() {
                         value={setupEmail}
                         onChange={(e) => setSetupEmail(e.target.value)}
                         className="auth-input"
-                        placeholder="name@famousfinds.com"
+                        placeholder="name@myfamousfinds.com"
                         disabled={setupLoading}
                       />
                     </div>

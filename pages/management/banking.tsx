@@ -11,9 +11,9 @@ import { useRequireAdmin } from "../../hooks/useRequireAdmin";
 
 // ✅ Only these emails can access the management payout setup
 const ALLOWED_EMAILS = [
-  "ariel@famousfinds.com",   // Business owner
-  "leffleryd@gmail.com",     // Developer (you)
-  "danyaffa@famousfinds.com" // Secondary dev/business email
+  "ariel@myfamousfinds.com",   // Business owner
+  "leffleryd@gmail.com",       // Developer (you)
+  "danyaffa@myfamousfinds.com" // Secondary dev/business email
 ];
 
 // PayPal doesn't require a Connect redirect — payouts use PayPal email
