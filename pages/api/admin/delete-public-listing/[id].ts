@@ -4,7 +4,7 @@
 
 import type { NextApiRequest, NextApiResponse } from "next";
 import { requireAdmin } from "../../../../utils/adminAuth";
-import { adminDb } from "../../../../utils/firebaseAdmin";
+import { adminDb, isFirebaseAdminReady } from "../../../../utils/firebaseAdmin";
 import { markListingDeleted } from "../../../../lib/deletedListings";
 
 type ApiResponse = { ok: true } | { ok: false; error: string };
@@ -22,6 +22,10 @@ export default async function handler(
     return;
   }
 
+  if (!isFirebaseAdminReady || !adminDb) {
+    return res.status(500).json({ ok: false, error: "Firebase Admin not initialized. Check env vars." });
+  }
+
   const { id } = req.query;
   if (!id || typeof id !== "string") {
     return res.status(400).json({ ok: false, error: "Missing listing id" });
@@ -29,9 +33,7 @@ export default async function handler(
 
   try {
     // Hard-delete from Firestore so it's gone from all pages
-    if (adminDb) {
-      await adminDb.collection("listings").doc(id).delete();
-    }
+    await adminDb.collection("listings").doc(id).delete();
     // Also soft-delete for any cached references
     await markListingDeleted(id);
     return res.status(200).json({ ok: true });

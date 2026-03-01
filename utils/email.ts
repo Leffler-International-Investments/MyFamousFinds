@@ -178,7 +178,7 @@ async function sendViaSmtp(
  */
 
 function isSmtpConfigured(): boolean {
-  return Boolean(SMTP_HOST && (SMTP_USER || !SMTP_PASS));
+  return Boolean(SMTP_HOST && SMTP_USER);
 }
 
 // ✅ NEW: support both positional args AND object args (for UPS label route)

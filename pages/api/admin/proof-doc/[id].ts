@@ -3,7 +3,7 @@
 
 import type { NextApiRequest, NextApiResponse } from "next";
 import { requireAdmin } from "../../../../utils/adminAuth";
-import { adminDb } from "../../../../utils/firebaseAdmin";
+import { adminDb, isFirebaseAdminReady } from "../../../../utils/firebaseAdmin";
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== "GET") {
@@ -11,6 +11,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   if (!requireAdmin(req, res)) return;
+
+  if (!isFirebaseAdminReady || !adminDb) {
+    return res.status(500).json({ error: "Firebase Admin not initialized. Check env vars." });
+  }
 
   const { id } = req.query;
   if (!id || typeof id !== "string") {

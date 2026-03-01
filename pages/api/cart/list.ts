@@ -25,23 +25,28 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
   const userId = await getUserId(req);
   if (!userId) return res.status(401).json({ ok: false, error: "unauthorized" });
 
-  const snap = await adminDb
-    .collection("buyerCartItems")
-    .where("userId", "==", userId)
-    .get();
+  try {
+    const snap = await adminDb
+      .collection("buyerCartItems")
+      .where("userId", "==", userId)
+      .get();
 
-  const items: CartItem[] = snap.docs.map((doc) => {
-    const d: any = doc.data() || {};
-    return {
-      id: doc.id,
-      listingId: d.listingId || "",
-      title: d.title || "",
-      brand: d.brand || "",
-      price: Number(d.price || 0),
-      currency: d.currency || "USD",
-      imageUrl: d.imageUrl || "",
-    };
-  });
+    const items: CartItem[] = snap.docs.map((doc) => {
+      const d: any = doc.data() || {};
+      return {
+        id: doc.id,
+        listingId: d.listingId || "",
+        title: d.title || "",
+        brand: d.brand || "",
+        price: Number(d.price || 0),
+        currency: d.currency || "USD",
+        imageUrl: d.imageUrl || "",
+      };
+    });
 
-  return res.status(200).json({ ok: true, items });
+    return res.status(200).json({ ok: true, items });
+  } catch (err: any) {
+    console.error("cart list error:", err);
+    return res.status(500).json({ ok: false, error: err?.message || "Server error" });
+  }
 }

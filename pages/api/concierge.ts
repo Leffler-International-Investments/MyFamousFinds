@@ -14,15 +14,20 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
   const { name, email, city, details } = req.body || {};
   if (!name || !email) return res.status(400).json({ ok: false, error: "missing_fields" });
 
-  const ref = await adminDb.collection("concierge_leads").add({
-    userId: uid || null,
-    name: String(name),
-    email: String(email),
-    city: String(city || ""),
-    details: String(details || ""),
-    createdAt: FieldValue.serverTimestamp(),
-    status: "NEW",
-  });
+  try {
+    const ref = await adminDb.collection("concierge_leads").add({
+      userId: uid || null,
+      name: String(name),
+      email: String(email),
+      city: String(city || ""),
+      details: String(details || ""),
+      createdAt: FieldValue.serverTimestamp(),
+      status: "NEW",
+    });
 
-  return res.status(201).json({ ok: true, id: ref.id });
+    return res.status(201).json({ ok: true, id: ref.id });
+  } catch (err: any) {
+    console.error("concierge lead error:", err);
+    return res.status(500).json({ ok: false, error: err?.message || "Server error" });
+  }
 }
