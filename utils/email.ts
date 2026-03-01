@@ -14,14 +14,20 @@ function cleanEnv(v?: string) {
 const AWS_REGION = cleanEnv(process.env.AWS_REGION) || "us-east-1";
 const AWS_ACCESS_KEY_ID = cleanEnv(process.env.AWS_ACCESS_KEY_ID);
 const AWS_SECRET_ACCESS_KEY = cleanEnv(process.env.AWS_SECRET_ACCESS_KEY);
-// SES sender must be a verified identity in AWS — use admin@ (verified in SES)
+// SES sender must be a verified identity in AWS — NEVER fall back to SMTP_FROM
+// (which is typically a personal Gmail and will be rejected by SES).
 const AWS_SES_FROM =
   cleanEnv(process.env.AWS_SES_FROM) ||
   "Famous Finds <admin@myfamousfinds.com>";
+// IMPORTANT: The Reply-To address MUST point to an inbox that can actually
+// receive mail.  admin@myfamousfinds.com only works once:
+//   1. Root-domain MX records are added (see config/aws-ses-dns-records.json), AND
+//   2. An inbox / alias / SES inbound rule exists for that address.
+// Until then, set SUPPORT_INBOX to an address that works (e.g. your Gmail).
 const AWS_SES_REPLY_TO =
   cleanEnv(process.env.AWS_SES_REPLY_TO) ||
   cleanEnv(process.env.SUPPORT_INBOX) ||
-  "Famous Finds Support <support@myfamousfinds.com>";
+  "Famous Finds Support <admin@myfamousfinds.com>";
 
 function isSesConfigured(): boolean {
   return Boolean(AWS_ACCESS_KEY_ID && AWS_SECRET_ACCESS_KEY);
@@ -66,7 +72,7 @@ const SMTP_FROM = SMTP_FROM_RAW
 
 const SMTP_REPLY_TO =
   cleanEnv(process.env.SUPPORT_INBOX) ||
-  "Famous Finds Support <support@myfamousfinds.com>";
+  "Famous Finds Support <admin@myfamousfinds.com>";
 
 function getSmtpTransport() {
   if (!SMTP_HOST || !SMTP_PORT) {
@@ -101,12 +107,10 @@ async function sendViaSes(
   to: string,
   subject: string,
   text: string,
-  html?: string,
-  fromOverride?: string
+  html?: string
 ) {
-  const fromRaw = fromOverride || AWS_SES_FROM;
-  const parsedFrom = parseFromAddress(fromRaw);
-  const sourceEmail = parsedFrom?.email || fromRaw;
+  const parsedFrom = parseFromAddress(AWS_SES_FROM);
+  const sourceEmail = parsedFrom?.email || AWS_SES_FROM;
   // SES requires the From to be a verified identity (domain or email)
   const source = parsedFrom?.name
     ? `${parsedFrom.name} <${sourceEmail}>`
@@ -153,12 +157,11 @@ async function sendViaSmtp(
   to: string,
   subject: string,
   text: string,
-  html?: string,
-  fromOverride?: string
+  html?: string
 ) {
   const transport = getSmtpTransport();
   const info = await transport.sendMail({
-    from: fromOverride || SMTP_FROM,
+    from: SMTP_FROM,
     ...(SMTP_REPLY_TO ? { replyTo: SMTP_REPLY_TO } : {}),
     to,
     subject,
@@ -184,7 +187,6 @@ type SendMailArgsObject = {
   subject: string;
   text: string;
   html?: string;
-  from?: string;
 };
 
 export async function sendMail(
@@ -206,7 +208,6 @@ export async function sendMail(
   const subject = typeof a === "string" ? (b || "") : a.subject;
   const text = typeof a === "string" ? (c || "") : a.text;
   const html = typeof a === "string" ? d : a.html;
-  const from = typeof a === "string" ? undefined : a.from;
 
   const logTag = `[EMAIL] to=${to} subject="${subject}"`;
   console.log(`${logTag} — attempting to send`);
@@ -214,7 +215,7 @@ export async function sendMail(
   // AWS SES is the primary (and production) transport
   if (isSesConfigured()) {
     try {
-      const result = await sendViaSes(to, subject, text, html, from);
+      const result = await sendViaSes(to, subject, text, html);
       console.log(`${logTag} — sent via AWS SES (messageId=${result.messageId})`);
       return result;
     } catch (sesErr) {
@@ -223,7 +224,7 @@ export async function sendMail(
       // Fall back to SMTP if configured
       if (isSmtpConfigured()) {
         try {
-          const result = await sendViaSmtp(to, subject, text, html, from);
+          const result = await sendViaSmtp(to, subject, text, html);
           console.log(`${logTag} — sent via SMTP fallback (messageId=${result.messageId})`);
           return result;
         } catch (smtpErr) {
@@ -240,7 +241,7 @@ export async function sendMail(
   if (isSmtpConfigured()) {
     console.warn(`${logTag} — AWS SES not configured, using SMTP`);
     try {
-      const result = await sendViaSmtp(to, subject, text, html, from);
+      const result = await sendViaSmtp(to, subject, text, html);
       console.log(`${logTag} — sent via SMTP (messageId=${result.messageId})`);
       return result;
     } catch (err) {
