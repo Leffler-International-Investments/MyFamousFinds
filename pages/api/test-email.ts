@@ -41,12 +41,15 @@ export default async function handler(
     return res.status(400).json({ ok: false, error: "Missing to email" });
   }
 
-  // SMTP diagnostic info (no secrets)
+  // Diagnostic info (no secrets)
+  const smtpUser = process.env.SMTP_USER || process.env.SMTP_USER_ADMIN || "";
+  const sesConfigured = Boolean(process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY);
   const smtp = {
+    transport: sesConfigured ? "AWS SES (primary)" : smtpUser ? "SMTP (Gmail)" : "NONE",
     host: process.env.SMTP_HOST || "(not set)",
     port: process.env.SMTP_PORT || "(not set)",
-    user: process.env.SMTP_USER ? `${process.env.SMTP_USER.slice(0, 3)}...` : "(not set)",
-    from: process.env.SMTP_FROM || "(not set)",
+    user: smtpUser ? `${smtpUser.slice(0, 3)}...` : "(not set)",
+    from: process.env.SMTP_FROM || process.env.AWS_SES_FROM || "(not set)",
   };
 
   try {
