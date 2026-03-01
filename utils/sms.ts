@@ -13,8 +13,9 @@ const AWS_REGION = cleanEnv(process.env.AWS_REGION) || "us-east-1";
 const AWS_ACCESS_KEY_ID = cleanEnv(process.env.AWS_ACCESS_KEY_ID);
 const AWS_SECRET_ACCESS_KEY = cleanEnv(process.env.AWS_SECRET_ACCESS_KEY);
 const AWS_SNS_SMS_TYPE = cleanEnv(process.env.AWS_SNS_SMS_TYPE) || "Transactional";
-// SNS SenderID must be 1-11 alphanumeric characters
-const AWS_SNS_SENDER_ID = cleanEnv(process.env.AWS_SNS_SENDER_ID) || "FamousFinds";
+// SNS SenderID must be 1-11 alphanumeric characters (AWS rejects longer values)
+const rawSenderId = cleanEnv(process.env.AWS_SNS_SENDER_ID) || "FamousFinds";
+const AWS_SNS_SENDER_ID = rawSenderId.replace(/[^A-Za-z0-9]/g, "").slice(0, 11) || "FamousFinds";
 
 function getClient() {
   if (!AWS_ACCESS_KEY_ID || !AWS_SECRET_ACCESS_KEY) {
