@@ -25,6 +25,7 @@
 
 import type { NextApiRequest, NextApiResponse } from "next";
 import crypto from "crypto";
+import sharp from "sharp";
 import admin, {
   adminDb,
   FieldValue,
@@ -85,11 +86,26 @@ async function uploadLabelToStorage(
     );
   }
 
-  const ext = labelFormat.toLowerCase(); // "gif" or "pdf"
-  const path = `shipping-labels/${orderId}/label.${ext}`;
-  const buffer = Buffer.from(labelBase64, "base64");
-  const contentType =
+  let buffer = Buffer.from(labelBase64, "base64");
+  let contentType =
     CONTENT_TYPES[labelFormat.toUpperCase()] || "application/octet-stream";
+  let ext = labelFormat.toLowerCase(); // "gif" or "pdf"
+
+  // For GIF labels, flatten to white background PNG so transparency doesn't cause issues
+  if (labelFormat.toUpperCase() === "GIF") {
+    try {
+      buffer = await sharp(buffer)
+        .flatten({ background: { r: 255, g: 255, b: 255 } })
+        .png()
+        .toBuffer();
+      contentType = "image/png";
+      ext = "png";
+    } catch (err) {
+      console.warn("[generate-order-label] Failed to process label image, using original:", err);
+    }
+  }
+
+  const path = `shipping-labels/${orderId}/label.${ext}`;
   const token = crypto.randomUUID();
 
   await bucket.file(path).save(buffer, {

@@ -202,6 +202,30 @@ export default function Cart() {
     }
   };
 
+  const handleRemoveSavedItem = async (item: SavedItem) => {
+    setActionId(item.id);
+    try {
+      const token = await getToken();
+      if (!token) return;
+      const res = await fetch("/api/cart/save-for-later", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ listingId: item.listingId, action: "remove-saved" }),
+      });
+      const json = await res.json();
+      if (json.ok) {
+        setSavedItems((prev) => prev.filter((i) => i.id !== item.id));
+      }
+    } catch (err) {
+      console.error("Remove saved item failed:", err);
+    } finally {
+      setActionId(null);
+    }
+  };
+
   const handleMoveToCart = async (item: SavedItem) => {
     if (!user) return;
     setActionId(item.id);
@@ -391,6 +415,14 @@ export default function Cart() {
                             : alreadyInCart
                             ? "In bag"
                             : "Move to bag"}
+                        </button>
+                        <button
+                          type="button"
+                          className="btn-remove"
+                          onClick={() => handleRemoveSavedItem(item)}
+                          disabled={actionId === item.id}
+                        >
+                          {actionId === item.id ? "..." : "Remove"}
                         </button>
                       </div>
                     </div>

@@ -92,6 +92,12 @@ export default async function handler(
       return res.status(200).json({ ok: true });
     }
 
+    if (action === "remove-saved") {
+      // Remove from saved items (wishlist)
+      await adminDb.collection("buyerSavedItems").doc(docId).delete();
+      return res.status(200).json({ ok: true });
+    }
+
     return res.status(400).json({ ok: false, error: "invalid_action" });
   } catch (err) {
     console.error("[cart/save-for-later] Failed:", err);

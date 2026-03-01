@@ -88,6 +88,57 @@ export default function AccountPage() {
   // Recommendations
   const [recommendations, setRecommendations] = useState<ItemRow[]>([]);
 
+  // Removing items
+  const [removingId, setRemovingId] = useState<string | null>(null);
+
+  const handleRemoveSavedItem = async (item: ItemRow) => {
+    if (!auth?.currentUser) return;
+    setRemovingId(item.id);
+    try {
+      const token = await auth.currentUser.getIdToken();
+      const res = await fetch("/api/cart/save-for-later", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ listingId: item.listingId || item.id, action: "remove-saved" }),
+      });
+      const json = await res.json();
+      if (json.ok) {
+        setSavedItems((prev) => prev.filter((i) => i.id !== item.id));
+      }
+    } catch (err) {
+      console.error("Remove saved item failed:", err);
+    } finally {
+      setRemovingId(null);
+    }
+  };
+
+  const handleRemoveCartItem = async (item: ItemRow) => {
+    if (!auth?.currentUser) return;
+    setRemovingId(item.id);
+    try {
+      const token = await auth.currentUser.getIdToken();
+      const res = await fetch("/api/cart/update", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ productId: item.listingId || item.id, add: false }),
+      });
+      const json = await res.json();
+      if (json.ok) {
+        setCartItems((prev) => prev.filter((i) => i.id !== item.id));
+      }
+    } catch (err) {
+      console.error("Remove cart item failed:", err);
+    } finally {
+      setRemovingId(null);
+    }
+  };
+
   // PWA install
   const handlePwaInstall = async () => {
     const prompt = (window as any).__pwaInstallPrompt;
@@ -548,35 +599,93 @@ export default function AccountPage() {
                   <h2>Saved Items</h2>
                   <div className="saved-grid">
                     {savedItems.map((item) => (
-                      <Link
-                        key={item.id}
-                        href={`/product/${item.listingId || item.id}`}
-                        className="saved-card"
-                      >
-                        {item.imageUrl ? (
-                          <img
-                            src={item.imageUrl}
-                            alt={item.title}
-                            className="saved-card-img"
-                          />
-                        ) : (
-                          <div className="saved-card-img-placeholder" />
-                        )}
-                        <div className="saved-card-info">
-                          {item.brand && (
-                            <span className="saved-card-brand">{item.brand}</span>
+                      <div key={item.id} className="saved-card">
+                        <Link
+                          href={`/product/${item.listingId || item.id}`}
+                          className="saved-card-link"
+                        >
+                          {item.imageUrl ? (
+                            <img
+                              src={item.imageUrl}
+                              alt={item.title}
+                              className="saved-card-img"
+                            />
+                          ) : (
+                            <div className="saved-card-img-placeholder" />
                           )}
-                          <span className="saved-card-title">{item.title}</span>
-                          {typeof item.price === "number" && item.price > 0 && (
-                            <span className="saved-card-price">
-                              {item.price.toLocaleString("en-US", {
-                                style: "currency",
-                                currency: item.currency || "USD",
-                              })}
-                            </span>
+                          <div className="saved-card-info">
+                            {item.brand && (
+                              <span className="saved-card-brand">{item.brand}</span>
+                            )}
+                            <span className="saved-card-title">{item.title}</span>
+                            {typeof item.price === "number" && item.price > 0 && (
+                              <span className="saved-card-price">
+                                {item.price.toLocaleString("en-US", {
+                                  style: "currency",
+                                  currency: item.currency || "USD",
+                                })}
+                              </span>
+                            )}
+                          </div>
+                        </Link>
+                        <button
+                          type="button"
+                          className="btn-remove-item"
+                          onClick={() => handleRemoveSavedItem(item)}
+                          disabled={removingId === item.id}
+                        >
+                          {removingId === item.id ? "Removing..." : "Remove"}
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </section>
+              )}
+
+              {/* Cart Items (In Bag) */}
+              {cartItems.length > 0 && (
+                <section id="cart-section" className="saved-section">
+                  <h2>In Bag</h2>
+                  <div className="saved-grid">
+                    {cartItems.map((item) => (
+                      <div key={item.id} className="saved-card">
+                        <Link
+                          href={`/product/${item.listingId || item.id}`}
+                          className="saved-card-link"
+                        >
+                          {item.imageUrl ? (
+                            <img
+                              src={item.imageUrl}
+                              alt={item.title}
+                              className="saved-card-img"
+                            />
+                          ) : (
+                            <div className="saved-card-img-placeholder" />
                           )}
-                        </div>
-                      </Link>
+                          <div className="saved-card-info">
+                            {item.brand && (
+                              <span className="saved-card-brand">{item.brand}</span>
+                            )}
+                            <span className="saved-card-title">{item.title}</span>
+                            {typeof item.price === "number" && item.price > 0 && (
+                              <span className="saved-card-price">
+                                {item.price.toLocaleString("en-US", {
+                                  style: "currency",
+                                  currency: item.currency || "USD",
+                                })}
+                              </span>
+                            )}
+                          </div>
+                        </Link>
+                        <button
+                          type="button"
+                          className="btn-remove-item"
+                          onClick={() => handleRemoveCartItem(item)}
+                          disabled={removingId === item.id}
+                        >
+                          {removingId === item.id ? "Removing..." : "Remove"}
+                        </button>
+                      </div>
                     ))}
                   </div>
                 </section>
@@ -1288,6 +1397,32 @@ export default function AccountPage() {
         .saved-card {
           text-decoration: none;
           color: inherit;
+          position: relative;
+        }
+        .saved-card-link {
+          text-decoration: none;
+          color: inherit;
+          display: block;
+        }
+        .btn-remove-item {
+          display: block;
+          width: 100%;
+          margin-top: 6px;
+          padding: 6px 0;
+          font-size: 12px;
+          color: #ef4444;
+          background: none;
+          border: 1px solid #e5e7eb;
+          border-radius: 6px;
+          cursor: pointer;
+          transition: background 0.15s;
+        }
+        .btn-remove-item:hover {
+          background: #fef2f2;
+        }
+        .btn-remove-item:disabled {
+          opacity: 0.5;
+          cursor: default;
         }
       `}</style>
     </>

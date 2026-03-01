@@ -8,7 +8,10 @@ import admin, { isFirebaseAdminReady } from "./firebaseAdmin";
 // Env vars:
 // - BACKGROUND_REMOVAL_API_KEY: API key for RemBG (rembg.com) background removal.
 // - FIREBASE_STORAGE_BUCKET or NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET: storage bucket name.
-const BACKGROUND_REMOVAL_API_KEY = process.env.BACKGROUND_REMOVAL_API_KEY || "";
+const BACKGROUND_REMOVAL_API_KEY =
+  process.env.BACKGROUND_REMOVAL_API_KEY ||
+  process.env.REMBG_API_KEY ||
+  "";
 const STORAGE_BUCKET =
   process.env.FIREBASE_STORAGE_BUCKET ||
   process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET ||
