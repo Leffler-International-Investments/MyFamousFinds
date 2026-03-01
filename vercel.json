@@ -1,4 +1,8 @@
 {
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "git": {
+    "deploymentEnabled": true
+  },
   "crons": [
     {
       "path": "/api/admin/process-email-outbox",
