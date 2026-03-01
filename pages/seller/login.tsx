@@ -189,20 +189,33 @@ export default function SellerLoginPage() {
       }
 
       // Establish Firebase Auth session so sellerFetch can get Bearer tokens.
-      // Prefer the custom token from verify-2fa (always works, doesn't
-      // depend on the user having a matching Firebase Auth password).
-      // Fall back to email/password sign-in as a last resort.
-      try {
-        const successJson = json as Verify2faSuccess;
-        if (auth && successJson.firebaseToken) {
+      // Try custom token first (doesn't depend on matching Firebase Auth password),
+      // then fall back to email/password sign-in.
+      const successJson = json as Verify2faSuccess;
+      let firebaseSignedIn = false;
+
+      if (auth && successJson.firebaseToken) {
+        try {
           await signInWithCustomToken(auth, successJson.firebaseToken);
-        } else if (auth && password) {
-          await signInWithEmailAndPassword(auth, email.trim().toLowerCase(), password);
+          firebaseSignedIn = true;
+        } catch (e) {
+          console.warn("[seller-login] Custom token sign-in failed, trying password fallback:", e);
         }
-      } catch (e) {
-        // Non-fatal: localStorage session is sufficient for role-based page access.
-        // Bearer tokens may be unavailable for some API calls.
-        console.warn("[seller-login] Firebase Auth sign-in failed:", e);
+      }
+
+      if (!firebaseSignedIn && auth && password) {
+        try {
+          await signInWithEmailAndPassword(auth, email.trim().toLowerCase(), password);
+          firebaseSignedIn = true;
+        } catch (e) {
+          console.warn("[seller-login] Password sign-in also failed:", e);
+        }
+      }
+
+      if (!firebaseSignedIn) {
+        // Non-fatal: sellerClient.ts will attempt recovery via /api/seller/auth-token
+        // when a Bearer token is needed for API calls.
+        console.warn("[seller-login] Firebase Auth session not established; sellerClient will recover on demand.");
       }
 
       if (from) router.push(from);
