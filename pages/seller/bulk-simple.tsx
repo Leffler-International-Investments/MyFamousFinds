@@ -426,73 +426,33 @@ export default function BulkSimple() {
 
     setSubmitting(true);
     try {
-      // Vercel serverless functions have a ~4.5 MB body limit.
-      // Submit items in small batches to stay under the limit.
-      const BATCH_SIZE = 3;
-      let totalCreated = 0;
-      let totalSkipped = 0;
+      const res = await sellerFetch("/api/seller/bulk-commit", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ rows }),
+      });
 
-      for (let i = 0; i < rows.length; i += BATCH_SIZE) {
-        const batch = rows.slice(i, i + BATCH_SIZE);
-        const body = JSON.stringify({ rows: batch });
+      const json: BulkCommitResult = await res
+        .json()
+        .catch(
+          () =>
+            ({
+              ok: false,
+              error: "Invalid server response",
+            } as BulkCommitErr)
+        );
 
-        // Warn if a single batch is very large (> 4 MB)
-        if (body.length > 4 * 1024 * 1024) {
-          throw new Error(
-            `Item ${i + 1} has images that are too large. Please use smaller or fewer photos and try again.`
-          );
-        }
-
-        const res = await sellerFetch("/api/seller/bulk-commit", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body,
-        });
-
-        // Surface meaningful errors based on HTTP status
-        if (!res.ok) {
-          if (res.status === 413) {
-            throw new Error(
-              "The images are too large for the server. Please use smaller or fewer photos per item."
-            );
-          }
-          if (res.status === 401) {
-            throw new Error(
-              "Your session has expired. Please log out and sign in again."
-            );
-          }
-          if (res.status === 504 || res.status === 502) {
-            throw new Error(
-              "The server took too long to process your images. Please try fewer items at a time."
-            );
-          }
-        }
-
-        const json: BulkCommitResult = await res
-          .json()
-          .catch(
-            () =>
-              ({
-                ok: false,
-                error: `Server error (HTTP ${res.status}). Please try submitting fewer items or smaller images.`,
-              } as BulkCommitErr)
-          );
-
-        if (!res.ok || !json.ok) {
-          const message =
-            "error" in json && json.error
-              ? json.error
-              : "Unable to create listings.";
-          throw new Error(message);
-        }
-
-        totalCreated += json.created;
-        totalSkipped += json.skipped;
+      if (!res.ok || !json.ok) {
+        const message =
+          "error" in json && json.error
+            ? json.error
+            : "Unable to create listings.";
+        throw new Error(message);
       }
 
       setSubmitMessage(
-        `Created ${totalCreated} listing(s)${
-          totalSkipped ? `, skipped ${totalSkipped}.` : "."
+        `Created ${json.created} listing(s)${
+          json.skipped ? `, skipped ${json.skipped}.` : "."
         }`
       );
       setItems([{}]);

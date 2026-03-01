@@ -20,4 +20,4 @@ async function run(){
   console.log("Seed complete");
 }
 
-run().then(()=>process.exit(0)).catch((err) => { console.error("Seed failed:", err); process.exit(1); });
+run().then(()=>process.exit(0));

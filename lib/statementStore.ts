@@ -64,10 +64,6 @@ export async function buildSellerStatement(
   start: Date,
   end: Date
 ): Promise<{ summary: StatementSummary; rows: StatementRow[] }> {
-  if (!adminDb) {
-    throw new Error("Firebase Admin not configured — cannot build statement");
-  }
-
   // Fetch once per collection; filter by date in JS to avoid extra indexes.
   const [ordersSnap, refundsSnap, listingsSnap] = await Promise.all([
     adminDb

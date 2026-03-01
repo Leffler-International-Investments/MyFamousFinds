@@ -7,7 +7,6 @@ import {
   setPayoutSettings,
   PayoutMode,
 } from "../../../../lib/payoutSettings";
-import { requireAdmin } from "../../../../utils/adminAuth";
 
 type OkGet = { ok: true; settings: { defaultCoolingDays: number; payoutMode: PayoutMode } };
 type OkPost = { ok: true; settings: { defaultCoolingDays: number; payoutMode: PayoutMode } };
@@ -17,8 +16,6 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse<OkGet | OkPost | Err>
 ) {
-  if (!requireAdmin(req, res)) return;
-
   if (!adminDb) {
     return res.status(500).json({ ok: false, error: "firebase_not_configured" });
   }

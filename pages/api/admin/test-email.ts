@@ -2,7 +2,6 @@
 // Diagnostic endpoint to test email configuration (AWS SES)
 import type { NextApiRequest, NextApiResponse } from "next";
 import { sendMail } from "../../../utils/email";
-import { requireAdmin } from "../../../utils/adminAuth";
 
 type Data =
   | { ok: true; message: string }
@@ -15,9 +14,6 @@ export default async function handler(
   if (req.method !== "POST") {
     return res.status(405).json({ ok: false, error: "POST only" });
   }
-
-  // Verify admin session
-  if (!requireAdmin(req, res)) return;
 
   const { to } = (req.body || {}) as { to?: string };
   const testTo = to || process.env.ADMIN_EMAIL || "";

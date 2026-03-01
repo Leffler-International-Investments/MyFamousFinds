@@ -13,10 +13,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(405).json({ ok: false, error: "method_not_allowed" });
   }
 
-  // Verify cron secret
+  // Verify cron secret (skip in dev if not set)
   const secret = req.headers["authorization"]?.replace("Bearer ", "") || req.query.secret;
-  const expected = process.env.CRON_SECRET || process.env.ADMIN_API_SECRET;
-  if (!expected || secret !== expected) {
+  const expected = process.env.CRON_SECRET;
+  if (expected && secret !== expected) {
     return res.status(401).json({ ok: false, error: "unauthorized" });
   }
 
