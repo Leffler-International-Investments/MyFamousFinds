@@ -6,6 +6,8 @@ import Head from "next/head";
 import Link from "next/link";
 import type { GetServerSideProps } from "next";
 import { useState } from "react";
+import { deleteDoc, doc } from "firebase/firestore";
+import { db } from "../../utils/firebaseClient";
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
 import { useRequireAdmin } from "../../hooks/useRequireAdmin";
@@ -34,24 +36,38 @@ export default function HomepageListings({ items: initialItems }: Props) {
 
   if (loading) return null;
 
-  const handleDelete = async (id: string, title: string) => {
-    if (!confirm(`Delete "${title}"? This cannot be undone.`)) return;
-    setDeleting(id);
+  // Delete a single listing: try Admin SDK API first, fall back to client-side Firestore
+  const deleteListing = async (id: string): Promise<boolean> => {
     try {
       const res = await fetch(`/api/admin/delete-public-listing/${id}`, {
         method: "DELETE",
       });
       const data = await res.json();
-      if (data.ok) {
-        setItems((prev) => prev.filter((i) => i.id !== id));
-      } else {
-        alert("Failed to delete: " + (data.error || "Unknown error"));
+      if (data.ok) return true;
+    } catch { /* API failed, try client-side fallback */ }
+
+    // Fallback: delete directly via client-side Firestore SDK
+    try {
+      if (db) {
+        await deleteDoc(doc(db, "listings", id));
+        return true;
       }
-    } catch {
-      alert("Error deleting listing. Please try again.");
-    } finally {
-      setDeleting(null);
+    } catch (err) {
+      console.error("Client-side delete failed:", err);
     }
+    return false;
+  };
+
+  const handleDelete = async (id: string, title: string) => {
+    if (!confirm(`Delete "${title}"? This cannot be undone.`)) return;
+    setDeleting(id);
+    const ok = await deleteListing(id);
+    if (ok) {
+      setItems((prev) => prev.filter((i) => i.id !== id));
+    } else {
+      alert("Failed to delete listing. Check Firebase configuration.");
+    }
+    setDeleting(null);
   };
 
   const handleDeleteAll = async () => {
@@ -60,15 +76,8 @@ export default function HomepageListings({ items: initialItems }: Props) {
     setDeleting("all");
     let failed = 0;
     for (const item of items) {
-      try {
-        const res = await fetch(`/api/admin/delete-public-listing/${item.id}`, {
-          method: "DELETE",
-        });
-        const data = await res.json();
-        if (!data.ok) failed++;
-      } catch {
-        failed++;
-      }
+      const ok = await deleteListing(item.id);
+      if (!ok) failed++;
     }
     setItems([]);
     setDeleting(null);
