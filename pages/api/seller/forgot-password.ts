@@ -86,10 +86,24 @@ export default async function handler(
     });
   } catch (err: any) {
     if (err.code === "auth/user-not-found" || err.code === "auth/email-not-found") {
+      // The seller exists in Firestore but has no Firebase Auth account.
+      // Create one so the reset link can be generated — the seller will
+      // set their password via the reset flow.
+      try {
+        await adminAuth.createUser({ email });
+        console.log(`[seller-forgot-password] Created Firebase Auth user for ${email}`);
+        resetLink = await adminAuth.generatePasswordResetLink(email, {
+          url: `${siteUrl}/seller/login`,
+          handleCodeInApp: false,
+        });
+      } catch (createErr) {
+        console.error("[seller-forgot-password] Failed to create user & generate link:", createErr);
+        return res.status(200).json(successResponse);
+      }
+    } else {
+      console.error("[seller-forgot-password] Error generating link:", err);
       return res.status(200).json(successResponse);
     }
-    console.error("[seller-forgot-password] Error generating link:", err);
-    return res.status(200).json(successResponse);
   }
 
   // Step 3: Build email content
