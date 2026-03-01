@@ -13,10 +13,43 @@ export default function SellerForgotPasswordPage() {
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [resendCount, setResendCount] = useState(0);
+
+  async function requestReset(emailAddr: string) {
+    setError(null);
+    setLoading(true);
+
+    try {
+      const res = await fetch("/api/seller/forgot-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: emailAddr }),
+      });
+
+      const json = await res.json().catch(() => null);
+
+      if (!res.ok || (json && !json.ok)) {
+        const msg =
+          json?.error ||
+          (res.status === 429
+            ? "Too many requests. Please wait a few minutes and try again."
+            : "Unable to send reset link. Please try again.");
+        setError(msg);
+        return false;
+      }
+
+      return true;
+    } catch (err: any) {
+      console.error("seller_forgot_password_error", err);
+      setError(err?.message || "Something went wrong. Please try again.");
+      return false;
+    } finally {
+      setLoading(false);
+    }
+  }
 
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    setError(null);
 
     const trimmed = email.trim();
     if (!trimmed) {
@@ -24,32 +57,21 @@ export default function SellerForgotPasswordPage() {
       return;
     }
 
-    setLoading(true);
-    try {
-      const res = await fetch("/api/seller/forgot-password", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: trimmed }),
-      });
-
-      if (!res.ok) {
-        let msg = "Unable to send reset link. Please try again.";
-        try {
-          const json = await res.json();
-          if (json?.error) msg = json.error;
-        } catch {
-          /* ignore */
-        }
-        setError(msg);
-        return;
-      }
-
+    const ok = await requestReset(trimmed);
+    if (ok) {
       setStep("done");
-    } catch (err: any) {
-      console.error("seller_forgot_password_error", err);
-      setError(err?.message || "Something went wrong. Please try again.");
-    } finally {
-      setLoading(false);
+      setResendCount(0);
+    }
+  }
+
+  async function handleResend() {
+    const trimmed = email.trim();
+    if (!trimmed) return;
+
+    const ok = await requestReset(trimmed);
+    if (ok) {
+      setResendCount((c) => c + 1);
+      setError(null);
     }
   }
 
@@ -63,7 +85,7 @@ export default function SellerForgotPasswordPage() {
 
       <main className="wrap">
         <div className="backLink">
-          <Link href="/seller/login">← Back to Login</Link>
+          <Link href="/seller/login">&larr; Back to Login</Link>
         </div>
 
         {step === "form" && (
@@ -89,7 +111,7 @@ export default function SellerForgotPasswordPage() {
               />
 
               <button type="submit" disabled={loading}>
-                {loading ? "Sending reset link…" : "Send reset link"}
+                {loading ? "Sending reset link\u2026" : "Send reset link"}
               </button>
             </form>
           </section>
@@ -107,12 +129,29 @@ export default function SellerForgotPasswordPage() {
 
             {error && <div className="errorBox">{error}</div>}
 
+            {resendCount > 0 && !error && (
+              <div className="successBox">
+                Reset link sent again. Please check your inbox.
+              </div>
+            )}
+
             <div className="actions">
-              <button type="button" onClick={() => setStep("form")}>
-                Send another reset link
+              <button type="button" onClick={handleResend} disabled={loading}>
+                {loading ? "Resending\u2026" : "Resend reset link"}
+              </button>
+              <button
+                type="button"
+                className="secondaryBtn"
+                onClick={() => {
+                  setStep("form");
+                  setError(null);
+                  setResendCount(0);
+                }}
+              >
+                Try a different email
               </button>
               <Link href="/seller/login" className="backLogin">
-                ← Back to Login
+                &larr; Back to Login
               </Link>
             </div>
           </section>
@@ -179,6 +218,16 @@ export default function SellerForgotPasswordPage() {
           font-size: 0.85rem;
         }
 
+        .successBox {
+          margin-bottom: 14px;
+          padding: 8px 10px;
+          border-radius: 8px;
+          border: 1px solid #6ee7b7;
+          background: #ecfdf5;
+          color: #065f46;
+          font-size: 0.85rem;
+        }
+
         .form {
           display: flex;
           flex-direction: column;
@@ -230,6 +279,17 @@ export default function SellerForgotPasswordPage() {
         button:disabled {
           opacity: 0.6;
           cursor: default;
+        }
+
+        .secondaryBtn {
+          background: #ffffff;
+          color: #374151;
+          border: 1px solid #d1d5db;
+        }
+
+        .secondaryBtn:hover {
+          background: #f9fafb;
+          border-color: #111827;
         }
 
         .actions {
