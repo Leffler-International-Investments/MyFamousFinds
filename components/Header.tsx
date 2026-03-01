@@ -47,7 +47,7 @@ export default function Header({ filterContent, showFilter, onToggleFilter }: He
   }, [router.isReady, router.query]);
 
   const categoryNav = [
-    { label: "NEW ARRIVALS", href: "/category/new-arrivals" },
+    { label: "NEW", href: "/category/new-arrivals" },
     { label: "FAMOUS", href: "/catalogue" },
     { label: "DESIGNERS", href: "/designers" },
     { label: "CONSIGN", href: "/consign" },
@@ -282,16 +282,17 @@ export default function Header({ filterContent, showFilter, onToggleFilter }: He
           display: flex;
           align-items: center;
           justify-content: center;
-          gap: 22px;
-          flex-wrap: wrap;
+          gap: 18px;
+          flex-wrap: nowrap;
         }
 
         .ff-cat-link {
-          font-size: 12px;
+          font-size: 11px;
           font-weight: 600;
-          letter-spacing: 0.12em;
+          letter-spacing: 0.08em;
           color: #111827;
           text-decoration: none;
+          white-space: nowrap;
         }
 
         .ff-filter-toggle {
@@ -300,11 +301,12 @@ export default function Header({ filterContent, showFilter, onToggleFilter }: He
           border-radius: 999px;
           padding: 6px 14px;
           cursor: pointer;
-          font-size: 12px;
+          font-size: 11px;
           font-weight: 600;
-          letter-spacing: 0.12em;
+          letter-spacing: 0.08em;
           color: #111827;
           transition: all 0.15s;
+          white-space: nowrap;
         }
         .ff-filter-toggle:hover {
           background: #f3f4f6;
@@ -369,6 +371,7 @@ export default function Header({ filterContent, showFilter, onToggleFilter }: He
           }
           .ff-cat-link {
             flex-shrink: 0;
+            font-size: 10px;
           }
         }
 

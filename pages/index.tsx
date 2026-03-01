@@ -436,7 +436,7 @@ const HomePage: NextPage<HomeProps> = ({
 
       <style jsx>{`
         .home-wrapper {
-          background: #f7f7f5;
+          background: #ffffff;
         }
         .wrap {
           max-width: 1200px;
