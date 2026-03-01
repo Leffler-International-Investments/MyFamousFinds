@@ -51,17 +51,18 @@ async function uploadLabelToStorage(
     throw new Error("Firebase Storage is not configured — cannot upload label.");
   }
 
-  let buffer = Buffer.from(labelBase64, "base64");
+  let buffer: Buffer = Buffer.from(labelBase64, "base64");
   let contentType = CONTENT_TYPES[labelFormat.toUpperCase()] || "application/octet-stream";
   let ext = labelFormat.toLowerCase();
 
   // For GIF labels, flatten to white background PNG so transparency doesn't cause issues
   if (labelFormat.toUpperCase() === "GIF") {
     try {
-      buffer = await sharp(buffer)
+      const processed = await sharp(buffer)
         .flatten({ background: { r: 255, g: 255, b: 255 } })
         .png()
         .toBuffer();
+      buffer = Buffer.from(processed);
       contentType = "image/png";
       ext = "png";
     } catch (err) {
