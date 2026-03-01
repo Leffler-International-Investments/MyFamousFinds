@@ -278,7 +278,34 @@ export default function UnifiedLoginPage() {
       }
     } catch (err: any) {
       console.error("unified_login_error", err);
-      setError("Email or password did not match. Please try again.");
+      const code = err?.code || "";
+      if (
+        code === "auth/wrong-password" ||
+        code === "auth/user-not-found" ||
+        code === "auth/invalid-credential"
+      ) {
+        setError("Email or password did not match. Please try again.");
+      } else if (code === "auth/too-many-requests") {
+        setError(
+          "Too many failed login attempts. Please wait a few minutes and try again."
+        );
+      } else if (code === "auth/network-request-failed") {
+        setError(
+          "Network error. Please check your internet connection and try again."
+        );
+      } else if (code === "auth/invalid-api-key") {
+        setError(
+          "Sign-in is temporarily unavailable due to a configuration issue. Please contact support."
+        );
+      } else if (code === "auth/user-disabled") {
+        setError(
+          "This account has been disabled. Please contact support."
+        );
+      } else {
+        setError(
+          `Sign-in failed. Please try again.${code ? ` (${code})` : ""}`
+        );
+      }
     } finally {
       setLoading(false);
     }

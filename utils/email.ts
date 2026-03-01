@@ -46,8 +46,8 @@ function getSesClient() {
 // ---------- SMTP (Gmail) config ----------
 const SMTP_HOST = cleanEnv(process.env.SMTP_HOST);
 const SMTP_PORT = Number(cleanEnv(process.env.SMTP_PORT) || "587");
-const SMTP_USER = cleanEnv(process.env.SMTP_USER);
-const SMTP_PASS = cleanEnv(process.env.SMTP_PASS);
+const SMTP_USER = cleanEnv(process.env.SMTP_USER) || cleanEnv(process.env.SMTP_USER_ADMIN);
+const SMTP_PASS = cleanEnv(process.env.SMTP_PASS) || cleanEnv(process.env.SMTP_PASS_ADMIN);
 const SMTP_FROM_RAW = cleanEnv(process.env.SMTP_FROM);
 
 /**
@@ -172,12 +172,14 @@ async function sendViaSmtp(
 }
 
 /**
- * Main sendMail — uses AWS SES when configured.
- * SMTP is only used when SES credentials are NOT set at all (local dev).
- * When SES IS configured, failures are thrown — never silently fall back
- * to Gmail/SMTP so that production emails always come from the verified
- * AWS SES domain (admin@myfamousfinds.com).
+ * Main sendMail — uses AWS SES when configured, with SMTP fallback.
+ * If SES is configured but fails (e.g. sandbox mode, credential issues),
+ * falls back to SMTP when SMTP is also configured.
  */
+
+function isSmtpConfigured(): boolean {
+  return Boolean(SMTP_HOST && (SMTP_USER || !SMTP_PASS));
+}
 
 // ✅ NEW: support both positional args AND object args (for UPS label route)
 type SendMailArgsObject = {
@@ -212,21 +214,45 @@ export async function sendMail(
 
   // AWS SES is the primary (and production) transport
   if (isSesConfigured()) {
-    const result = await sendViaSes(to, subject, text, html);
-    console.log(`${logTag} — sent via AWS SES (messageId=${result.messageId})`);
-    return result;
+    try {
+      const result = await sendViaSes(to, subject, text, html);
+      console.log(`${logTag} — sent via AWS SES (messageId=${result.messageId})`);
+      return result;
+    } catch (sesErr) {
+      console.error(`${logTag} — AWS SES FAILED, trying SMTP fallback`, sesErr);
+
+      // Fall back to SMTP if configured
+      if (isSmtpConfigured()) {
+        try {
+          const result = await sendViaSmtp(to, subject, text, html);
+          console.log(`${logTag} — sent via SMTP fallback (messageId=${result.messageId})`);
+          return result;
+        } catch (smtpErr) {
+          console.error(`${logTag} — SMTP fallback also FAILED`, smtpErr);
+        }
+      }
+
+      // Both failed (or SMTP not configured) — throw the original SES error
+      throw sesErr;
+    }
   }
 
-  // SMTP only used in local dev when SES credentials are not set
-  console.warn(`${logTag} — AWS SES not configured, using SMTP fallback (dev only)`);
-  try {
-    const result = await sendViaSmtp(to, subject, text, html);
-    console.log(`${logTag} — sent via SMTP (messageId=${result.messageId})`);
-    return result;
-  } catch (err) {
-    console.error(`${logTag} — SMTP FAILED`, err);
-    throw err;
+  // SES not configured — use SMTP directly
+  if (isSmtpConfigured()) {
+    console.warn(`${logTag} — AWS SES not configured, using SMTP`);
+    try {
+      const result = await sendViaSmtp(to, subject, text, html);
+      console.log(`${logTag} — sent via SMTP (messageId=${result.messageId})`);
+      return result;
+    } catch (err) {
+      console.error(`${logTag} — SMTP FAILED`, err);
+      throw err;
+    }
   }
+
+  throw new Error(
+    "No email transport configured. Set AWS SES credentials or SMTP_HOST/SMTP_USER."
+  );
 }
 
 /**
