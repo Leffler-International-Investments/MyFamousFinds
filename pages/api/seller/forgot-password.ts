@@ -123,6 +123,20 @@ export default async function handler(
     if (code === "auth/user-not-found" || code === "auth/email-not-found") {
       console.log(`[forgot-password] No Auth user for ${email}, checking Firestore…`);
     } else {
+      // Check for Firebase's built-in rate limit on password resets
+      const rawMsg = String(err?.message || "");
+      if (rawMsg.includes("RESET_PASSWORD_EXCEED_LIMIT") || code === "auth/too-many-requests") {
+        console.warn(`[forgot-password] Firebase rate-limited reset for ${email}`);
+        return res.status(429).json({
+          ok: false,
+          error:
+            "Too many password reset requests for this email. " +
+            "Firebase limits how many reset links can be generated per hour. " +
+            "Please wait about 1 hour and try again.",
+        });
+      }
+
+      // Other unexpected error (invalid domain, config issue, etc.)
       console.error("[forgot-password] Unexpected Auth error:", err);
       return res.status(500).json({
         ok: false,
