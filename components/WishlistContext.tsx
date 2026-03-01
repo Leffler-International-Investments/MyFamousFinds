@@ -25,6 +25,8 @@ export function WishlistProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const { showToast } = useToast();
 
+  const cleanupRef = useRef<(() => void) | null>(null);
+
   // Load all saved item IDs when the user logs in
   useEffect(() => {
     // Dynamic import to avoid SSG prerender issues with Firebase client modules
@@ -60,8 +62,6 @@ export function WishlistProvider({ children }: { children: React.ReactNode }) {
       if (cleanupRef.current) cleanupRef.current();
     };
   }, []);
-
-  const cleanupRef = useRef<(() => void) | null>(null);
 
   const toggleWishlist = useCallback(
     async (productId: string) => {

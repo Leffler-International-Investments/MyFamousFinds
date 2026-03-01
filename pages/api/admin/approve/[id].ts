@@ -1,6 +1,6 @@
 // FILE: /pages/api/admin/approve/[id].ts
 import type { NextApiRequest, NextApiResponse } from "next";
-import { adminDb } from "../../../../utils/firebaseAdmin";
+import { adminDb, isFirebaseAdminReady } from "../../../../utils/firebaseAdmin";
 import { requireAdmin } from "../../../../utils/adminAuth";
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -10,6 +10,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   if (!requireAdmin(req, res)) {
     return;
+  }
+
+  if (!isFirebaseAdminReady || !adminDb) {
+    return res.status(500).json({ error: "Firebase Admin not initialized. Check env vars." });
   }
 
   const { id } = req.query;
