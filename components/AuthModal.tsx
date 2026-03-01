@@ -47,11 +47,11 @@ export default function AuthModal({ isOpen, onClose, onSuccess }: Props) {
         console.error("redirect_result_error", err);
         const msg =
           err?.code === "auth/unauthorized-domain"
-            ? "This domain is not authorized for sign-in. Please contact support."
+            ? "This domain is not authorized for Google/Facebook sign-in. The site domain must be added to Firebase Auth authorized domains in the Firebase Console."
             : err?.code === "auth/account-exists-with-different-credential"
             ? "An account already exists with this email using a different sign-in method."
             : err?.code === "auth/operation-not-allowed"
-            ? "This sign-in method is not enabled. Please contact support."
+            ? "This sign-in method is not enabled. Please enable Google/Facebook providers in Firebase Console > Authentication > Sign-in method."
             : `Sign-in failed. Please try again.${err?.code ? ` (${err.code})` : ""}`;
         setError(msg);
       });
@@ -89,11 +89,11 @@ export default function AuthModal({ isOpen, onClose, onSuccess }: Props) {
       const label = providerType === "google" ? "Google" : "Facebook";
       const msg =
         err?.code === "auth/unauthorized-domain"
-          ? "This domain is not authorized for sign-in. Please contact support."
+          ? "This domain is not authorized for Google/Facebook sign-in. The site domain must be added to Firebase Auth authorized domains in the Firebase Console."
           : err?.code === "auth/account-exists-with-different-credential"
           ? "An account already exists with this email using a different sign-in method."
           : err?.code === "auth/operation-not-allowed"
-          ? "This sign-in method is not enabled. Please contact support."
+          ? "This sign-in method is not enabled. Please enable Google/Facebook providers in Firebase Console > Authentication > Sign-in method."
           : err?.code === "auth/popup-blocked"
           ? "Popup was blocked. Redirecting..."
           : err?.code === "auth/cancelled-popup-request"

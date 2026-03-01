@@ -100,7 +100,7 @@ export default function ProductPage(props: ProductPageProps) {
     city: "",
     state: "",
     postalCode: "",
-    country: "AU",
+    country: "US",
   });
   const [buyerTouched, setBuyerTouched] = useState(false);
 
@@ -686,7 +686,7 @@ export default function ProductPage(props: ProductPageProps) {
                       setBuyerTouched(true);
                       setBuyerDetails((p) => ({ ...p, country: e.target.value }));
                     }}
-                    placeholder="Country (e.g. AU)"
+                    placeholder="Country (e.g. US)"
                   />
                   {buyerTouched && !buyerDetails.country.trim() && (
                     <div className="buyer-error">Required</div>
