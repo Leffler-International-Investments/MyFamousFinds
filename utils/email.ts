@@ -14,10 +14,10 @@ function cleanEnv(v?: string) {
 const AWS_REGION = cleanEnv(process.env.AWS_REGION) || "us-east-1";
 const AWS_ACCESS_KEY_ID = cleanEnv(process.env.AWS_ACCESS_KEY_ID);
 const AWS_SECRET_ACCESS_KEY = cleanEnv(process.env.AWS_SECRET_ACCESS_KEY);
-// SES sender must be a verified identity in AWS — use support@ as default
+// SES sender must be a verified identity in AWS — use admin@ (verified in SES)
 const AWS_SES_FROM =
   cleanEnv(process.env.AWS_SES_FROM) ||
-  "Famous Finds <support@myfamousfinds.com>";
+  "Famous Finds <admin@myfamousfinds.com>";
 const AWS_SES_REPLY_TO =
   cleanEnv(process.env.AWS_SES_REPLY_TO) ||
   cleanEnv(process.env.SUPPORT_INBOX) ||
@@ -62,7 +62,7 @@ const SMTP_FROM = SMTP_FROM_RAW
   ? (parsed?.name
       ? `${parsed.name} <${parsed.email}>`
       : parsed?.email || SMTP_FROM_RAW)
-  : "Famous Finds <support@myfamousfinds.com>";
+  : "Famous Finds <admin@myfamousfinds.com>";
 
 const SMTP_REPLY_TO =
   cleanEnv(process.env.SUPPORT_INBOX) ||
