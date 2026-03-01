@@ -18,6 +18,22 @@ import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "./firebaseClient";
 
 let authReadyPromise: Promise<void> | null = null;
+let keepAliveTimer: ReturnType<typeof setInterval> | null = null;
+
+/**
+ * Proactively refresh the Firebase ID token every 45 minutes so it
+ * never expires during a long seller session (tokens live ~60 min).
+ * Starts automatically after the first sellerFetch call.
+ */
+function startTokenKeepAlive() {
+  if (keepAliveTimer) return;
+  const REFRESH_INTERVAL_MS = 45 * 60 * 1000; // 45 minutes
+  keepAliveTimer = setInterval(() => {
+    if (auth?.currentUser) {
+      auth.currentUser.getIdToken(true).catch(() => {});
+    }
+  }, REFRESH_INTERVAL_MS);
+}
 
 async function waitForAuth(): Promise<void> {
   if (!auth) return;
@@ -64,15 +80,16 @@ async function waitForAuth(): Promise<void> {
 
 /**
  * Get the Firebase Auth Bearer token for the current signed-in seller.
+ * @param forceRefresh  Pass `true` to force-refresh an expired ID token.
  * Returns an empty object if no user is signed in.
  */
-export async function getAuthHeaders(): Promise<Record<string, string>> {
+export async function getAuthHeaders(forceRefresh = false): Promise<Record<string, string>> {
   const headers: Record<string, string> = {};
   try {
     await waitForAuth();
 
     if (auth?.currentUser) {
-      const token = await auth.currentUser.getIdToken();
+      const token = await auth.currentUser.getIdToken(forceRefresh);
       if (token) headers["Authorization"] = `Bearer ${token}`;
     }
   } catch (e) {
@@ -84,11 +101,18 @@ export async function getAuthHeaders(): Promise<Record<string, string>> {
 /**
  * Wrapper around fetch() that automatically attaches the Firebase Auth
  * Bearer token. Drop-in replacement for `fetch(url, opts)`.
+ *
+ * If the server responds with 401 (expired token), the token is
+ * force-refreshed and the request is retried once — so the seller
+ * is never logged out due to a stale ID token.
  */
 export async function sellerFetch(
   url: string,
   opts?: RequestInit
 ): Promise<Response> {
+  // Start proactive token refresh so long sessions never expire.
+  startTokenKeepAlive();
+
   const authHeaders = await getAuthHeaders();
   const merged: RequestInit = {
     ...opts,
@@ -97,5 +121,20 @@ export async function sellerFetch(
       ...(opts?.headers || {}),
     },
   };
-  return fetch(url, merged);
+  const res = await fetch(url, merged);
+
+  // On 401, force-refresh the Firebase ID token and retry once.
+  if (res.status === 401 && auth?.currentUser) {
+    const freshHeaders = await getAuthHeaders(true);
+    const retry: RequestInit = {
+      ...opts,
+      headers: {
+        ...freshHeaders,
+        ...(opts?.headers || {}),
+      },
+    };
+    return fetch(url, retry);
+  }
+
+  return res;
 }
