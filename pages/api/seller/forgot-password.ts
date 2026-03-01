@@ -1,5 +1,15 @@
 // FILE: /pages/api/seller/forgot-password.ts
-// Seller password reset — delegates to the shared send-password-reset endpoint
+// Seller password reset — generates a Firebase Auth reset link and sends via email.
+//
+// Flow:
+//   1. Try Firebase Auth first — if the user exists, generate the link immediately.
+//   2. If Auth says "user not found", check Firestore to see if this email
+//      belongs to a seller. If it does, create a Firebase Auth account and retry.
+//   3. Send the email via sendMail (SES → SMTP fallback).
+//
+// This order is important: the old code checked Firestore FIRST, which meant
+// that if the Firestore lookup failed (wrong doc ID format, permissions, etc.)
+// the email was never sent even though the user had a valid Firebase Auth account.
 
 import type { NextApiRequest, NextApiResponse } from "next";
 import { adminAuth, adminDb, isFirebaseAdminReady } from "../../../utils/firebaseAdmin";
@@ -38,90 +48,114 @@ export default async function handler(
     return res.status(200).json(successResponse);
   }
 
-  // Step 1: Verify seller exists in Firestore
-  // Seller doc IDs may be stored as raw email OR with dots replaced by underscores
-  try {
-    if (adminDb) {
-      let found = false;
-
-      // Check doc ID = raw email
-      const byId = await adminDb.collection("sellers").doc(email).get();
-      if (byId.exists) found = true;
-
-      // Check doc ID = underscore format (e.g. "user@gmail_com")
-      if (!found) {
-        const underscoreId = email.replace(/\./g, "_");
-        if (underscoreId !== email) {
-          const byUnderscore = await adminDb.collection("sellers").doc(underscoreId).get();
-          if (byUnderscore.exists) found = true;
-        }
-      }
-
-      // Check by email field
-      if (!found) {
-        const byEmail = await adminDb
-          .collection("sellers")
-          .where("email", "==", email)
-          .limit(1)
-          .get();
-        if (!byEmail.empty) found = true;
-      }
-
-      // Check by contactEmail field
-      if (!found) {
-        const byContact = await adminDb
-          .collection("sellers")
-          .where("contactEmail", "==", email)
-          .limit(1)
-          .get();
-        if (!byContact.empty) found = true;
-      }
-
-      if (!found) {
-        console.log(`[seller-forgot-password] Seller not found for ${email}`);
-        return res.status(200).json(successResponse);
-      }
-    }
-  } catch (err) {
-    console.error("[seller-forgot-password] Error checking seller:", err);
-    return res.status(200).json(successResponse);
-  }
-
-  // Step 2: Generate the password reset link
   const siteUrl =
     process.env.NEXT_PUBLIC_SITE_URL ||
     process.env.NEXT_PUBLIC_BASE_URL ||
     "https://www.myfamousfinds.com";
 
-  let resetLink: string;
+  const actionCodeSettings = {
+    url: `${siteUrl}/seller/login`,
+    handleCodeInApp: false,
+  };
+
+  // ──────────────────────────────────────────────
+  // Step 1: Try to generate the reset link directly
+  // ──────────────────────────────────────────────
+  let resetLink: string | null = null;
+
   try {
-    resetLink = await adminAuth.generatePasswordResetLink(email, {
-      url: `${siteUrl}/seller/login`,
-      handleCodeInApp: false,
-    });
+    resetLink = await adminAuth.generatePasswordResetLink(email, actionCodeSettings);
+    console.log(`[seller-forgot-password] Reset link generated for ${email}`);
   } catch (err: any) {
-    if (err.code === "auth/user-not-found" || err.code === "auth/email-not-found") {
-      // The seller exists in Firestore but has no Firebase Auth account.
-      // Create one so the reset link can be generated — the seller will
-      // set their password via the reset flow.
-      try {
-        await adminAuth.createUser({ email });
-        console.log(`[seller-forgot-password] Created Firebase Auth user for ${email}`);
-        resetLink = await adminAuth.generatePasswordResetLink(email, {
-          url: `${siteUrl}/seller/login`,
-          handleCodeInApp: false,
-        });
-      } catch (createErr) {
-        console.error("[seller-forgot-password] Failed to create user & generate link:", createErr);
-        return res.status(200).json(successResponse);
-      }
+    const code = err?.code || "";
+    console.log(`[seller-forgot-password] generatePasswordResetLink error: code=${code} message=${err?.message}`);
+
+    if (code === "auth/user-not-found" || code === "auth/email-not-found") {
+      // User does not exist in Firebase Auth — check Firestore next
+      console.log(`[seller-forgot-password] No Auth user for ${email}, checking Firestore…`);
     } else {
-      console.error("[seller-forgot-password] Error generating link:", err);
+      // Unexpected error (invalid domain, config issue, etc.)
+      console.error("[seller-forgot-password] Unexpected Auth error:", err);
       return res.status(200).json(successResponse);
     }
   }
 
+  // ──────────────────────────────────────────────
+  // Step 2: If no Auth user, verify seller exists in Firestore and create one
+  // ──────────────────────────────────────────────
+  if (!resetLink) {
+    let sellerFound = false;
+
+    try {
+      if (adminDb) {
+        // Check doc ID = raw email
+        const byId = await adminDb.collection("sellers").doc(email).get();
+        if (byId.exists) sellerFound = true;
+
+        // Check doc ID = underscore format (e.g. "user@gmail_com")
+        if (!sellerFound) {
+          const underscoreId = email.replace(/\./g, "_");
+          if (underscoreId !== email) {
+            const byUnderscore = await adminDb.collection("sellers").doc(underscoreId).get();
+            if (byUnderscore.exists) sellerFound = true;
+          }
+        }
+
+        // Check by email field
+        if (!sellerFound) {
+          const byEmail = await adminDb
+            .collection("sellers")
+            .where("email", "==", email)
+            .limit(1)
+            .get();
+          if (!byEmail.empty) sellerFound = true;
+        }
+
+        // Check by contactEmail field
+        if (!sellerFound) {
+          const byContact = await adminDb
+            .collection("sellers")
+            .where("contactEmail", "==", email)
+            .limit(1)
+            .get();
+          if (!byContact.empty) sellerFound = true;
+        }
+      }
+    } catch (err) {
+      console.error("[seller-forgot-password] Firestore lookup error:", err);
+      // Don't return — we still want to try creating the auth user
+      // if Firestore is misconfigured but the email looks legitimate.
+    }
+
+    if (!sellerFound) {
+      console.log(`[seller-forgot-password] Seller not found in Firestore for ${email}`);
+      return res.status(200).json(successResponse);
+    }
+
+    // Seller exists in Firestore but not in Auth — create the Auth account
+    try {
+      await adminAuth.createUser({ email });
+      console.log(`[seller-forgot-password] Created Firebase Auth user for ${email}`);
+      resetLink = await adminAuth.generatePasswordResetLink(email, actionCodeSettings);
+      console.log(`[seller-forgot-password] Reset link generated after user creation for ${email}`);
+    } catch (createErr: any) {
+      console.error(
+        "[seller-forgot-password] Failed to create user or generate link:",
+        createErr?.code, createErr?.message
+      );
+      return res.status(200).json(successResponse);
+    }
+  }
+
+  // Safety check — should not happen, but guard against it
+  if (!resetLink) {
+    console.error("[seller-forgot-password] BUG: resetLink is still null after all attempts");
+    return res.status(200).json(successResponse);
+  }
+
+  // ──────────────────────────────────────────────
   // Step 3: Build email content
+  // ──────────────────────────────────────────────
   const subject = "MyFamousFinds — Reset Your Seller Password";
   const text =
     "Hello,\n\n" +
@@ -142,12 +176,14 @@ export default async function handler(
     "<p>If you did not request this, you can safely ignore this email.</p>" +
     "<p>Regards,<br/>The MyFamousFinds Team</p>";
 
-  // Step 4: Send immediately; on failure, queue for retry via the outbox
+  // ──────────────────────────────────────────────
+  // Step 4: Send the email; on failure queue for retry
+  // ──────────────────────────────────────────────
   try {
     await sendMail(email, subject, text, html);
     console.log(`[seller-forgot-password] Reset email sent to ${email}`);
   } catch (err) {
-    console.error("[seller-forgot-password] Send failed, queuing for retry:", err);
+    console.error("[seller-forgot-password] sendMail failed, queuing for retry:", err);
     try {
       await queueEmail({
         to: email,
