@@ -1,4 +1,5 @@
 {
+  "buildCommand": "npm run build",
   "crons": [
     {
       "path": "/api/admin/process-email-outbox",
