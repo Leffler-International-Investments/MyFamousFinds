@@ -460,7 +460,7 @@ export default function BulkSimple() {
           }
           if (res.status === 401) {
             throw new Error(
-              "Authentication failed. Please refresh the page and try again."
+              "Authentication failed. Please log out and log back in, then try again."
             );
           }
           if (res.status === 504 || res.status === 502) {

@@ -8,17 +8,22 @@
  * This module provides `sellerFetch()` which automatically attaches
  * the current Firebase Auth user's ID token to every request.
  *
- * FIX:
- * - After refresh, Firebase Auth can take a moment to restore session.
- * - Old code read auth.currentUser immediately (null) → no Bearer token → 401.
- * - Now we wait for onAuthStateChanged once before reading the token.
+ * FIX (v1): After refresh, Firebase Auth can take a moment to restore
+ *   session. Old code read auth.currentUser immediately → 401.
+ *   Now we wait for onAuthStateChanged once before reading the token.
+ *
+ * FIX (v2): If Firebase Auth session was never established (e.g.
+ *   signInWithCustomToken failed silently during login), we now
+ *   recover by fetching a fresh custom token from /api/seller/auth-token
+ *   and signing in before making the API call.
  */
 
-import { onAuthStateChanged } from "firebase/auth";
+import { onAuthStateChanged, signInWithCustomToken } from "firebase/auth";
 import { auth } from "./firebaseClient";
 
 let authReadyPromise: Promise<void> | null = null;
 let keepAliveTimer: ReturnType<typeof setInterval> | null = null;
+let recoveryAttempted = false;
 
 /**
  * Proactively refresh the Firebase ID token every 45 minutes so it
@@ -79,6 +84,49 @@ async function waitForAuth(): Promise<void> {
 }
 
 /**
+ * Attempt to recover the Firebase Auth session by fetching a fresh
+ * custom token from the server. This handles the case where
+ * signInWithCustomToken failed silently during login.
+ */
+async function recoverFirebaseAuth(): Promise<boolean> {
+  if (!auth) return false;
+  if (auth.currentUser) return true;
+
+  // Only attempt recovery once per page load to avoid loops.
+  if (recoveryAttempted) return false;
+  recoveryAttempted = true;
+
+  try {
+    const email =
+      typeof window !== "undefined"
+        ? window.localStorage.getItem("ff-email")
+        : null;
+    if (!email) return false;
+
+    const res = await fetch("/api/seller/auth-token", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email }),
+    });
+
+    if (!res.ok) return false;
+
+    const json = await res.json();
+    if (!json.ok || !json.firebaseToken) return false;
+
+    await signInWithCustomToken(auth, json.firebaseToken);
+
+    // Reset the authReadyPromise so future calls pick up the new user.
+    authReadyPromise = null;
+
+    return !!auth.currentUser;
+  } catch (e) {
+    console.warn("[sellerClient] Firebase Auth recovery failed:", e);
+    return false;
+  }
+}
+
+/**
  * Get the Firebase Auth Bearer token for the current signed-in seller.
  * @param forceRefresh  Pass `true` to force-refresh an expired ID token.
  * Returns an empty object if no user is signed in.
@@ -87,6 +135,11 @@ export async function getAuthHeaders(forceRefresh = false): Promise<Record<strin
   const headers: Record<string, string> = {};
   try {
     await waitForAuth();
+
+    // If no Firebase Auth user after waiting, attempt recovery.
+    if (!auth?.currentUser) {
+      await recoverFirebaseAuth();
+    }
 
     if (auth?.currentUser) {
       const token = await auth.currentUser.getIdToken(forceRefresh);
@@ -105,6 +158,9 @@ export async function getAuthHeaders(forceRefresh = false): Promise<Record<strin
  * If the server responds with 401 (expired token), the token is
  * force-refreshed and the request is retried once — so the seller
  * is never logged out due to a stale ID token.
+ *
+ * If auth.currentUser is null (Firebase session lost), attempts to
+ * recover the session via /api/seller/auth-token before retrying.
  */
 export async function sellerFetch(
   url: string,
@@ -123,17 +179,31 @@ export async function sellerFetch(
   };
   const res = await fetch(url, merged);
 
-  // On 401, force-refresh the Firebase ID token and retry once.
-  if (res.status === 401 && auth?.currentUser) {
-    const freshHeaders = await getAuthHeaders(true);
-    const retry: RequestInit = {
-      ...opts,
-      headers: {
-        ...freshHeaders,
-        ...(opts?.headers || {}),
-      },
-    };
-    return fetch(url, retry);
+  // On 401, attempt recovery and retry once.
+  if (res.status === 401) {
+    // Case 1: auth.currentUser exists → just force-refresh the token.
+    // Case 2: auth.currentUser is null → attempt full recovery.
+    let recovered = false;
+
+    if (auth?.currentUser) {
+      recovered = true;
+    } else {
+      // Reset recovery flag so we can try once more on 401.
+      recoveryAttempted = false;
+      recovered = await recoverFirebaseAuth();
+    }
+
+    if (recovered || auth?.currentUser) {
+      const freshHeaders = await getAuthHeaders(true);
+      const retry: RequestInit = {
+        ...opts,
+        headers: {
+          ...freshHeaders,
+          ...(opts?.headers || {}),
+        },
+      };
+      return fetch(url, retry);
+    }
   }
 
   return res;
