@@ -7,7 +7,7 @@ import type { GetServerSideProps, NextPage } from "next";
 import Header from "../components/Header";
 import Footer from "../components/Footer";
 import ProductCard, { ProductLike } from "../components/ProductCard";
-import { adminDb } from "../utils/firebaseAdmin";
+import { adminDb, isFirebaseAdminReady } from "../utils/firebaseAdmin";
 import { getDeletedListingIds } from "../lib/deletedListings";
 
 // ---------- helpers ----------
@@ -188,6 +188,10 @@ export const getServerSideProps: GetServerSideProps<Props> = async (
         matchedCategory: null,
       },
     };
+  }
+
+  if (!isFirebaseAdminReady || !adminDb) {
+    return { props: { items: [], query, matchedCategory: null } };
   }
 
   const deletedIds = await getDeletedListingIds();

@@ -517,8 +517,11 @@ export const getServerSideProps: GetServerSideProps<Props> = async () => {
       const data = d.data() as any;
       const status = String(data.status || "");
       const statusLower = status.toLowerCase();
-      const total = Number(data.amountTotal || data.total || data.amount || data.price || 0);
-      const totalDollars = total > 500 ? total / 100 : total; // amountTotal is stored in cents
+      // amountTotal is stored in cents; other fields are in dollars
+      const amountTotal = Number(data.amountTotal || 0);
+      const totalDollars = amountTotal
+        ? amountTotal / 100
+        : Number(data.total || data.amount || data.price || 0);
 
       if (["pending", "processing", "paid"].includes(statusLower)) pendingOrders++;
       if (["completed", "delivered"].includes(statusLower)) completedOrders++;

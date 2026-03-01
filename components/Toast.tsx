@@ -1,5 +1,5 @@
 // FILE: /components/Toast.tsx
-import { createContext, useCallback, useContext, useState } from "react";
+import React, { createContext, useCallback, useContext, useState } from "react";
 
 type ToastContextType = {
   showToast: (message: string) => void;

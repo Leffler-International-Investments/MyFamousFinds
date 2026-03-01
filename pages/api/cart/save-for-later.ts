@@ -78,6 +78,11 @@ export default async function handler(
         { merge: true }
       );
 
+      // Remove from saved items
+      if (savedSnap.exists) {
+        await savedRef.delete();
+      }
+
       return res.status(200).json({ ok: true });
     }
 

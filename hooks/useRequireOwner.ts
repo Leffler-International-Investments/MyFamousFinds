@@ -1,6 +1,7 @@
 // FILE: /hooks/useRequireOwner.ts
 import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
+import { isRoleSessionValid, touchRoleSession } from "../utils/roleSession";
 
 // Only these emails can access OWNER-only pages
 const OWNER_EMAILS = [
@@ -22,10 +23,14 @@ export function useRequireOwner() {
   useEffect(() => {
     if (typeof window === "undefined") return;
 
-    const role = window.localStorage.getItem("ff-role");
     const email = window.localStorage.getItem("ff-email");
 
-    if (role === "management" && email && OWNER_EMAILS.includes(email)) {
+    if (
+      isRoleSessionValid("management") &&
+      email &&
+      OWNER_EMAILS.includes(email)
+    ) {
+      touchRoleSession();
       setState("allowed");
     } else {
       setState("denied");

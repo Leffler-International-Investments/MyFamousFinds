@@ -10,6 +10,10 @@ export default async function handler(
     return res.status(405).json({ success: false, error: "method_not_allowed" });
   }
 
+  if (!adminDb) {
+    return res.status(200).json({ success: false, count: 0, average: null });
+  }
+
   try {
     const snap = await adminDb.collection("reviews").get();
     let total = 0;

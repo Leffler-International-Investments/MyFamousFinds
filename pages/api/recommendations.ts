@@ -43,10 +43,18 @@ export default async function handler(
     const userSize = prefs.preferredSize || "";
 
     // 2. Load purchase history (brands and categories bought before)
-    const ordersSnap = await adminDb
-      .collection("orders")
-      .where("buyerUid", "==", authUser.uid)
-      .get();
+    // Query both buyerId and buyerUid for compatibility
+    const [ordersByUid, ordersById] = await Promise.all([
+      adminDb.collection("orders").where("buyerUid", "==", authUser.uid).get(),
+      adminDb.collection("orders").where("buyerId", "==", authUser.uid).get(),
+    ]);
+    const seenOrderIds = new Set<string>();
+    const orderDocs = [...ordersByUid.docs, ...ordersById.docs].filter((d) => {
+      if (seenOrderIds.has(d.id)) return false;
+      seenOrderIds.add(d.id);
+      return true;
+    });
+    const ordersSnap = { docs: orderDocs };
 
     const purchasedBrands = new Set<string>();
     const purchasedCategories = new Set<string>();

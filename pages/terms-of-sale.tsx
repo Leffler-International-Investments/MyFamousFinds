@@ -13,7 +13,7 @@ export default function TermsOfSalePage() {
 
       <main className="wrap">
         <h1>Terms of Sale</h1>
-        <p className="updated">Last updated: [Date]</p>
+        <p className="updated">Last updated: 1 March 2026</p>
 
         <h2>1. Introduction</h2>
         <p>

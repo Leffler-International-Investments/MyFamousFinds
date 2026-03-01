@@ -8,26 +8,24 @@ import Footer from "../../components/Footer";
 import { sellerFetch } from "../../utils/sellerClient";
 
 type Summary = {
-  periodLabel: string;
-  orders: number;
-  listings: number;
-  buyers: number;
-  money: { gross: number; fees: number; net: number };
+  period: { start: string; end: string };
+  totals: { listed: number; sold: number; refunded: number };
+  money: { gross: number; fees: number; net: number; refunds: number };
 };
 
 type Row = {
   date: string;
-  orderId: string;
-  item: string;
-  buyer: string;
-  status: string;
+  sku: string;
+  title: string;
+  action: string;
+  qty: number;
   gross: number;
-  fees: number;
+  fee: number;
   net: number;
 };
 
 type ApiResponse =
-  | { ok: true; summary: Summary; rows: Row[] }
+  | { ok: true; start: string; end: string; summary: Summary; rows: Row[] }
   | { ok: false; error: string };
 
 export default function SellerStatementPrint() {
@@ -112,23 +110,23 @@ export default function SellerStatementPrint() {
                   Period
                 </p>
                 <p className="mt-1 text-sm font-medium text-white">
-                  {summary.periodLabel}
+                  {summary.period.start} – {summary.period.end}
                 </p>
               </div>
               <div>
                 <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-gray-400">
-                  Orders
+                  Sold
                 </p>
                 <p className="mt-1 text-sm font-medium text-white">
-                  {summary.orders}
+                  {summary.totals.sold}
                 </p>
               </div>
               <div>
                 <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-gray-400">
-                  Unique buyers
+                  Listed
                 </p>
                 <p className="mt-1 text-sm font-medium text-white">
-                  {summary.buyers}
+                  {summary.totals.listed}
                 </p>
               </div>
               <div>
@@ -179,29 +177,31 @@ export default function SellerStatementPrint() {
                 <thead className="border-b border-white/10 bg-white/5 text-[11px] uppercase tracking-[0.16em] text-gray-400">
                   <tr>
                     <th className="px-3 py-2">Date</th>
-                    <th className="px-3 py-2">Order ID</th>
-                    <th className="px-3 py-2">Item</th>
-                    <th className="px-3 py-2">Buyer</th>
-                    <th className="px-3 py-2">Status</th>
+                    <th className="px-3 py-2">SKU</th>
+                    <th className="px-3 py-2">Title</th>
+                    <th className="px-3 py-2">Action</th>
+                    <th className="px-3 py-2 text-right">Qty</th>
                     <th className="px-3 py-2 text-right">Gross (USD)</th>
-                    <th className="px-3 py-2 text-right">Fees (USD)</th>
+                    <th className="px-3 py-2 text-right">Fee (USD)</th>
                     <th className="px-3 py-2 text-right">Net (USD)</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {rows.map((row) => (
+                  {rows.map((row, i) => (
                     <tr
-                      key={row.orderId + row.date}
+                      key={row.sku + row.date + i}
                       className="border-b border-white/5 last:border-0"
                     >
                       <td className="px-3 py-2 text-gray-300">{row.date}</td>
                       <td className="px-3 py-2 text-gray-300">
-                        {row.orderId}
+                        {row.sku}
                       </td>
-                      <td className="px-3 py-2 text-gray-100">{row.item}</td>
-                      <td className="px-3 py-2 text-gray-300">{row.buyer}</td>
+                      <td className="px-3 py-2 text-gray-100">{row.title}</td>
                       <td className="px-3 py-2 text-gray-300">
-                        {row.status}
+                        {row.action}
+                      </td>
+                      <td className="px-3 py-2 text-right text-gray-300">
+                        {row.qty}
                       </td>
                       <td className="px-3 py-2 text-right text-gray-100">
                         $
@@ -211,7 +211,7 @@ export default function SellerStatementPrint() {
                       </td>
                       <td className="px-3 py-2 text-right text-gray-100">
                         -$
-                        {row.fees.toLocaleString("en-US", {
+                        {row.fee.toLocaleString("en-US", {
                           maximumFractionDigits: 2,
                         })}
                       </td>

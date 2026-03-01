@@ -341,13 +341,11 @@ export default async function handler(
       heightIn: Number(pkg.heightIn),
     };
 
-    // Validate label format
+    // Validate label format — default to GIF
     const labelFormat: "GIF" | "PDF" =
       reqLabelFormat === "PDF"
         ? "PDF"
-        : reqLabelFormat === "GIF"
-        ? "GIF"
-        : (undefined as any);
+        : "GIF";
 
     // Create shipment + label via UPS
     const result = await createShippingLabel({

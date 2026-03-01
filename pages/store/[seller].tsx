@@ -3,7 +3,7 @@ import Head from "next/head";
 import Link from "next/link";
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
-import { adminDb } from "../../utils/firebaseAdmin";
+import { adminDb, isFirebaseAdminReady } from "../../utils/firebaseAdmin";
 import { getDeletedListingIds } from "../../lib/deletedListings";
 
 type StorePageProps = {
@@ -257,6 +257,10 @@ export default function StorePage({
 export async function getServerSideProps(ctx: any) {
   const sellerId = ctx.params?.seller as string;
   if (!sellerId) {
+    return { notFound: true };
+  }
+
+  if (!isFirebaseAdminReady || !adminDb) {
     return { notFound: true };
   }
 

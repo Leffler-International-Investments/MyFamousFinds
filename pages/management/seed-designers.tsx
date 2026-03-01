@@ -8,8 +8,10 @@ import Head from "next/head";
 import Link from "next/link";
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
+import { useRequireAdmin } from "../../hooks/useRequireAdmin";
 
 export default function SeedDesigners() {
+  const { loading } = useRequireAdmin();
   const [text, setText] = useState("");
   const [key, setKey] = useState("");
   const [busy, setBusy] = useState(false);
@@ -37,6 +39,17 @@ export default function SeedDesigners() {
     } finally {
       setBusy(false);
     }
+  }
+
+  if (loading) {
+    return (
+      <div className="dark-theme-page">
+        <Head><title>Seed Designers | Famous Finds</title></Head>
+        <Header />
+        <main className="section"><p>Checking admin access…</p></main>
+        <Footer />
+      </div>
+    );
   }
 
   return (

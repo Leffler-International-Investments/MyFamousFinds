@@ -73,9 +73,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
       if (memberSnap.exists) {
         const current: any = memberSnap.data() || {};
-        const newPoints = (current.totalPoints || 0) + pointsToAdd;
+        // Read from both field names for backward compatibility (join.ts writes `points`)
+        const existingPoints = current.totalPoints || current.points || 0;
+        const newPoints = existingPoints + pointsToAdd;
         const newSpend = (current.lifetimeSpend || 0) + amountUsd;
         await memberRef.update({
+          points: newPoints,
           totalPoints: newPoints,
           lifetimeSpend: newSpend,
           tier: calculateTier(newPoints),
@@ -87,6 +90,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           memberId,
           email: buyerEmail,
           buyerId: buyerId || "",
+          points: pointsToAdd,
           totalPoints: pointsToAdd,
           lifetimeSpend: amountUsd,
           tier: calculateTier(pointsToAdd),

@@ -6,6 +6,10 @@ import type { NextApiRequest, NextApiResponse } from "next";
 import { adminDb } from "../../utils/firebaseAdmin";
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  if (!adminDb) {
+    return res.status(200).json({ ok: false, items: [] });
+  }
+
   try {
     const snap = await adminDb.collection("designers").get();
     const items = snap.docs

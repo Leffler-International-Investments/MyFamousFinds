@@ -7,6 +7,7 @@ import Header from "../../components/Header";
 import Footer from "../../components/Footer";
 import { db } from "../../utils/firebaseClient";
 import { sellerFetch } from "../../utils/sellerClient";
+import { useRequireSeller } from "../../hooks/useRequireSeller";
 import {
   collection,
   getDocs,
@@ -152,6 +153,7 @@ function getSellerIdHeader(): string {
 }
 
 export default function BulkSimple() {
+  const { loading: authLoading } = useRequireSeller();
   const [items, setItems] = useState<Item[]>([{}]);
   const [designers, setDesigners] = useState<Designer[]>([]);
   const [loadingDesigners, setLoadingDesigners] = useState(false);
@@ -503,6 +505,17 @@ export default function BulkSimple() {
       setSubmitting(false);
     }
   };
+
+  if (authLoading) {
+    return (
+      <div className="page-container">
+        <Head><title>Quick Add — Multi-Item Form | Famous Finds</title></Head>
+        <Header />
+        <main className="section"><p>Checking seller access…</p></main>
+        <Footer />
+      </div>
+    );
+  }
 
   return (
     <div className="page-container">

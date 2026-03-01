@@ -1,5 +1,5 @@
 // FILE: components/PostPurchaseButler.tsx
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
 
 type PostPurchaseButlerProps = {
@@ -16,6 +16,7 @@ export default function PostPurchaseButler({
   vipUrl,
 }: PostPurchaseButlerProps) {
   const router = useRouter();
+  const [dismissed, setDismissed] = useState(false);
 
   function speak(text: string) {
     if (typeof window === "undefined") return;
@@ -51,11 +52,14 @@ export default function PostPurchaseButler({
     router.push(vipUrl);
   }
 
+  if (dismissed) return null;
+
   return (
     <>
       <div className="ppButler">
         <div className="ppHeader">
           <span className="ppTitle">🤵 AI Butler</span>
+          <button className="ppCloseBtn" onClick={() => setDismissed(true)} aria-label="Close">×</button>
         </div>
 
         <div className="ppBody">
@@ -97,6 +101,17 @@ export default function PostPurchaseButler({
         }
         .ppTitle {
           font-weight: 600;
+        }
+        .ppCloseBtn {
+          border: none;
+          background: transparent;
+          color: #9ca3af;
+          font-size: 20px;
+          cursor: pointer;
+          line-height: 1;
+        }
+        .ppCloseBtn:hover {
+          color: #f9fafb;
         }
         .ppBody p {
           margin: 4px 0;

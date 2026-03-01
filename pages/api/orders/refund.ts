@@ -1,6 +1,7 @@
 // FILE: pages/api/orders/refund.ts
 import type { NextApiRequest, NextApiResponse } from "next";
 import { adminDb, FieldValue } from "../../../utils/firebaseAdmin";
+import { isAdminRequest } from "../../../utils/adminAuth";
 
 export default async function handler(
   req: NextApiRequest,
@@ -11,6 +12,10 @@ export default async function handler(
   }
   if (!adminDb) {
     return res.status(500).json({ ok: false, error: "firebase_not_configured" });
+  }
+
+  if (!isAdminRequest(req)) {
+    return res.status(401).json({ ok: false, error: "unauthorized" });
   }
 
   try {
