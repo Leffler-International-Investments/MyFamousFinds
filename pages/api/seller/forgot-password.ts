@@ -1,24 +1,40 @@
 // FILE: /pages/api/seller/forgot-password.ts
-// Seller password reset — generates a Firebase Auth reset link and sends via email.
+// Seller password reset — generates a Firebase Auth reset link, extracts the
+// oobCode, builds a link to our own /seller/reset-password page, and sends
+// a branded email via lib/mailer.ts (AWS SES → SMTP fallback).
 //
 // Flow:
-//   1. Try Firebase Auth first — if the user exists, generate the link immediately.
-//   2. If Auth says "user not found", check Firestore to see if this email
-//      belongs to a seller. If it does, create a Firebase Auth account and retry.
-//   3. Send the email via sendMail (SES → SMTP fallback).
+//   1. Validate + rate-limit the request.
+//   2. Try Firebase Auth first — if the user exists, generate the link.
+//   3. If Auth says "user not found", check Firestore sellers collection.
+//      If found, create a Firebase Auth account and retry.
+//   4. Extract oobCode from the Firebase link and build our own reset URL.
+//   5. Send the email via lib/mailer.ts; on failure queue for retry.
 //
-// This order is important: the old code checked Firestore FIRST, which meant
-// that if the Firestore lookup failed (wrong doc ID format, permissions, etc.)
-// the email was never sent even though the user had a valid Firebase Auth account.
+// Security:
+//   - Never leaks whether the email actually exists (returns ok:true).
+//   - Returns ok:false ONLY for infrastructure errors (config, send failure).
+//   - Rate-limited: 5 requests per 15 min per IP and per email.
 
 import type { NextApiRequest, NextApiResponse } from "next";
 import { adminAuth, adminDb, isFirebaseAdminReady } from "../../../utils/firebaseAdmin";
-import { sendMail } from "../../../utils/email";
+import { sendPasswordResetEmail } from "../../../lib/mailer";
 import { queueEmail } from "../../../utils/emailOutbox";
+import { rateLimitForgotPassword } from "../../../lib/rateLimit";
 
 type Resp =
   | { ok: true; message: string }
   | { ok: false; error: string };
+
+/** Extract the oobCode query parameter from a Firebase password-reset link. */
+function extractOobCode(firebaseLink: string): string | null {
+  try {
+    const url = new URL(firebaseLink);
+    return url.searchParams.get("oobCode");
+  } catch {
+    return null;
+  }
+}
 
 export default async function handler(
   req: NextApiRequest,
@@ -28,24 +44,43 @@ export default async function handler(
     return res.status(405).json({ ok: false, error: "Method not allowed" });
   }
 
+  // ── Validate email ────────────────────────────
   const email = String(req.body?.email || "").trim().toLowerCase();
 
-  if (!email || !email.includes("@")) {
+  if (!email || !email.includes("@") || email.length > 320) {
     return res.status(400).json({ ok: false, error: "A valid email is required." });
   }
 
-  // Always return success to avoid leaking whether the email exists
-  const successResponse: Resp = {
+  // ── Rate limiting ─────────────────────────────
+  const ip =
+    (Array.isArray(req.headers["x-forwarded-for"])
+      ? req.headers["x-forwarded-for"][0]
+      : req.headers["x-forwarded-for"]?.split(",")[0]?.trim()) ||
+    req.socket?.remoteAddress ||
+    "unknown";
+
+  if (!rateLimitForgotPassword(ip, email)) {
+    console.warn(`[forgot-password] Rate-limited: ip=${ip} email=${email}`);
+    return res
+      .status(429)
+      .json({ ok: false, error: "Too many requests. Please try again in a few minutes." });
+  }
+
+  // ── "Safe" success response — does NOT leak whether email exists ──
+  const safeSuccess: Resp = {
     ok: true,
     message: "If an account exists for this email, a password reset link has been sent.",
   };
 
+  // ── Firebase Admin check ──────────────────────
   if (!isFirebaseAdminReady || !adminAuth) {
     console.error(
-      "[seller-forgot-password] CRITICAL: Firebase Admin not configured — email WILL NOT be sent.",
+      "[forgot-password] CRITICAL: Firebase Admin not configured — email WILL NOT be sent.",
       "Set FIREBASE_SERVICE_ACCOUNT_JSON (or FB_PROJECT_ID + FB_CLIENT_EMAIL + FB_PRIVATE_KEY) in Vercel env vars."
     );
-    return res.status(200).json(successResponse);
+    return res
+      .status(500)
+      .json({ ok: false, error: "Server reset email not configured." });
   }
 
   const siteUrl =
@@ -53,6 +88,8 @@ export default async function handler(
     process.env.NEXT_PUBLIC_BASE_URL ||
     "https://www.myfamousfinds.com";
 
+  // The continueUrl doesn't matter much because we extract oobCode and build our own URL,
+  // but Firebase requires it.
   const actionCodeSettings = {
     url: `${siteUrl}/seller/login`,
     handleCodeInApp: false,
@@ -61,29 +98,30 @@ export default async function handler(
   // ──────────────────────────────────────────────
   // Step 1: Try to generate the reset link directly
   // ──────────────────────────────────────────────
-  let resetLink: string | null = null;
+  let firebaseLink: string | null = null;
 
   try {
-    resetLink = await adminAuth.generatePasswordResetLink(email, actionCodeSettings);
-    console.log(`[seller-forgot-password] Reset link generated for ${email}`);
+    firebaseLink = await adminAuth.generatePasswordResetLink(email, actionCodeSettings);
+    console.log(`[forgot-password] Reset link generated for ${email}`);
   } catch (err: any) {
     const code = err?.code || "";
-    console.log(`[seller-forgot-password] generatePasswordResetLink error: code=${code} message=${err?.message}`);
+    console.log(
+      `[forgot-password] generatePasswordResetLink error: code=${code} message=${err?.message}`
+    );
 
     if (code === "auth/user-not-found" || code === "auth/email-not-found") {
-      // User does not exist in Firebase Auth — check Firestore next
-      console.log(`[seller-forgot-password] No Auth user for ${email}, checking Firestore…`);
+      console.log(`[forgot-password] No Auth user for ${email}, checking Firestore…`);
     } else {
       // Unexpected error (invalid domain, config issue, etc.)
-      console.error("[seller-forgot-password] Unexpected Auth error:", err);
-      return res.status(200).json(successResponse);
+      console.error("[forgot-password] Unexpected Auth error:", err);
+      return res.status(200).json(safeSuccess);
     }
   }
 
   // ──────────────────────────────────────────────
   // Step 2: If no Auth user, verify seller exists in Firestore and create one
   // ──────────────────────────────────────────────
-  if (!resetLink) {
+  if (!firebaseLink) {
     let sellerFound = false;
 
     try {
@@ -122,82 +160,78 @@ export default async function handler(
         }
       }
     } catch (err) {
-      console.error("[seller-forgot-password] Firestore lookup error:", err);
-      // Don't return — we still want to try creating the auth user
-      // if Firestore is misconfigured but the email looks legitimate.
+      console.error("[forgot-password] Firestore lookup error:", err);
     }
 
     if (!sellerFound) {
-      console.log(`[seller-forgot-password] Seller not found in Firestore for ${email}`);
-      return res.status(200).json(successResponse);
+      console.log(`[forgot-password] Seller not found in Firestore for ${email}`);
+      // Don't leak that the email doesn't exist
+      return res.status(200).json(safeSuccess);
     }
 
     // Seller exists in Firestore but not in Auth — create the Auth account
     try {
       await adminAuth.createUser({ email });
-      console.log(`[seller-forgot-password] Created Firebase Auth user for ${email}`);
-      resetLink = await adminAuth.generatePasswordResetLink(email, actionCodeSettings);
-      console.log(`[seller-forgot-password] Reset link generated after user creation for ${email}`);
+      console.log(`[forgot-password] Created Firebase Auth user for ${email}`);
+      firebaseLink = await adminAuth.generatePasswordResetLink(email, actionCodeSettings);
+      console.log(`[forgot-password] Reset link generated after user creation for ${email}`);
     } catch (createErr: any) {
       console.error(
-        "[seller-forgot-password] Failed to create user or generate link:",
-        createErr?.code, createErr?.message
+        "[forgot-password] Failed to create user or generate link:",
+        createErr?.code,
+        createErr?.message
       );
-      return res.status(200).json(successResponse);
+      return res.status(200).json(safeSuccess);
     }
   }
 
-  // Safety check — should not happen, but guard against it
-  if (!resetLink) {
-    console.error("[seller-forgot-password] BUG: resetLink is still null after all attempts");
-    return res.status(200).json(successResponse);
+  // Safety check
+  if (!firebaseLink) {
+    console.error("[forgot-password] BUG: firebaseLink is still null after all attempts");
+    return res.status(200).json(safeSuccess);
   }
 
   // ──────────────────────────────────────────────
-  // Step 3: Build email content
+  // Step 3: Build our own reset URL with oobCode
   // ──────────────────────────────────────────────
-  const subject = "MyFamousFinds — Reset Your Seller Password";
-  const text =
-    "Hello,\n\n" +
-    "We received a request to reset your seller account password on MyFamousFinds.\n\n" +
-    "Click the link below to set a new password:\n\n" +
-    `${resetLink}\n\n` +
-    "This link will expire in 1 hour.\n\n" +
-    "If you did not request this, you can safely ignore this email.\n\n" +
-    "Regards,\nThe MyFamousFinds Team";
+  const oobCode = extractOobCode(firebaseLink);
 
-  const html =
-    "<p>Hello,</p>" +
-    "<p>We received a request to reset your seller account password on <b>MyFamousFinds</b>.</p>" +
-    `<p><a href="${resetLink}" style="display:inline-block;background:#111827;color:#fff;padding:12px 24px;border-radius:999px;text-decoration:none;font-weight:600;">Reset Your Password</a></p>` +
-    "<p>Or copy and paste this link into your browser:</p>" +
-    `<p style="font-size:13px;color:#6b7280;word-break:break-all;">${resetLink}</p>` +
-    "<p style=\"font-size:12px;color:#9ca3af;\">This link will expire in 1 hour.</p>" +
-    "<p>If you did not request this, you can safely ignore this email.</p>" +
-    "<p>Regards,<br/>The MyFamousFinds Team</p>";
+  // If we can extract the oobCode, point to our own branded reset page.
+  // Otherwise fall back to the raw Firebase link (still works).
+  const resetUrl = oobCode
+    ? `${siteUrl}/seller/reset-password?oobCode=${encodeURIComponent(oobCode)}`
+    : firebaseLink;
 
   // ──────────────────────────────────────────────
   // Step 4: Send the email; on failure queue for retry
   // ──────────────────────────────────────────────
   try {
-    await sendMail(email, subject, text, html);
-    console.log(`[seller-forgot-password] Reset email sent to ${email}`);
-  } catch (err) {
-    console.error("[seller-forgot-password] sendMail failed, queuing for retry:", err);
+    await sendPasswordResetEmail(email, resetUrl);
+    console.log(`[forgot-password] Reset email sent to ${email}`);
+    return res.status(200).json(safeSuccess);
+  } catch (sendErr: any) {
+    console.error("[forgot-password] sendPasswordResetEmail failed:", sendErr);
+
+    // Try queuing for retry
     try {
       await queueEmail({
         to: email,
-        subject,
-        text,
-        html,
+        subject: "My Famous Finds — Reset your password",
+        text: `Reset your password: ${resetUrl}`,
+        html: `<p>Reset your password: <a href="${resetUrl}">${resetUrl}</a></p>`,
         eventType: "password_reset",
         eventKey: `password_reset:seller:${email}:${Date.now()}`,
       });
-      console.log(`[seller-forgot-password] Queued email for retry to ${email}`);
+      console.log(`[forgot-password] Queued email for retry to ${email}`);
+      // Queued successfully — tell the user it's on its way
+      return res.status(200).json(safeSuccess);
     } catch (queueErr) {
-      console.error("[seller-forgot-password] Failed to queue email:", queueErr);
+      console.error("[forgot-password] Failed to queue email:", queueErr);
     }
-  }
 
-  return res.status(200).json(successResponse);
+    // Both direct send and queue failed — surface the error to the UI
+    return res
+      .status(500)
+      .json({ ok: false, error: "Unable to send reset email. Please try again later." });
+  }
 }

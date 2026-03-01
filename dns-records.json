@@ -1,0 +1,132 @@
+{
+  "domain": "myfamousfinds.com",
+  "provider": "Vercel",
+  "records": [
+    {
+      "type": "ALIAS",
+      "name": "@",
+      "value": "e0dee96dad5ce7ee.vercel-dns-016.com",
+      "ttl": 60,
+      "comment": "Vercel automatic — root domain"
+    },
+    {
+      "type": "ALIAS",
+      "name": "*",
+      "value": "cname.vercel-dns-016.com",
+      "ttl": 60,
+      "comment": "Vercel automatic — wildcard"
+    },
+    {
+      "type": "CAA",
+      "name": "@",
+      "value": "0 issue \"letsencrypt.org\"",
+      "ttl": 60,
+      "comment": "SSL certificate authority authorization"
+    },
+    {
+      "type": "MX",
+      "name": "@",
+      "value": "aspmx.l.google.com.",
+      "priority": 1,
+      "ttl": 60,
+      "comment": "Google Workspace mail — primary"
+    },
+    {
+      "type": "MX",
+      "name": "@",
+      "value": "alt1.aspmx.l.google.com.",
+      "priority": 5,
+      "ttl": 60,
+      "comment": "Google Workspace mail — alt1"
+    },
+    {
+      "type": "MX",
+      "name": "@",
+      "value": "alt2.aspmx.l.google.com.",
+      "priority": 5,
+      "ttl": 60,
+      "comment": "Google Workspace mail — alt2"
+    },
+    {
+      "type": "MX",
+      "name": "@",
+      "value": "alt3.aspmx.l.google.com.",
+      "priority": 10,
+      "ttl": 60,
+      "comment": "Google Workspace mail — alt3"
+    },
+    {
+      "type": "MX",
+      "name": "@",
+      "value": "alt4.aspmx.l.google.com.",
+      "priority": 10,
+      "ttl": 60,
+      "comment": "Google Workspace mail — alt4"
+    },
+    {
+      "type": "MX",
+      "name": "@",
+      "value": "inbound-smtp.us-east-1.amazonaws.com.",
+      "priority": 10,
+      "ttl": 60,
+      "comment": "AWS SES inbound mail"
+    },
+    {
+      "type": "MX",
+      "name": "mail",
+      "value": "feedback-smtp.us-east-1.amazonses.com.",
+      "priority": 10,
+      "ttl": 60,
+      "comment": "AWS SES feedback/bounce handling"
+    },
+    {
+      "type": "TXT",
+      "name": "@",
+      "value": "v=spf1 include:amazonses.com include:_spf.google.com ~all",
+      "ttl": 60,
+      "comment": "SPF — authorize Amazon SES and Google to send mail"
+    },
+    {
+      "type": "TXT",
+      "name": "@",
+      "value": "google-site-verification=my1vWF-xFvg...",
+      "ttl": 60,
+      "comment": "Google Search Console verification (value truncated in dashboard — verify full value in Google Search Console)"
+    },
+    {
+      "type": "TXT",
+      "name": "_dmarc",
+      "value": "v=DMARC1; p=none;",
+      "ttl": 60,
+      "comment": "DMARC policy — monitor mode"
+    },
+    {
+      "type": "CNAME",
+      "name": "hyp5ol74ecie",
+      "value": "gv-m6uqnjeuhtmzo3.dv.googlehosted.com.",
+      "ttl": 60,
+      "comment": "Google domain verification"
+    },
+    {
+      "type": "CNAME",
+      "name": "nl5wucbtqwe2j4oqnhbi32efpwa6j7jr._domainkey",
+      "value": "nl5wucbtqwe2j4oqnhbi32efpwa6j7jr.dkim.amazonses.com.",
+      "ttl": 60,
+      "comment": "AWS SES DKIM signature 1"
+    },
+    {
+      "type": "CNAME",
+      "name": "pnbl2z5gtjqs5poinfs4sim3n76ys5cd._domainkey",
+      "value": "pnbl2z5gtjqs5poinfs4sim3n76ys5cd.dkim.amazonses.com.",
+      "ttl": 60,
+      "comment": "AWS SES DKIM signature 2"
+    },
+    {
+      "type": "CNAME",
+      "name": "uduetbrxzyqzlwoyaziiigixz7mwqivr._domainkey",
+      "value": "uduetbrxzyqzlwoyaziiigixz7mwqivr.dkim.amazonses.com.",
+      "ttl": 60,
+      "comment": "AWS SES DKIM signature 3"
+    }
+  ]
+}
