@@ -39,12 +39,25 @@ export default async function handler(
   }
 
   // Step 1: Verify seller exists in Firestore
+  // Seller doc IDs may be stored as raw email OR with dots replaced by underscores
   try {
     if (adminDb) {
       let found = false;
+
+      // Check doc ID = raw email
       const byId = await adminDb.collection("sellers").doc(email).get();
       if (byId.exists) found = true;
 
+      // Check doc ID = underscore format (e.g. "user@gmail_com")
+      if (!found) {
+        const underscoreId = email.replace(/\./g, "_");
+        if (underscoreId !== email) {
+          const byUnderscore = await adminDb.collection("sellers").doc(underscoreId).get();
+          if (byUnderscore.exists) found = true;
+        }
+      }
+
+      // Check by email field
       if (!found) {
         const byEmail = await adminDb
           .collection("sellers")
@@ -54,6 +67,7 @@ export default async function handler(
         if (!byEmail.empty) found = true;
       }
 
+      // Check by contactEmail field
       if (!found) {
         const byContact = await adminDb
           .collection("sellers")
@@ -64,6 +78,7 @@ export default async function handler(
       }
 
       if (!found) {
+        console.log(`[seller-forgot-password] Seller not found for ${email}`);
         return res.status(200).json(successResponse);
       }
     }
