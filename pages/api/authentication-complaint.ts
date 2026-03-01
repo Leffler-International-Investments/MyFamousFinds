@@ -66,7 +66,7 @@ export default async function handler(
     console.error("[AUTH-COMPLAINT] Dispute propagation failed:", err);
   }
 
-  // Send email notification to support
+  // Send email notification to support/admin
   try {
     const subjectLine = `[Authentication Complaint] Ref #${refId} — from ${name}`;
 
@@ -96,8 +96,54 @@ export default async function handler(
       `</div>`;
 
     await sendMail(recipientEmail, subjectLine, text, html);
+
+    // Also send to SUPPORT_INBOX if different from primary recipient
+    const supportInbox = (process.env.SUPPORT_INBOX || "").trim();
+    if (supportInbox && supportInbox !== recipientEmail) {
+      await sendMail(supportInbox, subjectLine, text, html).catch((e) =>
+        console.error("[AUTH-COMPLAINT] Support inbox email failed:", e)
+      );
+    }
   } catch (err) {
     console.error("[AUTH-COMPLAINT] Email send failed:", err);
+  }
+
+  // Send confirmation email to the person who submitted the complaint
+  try {
+    const userEmail = String(email).trim();
+    const userName = String(name).trim();
+
+    const confirmSubject = `MyFamousFinds — Authenticity Complaint Received (Ref #${refId})`;
+    const confirmText =
+      `Hello ${userName},\n\n` +
+      `Thank you for contacting MyFamousFinds regarding your authenticity concern.\n\n` +
+      `We take authenticity very seriously and your complaint has been logged:\n\n` +
+      `Reference #: ${refId}\n` +
+      `Order Number: ${orderNumber || "Not provided"}\n` +
+      `Item: ${itemDescription || "Not provided"}\n\n` +
+      `Our team will investigate and get back to you as soon as possible.\n\n` +
+      `Regards,\n` +
+      `MyFamousFinds Support Team\n` +
+      `support@myfamousfinds.com\n`;
+
+    const confirmHtml =
+      `<div style="font-family:sans-serif;max-width:600px;">` +
+      `<p>Hello ${escapeHtml(userName)},</p>` +
+      `<p>Thank you for contacting <b>MyFamousFinds</b> regarding your authenticity concern.</p>` +
+      `<p>We take authenticity very seriously and your complaint has been logged:</p>` +
+      `<div style="padding:14px;background:#fef2f2;border-radius:8px;margin:12px 0;border:1px solid #fecaca;">` +
+      `<p style="margin:4px 0;"><b>Reference #:</b> ${refId}</p>` +
+      `<p style="margin:4px 0;"><b>Order Number:</b> ${escapeHtml(orderNumber || "Not provided")}</p>` +
+      `<p style="margin:4px 0;"><b>Item:</b> ${escapeHtml(itemDescription || "Not provided")}</p>` +
+      `</div>` +
+      `<p>Our team will investigate and get back to you as soon as possible.</p>` +
+      `<p>Regards,<br/>MyFamousFinds Support Team<br/>` +
+      `<a href="mailto:support@myfamousfinds.com">support@myfamousfinds.com</a></p>` +
+      `</div>`;
+
+    await sendMail(userEmail, confirmSubject, confirmText, confirmHtml);
+  } catch (err) {
+    console.error("[AUTH-COMPLAINT] User confirmation email failed:", err);
   }
 
   return res.status(201).json({ ok: true, refId });
