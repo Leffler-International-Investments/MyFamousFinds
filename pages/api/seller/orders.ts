@@ -40,6 +40,7 @@ type Order = {
     carrier?: string;
     trackingNumber?: string;
     trackingUrl?: string;
+    labelUrl?: string;
   } | null;
 
   fulfillment?: {
@@ -152,6 +153,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
             carrier: o.shipping.carrier,
             trackingNumber: o.shipping.trackingNumber,
             trackingUrl: o.shipping.trackingUrl,
+            labelUrl: o.shipping.labelUrl,
           }
         : o.tracking
         ? {
@@ -159,6 +161,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
             carrier: o.tracking.carrier,
             trackingNumber: o.tracking.trackingNumber,
             trackingUrl: o.tracking.trackingUrl,
+            labelUrl: o.tracking.labelUrl,
           }
         : null;
 

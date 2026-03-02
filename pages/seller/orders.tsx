@@ -23,6 +23,7 @@ type ShippingInfo = {
   carrier?: string;
   trackingNumber?: string;
   trackingUrl?: string;
+  labelUrl?: string;
 };
 
 type FulfillmentInfo = {
@@ -84,6 +85,7 @@ export default function SellerOrders() {
     Record<string, { carrier: string; trackingNumber: string; signatureRequired: boolean }>
   >({});
   const [generatingLabelId, setGeneratingLabelId] = useState<string | null>(null);
+  const [resendingLabelId, setResendingLabelId] = useState<string | null>(null);
   const [labelResult, setLabelResult] = useState<
     Record<string, { trackingNumber: string; labelUrl: string; trackingUrl: string } | null>
   >({});
@@ -957,6 +959,42 @@ export default function SellerOrders() {
               <a className="btn" href={labelResult[r.id]!.trackingUrl} target="_blank" rel="noreferrer">
                 Track
               </a>
+              <button
+                type="button"
+                className="btn"
+                disabled={resendingLabelId === r.id}
+                onClick={() => onResendLabel(r.id)}
+                title="Resend the UPS label email if you did not receive it"
+              >
+                {resendingLabelId === r.id ? "Resending…" : "Resend Label Email"}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {!labelResult[r.id] && r.shipping?.labelUrl && r.shipping?.trackingNumber && (
+          <div className="label-result">
+            <div className="muted" style={{ textAlign: "right" }}>
+              Tracking: {r.shipping.trackingNumber}
+            </div>
+            <div className="action-row">
+              <a className="btn" href={r.shipping.labelUrl} target="_blank" rel="noreferrer">
+                Download Label
+              </a>
+              {r.shipping.trackingUrl && (
+                <a className="btn" href={r.shipping.trackingUrl} target="_blank" rel="noreferrer">
+                  Track
+                </a>
+              )}
+              <button
+                type="button"
+                className="btn"
+                disabled={resendingLabelId === r.id}
+                onClick={() => onResendLabel(r.id)}
+                title="Resend the UPS label email if you did not receive it"
+              >
+                {resendingLabelId === r.id ? "Resending…" : "Resend Label Email"}
+              </button>
             </div>
           </div>
         )}
@@ -1054,6 +1092,25 @@ export default function SellerOrders() {
       setError(e?.message || "Failed to generate shipping label.");
     } finally {
       setGeneratingLabelId(null);
+    }
+  }
+
+  async function onResendLabel(orderId: string) {
+    try {
+      setResendingLabelId(orderId);
+      setError(null);
+
+      const res = await sellerFetch("/api/ups/resend-order-label", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orderId }),
+      });
+      const json = await res.json();
+      if (!res.ok || !json?.ok) throw new Error(json?.error || "Failed to resend label email.");
+    } catch (e: any) {
+      setError(e?.message || "Failed to resend label email.");
+    } finally {
+      setResendingLabelId(null);
     }
   }
 

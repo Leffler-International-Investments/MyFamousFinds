@@ -100,7 +100,7 @@ async function getSellerAddress(
   let sellerName = "";
   let sellerPhone = "";
 
-  const sellerDoc = await adminDb.collection("sellers").doc(sellerId).get();
+  let sellerDoc = await adminDb.collection("sellers").doc(sellerId).get();
   if (sellerDoc.exists) {
     const sd: any = sellerDoc.data() || {};
     sellerEmail = String(sd.contactEmail || sd.email || "").trim().toLowerCase();
@@ -112,11 +112,32 @@ async function getSellerAddress(
     // Try finding seller by other lookups
     const byEmail = await adminDb.collection("sellers").where("email", "==", sellerId).limit(1).get();
     if (!byEmail.empty) {
+      sellerDoc = byEmail.docs[0];
       const sd: any = byEmail.docs[0].data() || {};
       sellerEmail = String(sd.contactEmail || sd.email || "").trim().toLowerCase();
       sellerName = String(sd.businessName || sd.name || "");
       sellerPhone = String(sd.phone || "");
     }
+  }
+
+  if (!sellerEmail) {
+    const byContactEmail = await adminDb
+      .collection("sellers")
+      .where("contactEmail", "==", sellerId)
+      .limit(1)
+      .get();
+    if (!byContactEmail.empty) {
+      sellerDoc = byContactEmail.docs[0];
+      const sd: any = byContactEmail.docs[0].data() || {};
+      sellerEmail = String(sd.contactEmail || sd.email || "").trim().toLowerCase();
+      sellerName = String(sd.businessName || sd.name || "");
+      sellerPhone = String(sd.phone || "");
+    }
+  }
+
+  if (!sellerEmail && sellerId.includes("@")) {
+    // Some orders persist sellerId as the seller email address directly.
+    sellerEmail = sellerId.trim().toLowerCase();
   }
 
   if (sellerEmail) {
@@ -135,6 +156,30 @@ async function getSellerAddress(
           country: "US",
         };
       }
+    }
+  }
+
+  // Fallback: if seller profile has an address block, use it directly.
+  if (sellerDoc.exists) {
+    const sd: any = sellerDoc.data() || {};
+    const addr = sd.address || sd.shippingAddress || null;
+    if (
+      addr &&
+      (addr.line1 || addr.address1) &&
+      addr.city &&
+      (addr.state || addr.stateProvince) &&
+      (addr.postalCode || addr.zip)
+    ) {
+      return {
+        name: sellerName || sellerId,
+        phone: sellerPhone || "",
+        address1: addr.line1 || addr.address1,
+        address2: addr.line2 || addr.address2 || "",
+        city: addr.city,
+        state: addr.state || addr.stateProvince,
+        zip: addr.postalCode || addr.zip,
+        country: addr.country || "US",
+      };
     }
   }
 
