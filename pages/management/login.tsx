@@ -151,6 +151,7 @@ export default function ManagementLoginPage() {
       setStep("verify");
 
       setInfo(twofaJson.message || "Code sent.");
+      if (twofaJson.devCode) setCode(twofaJson.devCode);
     } catch (err) {
       console.error("management_start_2fa_error", err);
       setStep("choose_method");
