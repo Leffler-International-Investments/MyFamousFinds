@@ -7,6 +7,11 @@ import Footer from "../../components/Footer";
 import { adminDb } from "../../utils/firebaseAdmin";
 import { capturePayPalOrder, getPayPalOrder } from "../../lib/paypal";
 import PostPurchaseButler from "../../components/PostPurchaseButler";
+import {
+  sendBuyerOrderConfirmationEmail,
+  sendSellerItemSoldEmail,
+} from "../../utils/email";
+import { queueEmail } from "../../utils/emailOutbox";
 
 type SuccessProps = {
   productTitle: string;
@@ -507,6 +512,90 @@ export const getServerSideProps: GetServerSideProps<SuccessProps> = async (ctx) 
               .doc(pendingId)
               .delete()
               .catch(() => {});
+          }
+
+          // ── Send confirmation emails ──
+          const emailOrderId = orderRef.id;
+          const emailItemTitle = pendingData.productTitle || "Item";
+          const emailAmountStr = capturedAmount.toFixed(2);
+
+          // Buyer confirmation email
+          if (payerEmail) {
+            try {
+              await sendBuyerOrderConfirmationEmail({
+                to: payerEmail,
+                buyerName: payerName || undefined,
+                orderId: emailOrderId,
+                itemTitle: emailItemTitle,
+                amount: emailAmountStr,
+                currency: capturedCurrency,
+              });
+            } catch (emailErr) {
+              console.error("[order/success] Buyer email failed, queueing:", emailErr);
+              await queueEmail({
+                to: payerEmail,
+                subject: "MyFamousFinds — Order Confirmation",
+                text:
+                  `Hello ${payerName || "there"},\n\n` +
+                  `Thank you for your purchase on MyFamousFinds!\n\n` +
+                  `Order ID: ${emailOrderId}\nItem: ${emailItemTitle}\nTotal: ${capturedCurrency} ${emailAmountStr}\n\n` +
+                  `We will process your order and keep you updated on shipping.\n\n` +
+                  `Regards,\nThe MyFamousFinds Team\n`,
+                eventType: "buyer_order_confirmation",
+                eventKey: `${emailOrderId}:buyer_order_confirmation`,
+                metadata: { orderId: emailOrderId, buyerEmail: payerEmail },
+              }).catch((qErr) => console.error("[order/success] Outbox queue failed:", qErr));
+            }
+          }
+
+          // Seller notification email
+          if (sellerId) {
+            try {
+              let sellerEmail = "";
+              let sellerName = "";
+              let sellerDoc = await adminDb.collection("sellers").doc(sellerId).get();
+              if (!sellerDoc.exists) {
+                const byEmail = await adminDb.collection("sellers").where("email", "==", sellerId).limit(1).get();
+                if (!byEmail.empty) sellerDoc = byEmail.docs[0];
+              }
+              if (!sellerDoc.exists) {
+                const byContact = await adminDb.collection("sellers").where("contactEmail", "==", sellerId).limit(1).get();
+                if (!byContact.empty) sellerDoc = byContact.docs[0];
+              }
+              const sellerData = sellerDoc.exists ? sellerDoc.data() || {} : {};
+              sellerEmail = String(sellerData.contactEmail || sellerData.email || sellerId);
+              sellerName = String(sellerData.businessName || sellerData.name || "");
+
+              if (sellerEmail && sellerEmail.includes("@")) {
+                try {
+                  await sendSellerItemSoldEmail({
+                    to: sellerEmail,
+                    sellerName,
+                    itemTitle: emailItemTitle,
+                    amount: emailAmountStr,
+                    currency: capturedCurrency,
+                    orderId: emailOrderId,
+                  });
+                } catch (sellEmailErr) {
+                  console.error("[order/success] Seller email failed, queueing:", sellEmailErr);
+                  await queueEmail({
+                    to: sellerEmail,
+                    subject: "MyFamousFinds — Your Item Has Been Sold!",
+                    text:
+                      `Hello ${sellerName || "Seller"},\n\n` +
+                      `Great news — your item has been sold on MyFamousFinds!\n\n` +
+                      `Item: ${emailItemTitle}\nSale Amount: ${capturedCurrency} ${emailAmountStr}\nOrder ID: ${emailOrderId}\n\n` +
+                      `Please prepare the item for shipping.\n\n` +
+                      `Regards,\nThe MyFamousFinds Team\n`,
+                    eventType: "seller_item_sold",
+                    eventKey: `${emailOrderId}:seller_item_sold:${sellerId}`,
+                    metadata: { orderId: emailOrderId, sellerId, sellerEmail, itemTitle: emailItemTitle },
+                  }).catch((qErr) => console.error("[order/success] Seller outbox queue failed:", qErr));
+                }
+              }
+            } catch (sellerLookupErr) {
+              console.error("[order/success] Seller lookup for email failed:", sellerLookupErr);
+            }
           }
 
           // Populate success page data

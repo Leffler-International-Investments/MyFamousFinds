@@ -1,0 +1,158 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // =========================================================
+    // 1. HELPER FUNCTIONS
+    // =========================================================
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isSelf(userId) {
+      return signedIn() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return signedIn() && (
+        request.auth.token.isAdmin == true ||
+        request.auth.uid == 'Fj28JrWa8LQEzwGcZQ60rme39wP2' ||
+        request.auth.uid == 'hoMODWgS1zY1JAuz1dbCbnhaBki2'
+      );
+    }
+
+    // =========================================================
+    // 2. COLLECTION RULES
+    // =========================================================
+
+    match /menuCategories/{id} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /users/{userId} {
+      allow read, update, delete: if isSelf(userId) || isAdmin();
+      allow create: if isSelf(userId);
+    }
+
+    match /sellers/{sellerId} {
+      allow read: if signedIn() && (request.auth.uid == sellerId || isAdmin());
+      allow create: if signedIn() && (request.auth.uid == sellerId || isAdmin());
+      allow update: if signedIn() && (request.auth.uid == sellerId || isAdmin());
+      allow delete: if isAdmin();
+    }
+
+    match /listings/{id} {
+      allow read: if true;
+      allow create, update, delete: if signedIn() && (
+        request.resource.data.sellerId == request.auth.token.sellerId ||
+        isAdmin()
+      );
+    }
+
+    match /orders/{id} {
+      allow read: if signedIn() && (
+        request.auth.token.sellerId == resource.data.sellerId ||
+        request.auth.uid == resource.data.buyerId ||
+        isAdmin()
+      );
+      allow update: if signedIn() && (
+        request.auth.token.sellerId == resource.data.sellerId ||
+        isAdmin()
+      );
+      allow create, delete: if false;
+    }
+
+    match /offers/{id} {
+      allow read, update, delete: if isAdmin();
+      allow create: if signedIn()
+        && request.resource.data.createdBy == request.auth.uid;
+      allow read, update, delete: if signedIn()
+        && resource.data.createdBy == request.auth.uid;
+    }
+
+    match /followers/{uid}/following/{sellerId} {
+      allow read, write: if signedIn() && request.auth.uid == uid;
+    }
+
+    match /disputes/{id} {
+      allow read, create: if signedIn();
+      allow update: if signedIn() || isAdmin();
+      allow delete: if false;
+    }
+
+    match /concierge_leads/{id} {
+      allow create: if signedIn();
+      allow read: if isAdmin();
+      allow update, delete: if false;
+    }
+
+    match /designers/{designerId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /buyer_messages/{id} {
+      allow read: if true;
+      allow write: if signedIn();
+    }
+
+    // ---- Buyer collections (client-side access) ----
+
+    match /buyerCartItems/{id} {
+      allow read, write: if signedIn() && resource.data.userId == request.auth.uid;
+      allow create: if signedIn() && request.resource.data.userId == request.auth.uid;
+      allow delete: if signedIn() && resource.data.userId == request.auth.uid;
+    }
+
+    match /buyerSavedItems/{id} {
+      allow read, write: if signedIn() && resource.data.userId == request.auth.uid;
+      allow create: if signedIn() && request.resource.data.userId == request.auth.uid;
+    }
+
+    match /buyerRecentlyViewed/{id} {
+      allow read: if signedIn() && resource.data.userId == request.auth.uid;
+      allow create, update: if signedIn() && request.resource.data.userId == request.auth.uid;
+      allow delete: if signedIn() && resource.data.userId == request.auth.uid;
+    }
+
+    match /buyerRecommendations/{id} {
+      allow read: if signedIn() && resource.data.userId == request.auth.uid;
+      allow write: if false;
+    }
+
+    match /reviews/{id} {
+      allow read: if true;
+      allow create: if signedIn();
+      allow update, delete: if false;
+    }
+
+    match /userPreferences/{userId} {
+      allow read, write: if isSelf(userId) || isAdmin();
+    }
+
+    match /vip_drops/{id} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /vip_members/{id} {
+      allow read: if signedIn() && request.auth.uid == resource.data.userId;
+      allow write: if false;
+    }
+
+    // =========================================================
+    // 3. SECURITY FALLBACK
+    // All server-only collections (_deleted_listings, email_outbox,
+    // pending_orders, paypal_events, paypal_disputes, seller_banking,
+    // loginChallenges, logs, etc.) are blocked by this catch-all.
+    // They are accessed only via Firebase Admin SDK which bypasses rules.
+    // =========================================================
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
