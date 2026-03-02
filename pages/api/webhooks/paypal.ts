@@ -3,7 +3,7 @@
 
 import type { NextApiRequest, NextApiResponse } from "next";
 import { adminDb } from "../../../utils/firebaseAdmin";
-import { verifyPayPalWebhook } from "../../../lib/paypal";
+import { verifyPayPalWebhook, getPayPalOrder } from "../../../lib/paypal";
 import { tryAutoGenerateLabel } from "../../../utils/autoGenerateLabel";
 
 export const config = {
@@ -87,6 +87,73 @@ export default async function handler(
       const currency = capture.amount?.currency_code || "USD";
 
       if (paypalOrderId) {
+        // Fetch full PayPal order to get buyer/shipping details
+        let paypalOrder: any = null;
+        try {
+          paypalOrder = await getPayPalOrder(paypalOrderId);
+        } catch (fetchErr) {
+          console.error("[paypal webhook] Failed to fetch PayPal order details:", fetchErr);
+        }
+
+        // Extract buyer info from PayPal order
+        const payer = paypalOrder?.payer || {};
+        const purchaseUnit = paypalOrder?.purchase_units?.[0];
+        const shipping = purchaseUnit?.shipping;
+
+        const buyerEmail = payer.email_address || "";
+        const buyerName = [payer.name?.given_name, payer.name?.surname]
+          .filter(Boolean)
+          .join(" ") || "";
+
+        // Build shipping address from PayPal order data
+        let shippingAddress: Record<string, string> | null = null;
+        if (shipping?.address) {
+          shippingAddress = {
+            name: shipping.name?.full_name || buyerName || "",
+            line1: shipping.address.address_line_1 || "",
+            line2: shipping.address.address_line_2 || "",
+            city: shipping.address.admin_area_2 || "",
+            state: shipping.address.admin_area_1 || "",
+            postal_code: shipping.address.postal_code || "",
+            country: shipping.address.country_code || "",
+          };
+        }
+
+        // Also check pending_orders for buyer details (fallback)
+        const customId = capture.custom_id || purchaseUnit?.reference_id || "";
+        let pendingData: any = null;
+        try {
+          const pendingSnap = await adminDb
+            .collection("pending_orders")
+            .where("paypalOrderId", "==", paypalOrderId)
+            .limit(1)
+            .get();
+          if (!pendingSnap.empty) {
+            pendingData = pendingSnap.docs[0].data() || {};
+          }
+        } catch (pendingErr) {
+          console.warn("[paypal webhook] pending_orders lookup failed:", pendingErr);
+        }
+
+        // Use pending_orders buyer details as fallback for shipping address
+        if (!shippingAddress && pendingData?.buyerDetails) {
+          const bd = pendingData.buyerDetails;
+          if (bd.addressLine1 && bd.city && bd.state && bd.postalCode) {
+            shippingAddress = {
+              name: bd.fullName || buyerName || "",
+              line1: bd.addressLine1 || "",
+              line2: bd.addressLine2 || "",
+              city: bd.city || "",
+              state: bd.state || "",
+              postal_code: bd.postalCode || "",
+              country: bd.country || "",
+            };
+          }
+        }
+
+        const resolvedBuyerEmail = buyerEmail || pendingData?.buyerDetails?.email || "";
+        const resolvedBuyerName = buyerName || pendingData?.buyerDetails?.fullName || "";
+
         // Check if order already exists
         const existingOrder = await adminDb
           .collection("orders")
@@ -96,7 +163,6 @@ export default async function handler(
 
         if (existingOrder.empty) {
           // The webhook arrived before the capture-order endpoint — create the order
-          const customId = capture.custom_id || "";
 
           let sellerId = "";
           if (customId) {
@@ -120,14 +186,22 @@ export default async function handler(
             paypalCaptureId: captureId,
             listingId: customId,
             ...(sellerId ? { sellerId } : {}),
-            buyerEmail: "",
-            buyerName: "",
+            buyerEmail: resolvedBuyerEmail,
+            buyerName: resolvedBuyerName,
+            ...(shippingAddress ? { shippingAddress } : {}),
+            listingTitle: pendingData?.productTitle || "",
             amountTotal: Math.round(amount * 100),
             currency,
             status: "paid",
             createdAt: Date.now(),
             source: "webhook",
           });
+
+          console.log(
+            `[paypal webhook] Created order ${newOrderRef.id} for PayPal order ${paypalOrderId}` +
+            ` — buyer: ${resolvedBuyerEmail || "(unknown)"}` +
+            ` — shippingAddress: ${shippingAddress ? "present" : "MISSING"}`
+          );
 
           // Mark listing sold
           if (customId) {
@@ -147,8 +221,31 @@ export default async function handler(
             console.error("[paypal webhook] Auto-label generation failed (non-blocking):", labelErr);
           });
         } else {
-          // Order already exists — try label generation if not done yet
-          const existingId = existingOrder.docs[0].id;
+          // Order already exists — enrich with buyer details if missing, then try label
+          const existingDoc = existingOrder.docs[0];
+          const existingId = existingDoc.id;
+          const existingData: any = existingDoc.data() || {};
+
+          const updates: Record<string, any> = {};
+
+          if (!existingData.buyerEmail && resolvedBuyerEmail) {
+            updates.buyerEmail = resolvedBuyerEmail;
+          }
+          if (!existingData.buyerName && resolvedBuyerName) {
+            updates.buyerName = resolvedBuyerName;
+          }
+          if (!existingData.shippingAddress && shippingAddress) {
+            updates.shippingAddress = shippingAddress;
+          }
+          if (!existingData.paypalCaptureId && captureId) {
+            updates.paypalCaptureId = captureId;
+          }
+
+          if (Object.keys(updates).length > 0) {
+            await adminDb.collection("orders").doc(existingId).update(updates);
+            console.log(`[paypal webhook] Enriched existing order ${existingId} with:`, Object.keys(updates));
+          }
+
           tryAutoGenerateLabel(existingId).catch((labelErr) => {
             console.error("[paypal webhook] Auto-label generation failed (non-blocking):", labelErr);
           });
