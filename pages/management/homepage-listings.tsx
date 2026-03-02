@@ -9,7 +9,7 @@ import type { GetServerSideProps } from "next";
 import { useState, useEffect, useCallback } from "react";
 import { collection, getDocs, deleteDoc, doc } from "firebase/firestore";
 import { db } from "../../utils/firebaseClient";
-import { removeRecentView } from "../../components/RecentlyViewed";
+
 import { adminDb, isFirebaseAdminReady } from "../../utils/firebaseAdmin";
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
@@ -36,15 +36,6 @@ type MessageItem = {
   linkUrl: string;
   imageUrl: string;
   videoUrl: string;
-};
-
-type RecentItem = {
-  id: string;
-  title: string;
-  brand: string;
-  price: string;
-  image: string;
-  viewedAt: number;
 };
 
 type Props = {
@@ -95,32 +86,8 @@ export default function HomepageScanner({ serverListings, messages: initMessages
   const [deleting, setDeleting] = useState<string | null>(null);
   const [deleteById, setDeleteById] = useState("");
   const [deleteByIdStatus, setDeleteByIdStatus] = useState<string | null>(null);
-  const [recentItems, setRecentItems] = useState<RecentItem[]>([]);
   const [scanning, setScanning] = useState(false);
   const [scanStatus, setScanStatus] = useState("Loading...");
-
-  // ─── SCAN localStorage "Recently Viewed" — this is where ghost items hide ───
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem("ff-recently-viewed");
-      if (raw) {
-        const parsed: RecentItem[] = JSON.parse(raw);
-        setRecentItems(Array.isArray(parsed) ? parsed : []);
-      }
-    } catch { /* ignore */ }
-  }, []);
-
-  const handlePurgeRecent = (id: string, title: string) => {
-    if (!confirm(`Remove "${title}" from Recently Viewed? This clears it from localStorage.`)) return;
-    removeRecentView(id);
-    setRecentItems((prev) => prev.filter((i) => i.id !== id));
-  };
-
-  const handlePurgeAllRecent = () => {
-    if (!confirm(`Clear ALL ${recentItems.length} Recently Viewed items from localStorage?`)) return;
-    try { localStorage.removeItem("ff-recently-viewed"); } catch { /* ignore */ }
-    setRecentItems([]);
-  };
 
   // ─── BROWSER-SIDE SCAN: uses the SAME Firebase Client SDK the homepage uses ───
   const runBrowserScan = useCallback(async () => {
@@ -302,78 +269,10 @@ export default function HomepageScanner({ serverListings, messages: initMessages
 
         {/* ═══ Scan summary ═══ */}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 12, marginBottom: 24 }}>
-          <SummaryCard label="DB Listings" value={listings.length} />
-          <SummaryCard label="Recently Viewed" value={recentItems.length} color={recentItems.length > 0 ? "#dc2626" : undefined} />
+          <SummaryCard label="Total Items" value={listings.length} />
           <SummaryCard label="Active Messages" value={activeMessages.length} />
           <SummaryCard label="All Messages" value={messages.length} />
         </div>
-
-        {/* ═══════════════════════════════════════════════════════ */}
-        {/* SECTION 0: RECENTLY VIEWED (localStorage ghost items)  */}
-        {/* ═══════════════════════════════════════════════════════ */}
-        {recentItems.length > 0 && (
-          <div style={{ marginBottom: 32, paddingTop: 16, borderTop: "2px solid #dc2626" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12, flexWrap: "wrap", gap: 8 }}>
-              <div>
-                <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: "#dc2626" }}>
-                  Recently Viewed (localStorage) — {recentItems.length} items
-                </h2>
-                <p style={{ margin: "2px 0 0", fontSize: 12, color: "#6b7280" }}>
-                  These items live in YOUR browser&apos;s localStorage. Ghost items here show on the homepage even if deleted from Firestore.
-                </p>
-              </div>
-              <button onClick={handlePurgeAllRecent}
-                style={{ border: "1px solid #fca5a5", background: "#dc2626", color: "#fff", borderRadius: 999, padding: "6px 14px", fontWeight: 700, fontSize: 12, cursor: "pointer" }}>
-                Clear All Recently Viewed
-              </button>
-            </div>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 16 }}>
-              {recentItems.map((item) => (
-                <div key={item.id} style={{
-                  background: "#fff", border: "2px solid #fca5a5",
-                  borderRadius: 14, overflow: "hidden",
-                  display: "flex", flexDirection: "column",
-                }}>
-                  <div style={{ position: "relative", width: "100%", paddingTop: "100%", background: "#f3f4f6" }}>
-                    {item.image ? (
-                      <img src={item.image} alt={item.title}
-                        style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", objectFit: "cover" }} />
-                    ) : (
-                      <div style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", color: "#9ca3af", fontSize: 13 }}>
-                        No image
-                      </div>
-                    )}
-                    <span style={{
-                      position: "absolute", top: 8, left: 8, fontSize: 9, fontWeight: 800,
-                      textTransform: "uppercase", padding: "3px 6px", borderRadius: 4,
-                      background: "#dc2626", color: "#fff",
-                    }}>
-                      LOCALSTORAGE
-                    </span>
-                  </div>
-                  <div style={{ padding: "10px 12px", flex: 1 }}>
-                    <p style={{ margin: 0, fontWeight: 700, fontSize: 13, color: "#111827", lineHeight: 1.3 }}>{item.title}</p>
-                    <p style={{ margin: "3px 0 0", fontSize: 11, color: "#6b7280" }}>
-                      {[item.brand, item.price].filter(Boolean).join(" \u00b7 ")}
-                    </p>
-                    <p style={{ margin: "2px 0 0", fontSize: 10, color: "#9ca3af", wordBreak: "break-all" }}>{item.id}</p>
-                  </div>
-                  <button onClick={() => handlePurgeRecent(item.id, item.title)}
-                    style={{
-                      width: "100%", border: "none", borderTop: "1px solid #fca5a5",
-                      background: "#fff", color: "#dc2626", padding: "10px 0", fontWeight: 800, fontSize: 13, cursor: "pointer",
-                      transition: "background 0.15s",
-                    }}
-                    onMouseEnter={(e) => (e.target as HTMLButtonElement).style.background = "#fef2f2"}
-                    onMouseLeave={(e) => (e.target as HTMLButtonElement).style.background = "#fff"}
-                  >
-                    REMOVE
-                  </button>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
 
         {/* ═══════════════════════════════════════════════════════ */}
         {/* SECTION 1: BUYER MESSAGES                              */}
