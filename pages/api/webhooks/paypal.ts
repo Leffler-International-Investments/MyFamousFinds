@@ -10,6 +10,7 @@ import {
   sendSellerItemSoldEmail,
 } from "../../../utils/email";
 import { queueEmail } from "../../../utils/emailOutbox";
+import type { AutoLabelResult } from "../../../utils/autoGenerateLabel";
 
 export const config = {
   api: { bodyParser: false },
@@ -239,9 +240,32 @@ export default async function handler(
             });
           }
 
-          if (sellerId) {
-            (async () => {
-              try {
+          // Mark listing sold
+          if (customId) {
+            const listingRef = adminDb.collection("listings").doc(customId);
+            const listingSnap = await listingRef.get();
+            if (listingSnap.exists) {
+              await listingRef.update({
+                status: "Sold",
+                isSold: true,
+                soldAt: Date.now(),
+              });
+            }
+          }
+
+          // Generate UPS label + send combined branded seller email (non-blocking)
+          (async () => {
+            try {
+              const labelResult: AutoLabelResult = await tryAutoGenerateLabel(newOrderRef.id);
+
+              // If the combined email was already sent, we're done
+              if (labelResult.emailSent) {
+                console.log(`[paypal webhook] Combined sale+label email sent for order ${newOrderRef.id}`);
+                return;
+              }
+
+              // Fall back to branded seller sold email without label
+              if (sellerId) {
                 let sellerEmail = "";
                 let sellerName = "";
                 let sellerDoc = await adminDb!.collection("sellers").doc(sellerId).get();
@@ -267,29 +291,11 @@ export default async function handler(
                     orderId: whOrderId,
                   });
                 }
-              } catch (sellerEmailErr) {
-                console.error("[paypal webhook] Seller email failed:", sellerEmailErr);
               }
-            })();
-          }
-
-          // Mark listing sold
-          if (customId) {
-            const listingRef = adminDb.collection("listings").doc(customId);
-            const listingSnap = await listingRef.get();
-            if (listingSnap.exists) {
-              await listingRef.update({
-                status: "Sold",
-                isSold: true,
-                soldAt: Date.now(),
-              });
+            } catch (err) {
+              console.error("[paypal webhook] Seller label+email flow failed (non-blocking):", err);
             }
-          }
-
-          // Trigger UPS label generation (non-blocking)
-          tryAutoGenerateLabel(newOrderRef.id).catch((labelErr) => {
-            console.error("[paypal webhook] Auto-label generation failed (non-blocking):", labelErr);
-          });
+          })();
         } else {
           // Order already exists — enrich with buyer details if missing, then try label
           const existingDoc = existingOrder.docs[0];
