@@ -509,17 +509,30 @@ export async function sendBuyerOrderConfirmationEmail(params: {
     `If you have any questions, feel free to reply to this email.\n\n` +
     `Regards,\nThe MyFamousFinds Team\n`;
 
-  const html =
-    `<p>Hello ${escapeHtml(name)},</p>` +
-    `<p>Thank you for your purchase on <b>MyFamousFinds</b>!</p>` +
-    `<div style="padding:12px;background:#f0fdf4;border-radius:6px;margin:12px 0;">` +
-    `<p style="margin:4px 0;"><b>Order ID:</b> ${escapeHtml(params.orderId)}</p>` +
-    `<p style="margin:4px 0;"><b>Item:</b> ${escapeHtml(params.itemTitle)}</p>` +
-    `<p style="margin:4px 0;"><b>Total:</b> ${escapeHtml(params.currency || "USD")} ${escapeHtml(params.amount)}</p>` +
-    `</div>` +
-    `<p>We will process your order and keep you updated on shipping.</p>` +
-    `<p>If you have any questions, feel free to reply to this email.</p>` +
-    `<p>Regards,<br/>The MyFamousFinds Team</p>`;
+  const cur = params.currency || "USD";
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://www.myfamousfinds.com";
+
+  const bodyHtml =
+    `<p style="margin:0 0 16px 0;font-size:16px;">Hello ${escapeHtml(name)},</p>` +
+    `<p style="margin:0 0 20px 0;font-size:20px;font-weight:bold;color:#1c1917;">Thank You for Your Purchase!</p>` +
+    // Order details card
+    `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#fafaf9;border:1px solid #e7e5e4;border-radius:8px;margin:0 0 20px 0;">` +
+    `<tr><td style="padding:16px 20px;border-bottom:1px solid #e7e5e4;background-color:#1c1917;border-radius:8px 8px 0 0;">` +
+    `<p style="margin:0;font-size:14px;font-weight:bold;color:#d4a843;letter-spacing:0.5px;">ORDER DETAILS</p></td></tr>` +
+    `<tr><td style="padding:16px 20px;">` +
+    `<table role="presentation" width="100%" cellpadding="0" cellspacing="0">` +
+    `<tr><td style="padding:6px 0;color:#78716c;font-size:13px;width:110px;">Item</td><td style="padding:6px 0;font-size:14px;font-weight:bold;color:#1c1917;">${escapeHtml(params.itemTitle)}</td></tr>` +
+    `<tr><td style="padding:6px 0;color:#78716c;font-size:13px;">Total</td><td style="padding:6px 0;font-size:14px;font-weight:bold;color:#1c1917;">${escapeHtml(cur)} $${escapeHtml(params.amount)}</td></tr>` +
+    `<tr><td style="padding:6px 0;color:#78716c;font-size:13px;">Order ID</td><td style="padding:6px 0;font-size:14px;color:#1c1917;">${escapeHtml(params.orderId)}</td></tr>` +
+    `</table></td></tr></table>` +
+    // CTA
+    `<p style="margin:0 0 20px 0;">We will process your order and keep you updated on shipping.</p>` +
+    `<table role="presentation" cellpadding="0" cellspacing="0"><tr><td style="border-radius:6px;background-color:#1c1917;">` +
+    `<a href="${escapeHtml(siteUrl)}/account" style="display:inline-block;padding:12px 28px;color:#ffffff;text-decoration:none;font-size:14px;font-weight:bold;letter-spacing:0.5px;">VIEW YOUR ORDER</a>` +
+    `</td></tr></table>` +
+    `<p style="margin:20px 0 0 0;font-size:14px;color:#78716c;">Thank you for shopping with Famous Finds.</p>`;
+
+  const html = brandedEmailWrapper(bodyHtml);
 
   await sendMail(to, subject, text, html);
 }
