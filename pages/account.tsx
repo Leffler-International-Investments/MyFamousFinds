@@ -375,11 +375,26 @@ export default function AccountPage() {
       );
       setSellerSales(ordersSnap.size);
 
-      // Count offers on this seller's listings
+      // Count offers on this seller's listings (check both ID formats)
       const offersSnap = await getDocs(
         query(collection(db, "offers"), where("sellerId", "==", sellerId))
       );
-      setSellerOffers(offersSnap.size);
+      const seenOfferIds = new Set(offersSnap.docs.map((d) => d.id));
+      let totalOffers = offersSnap.size;
+
+      if (sellerId !== lowerEmail) {
+        const offersByEmail = await getDocs(
+          query(collection(db, "offers"), where("sellerId", "==", lowerEmail))
+        );
+        for (const d of offersByEmail.docs) {
+          if (!seenOfferIds.has(d.id)) {
+            seenOfferIds.add(d.id);
+            totalOffers++;
+          }
+        }
+      }
+
+      setSellerOffers(totalOffers);
     } catch (err) {
       console.error("Failed to load seller activity:", err);
     }

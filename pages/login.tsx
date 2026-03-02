@@ -11,7 +11,6 @@ import {
   signInWithRedirect,
   getRedirectResult,
   GoogleAuthProvider,
-  FacebookAuthProvider,
 } from "firebase/auth";
 
 import Header from "../components/Header";
@@ -106,11 +105,11 @@ export default function UnifiedLoginPage() {
         console.error("redirect_result_error", err);
         const msg =
           err?.code === "auth/unauthorized-domain"
-            ? "This domain is not authorized for Google/Facebook sign-in. The site domain must be added to Firebase Auth authorized domains in the Firebase Console."
+            ? "This domain is not authorized for Google sign-in. The site domain must be added to Firebase Auth authorized domains in the Firebase Console."
             : err?.code === "auth/account-exists-with-different-credential"
             ? "An account already exists with this email using a different sign-in method."
             : err?.code === "auth/operation-not-allowed"
-            ? "This sign-in method is not enabled. Please enable Google/Facebook providers in Firebase Console > Authentication > Sign-in method."
+            ? "This sign-in method is not enabled. Please enable Google provider in Firebase Console > Authentication > Sign-in method."
             : `Sign-in failed. Please try again.${err?.code ? ` (${err.code})` : ""}`;
         setError(msg);
       });
@@ -157,16 +156,13 @@ export default function UnifiedLoginPage() {
   const from =
     typeof router.query.from === "string" ? router.query.from : null;
 
-  async function handleSocialSignIn(provider: "google" | "facebook") {
+  async function handleSocialSignIn(provider: "google") {
     if (!auth) return;
     setError(null);
     setInfo(null);
     setLoading(true);
     try {
-      const authProvider =
-        provider === "google"
-          ? new GoogleAuthProvider()
-          : new FacebookAuthProvider();
+      const authProvider = new GoogleAuthProvider();
 
       let result;
       try {
@@ -214,7 +210,7 @@ export default function UnifiedLoginPage() {
       if (err?.code === "auth/popup-closed-by-user") return;
       const msg =
         err?.code === "auth/unauthorized-domain"
-          ? "This domain is not authorized for Google/Facebook sign-in. The site domain must be added to Firebase Auth authorized domains in the Firebase Console."
+          ? "This domain is not authorized for Google sign-in. The site domain must be added to Firebase Auth authorized domains in the Firebase Console."
           : err?.code === "auth/popup-blocked"
           ? "Popup was blocked. Redirecting..."
           : err?.code === "auth/cancelled-popup-request"
@@ -222,7 +218,7 @@ export default function UnifiedLoginPage() {
           : err?.code === "auth/account-exists-with-different-credential"
           ? "An account already exists with this email using a different sign-in method."
           : err?.code === "auth/operation-not-allowed"
-          ? "This sign-in method is not enabled. Please enable Google/Facebook providers in Firebase Console > Authentication > Sign-in method."
+          ? "This sign-in method is not enabled. Please enable Google provider in Firebase Console > Authentication > Sign-in method."
           : `Sign-in failed. Please try again.${err?.code ? ` (${err.code})` : ""}`;
       setError(msg);
     } finally {
@@ -334,6 +330,7 @@ export default function UnifiedLoginPage() {
       setStep("verify");
       const successJson = twofaJson as Start2faSuccess;
       setInfo(successJson.message || "Code sent.");
+      if (successJson.devCode) setCode(successJson.devCode);
     } catch (err) {
       console.error("seller_start_2fa_error", err);
       setError("Unexpected error. Please try again.");
@@ -420,17 +417,6 @@ export default function UnifiedLoginPage() {
                       <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
                     </svg>
                     <span>Continue with Google</span>
-                  </button>
-                  <button
-                    type="button"
-                    className="social-btn social-btn--fb"
-                    onClick={() => handleSocialSignIn("facebook")}
-                    disabled={disabled}
-                  >
-                    <svg viewBox="0 0 24 24" width="20" height="20" fill="#1877F2">
-                      <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
-                    </svg>
-                    <span>Continue with Facebook</span>
                   </button>
                 </div>
 
@@ -913,18 +899,6 @@ export default function UnifiedLoginPage() {
         .social-btn:disabled {
           opacity: 0.6;
           cursor: not-allowed;
-        }
-        .social-btn--fb {
-          background: #1877F2;
-          border-color: #1877F2;
-          color: #ffffff;
-        }
-        .social-btn--fb svg {
-          fill: #ffffff;
-        }
-        .social-btn--fb:hover:not(:disabled) {
-          background: #166fe5;
-          border-color: #166fe5;
         }
         .auth-divider {
           display: flex;

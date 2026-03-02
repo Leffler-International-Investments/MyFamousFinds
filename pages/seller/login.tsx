@@ -150,6 +150,7 @@ export default function SellerLoginPage() {
       setStep("verify");
       const successJson = twofaJson as Start2faSuccess;
       setInfo(successJson.message || "Code sent.");
+      if (successJson.devCode) setCode(successJson.devCode);
     } catch (err) {
       console.error("seller_start_2fa_error", err);
       setError("Unexpected error. Please try again.");

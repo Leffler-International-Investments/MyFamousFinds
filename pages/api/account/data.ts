@@ -179,6 +179,31 @@ export default async function handler(
         .where("sellerId", "==", sellerId)
         .get();
       sellerOffers = sellerOffersSnap.size;
+
+      // Also check offers where sellerId is stored as the raw email
+      if (sellerId !== email) {
+        const offersByEmail = await adminDb
+          .collection("offers")
+          .where("sellerId", "==", email)
+          .get();
+        // Deduplicate by collecting IDs we already counted
+        const seen = new Set(sellerOffersSnap.docs.map((d) => d.id));
+        for (const d of offersByEmail.docs) {
+          if (!seen.has(d.id)) sellerOffers++;
+        }
+      }
+
+      // Also check offers stored with sellerEmail field
+      const offersBySellerEmail = await adminDb
+        .collection("offers")
+        .where("sellerEmail", "==", email)
+        .get();
+      if (offersBySellerEmail.size > 0) {
+        const seen = new Set(sellerOffersSnap.docs.map((d) => d.id));
+        for (const d of offersBySellerEmail.docs) {
+          if (!seen.has(d.id)) sellerOffers++;
+        }
+      }
     }
 
     return res.status(200).json({
