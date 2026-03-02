@@ -311,6 +311,13 @@ export default function ManagementDashboard({ stats }: Props) {
             linkText="Configure Banking"
             linkColor="gray"
           />
+          <DashboardTile
+            title="UPS Diagnostics"
+            description="Run diagnostics on UPS shipping setup, credentials, and order label generation."
+            href="/seller/ups-diagnostics"
+            linkText="Run Diagnostics"
+            linkColor="gold"
+          />
         </DashboardSection>
 
         <DashboardSection
