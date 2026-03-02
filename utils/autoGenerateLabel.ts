@@ -9,8 +9,7 @@ import crypto from "crypto";
 import sharp from "sharp";
 import admin, { adminDb, FieldValue, isFirebaseAdminReady } from "./firebaseAdmin";
 import { createShippingLabel, type UpsAddress, type UpsPackage } from "../lib/ups";
-import { sendMail } from "./email";
-import { queueEmail } from "./emailOutbox";
+import { sendSellerSoldWithLabelEmail } from "./email";
 
 const STORAGE_BUCKET =
   process.env.FIREBASE_STORAGE_BUCKET ||
@@ -141,25 +140,35 @@ async function getSellerAddress(
   return null;
 }
 
+export interface AutoLabelResult {
+  generated: boolean;
+  emailSent: boolean;
+  trackingNumber?: string;
+  labelUrl?: string;
+}
+
 /**
- * Attempt to auto-generate a UPS shipping label for a paid order.
+ * Attempt to auto-generate a UPS shipping label for a paid order,
+ * then send a combined branded "Sale Confirmed + Shipping Label" email.
  *
  * - Idempotent: returns early if order already has tracking + label.
  * - Requires: order exists with shippingAddress and sellerId.
  * - Loads seller address from seller_banking collection.
  * - Uses default package dimensions if listing doesn't specify them.
  */
-export async function tryAutoGenerateLabel(orderId: string): Promise<void> {
+export async function tryAutoGenerateLabel(orderId: string): Promise<AutoLabelResult> {
+  const noLabel: AutoLabelResult = { generated: false, emailSent: false };
+
   if (!adminDb) {
     console.warn("[autoGenerateLabel] Firebase not configured — skipping");
-    return;
+    return noLabel;
   }
 
   const orderRef = adminDb.collection("orders").doc(orderId);
   const orderSnap = await orderRef.get();
   if (!orderSnap.exists) {
     console.warn(`[autoGenerateLabel] Order ${orderId} not found — skipping`);
-    return;
+    return noLabel;
   }
 
   const order: any = orderSnap.data() || {};
@@ -167,28 +176,28 @@ export async function tryAutoGenerateLabel(orderId: string): Promise<void> {
   // Idempotency: skip if already has tracking number + label
   if (order.shipping?.trackingNumber && order.shipping?.labelUrl) {
     console.log(`[autoGenerateLabel] Order ${orderId} already has label — skipping`);
-    return;
+    return { generated: true, emailSent: false, trackingNumber: order.shipping.trackingNumber, labelUrl: order.shipping.labelUrl };
   }
 
   // Need seller ID to look up address
   const sellerId = order.sellerId;
   if (!sellerId) {
     console.warn(`[autoGenerateLabel] Order ${orderId} has no sellerId — skipping`);
-    return;
+    return noLabel;
   }
 
   // Need buyer shipping address
   const sa = order.shippingAddress;
   if (!sa || !sa.line1 || !sa.city || !sa.state || !sa.postal_code) {
     console.warn(`[autoGenerateLabel] Order ${orderId} missing buyer address — skipping`);
-    return;
+    return noLabel;
   }
 
   // Get seller address from banking/profile
   const sellerAddress = await getSellerAddress(sellerId);
   if (!sellerAddress) {
     console.warn(`[autoGenerateLabel] No stored address for seller ${sellerId} — skipping`);
-    return;
+    return noLabel;
   }
 
   const buyerAddress: UpsAddress = {
@@ -239,58 +248,57 @@ export async function tryAutoGenerateLabel(orderId: string): Promise<void> {
 
   console.log(`[autoGenerateLabel] Label generated for order ${orderId}: ${result.trackingNumber}`);
 
-  // Email seller with a download link — queue via email_outbox for reliable delivery
+  // Send combined branded "Sale Confirmed + Shipping Label" email to seller
+  let emailSent = false;
   try {
     let sellerEmail = "";
+    let sellerName = sellerAddress.name || "";
     const sellerDoc = await adminDb.collection("sellers").doc(sellerId).get();
     if (sellerDoc.exists) {
       const sd: any = sellerDoc.data() || {};
       sellerEmail = sd.contactEmail || sd.email || "";
+      sellerName = sd.businessName || sd.name || sellerName;
     }
 
     if (sellerEmail && sellerEmail.includes("@")) {
       const itemTitle = order.listingTitle || "Item";
-      const subject = "MyFamousFinds — Your UPS Shipping Label Is Ready";
-      const text =
-        `Hello ${sellerAddress.name},\n\n` +
-        `Your UPS shipping label for order ${orderId} has been automatically generated!\n\n` +
-        `Item: ${itemTitle}\n` +
-        `Tracking Number: ${result.trackingNumber}\n` +
-        `Track: ${trackingUrl}\n\n` +
-        `Download your label: ${labelUrl}\n\n` +
-        `Please ship the item as soon as possible.\n\n` +
-        `Regards,\nThe MyFamousFinds Team\n`;
-      const html =
-        `<p>Hello ${sellerAddress.name},</p>` +
-        `<p style="font-size:16px;"><b>Your UPS shipping label is ready!</b></p>` +
-        `<p>A shipping label has been automatically generated after payment was confirmed.</p>` +
-        `<div style="padding:12px;background:#dbeafe;border-radius:6px;margin:12px 0;">` +
-        `<p style="margin:4px 0;"><b>Order:</b> ${orderId}</p>` +
-        `<p style="margin:4px 0;"><b>Item:</b> ${itemTitle}</p>` +
-        `<p style="margin:4px 0;"><b>Tracking:</b> <a href="${trackingUrl}">${result.trackingNumber}</a></p>` +
-        `</div>` +
-        `<p><a href="${labelUrl}" ` +
-        `style="display:inline-block;padding:12px 28px;background:#2563eb;color:#fff;` +
-        `border-radius:999px;text-decoration:none;font-weight:600;">Download Shipping Label</a></p>` +
-        `<p>Please ship the item as soon as possible.</p>` +
-        `<p>Regards,<br/>The MyFamousFinds Team</p>`;
+      const amountCents = Number(order.amountTotal || 0);
+      const amountStr = amountCents > 0 ? (amountCents / 100).toFixed(2) : "0.00";
+      const currency = order.currency || "USD";
 
-      // Try email_outbox first (reliable, with retry), fall back to direct send
-      const queued = await queueEmail({
+      await sendSellerSoldWithLabelEmail({
         to: sellerEmail,
-        subject,
-        text,
-        html,
-        eventType: "shipping_label_auto_generated",
-        eventKey: `${orderId}:shipping_label_auto_generated`,
-        metadata: { orderId, trackingNumber: result.trackingNumber },
+        sellerName,
+        itemTitle,
+        amount: amountStr,
+        currency,
+        orderId,
+        trackingNumber: result.trackingNumber,
+        trackingUrl,
+        labelUrl,
+        labelBase64: result.labelBase64,
+        labelFormat: result.labelFormat,
+        buyerName: sa.name || order.buyerName || "",
+        buyerAddress: {
+          line1: sa.line1,
+          line2: sa.line2 || "",
+          city: sa.city,
+          state: sa.state,
+          postal_code: sa.postal_code,
+          country: sa.country || "US",
+        },
       });
-      if (!queued) {
-        await sendMail(sellerEmail, subject, text, html);
-      }
+      emailSent = true;
     }
   } catch (emailErr) {
     // Label was generated — don't fail for email issues
-    console.error("[autoGenerateLabel] Email notification failed:", emailErr);
+    console.error("[autoGenerateLabel] Combined email failed:", emailErr);
   }
+
+  return {
+    generated: true,
+    emailSent,
+    trackingNumber: result.trackingNumber,
+    labelUrl,
+  };
 }

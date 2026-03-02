@@ -524,8 +524,47 @@ export async function sendBuyerOrderConfirmationEmail(params: {
   await sendMail(to, subject, text, html);
 }
 
+// ────────────────────────────────────────────────
+// Branded email wrapper — Famous Finds style
+// ────────────────────────────────────────────────
+
+function brandedEmailWrapper(bodyHtml: string): string {
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://www.myfamousfinds.com";
+  const logoUrl = `${siteUrl}/Famous-Finds-Logo.png`;
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/></head>
+<body style="margin:0;padding:0;background-color:#f5f5f4;font-family:Georgia,'Times New Roman',serif;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f5f5f4;">
+<tr><td align="center" style="padding:24px 16px;">
+<table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background-color:#ffffff;border-radius:8px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.08);">
+<!-- Header -->
+<tr><td style="background-color:#1c1917;padding:28px 32px;text-align:center;">
+  <img src="${escapeHtml(logoUrl)}" alt="Famous Finds" width="180" style="display:inline-block;max-width:180px;height:auto;" />
+</td></tr>
+<!-- Gold accent bar -->
+<tr><td style="height:4px;background:linear-gradient(90deg,#b8860b,#d4a843,#b8860b);font-size:0;line-height:0;">&nbsp;</td></tr>
+<!-- Body -->
+<tr><td style="padding:32px 32px 24px 32px;color:#1c1917;font-size:15px;line-height:1.6;">
+${bodyHtml}
+</td></tr>
+<!-- Footer -->
+<tr><td style="background-color:#fafaf9;border-top:1px solid #e7e5e4;padding:20px 32px;text-align:center;">
+  <p style="margin:0 0 4px 0;font-size:13px;color:#78716c;">Authenticated Luxury Resale</p>
+  <p style="margin:0;font-size:12px;color:#a8a29e;">
+    <a href="${escapeHtml(siteUrl)}" style="color:#b8860b;text-decoration:none;">myfamousfinds.com</a>
+  </p>
+</td></tr>
+</table>
+</td></tr>
+</table>
+</body>
+</html>`;
+}
+
 /**
- * Seller — item sold notification email
+ * Seller — item sold notification email (basic, without label)
  */
 export async function sendSellerItemSoldEmail(params: {
   to: string;
@@ -539,28 +578,188 @@ export async function sendSellerItemSoldEmail(params: {
   if (!to) throw new Error("sendSellerItemSoldEmail missing required field: to");
 
   const name = params.sellerName || "Seller";
-  const subject = "MyFamousFinds — Your Item Has Been Sold!";
+  const cur = params.currency || "USD";
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://www.myfamousfinds.com";
+  const subject = "Famous Finds — Your Item Has Been Sold!";
+
   const text =
     `Hello ${name},\n\n` +
-    `Great news — your item has been sold on MyFamousFinds!\n\n` +
+    `Congratulations — your item has been sold on Famous Finds!\n\n` +
     `Item: ${params.itemTitle}\n` +
-    `Sale Amount: ${params.currency || "USD"} ${params.amount}\n` +
+    `Sale Amount: ${cur} ${params.amount}\n` +
     `Order ID: ${params.orderId}\n\n` +
     `Please prepare the item for shipping. You can view the order details ` +
-    `in your Seller Dashboard.\n\n` +
-    `Regards,\nThe MyFamousFinds Team\n`;
+    `in your Seller Dashboard: ${siteUrl}/seller/orders\n\n` +
+    `Regards,\nThe Famous Finds Team\n`;
 
-  const html =
-    `<p>Hello ${escapeHtml(name)},</p>` +
-    `<p style="font-size:16px;"><b>Great news — your item has been sold on MyFamousFinds!</b></p>` +
-    `<div style="padding:12px;background:#fef3c7;border-radius:6px;margin:12px 0;">` +
-    `<p style="margin:4px 0;"><b>Item:</b> ${escapeHtml(params.itemTitle)}</p>` +
-    `<p style="margin:4px 0;"><b>Sale Amount:</b> ${escapeHtml(params.currency || "USD")} ${escapeHtml(params.amount)}</p>` +
-    `<p style="margin:4px 0;"><b>Order ID:</b> ${escapeHtml(params.orderId)}</p>` +
-    `</div>` +
-    `<p>Please prepare the item for shipping. You can view the order details in your Seller Dashboard.</p>` +
-    `<p>Regards,<br/>The MyFamousFinds Team</p>`;
+  const bodyHtml =
+    `<p style="margin:0 0 16px 0;font-size:16px;">Hello ${escapeHtml(name)},</p>` +
+    `<p style="margin:0 0 20px 0;font-size:20px;font-weight:bold;color:#1c1917;">Congratulations — Your Item Has Been Sold!</p>` +
+    // Order details card
+    `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#fafaf9;border:1px solid #e7e5e4;border-radius:8px;margin:0 0 20px 0;">` +
+    `<tr><td style="padding:16px 20px;border-bottom:1px solid #e7e5e4;background-color:#1c1917;border-radius:8px 8px 0 0;">` +
+    `<p style="margin:0;font-size:14px;font-weight:bold;color:#d4a843;letter-spacing:0.5px;">ORDER DETAILS</p></td></tr>` +
+    `<tr><td style="padding:16px 20px;">` +
+    `<table role="presentation" width="100%" cellpadding="0" cellspacing="0">` +
+    `<tr><td style="padding:6px 0;color:#78716c;font-size:13px;width:110px;">Item</td><td style="padding:6px 0;font-size:14px;font-weight:bold;color:#1c1917;">${escapeHtml(params.itemTitle)}</td></tr>` +
+    `<tr><td style="padding:6px 0;color:#78716c;font-size:13px;">Sale Amount</td><td style="padding:6px 0;font-size:14px;font-weight:bold;color:#1c1917;">${escapeHtml(cur)} $${escapeHtml(params.amount)}</td></tr>` +
+    `<tr><td style="padding:6px 0;color:#78716c;font-size:13px;">Order ID</td><td style="padding:6px 0;font-size:14px;color:#1c1917;">${escapeHtml(params.orderId)}</td></tr>` +
+    `</table></td></tr></table>` +
+    // CTA
+    `<p style="margin:0 0 20px 0;">Please prepare the item for shipping. Your UPS shipping label will be emailed to you shortly.</p>` +
+    `<table role="presentation" cellpadding="0" cellspacing="0"><tr><td style="border-radius:6px;background-color:#1c1917;">` +
+    `<a href="${escapeHtml(siteUrl)}/seller/orders" style="display:inline-block;padding:12px 28px;color:#ffffff;text-decoration:none;font-size:14px;font-weight:bold;letter-spacing:0.5px;">VIEW ORDER DETAILS</a>` +
+    `</td></tr></table>` +
+    `<p style="margin:20px 0 0 0;font-size:14px;color:#78716c;">Thank you for selling with Famous Finds.</p>`;
 
+  const html = brandedEmailWrapper(bodyHtml);
+  await sendMail(to, subject, text, html);
+}
+
+/**
+ * Seller — combined sale confirmation + UPS shipping label email (branded)
+ * Sent when a UPS label has been auto-generated after payment.
+ */
+export async function sendSellerSoldWithLabelEmail(params: {
+  to: string;
+  sellerName?: string;
+  itemTitle: string;
+  amount: string;
+  currency?: string;
+  orderId: string;
+  trackingNumber: string;
+  trackingUrl: string;
+  labelUrl: string;
+  labelBase64?: string;
+  labelFormat?: string;
+  buyerName?: string;
+  buyerAddress?: {
+    line1: string;
+    line2?: string;
+    city: string;
+    state: string;
+    postal_code: string;
+    country?: string;
+  };
+}) {
+  const to = (params.to || "").trim();
+  if (!to) throw new Error("sendSellerSoldWithLabelEmail missing required field: to");
+
+  const name = params.sellerName || "Seller";
+  const cur = params.currency || "USD";
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://www.myfamousfinds.com";
+  const subject = "Famous Finds — Sale Confirmed & Shipping Label Ready";
+
+  // Build buyer address string for plain text
+  const ba = params.buyerAddress;
+  const buyerAddrLines: string[] = [];
+  if (params.buyerName) buyerAddrLines.push(params.buyerName);
+  if (ba) {
+    buyerAddrLines.push(ba.line1);
+    if (ba.line2) buyerAddrLines.push(ba.line2);
+    buyerAddrLines.push(`${ba.city}, ${ba.state} ${ba.postal_code}`);
+    if (ba.country && ba.country !== "US") buyerAddrLines.push(ba.country);
+  }
+
+  const text =
+    `Hello ${name},\n\n` +
+    `Congratulations — your item has been sold on Famous Finds!\n\n` +
+    `SALE DETAILS\n` +
+    `Item: ${params.itemTitle}\n` +
+    `Sale Amount: ${cur} ${params.amount}\n` +
+    `Order ID: ${params.orderId}\n\n` +
+    `SHIPPING LABEL\n` +
+    `A UPS shipping label has been generated and is ready to print.\n` +
+    `Tracking Number: ${params.trackingNumber}\n` +
+    `Track: ${params.trackingUrl}\n` +
+    `Download Label: ${params.labelUrl}\n\n` +
+    (buyerAddrLines.length
+      ? `SHIP TO\n${buyerAddrLines.join("\n")}\n\n`
+      : "") +
+    `Print the label, attach it to your package, and drop it off at any UPS location.\n\n` +
+    `Regards,\nThe Famous Finds Team\n`;
+
+  // Buyer address HTML block
+  let buyerAddressHtml = "";
+  if (ba) {
+    buyerAddressHtml =
+      `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#fafaf9;border:1px solid #e7e5e4;border-radius:8px;margin:0 0 20px 0;">` +
+      `<tr><td style="padding:16px 20px;border-bottom:1px solid #e7e5e4;background-color:#1c1917;border-radius:8px 8px 0 0;">` +
+      `<p style="margin:0;font-size:14px;font-weight:bold;color:#d4a843;letter-spacing:0.5px;">SHIP TO</p></td></tr>` +
+      `<tr><td style="padding:16px 20px;">` +
+      (params.buyerName ? `<p style="margin:0 0 4px 0;font-size:14px;font-weight:bold;color:#1c1917;">${escapeHtml(params.buyerName)}</p>` : "") +
+      `<p style="margin:0;font-size:14px;color:#44403c;line-height:1.5;">${escapeHtml(ba.line1)}` +
+      (ba.line2 ? `<br/>${escapeHtml(ba.line2)}` : "") +
+      `<br/>${escapeHtml(ba.city)}, ${escapeHtml(ba.state)} ${escapeHtml(ba.postal_code)}` +
+      (ba.country && ba.country !== "US" ? `<br/>${escapeHtml(ba.country)}` : "") +
+      `</p></td></tr></table>`;
+  }
+
+  // Inline label image (if base64 is provided and it's a GIF/PNG)
+  let inlineLabelHtml = "";
+  if (params.labelBase64 && params.labelFormat) {
+    const fmt = params.labelFormat.toUpperCase();
+    // Embed as inline image for GIF/PNG labels
+    if (fmt === "GIF" || fmt === "PNG") {
+      const mimeType = fmt === "GIF" ? "image/gif" : "image/png";
+      inlineLabelHtml =
+        `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 16px 0;">` +
+        `<tr><td align="center" style="padding:16px;background:#ffffff;border:1px solid #e7e5e4;border-radius:8px;">` +
+        `<img src="data:${mimeType};base64,${params.labelBase64}" alt="UPS Shipping Label" style="max-width:100%;width:400px;height:auto;display:block;" />` +
+        `</td></tr></table>`;
+    }
+  }
+
+  const bodyHtml =
+    `<p style="margin:0 0 16px 0;font-size:16px;">Hello ${escapeHtml(name)},</p>` +
+    `<p style="margin:0 0 20px 0;font-size:20px;font-weight:bold;color:#1c1917;">Congratulations — Your Item Has Been Sold!</p>` +
+    // Order details card
+    `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#fafaf9;border:1px solid #e7e5e4;border-radius:8px;margin:0 0 20px 0;">` +
+    `<tr><td style="padding:16px 20px;border-bottom:1px solid #e7e5e4;background-color:#1c1917;border-radius:8px 8px 0 0;">` +
+    `<p style="margin:0;font-size:14px;font-weight:bold;color:#d4a843;letter-spacing:0.5px;">SALE DETAILS</p></td></tr>` +
+    `<tr><td style="padding:16px 20px;">` +
+    `<table role="presentation" width="100%" cellpadding="0" cellspacing="0">` +
+    `<tr><td style="padding:6px 0;color:#78716c;font-size:13px;width:110px;">Item</td><td style="padding:6px 0;font-size:14px;font-weight:bold;color:#1c1917;">${escapeHtml(params.itemTitle)}</td></tr>` +
+    `<tr><td style="padding:6px 0;color:#78716c;font-size:13px;">Sale Amount</td><td style="padding:6px 0;font-size:14px;font-weight:bold;color:#1c1917;">${escapeHtml(cur)} $${escapeHtml(params.amount)}</td></tr>` +
+    `<tr><td style="padding:6px 0;color:#78716c;font-size:13px;">Order ID</td><td style="padding:6px 0;font-size:14px;color:#1c1917;">${escapeHtml(params.orderId)}</td></tr>` +
+    `</table></td></tr></table>` +
+    // Buyer address
+    buyerAddressHtml +
+    // Shipping label section
+    `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#fafaf9;border:1px solid #e7e5e4;border-radius:8px;margin:0 0 20px 0;">` +
+    `<tr><td style="padding:16px 20px;border-bottom:1px solid #e7e5e4;background-color:#1c1917;border-radius:8px 8px 0 0;">` +
+    `<p style="margin:0;font-size:14px;font-weight:bold;color:#d4a843;letter-spacing:0.5px;">UPS SHIPPING LABEL</p></td></tr>` +
+    `<tr><td style="padding:16px 20px;">` +
+    `<table role="presentation" width="100%" cellpadding="0" cellspacing="0">` +
+    `<tr><td style="padding:6px 0;color:#78716c;font-size:13px;width:110px;">Tracking #</td>` +
+    `<td style="padding:6px 0;font-size:14px;color:#1c1917;"><a href="${escapeHtml(params.trackingUrl)}" style="color:#b8860b;text-decoration:none;font-weight:bold;">${escapeHtml(params.trackingNumber)}</a></td></tr>` +
+    `<tr><td style="padding:6px 0;color:#78716c;font-size:13px;">Service</td><td style="padding:6px 0;font-size:14px;color:#1c1917;">UPS Ground</td></tr>` +
+    `</table></td></tr></table>` +
+    // Inline label image
+    inlineLabelHtml +
+    // Download label button
+    `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 20px 0;">` +
+    `<tr><td align="center">` +
+    `<table role="presentation" cellpadding="0" cellspacing="0"><tr><td style="border-radius:6px;background-color:#b8860b;">` +
+    `<a href="${escapeHtml(params.labelUrl)}" style="display:inline-block;padding:14px 32px;color:#ffffff;text-decoration:none;font-size:15px;font-weight:bold;letter-spacing:0.5px;">PRINT SHIPPING LABEL</a>` +
+    `</td></tr></table>` +
+    `</td></tr></table>` +
+    // Instructions
+    `<div style="background-color:#fef9ee;border:1px solid #f5e6c8;border-radius:8px;padding:16px 20px;margin:0 0 20px 0;">` +
+    `<p style="margin:0 0 8px 0;font-size:14px;font-weight:bold;color:#92400e;">Next Steps:</p>` +
+    `<ol style="margin:0;padding-left:20px;color:#78716c;font-size:13px;line-height:1.8;">` +
+    `<li>Print the shipping label above</li>` +
+    `<li>Package the item securely</li>` +
+    `<li>Attach the label to your package</li>` +
+    `<li>Drop off at any UPS location or schedule a pickup</li>` +
+    `</ol></div>` +
+    // Dashboard link
+    `<table role="presentation" cellpadding="0" cellspacing="0"><tr><td style="border-radius:6px;background-color:#1c1917;">` +
+    `<a href="${escapeHtml(siteUrl)}/seller/orders" style="display:inline-block;padding:12px 28px;color:#ffffff;text-decoration:none;font-size:14px;font-weight:bold;letter-spacing:0.5px;">VIEW ORDER IN DASHBOARD</a>` +
+    `</td></tr></table>` +
+    `<p style="margin:20px 0 0 0;font-size:14px;color:#78716c;">Thank you for selling with Famous Finds.</p>`;
+
+  const html = brandedEmailWrapper(bodyHtml);
   await sendMail(to, subject, text, html);
 }
 
