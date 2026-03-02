@@ -528,7 +528,7 @@ export async function sendBuyerOrderConfirmationEmail(params: {
     // CTA
     `<p style="margin:0 0 20px 0;">We will process your order and keep you updated on shipping.</p>` +
     `<table role="presentation" cellpadding="0" cellspacing="0"><tr><td style="border-radius:6px;background-color:#1c1917;">` +
-    `<a href="${escapeHtml(siteUrl)}/account" style="display:inline-block;padding:12px 28px;color:#ffffff;text-decoration:none;font-size:14px;font-weight:bold;letter-spacing:0.5px;">VIEW YOUR ORDER</a>` +
+    `<a href="${escapeHtml(siteUrl)}/my-orders" style="display:inline-block;padding:12px 28px;color:#ffffff;text-decoration:none;font-size:14px;font-weight:bold;letter-spacing:0.5px;">VIEW YOUR ORDER</a>` +
     `</td></tr></table>` +
     `<p style="margin:20px 0 0 0;font-size:14px;color:#78716c;">Thank you for shopping with Famous Finds.</p>`;
 
