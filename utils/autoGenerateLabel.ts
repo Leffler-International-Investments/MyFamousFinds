@@ -9,7 +9,8 @@ import crypto from "crypto";
 import sharp from "sharp";
 import admin, { adminDb, FieldValue, isFirebaseAdminReady } from "./firebaseAdmin";
 import { createShippingLabel, type UpsAddress, type UpsPackage } from "../lib/ups";
-import { sendSellerSoldWithLabelEmail } from "./email";
+import { sendSellerSoldWithLabelEmail, sendBuyerShippingNotificationEmail } from "./email";
+import { queueEmail } from "./emailOutbox";
 
 const STORAGE_BUCKET =
   process.env.FIREBASE_STORAGE_BUCKET ||
@@ -143,8 +144,10 @@ async function getSellerAddress(
 export interface AutoLabelResult {
   generated: boolean;
   emailSent: boolean;
+  buyerEmailSent: boolean;
   trackingNumber?: string;
   labelUrl?: string;
+  error?: string;
 }
 
 /**
@@ -157,18 +160,18 @@ export interface AutoLabelResult {
  * - Uses default package dimensions if listing doesn't specify them.
  */
 export async function tryAutoGenerateLabel(orderId: string): Promise<AutoLabelResult> {
-  const noLabel: AutoLabelResult = { generated: false, emailSent: false };
+  const noLabel: AutoLabelResult = { generated: false, emailSent: false, buyerEmailSent: false };
 
   if (!adminDb) {
     console.warn("[autoGenerateLabel] Firebase not configured — skipping");
-    return noLabel;
+    return { ...noLabel, error: "Firebase not configured" };
   }
 
   const orderRef = adminDb.collection("orders").doc(orderId);
   const orderSnap = await orderRef.get();
   if (!orderSnap.exists) {
     console.warn(`[autoGenerateLabel] Order ${orderId} not found — skipping`);
-    return noLabel;
+    return { ...noLabel, error: "Order not found" };
   }
 
   const order: any = orderSnap.data() || {};
@@ -176,28 +179,34 @@ export async function tryAutoGenerateLabel(orderId: string): Promise<AutoLabelRe
   // Idempotency: skip if already has tracking number + label
   if (order.shipping?.trackingNumber && order.shipping?.labelUrl) {
     console.log(`[autoGenerateLabel] Order ${orderId} already has label — skipping`);
-    return { generated: true, emailSent: false, trackingNumber: order.shipping.trackingNumber, labelUrl: order.shipping.labelUrl };
+    return { generated: true, emailSent: false, buyerEmailSent: false, trackingNumber: order.shipping.trackingNumber, labelUrl: order.shipping.labelUrl };
   }
 
   // Need seller ID to look up address
   const sellerId = order.sellerId;
   if (!sellerId) {
-    console.warn(`[autoGenerateLabel] Order ${orderId} has no sellerId — skipping`);
-    return noLabel;
+    const errMsg = "Order has no sellerId";
+    console.warn(`[autoGenerateLabel] Order ${orderId} ${errMsg} — skipping`);
+    await persistLabelFailure(orderRef, order, errMsg);
+    return { ...noLabel, error: errMsg };
   }
 
   // Need buyer shipping address
   const sa = order.shippingAddress;
   if (!sa || !sa.line1 || !sa.city || !sa.state || !sa.postal_code) {
-    console.warn(`[autoGenerateLabel] Order ${orderId} missing buyer address — skipping`);
-    return noLabel;
+    const errMsg = "Buyer shipping address incomplete or missing";
+    console.warn(`[autoGenerateLabel] Order ${orderId} ${errMsg} — skipping`);
+    await persistLabelFailure(orderRef, order, errMsg);
+    return { ...noLabel, error: errMsg };
   }
 
   // Get seller address from banking/profile
   const sellerAddress = await getSellerAddress(sellerId);
   if (!sellerAddress) {
-    console.warn(`[autoGenerateLabel] No stored address for seller ${sellerId} — skipping`);
-    return noLabel;
+    const errMsg = `No stored address for seller ${sellerId}`;
+    console.warn(`[autoGenerateLabel] ${errMsg} — skipping`);
+    await persistLabelFailure(orderRef, order, errMsg);
+    return { ...noLabel, error: errMsg };
   }
 
   const buyerAddress: UpsAddress = {
@@ -211,23 +220,54 @@ export async function tryAutoGenerateLabel(orderId: string): Promise<AutoLabelRe
     country: sa.country || "US",
   };
 
+  // Mark label as pending before calling UPS
+  await orderRef.set(
+    {
+      updatedAt: FieldValue.serverTimestamp(),
+      shipping: {
+        ...(order.shipping || {}),
+        labelStatus: "pending",
+        updatedAt: FieldValue.serverTimestamp(),
+      },
+    },
+    { merge: true }
+  );
+
   // Use default package dimensions
   const pkg = DEFAULT_PKG;
 
-  // Create shipment + label via UPS
-  const result = await createShippingLabel({
-    seller: sellerAddress,
-    buyer: buyerAddress,
-    pkg,
-    serviceCode: "03", // UPS Ground
-  });
+  let result;
+  try {
+    // Create shipment + label via UPS
+    result = await createShippingLabel({
+      seller: sellerAddress,
+      buyer: buyerAddress,
+      pkg,
+      serviceCode: "03", // UPS Ground
+    });
+  } catch (upsErr: any) {
+    const errMsg = upsErr?.message || "UPS API call failed";
+    console.error(`[autoGenerateLabel] UPS label creation failed for order ${orderId}:`, errMsg);
+    await persistLabelFailure(orderRef, order, errMsg);
+    await notifyAdminLabelFailure(orderId, sellerId, errMsg);
+    throw upsErr;
+  }
 
   const trackingUrl = `https://www.ups.com/track?loc=en_US&tracknum=${encodeURIComponent(result.trackingNumber)}`;
 
   // Upload label to Firebase Storage
-  const labelUrl = await uploadLabelToStorage(orderId, result.labelBase64, result.labelFormat);
+  let labelUrl: string;
+  try {
+    labelUrl = await uploadLabelToStorage(orderId, result.labelBase64, result.labelFormat);
+  } catch (storageErr: any) {
+    const errMsg = storageErr?.message || "Firebase Storage upload failed";
+    console.error(`[autoGenerateLabel] Label upload failed for order ${orderId}:`, errMsg);
+    await persistLabelFailure(orderRef, order, errMsg);
+    await notifyAdminLabelFailure(orderId, sellerId, errMsg);
+    throw storageErr;
+  }
 
-  // Store tracking + label URL on the order
+  // Store tracking + label URL on the order with generated status
   await orderRef.set(
     {
       updatedAt: FieldValue.serverTimestamp(),
@@ -238,6 +278,7 @@ export async function tryAutoGenerateLabel(orderId: string): Promise<AutoLabelRe
         trackingUrl,
         labelUrl,
         labelFormat: result.labelFormat,
+        labelStatus: "generated",
         labelGeneratedAt: FieldValue.serverTimestamp(),
         updatedAt: FieldValue.serverTimestamp(),
         autoGenerated: true,
@@ -250,6 +291,11 @@ export async function tryAutoGenerateLabel(orderId: string): Promise<AutoLabelRe
 
   // Send combined branded "Sale Confirmed + Shipping Label" email to seller
   let emailSent = false;
+  const itemTitle = order.listingTitle || "Item";
+  const amountCents = Number(order.amountTotal || 0);
+  const amountStr = amountCents > 0 ? (amountCents / 100).toFixed(2) : "0.00";
+  const currency = order.currency || "USD";
+
   try {
     let sellerEmail = "";
     let sellerName = sellerAddress.name || "";
@@ -261,11 +307,6 @@ export async function tryAutoGenerateLabel(orderId: string): Promise<AutoLabelRe
     }
 
     if (sellerEmail && sellerEmail.includes("@")) {
-      const itemTitle = order.listingTitle || "Item";
-      const amountCents = Number(order.amountTotal || 0);
-      const amountStr = amountCents > 0 ? (amountCents / 100).toFixed(2) : "0.00";
-      const currency = order.currency || "USD";
-
       await sendSellerSoldWithLabelEmail({
         to: sellerEmail,
         sellerName,
@@ -292,13 +333,120 @@ export async function tryAutoGenerateLabel(orderId: string): Promise<AutoLabelRe
     }
   } catch (emailErr) {
     // Label was generated — don't fail for email issues
-    console.error("[autoGenerateLabel] Combined email failed:", emailErr);
+    console.error("[autoGenerateLabel] Seller combined email failed:", emailErr);
+  }
+
+  // Send buyer shipping notification email with tracking info
+  let buyerEmailSent = false;
+  try {
+    const buyerEmail = order.buyerEmail || "";
+    const buyerName = sa.name || order.buyerName || "";
+
+    if (buyerEmail && buyerEmail.includes("@")) {
+      await sendBuyerShippingNotificationEmail({
+        to: buyerEmail,
+        buyerName: buyerName || undefined,
+        orderId,
+        itemTitle,
+        trackingNumber: result.trackingNumber,
+        trackingUrl,
+        carrier: "UPS",
+      });
+      buyerEmailSent = true;
+    } else {
+      console.warn(`[autoGenerateLabel] No buyer email on order ${orderId} — buyer notification skipped`);
+    }
+  } catch (buyerEmailErr) {
+    console.error("[autoGenerateLabel] Buyer shipping notification email failed:", buyerEmailErr);
+    // Queue as fallback
+    try {
+      const buyerEmail = order.buyerEmail || "";
+      if (buyerEmail && buyerEmail.includes("@")) {
+        await queueEmail({
+          to: buyerEmail,
+          subject: "Famous Finds — Your Order Is Being Shipped!",
+          text:
+            `Hello ${sa.name || order.buyerName || "there"},\n\n` +
+            `Great news — your order is on its way!\n\n` +
+            `Item: ${itemTitle}\nOrder ID: ${orderId}\n` +
+            `Carrier: UPS\nTracking Number: ${result.trackingNumber}\n` +
+            `Track: ${trackingUrl}\n\n` +
+            `Regards,\nThe Famous Finds Team\n`,
+          eventType: "buyer_shipping_notification",
+          eventKey: `${orderId}:buyer_shipping_notification`,
+          metadata: { orderId, trackingNumber: result.trackingNumber },
+        });
+      }
+    } catch (qErr) {
+      console.error("[autoGenerateLabel] Buyer email outbox queue also failed:", qErr);
+    }
   }
 
   return {
     generated: true,
     emailSent,
+    buyerEmailSent,
     trackingNumber: result.trackingNumber,
     labelUrl,
   };
+}
+
+/**
+ * Persist label failure status on the order for operational visibility.
+ */
+async function persistLabelFailure(
+  orderRef: admin.firestore.DocumentReference,
+  order: any,
+  errorMsg: string
+) {
+  try {
+    await orderRef.set(
+      {
+        updatedAt: FieldValue.serverTimestamp(),
+        shipping: {
+          ...(order.shipping || {}),
+          labelStatus: "failed",
+          labelError: errorMsg,
+          labelFailedAt: FieldValue.serverTimestamp(),
+          updatedAt: FieldValue.serverTimestamp(),
+        },
+      },
+      { merge: true }
+    );
+  } catch (e) {
+    console.error("[autoGenerateLabel] Failed to persist label failure status:", e);
+  }
+}
+
+/**
+ * Notify admin/management when label generation fails.
+ */
+async function notifyAdminLabelFailure(
+  orderId: string,
+  sellerId: string,
+  errorMsg: string
+) {
+  try {
+    const adminEmails = (process.env.ADMIN_NOTIFICATION_EMAILS || "").split(",").map(e => e.trim()).filter(Boolean);
+    if (adminEmails.length === 0 || !adminDb) return;
+
+    for (const adminEmail of adminEmails) {
+      await queueEmail({
+        to: adminEmail,
+        subject: `[ALERT] UPS Label Generation Failed — Order ${orderId}`,
+        text:
+          `UPS label generation failed for order ${orderId}.\n\n` +
+          `Seller ID: ${sellerId}\n` +
+          `Error: ${errorMsg}\n\n` +
+          `Action required: Review the order and retry label generation, ` +
+          `or contact the seller to resolve the issue.\n\n` +
+          `— MyFamousFinds System`,
+        eventType: "admin_label_failure",
+        eventKey: `admin_label_failure:${orderId}`,
+        metadata: { orderId, sellerId, error: errorMsg },
+      });
+    }
+  } catch (e) {
+    console.error("[autoGenerateLabel] Failed to notify admin of label failure:", e);
+  }
 }
