@@ -292,7 +292,10 @@ export default function BulkSimple() {
           it.title &&
           it.category &&
           it.condition &&
-          it.priceUSD
+          it.priceUSD &&
+          it.purchaseSource &&
+          it.purchaseProof &&
+          it.proofDoc
         );
       }).length,
     [items]
@@ -410,7 +413,10 @@ export default function BulkSimple() {
         it.title &&
         it.category &&
         it.condition &&
-        it.priceUSD
+        it.priceUSD &&
+        it.purchaseSource &&
+        it.purchaseProof &&
+        it.proofDoc
       );
     });
 
@@ -962,7 +968,7 @@ export default function BulkSimple() {
               </label>
 
               <label>
-                <span>Purchase Source</span>
+                <span>Purchase Source <span className="required-star">*</span></span>
                 <select
                   value={it.purchaseSource || ""}
                   onChange={(e) =>
@@ -979,7 +985,7 @@ export default function BulkSimple() {
               </label>
 
               <label>
-                <span>Purchase Proof</span>
+                <span>Purchase Proof <span className="required-star">*</span></span>
                 <select
                   value={it.purchaseProof || ""}
                   onChange={(e) =>
@@ -998,7 +1004,7 @@ export default function BulkSimple() {
               {/* Proof document upload */}
               <div className="proof-upload-field">
                 <span className="field-label">
-                  Upload Proof Document
+                  Upload Proof Document <span className="required-star">*</span>
                 </span>
                 <p className="proof-hint">
                   Upload a receipt, bank statement, certificate, or any document that proves authenticity.
@@ -1108,6 +1114,11 @@ export default function BulkSimple() {
               : `Create ${totalReady} listing(s)`}
           </button>
         </div>
+        {totalReady === 0 && items.length > 0 && (
+          <p className="create-hint">
+            Each item requires: Designer, Title, Category, Condition, Price, Purchase Source, Purchase Proof, and Proof Document before you can create.
+          </p>
+        )}
       </main>
 
       <Footer />
@@ -1252,6 +1263,10 @@ export default function BulkSimple() {
           box-shadow: 0 0 0 1px #000;
         }
         
+        .required-star {
+          color: #dc2626;
+          font-weight: 700;
+        }
         /* Spot Color Picker */
         .spot-color-field {
           display: flex;
@@ -1626,6 +1641,12 @@ export default function BulkSimple() {
         .btn-primary:disabled {
           background: #9ca3af;
           cursor: not-allowed;
+        }
+        .create-hint {
+          margin: -8px 0 24px;
+          font-size: 13px;
+          color: #b45309;
+          font-weight: 500;
         }
         .back-link a {
           color: #4b5563;
