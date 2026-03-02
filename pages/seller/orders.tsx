@@ -128,7 +128,7 @@ export default function SellerOrders() {
     });
   }, [rows, query]);
 
-  if (authLoading) return <div className="dark-theme-page" />;
+  if (authLoading) return <div className="dashboard-page" />;
 
   return (
     <>
@@ -136,10 +136,10 @@ export default function SellerOrders() {
         <title>Seller — Orders | MyFamousFinds</title>
       </Head>
 
-      <div className="dark-theme-page">
+      <div className="dashboard-page">
         <Header />
 
-        <main className="section">
+        <main className="dashboard-main">
           <div className="back-link">
             <Link href="/seller/dashboard">← Back to Dashboard</Link>
           </div>
@@ -374,10 +374,10 @@ export default function SellerOrders() {
       <style jsx>{`
         .back-link a {
           font-size: 12px;
-          color: #9ca3af;
+          color: #6b7280;
         }
         .back-link a:hover {
-          color: #e5e7eb;
+          color: #111827;
         }
 
         .page-head {
@@ -393,12 +393,12 @@ export default function SellerOrders() {
           margin-top: 0;
           font-size: 24px;
           font-weight: 600;
-          color: #ffffff;
+          color: #111827;
         }
         .subtitle {
           margin-top: 6px;
           font-size: 13px;
-          color: #9ca3af;
+          color: #6b7280;
           max-width: 760px;
           line-height: 1.35;
         }
@@ -413,22 +413,23 @@ export default function SellerOrders() {
           width: 100%;
           max-width: 360px;
           border-radius: 12px;
-          border: 1px solid #1f2937;
-          background: #0b1220;
+          border: 1px solid #d1d5db;
+          background: #ffffff;
           padding: 10px 12px;
           font-size: 13px;
-          color: #e5e7eb;
+          color: #111827;
         }
         .search:focus {
           outline: none;
-          border-color: #374151;
+          border-color: #9ca3af;
         }
 
         .sell-card {
-          background: #111827;
+          background: #ffffff;
           border-radius: 16px;
           padding: 18px 18px 20px;
-          border: 1px solid #1f2937;
+          border: 1px solid #e5e7eb;
+          box-shadow: 0 4px 12px rgba(15, 23, 42, 0.04);
         }
         .table-overflow-wrapper {
           overflow-x: auto;
@@ -437,19 +438,19 @@ export default function SellerOrders() {
           width: 100%;
           border-collapse: collapse;
           font-size: 12px;
-          color: #e5e7eb;
+          color: #374151;
         }
         .catalogue-table th,
         .catalogue-table td {
           padding: 10px 10px;
           text-align: left;
-          border-bottom: 1px solid #374151;
+          border-bottom: 1px solid #e5e7eb;
           vertical-align: top;
         }
         .catalogue-table th {
           font-size: 11px;
           text-transform: uppercase;
-          color: #9ca3af;
+          color: #6b7280;
           font-weight: 500;
         }
         .catalogue-table tr:last-child td {
@@ -457,22 +458,22 @@ export default function SellerOrders() {
         }
         .table-message {
           text-align: center;
-          color: #9ca3af;
+          color: #6b7280;
           padding: 24px;
         }
         .table-message.error {
-          color: #f87171;
+          color: #dc2626;
         }
 
         .cell-strong {
-          color: #ffffff;
+          color: #111827;
           font-weight: 600;
           font-size: 12px;
           line-height: 1.2;
         }
 
         .muted {
-          color: #9ca3af;
+          color: #6b7280;
           font-size: 11px;
           margin-top: 3px;
           line-height: 1.25;
@@ -481,43 +482,43 @@ export default function SellerOrders() {
         .shipto {
           line-height: 1.25;
           font-size: 11px;
-          color: #e5e7eb;
+          color: #374151;
           max-width: 260px;
         }
         .shipto-name {
           font-weight: 600;
-          color: #ffffff;
+          color: #111827;
           margin-bottom: 2px;
         }
         .shipto-line {
-          color: #d1d5db;
+          color: #6b7280;
         }
 
         .badge {
           display: inline-flex;
           align-items: center;
-          border: 1px solid #374151;
+          border: 1px solid #e5e7eb;
           border-radius: 999px;
           padding: 4px 10px;
           font-size: 11px;
-          color: #e5e7eb;
-          background: #0b1220;
+          color: #374151;
+          background: #f9fafb;
           white-space: nowrap;
         }
         .badge.good {
-          border-color: #14532d;
-          color: #bbf7d0;
-          background: rgba(20, 83, 45, 0.25);
+          border-color: #a7f3d0;
+          color: #047857;
+          background: #ecfdf5;
         }
         .badge.warn {
-          border-color: #7c2d12;
-          color: #fed7aa;
-          background: rgba(124, 45, 18, 0.25);
+          border-color: #fecaca;
+          color: #b91c1c;
+          background: #fef2f2;
         }
         .badge.neutral {
-          border-color: #374151;
-          color: #e5e7eb;
-          background: #0b1220;
+          border-color: #e5e7eb;
+          color: #374151;
+          background: #f9fafb;
         }
 
         .action-box {
@@ -537,16 +538,16 @@ export default function SellerOrders() {
 
         .small-input {
           border-radius: 10px;
-          border: 1px solid #374151;
-          background: #0b1220;
+          border: 1px solid #d1d5db;
+          background: #ffffff;
           padding: 8px 10px;
           font-size: 11px;
-          color: #e5e7eb;
+          color: #111827;
           width: 150px;
         }
         .small-input:focus {
           outline: none;
-          border-color: #9ca3af;
+          border-color: #6b7280;
         }
         .small-select {
           width: 120px;
@@ -557,9 +558,9 @@ export default function SellerOrders() {
           padding: 7px 12px;
           font-size: 11px;
           font-weight: 600;
-          border: 1px solid #374151;
-          background: #0b1220;
-          color: #e5e7eb;
+          border: 1px solid #d1d5db;
+          background: #ffffff;
+          color: #374151;
           cursor: pointer;
           text-decoration: none;
           display: inline-flex;
@@ -568,15 +569,15 @@ export default function SellerOrders() {
           line-height: 1;
         }
         .btn:hover {
-          border-color: #9ca3af;
+          border-color: #111827;
         }
         .btn-primary {
-          border-color: #ffffff;
-          background: #ffffff;
-          color: #000000;
+          border-color: #111827;
+          background: #111827;
+          color: #ffffff;
         }
         .btn-primary:hover {
-          background: #e5e7eb;
+          background: #000000;
         }
         .btn:disabled,
         .btn[aria-disabled="true"] {
@@ -588,7 +589,7 @@ export default function SellerOrders() {
           display: flex;
           gap: 6px;
           align-items: center;
-          color: #9ca3af;
+          color: #6b7280;
           font-size: 11px;
           user-select: none;
         }
@@ -598,8 +599,8 @@ export default function SellerOrders() {
           flex-direction: column;
           gap: 6px;
           padding: 8px 10px;
-          background: rgba(20, 83, 45, 0.15);
-          border: 1px solid #14532d;
+          background: #ecfdf5;
+          border: 1px solid #a7f3d0;
           border-radius: 10px;
         }
 
@@ -631,23 +632,24 @@ export default function SellerOrders() {
         /* ---- Mobile card styles ---- */
         .mobile-message {
           text-align: center;
-          color: #9ca3af;
+          color: #6b7280;
           padding: 32px 16px;
           font-size: 13px;
-          background: #111827;
+          background: #ffffff;
           border-radius: 16px;
-          border: 1px solid #1f2937;
+          border: 1px solid #e5e7eb;
         }
         .mobile-error {
-          color: #f87171;
+          color: #dc2626;
         }
 
         .mobile-order-card {
-          background: #111827;
-          border: 1px solid #1f2937;
+          background: #ffffff;
+          border: 1px solid #e5e7eb;
           border-radius: 14px;
           padding: 16px;
           margin-bottom: 12px;
+          box-shadow: 0 4px 12px rgba(15, 23, 42, 0.04);
         }
 
         .mobile-card-top {
@@ -656,7 +658,7 @@ export default function SellerOrders() {
           align-items: flex-start;
           gap: 12px;
           padding-bottom: 12px;
-          border-bottom: 1px solid #1f2937;
+          border-bottom: 1px solid #e5e7eb;
         }
 
         .mobile-card-rows {
@@ -676,7 +678,7 @@ export default function SellerOrders() {
         .mobile-label {
           font-size: 11px;
           text-transform: uppercase;
-          color: #9ca3af;
+          color: #6b7280;
           font-weight: 500;
           flex-shrink: 0;
           padding-top: 2px;
@@ -684,13 +686,13 @@ export default function SellerOrders() {
 
         .mobile-value {
           font-size: 12px;
-          color: #e5e7eb;
+          color: #374151;
           text-align: right;
           word-break: break-word;
         }
 
         .mobile-card-action {
-          border-top: 1px solid #1f2937;
+          border-top: 1px solid #e5e7eb;
           padding-top: 12px;
         }
 
@@ -719,7 +721,7 @@ export default function SellerOrders() {
         .diag-overlay {
           position: fixed;
           inset: 0;
-          background: rgba(0, 0, 0, 0.6);
+          background: rgba(0, 0, 0, 0.4);
           display: flex;
           justify-content: center;
           align-items: flex-start;
@@ -729,11 +731,12 @@ export default function SellerOrders() {
         .diag-modal {
           width: 100%;
           max-width: 720px;
-          background: #111827;
-          border: 1px solid #1f2937;
+          background: #ffffff;
+          border: 1px solid #e5e7eb;
           border-radius: 16px;
           padding: 16px;
           margin-top: 40px;
+          box-shadow: 0 20px 50px rgba(0, 0, 0, 0.15);
         }
         .diag-head {
           display: flex;
@@ -744,14 +747,14 @@ export default function SellerOrders() {
         .diag-title {
           font-size: 16px;
           font-weight: 700;
-          color: #ffffff;
+          color: #111827;
         }
         .diag-error {
           padding: 10px 12px;
           border-radius: 12px;
-          border: 1px solid rgba(248, 113, 113, 0.45);
-          background: rgba(248, 113, 113, 0.1);
-          color: #fecaca;
+          border: 1px solid #fecaca;
+          background: #fef2f2;
+          color: #b91c1c;
           font-size: 12px;
         }
         .diag-summary {
@@ -759,13 +762,13 @@ export default function SellerOrders() {
           align-items: center;
           padding: 10px 12px;
           border-radius: 12px;
-          border: 1px solid #1f2937;
-          background: #0b1220;
+          border: 1px solid #e5e7eb;
+          background: #f9fafb;
         }
         .diag-notes {
           margin: 10px 0 0;
           padding-left: 18px;
-          color: #d1d5db;
+          color: #6b7280;
           font-size: 12px;
         }
         .diag-list {
@@ -779,8 +782,8 @@ export default function SellerOrders() {
           align-items: flex-start;
           padding: 10px 12px;
           border-radius: 12px;
-          border: 1px solid #1f2937;
-          background: rgba(0, 0, 0, 0.18);
+          border: 1px solid #e5e7eb;
+          background: #f9fafb;
         }
         .diag-item-body {
           flex: 1;
