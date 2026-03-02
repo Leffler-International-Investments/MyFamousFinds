@@ -134,6 +134,13 @@ export default function SellerDashboard() {
 
             />
             <DashboardLink
+              href="/seller/ups-diagnostics"
+              title="UPS Label Diagnostics"
+              description="Diagnose why a UPS shipping label wasn't generated or emailed."
+              accentColor="green"
+
+            />
+            <DashboardLink
               href="/seller/insights"
               title="Insights"
               description="Track your sales, top products, and performance."
