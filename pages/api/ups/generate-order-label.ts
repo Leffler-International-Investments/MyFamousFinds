@@ -37,7 +37,7 @@ import {
   type UpsAddress,
   type UpsPackage,
 } from "../../../lib/ups";
-import { sendMail } from "../../../utils/email";
+import { sendMail, sendBuyerShippingNotificationEmail } from "../../../utils/email";
 import { queueEmail } from "../../../utils/emailOutbox";
 
 const STORAGE_BUCKET =
@@ -395,6 +395,7 @@ export default async function handler(
           trackingUrl,
           labelUrl,
           labelFormat: result.labelFormat,
+          labelStatus: "generated",
           labelGeneratedAt: FieldValue.serverTimestamp(),
           updatedAt: FieldValue.serverTimestamp(),
         },
@@ -425,15 +426,13 @@ export default async function handler(
 
         // Send immediately AND queue (belt & suspenders)
         await sendMail({ to: sellerEmail, subject, text }).catch(() => {});
-        
+
         await queueEmail({
           to: sellerEmail,
           subject,
           text,
-          // ✅ REQUIRED by the queueEmail type
           eventType: "ups_label_ready",
           eventKey: `ups_label_ready:${String(orderId)}`,
-          // ✅ updated metadata
           metadata: {
             kind: "ups_label_ready",
             orderId: String(orderId),
@@ -443,6 +442,42 @@ export default async function handler(
       }
     } catch (e) {
       console.warn("[generate-order-label] Seller email notification failed:", e);
+    }
+
+    // Email buyer with tracking info
+    try {
+      const buyerEmail = order.buyerEmail || "";
+      const buyerName = sa.name || order.buyerName || "";
+      const itemTitle = order.listingTitle || "Item";
+
+      if (buyerEmail && buyerEmail.includes("@")) {
+        await sendBuyerShippingNotificationEmail({
+          to: buyerEmail,
+          buyerName: buyerName || undefined,
+          orderId: String(orderId),
+          itemTitle,
+          trackingNumber: result.trackingNumber,
+          trackingUrl,
+          carrier: "UPS",
+        }).catch(() => {});
+
+        await queueEmail({
+          to: buyerEmail,
+          subject: "Famous Finds — Your Order Is Being Shipped!",
+          text:
+            `Hello ${buyerName || "there"},\n\n` +
+            `Great news — your order is on its way!\n\n` +
+            `Item: ${itemTitle}\nOrder ID: ${orderId}\n` +
+            `Carrier: UPS\nTracking Number: ${result.trackingNumber}\n` +
+            `Track: ${trackingUrl}\n\n` +
+            `Regards,\nThe Famous Finds Team\n`,
+          eventType: "buyer_shipping_notification",
+          eventKey: `${String(orderId)}:buyer_shipping_notification`,
+          metadata: { orderId: String(orderId), trackingNumber: result.trackingNumber },
+        }).catch(() => {});
+      }
+    } catch (e) {
+      console.warn("[generate-order-label] Buyer email notification failed:", e);
     }
 
     return res.status(200).json({

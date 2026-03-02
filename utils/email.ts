@@ -1089,6 +1089,71 @@ export async function sendBuyerOfferAcceptedEmail(params: {
 /**
  * Offer — notify buyer that their offer was rejected
  */
+/**
+ * Buyer — shipping notification with tracking info (sent when UPS label is generated)
+ */
+export async function sendBuyerShippingNotificationEmail(params: {
+  to: string;
+  buyerName?: string;
+  orderId: string;
+  itemTitle: string;
+  trackingNumber: string;
+  trackingUrl: string;
+  carrier?: string;
+}) {
+  const to = (params.to || "").trim();
+  if (!to) throw new Error("sendBuyerShippingNotificationEmail missing required field: to");
+
+  const name = params.buyerName || "there";
+  const carrier = params.carrier || "UPS";
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://www.myfamousfinds.com";
+  const subject = "Famous Finds — Your Order Is Being Shipped!";
+
+  const text =
+    `Hello ${name},\n\n` +
+    `Great news — your order is on its way!\n\n` +
+    `Item: ${params.itemTitle}\n` +
+    `Order ID: ${params.orderId}\n` +
+    `Carrier: ${carrier}\n` +
+    `Tracking Number: ${params.trackingNumber}\n` +
+    `Track your package: ${params.trackingUrl}\n\n` +
+    `You can also view your order status anytime at:\n` +
+    `${siteUrl}/account\n\n` +
+    `Thank you for shopping with Famous Finds!\n\n` +
+    `Regards,\nThe Famous Finds Team\n`;
+
+  const bodyHtml =
+    `<p style="margin:0 0 16px 0;font-size:16px;">Hello ${escapeHtml(name)},</p>` +
+    `<p style="margin:0 0 20px 0;font-size:20px;font-weight:bold;color:#1c1917;">Your Order Is Being Shipped!</p>` +
+    // Shipping details card
+    `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#fafaf9;border:1px solid #e7e5e4;border-radius:8px;margin:0 0 20px 0;">` +
+    `<tr><td style="padding:16px 20px;border-bottom:1px solid #e7e5e4;background-color:#1c1917;border-radius:8px 8px 0 0;">` +
+    `<p style="margin:0;font-size:14px;font-weight:bold;color:#d4a843;letter-spacing:0.5px;">SHIPPING DETAILS</p></td></tr>` +
+    `<tr><td style="padding:16px 20px;">` +
+    `<table role="presentation" width="100%" cellpadding="0" cellspacing="0">` +
+    `<tr><td style="padding:6px 0;color:#78716c;font-size:13px;width:110px;">Item</td><td style="padding:6px 0;font-size:14px;font-weight:bold;color:#1c1917;">${escapeHtml(params.itemTitle)}</td></tr>` +
+    `<tr><td style="padding:6px 0;color:#78716c;font-size:13px;">Order ID</td><td style="padding:6px 0;font-size:14px;color:#1c1917;">${escapeHtml(params.orderId)}</td></tr>` +
+    `<tr><td style="padding:6px 0;color:#78716c;font-size:13px;">Carrier</td><td style="padding:6px 0;font-size:14px;color:#1c1917;">${escapeHtml(carrier)}</td></tr>` +
+    `<tr><td style="padding:6px 0;color:#78716c;font-size:13px;">Tracking #</td>` +
+    `<td style="padding:6px 0;font-size:14px;color:#1c1917;"><a href="${escapeHtml(params.trackingUrl)}" style="color:#b8860b;text-decoration:none;font-weight:bold;">${escapeHtml(params.trackingNumber)}</a></td></tr>` +
+    `</table></td></tr></table>` +
+    // Track button
+    `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 20px 0;">` +
+    `<tr><td align="center">` +
+    `<table role="presentation" cellpadding="0" cellspacing="0"><tr><td style="border-radius:6px;background-color:#b8860b;">` +
+    `<a href="${escapeHtml(params.trackingUrl)}" style="display:inline-block;padding:14px 32px;color:#ffffff;text-decoration:none;font-size:15px;font-weight:bold;letter-spacing:0.5px;">TRACK YOUR PACKAGE</a>` +
+    `</td></tr></table>` +
+    `</td></tr></table>` +
+    // View order link
+    `<table role="presentation" cellpadding="0" cellspacing="0"><tr><td style="border-radius:6px;background-color:#1c1917;">` +
+    `<a href="${escapeHtml(siteUrl)}/account" style="display:inline-block;padding:12px 28px;color:#ffffff;text-decoration:none;font-size:14px;font-weight:bold;letter-spacing:0.5px;">VIEW YOUR ORDER</a>` +
+    `</td></tr></table>` +
+    `<p style="margin:20px 0 0 0;font-size:14px;color:#78716c;">Thank you for shopping with Famous Finds.</p>`;
+
+  const html = brandedEmailWrapper(bodyHtml);
+  await sendMail(to, subject, text, html);
+}
+
 export async function sendBuyerOfferRejectedEmail(params: {
   to: string;
   buyerName?: string;
