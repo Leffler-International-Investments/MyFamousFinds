@@ -1,7 +1,6 @@
 // FILE: /pages/management/homepage-listings.tsx
-// Management page: view and delete ALL listings from BOTH Firestore databases.
-// Unlike the public homepage, this page shows every item regardless of status
-// so admins can find and remove ghost listings.
+// Homepage Security Scanner — scans EVERY data source that renders on the
+// public homepage and gives admins full delete access to any item.
 
 import Head from "next/head";
 import Link from "next/link";
@@ -14,6 +13,8 @@ import Header from "../../components/Header";
 import Footer from "../../components/Footer";
 import { useRequireAdmin } from "../../hooks/useRequireAdmin";
 
+/* ───────── Types ───────── */
+
 type ListingItem = {
   id: string;
   title: string;
@@ -22,15 +23,32 @@ type ListingItem = {
   price: string;
   image: string;
   status: string;
+  source: "client" | "admin" | "both";
+};
+
+type MessageItem = {
+  id: string;
+  text: string;
+  type: string;
+  active: boolean;
+  linkText: string;
+  linkUrl: string;
+  imageUrl: string;
+  videoUrl: string;
 };
 
 type Props = {
-  items: ListingItem[];
+  listings: ListingItem[];
+  messages: MessageItem[];
+  scannedAt: string;
 };
 
-export default function HomepageListings({ items: initialItems }: Props) {
+/* ───────── Component ───────── */
+
+export default function HomepageScanner({ listings: initListings, messages: initMessages, scannedAt }: Props) {
   const { loading } = useRequireAdmin();
-  const [items, setItems] = useState(initialItems);
+  const [listings, setListings] = useState(initListings);
+  const [messages, setMessages] = useState(initMessages);
   const [deleting, setDeleting] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [deleteById, setDeleteById] = useState("");
@@ -38,403 +56,425 @@ export default function HomepageListings({ items: initialItems }: Props) {
 
   if (loading) return null;
 
-  // Delete a single listing: try Admin SDK API first, fall back to client-side Firestore
+  /* ── Listing deletion ── */
   const deleteListing = async (id: string): Promise<boolean> => {
     try {
-      const res = await fetch(`/api/admin/delete-public-listing/${id}`, {
-        method: "DELETE",
-      });
+      const res = await fetch(`/api/admin/delete-public-listing/${id}`, { method: "DELETE" });
       const data = await res.json();
       if (data.ok) return true;
-    } catch { /* API failed, try client-side fallback */ }
-
-    // Fallback: delete directly via client-side Firestore SDK
+    } catch { /* fallback below */ }
     try {
-      if (db) {
-        await deleteDoc(doc(db, "listings", id));
-        return true;
-      }
-    } catch (err) {
-      console.error("Client-side delete failed:", err);
-    }
+      if (db) { await deleteDoc(doc(db, "listings", id)); return true; }
+    } catch { /* ignore */ }
     return false;
   };
 
-  const handleDelete = async (id: string, title: string) => {
-    if (!confirm(`Delete "${title}"? This cannot be undone.`)) return;
+  const handleDeleteListing = async (id: string, title: string) => {
+    if (!confirm(`Delete listing "${title}"? This cannot be undone.`)) return;
     setDeleting(id);
     const ok = await deleteListing(id);
-    if (ok) {
-      setItems((prev) => prev.filter((i) => i.id !== id));
-    } else {
-      alert("Failed to delete listing. Check Firebase configuration.");
-    }
+    if (ok) setListings((prev) => prev.filter((i) => i.id !== id));
+    else alert("Delete failed. Check Firebase config.");
     setDeleting(null);
   };
 
-  const handleDeleteAll = async () => {
-    if (items.length === 0) return;
-    if (!confirm(`Delete ALL ${items.length} listings? This cannot be undone.`)) return;
-    setDeleting("all");
+  const handleDeleteAllListings = async () => {
+    if (listings.length === 0) return;
+    if (!confirm(`EMERGENCY: Delete ALL ${listings.length} listings from the homepage? This cannot be undone.`)) return;
+    setDeleting("all-listings");
     let failed = 0;
-    for (const item of items) {
-      const ok = await deleteListing(item.id);
-      if (!ok) failed++;
+    for (const item of listings) {
+      if (!(await deleteListing(item.id))) failed++;
     }
-    setItems([]);
+    setListings([]);
     setDeleting(null);
-    if (failed > 0) {
-      alert(`Deleted ${items.length - failed} of ${items.length} listings. ${failed} failed.`);
-    } else {
-      alert("All listings have been deleted.");
-    }
+    alert(failed > 0
+      ? `Deleted ${listings.length - failed} of ${listings.length}. ${failed} failed.`
+      : "All listings deleted.");
   };
 
   const handleDeleteById = async () => {
     const id = deleteById.trim();
     if (!id) return;
-    if (!confirm(`Delete listing with ID "${id}"? This will remove it from Firestore and the homepage.`)) return;
+    if (!confirm(`Delete listing "${id}" from all databases?`)) return;
     setDeleteByIdStatus("Deleting...");
-    try {
-      // Try admin API first
-      const res = await fetch(`/api/admin/delete-public-listing/${id}`, { method: "DELETE" });
-      const data = await res.json();
-      if (data.ok) {
-        setItems((prev) => prev.filter((i) => i.id !== id));
-        setDeleteByIdStatus("Deleted successfully.");
-        setDeleteById("");
-      } else {
-        // Fallback: try client-side delete
-        if (db) {
-          await deleteDoc(doc(db, "listings", id));
-          setItems((prev) => prev.filter((i) => i.id !== id));
-          setDeleteByIdStatus("Deleted via client SDK.");
-          setDeleteById("");
-        } else {
-          setDeleteByIdStatus("Failed: " + (data.error || "Unknown error"));
-        }
-      }
-    } catch (err: any) {
-      setDeleteByIdStatus("Error: " + (err?.message || "Unknown error"));
+    const ok = await deleteListing(id);
+    if (ok) {
+      setListings((prev) => prev.filter((i) => i.id !== id));
+      setDeleteByIdStatus("Deleted successfully.");
+      setDeleteById("");
+    } else {
+      setDeleteByIdStatus("Failed — item may not exist in either database.");
     }
   };
 
-  const filtered = search.trim()
-    ? items.filter(
-        (i) =>
-          i.title.toLowerCase().includes(search.toLowerCase()) ||
-          i.brand.toLowerCase().includes(search.toLowerCase()) ||
-          i.category.toLowerCase().includes(search.toLowerCase())
-      )
-    : items;
+  /* ── Message deletion ── */
+  const handleDeleteMessage = async (id: string) => {
+    if (!confirm("Delete this message from the homepage?")) return;
+    setDeleting(`msg-${id}`);
+    try {
+      const res = await fetch("/api/management/messages", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id }),
+      });
+      const data = await res.json();
+      if (data.ok) setMessages((prev) => prev.filter((m) => m.id !== id));
+      else alert("Delete failed: " + (data.error || "unknown error"));
+    } catch (err: any) {
+      alert("Delete failed: " + (err?.message || "unknown error"));
+    }
+    setDeleting(null);
+  };
 
+  const handleDeactivateMessage = async (id: string) => {
+    setDeleting(`msg-${id}`);
+    try {
+      const res = await fetch("/api/management/messages", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, active: false }),
+      });
+      const data = await res.json();
+      if (data.ok) setMessages((prev) => prev.map((m) => m.id === id ? { ...m, active: false } : m));
+    } catch { /* ignore */ }
+    setDeleting(null);
+  };
+
+  const handleDeleteAllMessages = async () => {
+    if (messages.length === 0) return;
+    if (!confirm(`Delete ALL ${messages.length} messages?`)) return;
+    setDeleting("all-messages");
+    for (const msg of messages) {
+      try {
+        await fetch("/api/management/messages", {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id: msg.id }),
+        });
+      } catch { /* continue */ }
+    }
+    setMessages([]);
+    setDeleting(null);
+  };
+
+  /* ── Search filter ── */
+  const filteredListings = search.trim()
+    ? listings.filter((i) =>
+        [i.title, i.brand, i.category, i.id].some((f) =>
+          f.toLowerCase().includes(search.toLowerCase())
+        )
+      )
+    : listings;
+
+  const activeMessages = messages.filter((m) => m.active);
+
+  /* ── Render ── */
   return (
     <div style={{ background: "#f7f7f5", minHeight: "100vh" }}>
-      <Head>
-        <title>All Listings on Homepage - Management</title>
-      </Head>
+      <Head><title>Homepage Scanner - Management</title></Head>
       <Header />
+
       <main style={{ maxWidth: 1200, margin: "0 auto", padding: "32px 16px 64px" }}>
-        {/* Header */}
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 24, flexWrap: "wrap", gap: 12 }}>
+
+        {/* ═══ Page header ═══ */}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12, flexWrap: "wrap", gap: 12 }}>
           <div>
             <h1 style={{ margin: 0, fontSize: 28, fontWeight: 700, color: "#0f172a" }}>
-              All Listings on Homepage
+              Homepage Scanner
             </h1>
             <p style={{ color: "#6b7280", margin: "4px 0 0", fontSize: 14 }}>
-              {items.length} items currently displayed on the homepage. Delete any item from here.
+              Full scan of everything displayed on the public homepage. Delete anything suspicious immediately.
             </p>
           </div>
-          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-            <Link
-              href="/management/dashboard"
-              style={{
-                color: "#0f172a",
-                fontWeight: 700,
-                textDecoration: "none",
-                fontSize: 13,
-                border: "1px solid #d1d5db",
-                borderRadius: 999,
-                padding: "8px 16px",
-                background: "#fff",
-              }}
-            >
-              Back to Dashboard
-            </Link>
-            {items.length > 0 && (
-              <button
-                onClick={handleDeleteAll}
-                style={{
-                  border: "1px solid #fca5a5",
-                  background: "#fef2f2",
-                  color: "#dc2626",
-                  borderRadius: 999,
-                  padding: "8px 16px",
-                  fontWeight: 700,
-                  fontSize: 13,
-                  cursor: "pointer",
-                }}
-              >
-                Delete All ({items.length})
+          <Link
+            href="/management/dashboard"
+            style={{ color: "#0f172a", fontWeight: 700, textDecoration: "none", fontSize: 13, border: "1px solid #d1d5db", borderRadius: 999, padding: "8px 16px", background: "#fff" }}
+          >
+            Back to Dashboard
+          </Link>
+        </div>
+
+        {/* ═══ Scan summary ═══ */}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 12, marginBottom: 24 }}>
+          <div style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: 12, padding: "14px 18px" }}>
+            <p style={{ margin: 0, fontSize: 11, textTransform: "uppercase", letterSpacing: "0.06em", color: "#6b7280", fontWeight: 700 }}>Listings</p>
+            <p style={{ margin: "4px 0 0", fontSize: 24, fontWeight: 800, color: "#0f172a" }}>{listings.length}</p>
+          </div>
+          <div style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: 12, padding: "14px 18px" }}>
+            <p style={{ margin: 0, fontSize: 11, textTransform: "uppercase", letterSpacing: "0.06em", color: "#6b7280", fontWeight: 700 }}>Messages (active)</p>
+            <p style={{ margin: "4px 0 0", fontSize: 24, fontWeight: 800, color: activeMessages.length > 0 ? "#0f172a" : "#9ca3af" }}>{activeMessages.length}</p>
+          </div>
+          <div style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: 12, padding: "14px 18px" }}>
+            <p style={{ margin: 0, fontSize: 11, textTransform: "uppercase", letterSpacing: "0.06em", color: "#6b7280", fontWeight: 700 }}>Messages (total)</p>
+            <p style={{ margin: "4px 0 0", fontSize: 24, fontWeight: 800, color: "#0f172a" }}>{messages.length}</p>
+          </div>
+          <div style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: 12, padding: "14px 18px" }}>
+            <p style={{ margin: 0, fontSize: 11, textTransform: "uppercase", letterSpacing: "0.06em", color: "#6b7280", fontWeight: 700 }}>Scanned at</p>
+            <p style={{ margin: "4px 0 0", fontSize: 14, fontWeight: 600, color: "#0f172a" }}>{scannedAt}</p>
+          </div>
+        </div>
+
+        {/* ═══════════════════════════════════════════════════════ */}
+        {/* SECTION 1: BUYER MESSAGES                              */}
+        {/* ═══════════════════════════════════════════════════════ */}
+        <div style={{ marginBottom: 32, paddingTop: 16, borderTop: "2px solid #111827" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12, flexWrap: "wrap", gap: 8 }}>
+            <div>
+              <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: "#0f172a" }}>
+                Buyer Messages &amp; Announcements
+              </h2>
+              <p style={{ margin: "2px 0 0", fontSize: 12, color: "#6b7280" }}>
+                Banners displayed at the top of the homepage. Active messages are visible to all visitors.
+              </p>
+            </div>
+            {messages.length > 0 && (
+              <button onClick={handleDeleteAllMessages} disabled={deleting === "all-messages"}
+                style={{ border: "1px solid #fca5a5", background: "#fef2f2", color: "#dc2626", borderRadius: 999, padding: "6px 14px", fontWeight: 700, fontSize: 12, cursor: "pointer" }}>
+                Delete All Messages ({messages.length})
               </button>
             )}
           </div>
-        </div>
 
-        {/* Search */}
-        <div style={{ marginBottom: 16 }}>
-          <input
-            placeholder="Search by title, brand, or category..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            style={{
-              width: "100%",
-              maxWidth: 400,
-              border: "1px solid #e5e7eb",
-              borderRadius: 12,
-              padding: "10px 14px",
-              fontSize: 14,
-              outline: "none",
-              background: "#fff",
-            }}
-          />
-        </div>
-
-        {/* Delete by ID — for ghost listings not appearing in the list */}
-        <div style={{
-          marginBottom: 20,
-          padding: "16px 20px",
-          background: "#fff",
-          border: "1px solid #e5e7eb",
-          borderRadius: 12,
-        }}>
-          <p style={{ margin: "0 0 8px", fontWeight: 700, fontSize: 14, color: "#0f172a" }}>
-            Delete a listing by ID
-          </p>
-          <p style={{ margin: "0 0 10px", fontSize: 12, color: "#6b7280" }}>
-            Use this to remove ghost listings that don&apos;t appear in the list above. Paste the listing ID from the product URL.
-          </p>
-          <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-            <input
-              placeholder="e.g. pJEVgR6vhikUPTim1Ysd"
-              value={deleteById}
-              onChange={(e) => { setDeleteById(e.target.value); setDeleteByIdStatus(null); }}
-              style={{
-                flex: 1,
-                minWidth: 200,
-                border: "1px solid #e5e7eb",
-                borderRadius: 8,
-                padding: "8px 12px",
-                fontSize: 13,
-                outline: "none",
-              }}
-            />
-            <button
-              onClick={handleDeleteById}
-              disabled={!deleteById.trim() || deleteByIdStatus === "Deleting..."}
-              style={{
-                border: "1px solid #fca5a5",
-                background: "#dc2626",
-                color: "#fff",
-                borderRadius: 8,
-                padding: "8px 16px",
-                fontWeight: 700,
-                fontSize: 13,
-                cursor: !deleteById.trim() ? "not-allowed" : "pointer",
-                opacity: !deleteById.trim() ? 0.5 : 1,
-              }}
-            >
-              {deleteByIdStatus === "Deleting..." ? "Deleting..." : "Delete by ID"}
-            </button>
-          </div>
-          {deleteByIdStatus && deleteByIdStatus !== "Deleting..." && (
-            <p style={{
-              margin: "8px 0 0",
-              fontSize: 12,
-              color: deleteByIdStatus.startsWith("Deleted") ? "#059669" : "#dc2626",
-              fontWeight: 600,
-            }}>
-              {deleteByIdStatus}
-            </p>
+          {messages.length === 0 ? (
+            <p style={{ color: "#9ca3af", fontSize: 13, fontStyle: "italic" }}>No messages found.</p>
+          ) : (
+            <div style={{ display: "grid", gap: 8 }}>
+              {messages.map((msg) => (
+                <div key={msg.id} style={{
+                  display: "flex", alignItems: "center", gap: 14, background: "#fff",
+                  border: `1px solid ${msg.active ? "#fcd34d" : "#e5e7eb"}`, borderRadius: 12, padding: 12,
+                  opacity: msg.active ? 1 : 0.6,
+                }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
+                      <span style={{
+                        fontSize: 10, textTransform: "uppercase", fontWeight: 800, padding: "2px 6px", borderRadius: 4,
+                        background: msg.active ? "#dcfce7" : "#f3f4f6", color: msg.active ? "#166534" : "#6b7280",
+                      }}>
+                        {msg.active ? "ACTIVE" : "INACTIVE"}
+                      </span>
+                      <span style={{
+                        fontSize: 10, textTransform: "uppercase", fontWeight: 700, padding: "2px 6px", borderRadius: 4,
+                        background: msg.type === "alert" ? "#fecaca" : msg.type === "promo" ? "#fef08a" : "#e5e7eb",
+                        color: msg.type === "alert" ? "#991b1b" : msg.type === "promo" ? "#854d0e" : "#374151",
+                      }}>
+                        {msg.type}
+                      </span>
+                    </div>
+                    <p style={{ margin: 0, fontWeight: 600, fontSize: 14, color: "#111827" }}>{msg.text}</p>
+                    {msg.linkUrl && (
+                      <p style={{ margin: "2px 0 0", fontSize: 11, color: "#2563eb" }}>
+                        Link: {msg.linkText || msg.linkUrl}
+                      </p>
+                    )}
+                    {msg.imageUrl && <p style={{ margin: "2px 0 0", fontSize: 11, color: "#6b7280" }}>Has image</p>}
+                    {msg.videoUrl && <p style={{ margin: "2px 0 0", fontSize: 11, color: "#6b7280" }}>Has video</p>}
+                    <p style={{ margin: "2px 0 0", fontSize: 10, color: "#9ca3af" }}>ID: {msg.id}</p>
+                  </div>
+                  <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+                    {msg.active && (
+                      <button onClick={() => handleDeactivateMessage(msg.id)} disabled={deleting === `msg-${msg.id}`}
+                        style={{ border: "1px solid #d1d5db", background: "#fff", color: "#374151", borderRadius: 8, padding: "6px 12px", fontWeight: 700, fontSize: 12, cursor: "pointer" }}>
+                        Hide
+                      </button>
+                    )}
+                    <button onClick={() => handleDeleteMessage(msg.id)} disabled={deleting === `msg-${msg.id}`}
+                      style={{ border: "1px solid #fca5a5", background: "#fff", color: "#dc2626", borderRadius: 8, padding: "6px 12px", fontWeight: 700, fontSize: 12, cursor: "pointer" }}>
+                      {deleting === `msg-${msg.id}` ? "..." : "Delete"}
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
           )}
         </div>
 
-        {/* Listing rows */}
-        {filtered.length === 0 ? (
-          <div
-            style={{
-              padding: 48,
-              textAlign: "center",
-              background: "#fff",
-              border: "1px dashed #e5e7eb",
-              borderRadius: 16,
-            }}
-          >
-            <h3 style={{ margin: "0 0 8px", fontSize: 16, color: "#111827" }}>
-              {items.length === 0 ? "No listings found." : "No results match your search."}
-            </h3>
-            {items.length > 0 && (
-              <button
-                onClick={() => setSearch("")}
-                style={{
-                  border: "1px solid #cbd5e1",
-                  background: "#fff",
-                  color: "#0f172a",
-                  borderRadius: 999,
-                  padding: "8px 14px",
-                  fontWeight: 700,
-                  fontSize: 13,
-                  cursor: "pointer",
-                }}
-              >
-                Clear search
+        {/* ═══════════════════════════════════════════════════════ */}
+        {/* SECTION 2: ALL PRODUCT LISTINGS                        */}
+        {/* ═══════════════════════════════════════════════════════ */}
+        <div style={{ paddingTop: 16, borderTop: "2px solid #111827" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12, flexWrap: "wrap", gap: 8 }}>
+            <div>
+              <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: "#0f172a" }}>
+                All Product Listings
+              </h2>
+              <p style={{ margin: "2px 0 0", fontSize: 12, color: "#6b7280" }}>
+                Every listing from both Client &amp; Admin Firestore. No filters applied — you see everything.
+              </p>
+            </div>
+            {listings.length > 0 && (
+              <button onClick={handleDeleteAllListings} disabled={deleting === "all-listings"}
+                style={{ border: "1px solid #fca5a5", background: "#fef2f2", color: "#dc2626", borderRadius: 999, padding: "6px 14px", fontWeight: 700, fontSize: 12, cursor: "pointer" }}>
+                {deleting === "all-listings" ? "Deleting..." : `Delete All Listings (${listings.length})`}
               </button>
             )}
           </div>
-        ) : (
-          <div style={{ display: "grid", gap: 8 }}>
-            {filtered.map((item) => (
-              <div
-                key={item.id}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 14,
-                  background: "#fff",
-                  border: "1px solid #e5e7eb",
-                  borderRadius: 12,
-                  padding: 12,
-                }}
-              >
-                {item.image ? (
-                  <img
-                    src={item.image}
-                    alt=""
-                    style={{
-                      width: 56,
-                      height: 56,
-                      objectFit: "cover",
-                      borderRadius: 8,
-                      border: "1px solid #f0f0f0",
-                      flexShrink: 0,
-                    }}
-                  />
-                ) : (
-                  <div
-                    style={{
-                      width: 56,
-                      height: 56,
-                      borderRadius: 8,
-                      background: "#f3f4f6",
-                      border: "1px solid #e5e7eb",
-                      flexShrink: 0,
-                    }}
-                  />
-                )}
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <p style={{ margin: 0, fontWeight: 600, fontSize: 14, color: "#111827" }}>
-                    {item.title}
-                  </p>
-                  <p style={{ margin: "2px 0 0", fontSize: 12, color: "#6b7280" }}>
-                    {[item.brand, item.category, item.price, item.status]
-                      .filter(Boolean)
-                      .join(" · ")}
-                  </p>
-                  <p style={{ margin: "2px 0 0", fontSize: 11, color: "#9ca3af" }}>
-                    ID: {item.id}
-                  </p>
-                </div>
-                <button
-                  onClick={() => handleDelete(item.id, item.title)}
-                  disabled={deleting === item.id}
-                  style={{
-                    border: "1px solid #fca5a5",
-                    background: deleting === item.id ? "#fef2f2" : "#fff",
-                    color: "#dc2626",
-                    borderRadius: 8,
-                    padding: "8px 16px",
-                    fontWeight: 700,
-                    fontSize: 13,
-                    cursor: deleting === item.id ? "not-allowed" : "pointer",
-                    flexShrink: 0,
-                  }}
-                >
-                  {deleting === item.id ? "Deleting..." : "Delete"}
-                </button>
-              </div>
-            ))}
+
+          {/* Search + Delete-by-ID */}
+          <div style={{ display: "flex", gap: 10, marginBottom: 14, flexWrap: "wrap" }}>
+            <input placeholder="Search by title, brand, category, or ID..." value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              style={{ flex: 1, minWidth: 220, border: "1px solid #e5e7eb", borderRadius: 10, padding: "9px 14px", fontSize: 13, outline: "none", background: "#fff" }} />
           </div>
-        )}
+
+          <div style={{
+            marginBottom: 16, padding: "12px 16px", background: "#fff", border: "1px solid #e5e7eb", borderRadius: 10,
+            display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap",
+          }}>
+            <span style={{ fontSize: 12, fontWeight: 700, color: "#374151" }}>Delete by ID:</span>
+            <input placeholder="Paste listing ID" value={deleteById}
+              onChange={(e) => { setDeleteById(e.target.value); setDeleteByIdStatus(null); }}
+              style={{ flex: 1, minWidth: 180, border: "1px solid #e5e7eb", borderRadius: 6, padding: "6px 10px", fontSize: 12, outline: "none" }} />
+            <button onClick={handleDeleteById} disabled={!deleteById.trim() || deleteByIdStatus === "Deleting..."}
+              style={{ border: "1px solid #fca5a5", background: "#dc2626", color: "#fff", borderRadius: 6, padding: "6px 14px", fontWeight: 700, fontSize: 12, cursor: !deleteById.trim() ? "not-allowed" : "pointer", opacity: !deleteById.trim() ? 0.5 : 1 }}>
+              {deleteByIdStatus === "Deleting..." ? "..." : "Delete"}
+            </button>
+            {deleteByIdStatus && deleteByIdStatus !== "Deleting..." && (
+              <span style={{ fontSize: 11, fontWeight: 700, color: deleteByIdStatus.startsWith("Deleted") ? "#059669" : "#dc2626" }}>
+                {deleteByIdStatus}
+              </span>
+            )}
+          </div>
+
+          {/* Listing rows */}
+          {filteredListings.length === 0 ? (
+            <div style={{ padding: 48, textAlign: "center", background: "#fff", border: "1px dashed #e5e7eb", borderRadius: 16 }}>
+              <h3 style={{ margin: "0 0 8px", fontSize: 16, color: "#111827" }}>
+                {listings.length === 0 ? "No listings found in either database." : "No results match your search."}
+              </h3>
+              {listings.length > 0 && (
+                <button onClick={() => setSearch("")}
+                  style={{ border: "1px solid #cbd5e1", background: "#fff", color: "#0f172a", borderRadius: 999, padding: "8px 14px", fontWeight: 700, fontSize: 13, cursor: "pointer" }}>
+                  Clear search
+                </button>
+              )}
+            </div>
+          ) : (
+            <div style={{ display: "grid", gap: 8 }}>
+              {filteredListings.map((item) => (
+                <div key={item.id} style={{
+                  display: "flex", alignItems: "center", gap: 14, background: "#fff",
+                  border: "1px solid #e5e7eb", borderRadius: 12, padding: 12,
+                }}>
+                  {item.image ? (
+                    <img src={item.image} alt="" style={{ width: 56, height: 56, objectFit: "cover", borderRadius: 8, border: "1px solid #f0f0f0", flexShrink: 0 }} />
+                  ) : (
+                    <div style={{ width: 56, height: 56, borderRadius: 8, background: "#f3f4f6", border: "1px solid #e5e7eb", flexShrink: 0 }} />
+                  )}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <p style={{ margin: 0, fontWeight: 600, fontSize: 14, color: "#111827" }}>{item.title}</p>
+                    <p style={{ margin: "2px 0 0", fontSize: 12, color: "#6b7280" }}>
+                      {[item.brand, item.category, item.price, item.status].filter(Boolean).join(" \u00b7 ")}
+                    </p>
+                    <p style={{ margin: "2px 0 0", fontSize: 11, color: "#9ca3af" }}>
+                      ID: {item.id}
+                      <span style={{ marginLeft: 8, fontSize: 10, padding: "1px 5px", borderRadius: 4, background: item.source === "both" ? "#dcfce7" : item.source === "client" ? "#e0ecff" : "#f3f4f6", color: item.source === "both" ? "#166534" : item.source === "client" ? "#1d4ed8" : "#6b7280" }}>
+                        {item.source === "both" ? "Both DBs" : item.source === "client" ? "Client DB" : "Admin DB"}
+                      </span>
+                    </p>
+                  </div>
+                  <button onClick={() => handleDeleteListing(item.id, item.title)}
+                    disabled={deleting === item.id}
+                    style={{ border: "1px solid #fca5a5", background: deleting === item.id ? "#fef2f2" : "#fff", color: "#dc2626", borderRadius: 8, padding: "8px 16px", fontWeight: 700, fontSize: 13, cursor: deleting === item.id ? "not-allowed" : "pointer", flexShrink: 0 }}>
+                    {deleting === item.id ? "..." : "Delete"}
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
       </main>
       <Footer />
     </div>
   );
 }
 
-// Helper: extract a listing row from a raw Firestore document
-function toListingItem(id: string, d: any): ListingItem {
+/* ───────── Helpers ───────── */
+
+function toListingItem(id: string, d: any, source: "client" | "admin"): ListingItem {
   const priceNum =
-    typeof d.priceUsd === "number"
-      ? d.priceUsd
-      : typeof d.price === "number"
-      ? d.price
-      : 0;
+    typeof d.priceUsd === "number" ? d.priceUsd
+    : typeof d.price === "number" ? d.price
+    : 0;
   return {
     id,
     title: d.title || d.name || d.listingTitle || "Untitled",
     brand: d.brand || d.designer || "",
     category: d.category || d.menuCategory || "",
     price: priceNum ? `US$${priceNum.toLocaleString("en-US")}` : "",
-    image:
-      d.displayImageUrl ||
-      d.display_image_url ||
-      d.imageUrl ||
-      d.image_url ||
-      (Array.isArray(d.images) && d.images[0] ? d.images[0] : ""),
+    image: d.displayImageUrl || d.display_image_url || d.imageUrl || d.image_url
+      || (Array.isArray(d.images) && d.images[0] ? d.images[0] : ""),
     status: d.status || d.moderationStatus || "",
+    source,
   };
 }
 
+/* ───────── Server-side scan ───────── */
+
 export const getServerSideProps: GetServerSideProps<Props> = async () => {
   const seen = new Map<string, ListingItem>();
+  const clientIds = new Set<string>();
+  const adminIds = new Set<string>();
 
-  // 1. Fetch ALL listings from Client Firestore (no status filter, no cap)
-  //    This is the same database the public homepage reads from.
+  // 1. Scan Client Firestore — the primary source for the public homepage
   try {
     if (db) {
-      const q = query(
-        collection(db, "listings"),
-        orderBy("createdAt", "desc")
-      );
+      const q = query(collection(db, "listings"), orderBy("createdAt", "desc"));
       const snap = await getDocs(q);
       snap.forEach((d) => {
-        if (!seen.has(d.id)) {
-          seen.set(d.id, toListingItem(d.id, d.data() || {}));
-        }
+        clientIds.add(d.id);
+        seen.set(d.id, toListingItem(d.id, d.data() || {}, "client"));
       });
     }
   } catch (err) {
-    console.error("Client Firestore fetch error:", err);
+    console.error("Client Firestore scan error:", err);
   }
 
-  // 2. Fetch ALL listings from Admin Firestore and merge
-  //    Catches items that only exist in the admin project.
+  // 2. Scan Admin Firestore — merge any items not already found
   try {
     if (isFirebaseAdminReady && adminDb) {
-      const snap = await adminDb
-        .collection("listings")
-        .orderBy("createdAt", "desc")
-        .get();
+      const snap = await adminDb.collection("listings").orderBy("createdAt", "desc").get();
       snap.docs.forEach((d) => {
-        if (!seen.has(d.id)) {
-          seen.set(d.id, toListingItem(d.id, d.data() || {}));
+        adminIds.add(d.id);
+        if (seen.has(d.id)) {
+          // Exists in both — update source tag
+          seen.set(d.id, { ...seen.get(d.id)!, source: "both" });
+        } else {
+          seen.set(d.id, toListingItem(d.id, d.data() || {}, "admin"));
         }
       });
     }
   } catch (err) {
-    console.error("Admin Firestore fetch error:", err);
+    console.error("Admin Firestore scan error:", err);
   }
 
-  const items = Array.from(seen.values());
-  return { props: { items } };
+  // 3. Scan buyer messages
+  const messages: MessageItem[] = [];
+  try {
+    if (isFirebaseAdminReady && adminDb) {
+      const snap = await adminDb.collection("buyer_messages").orderBy("createdAt", "desc").get();
+      snap.docs.forEach((d) => {
+        const data: any = d.data() || {};
+        messages.push({
+          id: d.id,
+          text: data.text || "",
+          type: data.type || "info",
+          active: data.active !== false,
+          linkText: data.linkText || "",
+          linkUrl: data.linkUrl || "",
+          imageUrl: data.imageUrl || "",
+          videoUrl: data.videoUrl || "",
+        });
+      });
+    }
+  } catch (err) {
+    console.error("Messages scan error:", err);
+  }
+
+  const listings = Array.from(seen.values());
+  const scannedAt = new Date().toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short" });
+
+  return { props: { listings, messages, scannedAt } };
 };
