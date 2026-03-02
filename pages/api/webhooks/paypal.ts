@@ -5,6 +5,11 @@ import type { NextApiRequest, NextApiResponse } from "next";
 import { adminDb } from "../../../utils/firebaseAdmin";
 import { verifyPayPalWebhook, getPayPalOrder } from "../../../lib/paypal";
 import { tryAutoGenerateLabel } from "../../../utils/autoGenerateLabel";
+import {
+  sendBuyerOrderConfirmationEmail,
+  sendSellerItemSoldEmail,
+} from "../../../utils/email";
+import { queueEmail } from "../../../utils/emailOutbox";
 
 export const config = {
   api: { bodyParser: false },
@@ -202,6 +207,71 @@ export default async function handler(
             ` — buyer: ${resolvedBuyerEmail || "(unknown)"}` +
             ` — shippingAddress: ${shippingAddress ? "present" : "MISSING"}`
           );
+
+          // Send confirmation emails (non-blocking — don't fail the webhook)
+          const whItemTitle = pendingData?.productTitle || "Item";
+          const whAmountStr = amount.toFixed(2);
+          const whOrderId = newOrderRef.id;
+
+          if (resolvedBuyerEmail) {
+            sendBuyerOrderConfirmationEmail({
+              to: resolvedBuyerEmail,
+              buyerName: resolvedBuyerName || undefined,
+              orderId: whOrderId,
+              itemTitle: whItemTitle,
+              amount: whAmountStr,
+              currency,
+            }).catch((emailErr) => {
+              console.error("[paypal webhook] Buyer email failed, queueing:", emailErr);
+              queueEmail({
+                to: resolvedBuyerEmail,
+                subject: "MyFamousFinds — Order Confirmation",
+                text:
+                  `Hello ${resolvedBuyerName || "there"},\n\n` +
+                  `Thank you for your purchase on MyFamousFinds!\n\n` +
+                  `Order ID: ${whOrderId}\nItem: ${whItemTitle}\nTotal: ${currency} ${whAmountStr}\n\n` +
+                  `We will process your order and keep you updated on shipping.\n\n` +
+                  `Regards,\nThe MyFamousFinds Team\n`,
+                eventType: "buyer_order_confirmation",
+                eventKey: `${whOrderId}:buyer_order_confirmation`,
+                metadata: { orderId: whOrderId, buyerEmail: resolvedBuyerEmail },
+              }).catch((qErr) => console.error("[paypal webhook] Buyer outbox queue failed:", qErr));
+            });
+          }
+
+          if (sellerId) {
+            (async () => {
+              try {
+                let sellerEmail = "";
+                let sellerName = "";
+                let sellerDoc = await adminDb!.collection("sellers").doc(sellerId).get();
+                if (!sellerDoc.exists) {
+                  const byEmail = await adminDb!.collection("sellers").where("email", "==", sellerId).limit(1).get();
+                  if (!byEmail.empty) sellerDoc = byEmail.docs[0];
+                }
+                if (!sellerDoc.exists) {
+                  const byContact = await adminDb!.collection("sellers").where("contactEmail", "==", sellerId).limit(1).get();
+                  if (!byContact.empty) sellerDoc = byContact.docs[0];
+                }
+                const sellerData = sellerDoc.exists ? sellerDoc.data() || {} : {};
+                sellerEmail = String(sellerData.contactEmail || sellerData.email || sellerId);
+                sellerName = String(sellerData.businessName || sellerData.name || "");
+
+                if (sellerEmail && sellerEmail.includes("@")) {
+                  await sendSellerItemSoldEmail({
+                    to: sellerEmail,
+                    sellerName,
+                    itemTitle: whItemTitle,
+                    amount: whAmountStr,
+                    currency,
+                    orderId: whOrderId,
+                  });
+                }
+              } catch (sellerEmailErr) {
+                console.error("[paypal webhook] Seller email failed:", sellerEmailErr);
+              }
+            })();
+          }
 
           // Mark listing sold
           if (customId) {
