@@ -10,7 +10,7 @@ import { collection, query, where, getDocs } from "firebase/firestore";
 import Header from "../components/Header";
 import Footer from "../components/Footer";
 import ProductCard, { ProductLike } from "../components/ProductCard";
-import RecentlyViewed from "../components/RecentlyViewed";
+
 import { getPublicListings } from "../lib/publicListings";
 import { getDeletedListingIds } from "../lib/deletedListings";
 import { adminDb } from "../utils/firebaseAdmin";
@@ -420,8 +420,6 @@ const HomePage: NextPage<HomeProps> = ({
           </div>
         )}
 
-        {/* Recently Viewed */}
-        <RecentlyViewed />
       </main>
 
       {/* Wishlist toast notification */}
