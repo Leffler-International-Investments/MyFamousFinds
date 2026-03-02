@@ -4,7 +4,7 @@ import Head from "next/head";
 import Link from "next/link";
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { autoPrefixPhone } from "../../utils/phoneFormat";
 import { useRequireSeller } from "../../hooks/useRequireSeller";
 import { sellerFetch } from "../../utils/sellerClient";
@@ -20,7 +20,57 @@ export default function SellerProfile() {
 
   const [paypalEmail, setPaypalEmail] = useState("");
 
+  // Shipping address state (for UPS labels)
+  const [addressLine1, setAddressLine1] = useState("");
+  const [addressLine2, setAddressLine2] = useState("");
+  const [city, setCity] = useState("");
+  const [state, setState] = useState("");
+  const [postalCode, setPostalCode] = useState("");
+  const [addressCountry, setAddressCountry] = useState("United States");
+  const [addressPrefilled, setAddressPrefilled] = useState(false);
+
   const [taxBusy, setTaxBusy] = useState(false);
+
+  // Prefill address from seller_banking if it exists
+  useEffect(() => {
+    let cancelled = false;
+    const loadAddress = async () => {
+      try {
+        const sellerEmail = String(
+          window.localStorage.getItem("ff-email") || ""
+        )
+          .trim()
+          .toLowerCase();
+        if (!sellerEmail) return;
+
+        const res = await sellerFetch(
+          `/api/seller/banking?email=${encodeURIComponent(sellerEmail)}`
+        );
+        const json = await res.json();
+        if (!json?.ok || !json?.prefs || cancelled) return;
+
+        const prefs = json.prefs || {};
+        if (prefs.addressLine1) {
+          setAddressLine1(prefs.addressLine1);
+          setAddressLine2(prefs.addressLine2 || "");
+          setCity(prefs.city || "");
+          setState(prefs.state || "");
+          setPostalCode(prefs.postalCode || "");
+          setAddressCountry(prefs.country || "United States");
+          setAddressPrefilled(true);
+        }
+        if (prefs.paypalEmail) {
+          setPaypalEmail(prefs.paypalEmail);
+        }
+      } catch (err) {
+        console.warn("Could not prefill address from banking:", err);
+      }
+    };
+    loadAddress();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -39,6 +89,12 @@ export default function SellerProfile() {
       otherPlatforms: String(formData.get("otherPlatforms") || ""),
       vettingNotes: String(formData.get("vettingNotes") || ""),
       paypalEmail: paypalEmail.trim(),
+      addressLine1: addressLine1.trim(),
+      addressLine2: addressLine2.trim(),
+      addressCity: city.trim(),
+      addressState: state.trim(),
+      addressPostalCode: postalCode.trim(),
+      addressCountry: addressCountry.trim(),
     };
 
     try {
@@ -54,7 +110,7 @@ export default function SellerProfile() {
       }
 
       setMessage(
-        "Your seller profile has been submitted for review. Our management team will email you once you are approved."
+        "Your seller profile has been saved successfully."
       );
     } catch (err: any) {
       console.error("seller_profile_save_error", err);
@@ -194,7 +250,88 @@ export default function SellerProfile() {
             </div>
           </section>
 
-          {/* Section 2: Payouts (PayPal) */}
+          {/* Section 2: Shipping Address */}
+          <section className="form-card">
+            <h2>Shipping Address (for UPS Labels)</h2>
+            <p className="form-subtitle">
+              This address is used as the ship-from address on UPS labels.
+              It will be prefilled when you create listings.
+            </p>
+            {addressPrefilled && (
+              <p className="form-note address-prefilled">
+                We prefilled your address from your account. Please confirm or update it.
+              </p>
+            )}
+            <div className="form-grid">
+              <div className="form-field">
+                <label>Address Line 1 *</label>
+                <input
+                  type="text"
+                  className="form-input"
+                  value={addressLine1}
+                  onChange={(e) => setAddressLine1(e.target.value)}
+                  placeholder="Street and number"
+                  required
+                />
+              </div>
+              <div className="form-field">
+                <label>Address Line 2 (optional)</label>
+                <input
+                  type="text"
+                  className="form-input"
+                  value={addressLine2}
+                  onChange={(e) => setAddressLine2(e.target.value)}
+                  placeholder="Apartment, suite, unit"
+                />
+              </div>
+              <div className="form-field">
+                <label>City *</label>
+                <input
+                  type="text"
+                  className="form-input"
+                  value={city}
+                  onChange={(e) => setCity(e.target.value)}
+                  placeholder="City"
+                  required
+                />
+              </div>
+              <div className="form-field">
+                <label>State / Province *</label>
+                <input
+                  type="text"
+                  className="form-input"
+                  value={state}
+                  onChange={(e) => setState(e.target.value)}
+                  placeholder="State"
+                  required
+                />
+              </div>
+              <div className="form-field">
+                <label>Postal Code *</label>
+                <input
+                  type="text"
+                  className="form-input"
+                  value={postalCode}
+                  onChange={(e) => setPostalCode(e.target.value)}
+                  placeholder="ZIP / Postal"
+                  required
+                />
+              </div>
+              <div className="form-field">
+                <label>Country *</label>
+                <input
+                  type="text"
+                  className="form-input"
+                  value={addressCountry}
+                  onChange={(e) => setAddressCountry(e.target.value)}
+                  placeholder="Country"
+                  required
+                />
+              </div>
+            </div>
+          </section>
+
+          {/* Section 3: Payouts (PayPal) */}
           <section className="form-card">
             <h2>PayPal Payout Details</h2>
             <p className="form-subtitle">
@@ -316,6 +453,12 @@ export default function SellerProfile() {
           margin-top: 8px;
           font-size: 12px;
           color: #6b7280;
+        }
+        .address-prefilled {
+          margin-top: 12px;
+          color: #166534;
+          font-weight: 600;
+          font-size: 13px;
         }
 
         .btn-primary-dark {

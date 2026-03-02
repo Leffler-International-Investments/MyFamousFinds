@@ -110,9 +110,9 @@ export default function SellerRegisterPage() {
         );
       }
 
-      // From now on, seller should log in via the main Seller Admin Login
+      // Send new sellers to complete their profile (address, etc.) first
       setTimeout(() => {
-        router.push("/seller/dashboard");
+        router.push("/seller/profile");
       }, 1500);
     } catch (err: any) {
       console.error("seller_register_error", err);
@@ -149,9 +149,8 @@ export default function SellerRegisterPage() {
               {error && <p className="auth-error">{error}</p>}
               {success && (
                 <p className="auth-info">
-                  Registration complete! From now on, please log in via the main
-                  dashboard using the <strong>Seller Admin Login</strong>
-                  button.
+                  Registration complete! Taking you to complete your seller
+                  profile and shipping address…
                 </p>
               )}
 
