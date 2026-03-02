@@ -484,14 +484,14 @@ export default function ManagementListings({ items }: Props) {
 
                   return (
                     <tr key={l.id}>
-                      <td>
+                      <td data-label="Listing">
                         <div className="listing-title">{l.title}</div>
                         <div className="listing-id">ID: {l.id}</div>
                       </td>
 
-                      <td>{l.brand || "—"}</td>
+                      <td data-label="Brand">{l.brand || "—"}</td>
 
-                      <td>
+                      <td data-label="Condition">
                         <div className="edit-cell">
                           <select
                             className={`edit-select ${conditionDirty ? "edit-select-dirty" : ""}`}
@@ -521,9 +521,9 @@ export default function ManagementListings({ items }: Props) {
                           </button>
                         </div>
                       </td>
-                      <td>{l.seller}</td>
+                      <td data-label="Seller">{l.seller}</td>
 
-                      <td>
+                      <td data-label="Price (US$)">
                         <div className="edit-cell">
                           <input
                             type="number"
@@ -550,7 +550,7 @@ export default function ManagementListings({ items }: Props) {
                         </div>
                       </td>
 
-                      <td>
+                      <td data-label="Status">
                         <div className="status-cell">
                           <span
                             className={
@@ -601,7 +601,7 @@ export default function ManagementListings({ items }: Props) {
                       </td>
 
                       {/* NEW: Category editor */}
-                      <td>
+                      <td data-label="Category">
                         <div className="cat-cell">
                           <select
                             className={`cat-select ${dirty ? "cat-select-dirty" : ""}`}
@@ -634,7 +634,7 @@ export default function ManagementListings({ items }: Props) {
                       </td>
 
                       {/* Offers toggle: two buttons */}
-                      <td>
+                      <td data-label="Offers">
                         <div className="offers-toggle">
                           <button
                             type="button"
@@ -658,7 +658,7 @@ export default function ManagementListings({ items }: Props) {
                         </span>
                       </td>
 
-                      <td>
+                      <td data-label="Details">
                         <div className="edit-cell">
                           <textarea
                             className={`edit-textarea ${(editedDetails[l.id] || "").trim() !== (l.details || "").trim() ? "edit-input-dirty" : ""}`}
@@ -683,7 +683,7 @@ export default function ManagementListings({ items }: Props) {
                         </div>
                       </td>
 
-                      <td>
+                      <td data-label="Proof Doc">
                         {l.proof_doc_url ? (
                           <button
                             type="button"
@@ -699,7 +699,7 @@ export default function ManagementListings({ items }: Props) {
                         )}
                       </td>
 
-                      <td>
+                      <td data-label="Actions">
                         <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
                           <Link href={`/product/${l.id}`} className="btn-table-view">
                             View
@@ -809,13 +809,14 @@ export default function ManagementListings({ items }: Props) {
 
         .table-wrapper {
           overflow-x: auto;
+          -webkit-overflow-scrolling: touch;
           border-radius: 8px;
           border: 1px solid #e5e7eb;
           background: #ffffff;
           box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
         }
         .data-table {
-          min-width: 100%;
+          min-width: 1400px;
           border-collapse: collapse;
           font-size: 14px;
         }
@@ -1159,8 +1160,30 @@ export default function ManagementListings({ items }: Props) {
           font-family: inherit;
         }
 
+        /* Scroll hint for medium screens */
+        @media (max-width: 1400px) {
+          .table-wrapper {
+            position: relative;
+          }
+          .table-wrapper::after {
+            content: "Scroll →";
+            position: sticky;
+            right: 0;
+            top: 0;
+            display: block;
+            text-align: right;
+            font-size: 11px;
+            color: #9ca3af;
+            padding: 4px 8px;
+            pointer-events: none;
+          }
+        }
+
         /* Mobile responsive: stack table as cards */
-        @media (max-width: 768px) {
+        @media (max-width: 1024px) {
+          .data-table {
+            min-width: unset;
+          }
           .data-table thead {
             display: none;
           }
@@ -1175,11 +1198,11 @@ export default function ManagementListings({ items }: Props) {
             border: 1px solid #e5e7eb;
             border-radius: 12px;
             margin-bottom: 12px;
-            padding: 12px;
+            padding: 16px;
             background: #fff;
           }
           .data-table td {
-            padding: 4px 0;
+            padding: 6px 0;
             border: none;
             font-size: 13px;
           }
@@ -1188,8 +1211,19 @@ export default function ManagementListings({ items }: Props) {
             font-weight: 700;
             color: #6b7280;
             font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
             display: block;
-            margin-bottom: 2px;
+            margin-bottom: 4px;
+          }
+          .table-wrapper {
+            overflow-x: visible;
+            border: none;
+            background: transparent;
+            box-shadow: none;
+          }
+          .table-wrapper::after {
+            display: none;
           }
           .edit-input,
           .edit-select,
@@ -1197,6 +1231,27 @@ export default function ManagementListings({ items }: Props) {
           .edit-textarea {
             width: 100%;
             min-width: unset;
+          }
+          .edit-cell,
+          .cat-cell,
+          .status-cell {
+            flex-direction: column;
+            align-items: flex-start;
+          }
+          .status-badge {
+            margin-bottom: 4px;
+          }
+          .offers-toggle {
+            margin-bottom: 4px;
+          }
+        }
+
+        @media (max-width: 480px) {
+          .filters-bar {
+            flex-direction: column;
+          }
+          .form-input {
+            max-width: 100%;
           }
         }
       `}</style>
