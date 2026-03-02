@@ -1,18 +1,18 @@
 // FILE: /pages/management/homepage-listings.tsx
-// Management page: view and delete listings shown on the homepage.
-// Uses getPublicListings() (client SDK) — same data source as the homepage.
+// Management page: view and delete ALL listings from BOTH Firestore databases.
+// Unlike the public homepage, this page shows every item regardless of status
+// so admins can find and remove ghost listings.
 
 import Head from "next/head";
 import Link from "next/link";
 import type { GetServerSideProps } from "next";
 import { useState } from "react";
-import { deleteDoc, doc } from "firebase/firestore";
+import { collection, getDocs, orderBy, query, deleteDoc, doc } from "firebase/firestore";
 import { db } from "../../utils/firebaseClient";
+import { adminDb, isFirebaseAdminReady } from "../../utils/firebaseAdmin";
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
 import { useRequireAdmin } from "../../hooks/useRequireAdmin";
-import { getPublicListings } from "../../lib/publicListings";
-import { getDeletedListingIds } from "../../lib/deletedListings";
 
 type ListingItem = {
   id: string;
@@ -371,32 +371,70 @@ export default function HomepageListings({ items: initialItems }: Props) {
   );
 }
 
+// Helper: extract a listing row from a raw Firestore document
+function toListingItem(id: string, d: any): ListingItem {
+  const priceNum =
+    typeof d.priceUsd === "number"
+      ? d.priceUsd
+      : typeof d.price === "number"
+      ? d.price
+      : 0;
+  return {
+    id,
+    title: d.title || d.name || d.listingTitle || "Untitled",
+    brand: d.brand || d.designer || "",
+    category: d.category || d.menuCategory || "",
+    price: priceNum ? `US$${priceNum.toLocaleString("en-US")}` : "",
+    image:
+      d.displayImageUrl ||
+      d.display_image_url ||
+      d.imageUrl ||
+      d.image_url ||
+      (Array.isArray(d.images) && d.images[0] ? d.images[0] : ""),
+    status: d.status || d.moderationStatus || "",
+  };
+}
+
 export const getServerSideProps: GetServerSideProps<Props> = async () => {
+  const seen = new Map<string, ListingItem>();
+
+  // 1. Fetch ALL listings from Client Firestore (no status filter, no cap)
+  //    This is the same database the public homepage reads from.
   try {
-    const excludeIds = await getDeletedListingIds();
-    const listings = await getPublicListings({ take: 500, excludeIds });
-    const items: ListingItem[] = (listings || []).map((l: any) => {
-      const priceNum =
-        typeof l.price === "number"
-          ? l.price
-          : typeof l.priceUsd === "number"
-          ? l.priceUsd
-          : 0;
-      return {
-        id: l.id,
-        title: l.title || "Untitled",
-        brand: l.brand || "",
-        category: l.category || "",
-        price: priceNum ? `US$${priceNum.toLocaleString("en-US")}` : "",
-        image:
-          l.displayImageUrl ||
-          (Array.isArray(l.images) && l.images[0] ? l.images[0] : ""),
-        status: l.status || "",
-      };
-    });
-    return { props: { items } };
+    if (db) {
+      const q = query(
+        collection(db, "listings"),
+        orderBy("createdAt", "desc")
+      );
+      const snap = await getDocs(q);
+      snap.forEach((d) => {
+        if (!seen.has(d.id)) {
+          seen.set(d.id, toListingItem(d.id, d.data() || {}));
+        }
+      });
+    }
   } catch (err) {
-    console.error("Error loading homepage listings:", err);
-    return { props: { items: [] } };
+    console.error("Client Firestore fetch error:", err);
   }
+
+  // 2. Fetch ALL listings from Admin Firestore and merge
+  //    Catches items that only exist in the admin project.
+  try {
+    if (isFirebaseAdminReady && adminDb) {
+      const snap = await adminDb
+        .collection("listings")
+        .orderBy("createdAt", "desc")
+        .get();
+      snap.docs.forEach((d) => {
+        if (!seen.has(d.id)) {
+          seen.set(d.id, toListingItem(d.id, d.data() || {}));
+        }
+      });
+    }
+  } catch (err) {
+    console.error("Admin Firestore fetch error:", err);
+  }
+
+  const items = Array.from(seen.values());
+  return { props: { items } };
 };
