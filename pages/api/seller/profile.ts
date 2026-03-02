@@ -29,6 +29,12 @@ export default async function handler(
       otherPlatforms,
       vettingNotes,
       paypalEmail,
+      addressLine1,
+      addressLine2,
+      addressCity,
+      addressState,
+      addressPostalCode,
+      addressCountry,
     } = req.body || {};
 
     if (!businessName || !email) {
@@ -67,6 +73,28 @@ export default async function handler(
     }
 
     await ref.set(data, { merge: true });
+
+    // Also save shipping address to seller_banking so bulk-simple can prefill it
+    if (addressLine1 && addressCity && addressState && addressPostalCode) {
+      try {
+        const bankingRef = adminDb.collection("seller_banking").doc(emailKey);
+        await bankingRef.set(
+          {
+            email: emailKey,
+            addressLine1: String(addressLine1 || "").trim(),
+            addressLine2: String(addressLine2 || "").trim(),
+            city: String(addressCity || "").trim(),
+            state: String(addressState || "").trim(),
+            postalCode: String(addressPostalCode || "").trim(),
+            country: String(addressCountry || "United States").trim(),
+            updatedAt: now,
+          },
+          { merge: true }
+        );
+      } catch (bankErr) {
+        console.warn("Could not sync address to seller_banking:", bankErr);
+      }
+    }
 
     return res.status(200).json({ ok: true });
   } catch (err: any) {
