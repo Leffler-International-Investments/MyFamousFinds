@@ -922,7 +922,7 @@ export default function SellerOrders() {
         </div>
 
         <div className="action-row">
-          {/* NEW: Diagnostics button */}
+          {/* Diagnostics: basic modal + deep diagnostics link */}
           <button
             type="button"
             className="btn"
@@ -931,10 +931,18 @@ export default function SellerOrders() {
               setDiagError(null);
               setDiagData(null);
             }}
-            title="Run checks to confirm UPS + Firebase config and seller address readiness"
+            title="Quick check: UPS + Firebase config and seller address readiness"
           >
-            UPS Diagnostics
+            Quick Check
           </button>
+
+          <Link
+            href={`/seller/ups-diagnostics?orderId=${encodeURIComponent(r.id)}`}
+            className="btn"
+            title="Full order-level UPS label diagnostics (env, address, payment, email outbox)"
+          >
+            Diagnose Label
+          </Link>
 
           <button
             type="button"
