@@ -1,16 +1,15 @@
 // FILE: /pages/management/homepage-listings.tsx
-// Homepage Security Scanner — scans EVERY data source that renders on the
-// public homepage and gives admins full delete access to any item.
-// Uses the SAME getPublicListings() call the homepage uses so results match exactly.
+// Homepage Security Scanner — scans the ACTUAL Firestore database the homepage
+// reads from, directly from the browser using the same Firebase Client SDK.
+// NO filters, NO limits — every document in the collection is fetched and shown.
 
 import Head from "next/head";
 import Link from "next/link";
 import type { GetServerSideProps } from "next";
-import { useState } from "react";
-import { deleteDoc, doc } from "firebase/firestore";
+import { useState, useEffect, useCallback } from "react";
+import { collection, getDocs, deleteDoc, doc } from "firebase/firestore";
 import { db } from "../../utils/firebaseClient";
 import { adminDb, isFirebaseAdminReady } from "../../utils/firebaseAdmin";
-import { getPublicListings } from "../../lib/publicListings";
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
 import { useRequireAdmin } from "../../hooks/useRequireAdmin";
@@ -25,11 +24,6 @@ type ListingItem = {
   price: string;
   image: string;
   status: string;
-  condition: string;
-  material: string;
-  color: string;
-  size: string;
-  source: "homepage" | "admin" | "both";
 };
 
 type MessageItem = {
@@ -44,38 +38,102 @@ type MessageItem = {
 };
 
 type Props = {
-  listings: ListingItem[];
+  serverListings: ListingItem[];
   messages: MessageItem[];
-  scannedAt: string;
-  homepageCount: number;
-  adminOnlyCount: number;
 };
+
+/* ───────── Extract a listing from raw Firestore doc data ───────── */
+
+function docToListing(id: string, d: any): ListingItem {
+  const priceNum =
+    typeof d.priceUsd === "number" ? d.priceUsd
+    : typeof d.price === "number" ? d.price
+    : typeof d.priceUsd === "string" ? Number(String(d.priceUsd).replace(/[^0-9.]/g, "")) || 0
+    : typeof d.price === "string" ? Number(String(d.price).replace(/[^0-9.]/g, "")) || 0
+    : 0;
+
+  // Try every possible image field
+  const image =
+    d.displayImageUrl || d.display_image_url ||
+    d.imageUrl || d.image_url || d.image ||
+    d.mainImage || d.mainImageUrl || d.thumbnail || d.coverImage ||
+    (Array.isArray(d.displayImageUrls) && d.displayImageUrls[0]) ||
+    (Array.isArray(d.images) && d.images[0]) ||
+    (Array.isArray(d.imageUrls) && d.imageUrls[0]) ||
+    (Array.isArray(d.image_urls) && d.image_urls[0]) ||
+    (Array.isArray(d.photos) && d.photos[0]) ||
+    (Array.isArray(d.photoUrls) && d.photoUrls[0]) ||
+    "";
+
+  return {
+    id,
+    title: d.title || d.name || d.listingTitle || "Untitled",
+    brand: d.brand || d.designer || d.maker || "",
+    category: d.category || d.menuCategory || d.categoryLabel || d.department || d.productType || "",
+    price: priceNum ? `US$${priceNum.toLocaleString("en-US")}` : "",
+    image: typeof image === "string" ? image : "",
+    status: d.status || d.moderationStatus || "",
+  };
+}
 
 /* ───────── Component ───────── */
 
-export default function HomepageScanner({
-  listings: initListings,
-  messages: initMessages,
-  scannedAt,
-  homepageCount,
-  adminOnlyCount,
-}: Props) {
+export default function HomepageScanner({ serverListings, messages: initMessages }: Props) {
   const { loading } = useRequireAdmin();
-  const [listings, setListings] = useState(initListings);
+  const [listings, setListings] = useState<ListingItem[]>(serverListings);
   const [messages, setMessages] = useState(initMessages);
   const [deleting, setDeleting] = useState<string | null>(null);
   const [deleteById, setDeleteById] = useState("");
   const [deleteByIdStatus, setDeleteByIdStatus] = useState<string | null>(null);
+  const [scanning, setScanning] = useState(false);
+  const [scanStatus, setScanStatus] = useState("Loading...");
+
+  // ─── BROWSER-SIDE SCAN: uses the SAME Firebase Client SDK the homepage uses ───
+  const runBrowserScan = useCallback(async () => {
+    if (!db) {
+      setScanStatus("Firebase Client SDK not available");
+      return;
+    }
+    setScanning(true);
+    setScanStatus("Scanning Firestore...");
+    try {
+      // Raw query — NO orderBy, NO limit, NO filters. Get EVERY document.
+      const snap = await getDocs(collection(db, "listings"));
+      const scanned: ListingItem[] = [];
+      snap.forEach((d) => {
+        scanned.push(docToListing(d.id, d.data() || {}));
+      });
+
+      // Merge with server results (in case admin DB had extras)
+      const merged = new Map<string, ListingItem>();
+      for (const item of serverListings) merged.set(item.id, item);
+      for (const item of scanned) merged.set(item.id, item); // browser items override
+
+      setListings(Array.from(merged.values()));
+      setScanStatus(`Scan complete — ${scanned.length} items from browser + ${serverListings.length} from server`);
+    } catch (err: any) {
+      console.error("Browser scan error:", err);
+      setScanStatus(`Scan error: ${err?.message || "unknown"} — showing server results only`);
+    }
+    setScanning(false);
+  }, [serverListings]);
+
+  // Auto-scan on mount
+  useEffect(() => {
+    runBrowserScan();
+  }, [runBrowserScan]);
 
   if (loading) return null;
 
   /* ── Listing deletion ── */
   const deleteListing = async (id: string): Promise<boolean> => {
+    // Try admin API first
     try {
       const res = await fetch(`/api/admin/delete-public-listing/${id}`, { method: "DELETE" });
       const data = await res.json();
       if (data.ok) return true;
     } catch { /* fallback below */ }
+    // Fallback: delete directly from client Firestore
     try {
       if (db) { await deleteDoc(doc(db, "listings", id)); return true; }
     } catch { /* ignore */ }
@@ -83,7 +141,7 @@ export default function HomepageScanner({
   };
 
   const handleDeleteListing = async (id: string, title: string) => {
-    if (!confirm(`Delete listing "${title}"? This cannot be undone.`)) return;
+    if (!confirm(`Delete "${title}"? This cannot be undone.`)) return;
     setDeleting(id);
     const ok = await deleteListing(id);
     if (ok) setListings((prev) => prev.filter((i) => i.id !== id));
@@ -93,7 +151,7 @@ export default function HomepageScanner({
 
   const handleDeleteAllListings = async () => {
     if (listings.length === 0) return;
-    if (!confirm(`EMERGENCY: Delete ALL ${listings.length} listings from the homepage? This cannot be undone.`)) return;
+    if (!confirm(`EMERGENCY: Delete ALL ${listings.length} listings? This cannot be undone.`)) return;
     setDeleting("all-listings");
     let failed = 0;
     for (const item of listings) {
@@ -109,7 +167,7 @@ export default function HomepageScanner({
   const handleDeleteById = async () => {
     const id = deleteById.trim();
     if (!id) return;
-    if (!confirm(`Delete listing "${id}" from all databases?`)) return;
+    if (!confirm(`Delete listing "${id}"?`)) return;
     setDeleteByIdStatus("Deleting...");
     const ok = await deleteListing(id);
     if (ok) {
@@ -117,13 +175,13 @@ export default function HomepageScanner({
       setDeleteByIdStatus("Deleted successfully.");
       setDeleteById("");
     } else {
-      setDeleteByIdStatus("Failed — item may not exist in either database.");
+      setDeleteByIdStatus("Failed — item may not exist.");
     }
   };
 
   /* ── Message deletion ── */
   const handleDeleteMessage = async (id: string) => {
-    if (!confirm("Delete this message from the homepage?")) return;
+    if (!confirm("Delete this message?")) return;
     setDeleting(`msg-${id}`);
     try {
       const res = await fetch("/api/management/messages", {
@@ -188,28 +246,31 @@ export default function HomepageScanner({
               Homepage Scanner
             </h1>
             <p style={{ color: "#6b7280", margin: "4px 0 0", fontSize: 14 }}>
-              Scans the exact same data the public homepage displays. Delete anything suspicious immediately.
+              Scans every item in the database — no filters, no limits. See it, delete it.
             </p>
           </div>
-          <Link
-            href="/management/dashboard"
-            style={{ color: "#0f172a", fontWeight: 700, textDecoration: "none", fontSize: 13, border: "1px solid #d1d5db", borderRadius: 999, padding: "8px 16px", background: "#fff" }}
-          >
-            Back to Dashboard
-          </Link>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button onClick={runBrowserScan} disabled={scanning}
+              style={{ border: "1px solid #2563eb", background: "#eff6ff", color: "#2563eb", borderRadius: 999, padding: "8px 16px", fontWeight: 700, fontSize: 13, cursor: scanning ? "not-allowed" : "pointer" }}>
+              {scanning ? "Scanning..." : "Re-Scan Now"}
+            </button>
+            <Link href="/management/dashboard"
+              style={{ color: "#0f172a", fontWeight: 700, textDecoration: "none", fontSize: 13, border: "1px solid #d1d5db", borderRadius: 999, padding: "8px 16px", background: "#fff" }}>
+              Back to Dashboard
+            </Link>
+          </div>
         </div>
+
+        {/* Scan status */}
+        <p style={{ margin: "0 0 16px", fontSize: 12, color: scanning ? "#2563eb" : "#6b7280", fontWeight: 600 }}>
+          {scanStatus}
+        </p>
 
         {/* ═══ Scan summary ═══ */}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 12, marginBottom: 24 }}>
-          <SummaryCard label="On Homepage" value={homepageCount} />
-          <SummaryCard label="Admin DB Only" value={adminOnlyCount} color={adminOnlyCount > 0 ? "#dc2626" : undefined} />
-          <SummaryCard label="Total Listings" value={listings.length} />
+          <SummaryCard label="Total Items" value={listings.length} />
           <SummaryCard label="Active Messages" value={activeMessages.length} />
           <SummaryCard label="All Messages" value={messages.length} />
-          <div style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: 12, padding: "14px 18px" }}>
-            <p style={{ margin: 0, fontSize: 11, textTransform: "uppercase", letterSpacing: "0.06em", color: "#6b7280", fontWeight: 700 }}>Scanned at</p>
-            <p style={{ margin: "4px 0 0", fontSize: 14, fontWeight: 600, color: "#0f172a" }}>{scannedAt}</p>
-          </div>
         </div>
 
         {/* ═══════════════════════════════════════════════════════ */}
@@ -222,7 +283,7 @@ export default function HomepageScanner({
                 Buyer Messages &amp; Announcements
               </h2>
               <p style={{ margin: "2px 0 0", fontSize: 12, color: "#6b7280" }}>
-                Banners displayed at the top of the homepage. Active messages are visible to all visitors.
+                Banners at the top of the homepage.
               </p>
             </div>
             {messages.length > 0 && (
@@ -260,11 +321,7 @@ export default function HomepageScanner({
                       </span>
                     </div>
                     <p style={{ margin: 0, fontWeight: 600, fontSize: 14, color: "#111827" }}>{msg.text}</p>
-                    {msg.linkUrl && (
-                      <p style={{ margin: "2px 0 0", fontSize: 11, color: "#2563eb" }}>
-                        Link: {msg.linkText || msg.linkUrl}
-                      </p>
-                    )}
+                    {msg.linkUrl && <p style={{ margin: "2px 0 0", fontSize: 11, color: "#2563eb" }}>Link: {msg.linkText || msg.linkUrl}</p>}
                     {msg.imageUrl && <p style={{ margin: "2px 0 0", fontSize: 11, color: "#6b7280" }}>Has image</p>}
                     {msg.videoUrl && <p style={{ margin: "2px 0 0", fontSize: 11, color: "#6b7280" }}>Has video</p>}
                     <p style={{ margin: "2px 0 0", fontSize: 10, color: "#9ca3af" }}>ID: {msg.id}</p>
@@ -288,29 +345,27 @@ export default function HomepageScanner({
         </div>
 
         {/* ═══════════════════════════════════════════════════════ */}
-        {/* SECTION 2: ALL PRODUCT LISTINGS — VISUAL GRID          */}
+        {/* SECTION 2: ALL LISTINGS — VISUAL CARD GRID             */}
         {/* ═══════════════════════════════════════════════════════ */}
         <div style={{ paddingTop: 16, borderTop: "2px solid #111827" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, flexWrap: "wrap", gap: 8 }}>
             <div>
               <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: "#0f172a" }}>
-                All Product Listings ({listings.length})
+                All Items ({listings.length})
               </h2>
               <p style={{ margin: "2px 0 0", fontSize: 12, color: "#6b7280" }}>
-                Every item on the homepage. Look at the images — delete anything you don&apos;t want.
+                Every item in the database — no filters. Look at the images, delete what you want.
               </p>
             </div>
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-              {listings.length > 0 && (
-                <button onClick={handleDeleteAllListings} disabled={deleting === "all-listings"}
-                  style={{ border: "1px solid #fca5a5", background: "#fef2f2", color: "#dc2626", borderRadius: 999, padding: "6px 14px", fontWeight: 700, fontSize: 12, cursor: "pointer" }}>
-                  {deleting === "all-listings" ? "Deleting..." : `Delete All (${listings.length})`}
-                </button>
-              )}
-            </div>
+            {listings.length > 0 && (
+              <button onClick={handleDeleteAllListings} disabled={deleting === "all-listings"}
+                style={{ border: "1px solid #fca5a5", background: "#fef2f2", color: "#dc2626", borderRadius: 999, padding: "6px 14px", fontWeight: 700, fontSize: 12, cursor: "pointer" }}>
+                {deleting === "all-listings" ? "Deleting..." : `Delete All (${listings.length})`}
+              </button>
+            )}
           </div>
 
-          {/* Delete by ID — for ghost listings */}
+          {/* Delete by ID */}
           <div style={{
             marginBottom: 16, padding: "12px 16px", background: "#fff", border: "1px solid #e5e7eb", borderRadius: 10,
             display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap",
@@ -330,21 +385,24 @@ export default function HomepageScanner({
             )}
           </div>
 
-          {/* ─── Visual card grid — big images so you can SEE every item ─── */}
-          {listings.length === 0 ? (
+          {/* Visual card grid */}
+          {scanning ? (
             <div style={{ padding: 48, textAlign: "center", background: "#fff", border: "1px dashed #e5e7eb", borderRadius: 16 }}>
-              <h3 style={{ margin: 0, fontSize: 16, color: "#111827" }}>No listings found.</h3>
+              <h3 style={{ margin: 0, fontSize: 16, color: "#2563eb" }}>Scanning database...</h3>
+            </div>
+          ) : listings.length === 0 ? (
+            <div style={{ padding: 48, textAlign: "center", background: "#fff", border: "1px dashed #e5e7eb", borderRadius: 16 }}>
+              <h3 style={{ margin: 0, fontSize: 16, color: "#111827" }}>No items found.</h3>
             </div>
           ) : (
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 16 }}>
               {listings.map((item) => (
                 <div key={item.id} style={{
-                  background: "#fff",
-                  border: item.source === "admin" ? "2px solid #dc2626" : "1px solid #e5e7eb",
+                  background: "#fff", border: "1px solid #e5e7eb",
                   borderRadius: 14, overflow: "hidden",
                   display: "flex", flexDirection: "column",
                 }}>
-                  {/* Large image — the main way to identify items */}
+                  {/* Large image */}
                   <div style={{ position: "relative", width: "100%", paddingTop: "100%", background: "#f3f4f6" }}>
                     {item.image ? (
                       <img src={item.image} alt={item.title}
@@ -354,15 +412,15 @@ export default function HomepageScanner({
                         No image
                       </div>
                     )}
-                    {/* Source badge */}
-                    <span style={{
-                      position: "absolute", top: 8, left: 8, fontSize: 9, fontWeight: 800,
-                      textTransform: "uppercase", padding: "3px 6px", borderRadius: 4,
-                      background: item.source === "admin" ? "#dc2626" : item.source === "both" ? "#166534" : "#1d4ed8",
-                      color: "#fff",
-                    }}>
-                      {item.source === "admin" ? "ADMIN ONLY" : item.source === "both" ? "Both DBs" : "Homepage"}
-                    </span>
+                    {item.status && (
+                      <span style={{
+                        position: "absolute", top: 8, left: 8, fontSize: 9, fontWeight: 800,
+                        textTransform: "uppercase", padding: "3px 6px", borderRadius: 4,
+                        background: "rgba(0,0,0,0.7)", color: "#fff",
+                      }}>
+                        {item.status}
+                      </span>
+                    )}
                   </div>
 
                   {/* Item info */}
@@ -378,7 +436,7 @@ export default function HomepageScanner({
                     </p>
                   </div>
 
-                  {/* DELETE button — full width, prominent */}
+                  {/* DELETE button */}
                   <button
                     onClick={() => handleDeleteListing(item.id, item.title)}
                     disabled={deleting === item.id}
@@ -417,92 +475,28 @@ function SummaryCard({ label, value, color }: { label: string; value: number; co
   );
 }
 
-/* ───────── Server-side scan ───────── */
+/* ───────── Server-side: fetch Admin DB items + messages as a baseline ───────── */
 
 export const getServerSideProps: GetServerSideProps<Props> = async () => {
-  const seen = new Map<string, ListingItem>();
-  let homepageCount = 0;
-  let adminOnlyCount = 0;
+  const serverListings: ListingItem[] = [];
 
-  // ──────────────────────────────────────────────────────────────
-  // 1. PRIMARY: Use getPublicListings() — the EXACT same function
-  //    the homepage calls. This guarantees we see what visitors see.
-  // ──────────────────────────────────────────────────────────────
-  try {
-    const publicListings = await getPublicListings({ take: 500 });
-    homepageCount = publicListings.length;
-
-    for (const l of publicListings) {
-      const priceNum = typeof l.price === "number" ? l.price : (typeof l.priceUsd === "number" ? l.priceUsd : 0);
-      const item: ListingItem = {
-        id: l.id,
-        title: l.title || "Untitled",
-        brand: l.brand || "",
-        category: l.category || "",
-        price: priceNum ? `US$${priceNum.toLocaleString("en-US")}` : "",
-        image: l.displayImageUrl || (Array.isArray(l.images) && l.images[0] ? l.images[0] : ""),
-        status: l.status || "",
-        condition: l.condition || "",
-        material: l.material || "",
-        color: l.color || "",
-        size: l.size || "",
-        source: "homepage",
-      };
-      seen.set(l.id, item);
-    }
-  } catch (err) {
-    console.error("getPublicListings scan error:", err);
-  }
-
-  // ──────────────────────────────────────────────────────────────
-  // 2. SECONDARY: Scan Admin Firestore to find extra items that
-  //    may only exist there (ghost items, hacked injections, etc.)
-  // ──────────────────────────────────────────────────────────────
+  // Fetch from Admin Firestore as baseline (reliable server-side)
   try {
     if (isFirebaseAdminReady && adminDb) {
-      const snap = await adminDb.collection("listings").orderBy("createdAt", "desc").get();
+      const snap = await adminDb.collection("listings").get();
       snap.docs.forEach((d) => {
-        const data: any = d.data() || {};
-        if (seen.has(d.id)) {
-          // Already found via getPublicListings — mark as both
-          const existing = seen.get(d.id)!;
-          seen.set(d.id, { ...existing, source: "both" });
-        } else {
-          // Admin-only item — not on the homepage query but could be injected
-          adminOnlyCount++;
-          const priceNum =
-            typeof data.priceUsd === "number" ? data.priceUsd
-            : typeof data.price === "number" ? data.price : 0;
-          const item: ListingItem = {
-            id: d.id,
-            title: data.title || data.name || data.listingTitle || "Untitled",
-            brand: data.brand || data.designer || "",
-            category: data.category || data.menuCategory || "",
-            price: priceNum ? `US$${priceNum.toLocaleString("en-US")}` : "",
-            image: data.displayImageUrl || data.display_image_url || data.imageUrl || data.image_url
-              || (Array.isArray(data.images) && data.images[0] ? data.images[0] : ""),
-            status: data.status || data.moderationStatus || "",
-            condition: data.condition || "",
-            material: data.material || data.fabric || "",
-            color: data.color || data.colour || "",
-            size: data.size || data.itemSize || "",
-            source: "admin",
-          };
-          seen.set(d.id, item);
-        }
+        serverListings.push(docToListing(d.id, d.data() || {}));
       });
     }
   } catch (err) {
     console.error("Admin Firestore scan error:", err);
   }
 
-  // ──────────────────────────────────────────────────────────────
-  // 3. Scan buyer messages (all of them, active and inactive)
-  // ──────────────────────────────────────────────────────────────
+  // Fetch all buyer messages
   const messages: MessageItem[] = [];
   try {
     if (isFirebaseAdminReady && adminDb) {
-      const snap = await adminDb.collection("buyer_messages").orderBy("createdAt", "desc").get();
+      const snap = await adminDb.collection("buyer_messages").get();
       snap.docs.forEach((d) => {
         const data: any = d.data() || {};
         messages.push({
@@ -521,8 +515,5 @@ export const getServerSideProps: GetServerSideProps<Props> = async () => {
     console.error("Messages scan error:", err);
   }
 
-  const listings = Array.from(seen.values());
-  const scannedAt = new Date().toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short" });
-
-  return { props: { listings, messages, scannedAt, homepageCount, adminOnlyCount } };
+  return { props: { serverListings, messages } };
 };
