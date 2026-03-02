@@ -33,6 +33,8 @@ export default function HomepageListings({ items: initialItems }: Props) {
   const [items, setItems] = useState(initialItems);
   const [deleting, setDeleting] = useState<string | null>(null);
   const [search, setSearch] = useState("");
+  const [deleteById, setDeleteById] = useState("");
+  const [deleteByIdStatus, setDeleteByIdStatus] = useState<string | null>(null);
 
   if (loading) return null;
 
@@ -85,6 +87,35 @@ export default function HomepageListings({ items: initialItems }: Props) {
       alert(`Deleted ${items.length - failed} of ${items.length} listings. ${failed} failed.`);
     } else {
       alert("All listings have been deleted.");
+    }
+  };
+
+  const handleDeleteById = async () => {
+    const id = deleteById.trim();
+    if (!id) return;
+    if (!confirm(`Delete listing with ID "${id}"? This will remove it from Firestore and the homepage.`)) return;
+    setDeleteByIdStatus("Deleting...");
+    try {
+      // Try admin API first
+      const res = await fetch(`/api/admin/delete-public-listing/${id}`, { method: "DELETE" });
+      const data = await res.json();
+      if (data.ok) {
+        setItems((prev) => prev.filter((i) => i.id !== id));
+        setDeleteByIdStatus("Deleted successfully.");
+        setDeleteById("");
+      } else {
+        // Fallback: try client-side delete
+        if (db) {
+          await deleteDoc(doc(db, "listings", id));
+          setItems((prev) => prev.filter((i) => i.id !== id));
+          setDeleteByIdStatus("Deleted via client SDK.");
+          setDeleteById("");
+        } else {
+          setDeleteByIdStatus("Failed: " + (data.error || "Unknown error"));
+        }
+      }
+    } catch (err: any) {
+      setDeleteByIdStatus("Error: " + (err?.message || "Unknown error"));
     }
   };
 
@@ -167,6 +198,65 @@ export default function HomepageListings({ items: initialItems }: Props) {
               background: "#fff",
             }}
           />
+        </div>
+
+        {/* Delete by ID — for ghost listings not appearing in the list */}
+        <div style={{
+          marginBottom: 20,
+          padding: "16px 20px",
+          background: "#fff",
+          border: "1px solid #e5e7eb",
+          borderRadius: 12,
+        }}>
+          <p style={{ margin: "0 0 8px", fontWeight: 700, fontSize: 14, color: "#0f172a" }}>
+            Delete a listing by ID
+          </p>
+          <p style={{ margin: "0 0 10px", fontSize: 12, color: "#6b7280" }}>
+            Use this to remove ghost listings that don&apos;t appear in the list above. Paste the listing ID from the product URL.
+          </p>
+          <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+            <input
+              placeholder="e.g. pJEVgR6vhikUPTim1Ysd"
+              value={deleteById}
+              onChange={(e) => { setDeleteById(e.target.value); setDeleteByIdStatus(null); }}
+              style={{
+                flex: 1,
+                minWidth: 200,
+                border: "1px solid #e5e7eb",
+                borderRadius: 8,
+                padding: "8px 12px",
+                fontSize: 13,
+                outline: "none",
+              }}
+            />
+            <button
+              onClick={handleDeleteById}
+              disabled={!deleteById.trim() || deleteByIdStatus === "Deleting..."}
+              style={{
+                border: "1px solid #fca5a5",
+                background: "#dc2626",
+                color: "#fff",
+                borderRadius: 8,
+                padding: "8px 16px",
+                fontWeight: 700,
+                fontSize: 13,
+                cursor: !deleteById.trim() ? "not-allowed" : "pointer",
+                opacity: !deleteById.trim() ? 0.5 : 1,
+              }}
+            >
+              {deleteByIdStatus === "Deleting..." ? "Deleting..." : "Delete by ID"}
+            </button>
+          </div>
+          {deleteByIdStatus && deleteByIdStatus !== "Deleting..." && (
+            <p style={{
+              margin: "8px 0 0",
+              fontSize: 12,
+              color: deleteByIdStatus.startsWith("Deleted") ? "#059669" : "#dc2626",
+              fontWeight: 600,
+            }}>
+              {deleteByIdStatus}
+            </p>
+          )}
         </div>
 
         {/* Listing rows */}
