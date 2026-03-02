@@ -2,7 +2,7 @@
 // Creates a PayPal order for all items currently in the buyer's cart.
 
 import type { NextApiRequest, NextApiResponse } from "next";
-import { adminDb, isFirebaseAdminReady } from "../../../utils/firebaseAdmin";
+import { adminDb, isFirebaseAdminReady, FieldValue } from "../../../utils/firebaseAdmin";
 import { getAuthUser } from "../../../utils/authServer";
 import { createPayPalOrder } from "../../../lib/paypal";
 
@@ -47,6 +47,10 @@ export default async function handler(
     return res.status(401).json({ ok: false, error: "unauthorized" });
 
   const { buyerDetails } = (req.body || {}) as { buyerDetails?: BuyerDetails };
+
+  const userRef = adminDb.collection("users").doc(user.uid);
+  const userSnap = await userRef.get();
+  const userData: any = userSnap.exists ? userSnap.data() || {} : {};
 
   const requiredFields = [
     buyerDetails?.fullName,
@@ -117,19 +121,40 @@ export default async function handler(
       currency,
       buyerId: user.uid,
       buyerDetails: {
-        fullName: buyerDetails!.fullName,
-        email: buyerDetails!.email,
-        phone: buyerDetails!.phone,
-        addressLine1: buyerDetails!.addressLine1,
-        addressLine2: buyerDetails!.addressLine2 || "",
-        city: buyerDetails!.city,
-        state: buyerDetails!.state,
-        postalCode: buyerDetails!.postalCode,
-        country: buyerDetails!.country,
+        fullName: buyerDetails!.fullName.trim(),
+        email: buyerDetails!.email.trim().toLowerCase(),
+        phone: buyerDetails!.phone.trim(),
+        addressLine1: buyerDetails!.addressLine1.trim(),
+        addressLine2: (buyerDetails!.addressLine2 || "").trim(),
+        city: buyerDetails!.city.trim(),
+        state: buyerDetails!.state.trim(),
+        postalCode: buyerDetails!.postalCode.trim(),
+        country: buyerDetails!.country.trim(),
       },
       fromCart: true,
       createdAt: Date.now(),
     });
+
+
+    await userRef.set(
+      {
+        uid: user.uid,
+        email: String(userData.email || user.email || buyerDetails!.email).trim().toLowerCase(),
+        fullName: buyerDetails!.fullName.trim(),
+        phone: buyerDetails!.phone.trim(),
+        shippingAddress: {
+          addressLine1: buyerDetails!.addressLine1.trim(),
+          addressLine2: (buyerDetails!.addressLine2 || "").trim(),
+          city: buyerDetails!.city.trim(),
+          state: buyerDetails!.state.trim(),
+          postalCode: buyerDetails!.postalCode.trim(),
+          country: buyerDetails!.country.trim(),
+        },
+        updatedAt: FieldValue.serverTimestamp(),
+        createdAt: userData.createdAt || FieldValue.serverTimestamp(),
+      },
+      { merge: true }
+    );
 
     const order = await createPayPalOrder({
       listingId,

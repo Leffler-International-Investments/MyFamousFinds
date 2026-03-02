@@ -279,6 +279,9 @@ export default function ManagementTeam() {
 
           {/* Team List */}
           <div className="team-list-wrapper">
+            {teamMembers.length === 0 && (
+              <div className="team-empty">No team members found yet. Existing members will appear here.</div>
+            )}
             {teamMembers.map((member) => (
               <div key={member.id} className="team-card">
                 {editingId === member.id ? (
@@ -551,6 +554,14 @@ export default function ManagementTeam() {
           display: flex;
           flex-direction: column;
           gap: 16px;
+        }
+        .team-empty {
+          border: 1px dashed #d1d5db;
+          border-radius: 8px;
+          padding: 14px;
+          color: #6b7280;
+          background: #f9fafb;
+          font-size: 14px;
         }
         
         .team-card {

@@ -20,6 +20,18 @@ type CartItem = {
   imageUrl: string;
 };
 
+type BuyerProfile = {
+  fullName?: string;
+  email?: string;
+  phone?: string;
+  addressLine1?: string;
+  addressLine2?: string;
+  city?: string;
+  state?: string;
+  postalCode?: string;
+  country?: string;
+};
+
 export default function CheckoutPage() {
   const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
@@ -63,6 +75,18 @@ export default function CheckoutPage() {
         const json = await res.json();
         if (json.ok) {
           setItems(json.cartItems || []);
+          const profile: BuyerProfile | null = json.buyerProfile || null;
+          if (profile) {
+            setFullName(profile.fullName || u.displayName || "");
+            setEmail((profile.email || u.email || "").toLowerCase());
+            setPhone(profile.phone || "");
+            setAddressLine1(profile.addressLine1 || "");
+            setAddressLine2(profile.addressLine2 || "");
+            setCity(profile.city || "");
+            setState(profile.state || "");
+            setPostalCode(profile.postalCode || "");
+            setCountry(profile.country || "US");
+          }
         }
       } catch (err) {
         console.error("Failed to load cart:", err);

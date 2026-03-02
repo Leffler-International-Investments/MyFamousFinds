@@ -38,6 +38,15 @@ type IncomingRow = {
   imageDataUrls?: string[] | null;
 };
 
+type ShipFromAddress = {
+  addressLine1?: string;
+  addressLine2?: string;
+  city?: string;
+  state?: string;
+  postalCode?: string;
+  country?: string;
+};
+
 type CleanRow = {
   title: string;
   brand: string;
@@ -212,8 +221,19 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
   try {
     if (req.method !== "POST") return res.status(405).json({ ok: false, error: "Method not allowed" });
 
-    const { rows } = (req.body || {}) as { rows?: IncomingRow[] };
+    const { rows, shipFromAddress } = (req.body || {}) as { rows?: IncomingRow[]; shipFromAddress?: ShipFromAddress };
     if (!Array.isArray(rows)) return res.status(400).json({ ok: false, error: "Body must include array 'rows'" });
+
+    const normalizedShipFromAddress = shipFromAddress
+      ? {
+          addressLine1: toStr(shipFromAddress.addressLine1),
+          addressLine2: toStr(shipFromAddress.addressLine2),
+          city: toStr(shipFromAddress.city),
+          state: toStr(shipFromAddress.state),
+          postalCode: toStr(shipFromAddress.postalCode),
+          country: toStr(shipFromAddress.country) || "United States",
+        }
+      : null;
 
     const sellerId = await getSellerId(req);
     if (!sellerId) return res.status(401).json({ ok: false, error: "unauthorized" });
@@ -279,6 +299,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
         vetting: { stage: "intake", by: "bulk-upload", at: FieldValue.serverTimestamp() },
         createdAt: FieldValue.serverTimestamp(),
         updatedAt: FieldValue.serverTimestamp(),
+        ...(normalizedShipFromAddress ? { shipFromAddress: normalizedShipFromAddress } : {}),
       };
 
       batch.set(ref, docData);

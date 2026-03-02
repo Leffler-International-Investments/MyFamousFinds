@@ -42,6 +42,15 @@ type Item = {
   imageDataUrls?: string[];
 };
 
+type SellerShipFromAddress = {
+  addressLine1: string;
+  addressLine2?: string;
+  city: string;
+  state: string;
+  postalCode: string;
+  country: string;
+};
+
 type BulkCommitOk = {
   ok: true;
   created: number;
@@ -161,6 +170,15 @@ export default function BulkSimple() {
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitMessage, setSubmitMessage] = useState<string | null>(null);
+  const [sellerAddress, setSellerAddress] = useState<SellerShipFromAddress>({
+    addressLine1: "",
+    addressLine2: "",
+    city: "",
+    state: "",
+    postalCode: "",
+    country: "United States",
+  });
+  const [sellerAddressMessage, setSellerAddressMessage] = useState<string | null>(null);
 
   const fileInputsRef = useRef<(HTMLInputElement | null)[]>([]);
   const proofInputsRef = useRef<(HTMLInputElement | null)[]>([]);
@@ -211,6 +229,45 @@ export default function BulkSimple() {
     };
 
     load();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadSellerAddress = async () => {
+      try {
+        const sellerEmail = String(window.localStorage.getItem("ff-email") || "")
+          .trim()
+          .toLowerCase();
+        if (!sellerEmail) return;
+
+        const res = await sellerFetch(`/api/seller/banking?email=${encodeURIComponent(sellerEmail)}`);
+        const json = await res.json();
+        if (!json?.ok || !json?.prefs || cancelled) return;
+
+        const prefs = json.prefs || {};
+        const prefilled = {
+          addressLine1: String(prefs.addressLine1 || "").trim(),
+          addressLine2: String(prefs.addressLine2 || "").trim(),
+          city: String(prefs.city || "").trim(),
+          state: String(prefs.state || "").trim(),
+          postalCode: String(prefs.postalCode || "").trim(),
+          country: String(prefs.country || "United States").trim(),
+        };
+        setSellerAddress(prefilled);
+
+        if (prefilled.addressLine1 && prefilled.city && prefilled.state && prefilled.postalCode) {
+          setSellerAddressMessage("We prefilled your ship-from address from your seller profile. Please confirm or edit it.");
+        }
+      } catch (err) {
+        console.warn("Could not prefill seller address", err);
+      }
+    };
+
+    loadSellerAddress();
     return () => {
       cancelled = true;
     };
@@ -426,6 +483,11 @@ export default function BulkSimple() {
       return;
     }
 
+    if (!sellerAddress.addressLine1 || !sellerAddress.city || !sellerAddress.state || !sellerAddress.postalCode) {
+      setSubmitError("Please confirm your seller ship-from address before uploading items.");
+      return;
+    }
+
     setSubmitting(true);
     try {
       // Vercel serverless functions have a ~4.5 MB body limit.
@@ -436,7 +498,7 @@ export default function BulkSimple() {
 
       for (let i = 0; i < rows.length; i += BATCH_SIZE) {
         const batch = rows.slice(i, i + BATCH_SIZE);
-        const body = JSON.stringify({ rows: batch });
+        const body = JSON.stringify({ rows: batch, shipFromAddress: sellerAddress });
 
         // Warn if a single batch is very large (> 4 MB)
         if (body.length > 4 * 1024 * 1024) {
@@ -537,6 +599,64 @@ export default function BulkSimple() {
             </p>
           </div>
         </div>
+
+        <section className="seller-address-card">
+          <h2>Seller ship-from address (for UPS labels)</h2>
+          <p className="hint">
+            This address is used for UPS labels. We prefill it from your seller registration when available.
+          </p>
+          {sellerAddressMessage && <p className="address-note">{sellerAddressMessage}</p>}
+          <div className="address-grid">
+            <label>
+              <span>Address line 1</span>
+              <input
+                value={sellerAddress.addressLine1}
+                onChange={(e) => setSellerAddress((prev) => ({ ...prev, addressLine1: e.target.value }))}
+                placeholder="Street and number"
+              />
+            </label>
+            <label>
+              <span>Address line 2 (optional)</span>
+              <input
+                value={sellerAddress.addressLine2 || ""}
+                onChange={(e) => setSellerAddress((prev) => ({ ...prev, addressLine2: e.target.value }))}
+                placeholder="Apartment, suite, unit"
+              />
+            </label>
+            <label>
+              <span>City</span>
+              <input
+                value={sellerAddress.city}
+                onChange={(e) => setSellerAddress((prev) => ({ ...prev, city: e.target.value }))}
+                placeholder="City"
+              />
+            </label>
+            <label>
+              <span>State / Province</span>
+              <input
+                value={sellerAddress.state}
+                onChange={(e) => setSellerAddress((prev) => ({ ...prev, state: e.target.value }))}
+                placeholder="State"
+              />
+            </label>
+            <label>
+              <span>Postal code</span>
+              <input
+                value={sellerAddress.postalCode}
+                onChange={(e) => setSellerAddress((prev) => ({ ...prev, postalCode: e.target.value }))}
+                placeholder="ZIP / Postal"
+              />
+            </label>
+            <label>
+              <span>Country</span>
+              <input
+                value={sellerAddress.country}
+                onChange={(e) => setSellerAddress((prev) => ({ ...prev, country: e.target.value }))}
+                placeholder="Country"
+              />
+            </label>
+          </div>
+        </section>
 
         {submitError && <p className="banner error">⚠ {submitError}</p>}
         {submitMessage && !submitError && (
@@ -1013,6 +1133,28 @@ export default function BulkSimple() {
           color: #4b5563;
           font-size: 14px;
           margin-top: 4px;
+        }
+        .seller-address-card {
+          margin: 16px 0 24px;
+          border: 1px solid #e5e7eb;
+          border-radius: 14px;
+          padding: 16px;
+          background: #f9fafb;
+        }
+        .seller-address-card h2 {
+          margin: 0 0 8px;
+          font-size: 18px;
+        }
+        .address-note {
+          margin: 8px 0 12px;
+          color: #166534;
+          font-size: 13px;
+          font-weight: 600;
+        }
+        .address-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+          gap: 12px;
         }
         .header-row {
           margin-top: 16px;

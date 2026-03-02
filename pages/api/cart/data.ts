@@ -26,7 +26,24 @@ type SavedItem = {
   imageUrl: string;
 };
 
-type Ok = { ok: true; cartItems: CartItem[]; savedItems: SavedItem[] };
+type BuyerProfile = {
+  fullName: string;
+  email: string;
+  phone: string;
+  addressLine1: string;
+  addressLine2: string;
+  city: string;
+  state: string;
+  postalCode: string;
+  country: string;
+};
+
+type Ok = {
+  ok: true;
+  cartItems: CartItem[];
+  savedItems: SavedItem[];
+  buyerProfile: BuyerProfile | null;
+};
 type Err = { ok: false; error: string };
 
 export default async function handler(
@@ -43,9 +60,10 @@ export default async function handler(
     return res.status(401).json({ ok: false, error: "unauthorized" });
 
   try {
-    const [cartSnap, savedSnap] = await Promise.all([
+    const [cartSnap, savedSnap, userSnap] = await Promise.all([
       adminDb.collection("buyerCartItems").where("userId", "==", userId).get(),
       adminDb.collection("buyerSavedItems").where("userId", "==", userId).get(),
+      adminDb.collection("users").doc(userId).get(),
     ]);
 
     const cartItems: CartItem[] = cartSnap.docs.map((doc) => {
@@ -74,7 +92,29 @@ export default async function handler(
       };
     });
 
-    return res.status(200).json({ ok: true, cartItems, savedItems });
+    const userData: any = userSnap.exists ? userSnap.data() || {} : {};
+    const shipping = userData.shippingAddress || userData.checkoutAddress || {};
+
+    const buyerProfile: BuyerProfile | null = {
+      fullName: String(userData.fullName || "").trim(),
+      email: String(userData.email || "").trim(),
+      phone: String(userData.phone || "").trim(),
+      addressLine1: String(shipping.addressLine1 || shipping.line1 || "").trim(),
+      addressLine2: String(shipping.addressLine2 || shipping.line2 || "").trim(),
+      city: String(shipping.city || "").trim(),
+      state: String(shipping.state || "").trim(),
+      postalCode: String(shipping.postalCode || shipping.zip || "").trim(),
+      country: String(shipping.country || "US").trim(),
+    };
+
+    const hasProfileData = Object.values(buyerProfile).some((v) => Boolean(String(v).trim()));
+
+    return res.status(200).json({
+      ok: true,
+      cartItems,
+      savedItems,
+      buyerProfile: hasProfileData ? buyerProfile : null,
+    });
   } catch (err) {
     console.error("[cart/data] Failed:", err);
     return res.status(500).json({ ok: false, error: "internal_error" });

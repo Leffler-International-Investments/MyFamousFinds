@@ -18,10 +18,16 @@ export default async function handler(
   if (!requireAdmin(req, res)) return;
 
   try {
-    const snapshot = await adminDb
-      .collection("management_team")
-      .orderBy("createdAt", "asc")
-      .get();
+    let snapshot;
+    try {
+      snapshot = await adminDb
+        .collection("management_team")
+        .orderBy("createdAt", "asc")
+        .get();
+    } catch (orderErr) {
+      console.warn("team/list fallback without orderBy:", orderErr);
+      snapshot = await adminDb.collection("management_team").get();
+    }
 
     const members = snapshot.docs.map((doc) => {
       const d = doc.data();
@@ -39,6 +45,12 @@ export default async function handler(
         },
         createdAt: d.createdAt || "",
       };
+    });
+
+    members.sort((a, b) => {
+      const aTime = new Date(String(a.createdAt || 0)).getTime() || 0;
+      const bTime = new Date(String(b.createdAt || 0)).getTime() || 0;
+      return aTime - bTime;
     });
 
     return res.status(200).json({ ok: true, members });
