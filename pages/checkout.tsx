@@ -50,6 +50,8 @@ export default function CheckoutPage() {
   const [state, setState] = useState("");
   const [postalCode, setPostalCode] = useState("");
   const [country, setCountry] = useState("US");
+  const [profilePrefilled, setProfilePrefilled] = useState(false);
+  const [detailsConfirmed, setDetailsConfirmed] = useState(false);
 
   useEffect(() => {
     if (!firebaseClientReady || !auth) {
@@ -86,6 +88,15 @@ export default function CheckoutPage() {
             setState(profile.state || "");
             setPostalCode(profile.postalCode || "");
             setCountry(profile.country || "US");
+            // If we have meaningful address data, mark as prefilled so we can ask for confirmation
+            const hasMeaningfulData = !!(
+              (profile.fullName || u.displayName) &&
+              profile.addressLine1 &&
+              profile.city &&
+              profile.state &&
+              profile.postalCode
+            );
+            setProfilePrefilled(hasMeaningfulData);
           }
         }
       } catch (err) {
@@ -219,9 +230,14 @@ export default function CheckoutPage() {
                 </div>
               </div>
 
-              {/* Shipping form */}
+              {/* Buyer Details form */}
               <form onSubmit={handleSubmit} className="shipping-form">
-                <h2>Shipping Details</h2>
+                <h2>Buyer Details</h2>
+                {profilePrefilled && (
+                  <div className="prefill-notice">
+                    We found your details from a previous order. Please review and confirm below.
+                  </div>
+                )}
 
                 {error && <div className="checkout-error">{error}</div>}
 
@@ -340,10 +356,23 @@ export default function CheckoutPage() {
                   </div>
                 </div>
 
+                <div className="confirm-details">
+                  <label className="confirm-label">
+                    <input
+                      type="checkbox"
+                      checked={detailsConfirmed}
+                      onChange={(e) => setDetailsConfirmed(e.target.checked)}
+                    />
+                    <span>
+                      I confirm my name and shipping address above are correct
+                    </span>
+                  </label>
+                </div>
+
                 <button
                   type="submit"
                   className="btn-pay"
-                  disabled={submitting}
+                  disabled={submitting || !detailsConfirmed}
                 >
                   {submitting ? "Processing..." : "Pay with PayPal"}
                 </button>
@@ -496,12 +525,45 @@ export default function CheckoutPage() {
           color: #111827;
         }
 
-        /* Shipping form */
+        /* Buyer Details form */
         .shipping-form h2 {
           font-size: 16px;
           font-weight: 600;
           margin: 0 0 16px;
           color: #111827;
+        }
+        .prefill-notice {
+          margin-bottom: 16px;
+          padding: 10px 14px;
+          border-radius: 10px;
+          background: #eff6ff;
+          border: 1px solid #bfdbfe;
+          font-size: 13px;
+          color: #1e40af;
+          font-weight: 500;
+        }
+        .confirm-details {
+          margin-top: 18px;
+        }
+        .confirm-label {
+          display: flex;
+          align-items: flex-start;
+          gap: 10px;
+          cursor: pointer;
+          font-size: 13px;
+          color: #374151;
+          line-height: 1.4;
+        }
+        .confirm-label input[type="checkbox"] {
+          margin-top: 2px;
+          width: 18px;
+          height: 18px;
+          flex-shrink: 0;
+          accent-color: #111827;
+          cursor: pointer;
+        }
+        .confirm-label span {
+          font-weight: 500;
         }
         .checkout-error {
           border-radius: 12px;

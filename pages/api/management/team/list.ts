@@ -17,6 +17,52 @@ export default async function handler(
 
   if (!requireAdmin(req, res)) return;
 
+  // Core founding team — used as fallback when the Firestore collection is empty
+  const CORE_TEAM = [
+    {
+      id: "core-ariel",
+      name: "Ariel",
+      email: "",
+      phone: "",
+      role: "Owner",
+      permissions: {
+        canManageSellers: true,
+        canManageProducts: true,
+        canManageFinance: true,
+        canManageSupport: true,
+      },
+      createdAt: "2024-01-01T00:00:00.000Z",
+    },
+    {
+      id: "core-itai",
+      name: "Itai",
+      email: "",
+      phone: "",
+      role: "Owner",
+      permissions: {
+        canManageSellers: true,
+        canManageProducts: true,
+        canManageFinance: true,
+        canManageSupport: true,
+      },
+      createdAt: "2024-01-01T00:00:01.000Z",
+    },
+    {
+      id: "core-dan",
+      name: "Dan",
+      email: "",
+      phone: "",
+      role: "Admin",
+      permissions: {
+        canManageSellers: true,
+        canManageProducts: true,
+        canManageFinance: false,
+        canManageSupport: true,
+      },
+      createdAt: "2024-01-01T00:00:02.000Z",
+    },
+  ];
+
   try {
     let snapshot;
     try {
@@ -52,6 +98,29 @@ export default async function handler(
       const bTime = new Date(String(b.createdAt || 0)).getTime() || 0;
       return aTime - bTime;
     });
+
+    // If the Firestore collection is empty, seed core team and return them
+    if (members.length === 0) {
+      try {
+        const batch = adminDb.batch();
+        for (const member of CORE_TEAM) {
+          const ref = adminDb.collection("management_team").doc(member.id);
+          batch.set(ref, {
+            name: member.name,
+            email: member.email,
+            phone: member.phone,
+            role: member.role,
+            permissions: member.permissions,
+            createdAt: member.createdAt,
+          });
+        }
+        await batch.commit();
+        console.log("Seeded core team members into management_team collection.");
+      } catch (seedErr) {
+        console.warn("Could not seed core team (read-only or permissions issue):", seedErr);
+      }
+      return res.status(200).json({ ok: true, members: CORE_TEAM });
+    }
 
     return res.status(200).json({ ok: true, members });
   } catch (err: any) {
