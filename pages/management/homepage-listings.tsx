@@ -30,7 +30,6 @@ type ListingItem = {
   color: string;
   size: string;
   source: "homepage" | "admin" | "both";
-  searchText: string; // all fields concatenated for search
 };
 
 type MessageItem = {
@@ -65,7 +64,6 @@ export default function HomepageScanner({
   const [listings, setListings] = useState(initListings);
   const [messages, setMessages] = useState(initMessages);
   const [deleting, setDeleting] = useState<string | null>(null);
-  const [search, setSearch] = useState("");
   const [deleteById, setDeleteById] = useState("");
   const [deleteByIdStatus, setDeleteByIdStatus] = useState<string | null>(null);
 
@@ -172,11 +170,6 @@ export default function HomepageScanner({
     setMessages([]);
     setDeleting(null);
   };
-
-  /* ── Search filter — matches against ALL fields ── */
-  const filteredListings = search.trim()
-    ? listings.filter((i) => i.searchText.includes(search.toLowerCase()))
-    : listings;
 
   const activeMessages = messages.filter((m) => m.active);
 
@@ -295,40 +288,29 @@ export default function HomepageScanner({
         </div>
 
         {/* ═══════════════════════════════════════════════════════ */}
-        {/* SECTION 2: ALL PRODUCT LISTINGS                        */}
+        {/* SECTION 2: ALL PRODUCT LISTINGS — VISUAL GRID          */}
         {/* ═══════════════════════════════════════════════════════ */}
         <div style={{ paddingTop: 16, borderTop: "2px solid #111827" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12, flexWrap: "wrap", gap: 8 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, flexWrap: "wrap", gap: 8 }}>
             <div>
               <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: "#0f172a" }}>
-                All Product Listings
+                All Product Listings ({listings.length})
               </h2>
               <p style={{ margin: "2px 0 0", fontSize: 12, color: "#6b7280" }}>
-                Fetched using the same getPublicListings() the homepage uses, plus Admin DB extras. Search by any keyword.
+                Every item on the homepage. Look at the images — delete anything you don&apos;t want.
               </p>
             </div>
-            {listings.length > 0 && (
-              <button onClick={handleDeleteAllListings} disabled={deleting === "all-listings"}
-                style={{ border: "1px solid #fca5a5", background: "#fef2f2", color: "#dc2626", borderRadius: 999, padding: "6px 14px", fontWeight: 700, fontSize: 12, cursor: "pointer" }}>
-                {deleting === "all-listings" ? "Deleting..." : `Delete All Listings (${listings.length})`}
-              </button>
-            )}
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              {listings.length > 0 && (
+                <button onClick={handleDeleteAllListings} disabled={deleting === "all-listings"}
+                  style={{ border: "1px solid #fca5a5", background: "#fef2f2", color: "#dc2626", borderRadius: 999, padding: "6px 14px", fontWeight: 700, fontSize: 12, cursor: "pointer" }}>
+                  {deleting === "all-listings" ? "Deleting..." : `Delete All (${listings.length})`}
+                </button>
+              )}
+            </div>
           </div>
 
-          {/* Search */}
-          <div style={{ display: "flex", gap: 10, marginBottom: 14, flexWrap: "wrap" }}>
-            <input placeholder="Search anything: title, brand, category, condition, material, color, size, ID..." value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              style={{ flex: 1, minWidth: 220, border: "1px solid #e5e7eb", borderRadius: 10, padding: "9px 14px", fontSize: 13, outline: "none", background: "#fff" }} />
-            {search.trim() && (
-              <button onClick={() => setSearch("")}
-                style={{ border: "1px solid #d1d5db", background: "#fff", color: "#374151", borderRadius: 10, padding: "9px 14px", fontWeight: 700, fontSize: 13, cursor: "pointer" }}>
-                Clear
-              </button>
-            )}
-          </div>
-
-          {/* Delete by ID */}
+          {/* Delete by ID — for ghost listings */}
           <div style={{
             marginBottom: 16, padding: "12px 16px", background: "#fff", border: "1px solid #e5e7eb", borderRadius: 10,
             display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap",
@@ -348,59 +330,69 @@ export default function HomepageScanner({
             )}
           </div>
 
-          {/* Results count */}
-          {search.trim() && (
-            <p style={{ margin: "0 0 8px", fontSize: 12, color: "#6b7280" }}>
-              Showing {filteredListings.length} of {listings.length} listings matching &quot;{search}&quot;
-            </p>
-          )}
-
-          {/* Listing rows */}
-          {filteredListings.length === 0 ? (
+          {/* ─── Visual card grid — big images so you can SEE every item ─── */}
+          {listings.length === 0 ? (
             <div style={{ padding: 48, textAlign: "center", background: "#fff", border: "1px dashed #e5e7eb", borderRadius: 16 }}>
-              <h3 style={{ margin: "0 0 8px", fontSize: 16, color: "#111827" }}>
-                {listings.length === 0 ? "No listings found in either database." : `No results match "${search}".`}
-              </h3>
-              {listings.length > 0 && (
-                <button onClick={() => setSearch("")}
-                  style={{ border: "1px solid #cbd5e1", background: "#fff", color: "#0f172a", borderRadius: 999, padding: "8px 14px", fontWeight: 700, fontSize: 13, cursor: "pointer" }}>
-                  Clear search
-                </button>
-              )}
+              <h3 style={{ margin: 0, fontSize: 16, color: "#111827" }}>No listings found.</h3>
             </div>
           ) : (
-            <div style={{ display: "grid", gap: 8 }}>
-              {filteredListings.map((item) => (
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 16 }}>
+              {listings.map((item) => (
                 <div key={item.id} style={{
-                  display: "flex", alignItems: "center", gap: 14, background: "#fff",
-                  border: item.source === "admin" ? "1px solid #fca5a5" : "1px solid #e5e7eb",
-                  borderRadius: 12, padding: 12,
+                  background: "#fff",
+                  border: item.source === "admin" ? "2px solid #dc2626" : "1px solid #e5e7eb",
+                  borderRadius: 14, overflow: "hidden",
+                  display: "flex", flexDirection: "column",
                 }}>
-                  {item.image ? (
-                    <img src={item.image} alt="" style={{ width: 56, height: 56, objectFit: "cover", borderRadius: 8, border: "1px solid #f0f0f0", flexShrink: 0 }} />
-                  ) : (
-                    <div style={{ width: 56, height: 56, borderRadius: 8, background: "#f3f4f6", border: "1px solid #e5e7eb", flexShrink: 0 }} />
-                  )}
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <p style={{ margin: 0, fontWeight: 600, fontSize: 14, color: "#111827" }}>{item.title}</p>
-                    <p style={{ margin: "2px 0 0", fontSize: 12, color: "#6b7280" }}>
-                      {[item.brand, item.category, item.condition, item.material, item.color, item.size, item.price, item.status].filter(Boolean).join(" \u00b7 ")}
+                  {/* Large image — the main way to identify items */}
+                  <div style={{ position: "relative", width: "100%", paddingTop: "100%", background: "#f3f4f6" }}>
+                    {item.image ? (
+                      <img src={item.image} alt={item.title}
+                        style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", objectFit: "cover" }} />
+                    ) : (
+                      <div style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", color: "#9ca3af", fontSize: 13 }}>
+                        No image
+                      </div>
+                    )}
+                    {/* Source badge */}
+                    <span style={{
+                      position: "absolute", top: 8, left: 8, fontSize: 9, fontWeight: 800,
+                      textTransform: "uppercase", padding: "3px 6px", borderRadius: 4,
+                      background: item.source === "admin" ? "#dc2626" : item.source === "both" ? "#166534" : "#1d4ed8",
+                      color: "#fff",
+                    }}>
+                      {item.source === "admin" ? "ADMIN ONLY" : item.source === "both" ? "Both DBs" : "Homepage"}
+                    </span>
+                  </div>
+
+                  {/* Item info */}
+                  <div style={{ padding: "10px 12px", flex: 1 }}>
+                    <p style={{ margin: 0, fontWeight: 700, fontSize: 13, color: "#111827", lineHeight: 1.3 }}>
+                      {item.title}
                     </p>
-                    <p style={{ margin: "2px 0 0", fontSize: 11, color: "#9ca3af" }}>
-                      ID: {item.id}
-                      <span style={{ marginLeft: 8, fontSize: 10, padding: "1px 5px", borderRadius: 4,
-                        background: item.source === "admin" ? "#fef2f2" : item.source === "both" ? "#dcfce7" : "#e0ecff",
-                        color: item.source === "admin" ? "#dc2626" : item.source === "both" ? "#166534" : "#1d4ed8",
-                        fontWeight: 700,
-                      }}>
-                        {item.source === "admin" ? "ADMIN DB ONLY" : item.source === "both" ? "Both DBs" : "Homepage"}
-                      </span>
+                    <p style={{ margin: "3px 0 0", fontSize: 11, color: "#6b7280" }}>
+                      {[item.brand, item.category, item.price].filter(Boolean).join(" \u00b7 ")}
+                    </p>
+                    <p style={{ margin: "2px 0 0", fontSize: 10, color: "#9ca3af", wordBreak: "break-all" }}>
+                      {item.id}
                     </p>
                   </div>
-                  <button onClick={() => handleDeleteListing(item.id, item.title)}
+
+                  {/* DELETE button — full width, prominent */}
+                  <button
+                    onClick={() => handleDeleteListing(item.id, item.title)}
                     disabled={deleting === item.id}
-                    style={{ border: "1px solid #fca5a5", background: deleting === item.id ? "#fef2f2" : "#fff", color: "#dc2626", borderRadius: 8, padding: "8px 16px", fontWeight: 700, fontSize: 13, cursor: deleting === item.id ? "not-allowed" : "pointer", flexShrink: 0 }}>
-                    {deleting === item.id ? "..." : "Delete"}
+                    style={{
+                      width: "100%", border: "none", borderTop: "1px solid #fca5a5",
+                      background: deleting === item.id ? "#fef2f2" : "#fff",
+                      color: "#dc2626", padding: "10px 0", fontWeight: 800, fontSize: 13,
+                      cursor: deleting === item.id ? "not-allowed" : "pointer",
+                      transition: "background 0.15s",
+                    }}
+                    onMouseEnter={(e) => { if (deleting !== item.id) (e.target as HTMLButtonElement).style.background = "#fef2f2"; }}
+                    onMouseLeave={(e) => { if (deleting !== item.id) (e.target as HTMLButtonElement).style.background = "#fff"; }}
+                  >
+                    {deleting === item.id ? "DELETING..." : "DELETE"}
                   </button>
                 </div>
               ))}
@@ -455,13 +447,7 @@ export const getServerSideProps: GetServerSideProps<Props> = async () => {
         color: l.color || "",
         size: l.size || "",
         source: "homepage",
-        searchText: "", // populated below
       };
-      // Build comprehensive search text from ALL fields
-      item.searchText = [
-        item.id, item.title, item.brand, item.category, item.price,
-        item.status, item.condition, item.material, item.color, item.size,
-      ].join(" ").toLowerCase();
       seen.set(l.id, item);
     }
   } catch (err) {
@@ -501,13 +487,7 @@ export const getServerSideProps: GetServerSideProps<Props> = async () => {
             color: data.color || data.colour || "",
             size: data.size || data.itemSize || "",
             source: "admin",
-            searchText: "",
           };
-          item.searchText = [
-            item.id, item.title, item.brand, item.category, item.price,
-            item.status, item.condition, item.material, item.color, item.size,
-            data.description || "", data.subcategory || "", data.tags?.join?.(" ") || "",
-          ].join(" ").toLowerCase();
           seen.set(d.id, item);
         }
       });
