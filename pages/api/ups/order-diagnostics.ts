@@ -12,6 +12,12 @@ import admin, {
   isFirebaseAdminReady,
 } from "../../../utils/firebaseAdmin";
 import { getSellerId } from "../../../utils/authServer";
+import { isAdminRequest } from "../../../utils/adminAuth";
+import {
+  ADMIN_SESSION_COOKIE,
+  verifySessionToken,
+  getAdminEmails,
+} from "../../../utils/adminSession";
 
 type Severity = "error" | "warning";
 
@@ -60,9 +66,29 @@ export default async function handler(
     return res.status(405).json({ ok: false, error: "Method not allowed" });
   }
 
-  // Authenticate seller
+  // FIX: Check if caller is a management admin — admins can diagnose ANY order
+  // without being restricted by seller ownership. This fixes the conflict where
+  // management (e.g. itai.leff@gmail.com) couldn't check another seller's order
+  // because getSellerId() returned Itai's seller ID, not the order's seller.
+  let isManagement = false;
+  if (isAdminRequest(req)) {
+    isManagement = true;
+  } else {
+    const raw: string = (req.cookies && req.cookies[ADMIN_SESSION_COOKIE]) || "";
+    if (raw) {
+      const result = verifySessionToken(raw);
+      if (result.valid) {
+        const admins = getAdminEmails();
+        if (admins.size === 0 || admins.has(result.email)) {
+          isManagement = true;
+        }
+      }
+    }
+  }
+
+  // Authenticate: either management admin or the owning seller
   const sellerId = await getSellerId(req);
-  if (!sellerId) {
+  if (!sellerId && !isManagement) {
     return res.status(401).json({ ok: false, error: "unauthorized" });
   }
 
@@ -236,9 +262,17 @@ export default async function handler(
     orderData = orderSnap.data() || {};
     checks.push(pass("order_exists", "Order exists in Firestore"));
 
-    // Ownership
+    // Ownership — management admins can view any order
     const orderSellerId = String(orderData.sellerId || "");
-    if (orderSellerId === String(sellerId)) {
+    if (isManagement) {
+      checks.push(
+        pass(
+          "order_ownership",
+          "Management override — can diagnose any order",
+          `Order sellerId="${orderSellerId}" (viewing as management admin)`
+        )
+      );
+    } else if (orderSellerId === String(sellerId)) {
       checks.push(pass("order_ownership", "Order belongs to this seller"));
     } else {
       checks.push(
@@ -703,7 +737,7 @@ export default async function handler(
         break;
       case "order_ownership":
         recommendations.push(
-          "This order belongs to a different seller. You can only diagnose your own orders."
+          "This order belongs to a different seller. Sign in via Management to override, or use the seller portal for your own orders."
         );
         break;
       case "order_paid":
