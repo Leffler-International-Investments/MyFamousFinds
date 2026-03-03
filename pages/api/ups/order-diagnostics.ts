@@ -372,16 +372,38 @@ export default async function handler(
 
   // ────────────────────────────────────────────
   // 9. Seller address resolution
+  //    IMPORTANT: Use the ORDER's sellerId, not the logged-in user's sellerId.
+  //    The diagnostics should check the actual seller who needs to ship, not
+  //    whoever is viewing the diagnostics page.
   // ────────────────────────────────────────────
+  const orderSellerId = String(orderData?.sellerId || sellerId);
   let sellerEmail = "";
   let sellerAddressOk = false;
   let sellerAddressSource = "";
 
   try {
-    const sellerDoc = await adminDb
+    let sellerDoc = await adminDb
       .collection("sellers")
-      .doc(String(sellerId))
+      .doc(String(orderSellerId))
       .get();
+
+    // If doc not found by ID, try by email / contactEmail queries
+    if (!sellerDoc.exists) {
+      const byEmail = await adminDb
+        .collection("sellers")
+        .where("email", "==", orderSellerId)
+        .limit(1)
+        .get();
+      if (!byEmail.empty) sellerDoc = byEmail.docs[0];
+    }
+    if (!sellerDoc.exists) {
+      const byContact = await adminDb
+        .collection("sellers")
+        .where("contactEmail", "==", orderSellerId)
+        .limit(1)
+        .get();
+      if (!byContact.empty) sellerDoc = byContact.docs[0];
+    }
 
     if (sellerDoc.exists) {
       const sd: any = sellerDoc.data() || {};
@@ -389,8 +411,8 @@ export default async function handler(
         .trim()
         .toLowerCase();
 
-      // Check profile address
-      const addr = sd.address || sd.shippingAddress || null;
+      // Check structured shippingAddress block on profile
+      const addr = sd.shippingAddress || null;
       if (
         addr &&
         (addr.line1 || addr.address1) &&
@@ -399,11 +421,28 @@ export default async function handler(
         (addr.postalCode || addr.zip)
       ) {
         sellerAddressOk = true;
-        sellerAddressSource = "sellers profile (address block)";
+        sellerAddressSource = "sellers profile (shippingAddress block)";
+      }
+
+      // Check flat address fields from become-a-seller application
+      if (!sellerAddressOk) {
+        const flatAddress = String(sd.address || "").trim();
+        const flatCity = String(sd.city || "").trim();
+        const flatState = String(sd.state || "").trim();
+        const flatZip = String(sd.zip || "").trim();
+        if (flatAddress && flatCity && flatState && flatZip) {
+          sellerAddressOk = true;
+          sellerAddressSource = "sellers profile (flat address fields)";
+        }
       }
     }
 
-    // Check seller_banking (preferred source)
+    // If sellerId looks like an email and we haven't resolved sellerEmail yet
+    if (!sellerEmail && orderSellerId.includes("@")) {
+      sellerEmail = orderSellerId.trim().toLowerCase();
+    }
+
+    // Check seller_banking (preferred source — overrides profile address)
     if (sellerEmail) {
       const bankDoc = await adminDb
         .collection("seller_banking")
@@ -437,8 +476,8 @@ export default async function handler(
       : fail(
           "seller_address",
           "Seller ship-from address exists",
-          `No complete address found. Go to Banking & Payouts to add your address.${
-            sellerEmail ? ` (checked seller_banking/${sellerEmail})` : ""
+          `No complete address found for seller "${orderSellerId}". The seller must complete Banking & Payouts (address).${
+            sellerEmail ? ` (checked seller_banking/${sellerEmail} and sellers profile)` : " (could not resolve seller email)"
           }`
         )
   );
@@ -449,12 +488,12 @@ export default async function handler(
       ? pass(
           "seller_email",
           "Seller email available for notifications",
-          sellerEmail
+          `${sellerEmail} (for order seller "${orderSellerId}")`
         )
       : fail(
           "seller_email",
           "Seller email available for notifications",
-          "No email found on seller profile — label email won't be sent",
+          `No email found for seller "${orderSellerId}" — label email won't be sent`,
           "warning"
         )
   );
