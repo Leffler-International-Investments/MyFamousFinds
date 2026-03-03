@@ -272,78 +272,79 @@ export default async function handler(
       }
     }
 
-    // Generate UPS label + send combined branded seller email (non-blocking for HTTP response).
-    // The label generation attempts to create a UPS label and sends a branded
-    // "Sale Confirmed + Shipping Label Ready" email. If label generation fails,
-    // we fall back to sending the branded "Item Sold" email without the label.
-    (async () => {
+    // Generate UPS label + send combined branded seller email.
+    // IMPORTANT: await the label generation so it completes before the
+    // serverless function is terminated (fire-and-forget IIFEs get killed
+    // on Vercel once the HTTP response is sent).
+    let labelResult: AutoLabelResult = { generated: false, emailSent: false, buyerEmailSent: false };
+    try {
+      labelResult = await tryAutoGenerateLabel(orderId);
+      if (labelResult.emailSent) {
+        console.log(`[capture-order] Combined sale+label email sent for order ${orderId}`);
+      }
+    } catch (labelErr) {
+      console.error("[capture-order] Auto-label generation failed (non-blocking):", labelErr);
+    }
+
+    // If label generation didn't send a seller email, send the branded "Item Sold" fallback
+    if (!labelResult.emailSent) {
       try {
-        const labelResult: AutoLabelResult = await tryAutoGenerateLabel(orderId);
-
-        // If the combined email was already sent by tryAutoGenerateLabel, we're done
-        if (labelResult.emailSent) {
-          console.log(`[capture-order] Combined sale+label email sent for order ${orderId}`);
-          return;
-        }
-
-        // Label generation didn't send an email — send the branded seller sold email as fallback
         if (!sellerId) {
           console.error(`[capture-order] No sellerId on listing ${listingId} — seller notification skipped`);
-          return;
-        }
-
-        let sellerEmail = "";
-        let sellerName = "";
-        try {
-          let sellerDoc = await adminDb!.collection("sellers").doc(sellerId).get();
-          if (!sellerDoc.exists) {
-            const byEmail = await adminDb!.collection("sellers").where("email", "==", sellerId).limit(1).get();
-            if (!byEmail.empty) sellerDoc = byEmail.docs[0];
-          }
-          if (!sellerDoc.exists) {
-            const byContact = await adminDb!.collection("sellers").where("contactEmail", "==", sellerId).limit(1).get();
-            if (!byContact.empty) sellerDoc = byContact.docs[0];
-          }
-          const sellerData = sellerDoc.exists ? sellerDoc.data() || {} : {};
-          sellerEmail = String(sellerData.contactEmail || sellerData.email || sellerId);
-          sellerName = String(sellerData.businessName || sellerData.name || "");
-        } catch (lookupErr) {
-          console.error("[capture-order] Seller lookup failed:", lookupErr);
-        }
-
-        if (sellerEmail && sellerEmail.includes("@")) {
-          try {
-            await sendSellerItemSoldEmail({
-              to: sellerEmail,
-              sellerName,
-              itemTitle,
-              amount: amountStr,
-              currency,
-              orderId,
-            });
-          } catch (emailErr) {
-            console.error("[capture-order] Seller notification email failed, queueing to outbox:", emailErr);
-            await queueEmail({
-              to: sellerEmail,
-              subject: "Famous Finds — Your Item Has Been Sold!",
-              text:
-                `Hello ${sellerName || "Seller"},\n\n` +
-                `Congratulations — your item has been sold on Famous Finds!\n\n` +
-                `Item: ${itemTitle}\nSale Amount: ${currency} ${amountStr}\nOrder ID: ${orderId}\n\n` +
-                `Please prepare the item for shipping.\n\n` +
-                `Regards,\nThe Famous Finds Team\n`,
-              eventType: "seller_item_sold",
-              eventKey: `${orderId}:seller_item_sold:${sellerId}`,
-              metadata: { orderId, sellerId, sellerEmail, itemTitle },
-            }).catch((qErr) => console.error("[capture-order] Outbox queue also failed:", qErr));
-          }
         } else {
-          console.error(`[capture-order] No valid seller email found for sellerId=${sellerId}`);
+          let sellerEmail = "";
+          let sellerName = "";
+          try {
+            let sellerDoc = await adminDb!.collection("sellers").doc(sellerId).get();
+            if (!sellerDoc.exists) {
+              const byEmail = await adminDb!.collection("sellers").where("email", "==", sellerId).limit(1).get();
+              if (!byEmail.empty) sellerDoc = byEmail.docs[0];
+            }
+            if (!sellerDoc.exists) {
+              const byContact = await adminDb!.collection("sellers").where("contactEmail", "==", sellerId).limit(1).get();
+              if (!byContact.empty) sellerDoc = byContact.docs[0];
+            }
+            const sellerData = sellerDoc.exists ? sellerDoc.data() || {} : {};
+            sellerEmail = String(sellerData.contactEmail || sellerData.email || sellerId);
+            sellerName = String(sellerData.businessName || sellerData.name || "");
+          } catch (lookupErr) {
+            console.error("[capture-order] Seller lookup failed:", lookupErr);
+          }
+
+          if (sellerEmail && sellerEmail.includes("@")) {
+            try {
+              await sendSellerItemSoldEmail({
+                to: sellerEmail,
+                sellerName,
+                itemTitle,
+                amount: amountStr,
+                currency,
+                orderId,
+              });
+            } catch (emailErr) {
+              console.error("[capture-order] Seller notification email failed, queueing to outbox:", emailErr);
+              await queueEmail({
+                to: sellerEmail,
+                subject: "Famous Finds — Your Item Has Been Sold!",
+                text:
+                  `Hello ${sellerName || "Seller"},\n\n` +
+                  `Congratulations — your item has been sold on Famous Finds!\n\n` +
+                  `Item: ${itemTitle}\nSale Amount: ${currency} ${amountStr}\nOrder ID: ${orderId}\n\n` +
+                  `Please prepare the item for shipping.\n\n` +
+                  `Regards,\nThe Famous Finds Team\n`,
+                eventType: "seller_item_sold",
+                eventKey: `${orderId}:seller_item_sold:${sellerId}`,
+                metadata: { orderId, sellerId, sellerEmail, itemTitle },
+              }).catch((qErr) => console.error("[capture-order] Outbox queue also failed:", qErr));
+            }
+          } else {
+            console.error(`[capture-order] No valid seller email found for sellerId=${sellerId}`);
+          }
         }
       } catch (err) {
-        console.error("[capture-order] Seller label+email flow failed (non-blocking):", err);
+        console.error("[capture-order] Seller fallback email flow failed:", err);
       }
-    })();
+    }
 
     return res.status(200).json({
       ok: true,
