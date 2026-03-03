@@ -2,7 +2,7 @@
 // Single-page seller application — all fields on one page, matching site-wide light style
 
 import Head from "next/head";
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import Header from "../components/Header";
 import Footer from "../components/Footer";
@@ -13,10 +13,62 @@ export default function BecomeSellerPage() {
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [businessName, setBusinessName] = useState("");
+  const [address, setAddress] = useState("");
+  const [city, setCity] = useState("");
+  const [stateField, setStateField] = useState("");
+  const [zip, setZip] = useState("");
+  const [country, setCountry] = useState("US");
   const [website, setWebsite] = useState("");
   const [social, setSocial] = useState("");
   const [whatToSell, setWhatToSell] = useState("");
   const [acceptTerms, setAcceptTerms] = useState(false);
+
+  // Google Places Autocomplete
+  const addressInputRef = useRef<HTMLInputElement>(null);
+  const autocompleteRef = useRef<google.maps.places.Autocomplete | null>(null);
+
+  useEffect(() => {
+    const apiKey = process.env.NEXT_PUBLIC_GOOGLE_PLACES_API_KEY;
+    if (!apiKey) return;
+
+    // Avoid loading the script more than once
+    if (document.querySelector('script[src*="maps.googleapis.com/maps/api/js"]')) {
+      initAutocomplete();
+      return;
+    }
+
+    const script = document.createElement("script");
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places`;
+    script.async = true;
+    script.onload = () => initAutocomplete();
+    document.head.appendChild(script);
+
+    function initAutocomplete() {
+      if (!addressInputRef.current || !window.google?.maps?.places) return;
+      const ac = new google.maps.places.Autocomplete(addressInputRef.current, {
+        types: ["address"],
+        componentRestrictions: { country: "us" },
+        fields: ["address_components", "formatted_address"],
+      });
+      autocompleteRef.current = ac;
+      ac.addListener("place_changed", () => {
+        const place = ac.getPlace();
+        if (!place.address_components) return;
+        let streetNumber = "";
+        let route = "";
+        for (const comp of place.address_components) {
+          const t = comp.types[0];
+          if (t === "street_number") streetNumber = comp.long_name;
+          else if (t === "route") route = comp.long_name;
+          else if (t === "locality" || t === "sublocality_level_1") setCity(comp.long_name);
+          else if (t === "administrative_area_level_1") setStateField(comp.short_name);
+          else if (t === "postal_code") setZip(comp.long_name);
+          else if (t === "country") setCountry(comp.short_name);
+        }
+        setAddress([streetNumber, route].filter(Boolean).join(" "));
+      });
+    }
+  }, []);
 
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -49,6 +101,11 @@ export default function BecomeSellerPage() {
           contactName: trimmedName,
           email: trimmedEmail,
           phone,
+          address: address.trim(),
+          city: city.trim(),
+          state: stateField.trim(),
+          zip: zip.trim(),
+          country: country.trim() || "US",
           website: website.trim(),
           social: social.trim(),
           inventory: whatToSell.trim(),
@@ -71,6 +128,11 @@ export default function BecomeSellerPage() {
       setEmail("");
       setPhone("");
       setBusinessName("");
+      setAddress("");
+      setCity("");
+      setStateField("");
+      setZip("");
+      setCountry("US");
       setWebsite("");
       setSocial("");
       setWhatToSell("");
@@ -145,6 +207,69 @@ export default function BecomeSellerPage() {
                     value={businessName}
                     onChange={(e) => setBusinessName(e.target.value)}
                     placeholder="Leave blank if selling personally"
+                  />
+                </label>
+              </div>
+            </section>
+
+            {/* Address */}
+            <section className="form-section">
+              <h2>Your Address</h2>
+              <label className="field-label">
+                Address
+                <input
+                  ref={addressInputRef}
+                  type="text"
+                  className="field-input"
+                  autoComplete="street-address"
+                  value={address}
+                  onChange={(e) => setAddress(e.target.value)}
+                  placeholder="Start typing your address…"
+                />
+              </label>
+              <div className="field-grid" style={{ marginTop: 14 }}>
+                <label className="field-label">
+                  City
+                  <input
+                    type="text"
+                    className="field-input"
+                    autoComplete="address-level2"
+                    value={city}
+                    onChange={(e) => setCity(e.target.value)}
+                    placeholder="City"
+                  />
+                </label>
+                <label className="field-label">
+                  State
+                  <input
+                    type="text"
+                    className="field-input"
+                    autoComplete="address-level1"
+                    value={stateField}
+                    onChange={(e) => setStateField(e.target.value)}
+                    placeholder="State"
+                  />
+                </label>
+                <label className="field-label">
+                  Zip Code
+                  <input
+                    type="text"
+                    className="field-input"
+                    autoComplete="postal-code"
+                    value={zip}
+                    onChange={(e) => setZip(e.target.value)}
+                    placeholder="Zip / Postal code"
+                  />
+                </label>
+                <label className="field-label">
+                  Country
+                  <input
+                    type="text"
+                    className="field-input"
+                    autoComplete="country"
+                    value={country}
+                    onChange={(e) => setCountry(e.target.value)}
+                    placeholder="US"
                   />
                 </label>
               </div>

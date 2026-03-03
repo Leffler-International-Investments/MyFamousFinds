@@ -294,6 +294,11 @@ export async function sendSellerApplicationReceivedEmail(
     businessName?: string;
     contactName?: string;
     phone?: string;
+    address?: string;
+    city?: string;
+    state?: string;
+    zip?: string;
+    country?: string;
     website?: string;
     social?: string;
     inventory?: string;
@@ -312,6 +317,8 @@ export async function sendSellerApplicationReceivedEmail(
   if (d.contactName) summaryLines.push(`  Contact Name: ${d.contactName}`);
   summaryLines.push(`  Email: ${email}`);
   if (d.phone) summaryLines.push(`  Phone: ${d.phone}`);
+  const addrParts = [d.address, d.city, d.state, d.zip, d.country].filter(Boolean);
+  if (addrParts.length) summaryLines.push(`  Address: ${addrParts.join(", ")}`);
   if (d.website) summaryLines.push(`  Website: ${d.website}`);
   if (d.social) summaryLines.push(`  Social: ${d.social}`);
   if (d.inventory) summaryLines.push(`  Inventory: ${d.inventory}`);
@@ -327,6 +334,9 @@ export async function sendSellerApplicationReceivedEmail(
   summaryRows.push(`<tr><td style="padding:4px 8px;color:#6b7280;">Email</td><td style="padding:4px 8px;">${escapeHtml(email)}</td></tr>`);
   if (d.phone)
     summaryRows.push(`<tr><td style="padding:4px 8px;color:#6b7280;">Phone</td><td style="padding:4px 8px;">${escapeHtml(d.phone)}</td></tr>`);
+  const addrHtmlParts = [d.address, d.city, d.state, d.zip, d.country].filter(Boolean);
+  if (addrHtmlParts.length)
+    summaryRows.push(`<tr><td style="padding:4px 8px;color:#6b7280;">Address</td><td style="padding:4px 8px;">${escapeHtml(addrHtmlParts.join(", "))}</td></tr>`);
   if (d.website)
     summaryRows.push(`<tr><td style="padding:4px 8px;color:#6b7280;">Website</td><td style="padding:4px 8px;">${escapeHtml(d.website)}</td></tr>`);
   if (d.social)
