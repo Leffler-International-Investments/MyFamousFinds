@@ -9,7 +9,7 @@ import crypto from "crypto";
 import sharp from "sharp";
 import admin, { adminDb, FieldValue, isFirebaseAdminReady } from "./firebaseAdmin";
 import { createShippingLabel, type UpsAddress, type UpsPackage } from "../lib/ups";
-import { sendSellerSoldWithLabelEmail, sendBuyerShippingNotificationEmail } from "./email";
+import { sendSellerSoldWithLabelEmail, sendBuyerShippingNotificationEmail, sendSellerLabelActionRequiredEmail } from "./email";
 import { queueEmail } from "./emailOutbox";
 
 const STORAGE_BUCKET =
@@ -265,6 +265,7 @@ export async function tryAutoGenerateLabel(orderId: string): Promise<AutoLabelRe
     const errMsg = "Buyer shipping address incomplete or missing";
     console.warn(`[autoGenerateLabel] Order ${orderId} ${errMsg} — skipping`);
     await persistLabelFailure(orderRef, order, errMsg);
+    await notifyAdminLabelFailure(orderId, String(order.sellerId || ""), errMsg).catch(() => {});
     return { ...noLabel, error: errMsg };
   }
 
@@ -274,6 +275,35 @@ export async function tryAutoGenerateLabel(orderId: string): Promise<AutoLabelRe
     const errMsg = `No stored address for seller ${sellerId}`;
     console.warn(`[autoGenerateLabel] ${errMsg} — skipping`);
     await persistLabelFailure(orderRef, order, errMsg);
+
+    // IMPORTANT: notify seller what to do so they can receive the label.
+    // Without this, the sale email may be sent but the label email never arrives.
+    try {
+      let sellerEmail = "";
+      let sellerName = "";
+      const sellerDoc = await adminDb.collection("sellers").doc(String(sellerId)).get();
+      if (sellerDoc.exists) {
+        const sd: any = sellerDoc.data() || {};
+        sellerEmail = String(sd.contactEmail || sd.email || "").trim();
+        sellerName = String(sd.businessName || sd.name || "").trim();
+      }
+      // sellerId is sometimes the email itself
+      if (!sellerEmail && String(sellerId).includes("@")) sellerEmail = String(sellerId).trim();
+
+      if (sellerEmail && sellerEmail.includes("@")) {
+        await sendSellerLabelActionRequiredEmail({
+          to: sellerEmail,
+          sellerName: sellerName || undefined,
+          orderId,
+          itemTitle: order.listingTitle || "Item",
+          reason:
+            "we don't have your shipping address on file (street, city, state, zip). Please add it to generate your UPS label.",
+        });
+      }
+    } catch (notifyErr) {
+      console.error("[autoGenerateLabel] Failed to notify seller about missing address:", notifyErr);
+    }
+
     return { ...noLabel, error: errMsg };
   }
 
