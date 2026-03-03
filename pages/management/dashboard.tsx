@@ -318,6 +318,13 @@ export default function ManagementDashboard({ stats }: Props) {
             linkText="Run Diagnostics"
             linkColor="gold"
           />
+          <DashboardTile
+            title="Order Roadmap Diagnostic"
+            description="Full lifecycle view per order: placed → label → pickup → delivered → signature → 14-day cooling → payout."
+            href="/management/order-roadmap"
+            linkText="View Roadmap"
+            linkColor="gold"
+          />
         </DashboardSection>
 
         <DashboardSection

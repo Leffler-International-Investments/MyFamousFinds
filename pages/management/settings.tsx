@@ -12,7 +12,7 @@ export default function ManagementSettings() {
   const { loading } = useRequireAdmin();
 
   const [payoutMode, setPayoutMode] = useState<PayoutMode>("manual");
-  const [coolingDays, setCoolingDays] = useState(7);
+  const [coolingDays, setCoolingDays] = useState(14);
   const [payoutLoading, setPayoutLoading] = useState(true);
   const [payoutSaving, setPayoutSaving] = useState(false);
   const [payoutMsg, setPayoutMsg] = useState<string | null>(null);
@@ -24,7 +24,7 @@ export default function ManagementSettings() {
       const data = await res.json();
       if (data.ok && data.settings) {
         setPayoutMode(data.settings.payoutMode || "manual");
-        setCoolingDays(data.settings.defaultCoolingDays ?? 7);
+        setCoolingDays(data.settings.defaultCoolingDays ?? 14);
       }
     } catch {
       // defaults already set
