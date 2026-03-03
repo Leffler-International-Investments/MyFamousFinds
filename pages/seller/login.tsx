@@ -150,6 +150,9 @@ export default function SellerLoginPage() {
       setStep("verify");
       const successJson = twofaJson as Start2faSuccess;
       setInfo(successJson.message || "Code sent.");
+      // Update chosenMethod to match what the server actually used
+      // (may differ if email→SMS or SMS→email fallback was triggered)
+      if (successJson.via) setChosenMethod(successJson.via);
       if (successJson.devCode) setCode(successJson.devCode);
     } catch (err) {
       console.error("seller_start_2fa_error", err);

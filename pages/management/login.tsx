@@ -151,6 +151,9 @@ export default function ManagementLoginPage() {
       setStep("verify");
 
       setInfo(twofaJson.message || "Code sent.");
+      // Update chosenMethod to match what the server actually used
+      // (may differ if email→SMS or SMS→email fallback was triggered)
+      if (twofaJson.via) setChosenMethod(twofaJson.via);
       if (twofaJson.devCode) setCode(twofaJson.devCode);
     } catch (err) {
       console.error("management_start_2fa_error", err);
