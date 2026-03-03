@@ -460,6 +460,13 @@ export default function ManagementDashboard({ stats }: Props) {
             linkText="View Integrations"
             linkColor="gray"
           />
+          <DashboardTile
+            title="Paper Trade — Test Cycle"
+            description="Simulate the full purchase cycle: customer buy → payment → label → ship → deliver → payout. Delete & re-register customers for testing."
+            href="/management/paper-trade"
+            linkText="Run Paper Trade"
+            linkColor="gold"
+          />
         </DashboardSection>
 
         {/* ✅ MOVED TO BOTTOM (under Platform, Support & Analytics) */}
