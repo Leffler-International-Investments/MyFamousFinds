@@ -38,6 +38,8 @@ export default function ManagementCustomers({ customers: initial }: Props) {
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("All");
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [deleteByEmail, setDeleteByEmail] = useState("");
+  const [deleteBusy, setDeleteBusy] = useState(false);
 
   const visible = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -113,6 +115,30 @@ export default function ManagementCustomers({ customers: initial }: Props) {
     }
   };
 
+  const onDeleteByEmail = async () => {
+    const email = deleteByEmail.trim().toLowerCase();
+    if (!email) return;
+    if (!window.confirm(`Delete customer "${email}" from Firebase Auth + Firestore?\n\nThis allows them to re-register from scratch.`)) return;
+    setDeleteBusy(true);
+    try {
+      const res = await fetch("/api/management/customers/delete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "Failed");
+      // Remove from local list if present
+      setCustomers((prev) => prev.filter((c) => c.email.toLowerCase() !== email));
+      alert(`Deleted.\nFirestore: ${json.deletedFirestore ? "Yes" : "No"}\nFirebase Auth: ${json.deletedAuth ? "Yes" : "No"}`);
+      setDeleteByEmail("");
+    } catch (e: any) {
+      alert(e.message || "Could not delete customer.");
+    } finally {
+      setDeleteBusy(false);
+    }
+  };
+
   if (loading) return <div className="dashboard-page" />;
 
   return (
@@ -161,6 +187,24 @@ export default function ManagementCustomers({ customers: initial }: Props) {
               </span>
               <span className="summary-label">Total Revenue</span>
             </div>
+          </div>
+
+          <div className="delete-by-email-bar">
+            <span className="delete-label">Delete customer by email (even if not listed):</span>
+            <input
+              className="form-input"
+              placeholder="e.g. jaffaleffler@gmail.com"
+              value={deleteByEmail}
+              onChange={(e) => setDeleteByEmail(e.target.value)}
+              style={{ maxWidth: 300 }}
+            />
+            <button
+              className="btn-delete-email"
+              disabled={deleteBusy || !deleteByEmail.trim()}
+              onClick={onDeleteByEmail}
+            >
+              {deleteBusy ? "Deleting..." : "Delete & Allow Re-register"}
+            </button>
           </div>
 
           <div className="filters-bar">
@@ -326,6 +370,41 @@ export default function ManagementCustomers({ customers: initial }: Props) {
           font-size: 12px;
           color: #6b7280;
           font-weight: 600;
+        }
+
+        .delete-by-email-bar {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          flex-wrap: wrap;
+          margin-bottom: 14px;
+          padding: 12px 14px;
+          background: #fef3c7;
+          border: 1px solid #f59e0b;
+          border-radius: 10px;
+        }
+        .delete-label {
+          font-size: 13px;
+          font-weight: 700;
+          color: #92400e;
+        }
+        .btn-delete-email {
+          border: 1px solid #dc2626;
+          border-radius: 999px;
+          background: #fee2e2;
+          color: #b91c1c;
+          padding: 8px 16px;
+          font-weight: 800;
+          cursor: pointer;
+          font-size: 12px;
+          white-space: nowrap;
+        }
+        .btn-delete-email:hover:not(:disabled) {
+          background: #fecaca;
+        }
+        .btn-delete-email:disabled {
+          opacity: 0.5;
+          cursor: default;
         }
 
         .filters-bar {
