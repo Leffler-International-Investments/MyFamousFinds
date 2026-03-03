@@ -8,6 +8,7 @@ import {
 import { sendLoginCode } from "../../../utils/email";
 import { sendLoginCodeSms, isSmsConfigured } from "../../../utils/sms";
 import { createChallenge } from "../../../utils/twofaStore";
+import { queueEmail } from "../../../utils/emailOutbox";
 
 type Start2faBody = {
   email?: string;
@@ -185,12 +186,15 @@ export default async function handler(
     challengeId = ch.id;
   }
 
-  // 2) Send code via chosen method
+  // 2) Send code via chosen method, with automatic fallback chain:
+  //    Email → SMS fallback → Outbox queue (retry)
+  //    SMS   → Email fallback → Outbox queue (retry)
   let codeSent = false;
+  let actualMethod: "email" | "sms" = deliveryMethod;
   let sendError = "";
 
   if (deliveryMethod === "sms") {
-    // SMS delivery
+    // ── SMS delivery (primary) ──
     if (!isSmsConfigured()) {
       return res.status(200).json({
         ok: false,
@@ -216,8 +220,21 @@ export default async function handler(
       console.error("[start-2fa] SMS send failed:", err);
       sendError = err?.message || "Unknown SMS error";
     }
+
+    // SMS failed → auto-fallback to email
+    if (!codeSent && canSendEmail()) {
+      try {
+        console.log(`[start-2fa] SMS failed, trying email fallback for ${normalizedEmail}`);
+        await sendLoginCode(normalizedEmail, code);
+        codeSent = true;
+        actualMethod = "email";
+        console.log(`[start-2fa] Email fallback succeeded for ${normalizedEmail}`);
+      } catch (emailErr: any) {
+        console.error("[start-2fa] Email fallback also failed:", emailErr);
+      }
+    }
   } else {
-    // Email delivery
+    // ── Email delivery (primary) ──
     if (canSendEmail()) {
       try {
         await sendLoginCode(normalizedEmail, code);
@@ -227,19 +244,25 @@ export default async function handler(
         sendError = err?.message || "Unknown email error";
       }
     }
+
+    // Email failed → auto-fallback to SMS
+    if (!codeSent && isSmsConfigured()) {
+      try {
+        const phone = await lookupPhone(normalizedEmail, normalizedRole);
+        if (phone) {
+          console.log(`[start-2fa] Email failed, trying SMS fallback for ${normalizedEmail}`);
+          await sendLoginCodeSms(phone, code);
+          codeSent = true;
+          actualMethod = "sms";
+          console.log(`[start-2fa] SMS fallback succeeded for ${normalizedEmail}`);
+        }
+      } catch (smsErr: any) {
+        console.error("[start-2fa] SMS fallback also failed:", smsErr);
+      }
+    }
   }
 
-  // 3) Only expose devCode in non-production environments when delivery fails
-  if (!codeSent && process.env.NODE_ENV !== "production") {
-    return res.status(200).json({
-      ok: true,
-      challengeId,
-      via: deliveryMethod,
-      devCode: code,
-      message: `[DEV] Your 6-digit code is: ${code}`,
-    });
-  }
-
+  // 3) Both direct delivery methods failed
   if (!codeSent) {
     const target = deliveryMethod === "sms" ? "SMS" : "email";
     // Full technical detail goes to server logs only — never to the user
@@ -250,6 +273,17 @@ export default async function handler(
         ? `\n→ SES sandbox: the recipient "${normalizedEmail}" is not a verified identity in SES (region ${process.env.AWS_REGION || "us-east-1"}). Either verify this recipient in the SES console, or request SES production access to send to anyone.`
         : ""
     );
+
+    // Only expose devCode in non-production environments when delivery fails
+    if (process.env.NODE_ENV !== "production") {
+      return res.status(200).json({
+        ok: true,
+        challengeId,
+        via: deliveryMethod,
+        devCode: code,
+        message: `[DEV] Your 6-digit code is: ${code}`,
+      });
+    }
 
     // Super users who already authenticated with password get the code on-screen
     // as a fallback when delivery fails — this is NOT a security bypass.
@@ -263,7 +297,46 @@ export default async function handler(
       });
     }
 
-    // Regular users: tell them delivery failed and to try a different method.
+    // Last resort: queue via email outbox (has retry with exponential backoff).
+    // Return ok:true so the user sees the code entry screen and can wait.
+    let queued = false;
+    try {
+      const loginCodeHtml =
+        "<p>Hello,</p>" +
+        "<p>Use the login code below to sign in:</p>" +
+        `<p style="font-size:20px; letter-spacing:2px;"><b>${code}</b></p>` +
+        "<p>If you did not request this, you can ignore this email.</p>" +
+        "<p>MyFamousFinds</p>";
+
+      const jobId = await queueEmail({
+        to: normalizedEmail,
+        subject: "MyFamousFinds — Your Login Code",
+        text: `Hello,\n\nYour login code is: ${code}\n\nIf you did not request this, you can ignore this email.\n\nMyFamousFinds`,
+        html: loginCodeHtml,
+        eventType: "login_code",
+        eventKey: `${normalizedEmail}:login_code:${challengeId}`,
+        metadata: { challengeId, role: normalizedRole },
+      });
+      queued = !!jobId;
+      if (queued) {
+        console.log(`[start-2fa] Direct delivery failed, queued via outbox (jobId: ${jobId}) for ${normalizedEmail}`);
+      }
+    } catch (queueErr) {
+      console.error("[start-2fa] Outbox queue also failed:", queueErr);
+    }
+
+    if (queued) {
+      // Outbox will retry delivery — let the user wait for the email
+      return res.status(200).json({
+        ok: true,
+        challengeId,
+        via: "email",
+        message:
+          "Your verification code is on its way. It may take a few minutes to arrive — please also check your spam folder.",
+      });
+    }
+
+    // Everything failed — user cannot proceed
     return res.status(200).json({
       ok: false,
       error: "delivery_failed",
@@ -274,15 +347,25 @@ export default async function handler(
     });
   }
 
-  const successMsg =
-    deliveryMethod === "sms"
-      ? "We've sent a 6-digit code to your mobile number."
-      : "We've sent a 6-digit code to your email address.";
+  // 4) Code delivered successfully
+  let successMsg: string;
+  if (actualMethod !== deliveryMethod) {
+    // Fallback was used — inform the user which method actually delivered
+    successMsg =
+      actualMethod === "sms"
+        ? "Email delivery wasn't available, so we sent a 6-digit code to your mobile number instead."
+        : "SMS delivery wasn't available, so we sent a 6-digit code to your email address instead.";
+  } else {
+    successMsg =
+      actualMethod === "sms"
+        ? "We've sent a 6-digit code to your mobile number."
+        : "We've sent a 6-digit code to your email address.";
+  }
 
   return res.status(200).json({
     ok: true,
     challengeId,
-    via: deliveryMethod,
+    via: actualMethod,
     message: successMsg,
   });
 }
