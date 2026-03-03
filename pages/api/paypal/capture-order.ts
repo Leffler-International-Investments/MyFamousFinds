@@ -121,6 +121,14 @@ export default async function handler(
       [payer.name?.given_name, payer.name?.surname].filter(Boolean).join(" ") ||
       pendingData.buyerDetails?.fullName ||
       "";
+
+    // Prefer the email captured in our checkout form (pending_orders) over PayPal payer email.
+    // Reason: payer email can be different from the buyer's site account email (and in tests
+    // it is often the admin PayPal account), causing buyer emails to go to the wrong inbox.
+    const buyerFormEmail = String(pendingData?.buyerDetails?.email || "").trim().toLowerCase();
+    const buyerFormName = String(pendingData?.buyerDetails?.fullName || "").trim();
+    const buyerEmailResolved = buyerFormEmail || payerEmail;
+    const buyerNameResolved = buyerFormName || payerName;
     // The form email (typically the buyer's Firebase auth email) may differ from
     // the PayPal payer email. Store it so the account page can find orders by either.
     const buyerFormEmail = String(pendingData.buyerDetails?.email || "").trim().toLowerCase();
@@ -183,8 +191,8 @@ export default async function handler(
       sellerId = sellerId || existing.data()?.sellerId || "";
       await adminDb.collection("orders").doc(orderId).update({
         paypalCaptureId: captureId,
-        buyerEmail: payerEmail,
-        buyerName: payerName,
+        buyerEmail: buyerEmailResolved,
+        buyerName: buyerNameResolved,
         ...(buyerFormEmail && buyerFormEmail !== payerEmail ? { buyerFormEmail } : {}),
         listingTitle: pendingData.productTitle || existing.data()?.listingTitle || "",
         listingBrand: pendingData.brand || "",
@@ -199,8 +207,8 @@ export default async function handler(
         paypalCaptureId: captureId,
         listingId: listingId || pendingData.listingId || "",
         ...(sellerId ? { sellerId } : {}),
-        buyerEmail: payerEmail,
-        buyerName: payerName,
+        buyerEmail: buyerEmailResolved,
+        buyerName: buyerNameResolved,
         ...(buyerFormEmail && buyerFormEmail !== payerEmail ? { buyerFormEmail } : {}),
         listingTitle: pendingData.productTitle || "",
         listingBrand: pendingData.brand || "",
@@ -244,13 +252,13 @@ export default async function handler(
     // Send buyer order confirmation email
     const amountStr = amountTotal.toFixed(2);
     const itemTitle = pendingData.productTitle || "Item";
-    if (payerEmail) {
+    if (buyerEmailResolved) {
       try {
         await adminDb.collection("orders").doc(orderId).update({
           buyerConfirmationEmailAttempted: true,
         });
         await sendBuyerOrderConfirmationEmail({
-          to: payerEmail,
+          to: buyerEmailResolved,
           buyerName: payerName || undefined,
           orderId,
           itemTitle,
@@ -261,7 +269,7 @@ export default async function handler(
       } catch (emailErr) {
         console.error("[capture-order] Buyer confirmation email failed, queueing to outbox:", emailErr);
         await queueEmail({
-          to: payerEmail,
+          to: buyerEmailResolved,
           subject: "MyFamousFinds — Order Confirmation",
           text:
             `Hello ${payerName || "there"},\n\n` +
@@ -271,7 +279,7 @@ export default async function handler(
             `Regards,\nThe MyFamousFinds Team\n`,
           eventType: "buyer_order_confirmation",
           eventKey: `${orderId}:buyer_order_confirmation`,
-          metadata: { orderId, buyerEmail: payerEmail },
+          metadata: { orderId, buyerEmail: buyerEmailResolved },
         }).catch((qErr) => console.error("[capture-order] Outbox queue also failed:", qErr));
       }
     }
