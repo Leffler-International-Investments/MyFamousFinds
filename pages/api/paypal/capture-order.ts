@@ -246,6 +246,9 @@ export default async function handler(
     const itemTitle = pendingData.productTitle || "Item";
     if (payerEmail) {
       try {
+        await adminDb.collection("orders").doc(orderId).update({
+          buyerConfirmationEmailAttempted: true,
+        });
         await sendBuyerOrderConfirmationEmail({
           to: payerEmail,
           buyerName: payerName || undefined,
@@ -254,6 +257,7 @@ export default async function handler(
           amount: amountStr,
           currency,
         });
+        console.log(`[capture-order] Buyer confirmation email sent for order ${orderId}`);
       } catch (emailErr) {
         console.error("[capture-order] Buyer confirmation email failed, queueing to outbox:", emailErr);
         await queueEmail({

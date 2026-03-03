@@ -12,6 +12,7 @@ import {
   sendSellerItemSoldEmail,
 } from "../../utils/email";
 import { queueEmail } from "../../utils/emailOutbox";
+import { tryAutoGenerateLabel } from "../../utils/autoGenerateLabel";
 
 type SuccessProps = {
   productTitle: string;
@@ -318,7 +319,7 @@ export const getServerSideProps: GetServerSideProps<SuccessProps> = async (ctx) 
     let shippingAddressText = "";
 
     if (!existingOrder.empty) {
-      // Order already captured — read from Firestore
+      // Order already captured (e.g. webhook beat us) — read from Firestore
       const orderDoc = existingOrder.docs[0];
       const data = orderDoc.data() as any;
       orderId = orderDoc.id;
@@ -341,6 +342,121 @@ export const getServerSideProps: GetServerSideProps<SuccessProps> = async (ctx) 
         ]
           .filter(Boolean)
           .join("\n");
+      }
+
+      // ── Enrich webhook-created order with pending data + ensure emails sent ──
+      // When the PayPal webhook creates the order before this page loads,
+      // buyer details may be incomplete and confirmation emails may not
+      // have been sent. Load the pending order and fill in any gaps.
+      let pendingData: any = {};
+      if (pendingId) {
+        try {
+          const pendingSnap = await adminDb
+            .collection("pending_orders")
+            .doc(pendingId)
+            .get();
+          if (pendingSnap.exists) {
+            pendingData = pendingSnap.data() || {};
+          }
+        } catch {}
+      }
+
+      // Enrich order with buyer details from pending order if missing
+      const enrichUpdates: Record<string, any> = {};
+      if (!buyerEmail && pendingData.buyerDetails?.email) {
+        buyerEmail = String(pendingData.buyerDetails.email).trim().toLowerCase();
+        enrichUpdates.buyerEmail = buyerEmail;
+      }
+      if (!buyerName && pendingData.buyerDetails?.fullName) {
+        buyerName = String(pendingData.buyerDetails.fullName).trim();
+        enrichUpdates.buyerName = buyerName;
+      }
+      if (!data.shippingAddress && pendingData.buyerDetails) {
+        const bd = pendingData.buyerDetails;
+        if (bd.addressLine1 && bd.city && bd.state && bd.postalCode) {
+          enrichUpdates.shippingAddress = {
+            name: bd.fullName || "",
+            line1: bd.addressLine1 || "",
+            line2: bd.addressLine2 || "",
+            city: bd.city || "",
+            state: bd.state || "",
+            postal_code: bd.postalCode || "",
+            country: bd.country || "",
+          };
+        }
+      }
+      if (!data.listingTitle && pendingData.productTitle) {
+        productTitle = pendingData.productTitle;
+        enrichUpdates.listingTitle = productTitle;
+      }
+      if (data.source === "webhook") {
+        enrichUpdates.source = "capture";
+      }
+      if (pendingData.buyerId && !data.buyerId) {
+        enrichUpdates.buyerId = pendingData.buyerId;
+      }
+
+      if (Object.keys(enrichUpdates).length > 0) {
+        try {
+          await adminDb.collection("orders").doc(orderId).update(enrichUpdates);
+        } catch (updateErr) {
+          console.error("[order/success] Failed to enrich existing order:", updateErr);
+        }
+      }
+
+      // Send buyer confirmation email if not already attempted.
+      // The webhook sends this fire-and-forget which can fail silently,
+      // so we attempt it here as well to ensure delivery.
+      if (buyerEmail && !data.buyerConfirmationEmailAttempted) {
+        try {
+          await adminDb.collection("orders").doc(orderId).update({
+            buyerConfirmationEmailAttempted: true,
+          });
+          const emailAmountStr = amountTotal.toFixed(2);
+          const emailItemTitle = pendingData.productTitle || productTitle;
+          await sendBuyerOrderConfirmationEmail({
+            to: buyerEmail,
+            buyerName: buyerName || undefined,
+            orderId,
+            itemTitle: emailItemTitle,
+            amount: emailAmountStr,
+            currency,
+          });
+          console.log(`[order/success] Buyer confirmation email sent for existing order ${orderId}`);
+        } catch (emailErr) {
+          console.error("[order/success] Buyer email for existing order failed, queueing:", emailErr);
+          const emailAmountStr = amountTotal.toFixed(2);
+          const emailItemTitle = pendingData.productTitle || productTitle;
+          await queueEmail({
+            to: buyerEmail,
+            subject: "MyFamousFinds — Order Confirmation",
+            text:
+              `Hello ${buyerName || "there"},\n\n` +
+              `Thank you for your purchase on MyFamousFinds!\n\n` +
+              `Order ID: ${orderId}\nItem: ${emailItemTitle}\nTotal: ${currency} ${emailAmountStr}\n\n` +
+              `We will process your order and keep you updated on shipping.\n\n` +
+              `Regards,\nThe MyFamousFinds Team\n`,
+            eventType: "buyer_order_confirmation",
+            eventKey: `${orderId}:buyer_order_confirmation`,
+            metadata: { orderId, buyerEmail },
+          }).catch((qErr) => console.error("[order/success] Outbox queue failed:", qErr));
+        }
+      }
+
+      // Clean up pending order
+      if (pendingId) {
+        await adminDb
+          .collection("pending_orders")
+          .doc(pendingId)
+          .delete()
+          .catch(() => {});
+      }
+
+      // Try label generation (idempotent — skips if label already exists)
+      try {
+        await tryAutoGenerateLabel(orderId);
+      } catch (labelErr) {
+        console.error("[order/success] Label generation for existing order failed:", labelErr);
       }
     } else {
       // Try to capture the PayPal order directly.
@@ -522,6 +638,9 @@ export const getServerSideProps: GetServerSideProps<SuccessProps> = async (ctx) 
           // Buyer confirmation email
           if (payerEmail) {
             try {
+              await adminDb.collection("orders").doc(emailOrderId).update({
+                buyerConfirmationEmailAttempted: true,
+              });
               await sendBuyerOrderConfirmationEmail({
                 to: payerEmail,
                 buyerName: payerName || undefined,
@@ -530,6 +649,7 @@ export const getServerSideProps: GetServerSideProps<SuccessProps> = async (ctx) 
                 amount: emailAmountStr,
                 currency: capturedCurrency,
               });
+              console.log(`[order/success] Buyer confirmation email sent for order ${emailOrderId}`);
             } catch (emailErr) {
               console.error("[order/success] Buyer email failed, queueing:", emailErr);
               await queueEmail({

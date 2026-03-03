@@ -215,16 +215,22 @@ export default async function handler(
           const whOrderId = newOrderRef.id;
 
           if (resolvedBuyerEmail) {
-            sendBuyerOrderConfirmationEmail({
-              to: resolvedBuyerEmail,
-              buyerName: resolvedBuyerName || undefined,
-              orderId: whOrderId,
-              itemTitle: whItemTitle,
-              amount: whAmountStr,
-              currency,
-            }).catch((emailErr) => {
+            try {
+              await adminDb.collection("orders").doc(whOrderId).update({
+                buyerConfirmationEmailAttempted: true,
+              });
+              await sendBuyerOrderConfirmationEmail({
+                to: resolvedBuyerEmail,
+                buyerName: resolvedBuyerName || undefined,
+                orderId: whOrderId,
+                itemTitle: whItemTitle,
+                amount: whAmountStr,
+                currency,
+              });
+              console.log(`[paypal webhook] Buyer confirmation email sent for order ${whOrderId}`);
+            } catch (emailErr) {
               console.error("[paypal webhook] Buyer email failed, queueing:", emailErr);
-              queueEmail({
+              await queueEmail({
                 to: resolvedBuyerEmail,
                 subject: "MyFamousFinds — Order Confirmation",
                 text:
@@ -237,7 +243,7 @@ export default async function handler(
                 eventKey: `${whOrderId}:buyer_order_confirmation`,
                 metadata: { orderId: whOrderId, buyerEmail: resolvedBuyerEmail },
               }).catch((qErr) => console.error("[paypal webhook] Buyer outbox queue failed:", qErr));
-            });
+            }
           }
 
           // Mark listing sold
