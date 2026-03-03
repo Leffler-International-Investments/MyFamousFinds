@@ -25,6 +25,8 @@ type MgmtStats = {
   openTickets: number;
   authComplaints: number;
   openAuthComplaints: number;
+  customers: number;
+  suspendedCustomers: number;
 };
 
 type Props = {
@@ -146,6 +148,11 @@ export default function ManagementDashboard({ stats }: Props) {
               <p className="stat">{stats.authComplaints.toLocaleString("en-US")}</p>
               <p className="sub-stat">{stats.openAuthComplaints} open</p>
             </Link>
+            <Link href="/management/customers" className="dashboard-summary-tile">
+              <p className="label">Customers</p>
+              <p className="stat">{stats.customers.toLocaleString("en-US")}</p>
+              <p className="sub-stat">{stats.suspendedCustomers} suspended</p>
+            </Link>
           </div>
         </section>
 
@@ -262,6 +269,13 @@ export default function ManagementDashboard({ stats }: Props) {
           title="Operations, Finance & Sales"
           subtitle="Track orders, returns, payouts, and tax in one place."
         >
+          <DashboardTile
+            title="Customer Register"
+            description="View all registered customers. Suspend or delete accounts. See items purchased and total spend."
+            href="/management/customers"
+            linkText="Manage Customers"
+            linkColor="blue"
+          />
           <DashboardTile
             title="Buyer Offers"
             description="View and respond to buyer offers on listings. Accept or reject on behalf of sellers."
@@ -482,6 +496,8 @@ export const getServerSideProps: GetServerSideProps<Props> = async () => {
       openTicketsSnap,
       authComplaintsSnap,
       openAuthComplaintsSnap,
+      customersSnap,
+      suspendedCustomersSnap,
     ] = await Promise.all([
       adminDb.collection("sellers").get(),
       adminDb.collection("sellers").where("status", "==", "Pending").get(),
@@ -504,6 +520,8 @@ export const getServerSideProps: GetServerSideProps<Props> = async () => {
       adminDb.collection("supportTickets").where("status", "==", "Open").get(),
       adminDb.collection("authenticationComplaints").get(),
       adminDb.collection("authenticationComplaints").where("status", "==", "Open").get(),
+      adminDb.collection("users").get(),
+      adminDb.collection("users").where("status", "==", "Suspended").get(),
     ]);
 
     const stats: MgmtStats = {
@@ -519,6 +537,8 @@ export const getServerSideProps: GetServerSideProps<Props> = async () => {
       openTickets: openTicketsSnap.size,
       authComplaints: authComplaintsSnap.size,
       openAuthComplaints: openAuthComplaintsSnap.size,
+      customers: customersSnap.size,
+      suspendedCustomers: suspendedCustomersSnap.size,
     };
 
     return { props: { stats } };
@@ -537,6 +557,8 @@ export const getServerSideProps: GetServerSideProps<Props> = async () => {
       openTickets: 0,
       authComplaints: 0,
       openAuthComplaints: 0,
+      customers: 0,
+      suspendedCustomers: 0,
     };
     return { props: { stats } };
   }
