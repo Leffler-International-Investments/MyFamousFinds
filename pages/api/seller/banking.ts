@@ -40,12 +40,56 @@ export default async function handler(
     // ─────────────────────────────────────────
     if (req.method === "GET") {
       const snap = await docRef.get();
-      if (!snap.exists) {
-        // No prefs saved yet, return ok with empty prefs
-        return res.status(200).json({ ok: true, prefs: null });
+      const bankingData = snap.exists ? snap.data() || {} : null;
+
+      // If seller_banking has address data, return it directly
+      if (bankingData?.addressLine1) {
+        return res.status(200).json({ ok: true, prefs: bankingData });
       }
 
-      return res.status(200).json({ ok: true, prefs: snap.data() || {} });
+      // Fallback: try to build address from the sellers collection
+      // (become-a-seller application stores address as flat fields:
+      //  address, city, state, zip, country)
+      const underscoreId = email.replace(/\./g, "_");
+      let sellerSnap: any = await adminDb.collection("sellers").doc(email).get();
+      if (!sellerSnap.exists && underscoreId !== email) {
+        sellerSnap = await adminDb.collection("sellers").doc(underscoreId).get();
+      }
+      if (!sellerSnap.exists) {
+        const byEmail = await adminDb
+          .collection("sellers")
+          .where("email", "==", email)
+          .limit(1)
+          .get();
+        if (!byEmail.empty) sellerSnap = byEmail.docs[0];
+      }
+
+      if (sellerSnap.exists) {
+        const sd: any = sellerSnap.data() || {};
+        const appAddress = String(sd.address || "").trim();
+        const appCity = String(sd.city || "").trim();
+        const appState = String(sd.state || "").trim();
+        const appZip = String(sd.zip || "").trim();
+        const appCountry = String(sd.country || "US").trim();
+
+        if (appAddress && appCity && appState && appZip) {
+          const fallbackPrefs = {
+            ...(bankingData || {}),
+            email,
+            addressLine1: appAddress,
+            city: appCity,
+            state: appState,
+            postalCode: appZip,
+            country: appCountry,
+            legalName: (bankingData as any)?.legalName || sd.contactName || sd.businessName || "",
+            phone: (bankingData as any)?.phone || sd.phone || "",
+          };
+          return res.status(200).json({ ok: true, prefs: fallbackPrefs });
+        }
+      }
+
+      // No address found anywhere
+      return res.status(200).json({ ok: true, prefs: bankingData });
     }
 
     // ─────────────────────────────────────────

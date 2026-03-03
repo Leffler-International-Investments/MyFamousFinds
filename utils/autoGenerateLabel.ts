@@ -159,10 +159,12 @@ async function getSellerAddress(
     }
   }
 
-  // Fallback: if seller profile has an address block, use it directly.
+  // Fallback: if seller profile has a structured address block, use it directly.
   if (sellerDoc.exists) {
     const sd: any = sellerDoc.data() || {};
-    const addr = sd.address || sd.shippingAddress || null;
+    const addr = sd.shippingAddress || null;
+
+    // Check for structured address object (with line1/address1)
     if (
       addr &&
       (addr.line1 || addr.address1) &&
@@ -179,6 +181,27 @@ async function getSellerAddress(
         state: addr.state || addr.stateProvince,
         zip: addr.postalCode || addr.zip,
         country: addr.country || "US",
+      };
+    }
+
+    // Fallback: flat address fields from become-a-seller application
+    // (address is a string like "123 Main St", city/state/zip are sibling fields)
+    const flatAddress = String(sd.address || "").trim();
+    const flatCity = String(sd.city || "").trim();
+    const flatState = String(sd.state || "").trim();
+    const flatZip = String(sd.zip || "").trim();
+    const flatCountry = String(sd.country || "US").trim();
+
+    if (flatAddress && flatCity && flatState && flatZip) {
+      return {
+        name: sellerName || sellerId,
+        phone: sellerPhone || "",
+        address1: flatAddress,
+        address2: "",
+        city: flatCity,
+        state: flatState,
+        zip: flatZip,
+        country: flatCountry,
       };
     }
   }

@@ -32,6 +32,8 @@ export default function SellerProfile() {
   const [taxBusy, setTaxBusy] = useState(false);
 
   // Prefill address from seller_banking if it exists
+  // (the banking API also falls back to the sellers collection
+  //  so address from become-a-seller application is always available)
   useEffect(() => {
     let cancelled = false;
     const loadAddress = async () => {

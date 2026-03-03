@@ -57,6 +57,43 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
       updatedAt: Date.now(),
     });
 
+    // Seed seller_banking with address data so downstream systems
+    // (profile prefill, bulk-simple prefill, UPS label generation) can find it.
+    const addrLine1 = String(body.address || "").trim();
+    const addrCity = String(body.city || "").trim();
+    const addrState = String(body.state || "").trim();
+    const addrZip = String(body.zip || "").trim();
+    const addrCountry = String(body.country || "US").trim();
+
+    if (addrLine1 && addrCity && addrState && addrZip) {
+      try {
+        const bankingRef = adminDb.collection("seller_banking").doc(email);
+        const bankingSnap = await bankingRef.get();
+        const existingBanking = bankingSnap.exists ? bankingSnap.data() : null;
+
+        // Only seed address if seller_banking doesn't already have one
+        // (don't overwrite address that the seller explicitly set later)
+        if (!existingBanking?.addressLine1) {
+          await bankingRef.set(
+            {
+              email,
+              addressLine1: addrLine1,
+              city: addrCity,
+              state: addrState,
+              postalCode: addrZip,
+              country: addrCountry,
+              legalName: String(body.contactName || body.businessName || "").trim(),
+              phone: String(body.phone || "").trim(),
+              updatedAt: Date.now(),
+            },
+            { merge: true }
+          );
+        }
+      } catch (bankErr) {
+        console.warn("[APPLY] Could not seed seller_banking with address:", bankErr);
+      }
+    }
+
     const emailErrors: string[] = [];
 
     try {
