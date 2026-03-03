@@ -22,7 +22,7 @@ export async function getPayoutSettings(): Promise<PayoutSettings> {
     defaultCoolingDays:
       typeof data.defaultCoolingDays === "number" && data.defaultCoolingDays >= 0
         ? data.defaultCoolingDays
-        : 7,
+        : 14,
     payoutMode: (data.payoutMode as PayoutMode) || "manual",
     updatedAt: data.updatedAt,
   };
