@@ -518,8 +518,10 @@ export const getServerSideProps: GetServerSideProps<SuccessProps> = async (ctx) 
 
           // Extract payer info
           const payer = orderResult.payer || {};
-          const payerEmail =
-            payer.email_address || pendingData.buyerDetails?.email || "";
+          const buyerFormEmail = String(pendingData?.buyerDetails?.email || "").trim().toLowerCase();
+          const buyerFormName = String(pendingData?.buyerDetails?.fullName || "").trim();
+          const payerEmail = String(payer.email_address || "").trim().toLowerCase();
+          const buyerEmailResolved = buyerFormEmail || payerEmail;
           const payerName =
             [payer.name?.given_name, payer.name?.surname]
               .filter(Boolean)
@@ -574,7 +576,7 @@ export const getServerSideProps: GetServerSideProps<SuccessProps> = async (ctx) 
             orderRef = recheck.docs[0].ref as any;
             await adminDb.collection("orders").doc(recheck.docs[0].id).update({
               paypalCaptureId: captureId,
-              buyerEmail: payerEmail,
+              buyerEmail: buyerEmailResolved,
               buyerName: payerName,
               listingTitle: pendingData.productTitle || recheck.docs[0].data()?.listingTitle || "",
               listingBrand: pendingData.brand || "",
@@ -591,7 +593,7 @@ export const getServerSideProps: GetServerSideProps<SuccessProps> = async (ctx) 
               paypalCaptureId: captureId,
               listingId: resolvedListingId,
               ...(sellerId ? { sellerId } : {}),
-              buyerEmail: payerEmail,
+              buyerEmail: buyerEmailResolved,
               buyerName: payerName,
               listingTitle: pendingData.productTitle || "",
               listingBrand: pendingData.brand || "",
@@ -636,13 +638,13 @@ export const getServerSideProps: GetServerSideProps<SuccessProps> = async (ctx) 
           const emailAmountStr = capturedAmount.toFixed(2);
 
           // Buyer confirmation email
-          if (payerEmail) {
+          if (buyerEmailResolved) {
             try {
               await adminDb.collection("orders").doc(emailOrderId).update({
                 buyerConfirmationEmailAttempted: true,
               });
               await sendBuyerOrderConfirmationEmail({
-                to: payerEmail,
+                to: buyerEmailResolved,
                 buyerName: payerName || undefined,
                 orderId: emailOrderId,
                 itemTitle: emailItemTitle,
@@ -653,7 +655,7 @@ export const getServerSideProps: GetServerSideProps<SuccessProps> = async (ctx) 
             } catch (emailErr) {
               console.error("[order/success] Buyer email failed, queueing:", emailErr);
               await queueEmail({
-                to: payerEmail,
+                to: buyerEmailResolved,
                 subject: "MyFamousFinds — Order Confirmation",
                 text:
                   `Hello ${payerName || "there"},\n\n` +
@@ -663,7 +665,7 @@ export const getServerSideProps: GetServerSideProps<SuccessProps> = async (ctx) 
                   `Regards,\nThe MyFamousFinds Team\n`,
                 eventType: "buyer_order_confirmation",
                 eventKey: `${emailOrderId}:buyer_order_confirmation`,
-                metadata: { orderId: emailOrderId, buyerEmail: payerEmail },
+                metadata: { orderId: emailOrderId, buyerEmail: buyerEmailResolved },
               }).catch((qErr) => console.error("[order/success] Outbox queue failed:", qErr));
             }
           }
@@ -725,7 +727,7 @@ export const getServerSideProps: GetServerSideProps<SuccessProps> = async (ctx) 
           category = pendingData.category || category;
           amountTotal = capturedAmount;
           currency = capturedCurrency;
-          buyerEmail = payerEmail;
+          buyerEmail = buyerEmailResolved;
           buyerName = payerName;
 
           if (shippingAddress) {
