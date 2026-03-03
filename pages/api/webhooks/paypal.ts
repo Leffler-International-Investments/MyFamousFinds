@@ -157,8 +157,8 @@ export default async function handler(
           }
         }
 
-        const resolvedBuyerEmail = buyerEmail || pendingData?.buyerDetails?.email || "";
-        const resolvedBuyerName = buyerName || pendingData?.buyerDetails?.fullName || "";
+        const resolvedBuyerEmail = String(pendingData?.buyerDetails?.email || "").trim().toLowerCase() || buyerEmail || "";
+        const resolvedBuyerName = String(pendingData?.buyerDetails?.fullName || "").trim() || buyerName || "";
 
         // Check if order already exists
         const existingOrder = await adminDb
