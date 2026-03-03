@@ -306,6 +306,7 @@ export default async function handler(
       orderData.shipping?.labelUrl || orderData.shippingLabelUrl || "";
     orderInfo.shippingLabelError =
       orderData.shipping?.labelError || orderData.shippingLabelError || "";
+    orderInfo.paperTrade = orderData.paperTrade === true;
   }
 
   // ────────────────────────────────────────────

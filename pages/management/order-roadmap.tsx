@@ -432,10 +432,16 @@ export default function OrderRoadmapPage() {
                     Payouts & Finance
                   </Link>
                   <Link
-                    href={`/seller/ups-diagnostics?orderId=${order.id}`}
+                    href={`/management/ups-diagnostics?orderId=${order.id}`}
                     className="quick-link"
                   >
                     UPS Label Diagnostics
+                  </Link>
+                  <Link
+                    href="/management/paper-trade"
+                    className="quick-link"
+                  >
+                    Paper Trade
                   </Link>
                   <Link
                     href="/management/disputes"
