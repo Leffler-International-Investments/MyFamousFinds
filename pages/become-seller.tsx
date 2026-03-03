@@ -1,5 +1,5 @@
 // FILE: /pages/become-seller.tsx
-// Single-page seller application — all fields on one page, matching site-wide light style
+// Simplified single-page seller application — minimal fields, site-wide style
 
 import Head from "next/head";
 import { FormEvent, useState } from "react";
@@ -12,9 +12,6 @@ export default function BecomeSellerPage() {
   const [contactName, setContactName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
-  const [businessName, setBusinessName] = useState("");
-  const [website, setWebsite] = useState("");
-  const [social, setSocial] = useState("");
   const [whatToSell, setWhatToSell] = useState("");
   const [acceptTerms, setAcceptTerms] = useState(false);
 
@@ -45,12 +42,10 @@ export default function BecomeSellerPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          businessName: businessName.trim() || trimmedName,
+          businessName: trimmedName,
           contactName: trimmedName,
           email: trimmedEmail,
           phone,
-          website: website.trim(),
-          social: social.trim(),
           inventory: whatToSell.trim(),
         }),
       });
@@ -70,9 +65,6 @@ export default function BecomeSellerPage() {
       setContactName("");
       setEmail("");
       setPhone("");
-      setBusinessName("");
-      setWebsite("");
-      setSocial("");
       setWhatToSell("");
       setAcceptTerms(false);
     } catch (err: any) {
@@ -101,130 +93,85 @@ export default function BecomeSellerPage() {
 
         {!success && (
           <form onSubmit={handleSubmit} className="seller-form">
-            {/* About You */}
-            <section className="form-section">
-              <h2>About You</h2>
-              <div className="field-grid">
-                <label className="field-label">
-                  Your Name <span className="req">*</span>
-                  <input
-                    type="text"
-                    className="field-input"
-                    value={contactName}
-                    onChange={(e) => setContactName(e.target.value)}
-                    required
-                    placeholder="Full name"
-                  />
-                </label>
-                <label className="field-label">
-                  Email <span className="req">*</span>
-                  <input
-                    type="email"
-                    className="field-input"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    required
-                    placeholder="you@example.com"
-                  />
-                </label>
-                <label className="field-label">
-                  Phone
-                  <input
-                    type="tel"
-                    className="field-input"
-                    value={phone}
-                    onChange={(e) => setPhone(autoPrefixPhone(e.target.value))}
-                    placeholder="+1 555 000 0000"
-                  />
-                </label>
-                <label className="field-label">
-                  Business / Store Name
-                  <input
-                    type="text"
-                    className="field-input"
-                    value={businessName}
-                    onChange={(e) => setBusinessName(e.target.value)}
-                    placeholder="Leave blank if selling personally"
-                  />
-                </label>
-              </div>
-            </section>
+            <label className="field-label">
+              Your Name <span className="req">*</span>
+              <input
+                type="text"
+                className="field-input"
+                value={contactName}
+                onChange={(e) => setContactName(e.target.value)}
+                required
+                placeholder="Full name"
+              />
+            </label>
 
-            {/* Your Listings */}
-            <section className="form-section">
-              <h2>Your Listings</h2>
-              <label className="field-label">
-                What would you like to sell?
-                <textarea
-                  rows={3}
-                  className="field-input field-textarea"
-                  value={whatToSell}
-                  onChange={(e) => setWhatToSell(e.target.value)}
-                  placeholder="e.g. Pre-owned Chanel bags, luxury watches, designer shoes..."
-                />
+            <label className="field-label">
+              Email <span className="req">*</span>
+              <input
+                type="email"
+                className="field-input"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                placeholder="you@example.com"
+              />
+            </label>
+
+            <label className="field-label">
+              Phone
+              <input
+                type="tel"
+                className="field-input"
+                value={phone}
+                onChange={(e) => setPhone(autoPrefixPhone(e.target.value))}
+                placeholder="+1 555 000 0000"
+              />
+            </label>
+
+            <label className="field-label">
+              What would you like to sell?
+              <textarea
+                rows={3}
+                className="field-input field-textarea"
+                value={whatToSell}
+                onChange={(e) => setWhatToSell(e.target.value)}
+                placeholder="e.g. Pre-owned Chanel bags, luxury watches, designer shoes..."
+              />
+            </label>
+
+            <div className="checkbox-row">
+              <input
+                id="accept"
+                type="checkbox"
+                checked={acceptTerms}
+                onChange={(e) => setAcceptTerms(e.target.checked)}
+              />
+              <label htmlFor="accept">
+                I confirm that the items I plan to list are authentic and I
+                accept the{" "}
+                <Link href="/seller-terms">Famous Finds seller terms</Link>.
               </label>
-              <div className="field-grid">
-                <label className="field-label">
-                  Website or Online Store
-                  <input
-                    type="text"
-                    className="field-input"
-                    value={website}
-                    onChange={(e) => setWebsite(e.target.value)}
-                    placeholder="https://your-shop.com"
-                  />
-                </label>
-                <label className="field-label">
-                  Instagram / Social Media
-                  <input
-                    type="text"
-                    className="field-input"
-                    value={social}
-                    onChange={(e) => setSocial(e.target.value)}
-                    placeholder="@yourshop or link"
-                  />
-                </label>
-              </div>
-            </section>
+            </div>
 
-            {/* Terms & Submit */}
-            <section className="form-section">
-              <div className="checkbox-row">
-                <input
-                  id="accept"
-                  type="checkbox"
-                  checked={acceptTerms}
-                  onChange={(e) => setAcceptTerms(e.target.checked)}
-                />
-                <label htmlFor="accept">
-                  I confirm that the items I plan to list are authentic and I
-                  accept the{" "}
-                  <Link href="/seller-terms">Famous Finds seller terms</Link>.
-                </label>
-              </div>
-
-              <button
-                type="submit"
-                disabled={submitting}
-                className="submit-btn"
-              >
-                {submitting ? "Submitting..." : "Submit Application"}
-              </button>
-            </section>
+            <button
+              type="submit"
+              disabled={submitting}
+              className="submit-btn"
+            >
+              {submitting ? "Submitting..." : "Submit Application"}
+            </button>
           </form>
         )}
 
-        {success && (
-          <div className="card">
-            <h2>What happens next?</h2>
-            <ol className="steps-list">
-              <li>Our team reviews and verifies your details</li>
-              <li>Once approved, you&apos;ll receive an email with access to the Seller Dashboard</li>
-              <li>Complete your seller profile (shipping address, payout details)</li>
-              <li>Start listing items — proof of purchase required for items over $499</li>
-            </ol>
-          </div>
-        )}
+        <div className="card">
+          <h2>What happens next?</h2>
+          <ol className="steps-list">
+            <li>Our team reviews and verifies your details</li>
+            <li>Once approved, you&apos;ll receive an email with access to the Seller Dashboard</li>
+            <li>Complete your seller profile (shipping address, payout details)</li>
+            <li>Start listing items — proof of purchase required for items over $499</li>
+          </ol>
+        </div>
 
         <p className="footer-note">
           Already a seller?{" "}
@@ -242,7 +189,7 @@ export default function BecomeSellerPage() {
           flex-direction: column;
         }
         .wrap {
-          max-width: 680px;
+          max-width: 540px;
           margin: 24px auto 60px;
           padding: 0 16px;
         }
@@ -281,33 +228,11 @@ export default function BecomeSellerPage() {
         .seller-form {
           display: flex;
           flex-direction: column;
-          gap: 24px;
-          margin-bottom: 24px;
-        }
-        .form-section {
-          background: #ffffff;
-          border-radius: 18px;
-          border: 1px solid #e5e7eb;
-          padding: 20px 18px;
-          box-shadow: 0 10px 30px rgba(15, 23, 42, 0.04);
-        }
-        .form-section h2 {
-          font-size: 18px;
-          margin: 0 0 14px;
+          gap: 16px;
+          margin-bottom: 28px;
         }
 
         /* Fields */
-        .field-grid {
-          display: grid;
-          grid-template-columns: 1fr;
-          gap: 14px;
-        }
-        @media (min-width: 640px) {
-          .field-grid {
-            grid-template-columns: 1fr 1fr;
-          }
-        }
-
         .field-label {
           display: flex;
           flex-direction: column;
@@ -346,7 +271,6 @@ export default function BecomeSellerPage() {
           gap: 8px;
           font-size: 13px;
           color: #4b5563;
-          margin-bottom: 16px;
         }
         .checkbox-row input {
           margin-top: 3px;
@@ -358,6 +282,7 @@ export default function BecomeSellerPage() {
 
         /* Submit */
         .submit-btn {
+          margin-top: 4px;
           width: 100%;
           padding: 12px 0;
           border: none;
@@ -377,18 +302,18 @@ export default function BecomeSellerPage() {
           cursor: not-allowed;
         }
 
-        /* Success card */
+        /* Info card */
         .card {
-          background: #ffffff;
+          background: #f9fafb;
           border-radius: 18px;
           border: 1px solid #e5e7eb;
           padding: 20px 18px;
-          box-shadow: 0 10px 30px rgba(15, 23, 42, 0.04);
           margin-bottom: 16px;
         }
         .card h2 {
-          font-size: 18px;
+          font-size: 16px;
           margin: 0 0 10px;
+          font-weight: 600;
         }
         .steps-list {
           margin: 0;
