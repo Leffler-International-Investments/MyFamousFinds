@@ -209,16 +209,15 @@ export default async function handler(
             ` — shippingAddress: ${shippingAddress ? "present" : "MISSING"}`
           );
 
-          // Send confirmation emails (non-blocking — don't fail the webhook)
+          // FIX: Send confirmation emails with proper await so they complete
+          // before the serverless function terminates (fire-and-forget gets killed
+          // on Vercel once the HTTP response is sent).
           const whItemTitle = pendingData?.productTitle || "Item";
           const whAmountStr = amount.toFixed(2);
           const whOrderId = newOrderRef.id;
 
           if (resolvedBuyerEmail) {
             try {
-              await adminDb.collection("orders").doc(whOrderId).update({
-                buyerConfirmationEmailAttempted: true,
-              });
               await sendBuyerOrderConfirmationEmail({
                 to: resolvedBuyerEmail,
                 buyerName: resolvedBuyerName || undefined,
@@ -227,22 +226,25 @@ export default async function handler(
                 amount: whAmountStr,
                 currency,
               });
-              console.log(`[paypal webhook] Buyer confirmation email sent for order ${whOrderId}`);
             } catch (emailErr) {
               console.error("[paypal webhook] Buyer email failed, queueing:", emailErr);
-              await queueEmail({
-                to: resolvedBuyerEmail,
-                subject: "MyFamousFinds — Order Confirmation",
-                text:
-                  `Hello ${resolvedBuyerName || "there"},\n\n` +
-                  `Thank you for your purchase on MyFamousFinds!\n\n` +
-                  `Order ID: ${whOrderId}\nItem: ${whItemTitle}\nTotal: ${currency} ${whAmountStr}\n\n` +
-                  `We will process your order and keep you updated on shipping.\n\n` +
-                  `Regards,\nThe MyFamousFinds Team\n`,
-                eventType: "buyer_order_confirmation",
-                eventKey: `${whOrderId}:buyer_order_confirmation`,
-                metadata: { orderId: whOrderId, buyerEmail: resolvedBuyerEmail },
-              }).catch((qErr) => console.error("[paypal webhook] Buyer outbox queue failed:", qErr));
+              try {
+                await queueEmail({
+                  to: resolvedBuyerEmail,
+                  subject: "MyFamousFinds — Order Confirmation",
+                  text:
+                    `Hello ${resolvedBuyerName || "there"},\n\n` +
+                    `Thank you for your purchase on MyFamousFinds!\n\n` +
+                    `Order ID: ${whOrderId}\nItem: ${whItemTitle}\nTotal: ${currency} ${whAmountStr}\n\n` +
+                    `We will process your order and keep you updated on shipping.\n\n` +
+                    `Regards,\nThe MyFamousFinds Team\n`,
+                  eventType: "buyer_order_confirmation",
+                  eventKey: `${whOrderId}:buyer_order_confirmation`,
+                  metadata: { orderId: whOrderId, buyerEmail: resolvedBuyerEmail },
+                });
+              } catch (qErr) {
+                console.error("[paypal webhook] Buyer outbox queue failed:", qErr);
+              }
             }
           }
 
