@@ -643,6 +643,65 @@ export async function sendSellerItemSoldEmail(params: {
  * Seller — combined sale confirmation + UPS shipping label email (branded)
  * Sent when a UPS label has been auto-generated after payment.
  */
+export async function sendSellerLabelActionRequiredEmail(params: {
+  to: string;
+  sellerName?: string;
+  orderId: string;
+  itemTitle: string;
+  reason: string;
+}) {
+  const to = (params.to || "").trim();
+  if (!to) throw new Error("sendSellerLabelActionRequiredEmail missing required field: to");
+
+  const name = params.sellerName || "Seller";
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://www.myfamousfinds.com";
+  const subject = "Famous Finds — Action Required to Generate Your UPS Label";
+
+  const text =
+    `Hello ${name},\n\n` +
+    `Good news — your item has been sold on Famous Finds.\n\n` +
+    `Order ID: ${params.orderId}\n` +
+    `Item: ${params.itemTitle}\n\n` +
+    `We could not generate the UPS shipping label automatically because: ${params.reason}\n\n` +
+    `Next step (takes 1 minute):\n` +
+    `1) Log in to your Seller Dashboard\n` +
+    `2) Go to Banking / Shipping Details: ${siteUrl}/seller/banking\n` +
+    `3) Add/confirm your full shipping address (street, city, state, zip)\n\n` +
+    `Once your address is saved, the system will generate the UPS label for this order.\n\n` +
+    `Regards,\nThe Famous Finds Team\n`;
+
+  const html = `
+    <div style="font-family:Arial,sans-serif;max-width:640px;margin:0 auto;line-height:1.5">
+      <div style="background:#111;color:#fff;padding:18px;border-radius:12px 12px 0 0">
+        <div style="font-size:18px;font-weight:700">Action Required to Generate Your UPS Label</div>
+      </div>
+      <div style="border:1px solid #eee;border-top:0;border-radius:0 0 12px 12px;padding:18px">
+        <p>Hello ${escapeHtml(name)},</p>
+        <p><strong>Great news:</strong> your item has been sold on Famous Finds.</p>
+
+        <div style="background:#f7f7f7;padding:12px;border-radius:10px;margin:10px 0">
+          <div><strong>Order ID:</strong> ${escapeHtml(params.orderId)}</div>
+          <div><strong>Item:</strong> ${escapeHtml(params.itemTitle)}</div>
+          <div><strong>Reason:</strong> ${escapeHtml(params.reason)}</div>
+        </div>
+
+        <p><strong>Next step (takes 1 minute):</strong></p>
+        <ol>
+          <li>Log in to your Seller Dashboard</li>
+          <li>Open <a href="${siteUrl}/seller/banking">${siteUrl}/seller/banking</a></li>
+          <li>Add/confirm your full shipping address (street, city, state, zip)</li>
+        </ol>
+
+        <p>Once your address is saved, the system will generate the UPS label for this order.</p>
+
+        <p style="color:#666;font-size:12px;margin-top:18px">If you have questions, reply to this email.</p>
+      </div>
+    </div>
+  `;
+
+  await sendMail({ to, subject, text, html });
+}
+
 export async function sendSellerSoldWithLabelEmail(params: {
   to: string;
   sellerName?: string;
