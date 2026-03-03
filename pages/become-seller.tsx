@@ -1,6 +1,5 @@
 // FILE: /pages/become-seller.tsx
-// Streamlined seller application — simplified from original register-vetting
-// Focus on essential verification only, remove complex questionnaire
+// Single-page seller application — all fields on one page, matching site-wide light style
 
 import Head from "next/head";
 import { FormEvent, useState } from "react";
@@ -13,6 +12,9 @@ export default function BecomeSellerPage() {
   const [contactName, setContactName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
+  const [businessName, setBusinessName] = useState("");
+  const [website, setWebsite] = useState("");
+  const [social, setSocial] = useState("");
   const [whatToSell, setWhatToSell] = useState("");
   const [acceptTerms, setAcceptTerms] = useState(false);
 
@@ -43,11 +45,13 @@ export default function BecomeSellerPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          businessName: trimmedName,
+          businessName: businessName.trim() || trimmedName,
           contactName: trimmedName,
           email: trimmedEmail,
           phone,
-          inventory: whatToSell,
+          website: website.trim(),
+          social: social.trim(),
+          inventory: whatToSell.trim(),
         }),
       });
 
@@ -66,6 +70,9 @@ export default function BecomeSellerPage() {
       setContactName("");
       setEmail("");
       setPhone("");
+      setBusinessName("");
+      setWebsite("");
+      setSocial("");
       setWhatToSell("");
       setAcceptTerms(false);
     } catch (err: any) {
@@ -76,81 +83,112 @@ export default function BecomeSellerPage() {
   }
 
   return (
-    <>
+    <div className="page">
       <Head>
-        <title>Become a Seller - Famous Finds</title>
+        <title>Become a Seller — Famous Finds</title>
       </Head>
-      <div className="page">
-        <Header />
-        <main className="main">
-          <div className="card">
-            <h1>Become a Seller</h1>
-            <p className="subtitle">
-              Apply to sell your pre-loved luxury items on Famous Finds. Our team
-              manually reviews every application to ensure quality and
-              authenticity.
-            </p>
+      <Header />
 
-            <div className="info-box">
-              <strong>What happens next?</strong>
-              <ol>
-                <li>Submit your application below</li>
-                <li>Our team reviews and verifies your details</li>
-                <li>Once approved, you get access to the Seller Dashboard</li>
-                <li>Start listing items — proof of purchase required for items over $499</li>
-              </ol>
-            </div>
+      <main className="wrap">
+        <h1>Become a Seller</h1>
+        <p className="intro">
+          Apply to sell your pre-loved luxury items on Famous Finds. Fill out the
+          form below and our team will review your application.
+        </p>
 
-            {error && <div className="error-box">{error}</div>}
-            {success && <div className="success-box">{success}</div>}
+        {error && <div className="banner banner-error">{error}</div>}
+        {success && <div className="banner banner-success">{success}</div>}
 
-            <form onSubmit={handleSubmit} className="form">
-              <div className="field">
-                <label>Your Name *</label>
-                <input
-                  type="text"
-                  className="input"
-                  value={contactName}
-                  onChange={(e) => setContactName(e.target.value)}
-                  required
-                  placeholder="Full name"
-                />
+        {!success && (
+          <form onSubmit={handleSubmit} className="seller-form">
+            {/* About You */}
+            <section className="form-section">
+              <h2>About You</h2>
+              <div className="field-grid">
+                <label className="field-label">
+                  Your Name <span className="req">*</span>
+                  <input
+                    type="text"
+                    className="field-input"
+                    value={contactName}
+                    onChange={(e) => setContactName(e.target.value)}
+                    required
+                    placeholder="Full name"
+                  />
+                </label>
+                <label className="field-label">
+                  Email <span className="req">*</span>
+                  <input
+                    type="email"
+                    className="field-input"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                    placeholder="you@example.com"
+                  />
+                </label>
+                <label className="field-label">
+                  Phone
+                  <input
+                    type="tel"
+                    className="field-input"
+                    value={phone}
+                    onChange={(e) => setPhone(autoPrefixPhone(e.target.value))}
+                    placeholder="+1 555 000 0000"
+                  />
+                </label>
+                <label className="field-label">
+                  Business / Store Name
+                  <input
+                    type="text"
+                    className="field-input"
+                    value={businessName}
+                    onChange={(e) => setBusinessName(e.target.value)}
+                    placeholder="Leave blank if selling personally"
+                  />
+                </label>
               </div>
+            </section>
 
-              <div className="field">
-                <label>Email *</label>
-                <input
-                  type="email"
-                  className="input"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                  placeholder="you@example.com"
-                />
-              </div>
-
-              <div className="field">
-                <label>Phone (optional)</label>
-                <input
-                  type="tel"
-                  className="input"
-                  value={phone}
-                  onChange={(e) => setPhone(autoPrefixPhone(e.target.value))}
-                  placeholder="+1 555 000 0000"
-                />
-              </div>
-
-              <div className="field">
-                <label>What would you like to sell? (optional)</label>
+            {/* Your Listings */}
+            <section className="form-section">
+              <h2>Your Listings</h2>
+              <label className="field-label">
+                What would you like to sell?
                 <textarea
                   rows={3}
-                  className="textarea"
+                  className="field-input field-textarea"
                   value={whatToSell}
                   onChange={(e) => setWhatToSell(e.target.value)}
                   placeholder="e.g. Pre-owned Chanel bags, luxury watches, designer shoes..."
                 />
+              </label>
+              <div className="field-grid">
+                <label className="field-label">
+                  Website or Online Store
+                  <input
+                    type="text"
+                    className="field-input"
+                    value={website}
+                    onChange={(e) => setWebsite(e.target.value)}
+                    placeholder="https://your-shop.com"
+                  />
+                </label>
+                <label className="field-label">
+                  Instagram / Social Media
+                  <input
+                    type="text"
+                    className="field-input"
+                    value={social}
+                    onChange={(e) => setSocial(e.target.value)}
+                    placeholder="@yourshop or link"
+                  />
+                </label>
               </div>
+            </section>
 
+            {/* Terms & Submit */}
+            <section className="form-section">
               <div className="checkbox-row">
                 <input
                   id="accept"
@@ -160,182 +198,218 @@ export default function BecomeSellerPage() {
                 />
                 <label htmlFor="accept">
                   I confirm that the items I plan to list are authentic and I
-                  accept Famous Finds seller terms.
+                  accept the{" "}
+                  <Link href="/seller-terms">Famous Finds seller terms</Link>.
                 </label>
               </div>
 
               <button
                 type="submit"
                 disabled={submitting}
-                className="btn-submit"
+                className="submit-btn"
               >
                 {submitting ? "Submitting..." : "Submit Application"}
               </button>
-            </form>
+            </section>
+          </form>
+        )}
 
-            <p className="footer-note">
-              Already a seller?{" "}
-              <Link href="/login">Sign in to your account</Link>
-            </p>
+        {success && (
+          <div className="card">
+            <h2>What happens next?</h2>
+            <ol className="steps-list">
+              <li>Our team reviews and verifies your details</li>
+              <li>Once approved, you&apos;ll receive an email with access to the Seller Dashboard</li>
+              <li>Complete your seller profile (shipping address, payout details)</li>
+              <li>Start listing items — proof of purchase required for items over $499</li>
+            </ol>
           </div>
-        </main>
-        <Footer />
-      </div>
+        )}
+
+        <p className="footer-note">
+          Already a seller?{" "}
+          <Link href="/seller/login">Sign in to your account</Link>
+        </p>
+      </main>
+      <Footer />
 
       <style jsx>{`
         .page {
           min-height: 100vh;
+          background: #ffffff;
+          color: #111827;
           display: flex;
           flex-direction: column;
-          background: #f8fafc;
-          color: #111827;
         }
-        .main {
-          flex: 1;
-          display: flex;
-          align-items: flex-start;
-          justify-content: center;
-          padding: 40px 16px;
-        }
-        .card {
-          width: 100%;
-          max-width: 520px;
-          background: #ffffff;
-          border-radius: 24px;
-          border: 1px solid #e5e7eb;
-          padding: 32px 28px;
-          box-shadow: 0 20px 40px rgba(15, 23, 42, 0.08);
+        .wrap {
+          max-width: 680px;
+          margin: 24px auto 60px;
+          padding: 0 16px;
         }
         h1 {
-          font-family: ui-serif, "Times New Roman", serif;
+          font-family: "Georgia", serif;
           font-size: 26px;
-          font-weight: 700;
-          margin: 0 0 8px;
-          text-align: center;
-        }
-        .subtitle {
-          margin: 0 0 20px;
-          font-size: 14px;
-          color: #6b7280;
-          text-align: center;
-          line-height: 1.5;
-        }
-        .info-box {
-          background: #f0fdf4;
-          border: 1px solid #bbf7d0;
-          border-radius: 12px;
-          padding: 14px;
-          margin-bottom: 20px;
-          font-size: 13px;
-          color: #166534;
-        }
-        .info-box strong {
-          display: block;
           margin-bottom: 8px;
         }
-        .info-box ol {
-          margin: 0;
-          padding-left: 18px;
-          line-height: 1.6;
+        .intro {
+          font-size: 14px;
+          color: #4b5563;
+          margin-bottom: 24px;
+          line-height: 1.5;
         }
-        .error-box {
+
+        /* Banners */
+        .banner {
+          padding: 12px 16px;
+          border-radius: 10px;
+          font-size: 14px;
+          margin-bottom: 18px;
+          line-height: 1.5;
+        }
+        .banner-success {
+          background: #f0fdf4;
+          color: #166534;
+          border: 1px solid #bbf7d0;
+        }
+        .banner-error {
           background: #fef2f2;
-          color: #b91c1c;
-          border-radius: 12px;
-          padding: 10px;
-          margin-bottom: 14px;
-          font-size: 13px;
-          text-align: center;
+          color: #991b1b;
+          border: 1px solid #fecaca;
         }
-        .success-box {
-          background: #ecfdf5;
-          color: #065f46;
-          border-radius: 12px;
-          padding: 10px;
-          margin-bottom: 14px;
-          font-size: 13px;
-          text-align: center;
-        }
-        .form {
+
+        /* Form */
+        .seller-form {
           display: flex;
           flex-direction: column;
+          gap: 24px;
+          margin-bottom: 24px;
+        }
+        .form-section {
+          background: #ffffff;
+          border-radius: 18px;
+          border: 1px solid #e5e7eb;
+          padding: 20px 18px;
+          box-shadow: 0 10px 30px rgba(15, 23, 42, 0.04);
+        }
+        .form-section h2 {
+          font-size: 18px;
+          margin: 0 0 14px;
+        }
+
+        /* Fields */
+        .field-grid {
+          display: grid;
+          grid-template-columns: 1fr;
           gap: 14px;
         }
-        .field label {
-          display: block;
-          font-size: 13px;
+        @media (min-width: 640px) {
+          .field-grid {
+            grid-template-columns: 1fr 1fr;
+          }
+        }
+
+        .field-label {
+          display: flex;
+          flex-direction: column;
+          font-size: 14px;
           font-weight: 500;
           color: #374151;
-          margin-bottom: 4px;
+          gap: 6px;
         }
-        .input {
-          width: 100%;
-          border-radius: 14px;
+        .req {
+          color: #dc2626;
+        }
+        .field-input {
+          padding: 10px 12px;
           border: 1px solid #d1d5db;
-          background: #f9fafb;
-          padding: 10px 14px;
+          border-radius: 10px;
           font-size: 14px;
           color: #111827;
-        }
-        .input:focus {
-          outline: none;
-          border-color: #111827;
           background: #ffffff;
+          transition: border-color 0.15s;
+          outline: none;
         }
-        .textarea {
-          width: 100%;
-          border-radius: 12px;
-          border: 1px solid #d1d5db;
-          background: #f9fafb;
-          padding: 10px 14px;
-          font-size: 14px;
-          color: #111827;
+        .field-input:focus {
+          border-color: #111827;
+          box-shadow: 0 0 0 2px rgba(17, 24, 39, 0.08);
+        }
+        .field-textarea {
           resize: vertical;
+          min-height: 80px;
+          font-family: inherit;
         }
-        .textarea:focus {
-          outline: none;
-          border-color: #111827;
-          background: #ffffff;
-        }
+
+        /* Checkbox */
         .checkbox-row {
           display: flex;
           align-items: flex-start;
           gap: 8px;
-          font-size: 12px;
-          color: #6b7280;
+          font-size: 13px;
+          color: #4b5563;
+          margin-bottom: 16px;
         }
         .checkbox-row input {
-          margin-top: 2px;
+          margin-top: 3px;
         }
-        .btn-submit {
+        .checkbox-row a {
+          color: #111827;
+          text-decoration: underline;
+        }
+
+        /* Submit */
+        .submit-btn {
           width: 100%;
-          border-radius: 999px;
+          padding: 12px 0;
           border: none;
-          padding: 12px;
-          font-size: 14px;
-          font-weight: 600;
+          border-radius: 999px;
           background: #111827;
           color: #ffffff;
+          font-size: 15px;
+          font-weight: 600;
           cursor: pointer;
+          transition: background 0.15s;
         }
-        .btn-submit:disabled {
-          opacity: 0.6;
-          cursor: default;
+        .submit-btn:hover:not(:disabled) {
+          background: #1f2937;
         }
-        .btn-submit:hover:not(:disabled) {
-          opacity: 0.9;
+        .submit-btn:disabled {
+          opacity: 0.55;
+          cursor: not-allowed;
         }
+
+        /* Success card */
+        .card {
+          background: #ffffff;
+          border-radius: 18px;
+          border: 1px solid #e5e7eb;
+          padding: 20px 18px;
+          box-shadow: 0 10px 30px rgba(15, 23, 42, 0.04);
+          margin-bottom: 16px;
+        }
+        .card h2 {
+          font-size: 18px;
+          margin: 0 0 10px;
+        }
+        .steps-list {
+          margin: 0;
+          padding-left: 18px;
+          color: #374151;
+          line-height: 1.7;
+          font-size: 14px;
+        }
+
+        /* Footer note */
         .footer-note {
-          margin-top: 16px;
           font-size: 13px;
           color: #6b7280;
           text-align: center;
+          margin-top: 8px;
         }
         .footer-note a {
           color: #111827;
           text-decoration: underline;
         }
       `}</style>
-    </>
+    </div>
   );
 }

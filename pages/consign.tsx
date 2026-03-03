@@ -28,7 +28,7 @@ export default function ConsignPage() {
             you can focus on the next find.
           </p>
           <div className="consign-actions">
-            <Link href="/seller/register-vetting" className="consign-primary">
+            <Link href="/become-seller" className="consign-primary">
               Start consigning
             </Link>
             <Link href="/contact" className="consign-secondary">

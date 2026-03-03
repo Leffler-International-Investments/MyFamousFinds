@@ -307,7 +307,7 @@ export default function SellerLoginPage() {
                       <PasswordInput label="Password" value={password} onChange={setPassword} name="password" required showStrength={false} placeholder="Enter password" />
                       <button type="submit" disabled={disabled} className="auth-button-primary">{loading ? "Checking..." : "Continue"}</button>
                       <div className="auth-apply-button-wrapper">
-                        <Link href="/seller/register-vetting" className="auth-apply-button">New here? <strong>Apply to Sell</strong></Link>
+                        <Link href="/become-seller" className="auth-apply-button">New here? <strong>Apply to Sell</strong></Link>
                       </div>
                     </div>
                   </form>
@@ -411,7 +411,7 @@ export default function SellerLoginPage() {
                 <p className="auth-secondary-link">
                   <button type="button" className="auth-link-button" onClick={() => switchMode("login")}>Already have a password? Sign in</button>
                 </p>
-                <p className="auth-secondary-link"><Link href="/seller/register-vetting">Not yet approved? Apply to Sell</Link></p>
+                <p className="auth-secondary-link"><Link href="/become-seller">Not yet approved? Apply to Sell</Link></p>
               </>
             )}
           </div>
