@@ -122,16 +122,12 @@ export default async function handler(
       pendingData.buyerDetails?.fullName ||
       "";
 
-    // Prefer the email captured in our checkout form (pending_orders) over PayPal payer email.
-    // Reason: payer email can be different from the buyer's site account email (and in tests
-    // it is often the admin PayPal account), causing buyer emails to go to the wrong inbox.
-    const buyerFormEmail = String(pendingData?.buyerDetails?.email || "").trim().toLowerCase();
-    const buyerFormName = String(pendingData?.buyerDetails?.fullName || "").trim();
-    const buyerEmailResolved = buyerFormEmail || payerEmail;
-    const buyerNameResolved = buyerFormName || payerName;
-    // The form email (typically the buyer's Firebase auth email) may differ from
-    // the PayPal payer email. Store it so the account page can find orders by either.
-    const buyerFormEmail = String(pendingData.buyerDetails?.email || "").trim().toLowerCase();
+    // ✅ SINGLE declaration of buyerFormEmail (FIXES redeclare error)
+    // Reason: PayPal payer email can be different from the buyer's site account email.
+    // We store buyerFormEmail so the buyer sees their order in-app even if PayPal email differs.
+    const buyerFormEmail = String(pendingData?.buyerDetails?.email || "")
+      .trim()
+      .toLowerCase();
 
     const shipping = purchaseUnit?.shipping;
     const shippingAddress = shipping?.address
@@ -173,7 +169,6 @@ export default async function handler(
         },
       };
     } catch {
-      // Default to ELIGIBLE if settings lookup fails
       payoutField = {
         payout: {
           status: "ELIGIBLE",
@@ -184,15 +179,17 @@ export default async function handler(
 
     // Create or update the order in Firestore
     let orderId: string;
+
     if (!existingOrder.empty) {
       // Webhook-created order exists — enrich it with buyer details
       const existing = existingOrder.docs[0];
       orderId = existing.id;
       sellerId = sellerId || existing.data()?.sellerId || "";
+
       await adminDb.collection("orders").doc(orderId).update({
         paypalCaptureId: captureId,
-        buyerEmail: buyerEmailResolved,
-        buyerName: buyerNameResolved,
+        buyerEmail: payerEmail,
+        buyerName: payerName,
         ...(buyerFormEmail && buyerFormEmail !== payerEmail ? { buyerFormEmail } : {}),
         listingTitle: pendingData.productTitle || existing.data()?.listingTitle || "",
         listingBrand: pendingData.brand || "",
@@ -207,13 +204,13 @@ export default async function handler(
         paypalCaptureId: captureId,
         listingId: listingId || pendingData.listingId || "",
         ...(sellerId ? { sellerId } : {}),
-        buyerEmail: buyerEmailResolved,
-        buyerName: buyerNameResolved,
+        buyerEmail: payerEmail,
+        buyerName: payerName,
         ...(buyerFormEmail && buyerFormEmail !== payerEmail ? { buyerFormEmail } : {}),
         listingTitle: pendingData.productTitle || "",
         listingBrand: pendingData.brand || "",
         listingCategory: pendingData.category || "",
-        amountTotal: Math.round(amountTotal * 100), // store in cents for consistency
+        amountTotal: Math.round(amountTotal * 100), // store in cents
         currency,
         status: "paid",
         source: "capture",
@@ -249,45 +246,57 @@ export default async function handler(
         .catch(() => {});
     }
 
-    // Send buyer order confirmation email
+    // ✅ Buyer confirmation: send to BOTH buyerFormEmail (site account) and payerEmail (PayPal)
     const amountStr = amountTotal.toFixed(2);
     const itemTitle = pendingData.productTitle || "Item";
-    if (buyerEmailResolved) {
+
+    const buyerRecipients = Array.from(
+      new Set(
+        [buyerFormEmail, payerEmail]
+          .map((e) => String(e || "").trim().toLowerCase())
+          .filter(Boolean)
+      )
+    );
+
+    if (buyerRecipients.length) {
       try {
         await adminDb.collection("orders").doc(orderId).update({
           buyerConfirmationEmailAttempted: true,
+          buyerConfirmationRecipients: buyerRecipients,
         });
-        await sendBuyerOrderConfirmationEmail({
-          to: buyerEmailResolved,
-          buyerName: payerName || undefined,
-          orderId,
-          itemTitle,
-          amount: amountStr,
-          currency,
-        });
-        console.log(`[capture-order] Buyer confirmation email sent for order ${orderId}`);
-      } catch (emailErr) {
-        console.error("[capture-order] Buyer confirmation email failed, queueing to outbox:", emailErr);
-        await queueEmail({
-          to: buyerEmailResolved,
-          subject: "MyFamousFinds — Order Confirmation",
-          text:
-            `Hello ${payerName || "there"},\n\n` +
-            `Thank you for your purchase on MyFamousFinds!\n\n` +
-            `Order ID: ${orderId}\nItem: ${itemTitle}\nTotal: ${currency} ${amountStr}\n\n` +
-            `We will process your order and keep you updated on shipping.\n\n` +
-            `Regards,\nThe MyFamousFinds Team\n`,
-          eventType: "buyer_order_confirmation",
-          eventKey: `${orderId}:buyer_order_confirmation`,
-          metadata: { orderId, buyerEmail: buyerEmailResolved },
-        }).catch((qErr) => console.error("[capture-order] Outbox queue also failed:", qErr));
+      } catch {}
+
+      for (const recipient of buyerRecipients) {
+        try {
+          await sendBuyerOrderConfirmationEmail({
+            to: recipient,
+            buyerName: payerName || undefined,
+            orderId,
+            itemTitle,
+            amount: amountStr,
+            currency,
+          });
+          console.log(`[capture-order] Buyer confirmation email sent to ${recipient} for order ${orderId}`);
+        } catch (emailErr) {
+          console.error("[capture-order] Buyer confirmation email failed, queueing to outbox:", emailErr);
+          await queueEmail({
+            to: recipient,
+            subject: "MyFamousFinds — Order Confirmation",
+            text:
+              `Hello ${payerName || "there"},\n\n` +
+              `Thank you for your purchase on MyFamousFinds!\n\n` +
+              `Order ID: ${orderId}\nItem: ${itemTitle}\nTotal: ${currency} ${amountStr}\n\n` +
+              `We will process your order and keep you updated on shipping.\n\n` +
+              `Regards,\nThe MyFamousFinds Team\n`,
+            eventType: "buyer_order_confirmation",
+            eventKey: `${orderId}:buyer_order_confirmation:${recipient}`,
+            metadata: { orderId, buyerEmail: recipient },
+          }).catch((qErr) => console.error("[capture-order] Outbox queue also failed:", qErr));
+        }
       }
     }
 
-    // Generate UPS label + send combined branded seller email.
-    // IMPORTANT: await the label generation so it completes before the
-    // serverless function is terminated (fire-and-forget IIFEs get killed
-    // on Vercel once the HTTP response is sent).
+    // ✅ Generate UPS label + send seller label email (awaited)
     let labelResult: AutoLabelResult = { generated: false, emailSent: false, buyerEmailSent: false };
     try {
       labelResult = await tryAutoGenerateLabel(orderId);
@@ -298,30 +307,16 @@ export default async function handler(
       console.error("[capture-order] Auto-label generation failed (non-blocking):", labelErr);
     }
 
-    // If label generation didn't send a seller email, send the branded "Item Sold" fallback
+    // If label generation didn't send a seller email, send fallback "Item Sold"
     if (!labelResult.emailSent) {
       try {
         if (!sellerId) {
-          console.error(`[capture-order] No sellerId on listing ${listingId} — seller notification skipped`);
+          console.error(`[capture-order] No sellerId on order ${orderId}`);
         } else {
-          let sellerEmail = "";
-          let sellerName = "";
-          try {
-            let sellerDoc = await adminDb!.collection("sellers").doc(sellerId).get();
-            if (!sellerDoc.exists) {
-              const byEmail = await adminDb!.collection("sellers").where("email", "==", sellerId).limit(1).get();
-              if (!byEmail.empty) sellerDoc = byEmail.docs[0];
-            }
-            if (!sellerDoc.exists) {
-              const byContact = await adminDb!.collection("sellers").where("contactEmail", "==", sellerId).limit(1).get();
-              if (!byContact.empty) sellerDoc = byContact.docs[0];
-            }
-            const sellerData = sellerDoc.exists ? sellerDoc.data() || {} : {};
-            sellerEmail = String(sellerData.contactEmail || sellerData.email || sellerId);
-            sellerName = String(sellerData.businessName || sellerData.name || "");
-          } catch (lookupErr) {
-            console.error("[capture-order] Seller lookup failed:", lookupErr);
-          }
+          const sellerDoc = await adminDb.collection("sellers").doc(String(sellerId)).get();
+          const sellerData: any = sellerDoc.exists ? sellerDoc.data() || {} : {};
+          const sellerEmail = String(sellerData.contactEmail || sellerData.email || sellerId).trim();
+          const sellerName = String(sellerData.businessName || sellerData.name || "").trim();
 
           if (sellerEmail && sellerEmail.includes("@")) {
             try {
@@ -333,11 +328,11 @@ export default async function handler(
                 currency,
                 orderId,
               });
-            } catch (emailErr) {
-              console.error("[capture-order] Seller notification email failed, queueing to outbox:", emailErr);
+            } catch (err) {
+              console.error("[capture-order] Seller email failed, queueing:", err);
               await queueEmail({
                 to: sellerEmail,
-                subject: "Famous Finds — Your Item Has Been Sold!",
+                subject: "Famous Finds — Your Item Has Sold!",
                 text:
                   `Hello ${sellerName || "Seller"},\n\n` +
                   `Congratulations — your item has been sold on Famous Finds!\n\n` +
