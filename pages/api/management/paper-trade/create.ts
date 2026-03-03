@@ -1,9 +1,14 @@
-// Paper Trade: Simulate a full order cycle without real PayPal payment.
-// Creates a test order in Firestore with status "paid" — just like a real captured order.
+// Paper Trade: Simulate a full order cycle with REAL emails and REAL UPS labels.
+// Creates an order in Firestore with status "paid" — same as a real PayPal capture.
+// Then sends buyer confirmation email, and triggers auto UPS label generation
+// which sends the seller the label + sends buyer shipping notification.
 
 import type { NextApiRequest, NextApiResponse } from "next";
 import { adminDb, FieldValue } from "../../../../utils/firebaseAdmin";
 import { requireAdmin } from "../../../../utils/adminAuth";
+import { sendBuyerOrderConfirmationEmail } from "../../../../utils/email";
+import { queueEmail } from "../../../../utils/emailOutbox";
+import { tryAutoGenerateLabel } from "../../../../utils/autoGenerateLabel";
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
@@ -58,16 +63,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     const addr = shippingAddress || {};
 
-    // Create the order (mirrors PayPal capture flow)
+    // Create the order (mirrors PayPal capture flow exactly)
     const orderRef = adminDb.collection("orders").doc();
+    const orderId = orderRef.id;
     const orderData = {
       // Paper trade marker
       paperTrade: true,
       source: "paper-trade",
 
       // Payment info (simulated)
-      paypalOrderId: `PT-${orderRef.id.slice(0, 8).toUpperCase()}`,
-      paypalCaptureId: `PT-CAP-${orderRef.id.slice(0, 8).toUpperCase()}`,
+      paypalOrderId: `PT-${orderId.slice(0, 8).toUpperCase()}`,
+      paypalCaptureId: `PT-CAP-${orderId.slice(0, 8).toUpperCase()}`,
 
       // Listing
       listingId: String(listingId),
@@ -89,7 +95,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       },
 
       // Totals
-      amountTotal: Math.round(price * 100), // cents
+      amountTotal: Math.round(price * 100), // cents — same as real capture
       currency,
       totals: {
         total: price,
@@ -98,7 +104,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         sellerPayout,
       },
 
-      // Shipping address
+      // Shipping address — same structure as real orders
       shippingAddress: {
         name: addr.name || String(buyerName).trim(),
         line1: addr.line1 || "",
@@ -124,12 +130,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       // Metadata
       vipPointsAwarded: false,
       reviewRequestSent: false,
+      buyerConfirmationEmailAttempted: true,
       createdAt: FieldValue.serverTimestamp(),
     };
 
     await orderRef.set(orderData);
 
-    // Mark listing as sold
+    // Mark listing as sold — same as real capture
     await listingRef.update({
       isSold: true,
       sold: true,
@@ -137,13 +144,97 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       soldAt: FieldValue.serverTimestamp(),
     });
 
+    // ── REAL Step 1: Send buyer order confirmation email ──
+    const buyerAddr = String(buyerEmail).trim().toLowerCase();
+    const amountStr = price.toFixed(2);
+    let buyerEmailSent = false;
+    try {
+      await sendBuyerOrderConfirmationEmail({
+        to: buyerAddr,
+        buyerName: String(buyerName).trim(),
+        orderId,
+        itemTitle: title,
+        amount: amountStr,
+        currency,
+      });
+      buyerEmailSent = true;
+      console.log(`[paper-trade] Buyer confirmation email sent to ${buyerAddr}`);
+    } catch (emailErr) {
+      console.error("[paper-trade] Buyer confirmation email failed, queueing:", emailErr);
+      await queueEmail({
+        to: buyerAddr,
+        subject: "MyFamousFinds — Order Confirmation",
+        text:
+          `Hello ${buyerName},\n\nThank you for your purchase on MyFamousFinds!\n\n` +
+          `Order ID: ${orderId}\nItem: ${title}\nTotal: ${currency} ${amountStr}\n\n` +
+          `We will process your order and keep you updated on shipping.\n\n` +
+          `Regards,\nThe MyFamousFinds Team\n`,
+        eventType: "buyer_order_confirmation",
+        eventKey: `${orderId}:buyer_order_confirmation`,
+        metadata: { orderId, buyerEmail: buyerAddr },
+      }).catch((qErr) => console.error("[paper-trade] Outbox queue also failed:", qErr));
+    }
+
+    // ── REAL Step 2: Auto-generate UPS label + send seller email ──
+    // This calls the SAME function used in real PayPal capture:
+    //   - Looks up seller address from seller_banking / sellers collection
+    //   - Calls UPS API to create shipment + label
+    //   - Uploads label to Firebase Storage
+    //   - Sends combined "Sale Confirmed + Shipping Label" email to seller
+    //   - Sends buyer shipping notification with tracking number
+    let labelResult = { generated: false, emailSent: false, buyerEmailSent: false, trackingNumber: "", labelUrl: "", error: "" };
+    try {
+      labelResult = await tryAutoGenerateLabel(orderId) as any;
+      console.log(`[paper-trade] Auto label result for ${orderId}:`, {
+        generated: labelResult.generated,
+        emailSent: labelResult.emailSent,
+        buyerEmailSent: labelResult.buyerEmailSent,
+        trackingNumber: labelResult.trackingNumber || "(none)",
+      });
+    } catch (labelErr: any) {
+      console.error("[paper-trade] Auto-label generation failed (non-blocking):", labelErr);
+      labelResult.error = labelErr?.message || "Label generation failed";
+    }
+
+    // If label didn't send seller email, send fallback "Item Sold" notification
+    if (!labelResult.emailSent && sellerId) {
+      try {
+        let sellerEmail = "";
+        try {
+          const sellerDoc = await adminDb.collection("sellers").doc(sellerId).get();
+          sellerEmail = sellerDoc.data()?.contactEmail || sellerDoc.data()?.email || "";
+        } catch {}
+
+        if (sellerEmail && sellerEmail.includes("@")) {
+          const { sendSellerItemSoldEmail } = await import("../../../../utils/email");
+          await sendSellerItemSoldEmail({
+            to: sellerEmail,
+            sellerName: sellerName || "Seller",
+            itemTitle: title,
+            amount: amountStr,
+            currency,
+            orderId,
+          });
+          console.log(`[paper-trade] Seller fallback email sent to ${sellerEmail}`);
+        }
+      } catch (fallbackErr) {
+        console.error("[paper-trade] Seller fallback email failed:", fallbackErr);
+      }
+    }
+
     return res.status(200).json({
       ok: true,
-      orderId: orderRef.id,
+      orderId,
       paypalOrderId: orderData.paypalOrderId,
       total: price,
       currency,
       listingTitle: title,
+      buyerEmailSent,
+      labelGenerated: labelResult.generated,
+      labelEmailSent: labelResult.emailSent,
+      trackingNumber: labelResult.trackingNumber || "",
+      labelUrl: labelResult.labelUrl || "",
+      labelError: labelResult.error || "",
     });
   } catch (e: any) {
     console.error("[PAPER_TRADE_CREATE]", e);

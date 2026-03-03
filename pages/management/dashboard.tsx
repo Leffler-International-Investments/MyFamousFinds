@@ -328,7 +328,7 @@ export default function ManagementDashboard({ stats }: Props) {
           <DashboardTile
             title="UPS Diagnostics"
             description="Run diagnostics on UPS shipping setup, credentials, and order label generation."
-            href="/seller/ups-diagnostics"
+            href="/management/ups-diagnostics"
             linkText="Run Diagnostics"
             linkColor="gold"
           />
