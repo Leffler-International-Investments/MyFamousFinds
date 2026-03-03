@@ -253,49 +253,50 @@ export default async function handler(
             }
           }
 
-          // Generate UPS label + send combined branded seller email (non-blocking)
-          (async () => {
+          // Generate UPS label + send combined branded seller email.
+          // IMPORTANT: await so it completes before serverless function terminates.
+          let labelResult: AutoLabelResult = { generated: false, emailSent: false, buyerEmailSent: false };
+          try {
+            labelResult = await tryAutoGenerateLabel(newOrderRef.id);
+            if (labelResult.emailSent) {
+              console.log(`[paypal webhook] Combined sale+label email sent for order ${newOrderRef.id}`);
+            }
+          } catch (labelErr) {
+            console.error("[paypal webhook] Auto-label generation failed (non-blocking):", labelErr);
+          }
+
+          // Fall back to branded seller sold email without label
+          if (!labelResult.emailSent && sellerId) {
             try {
-              const labelResult: AutoLabelResult = await tryAutoGenerateLabel(newOrderRef.id);
-
-              // If the combined email was already sent, we're done
-              if (labelResult.emailSent) {
-                console.log(`[paypal webhook] Combined sale+label email sent for order ${newOrderRef.id}`);
-                return;
+              let sellerEmail = "";
+              let sellerName = "";
+              let sellerDoc = await adminDb!.collection("sellers").doc(sellerId).get();
+              if (!sellerDoc.exists) {
+                const byEmail = await adminDb!.collection("sellers").where("email", "==", sellerId).limit(1).get();
+                if (!byEmail.empty) sellerDoc = byEmail.docs[0];
               }
+              if (!sellerDoc.exists) {
+                const byContact = await adminDb!.collection("sellers").where("contactEmail", "==", sellerId).limit(1).get();
+                if (!byContact.empty) sellerDoc = byContact.docs[0];
+              }
+              const sellerData = sellerDoc.exists ? sellerDoc.data() || {} : {};
+              sellerEmail = String(sellerData.contactEmail || sellerData.email || sellerId);
+              sellerName = String(sellerData.businessName || sellerData.name || "");
 
-              // Fall back to branded seller sold email without label
-              if (sellerId) {
-                let sellerEmail = "";
-                let sellerName = "";
-                let sellerDoc = await adminDb!.collection("sellers").doc(sellerId).get();
-                if (!sellerDoc.exists) {
-                  const byEmail = await adminDb!.collection("sellers").where("email", "==", sellerId).limit(1).get();
-                  if (!byEmail.empty) sellerDoc = byEmail.docs[0];
-                }
-                if (!sellerDoc.exists) {
-                  const byContact = await adminDb!.collection("sellers").where("contactEmail", "==", sellerId).limit(1).get();
-                  if (!byContact.empty) sellerDoc = byContact.docs[0];
-                }
-                const sellerData = sellerDoc.exists ? sellerDoc.data() || {} : {};
-                sellerEmail = String(sellerData.contactEmail || sellerData.email || sellerId);
-                sellerName = String(sellerData.businessName || sellerData.name || "");
-
-                if (sellerEmail && sellerEmail.includes("@")) {
-                  await sendSellerItemSoldEmail({
-                    to: sellerEmail,
-                    sellerName,
-                    itemTitle: whItemTitle,
-                    amount: whAmountStr,
-                    currency,
-                    orderId: whOrderId,
-                  });
-                }
+              if (sellerEmail && sellerEmail.includes("@")) {
+                await sendSellerItemSoldEmail({
+                  to: sellerEmail,
+                  sellerName,
+                  itemTitle: whItemTitle,
+                  amount: whAmountStr,
+                  currency,
+                  orderId: whOrderId,
+                });
               }
             } catch (err) {
-              console.error("[paypal webhook] Seller label+email flow failed (non-blocking):", err);
+              console.error("[paypal webhook] Seller fallback email failed (non-blocking):", err);
             }
-          })();
+          }
         } else {
           // Order already exists — enrich with buyer details if missing, then try label
           const existingDoc = existingOrder.docs[0];
@@ -322,9 +323,12 @@ export default async function handler(
             console.log(`[paypal webhook] Enriched existing order ${existingId} with:`, Object.keys(updates));
           }
 
-          tryAutoGenerateLabel(existingId).catch((labelErr) => {
+          // Await label generation so it completes before serverless function terminates
+          try {
+            await tryAutoGenerateLabel(existingId);
+          } catch (labelErr) {
             console.error("[paypal webhook] Auto-label generation failed (non-blocking):", labelErr);
-          });
+          }
         }
       }
     }

@@ -127,10 +127,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
 
       const shippingDetails = o.shipping_details || o.shippingDetails || null;
 
+      // NOTE: o.shipping is the UPS label/tracking object (carrier, trackingNumber,
+      // labelUrl, etc.) — NOT a shipping address. Do not use it as a fallback here.
       const shippingAddress: ShippingAddress | null =
         o.shippingAddress ||
-        o.shipping ||
-        o.shipping?.address ||
         shippingDetails?.address ||
         o.customer_details?.address ||
         null;
