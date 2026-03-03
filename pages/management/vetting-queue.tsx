@@ -15,6 +15,7 @@ type SellerApplication = {
   businessName: string;
   contactEmail: string;
   phone: string;
+  address: string;
   submittedAt: string;
   status: "Pending" | "Approved" | "Rejected" | "Removed";
 };
@@ -138,6 +139,7 @@ export default function ManagementVettingQueue({ items }: Props) {
         s.businessName,
         s.contactEmail,
         s.phone,
+        s.address,
         s.id,
         s.status,
         s.submittedAt,
@@ -494,6 +496,7 @@ export default function ManagementVettingQueue({ items }: Props) {
                   <th>Business</th>
                   <th>Email</th>
                   <th>Phone</th>
+                  <th>Address</th>
                   <th>Submitted</th>
                   <th>Status</th>
                   <th style={{ width: "380px" }}>Actions</th>
@@ -529,6 +532,7 @@ export default function ManagementVettingQueue({ items }: Props) {
                               onChange={(e) => setEditForm({ ...editForm, phone: autoPrefixPhone(e.target.value) })}
                             />
                           </td>
+                          <td>{s.address || "—"}</td>
                           <td>{s.submittedAt || "—"}</td>
                           <td>
                             <span className={
@@ -580,6 +584,7 @@ export default function ManagementVettingQueue({ items }: Props) {
                             </span>
                           </td>
                           <td>{s.phone || "—"}</td>
+                          <td style={{ maxWidth: 200, fontSize: 12 }}>{s.address || "—"}</td>
                           <td>{s.submittedAt || "—"}</td>
                           <td>
                             <span className={
@@ -640,7 +645,7 @@ export default function ManagementVettingQueue({ items }: Props) {
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={6} style={{ textAlign: "center" }}>
+                    <td colSpan={7} style={{ textAlign: "center" }}>
                       No applications found yet.
                     </td>
                   </tr>
@@ -1074,11 +1079,13 @@ export const getServerSideProps: GetServerSideProps<Props> = async () => {
     if (data.verified === true && status !== "Approved" && status !== "Rejected" && status !== "Removed") {
       status = "Approved";
     }
+    const addrParts = [data.address, data.city, data.state, data.zip, data.country].filter(Boolean);
     return {
       id: doc.id,
       businessName: data.businessName || "",
       contactEmail: data.contactEmail || data.email || "",
       phone: data.phone || data.contactPhone || "",
+      address: addrParts.join(", "),
       submittedAt: data.submittedAt
         ? new Date(data.submittedAt.toDate()).toLocaleString()
         : "",
