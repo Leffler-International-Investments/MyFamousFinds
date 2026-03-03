@@ -476,7 +476,7 @@ export const getServerSideProps: GetServerSideProps<Props> = async () => {
       props: {
         payouts: [],
         eligibleOrders: [],
-        settings: { payoutMode: "manual", defaultCoolingDays: 7 },
+        settings: { payoutMode: "manual", defaultCoolingDays: 14 },
       },
     };
   }

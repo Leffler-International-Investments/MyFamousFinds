@@ -13,7 +13,7 @@ const DOC_PATH = "settings/payout";
 
 export async function getPayoutSettings(): Promise<PayoutSettings> {
   if (!adminDb) {
-    return { defaultCoolingDays: 7, payoutMode: "manual" };
+    return { defaultCoolingDays: 14, payoutMode: "manual" };
   }
   const snap = await adminDb.doc(DOC_PATH).get();
   const data = snap.exists ? (snap.data() as any) : {};
@@ -22,7 +22,7 @@ export async function getPayoutSettings(): Promise<PayoutSettings> {
     defaultCoolingDays:
       typeof data.defaultCoolingDays === "number" && data.defaultCoolingDays >= 0
         ? data.defaultCoolingDays
-        : 7,
+        : 14,
     payoutMode: (data.payoutMode as PayoutMode) || "manual",
     updatedAt: data.updatedAt,
   };

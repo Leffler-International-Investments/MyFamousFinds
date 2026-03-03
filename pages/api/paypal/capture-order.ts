@@ -155,7 +155,7 @@ export default async function handler(
     let payoutField: Record<string, any> = {};
     try {
       const payoutSettings = await getPayoutSettings();
-      const coolingDays = payoutSettings.defaultCoolingDays || 7;
+      const coolingDays = payoutSettings.defaultCoolingDays || 14;
       const eligibleAt = new Date(Date.now() + coolingDays * 24 * 60 * 60 * 1000).toISOString();
       payoutField = {
         payout: {
