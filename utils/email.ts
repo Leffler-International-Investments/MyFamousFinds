@@ -8,6 +8,7 @@ import nodemailer from "nodemailer";
 import {
   SESClient,
   SendEmailCommand,
+  SendRawEmailCommand,
   VerifyEmailIdentityCommand,
   GetIdentityVerificationAttributesCommand,
   ListIdentitiesCommand,
@@ -128,57 +129,84 @@ function escapeHtml(s: string) {
 
 /**
  * Send email via AWS SES.
+ * When attachments are provided, uses SendRawEmailCommand with nodemailer-compiled MIME.
  */
 async function sendViaSes(
   to: string,
   subject: string,
   text: string,
-  html?: string
+  html?: string,
+  attachments?: EmailAttachment[]
 ) {
   const parsedFrom = parseFromAddress(AWS_SES_FROM);
   const sourceEmail = parsedFrom?.email || AWS_SES_FROM;
-  // SES requires the From to be a verified identity (domain or email)
   const source = parsedFrom?.name
     ? `${parsedFrom.name} <${sourceEmail}>`
     : sourceEmail;
 
-  console.log(`[SES] Sending from="${source}" to="${to}" subject="${subject}"`);
+  console.log(`[SES] Sending from="${source}" to="${to}" subject="${subject}"${attachments?.length ? ` (${attachments.length} attachments)` : ""}`);
 
   const client = getSesClient();
-  const command = new SendEmailCommand({
-    Source: source,
-    ReplyToAddresses: [AWS_SES_REPLY_TO],
-    Destination: { ToAddresses: [to] },
-    Message: {
-      Subject: { Data: subject, Charset: "UTF-8" },
-      Body: {
-        Text: { Data: text, Charset: "UTF-8" },
-        ...(html ? { Html: { Data: html, Charset: "UTF-8" } } : {}),
-      },
-    },
-  });
 
   try {
+    // If attachments are present, use raw email (MIME) so SES can deliver them
+    if (attachments?.length) {
+      const transporter = nodemailer.createTransport({ streamTransport: true } as any);
+      const mailMessage = await transporter.sendMail({
+        from: source,
+        replyTo: AWS_SES_REPLY_TO,
+        to,
+        subject,
+        text,
+        ...(html ? { html } : {}),
+        attachments,
+      });
+      // mailMessage.message is a readable stream — collect it into a Buffer
+      const chunks: Buffer[] = [];
+      for await (const chunk of mailMessage.message) {
+        chunks.push(typeof chunk === "string" ? Buffer.from(chunk) : chunk);
+      }
+      const rawData = Buffer.concat(chunks);
+
+      const result = await client.send(
+        new SendRawEmailCommand({
+          Source: sourceEmail,
+          Destinations: [to],
+          RawMessage: { Data: rawData },
+        })
+      );
+      return { messageId: result.MessageId || "n/a" };
+    }
+
+    // No attachments — use simple SendEmailCommand
+    const command = new SendEmailCommand({
+      Source: source,
+      ReplyToAddresses: [AWS_SES_REPLY_TO],
+      Destination: { ToAddresses: [to] },
+      Message: {
+        Subject: { Data: subject, Charset: "UTF-8" },
+        Body: {
+          Text: { Data: text, Charset: "UTF-8" },
+          ...(html ? { Html: { Data: html, Charset: "UTF-8" } } : {}),
+        },
+      },
+    });
     const result = await client.send(command);
     return { messageId: result.MessageId || "n/a" };
   } catch (err: any) {
     const msg = err?.message || "";
-    // Provide clear guidance for common SES errors
     if (msg.includes("not verified") || msg.includes("identity")) {
       const recipientInError = msg.includes(to);
       if (recipientInError) {
         console.error(
           `[SES] RECIPIENT NOT VERIFIED — "${to}" is not verified in AWS SES (region: ${AWS_REGION}).`,
           `\nSES is likely in sandbox mode. In sandbox, BOTH sender and recipient must be verified.`,
-          `\nFix: Use the /api/admin/ses-identity endpoint to send a verification email to "${to}",`,
-          `then have them click the confirmation link in the email they receive from AWS.`,
-          `\nAlternatively, request SES production access in the AWS console to send to any address.`
+          `\nFix: Set EMAIL_TRANSPORT=smtp to bypass SES, or request SES production access.`
         );
       } else {
         console.error(
           `[SES] SENDER NOT VERIFIED — "${sourceEmail}" is not verified in AWS SES (region: ${AWS_REGION}).`,
-          `\nFix: In Vercel, set AWS_SES_FROM to a verified SES identity (e.g. noreply@myfamousfinds.com).`,
-          `\nAlso ensure the domain or email is verified in the AWS SES console.`
+          `\nFix: In Vercel, set AWS_SES_FROM to a verified SES identity.`
         );
       }
     }
@@ -186,14 +214,24 @@ async function sendViaSes(
   }
 }
 
+/** Attachment type for sendMail / sendViaSmtp / sendViaSes. */
+export interface EmailAttachment {
+  filename: string;
+  content: Buffer | string; // Buffer or base64 string
+  contentType?: string;     // e.g. "image/gif"
+  cid?: string;             // Content-ID for inline <img src="cid:xxx">
+  encoding?: string;        // "base64" if content is a base64 string
+}
+
 /**
- * Send email via SMTP (Gmail fallback).
+ * Send email via SMTP (Google Workspace fallback).
  */
 async function sendViaSmtp(
   to: string,
   subject: string,
   text: string,
-  html?: string
+  html?: string,
+  attachments?: EmailAttachment[]
 ) {
   const transport = getSmtpTransport();
   const info = await transport.sendMail({
@@ -203,6 +241,7 @@ async function sendViaSmtp(
     subject,
     text,
     ...(html ? { html } : {}),
+    ...(attachments?.length ? { attachments } : {}),
   });
   return { messageId: info.messageId ?? "n/a" };
 }
@@ -239,6 +278,7 @@ type SendMailArgsObject = {
   subject: string;
   text: string;
   html?: string;
+  attachments?: EmailAttachment[];
 };
 
 export async function sendMail(
@@ -260,6 +300,7 @@ export async function sendMail(
   const subject = typeof a === "string" ? (b || "") : a.subject;
   const text = typeof a === "string" ? (c || "") : a.text;
   const html = typeof a === "string" ? d : a.html;
+  const attachments = typeof a === "object" ? a.attachments : undefined;
 
   const logTag = `[EMAIL] to=${to} subject="${subject}"`;
   console.log(`${logTag} — attempting to send (transport=${EMAIL_TRANSPORT})`);
@@ -274,7 +315,7 @@ export async function sendMail(
       );
     }
     try {
-      const result = await sendViaSmtp(to, subject, text, html);
+      const result = await sendViaSmtp(to, subject, text, html, attachments);
       console.log(`${logTag} — sent via SMTP / admin@myfamousfinds.com (transport=smtp, messageId=${result.messageId})`);
       return result;
     } catch (err: any) {
@@ -290,7 +331,7 @@ export async function sendMail(
   // When SES goes live (production mode), emails succeed here and SMTP is never touched.
   if (isSesConfigured()) {
     try {
-      const result = await sendViaSes(to, subject, text, html);
+      const result = await sendViaSes(to, subject, text, html, attachments);
       console.log(`${logTag} — sent via AWS SES (messageId=${result.messageId})`);
       return result;
     } catch (sesErr: any) {
@@ -314,7 +355,7 @@ export async function sendMail(
 
       if (isSmtpConfigured()) {
         try {
-          const result = await sendViaSmtp(to, subject, text, html);
+          const result = await sendViaSmtp(to, subject, text, html, attachments);
           console.log(
             `${logTag} — sent via SMTP fallback / admin@myfamousfinds.com (messageId=${result.messageId})` +
             (sandbox ? ` [SES sandbox → SMTP auto-fallback]` : ``)
@@ -349,7 +390,7 @@ export async function sendMail(
   if (isSmtpConfigured()) {
     console.warn(`${logTag} — AWS SES not configured, using Google Workspace SMTP (admin@myfamousfinds.com)`);
     try {
-      const result = await sendViaSmtp(to, subject, text, html);
+      const result = await sendViaSmtp(to, subject, text, html, attachments);
       console.log(`${logTag} — sent via SMTP / admin@myfamousfinds.com (messageId=${result.messageId})`);
       return result;
     } catch (err) {
@@ -980,19 +1021,37 @@ export async function sendSellerSoldWithLabelEmail(params: {
       `</p></td></tr></table>`;
   }
 
-  // Inline label image (if base64 is provided and it's a GIF/PNG)
+  // Build label image for email — use CID attachment (works in Gmail/Outlook)
+  // instead of data: URI (which Gmail blocks).
   let inlineLabelHtml = "";
+  const labelAttachments: EmailAttachment[] = [];
+  const labelCid = "ups-shipping-label";
+
   if (params.labelBase64 && params.labelFormat) {
     const fmt = params.labelFormat.toUpperCase();
-    // Embed as inline image for GIF/PNG labels
     if (fmt === "GIF" || fmt === "PNG") {
       const mimeType = fmt === "GIF" ? "image/gif" : "image/png";
+      const ext = fmt.toLowerCase();
+      // Attach label as inline CID attachment — email clients render this properly
+      labelAttachments.push({
+        filename: `shipping-label-${params.orderId}.${ext}`,
+        content: Buffer.from(params.labelBase64, "base64"),
+        contentType: mimeType,
+        cid: labelCid,
+      });
       inlineLabelHtml =
         `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 16px 0;">` +
         `<tr><td align="center" style="padding:16px;background:#ffffff;border:1px solid #e7e5e4;border-radius:8px;">` +
-        `<img src="data:${mimeType};base64,${params.labelBase64}" alt="UPS Shipping Label" style="max-width:100%;width:400px;height:auto;display:block;" />` +
+        `<img src="cid:${labelCid}" alt="UPS Shipping Label" style="max-width:100%;width:400px;height:auto;display:block;" />` +
         `</td></tr></table>`;
     }
+  } else if (params.labelUrl) {
+    // No base64 available — use the Firebase Storage URL as remote image
+    inlineLabelHtml =
+      `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 16px 0;">` +
+      `<tr><td align="center" style="padding:16px;background:#ffffff;border:1px solid #e7e5e4;border-radius:8px;">` +
+      `<img src="${escapeHtml(params.labelUrl)}" alt="UPS Shipping Label" style="max-width:100%;width:400px;height:auto;display:block;" />` +
+      `</td></tr></table>`;
   }
 
   const bodyHtml =
@@ -1022,20 +1081,36 @@ export async function sendSellerSoldWithLabelEmail(params: {
     `</table></td></tr></table>` +
     // Inline label image
     inlineLabelHtml +
-    // Download label button (only if Storage URL is available)
+    // Download & Print buttons — always visible when labelUrl is available
     (params.labelUrl
       ? `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 20px 0;">` +
-        `<tr><td align="center">` +
-        `<table role="presentation" cellpadding="0" cellspacing="0"><tr><td style="border-radius:6px;background-color:#b8860b;">` +
-        `<a href="${escapeHtml(params.labelUrl)}" style="display:inline-block;padding:14px 32px;color:#ffffff;text-decoration:none;font-size:15px;font-weight:bold;letter-spacing:0.5px;">PRINT SHIPPING LABEL</a>` +
-        `</td></tr></table>` +
-        `</td></tr></table>`
-      : "") +
+        `<tr><td align="center" style="padding:0 0 10px 0;">` +
+        `<table role="presentation" cellpadding="0" cellspacing="0"><tr>` +
+        // Download button
+        `<td style="border-radius:6px;background-color:#b8860b;padding:0;margin-right:12px;">` +
+        `<a href="${escapeHtml(params.labelUrl)}" style="display:inline-block;padding:16px 36px;color:#ffffff;text-decoration:none;font-size:16px;font-weight:bold;letter-spacing:0.5px;" target="_blank">` +
+        `&#x1F4E5; DOWNLOAD LABEL</a>` +
+        `</td>` +
+        `<td style="width:12px;"></td>` +
+        // Print button
+        `<td style="border-radius:6px;background-color:#1c1917;padding:0;">` +
+        `<a href="${escapeHtml(params.labelUrl)}" style="display:inline-block;padding:16px 36px;color:#ffffff;text-decoration:none;font-size:16px;font-weight:bold;letter-spacing:0.5px;" target="_blank">` +
+        `&#x1F5A8; PRINT LABEL</a>` +
+        `</td>` +
+        `</tr></table>` +
+        `</td></tr>` +
+        `<tr><td align="center"><p style="margin:0;font-size:12px;color:#78716c;">Click to download the label, then print it on a standard printer.</p></td></tr>` +
+        `</table>`
+      : (labelAttachments.length
+        ? `<p style="margin:0 0 16px 0;font-size:14px;color:#1c1917;background:#fef9ee;border:1px solid #f5e6c8;border-radius:8px;padding:12px 16px;">` +
+          `&#x1F4CE; The shipping label is attached to this email. Open the attachment to download and print.</p>`
+        : "")
+      ) +
     // Instructions
     `<div style="background-color:#fef9ee;border:1px solid #f5e6c8;border-radius:8px;padding:16px 20px;margin:0 0 20px 0;">` +
     `<p style="margin:0 0 8px 0;font-size:14px;font-weight:bold;color:#92400e;">Next Steps:</p>` +
     `<ol style="margin:0;padding-left:20px;color:#78716c;font-size:13px;line-height:1.8;">` +
-    `<li>Print the shipping label above</li>` +
+    `<li>Download and print the shipping label${params.labelUrl ? " (click the button above)" : " (see attachment)"}</li>` +
     `<li>Package the item securely</li>` +
     `<li>Attach the label to your package</li>` +
     `<li>Drop off at any UPS location or schedule a pickup</li>` +
@@ -1047,7 +1122,7 @@ export async function sendSellerSoldWithLabelEmail(params: {
     `<p style="margin:20px 0 0 0;font-size:14px;color:#78716c;">Thank you for selling with Famous Finds.</p>`;
 
   const html = brandedEmailWrapper(bodyHtml);
-  await sendMail(to, subject, text, html);
+  await sendMail({ to, subject, text, html, attachments: labelAttachments.length ? labelAttachments : undefined });
 }
 
 /**
