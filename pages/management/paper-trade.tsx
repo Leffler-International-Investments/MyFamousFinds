@@ -663,7 +663,7 @@ export default function PaperTradePage({ listings, paperOrders: initial }: Props
 /* ─── data ──────────────────────────────────────────── */
 
 function extractImage(d: any): string {
-  // Try every known image field
+  // Try every known image field — including nested item.* variants
   const candidates = [
     ...(Array.isArray(d.displayImageUrls) ? d.displayImageUrls : []),
     ...(Array.isArray(d.images) ? d.images : []),
@@ -672,6 +672,11 @@ function extractImage(d: any): string {
     ...(Array.isArray(d.photos) ? d.photos : []),
     ...(Array.isArray(d.photoUrls) ? d.photoUrls : []),
     ...(Array.isArray(d.photo_urls) ? d.photo_urls : []),
+    ...(Array.isArray(d.item?.displayImageUrls) ? d.item.displayImageUrls : []),
+    ...(Array.isArray(d.item?.images) ? d.item.images : []),
+    ...(Array.isArray(d.item?.imageUrls) ? d.item.imageUrls : []),
+    ...(Array.isArray(d.item?.image_urls) ? d.item.image_urls : []),
+    ...(Array.isArray(d.item?.photos) ? d.item.photos : []),
     d.displayImageUrl,
     d.display_image_url,
     d.image_url,
@@ -680,9 +685,13 @@ function extractImage(d: any): string {
     d.mainImage,
     d.main_image,
     d.thumbnail,
+    d.item?.displayImageUrl,
+    d.item?.imageUrl,
+    d.item?.image_url,
+    d.item?.image,
   ];
   for (const u of candidates) {
-    if (typeof u === "string" && u.trim().startsWith("http")) return u.trim();
+    if (typeof u === "string" && u.trim().length > 0) return u.trim();
   }
   return "";
 }
