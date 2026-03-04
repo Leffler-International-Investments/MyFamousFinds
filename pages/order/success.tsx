@@ -670,8 +670,22 @@ export const getServerSideProps: GetServerSideProps<SuccessProps> = async (ctx) 
             }
           }
 
-          // Seller notification email
-          if (sellerId) {
+          // Seller notification email + UPS label generation
+          let labelResult: { generated: boolean; emailSent: boolean; buyerEmailSent: boolean; trackingNumber?: string } = { generated: false, emailSent: false, buyerEmailSent: false };
+          try {
+            labelResult = await tryAutoGenerateLabel(emailOrderId);
+            if (labelResult.generated) {
+              console.log(`[order/success] UPS label generated for order ${emailOrderId}: ${labelResult.trackingNumber || "(no tracking)"}`);
+            }
+            if (labelResult.emailSent) {
+              console.log(`[order/success] Combined sale+label email sent for order ${emailOrderId}`);
+            }
+          } catch (labelErr) {
+            console.error("[order/success] Label generation failed (non-blocking):", labelErr);
+          }
+
+          // If label generation didn't send seller email, send fallback "Item Sold"
+          if (!labelResult.emailSent && sellerId) {
             try {
               let sellerEmail = "";
               let sellerName = "";
