@@ -100,6 +100,17 @@ export default function OrderRoadmapPage() {
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<DiagnosticResult | null>(null);
 
+  // Quick paper trade state
+  const [ptBusy, setPtBusy] = useState(false);
+  const [ptListingId, setPtListingId] = useState("");
+  const [ptBuyerName, setPtBuyerName] = useState("");
+  const [ptBuyerEmail, setPtBuyerEmail] = useState("");
+  const [ptAddrLine1, setPtAddrLine1] = useState("");
+  const [ptAddrCity, setPtAddrCity] = useState("");
+  const [ptAddrState, setPtAddrState] = useState("");
+  const [ptAddrZip, setPtAddrZip] = useState("");
+  const [ptLog, setPtLog] = useState<string[]>([]);
+
   async function runDiagnostic() {
     const id = orderId.trim();
     if (!id) {
@@ -128,6 +139,70 @@ export default function OrderRoadmapPage() {
       setError(e?.message || "Failed to load order roadmap");
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function createPaperTrade() {
+    if (!ptListingId || !ptBuyerName || !ptBuyerEmail || !ptAddrLine1 || !ptAddrCity || !ptAddrState || !ptAddrZip) {
+      setPtLog(["ERROR: Fill in all required fields (listing ID, buyer name, email, address)."]);
+      return;
+    }
+    setPtBusy(true);
+    setPtLog(["Creating paper trade order..."]);
+    try {
+      const r = await fetch("/api/management/paper-trade/create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          listingId: ptListingId.trim(),
+          buyerName: ptBuyerName,
+          buyerEmail: ptBuyerEmail,
+          shippingAddress: {
+            name: ptBuyerName,
+            line1: ptAddrLine1, city: ptAddrCity,
+            state: ptAddrState, postalCode: ptAddrZip, country: "US",
+          },
+        }),
+      });
+      const json = await r.json();
+      if (!r.ok) throw new Error(json.error || "Failed");
+
+      const log: string[] = [];
+      log.push(`Order created: ${json.orderId}`);
+      log.push(`Buyer email: ${json.buyerEmailSent ? "SENT" : "FAILED"}`);
+      log.push(`Seller email: ${json.sellerEmailSent ? "SENT" : "NOT SENT"}`);
+      log.push(`UPS label: ${json.labelGenerated ? "GENERATED" : "NOT GENERATED"}`);
+      if (json.trackingNumber) log.push(`Tracking: ${json.trackingNumber}`);
+      if (json.labelError) log.push(`Label note: ${json.labelError}`);
+      log.push("Loading roadmap diagnostic...");
+      setPtLog(log);
+
+      // Auto-load the roadmap for the new order
+      setOrderId(json.orderId);
+      setTimeout(async () => {
+        try {
+          setLoading(true);
+          setError(null);
+          setResult(null);
+          const diagRes = await fetch("/api/management/orders/roadmap-diagnostic", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ orderId: json.orderId }),
+          });
+          const diagJson = await diagRes.json();
+          if (!diagRes.ok || !diagJson?.ok) throw new Error(diagJson?.error || "Failed");
+          setResult(diagJson as DiagnosticResult);
+          setPtLog((prev) => [...prev, "Roadmap loaded."]);
+        } catch (diagErr: any) {
+          setError(diagErr?.message || "Failed to load roadmap");
+        } finally {
+          setLoading(false);
+        }
+      }, 500);
+    } catch (e: any) {
+      setPtLog((prev) => [...prev, `ERROR: ${e.message}`]);
+    } finally {
+      setPtBusy(false);
     }
   }
 
@@ -186,6 +261,67 @@ export default function OrderRoadmapPage() {
             </div>
 
             {error && <div className="error-box">{error}</div>}
+          </section>
+
+          {/* Quick Paper Trade */}
+          <section className="card">
+            <h2>Quick Paper Trade</h2>
+            <p className="muted">
+              Create a paper trade order and immediately view its roadmap.
+              Enter a Listing ID (copy from the{" "}
+              <Link href="/management/paper-trade">Paper Trade page</Link>)
+              and buyer details.
+            </p>
+
+            <div className="pt-grid">
+              <div className="pt-field">
+                <label className="pt-label">Listing ID *</label>
+                <input className="input" value={ptListingId} onChange={(e) => setPtListingId(e.target.value)} placeholder="Paste listing ID" />
+              </div>
+              <div className="pt-field">
+                <label className="pt-label">Buyer name *</label>
+                <input className="input" value={ptBuyerName} onChange={(e) => setPtBuyerName(e.target.value)} placeholder="e.g. Itai Leffler" />
+              </div>
+              <div className="pt-field">
+                <label className="pt-label">Buyer email *</label>
+                <input className="input" value={ptBuyerEmail} onChange={(e) => setPtBuyerEmail(e.target.value)} placeholder="e.g. Itai.leff@gmail.com" />
+              </div>
+              <div className="pt-field">
+                <label className="pt-label">Address line 1 *</label>
+                <input className="input" value={ptAddrLine1} onChange={(e) => setPtAddrLine1(e.target.value)} />
+              </div>
+              <div className="pt-field">
+                <label className="pt-label">City *</label>
+                <input className="input" value={ptAddrCity} onChange={(e) => setPtAddrCity(e.target.value)} />
+              </div>
+              <div className="pt-field">
+                <label className="pt-label">State *</label>
+                <input className="input" value={ptAddrState} onChange={(e) => setPtAddrState(e.target.value)} />
+              </div>
+              <div className="pt-field">
+                <label className="pt-label">Zip *</label>
+                <input className="input" value={ptAddrZip} onChange={(e) => setPtAddrZip(e.target.value)} />
+              </div>
+            </div>
+
+            <button
+              className="btn btn-primary"
+              style={{ marginTop: 14 }}
+              disabled={ptBusy || loading}
+              onClick={createPaperTrade}
+            >
+              {ptBusy ? "Creating..." : "Create Paper Trade & View Roadmap"}
+            </button>
+
+            {ptLog.length > 0 && (
+              <div className="pt-log">
+                {ptLog.map((line, i) => (
+                  <div key={i} className={line.startsWith("ERROR") ? "pt-log-err" : "pt-log-ok"}>
+                    {line}
+                  </div>
+                ))}
+              </div>
+            )}
           </section>
 
           {result && order && (
@@ -782,6 +918,43 @@ export default function OrderRoadmapPage() {
           background: #e5e7eb;
         }
 
+        /* Quick Paper Trade */
+        .pt-grid {
+          display: grid;
+          grid-template-columns: 1fr 1fr 1fr;
+          gap: 10px;
+          margin-top: 12px;
+        }
+        .pt-field {
+          display: flex;
+          flex-direction: column;
+          gap: 4px;
+        }
+        .pt-label {
+          font-size: 11px;
+          font-weight: 700;
+          color: #6b7280;
+          text-transform: uppercase;
+          letter-spacing: 0.05em;
+        }
+        .pt-log {
+          margin-top: 12px;
+          padding: 10px 12px;
+          background: #f9fafb;
+          border: 1px solid #e5e7eb;
+          border-radius: 8px;
+          font-family: monospace;
+          font-size: 12px;
+        }
+        .pt-log-ok {
+          color: #166534;
+          padding: 1px 0;
+        }
+        .pt-log-err {
+          color: #b91c1c;
+          padding: 1px 0;
+        }
+
         @media (max-width: 640px) {
           .search-row {
             flex-direction: column;
@@ -800,6 +973,9 @@ export default function OrderRoadmapPage() {
           }
           .links-row {
             flex-direction: column;
+          }
+          .pt-grid {
+            grid-template-columns: 1fr;
           }
         }
       `}</style>
