@@ -255,6 +255,34 @@ export default function PaperTradePage({ listings, paperOrders: initial }: Props
     }
   }
 
+  async function resetAllOrders() {
+    if (!window.confirm(
+      `Reset ALL ${orders.length} paper-trade orders?\n\n` +
+      `This will:\n` +
+      `• Delete all paper-trade orders\n` +
+      `• Restore all listings back to "Live"\n` +
+      `• Allow you to test again with the same items\n\n` +
+      `This cannot be undone.`
+    )) return;
+    setBusy(true);
+    try {
+      const r = await fetch("/api/management/paper-trade/reset-all", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
+      const json = await r.json();
+      if (!r.ok) throw new Error(json.error || "Failed");
+      setOrders([]);
+      alert(`Done! Reset ${json.reset} orders, restored ${json.restored} listings back to Live.`);
+      // Reload the page to refresh the listings grid
+      window.location.reload();
+    } catch (e: any) {
+      alert(e.message || "Error resetting all orders");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function deleteCustomerByEmail() {
     const email = deleteEmail.trim().toLowerCase();
     if (!email) { alert("Enter an email address."); return; }
@@ -494,12 +522,25 @@ export default function PaperTradePage({ listings, paperOrders: initial }: Props
 
           {/* ──── Section 4: Active Paper Trades ──── */}
           <div className="section">
-            <h2>4. Active Paper Trades — Order Lifecycle</h2>
-            <p className="hint">
-              Each paper trade below mirrors a real order. Click <strong>Next Step</strong> to
-              advance through remaining stages. Use <strong>View in Roadmap</strong> to see the
-              full order diagnostic. Use <strong>Reset</strong> to delete the order and restore the listing.
-            </p>
+            <div className="section-header-row">
+              <div>
+                <h2>4. Active Paper Trades — Order Lifecycle</h2>
+                <p className="hint">
+                  Each paper trade below mirrors a real order. Click <strong>Next Step</strong> to
+                  advance through remaining stages. Use <strong>Reset</strong> to delete individual orders,
+                  or <strong>Reset All</strong> to clear everything and start fresh.
+                </p>
+              </div>
+              {orders.length > 0 && (
+                <button
+                  className="btn btn-reset-all"
+                  disabled={busy}
+                  onClick={resetAllOrders}
+                >
+                  {busy ? "Resetting..." : `Reset All (${orders.length})`}
+                </button>
+              )}
+            </div>
 
             {orders.length === 0 && (
               <div className="empty">No paper-trade orders yet. Create one above.</div>
@@ -574,6 +615,11 @@ export default function PaperTradePage({ listings, paperOrders: initial }: Props
       <style jsx>{`
         .section { background: #fff; border: 1px solid #e5e7eb; border-radius: 14px; padding: 20px; margin-bottom: 20px; }
         .section h2 { font-size: 16px; font-weight: 900; color: #0b1220; margin: 0 0 4px; }
+        .section-header-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; margin-bottom: 14px; }
+        .section-header-row .hint { margin-bottom: 0; }
+        .btn-reset-all { background: #dc2626; color: #fff; border: none; border-radius: 999px; padding: 10px 24px; font-weight: 800; font-size: 14px; cursor: pointer; white-space: nowrap; flex-shrink: 0; }
+        .btn-reset-all:hover:not(:disabled) { background: #b91c1c; }
+        .btn-reset-all:disabled { opacity: 0.5; cursor: default; }
         .hint { color: #6b7280; font-size: 13px; margin: 0 0 14px; line-height: 1.5; }
         .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
         .input { border: 1px solid #d1d5db; border-radius: 6px; padding: 8px 12px; font-size: 14px; width: 100%; }
