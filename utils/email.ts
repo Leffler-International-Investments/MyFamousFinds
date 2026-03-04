@@ -101,6 +101,13 @@ function getSmtpTransport() {
   });
 }
 
+// ---------- Startup diagnostics (logged once on cold start) ----------
+console.log(
+  `[EMAIL CONFIG] SES: ${isSesConfigured() ? "YES" : "NO"} (region=${AWS_REGION || "not set"})` +
+  ` | SMTP: ${Boolean(SMTP_HOST && SMTP_USER) ? "YES" : "NO"}` +
+  ` (host=${SMTP_HOST || "not set"}, user=${SMTP_USER || "not set"}, pass=${SMTP_PASS ? "set" : "NOT SET"})`
+);
+
 // ---------- Shared helpers ----------
 
 function escapeHtml(s: string) {
@@ -277,8 +284,19 @@ export async function sendMail(
             (sandbox ? ` [SES sandbox → SMTP auto-fallback]` : ``)
           );
           return result;
-        } catch (smtpErr) {
-          console.error(`${logTag} — SMTP fallback (admin@myfamousfinds.com) also FAILED`, smtpErr);
+        } catch (smtpErr: any) {
+          const smtpMsg = smtpErr?.message || "Unknown SMTP error";
+          console.error(`${logTag} — SMTP fallback (admin@myfamousfinds.com) also FAILED: ${smtpMsg}`, smtpErr);
+          // Throw a combined error so the caller sees BOTH failures
+          const combined = new Error(
+            `Email delivery failed via both transports.\n` +
+            `  SES error: ${sesErr?.message || "unknown"}\n` +
+            `  SMTP error (admin@myfamousfinds.com): ${smtpMsg}\n` +
+            `  SMTP config: host=${SMTP_HOST || "(not set)"} user=${SMTP_USER || "(not set)"} port=${SMTP_PORT}`
+          );
+          (combined as any).sesError = sesErr;
+          (combined as any).smtpError = smtpErr;
+          throw combined;
         }
       } else if (sandbox) {
         console.error(
@@ -289,8 +307,11 @@ export async function sendMail(
         );
       }
 
-      // Both failed (or SMTP not configured) — throw the original SES error
-      throw sesErr;
+      // SMTP not configured — throw SES error with guidance
+      throw new Error(
+        `SES failed: ${sesErr?.message || "unknown"}. ` +
+        `SMTP fallback: ${isSmtpConfigured() ? "configured but also failed" : "NOT configured — set SMTP_HOST, SMTP_USER, SMTP_PASS in Vercel"}.`
+      );
     }
   }
 
