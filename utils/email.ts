@@ -26,6 +26,12 @@ function cleanEnv(v?: string) {
 const AWS_REGION = cleanEnv(process.env.AWS_REGION) || "us-east-1";
 const AWS_ACCESS_KEY_ID = cleanEnv(process.env.AWS_ACCESS_KEY_ID);
 const AWS_SECRET_ACCESS_KEY = cleanEnv(process.env.AWS_SECRET_ACCESS_KEY);
+
+// Transport preference:
+// - "auto" (default): try SES first, fallback to SMTP on failure
+// - "smtp": SMTP only — bypass SES entirely (use while SES is in Sandbox)
+// - "ses": SES only (no fallback)
+const EMAIL_TRANSPORT = (cleanEnv(process.env.EMAIL_TRANSPORT) || "auto").toLowerCase();
 // SES sender must be a verified identity in AWS — NEVER fall back to SMTP_FROM
 // (which is typically a personal Gmail and will be rejected by SES).
 const AWS_SES_FROM =
@@ -103,7 +109,8 @@ function getSmtpTransport() {
 
 // ---------- Startup diagnostics (logged once on cold start) ----------
 console.log(
-  `[EMAIL CONFIG] SES: ${isSesConfigured() ? "YES" : "NO"} (region=${AWS_REGION || "not set"})` +
+  `[EMAIL CONFIG] transport=${EMAIL_TRANSPORT}` +
+  ` | SES: ${isSesConfigured() ? "YES" : "NO"} (region=${AWS_REGION || "not set"})` +
   ` | SMTP: ${Boolean(SMTP_HOST && SMTP_USER) ? "YES" : "NO"}` +
   ` (host=${SMTP_HOST || "not set"}, user=${SMTP_USER || "not set"}, pass=${SMTP_PASS ? "set" : "NOT SET"})`
 );
@@ -255,9 +262,31 @@ export async function sendMail(
   const html = typeof a === "string" ? d : a.html;
 
   const logTag = `[EMAIL] to=${to} subject="${subject}"`;
-  console.log(`${logTag} — attempting to send`);
+  console.log(`${logTag} — attempting to send (transport=${EMAIL_TRANSPORT})`);
 
-  // AWS SES is the primary (and production) transport.
+  // ── EMAIL_TRANSPORT=smtp → bypass SES entirely, send via Google Workspace ──
+  // Use this while SES is in Sandbox mode to avoid SES failures entirely.
+  if (EMAIL_TRANSPORT === "smtp") {
+    if (!isSmtpConfigured()) {
+      throw new Error(
+        "EMAIL_TRANSPORT=smtp but SMTP is not configured. " +
+        "Set SMTP_HOST, SMTP_USER, SMTP_PASS in Vercel env vars."
+      );
+    }
+    try {
+      const result = await sendViaSmtp(to, subject, text, html);
+      console.log(`${logTag} — sent via SMTP / admin@myfamousfinds.com (transport=smtp, messageId=${result.messageId})`);
+      return result;
+    } catch (err: any) {
+      console.error(`${logTag} — SMTP (admin@myfamousfinds.com) FAILED`, err);
+      throw new Error(
+        `SMTP failed (transport=smtp): ${err?.message || "unknown"}. ` +
+        `Config: host=${SMTP_HOST || "(not set)"} user=${SMTP_USER || "(not set)"} port=${SMTP_PORT}`
+      );
+    }
+  }
+
+  // ── SES path (transport=ses or transport=auto) ──
   // When SES goes live (production mode), emails succeed here and SMTP is never touched.
   if (isSesConfigured()) {
     try {
@@ -265,17 +294,24 @@ export async function sendMail(
       console.log(`${logTag} — sent via AWS SES (messageId=${result.messageId})`);
       return result;
     } catch (sesErr: any) {
+      // If transport=ses, do NOT fall back — throw immediately
+      if (EMAIL_TRANSPORT === "ses") {
+        console.error(`${logTag} — AWS SES FAILED (transport=ses, no fallback)`, sesErr);
+        throw sesErr;
+      }
+
+      // transport=auto — fall back to SMTP (Google Workspace)
       const sandbox = isSandboxError(sesErr);
       if (sandbox) {
         console.warn(
           `${logTag} — SES SANDBOX restriction (recipient "${to}" not verified). ` +
-          `Falling back to Google Workspace SMTP (admin@myfamousfinds.com).`
+          `Falling back to Google Workspace SMTP (admin@myfamousfinds.com). ` +
+          `TIP: Set EMAIL_TRANSPORT=smtp in Vercel to skip SES entirely while in sandbox.`
         );
       } else {
-        console.error(`${logTag} — AWS SES FAILED`, sesErr);
+        console.error(`${logTag} — AWS SES FAILED, trying SMTP fallback`, sesErr);
       }
 
-      // Fall back to SMTP (Google Workspace) if configured
       if (isSmtpConfigured()) {
         try {
           const result = await sendViaSmtp(to, subject, text, html);
@@ -298,19 +334,13 @@ export async function sendMail(
           (combined as any).smtpError = smtpErr;
           throw combined;
         }
-      } else if (sandbox) {
-        console.error(
-          `${logTag} — SES is in sandbox mode and SMTP is NOT configured. ` +
-          `Set SMTP_HOST, SMTP_USER, SMTP_PASS in Vercel env vars ` +
-          `(Google Workspace: smtp.gmail.com / admin@myfamousfinds.com) ` +
-          `to enable automatic fallback while SES is in sandbox.`
-        );
       }
 
       // SMTP not configured — throw SES error with guidance
       throw new Error(
         `SES failed: ${sesErr?.message || "unknown"}. ` +
-        `SMTP fallback: ${isSmtpConfigured() ? "configured but also failed" : "NOT configured — set SMTP_HOST, SMTP_USER, SMTP_PASS in Vercel"}.`
+        `SMTP fallback NOT configured — set SMTP_HOST, SMTP_USER, SMTP_PASS in Vercel, ` +
+        `or set EMAIL_TRANSPORT=smtp to bypass SES entirely.`
       );
     }
   }
@@ -329,7 +359,8 @@ export async function sendMail(
   }
 
   throw new Error(
-    "No email transport configured. Set AWS SES credentials or SMTP_HOST/SMTP_USER."
+    "No email transport configured. Set AWS SES credentials or SMTP_HOST/SMTP_USER, " +
+    "or set EMAIL_TRANSPORT=smtp with SMTP credentials."
   );
 }
 

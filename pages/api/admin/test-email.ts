@@ -44,10 +44,13 @@ export default async function handler(
     const sesKey = process.env.AWS_ACCESS_KEY_ID || "";
     const sesFrom = process.env.AWS_SES_FROM || "";
 
+    const emailTransport = process.env.EMAIL_TRANSPORT || "auto";
+
     return res.status(200).json({
       ok: true,
       message: "Email transport diagnostics (no email sent)",
       details: {
+        transport: emailTransport,
         ses: {
           configured: Boolean(sesRegion && sesKey),
           region: sesRegion || "(not set)",
