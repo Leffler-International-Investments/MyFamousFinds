@@ -711,7 +711,7 @@ export async function sendSellerSoldWithLabelEmail(params: {
   orderId: string;
   trackingNumber: string;
   trackingUrl: string;
-  labelUrl: string;
+  labelUrl?: string;
   labelBase64?: string;
   labelFormat?: string;
   buyerName?: string;
@@ -754,7 +754,7 @@ export async function sendSellerSoldWithLabelEmail(params: {
     `A UPS shipping label has been generated and is ready to print.\n` +
     `Tracking Number: ${params.trackingNumber}\n` +
     `Track: ${params.trackingUrl}\n` +
-    `Download Label: ${params.labelUrl}\n\n` +
+    (params.labelUrl ? `Download Label: ${params.labelUrl}\n` : "") + `\n` +
     (buyerAddrLines.length
       ? `SHIP TO\n${buyerAddrLines.join("\n")}\n\n`
       : "") +
@@ -819,13 +819,15 @@ export async function sendSellerSoldWithLabelEmail(params: {
     `</table></td></tr></table>` +
     // Inline label image
     inlineLabelHtml +
-    // Download label button
-    `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 20px 0;">` +
-    `<tr><td align="center">` +
-    `<table role="presentation" cellpadding="0" cellspacing="0"><tr><td style="border-radius:6px;background-color:#b8860b;">` +
-    `<a href="${escapeHtml(params.labelUrl)}" style="display:inline-block;padding:14px 32px;color:#ffffff;text-decoration:none;font-size:15px;font-weight:bold;letter-spacing:0.5px;">PRINT SHIPPING LABEL</a>` +
-    `</td></tr></table>` +
-    `</td></tr></table>` +
+    // Download label button (only if Storage URL is available)
+    (params.labelUrl
+      ? `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 20px 0;">` +
+        `<tr><td align="center">` +
+        `<table role="presentation" cellpadding="0" cellspacing="0"><tr><td style="border-radius:6px;background-color:#b8860b;">` +
+        `<a href="${escapeHtml(params.labelUrl)}" style="display:inline-block;padding:14px 32px;color:#ffffff;text-decoration:none;font-size:15px;font-weight:bold;letter-spacing:0.5px;">PRINT SHIPPING LABEL</a>` +
+        `</td></tr></table>` +
+        `</td></tr></table>`
+      : "") +
     // Instructions
     `<div style="background-color:#fef9ee;border:1px solid #f5e6c8;border-radius:8px;padding:16px 20px;margin:0 0 20px 0;">` +
     `<p style="margin:0 0 8px 0;font-size:14px;font-weight:bold;color:#92400e;">Next Steps:</p>` +

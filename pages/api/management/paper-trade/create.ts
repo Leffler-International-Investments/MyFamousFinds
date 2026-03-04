@@ -180,6 +180,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const buyerAddr = String(buyerEmail).trim().toLowerCase();
     const amountStr = price.toFixed(2);
     let buyerEmailSent = false;
+    let buyerEmailError = "";
     try {
       await sendBuyerOrderConfirmationEmail({
         to: buyerAddr,
@@ -191,8 +192,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       });
       buyerEmailSent = true;
       console.log(`[paper-trade] Buyer confirmation email sent to ${buyerAddr}`);
-    } catch (emailErr) {
-      console.error("[paper-trade] Buyer confirmation email failed, queueing:", emailErr);
+    } catch (emailErr: any) {
+      buyerEmailError = emailErr?.message || "Unknown email error";
+      console.error("[paper-trade] Buyer confirmation email failed:", buyerEmailError);
+      // Queue for retry
       await queueEmail({
         to: buyerAddr,
         subject: "MyFamousFinds — Order Confirmation",
@@ -224,6 +227,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     // If label didn't send seller email, send fallback "Item Sold" notification
     let sellerEmailSent = labelResult.emailSent;
+    let sellerEmailError = "";
     if (!sellerEmailSent && resolvedSellerEmail && resolvedSellerEmail.includes("@")) {
       try {
         await sendSellerItemSoldEmail({
@@ -236,8 +240,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         });
         sellerEmailSent = true;
         console.log(`[paper-trade] Seller fallback email sent to ${resolvedSellerEmail}`);
-      } catch (fallbackErr) {
-        console.error("[paper-trade] Seller fallback email failed:", fallbackErr);
+      } catch (fallbackErr: any) {
+        sellerEmailError = fallbackErr?.message || "Unknown email error";
+        console.error("[paper-trade] Seller fallback email failed:", sellerEmailError);
       }
     }
 
@@ -252,7 +257,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       sellerName,
       sellerEmail: resolvedSellerEmail,
       buyerEmailSent,
+      buyerEmailError,
       sellerEmailSent,
+      sellerEmailError,
       labelGenerated: labelResult.generated,
       labelEmailSent: labelResult.emailSent,
       buyerShippingEmailSent: labelResult.buyerEmailSent,
