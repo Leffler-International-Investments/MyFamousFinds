@@ -1081,31 +1081,54 @@ export async function sendSellerSoldWithLabelEmail(params: {
     `</table></td></tr></table>` +
     // Inline label image
     inlineLabelHtml +
-    // Download & Print buttons — always visible when labelUrl is available
-    (params.labelUrl
-      ? `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 20px 0;">` +
-        `<tr><td align="center" style="padding:0 0 10px 0;">` +
-        `<table role="presentation" cellpadding="0" cellspacing="0"><tr>` +
-        // Download button
-        `<td style="border-radius:6px;background-color:#b8860b;padding:0;margin-right:12px;">` +
-        `<a href="${escapeHtml(params.labelUrl)}" style="display:inline-block;padding:16px 36px;color:#ffffff;text-decoration:none;font-size:16px;font-weight:bold;letter-spacing:0.5px;" target="_blank">` +
-        `&#x1F4E5; DOWNLOAD LABEL</a>` +
-        `</td>` +
-        `<td style="width:12px;"></td>` +
-        // Print button
-        `<td style="border-radius:6px;background-color:#1c1917;padding:0;">` +
-        `<a href="${escapeHtml(params.labelUrl)}" style="display:inline-block;padding:16px 36px;color:#ffffff;text-decoration:none;font-size:16px;font-weight:bold;letter-spacing:0.5px;" target="_blank">` +
-        `&#x1F5A8; PRINT LABEL</a>` +
-        `</td>` +
-        `</tr></table>` +
-        `</td></tr>` +
-        `<tr><td align="center"><p style="margin:0;font-size:12px;color:#78716c;">Click to download the label, then print it on a standard printer.</p></td></tr>` +
-        `</table>`
-      : (labelAttachments.length
-        ? `<p style="margin:0 0 16px 0;font-size:14px;color:#1c1917;background:#fef9ee;border:1px solid #f5e6c8;border-radius:8px;padding:12px 16px;">` +
+    // Download & Print buttons — always prominently visible, link to universal viewer page
+    (() => {
+      const viewerBase = `${siteUrl}/label/view`;
+      const viewerLink = params.labelUrl
+        ? `${viewerBase}?url=${encodeURIComponent(params.labelUrl)}&order=${encodeURIComponent(params.orderId)}`
+        : "";
+      const rawLink = params.labelUrl ? escapeHtml(params.labelUrl) : "";
+
+      if (params.labelUrl) {
+        return (
+          // Prominent action banner
+          `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 20px 0;background-color:#fef9ee;border:1px solid #f5e6c8;border-radius:8px;">` +
+          `<tr><td style="padding:16px 20px 8px 20px;">` +
+          `<p style="margin:0;font-size:15px;font-weight:bold;color:#92400e;text-align:center;">&#x1F4E6; Your label is ready — download or print it below</p>` +
+          `</td></tr>` +
+          `<tr><td align="center" style="padding:8px 20px 16px 20px;">` +
+          `<table role="presentation" cellpadding="0" cellspacing="0"><tr>` +
+          // Download button — links to viewer page for universal iOS/Android support
+          `<td style="border-radius:8px;background-color:#b8860b;padding:0;">` +
+          `<a href="${escapeHtml(viewerLink)}" style="display:inline-block;padding:18px 40px;color:#ffffff;text-decoration:none;font-size:18px;font-weight:bold;letter-spacing:0.5px;" target="_blank">` +
+          `&#x2B07;&#xFE0F; DOWNLOAD LABEL</a>` +
+          `</td>` +
+          `<td style="width:14px;"></td>` +
+          // Print button — links to same viewer page which handles print
+          `<td style="border-radius:8px;background-color:#1c1917;padding:0;">` +
+          `<a href="${escapeHtml(viewerLink)}" style="display:inline-block;padding:18px 40px;color:#ffffff;text-decoration:none;font-size:18px;font-weight:bold;letter-spacing:0.5px;" target="_blank">` +
+          `&#x1F5A8;&#xFE0F; PRINT LABEL</a>` +
+          `</td>` +
+          `</tr></table>` +
+          `</td></tr>` +
+          `<tr><td align="center" style="padding:0 20px 14px 20px;">` +
+          `<p style="margin:0;font-size:12px;color:#78716c;">Works on iPhone, iPad, Android &amp; desktop. Tap a button to open the label viewer.</p>` +
+          `</td></tr>` +
+          // Fallback: plain direct link in case buttons don't render
+          `<tr><td align="center" style="padding:0 20px 14px 20px;">` +
+          `<p style="margin:0;font-size:12px;color:#a8a29e;">Can't see the buttons? <a href="${rawLink}" style="color:#b8860b;text-decoration:underline;" target="_blank">Open label directly</a></p>` +
+          `</td></tr>` +
+          `</table>`
+        );
+      }
+      if (labelAttachments.length) {
+        return (
+          `<p style="margin:0 0 16px 0;font-size:14px;color:#1c1917;background:#fef9ee;border:1px solid #f5e6c8;border-radius:8px;padding:12px 16px;">` +
           `&#x1F4CE; The shipping label is attached to this email. Open the attachment to download and print.</p>`
-        : "")
-      ) +
+        );
+      }
+      return "";
+    })() +
     // Instructions
     `<div style="background-color:#fef9ee;border:1px solid #f5e6c8;border-radius:8px;padding:16px 20px;margin:0 0 20px 0;">` +
     `<p style="margin:0 0 8px 0;font-size:14px;font-weight:bold;color:#92400e;">Next Steps:</p>` +
