@@ -2,11 +2,14 @@
 // Creates an order in Firestore with status "paid" — same as a real PayPal capture.
 // Then sends buyer confirmation email, and triggers auto UPS label generation
 // which sends the seller the label + sends buyer shipping notification.
+//
+// Accepts an optional sellerAddress override — if provided, it is written to
+// seller_banking so that tryAutoGenerateLabel() can find the sender address.
 
 import type { NextApiRequest, NextApiResponse } from "next";
 import { adminDb, FieldValue } from "../../../../utils/firebaseAdmin";
 import { requireAdmin } from "../../../../utils/adminAuth";
-import { sendBuyerOrderConfirmationEmail } from "../../../../utils/email";
+import { sendBuyerOrderConfirmationEmail, sendSellerItemSoldEmail } from "../../../../utils/email";
 import { queueEmail } from "../../../../utils/emailOutbox";
 import { tryAutoGenerateLabel } from "../../../../utils/autoGenerateLabel";
 
@@ -21,6 +24,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       buyerEmail,
       buyerPhone,
       shippingAddress,
+      sellerAddress,   // optional override: { name, phone, line1, line2, city, state, postalCode, country }
+      sellerEmail: sellerEmailOverride, // optional: override seller contact email
     } = req.body || {};
 
     if (!listingId) return res.status(400).json({ error: "Missing listingId" });
@@ -48,12 +53,59 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const currency = String(listing.currency || "USD").toUpperCase();
     const sellerId = String(listing.sellerId || listing.seller || "");
 
-    // Resolve seller name
+    // Resolve seller info
     let sellerName = "";
+    let resolvedSellerEmail = sellerEmailOverride ? String(sellerEmailOverride).trim().toLowerCase() : "";
     if (sellerId) {
       try {
         const sellerSnap = await adminDb.collection("sellers").doc(sellerId).get();
-        sellerName = sellerSnap.data()?.name || sellerSnap.data()?.businessName || sellerId;
+        if (sellerSnap.exists) {
+          const sd: any = sellerSnap.data() || {};
+          sellerName = sd.businessName || sd.name || sellerId;
+          if (!resolvedSellerEmail) {
+            resolvedSellerEmail = sd.contactEmail || sd.email || "";
+          }
+        }
+      } catch {}
+    }
+
+    // ── Auto-create/update seller_banking with seller address for UPS ──
+    // tryAutoGenerateLabel() looks up seller address from seller_banking first.
+    // If the manager provided a sellerAddress override, ensure it's stored.
+    if (sellerAddress && sellerAddress.line1 && sellerAddress.city && sellerAddress.state && sellerAddress.postalCode) {
+      const bankingKey = resolvedSellerEmail || sellerId;
+      if (bankingKey) {
+        try {
+          await adminDb.collection("seller_banking").doc(bankingKey).set({
+            sellerId: sellerId || bankingKey,
+            sellerEmail: resolvedSellerEmail || "",
+            legalName: sellerAddress.name || sellerName || "",
+            businessName: sellerName || "",
+            phone: sellerAddress.phone || "",
+            addressLine1: sellerAddress.line1,
+            addressLine2: sellerAddress.line2 || "",
+            city: sellerAddress.city,
+            state: sellerAddress.state,
+            postalCode: sellerAddress.postalCode,
+            country: sellerAddress.country || "US",
+            updatedAt: FieldValue.serverTimestamp(),
+            source: "paper_trade",
+          }, { merge: true });
+          console.log(`[paper-trade] seller_banking updated for ${bankingKey}`);
+        } catch (bankErr) {
+          console.warn("[paper-trade] Failed to update seller_banking:", bankErr);
+        }
+      }
+    }
+
+    // Also ensure the sellers doc has contactEmail so label email can be sent
+    if (sellerId && resolvedSellerEmail) {
+      try {
+        await adminDb.collection("sellers").doc(sellerId).set({
+          contactEmail: resolvedSellerEmail,
+          email: resolvedSellerEmail,
+          updatedAt: FieldValue.serverTimestamp(),
+        }, { merge: true });
       } catch {}
     }
 
@@ -67,25 +119,20 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const orderRef = adminDb.collection("orders").doc();
     const orderId = orderRef.id;
     const orderData = {
-      // Paper trade marker
       paperTrade: true,
       source: "paper-trade",
 
-      // Payment info (simulated)
       paypalOrderId: `PT-${orderId.slice(0, 8).toUpperCase()}`,
       paypalCaptureId: `PT-CAP-${orderId.slice(0, 8).toUpperCase()}`,
 
-      // Listing
       listingId: String(listingId),
       listingTitle: title,
       listingBrand: brand,
       listingCategory: category,
 
-      // Seller
       sellerId,
       sellerName,
 
-      // Buyer
       buyerName: String(buyerName).trim(),
       buyerEmail: String(buyerEmail).trim().toLowerCase(),
       buyer: {
@@ -94,17 +141,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         phone: String(buyerPhone || "").trim(),
       },
 
-      // Totals
-      amountTotal: Math.round(price * 100), // cents — same as real capture
+      amountTotal: Math.round(price * 100),
       currency,
-      totals: {
-        total: price,
-        currency,
-        platformFee,
-        sellerPayout,
-      },
+      totals: { total: price, currency, platformFee, sellerPayout },
 
-      // Shipping address — same structure as real orders
       shippingAddress: {
         name: addr.name || String(buyerName).trim(),
         line1: addr.line1 || "",
@@ -115,19 +155,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         country: addr.country || "US",
       },
 
-      // Order status — starts as "paid" (same as real capture)
       status: "paid",
-      fulfillment: {
-        stage: "PAID",
-        signatureRequired: true,
-      },
-      payout: {
-        status: "PENDING",
-        platformCommissionPct,
-      },
+      fulfillment: { stage: "PAID", signatureRequired: true },
+      payout: { status: "PENDING", platformCommissionPct },
       shipping: {},
 
-      // Metadata
       vipPointsAwarded: false,
       reviewRequestSent: false,
       buyerConfirmationEmailAttempted: true,
@@ -136,7 +168,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     await orderRef.set(orderData);
 
-    // Mark listing as sold — same as real capture
+    // Mark listing as sold
     await listingRef.update({
       isSold: true,
       sold: true,
@@ -176,12 +208,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     // ── REAL Step 2: Auto-generate UPS label + send seller email ──
-    // This calls the SAME function used in real PayPal capture:
-    //   - Looks up seller address from seller_banking / sellers collection
-    //   - Calls UPS API to create shipment + label
-    //   - Uploads label to Firebase Storage
-    //   - Sends combined "Sale Confirmed + Shipping Label" email to seller
-    //   - Sends buyer shipping notification with tracking number
     let labelResult = { generated: false, emailSent: false, buyerEmailSent: false, trackingNumber: "", labelUrl: "", error: "" };
     try {
       labelResult = await tryAutoGenerateLabel(orderId) as any;
@@ -197,26 +223,19 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     // If label didn't send seller email, send fallback "Item Sold" notification
-    if (!labelResult.emailSent && sellerId) {
+    let sellerEmailSent = labelResult.emailSent;
+    if (!sellerEmailSent && resolvedSellerEmail && resolvedSellerEmail.includes("@")) {
       try {
-        let sellerEmail = "";
-        try {
-          const sellerDoc = await adminDb.collection("sellers").doc(sellerId).get();
-          sellerEmail = sellerDoc.data()?.contactEmail || sellerDoc.data()?.email || "";
-        } catch {}
-
-        if (sellerEmail && sellerEmail.includes("@")) {
-          const { sendSellerItemSoldEmail } = await import("../../../../utils/email");
-          await sendSellerItemSoldEmail({
-            to: sellerEmail,
-            sellerName: sellerName || "Seller",
-            itemTitle: title,
-            amount: amountStr,
-            currency,
-            orderId,
-          });
-          console.log(`[paper-trade] Seller fallback email sent to ${sellerEmail}`);
-        }
+        await sendSellerItemSoldEmail({
+          to: resolvedSellerEmail,
+          sellerName: sellerName || "Seller",
+          itemTitle: title,
+          amount: amountStr,
+          currency,
+          orderId,
+        });
+        sellerEmailSent = true;
+        console.log(`[paper-trade] Seller fallback email sent to ${resolvedSellerEmail}`);
       } catch (fallbackErr) {
         console.error("[paper-trade] Seller fallback email failed:", fallbackErr);
       }
@@ -229,9 +248,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       total: price,
       currency,
       listingTitle: title,
+      sellerId,
+      sellerName,
+      sellerEmail: resolvedSellerEmail,
       buyerEmailSent,
+      sellerEmailSent,
       labelGenerated: labelResult.generated,
       labelEmailSent: labelResult.emailSent,
+      buyerShippingEmailSent: labelResult.buyerEmailSent,
       trackingNumber: labelResult.trackingNumber || "",
       labelUrl: labelResult.labelUrl || "",
       labelError: labelResult.error || "",

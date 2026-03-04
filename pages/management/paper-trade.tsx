@@ -90,6 +90,17 @@ export default function PaperTradePage({ listings, paperOrders: initial }: Props
   const [addrZip, setAddrZip] = useState("");
   const [addrCountry, setAddrCountry] = useState("US");
 
+  // ─ Seller address override (ensures UPS label works) ─
+  const [sellerEmailOverride, setSellerEmailOverride] = useState("");
+  const [sellerAddrName, setSellerAddrName] = useState("");
+  const [sellerAddrPhone, setSellerAddrPhone] = useState("");
+  const [sellerAddrLine1, setSellerAddrLine1] = useState("");
+  const [sellerAddrLine2, setSellerAddrLine2] = useState("");
+  const [sellerAddrCity, setSellerAddrCity] = useState("");
+  const [sellerAddrState, setSellerAddrState] = useState("");
+  const [sellerAddrZip, setSellerAddrZip] = useState("");
+  const [sellerAddrCountry, setSellerAddrCountry] = useState("US");
+
   // ─ Delete-by-email state ─
   const [deleteEmail, setDeleteEmail] = useState("");
 
@@ -119,29 +130,44 @@ export default function PaperTradePage({ listings, paperOrders: initial }: Props
     setBusy(true);
     setCreateLog(["Creating paper trade order..."]);
     try {
+      const body: Record<string, any> = {
+        listingId: selectedListing,
+        buyerName, buyerEmail, buyerPhone,
+        shippingAddress: {
+          name: buyerName,
+          line1: addrLine1, line2: addrLine2,
+          city: addrCity, state: addrState,
+          postalCode: addrZip, country: addrCountry,
+        },
+      };
+      // Include seller address override if provided (ensures UPS label works)
+      if (sellerAddrLine1 && sellerAddrCity && sellerAddrState && sellerAddrZip) {
+        body.sellerAddress = {
+          name: sellerAddrName, phone: sellerAddrPhone,
+          line1: sellerAddrLine1, line2: sellerAddrLine2,
+          city: sellerAddrCity, state: sellerAddrState,
+          postalCode: sellerAddrZip, country: sellerAddrCountry,
+        };
+      }
+      if (sellerEmailOverride.trim()) {
+        body.sellerEmail = sellerEmailOverride.trim();
+      }
       const r = await fetch("/api/management/paper-trade/create", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          listingId: selectedListing,
-          buyerName, buyerEmail, buyerPhone,
-          shippingAddress: {
-            name: buyerName,
-            line1: addrLine1, line2: addrLine2,
-            city: addrCity, state: addrState,
-            postalCode: addrZip, country: addrCountry,
-          },
-        }),
+        body: JSON.stringify(body),
       });
       const json = await r.json();
       if (!r.ok) throw new Error(json.error || "Failed");
 
       const log: string[] = [];
       log.push(`Order created: ${json.orderId}`);
-      log.push(`Buyer email sent: ${json.buyerEmailSent ? "YES" : "NO (queued)"}`);
+      log.push(`Buyer confirmation email: ${json.buyerEmailSent ? "SENT" : "FAILED (queued)"}`);
+      log.push(`Seller email: ${json.sellerEmailSent ? "SENT" : "NOT SENT"} (${json.sellerEmail || "no email"})`);
       log.push(`UPS label generated: ${json.labelGenerated ? "YES" : "NO"}`);
-      if (json.trackingNumber) log.push(`Tracking: ${json.trackingNumber}`);
-      if (json.labelEmailSent) log.push("Seller label email: SENT");
+      if (json.trackingNumber) log.push(`Tracking #: ${json.trackingNumber}`);
+      if (json.labelUrl && json.labelUrl !== "(paper-trade — no real label)") log.push(`Label URL: ${json.labelUrl}`);
+      if (json.buyerShippingEmailSent) log.push("Buyer shipping notification: SENT");
       if (json.labelError) log.push(`Label note: ${json.labelError}`);
       setCreateLog(log);
 
@@ -398,6 +424,52 @@ export default function PaperTradePage({ listings, paperOrders: initial }: Props
               </div>
             </div>
 
+            <h3 className="sub-heading">Seller Address Override (for UPS Label)</h3>
+            <p className="hint">
+              If the seller doesn&apos;t have an address on file, provide one here.
+              This gets saved to <code>seller_banking</code> so the UPS label
+              generation can build a valid sender address.
+            </p>
+
+            <div className="form-grid">
+              <div className="field">
+                <label>Seller email override</label>
+                <input className="input" value={sellerEmailOverride} onChange={(e) => setSellerEmailOverride(e.target.value)} placeholder="e.g. leffleryd@gmail.com" />
+              </div>
+              <div className="field">
+                <label>Sender name</label>
+                <input className="input" value={sellerAddrName} onChange={(e) => setSellerAddrName(e.target.value)} placeholder="e.g. Yaffa Leffler" />
+              </div>
+              <div className="field">
+                <label>Sender phone</label>
+                <input className="input" value={sellerAddrPhone} onChange={(e) => setSellerAddrPhone(e.target.value)} />
+              </div>
+              <div className="field">
+                <label>Address line 1</label>
+                <input className="input" value={sellerAddrLine1} onChange={(e) => setSellerAddrLine1(e.target.value)} />
+              </div>
+              <div className="field">
+                <label>Address line 2</label>
+                <input className="input" value={sellerAddrLine2} onChange={(e) => setSellerAddrLine2(e.target.value)} />
+              </div>
+              <div className="field">
+                <label>City</label>
+                <input className="input" value={sellerAddrCity} onChange={(e) => setSellerAddrCity(e.target.value)} />
+              </div>
+              <div className="field">
+                <label>State</label>
+                <input className="input" value={sellerAddrState} onChange={(e) => setSellerAddrState(e.target.value)} />
+              </div>
+              <div className="field">
+                <label>Zip / Postal</label>
+                <input className="input" value={sellerAddrZip} onChange={(e) => setSellerAddrZip(e.target.value)} />
+              </div>
+              <div className="field">
+                <label>Country</label>
+                <input className="input" value={sellerAddrCountry} onChange={(e) => setSellerAddrCountry(e.target.value)} />
+              </div>
+            </div>
+
             <button
               className="btn btn-primary btn-lg"
               disabled={busy || !selectedListing || !buyerName || !buyerEmail || !addrLine1 || !addrCity || !addrState || !addrZip}
@@ -525,6 +597,9 @@ export default function PaperTradePage({ listings, paperOrders: initial }: Props
         .form-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-bottom: 14px; }
         .field { display: flex; flex-direction: column; gap: 4px; }
         .field label { font-size: 11px; font-weight: 800; color: #6b7280; text-transform: uppercase; letter-spacing: 0.05em; }
+        .sub-heading { font-size: 14px; font-weight: 900; color: #374151; margin: 18px 0 4px; }
+        .sub-heading + .hint { margin-top: 0; }
+        .sub-heading + .hint code { background: #e5e7eb; padding: 1px 4px; border-radius: 4px; font-size: 11px; }
 
         /* ─── Buttons ─── */
         .btn { border: none; border-radius: 999px; padding: 10px 20px; font-weight: 800; font-size: 13px; cursor: pointer; white-space: nowrap; text-decoration: none; display: inline-flex; align-items: center; }
