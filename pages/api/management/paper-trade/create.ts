@@ -9,7 +9,13 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { adminDb, FieldValue } from "../../../../utils/firebaseAdmin";
 import { requireAdmin } from "../../../../utils/adminAuth";
-import { sendBuyerOrderConfirmationEmail, sendSellerItemSoldEmail } from "../../../../utils/email";
+import {
+  sendBuyerOrderConfirmationEmail,
+  sendSellerItemSoldEmail,
+  checkSesIdentityStatus,
+  verifySesEmailIdentity,
+  isSesInSandbox,
+} from "../../../../utils/email";
 import { queueEmail } from "../../../../utils/emailOutbox";
 import { tryAutoGenerateLabel } from "../../../../utils/autoGenerateLabel";
 
@@ -176,9 +182,48 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       soldAt: FieldValue.serverTimestamp(),
     });
 
-    // ── REAL Step 1: Send buyer order confirmation email ──
+    // ── Pre-check: SES sandbox email verification ──
     const buyerAddr = String(buyerEmail).trim().toLowerCase();
     const amountStr = price.toFixed(2);
+    const emailsToCheck = [buyerAddr];
+    if (resolvedSellerEmail && resolvedSellerEmail.includes("@")) {
+      emailsToCheck.push(resolvedSellerEmail);
+    }
+
+    let sesVerificationWarnings: string[] = [];
+    try {
+      const sandbox = await isSesInSandbox();
+      if (sandbox) {
+        const statuses = await checkSesIdentityStatus(emailsToCheck);
+        for (const email of emailsToCheck) {
+          if (statuses[email] !== "Success") {
+            const status = statuses[email] || "NotStarted";
+            sesVerificationWarnings.push(
+              `${email}: ${status === "NotStarted" ? "not verified — sending verification email now" : status}`
+            );
+            // Auto-initiate verification if not started
+            if (status === "NotStarted" || status === "Failed") {
+              try {
+                await verifySesEmailIdentity(email);
+                console.log(`[paper-trade] Auto-sent SES verification to ${email}`);
+              } catch (vErr) {
+                console.warn(`[paper-trade] Failed to auto-verify ${email}:`, vErr);
+              }
+            }
+          }
+        }
+        if (sesVerificationWarnings.length > 0) {
+          console.warn(
+            "[paper-trade] SES sandbox mode — unverified recipients:",
+            sesVerificationWarnings
+          );
+        }
+      }
+    } catch (checkErr) {
+      console.warn("[paper-trade] SES sandbox check failed (non-blocking):", checkErr);
+    }
+
+    // ── REAL Step 1: Send buyer order confirmation email ──
     let buyerEmailSent = false;
     let buyerEmailError = "";
     try {
@@ -266,6 +311,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       trackingNumber: labelResult.trackingNumber || "",
       labelUrl: labelResult.labelUrl || "",
       labelError: labelResult.error || "",
+      ...(sesVerificationWarnings.length > 0
+        ? {
+            sesWarning: "SES is in sandbox mode — some recipient emails are not verified.",
+            unverifiedEmails: sesVerificationWarnings,
+            fix: "Verification emails have been sent automatically. Each recipient must click the AWS confirmation link, then retry.",
+          }
+        : {}),
     });
   } catch (e: any) {
     console.error("[PAPER_TRADE_CREATE]", e);

@@ -1,7 +1,15 @@
 // FILE: /utils/email.ts
 // Email transport: AWS SES (primary) with Gmail SMTP fallback.
 import nodemailer from "nodemailer";
-import { SESClient, SendEmailCommand } from "@aws-sdk/client-ses";
+import {
+  SESClient,
+  SendEmailCommand,
+  VerifyEmailIdentityCommand,
+  GetIdentityVerificationAttributesCommand,
+  ListIdentitiesCommand,
+  DeleteIdentityCommand,
+  GetSendQuotaCommand,
+} from "@aws-sdk/client-ses";
 
 function cleanEnv(v?: string) {
   return String(v ?? "")
@@ -139,12 +147,22 @@ async function sendViaSes(
     const msg = err?.message || "";
     // Provide clear guidance for common SES errors
     if (msg.includes("not verified") || msg.includes("identity")) {
-      console.error(
-        `[SES] IDENTITY NOT VERIFIED — The sender "${sourceEmail}" is not verified in AWS SES (region: ${AWS_REGION}).`,
-        `\nFix: In Vercel, set AWS_SES_FROM to a verified SES identity (e.g. noreply@myfamousfinds.com).`,
-        `\nAlso ensure the domain or email is verified in the AWS SES console.`,
-        `\nIf SES is in sandbox mode, the recipient "${to}" must also be verified.`
-      );
+      const recipientInError = msg.includes(to);
+      if (recipientInError) {
+        console.error(
+          `[SES] RECIPIENT NOT VERIFIED — "${to}" is not verified in AWS SES (region: ${AWS_REGION}).`,
+          `\nSES is likely in sandbox mode. In sandbox, BOTH sender and recipient must be verified.`,
+          `\nFix: Use the /api/admin/ses-identity endpoint to send a verification email to "${to}",`,
+          `then have them click the confirmation link in the email they receive from AWS.`,
+          `\nAlternatively, request SES production access in the AWS console to send to any address.`
+        );
+      } else {
+        console.error(
+          `[SES] SENDER NOT VERIFIED — "${sourceEmail}" is not verified in AWS SES (region: ${AWS_REGION}).`,
+          `\nFix: In Vercel, set AWS_SES_FROM to a verified SES identity (e.g. noreply@myfamousfinds.com).`,
+          `\nAlso ensure the domain or email is verified in the AWS SES console.`
+        );
+      }
     }
     throw err;
   }
@@ -253,6 +271,100 @@ export async function sendMail(
   throw new Error(
     "No email transport configured. Set AWS SES credentials or SMTP_HOST/SMTP_USER."
   );
+}
+
+// ---------- SES Identity Verification (sandbox mode support) ----------
+
+/**
+ * Check whether SES is in sandbox mode by inspecting the send quota.
+ * In sandbox mode, the max 24-hour send is typically 200.
+ */
+export async function isSesInSandbox(): Promise<boolean> {
+  if (!isSesConfigured()) return false;
+  try {
+    const client = getSesClient();
+    const result = await client.send(new GetSendQuotaCommand({}));
+    // Sandbox accounts have a max24HourSend of 200
+    return (result.Max24HourSend ?? 0) <= 200;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Send a verification email to an address so it can receive mail in SES sandbox mode.
+ * The recipient will get an email with a confirmation link they must click.
+ */
+export async function verifySesEmailIdentity(email: string): Promise<void> {
+  if (!isSesConfigured()) {
+    throw new Error("AWS SES is not configured (missing credentials).");
+  }
+  const client = getSesClient();
+  await client.send(new VerifyEmailIdentityCommand({ EmailAddress: email }));
+  console.log(`[SES] Verification email sent to ${email}`);
+}
+
+/**
+ * Check the verification status of one or more email identities in SES.
+ * Returns a map of email → status ("Pending" | "Success" | "Failed" | "TemporaryFailure" | "NotStarted").
+ */
+export async function checkSesIdentityStatus(
+  emails: string[]
+): Promise<Record<string, string>> {
+  if (!isSesConfigured()) return {};
+  const client = getSesClient();
+  const result = await client.send(
+    new GetIdentityVerificationAttributesCommand({ Identities: emails })
+  );
+  const statuses: Record<string, string> = {};
+  for (const email of emails) {
+    const attr = result.VerificationAttributes?.[email];
+    statuses[email] = attr?.VerificationStatus ?? "NotStarted";
+  }
+  return statuses;
+}
+
+/**
+ * List all verified email identities in SES.
+ */
+export async function listVerifiedSesIdentities(): Promise<string[]> {
+  if (!isSesConfigured()) return [];
+  const client = getSesClient();
+  const result = await client.send(
+    new ListIdentitiesCommand({ IdentityType: "EmailAddress", MaxItems: 100 })
+  );
+  const identities = result.Identities || [];
+  if (identities.length === 0) return [];
+
+  // Filter to only those with "Success" status
+  const statusResult = await client.send(
+    new GetIdentityVerificationAttributesCommand({ Identities: identities })
+  );
+  return identities.filter((id) => {
+    const attr = statusResult.VerificationAttributes?.[id];
+    return attr?.VerificationStatus === "Success";
+  });
+}
+
+/**
+ * Delete (remove) an email identity from SES.
+ */
+export async function deleteSesEmailIdentity(email: string): Promise<void> {
+  if (!isSesConfigured()) {
+    throw new Error("AWS SES is not configured (missing credentials).");
+  }
+  const client = getSesClient();
+  await client.send(new DeleteIdentityCommand({ Identity: email }));
+  console.log(`[SES] Identity removed: ${email}`);
+}
+
+/**
+ * Check if a recipient email is verified in SES. Useful to pre-check before
+ * sending in sandbox mode.
+ */
+export async function isSesRecipientVerified(email: string): Promise<boolean> {
+  const statuses = await checkSesIdentityStatus([email]);
+  return statuses[email] === "Success";
 }
 
 /**
