@@ -323,28 +323,32 @@ export async function tryAutoGenerateLabel(orderId: string): Promise<AutoLabelRe
 
   const trackingUrl = `https://www.ups.com/track?loc=en_US&tracknum=${encodeURIComponent(result.trackingNumber)}`;
 
-  // Upload label to Firebase Storage
-  let labelUrl: string;
+  // Upload label to Firebase Storage (non-fatal — label data is in base64 already)
+  let labelUrl = "";
   try {
     labelUrl = await uploadLabelToStorage(orderId, result.labelBase64, result.labelFormat);
   } catch (storageErr: any) {
     const errMsg = storageErr?.message || "Firebase Storage upload failed";
     console.error(`[autoGenerateLabel] Label upload failed for order ${orderId}:`, errMsg);
-    await persistLabelFailure(orderRef, order, errMsg);
-    await notifyAdminLabelFailure(orderId, sellerId, errMsg);
-    throw storageErr;
+    // Do NOT throw — we still have the tracking number and base64 label data.
+    // Continue to save tracking info and send emails with inline attachment.
+    console.log(`[autoGenerateLabel] Continuing without Storage URL — will use base64 attachment for emails`);
   }
 
   // Store tracking + label URL on the order with generated status
   await orderRef.set(
     {
       updatedAt: FieldValue.serverTimestamp(),
+      fulfillment: {
+        ...(order.fulfillment || {}),
+        stage: "LABEL_GENERATED",
+      },
       shipping: {
         ...(order.shipping || {}),
         carrier: "UPS",
         trackingNumber: result.trackingNumber,
         trackingUrl,
-        labelUrl,
+        ...(labelUrl ? { labelUrl } : {}),
         labelFormat: result.labelFormat,
         labelStatus: "generated",
         labelGeneratedAt: FieldValue.serverTimestamp(),

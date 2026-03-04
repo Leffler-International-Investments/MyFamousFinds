@@ -170,7 +170,11 @@ export default function OrderRoadmapPage() {
       const log: string[] = [];
       log.push(`Order created: ${json.orderId}`);
       log.push(`Buyer email: ${json.buyerEmailSent ? "SENT" : "FAILED"}`);
-      log.push(`Seller email: ${json.sellerEmailSent ? "SENT" : "NOT SENT"}`);
+      if (json.buyerEmailError) log.push(`  Error: ${json.buyerEmailError}`);
+      log.push(`Seller email: ${json.sellerEmailSent ? "SENT" : "NOT SENT"} (${json.sellerEmail || "no email"})`);
+      if (json.sellerEmailError) log.push(`  Error: ${json.sellerEmailError}`);
+      if (json.labelEmailSent) log.push(`Seller label email: SENT`);
+      if (json.buyerShippingEmailSent) log.push(`Buyer shipping notification: SENT`);
       log.push(`UPS label: ${json.labelGenerated ? "GENERATED" : "NOT GENERATED"}`);
       if (json.trackingNumber) log.push(`Tracking: ${json.trackingNumber}`);
       if (json.labelError) log.push(`Label note: ${json.labelError}`);

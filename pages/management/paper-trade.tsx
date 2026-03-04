@@ -162,11 +162,15 @@ export default function PaperTradePage({ listings, paperOrders: initial }: Props
 
       const log: string[] = [];
       log.push(`Order created: ${json.orderId}`);
-      log.push(`Buyer confirmation email: ${json.buyerEmailSent ? "SENT" : "FAILED (queued)"}`);
+      log.push(`Buyer confirmation email: ${json.buyerEmailSent ? "SENT" : "FAILED"}`);
+      if (json.buyerEmailError) log.push(`  Error: ${json.buyerEmailError}`);
       log.push(`Seller email: ${json.sellerEmailSent ? "SENT" : "NOT SENT"} (${json.sellerEmail || "no email"})`);
+      if (json.sellerEmailError) log.push(`  Error: ${json.sellerEmailError}`);
+      if (json.labelEmailSent) log.push(`Seller label email: SENT (with UPS label attached)`);
+      if (json.buyerShippingEmailSent) log.push(`Buyer shipping notification: SENT (with tracking)`);
       log.push(`UPS label generated: ${json.labelGenerated ? "YES" : "NO"}`);
       if (json.trackingNumber) log.push(`Tracking #: ${json.trackingNumber}`);
-      if (json.labelUrl && json.labelUrl !== "(paper-trade — no real label)") log.push(`Label URL: ${json.labelUrl}`);
+      if (json.labelUrl) log.push(`Label URL: ${json.labelUrl}`);
       if (json.buyerShippingEmailSent) log.push("Buyer shipping notification: SENT");
       if (json.labelError) log.push(`Label note: ${json.labelError}`);
       setCreateLog(log);
