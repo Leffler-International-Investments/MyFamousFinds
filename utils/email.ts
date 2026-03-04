@@ -1032,12 +1032,20 @@ export async function sendSellerSoldWithLabelEmail(params: {
     if (fmt === "GIF" || fmt === "PNG") {
       const mimeType = fmt === "GIF" ? "image/gif" : "image/png";
       const ext = fmt.toLowerCase();
-      // Attach label as inline CID attachment — email clients render this properly
+      const labelBuffer = Buffer.from(params.labelBase64, "base64");
+      // Inline CID attachment — renders the label image inside the email body
       labelAttachments.push({
         filename: `shipping-label-${params.orderId}.${ext}`,
-        content: Buffer.from(params.labelBase64, "base64"),
+        content: labelBuffer,
         contentType: mimeType,
         cid: labelCid,
+      });
+      // Regular downloadable attachment — appears in the email attachment tray
+      // so the seller can download/save/print the label file directly
+      labelAttachments.push({
+        filename: `shipping-label-${params.orderId}.${ext}`,
+        content: labelBuffer,
+        contentType: mimeType,
       });
       inlineLabelHtml =
         `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 16px 0;">` +
@@ -1094,7 +1102,8 @@ export async function sendSellerSoldWithLabelEmail(params: {
           // Prominent action banner
           `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 20px 0;background-color:#fef9ee;border:1px solid #f5e6c8;border-radius:8px;">` +
           `<tr><td style="padding:16px 20px 8px 20px;">` +
-          `<p style="margin:0;font-size:15px;font-weight:bold;color:#92400e;text-align:center;">&#x1F4E6; Your label is ready — download or print it below</p>` +
+          `<p style="margin:0;font-size:15px;font-weight:bold;color:#92400e;text-align:center;">&#x1F4E6; Your label is ready — download or print it below` +
+          (labelAttachments.length ? `, or open the attachment` : ``) + `</p>` +
           `</td></tr>` +
           `<tr><td align="center" style="padding:8px 20px 16px 20px;">` +
           `<table role="presentation" cellpadding="0" cellspacing="0"><tr>` +
@@ -1116,7 +1125,8 @@ export async function sendSellerSoldWithLabelEmail(params: {
           `</td></tr>` +
           // Fallback: plain direct link in case buttons don't render
           `<tr><td align="center" style="padding:0 20px 14px 20px;">` +
-          `<p style="margin:0;font-size:12px;color:#a8a29e;">Can't see the buttons? <a href="${rawLink}" style="color:#b8860b;text-decoration:underline;" target="_blank">Open label directly</a></p>` +
+          `<p style="margin:0;font-size:12px;color:#a8a29e;">Can't see the buttons? <a href="${rawLink}" style="color:#b8860b;text-decoration:underline;" target="_blank">Open label directly</a>` +
+          (labelAttachments.length ? ` or check the attachment on this email` : ``) + `</p>` +
           `</td></tr>` +
           `</table>`
         );
@@ -1133,7 +1143,7 @@ export async function sendSellerSoldWithLabelEmail(params: {
     `<div style="background-color:#fef9ee;border:1px solid #f5e6c8;border-radius:8px;padding:16px 20px;margin:0 0 20px 0;">` +
     `<p style="margin:0 0 8px 0;font-size:14px;font-weight:bold;color:#92400e;">Next Steps:</p>` +
     `<ol style="margin:0;padding-left:20px;color:#78716c;font-size:13px;line-height:1.8;">` +
-    `<li>Download and print the shipping label${params.labelUrl ? " (click the button above)" : " (see attachment)"}</li>` +
+    `<li>Download and print the shipping label${params.labelUrl && labelAttachments.length ? " (click the button above or open the attachment)" : params.labelUrl ? " (click the button above)" : " (see attachment)"}</li>` +
     `<li>Package the item securely</li>` +
     `<li>Attach the label to your package</li>` +
     `<li>Drop off at any UPS location or schedule a pickup</li>` +
