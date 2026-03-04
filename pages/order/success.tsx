@@ -601,9 +601,12 @@ export const getServerSideProps: GetServerSideProps<SuccessProps> = async (ctx) 
               amountTotal: Math.round(capturedAmount * 100),
               currency: capturedCurrency,
               status: "paid",
+              source: "capture",
               createdAt: Date.now(),
               shippingAddress,
               ...(pendingData.buyerId ? { buyerId: pendingData.buyerId } : {}),
+              vipPointsAwarded: false,
+              reviewRequestSent: false,
             });
             orderRef = newRef;
           }
