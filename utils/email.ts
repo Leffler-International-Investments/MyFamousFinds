@@ -1,5 +1,9 @@
 // FILE: /utils/email.ts
-// Email transport: AWS SES (primary) with Gmail SMTP fallback.
+// Email transport: AWS SES (primary) with Google Workspace SMTP fallback.
+// Architecture: sendMail() always tries SES first.  If SES fails (sandbox mode,
+// recipient not verified, etc.) and SMTP is configured, it falls back to SMTP
+// automatically.  When SES moves to production, SES will simply succeed and
+// SMTP is never reached — no code changes required.
 import nodemailer from "nodemailer";
 import {
   SESClient,
@@ -51,7 +55,7 @@ function getSesClient() {
   });
 }
 
-// ---------- SMTP (Gmail) config ----------
+// ---------- SMTP (Google Workspace fallback — admin@myfamousfinds.com) ----------
 const SMTP_HOST = cleanEnv(process.env.SMTP_HOST);
 const SMTP_PORT = Number(cleanEnv(process.env.SMTP_PORT) || "587");
 const SMTP_USER = cleanEnv(process.env.SMTP_USER) || cleanEnv(process.env.SMTP_USER_ADMIN);
@@ -191,12 +195,28 @@ async function sendViaSmtp(
 
 /**
  * Main sendMail — uses AWS SES when configured, with SMTP fallback.
- * If SES is configured but fails (e.g. sandbox mode, credential issues),
- * falls back to SMTP when SMTP is also configured.
+ *
+ * Flow:
+ *   1. If SES configured → try SES
+ *   2. If SES fails (sandbox, unverified recipient, etc.) AND SMTP configured
+ *      → automatically fall back to Google Workspace SMTP
+ *   3. When SES is promoted to production mode, step 1 succeeds and SMTP
+ *      is never reached — zero code changes required.
  */
 
 function isSmtpConfigured(): boolean {
   return Boolean(SMTP_HOST && SMTP_USER);
+}
+
+/** Returns true when the SES error is a sandbox-mode restriction. */
+function isSandboxError(err: any): boolean {
+  const msg = String(err?.message || "");
+  return (
+    msg.includes("not verified") ||
+    msg.includes("Email address is not verified") ||
+    msg.includes("identity") ||
+    msg.includes("MessageRejected")
+  );
 }
 
 // Support both positional args AND object args (for UPS label route)
@@ -230,24 +250,43 @@ export async function sendMail(
   const logTag = `[EMAIL] to=${to} subject="${subject}"`;
   console.log(`${logTag} — attempting to send`);
 
-  // AWS SES is the primary (and production) transport
+  // AWS SES is the primary (and production) transport.
+  // When SES goes live (production mode), emails succeed here and SMTP is never touched.
   if (isSesConfigured()) {
     try {
       const result = await sendViaSes(to, subject, text, html);
       console.log(`${logTag} — sent via AWS SES (messageId=${result.messageId})`);
       return result;
-    } catch (sesErr) {
-      console.error(`${logTag} — AWS SES FAILED, trying SMTP fallback`, sesErr);
+    } catch (sesErr: any) {
+      const sandbox = isSandboxError(sesErr);
+      if (sandbox) {
+        console.warn(
+          `${logTag} — SES SANDBOX restriction (recipient "${to}" not verified). ` +
+          `Falling back to Google Workspace SMTP (admin@myfamousfinds.com).`
+        );
+      } else {
+        console.error(`${logTag} — AWS SES FAILED`, sesErr);
+      }
 
-      // Fall back to SMTP if configured
+      // Fall back to SMTP (Google Workspace) if configured
       if (isSmtpConfigured()) {
         try {
           const result = await sendViaSmtp(to, subject, text, html);
-          console.log(`${logTag} — sent via SMTP fallback (messageId=${result.messageId})`);
+          console.log(
+            `${logTag} — sent via SMTP fallback / admin@myfamousfinds.com (messageId=${result.messageId})` +
+            (sandbox ? ` [SES sandbox → SMTP auto-fallback]` : ``)
+          );
           return result;
         } catch (smtpErr) {
-          console.error(`${logTag} — SMTP fallback also FAILED`, smtpErr);
+          console.error(`${logTag} — SMTP fallback (admin@myfamousfinds.com) also FAILED`, smtpErr);
         }
+      } else if (sandbox) {
+        console.error(
+          `${logTag} — SES is in sandbox mode and SMTP is NOT configured. ` +
+          `Set SMTP_HOST, SMTP_USER, SMTP_PASS in Vercel env vars ` +
+          `(Google Workspace: smtp.gmail.com / admin@myfamousfinds.com) ` +
+          `to enable automatic fallback while SES is in sandbox.`
+        );
       }
 
       // Both failed (or SMTP not configured) — throw the original SES error
@@ -255,15 +294,15 @@ export async function sendMail(
     }
   }
 
-  // SES not configured — use SMTP directly
+  // SES not configured — use SMTP directly (Google Workspace)
   if (isSmtpConfigured()) {
-    console.warn(`${logTag} — AWS SES not configured, using SMTP`);
+    console.warn(`${logTag} — AWS SES not configured, using Google Workspace SMTP (admin@myfamousfinds.com)`);
     try {
       const result = await sendViaSmtp(to, subject, text, html);
-      console.log(`${logTag} — sent via SMTP (messageId=${result.messageId})`);
+      console.log(`${logTag} — sent via SMTP / admin@myfamousfinds.com (messageId=${result.messageId})`);
       return result;
     } catch (err) {
-      console.error(`${logTag} — SMTP FAILED`, err);
+      console.error(`${logTag} — SMTP (admin@myfamousfinds.com) FAILED`, err);
       throw err;
     }
   }
