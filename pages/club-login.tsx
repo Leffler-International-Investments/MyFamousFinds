@@ -13,6 +13,7 @@ import {
 } from "firebase/auth";
 import { auth } from "../utils/firebaseClient";
 import Header from "../components/Header";
+import GoogleOneTap from "../components/GoogleOneTap";
 // import Footer from "../components/Footer"; // Footer removed to match auth page design
 import Head from "next/head";
 
@@ -114,6 +115,14 @@ export default function LoginPage() {
       <main className="auth-main">
         {/* Use the .auth-card class from globals.css */}
         <div className="auth-card">
+          <GoogleOneTap
+            onSuccess={() => router.push("/club-profile")}
+            onError={(err) => {
+              console.error("one_tap_club_error", err);
+              setError("Google sign-in failed. Please try again.");
+            }}
+            disabled={loading}
+          />
           <h1>Sign In</h1>
 
           {error && (

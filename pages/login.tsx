@@ -16,6 +16,7 @@ import {
 import Header from "../components/Header";
 import Footer from "../components/Footer";
 import PasswordInput from "../components/PasswordInput";
+import GoogleOneTap from "../components/GoogleOneTap";
 import { auth } from "../utils/firebaseClient";
 
 type LoginSuccess = { ok: true; sellerId: string };
@@ -155,6 +156,40 @@ export default function UnifiedLoginPage() {
 
   const from =
     typeof router.query.from === "string" ? router.query.from : null;
+
+  async function handleOneTapSuccess(user: import("firebase/auth").User) {
+    const userEmail = (user.email || "").toLowerCase();
+
+    // Check if user is also a seller
+    try {
+      const sellerRes = await fetch("/api/seller/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: userEmail }),
+      });
+      const sellerJson = (await sellerRes.json()) as LoginResponse;
+
+      if (sellerJson.ok) {
+        setEmail(userEmail);
+        setIsSeller(true);
+        setStep("choose_method");
+        return;
+      }
+    } catch {
+      // Non-blocking — proceed as buyer
+    }
+
+    // Sign in as buyer
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem("ff-role", "buyer");
+      window.localStorage.setItem("ff-email", userEmail);
+      window.localStorage.setItem(
+        "ff-session-exp",
+        String(Date.now() + SESSION_TTL_MS)
+      );
+    }
+    router.push(from || "/account");
+  }
 
   async function handleSocialSignIn(provider: "google") {
     if (!auth) return;
@@ -393,6 +428,14 @@ export default function UnifiedLoginPage() {
         <Header />
         <main className="auth-main">
           <div className="auth-card">
+            <GoogleOneTap
+              onSuccess={handleOneTapSuccess}
+              onError={(err) => {
+                console.error("one_tap_error", err);
+                setError("Google sign-in failed. Please try again.");
+              }}
+              disabled={loading || step !== "credentials"}
+            />
             <h1>Welcome to Famous Finds</h1>
             <p className="auth-subtitle">
               Sign in to shop, sell, and manage your account — all in one place.
