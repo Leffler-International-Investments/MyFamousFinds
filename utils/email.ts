@@ -1403,21 +1403,28 @@ export async function sendSellerNewOfferEmail(params: {
     `${siteUrl}/seller/offers\n\n` +
     `Regards,\nThe MyFamousFinds Team\n`;
 
-  const html =
-    `<p>Hello ${escapeHtml(name)},</p>` +
-    `<p style="font-size:16px;"><b>You have received a new offer on your listing!</b></p>` +
-    `<div style="padding:14px;background:#fef3c7;border-radius:8px;margin:12px 0;">` +
-    `<p style="margin:4px 0;"><b>Item:</b> ${escapeHtml(params.itemTitle)}</p>` +
-    (params.listingPrice ? `<p style="margin:4px 0;"><b>Listing price:</b> ${escapeHtml(cur)} $${params.listingPrice.toLocaleString()}</p>` : "") +
-    `<p style="margin:4px 0;"><b>Offer amount:</b> ${escapeHtml(cur)} $${params.offerAmount.toLocaleString()}</p>` +
-    `<p style="margin:4px 0;"><b>Buyer:</b> ${escapeHtml(params.buyerEmail)}</p>` +
-    (params.message ? `<p style="margin:4px 0;"><b>Message:</b> ${escapeHtml(params.message)}</p>` : "") +
-    `</div>` +
-    `<p><a href="${siteUrl}/seller/offers" ` +
-    `style="display:inline-block;padding:10px 24px;background:#111827;color:#fff;` +
-    `border-radius:999px;text-decoration:none;font-weight:600;">View Offers</a></p>` +
-    `<p>Regards,<br/>The MyFamousFinds Team</p>`;
+  const bodyHtml =
+    `<p style="margin:0 0 16px 0;font-size:16px;">Hello ${escapeHtml(name)},</p>` +
+    `<p style="margin:0 0 20px 0;font-size:20px;font-weight:bold;color:#1c1917;">You Have Received a New Offer!</p>` +
+    // Offer details card
+    `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#fafaf9;border:1px solid #e7e5e4;border-radius:8px;margin:0 0 20px 0;">` +
+    `<tr><td style="padding:16px 20px;border-bottom:1px solid #e7e5e4;background-color:#1c1917;border-radius:8px 8px 0 0;">` +
+    `<p style="margin:0;font-size:14px;font-weight:bold;color:#d4a843;letter-spacing:0.5px;">OFFER DETAILS</p></td></tr>` +
+    `<tr><td style="padding:16px 20px;">` +
+    `<table role="presentation" width="100%" cellpadding="0" cellspacing="0">` +
+    `<tr><td style="padding:6px 0;color:#78716c;font-size:13px;width:110px;">Item</td><td style="padding:6px 0;font-size:14px;font-weight:bold;color:#1c1917;">${escapeHtml(params.itemTitle)}</td></tr>` +
+    (params.listingPrice ? `<tr><td style="padding:6px 0;color:#78716c;font-size:13px;">Listing Price</td><td style="padding:6px 0;font-size:14px;font-weight:bold;color:#1c1917;">${escapeHtml(cur)} $${params.listingPrice.toLocaleString()}</td></tr>` : "") +
+    `<tr><td style="padding:6px 0;color:#78716c;font-size:13px;">Offer Amount</td><td style="padding:6px 0;font-size:14px;font-weight:bold;color:#1c1917;">${escapeHtml(cur)} $${params.offerAmount.toLocaleString()}</td></tr>` +
+    `<tr><td style="padding:6px 0;color:#78716c;font-size:13px;">Buyer</td><td style="padding:6px 0;font-size:14px;color:#1c1917;">${escapeHtml(params.buyerEmail)}</td></tr>` +
+    (params.message ? `<tr><td style="padding:6px 0;color:#78716c;font-size:13px;">Message</td><td style="padding:6px 0;font-size:14px;color:#1c1917;">${escapeHtml(params.message)}</td></tr>` : "") +
+    `</table></td></tr></table>` +
+    // CTA
+    `<table role="presentation" cellpadding="0" cellspacing="0"><tr><td style="border-radius:6px;background-color:#1c1917;">` +
+    `<a href="${escapeHtml(siteUrl)}/seller/offers" style="display:inline-block;padding:12px 28px;color:#ffffff;text-decoration:none;font-size:14px;font-weight:bold;letter-spacing:0.5px;">VIEW OFFERS</a>` +
+    `</td></tr></table>` +
+    `<p style="margin:20px 0 0 0;font-size:14px;color:#78716c;">Thank you for selling with Famous Finds.</p>`;
 
+  const html = brandedEmailWrapper(bodyHtml);
   await sendMail(to, subject, text, html);
 }
 
@@ -1452,19 +1459,26 @@ export async function sendBuyerOfferAcceptedEmail(params: {
     `${paymentUrl}\n\n` +
     `Regards,\nThe MyFamousFinds Team\n`;
 
-  const html =
-    `<p>Hello ${escapeHtml(name)},</p>` +
-    `<p style="font-size:16px;"><b>Great news — your offer has been accepted!</b></p>` +
-    `<div style="padding:14px;background:#d1fae5;border-radius:8px;margin:12px 0;">` +
-    `<p style="margin:4px 0;"><b>Item:</b> ${escapeHtml(params.itemTitle)}</p>` +
-    `<p style="margin:4px 0;"><b>Accepted amount:</b> ${escapeHtml(cur)} $${params.offerAmount.toLocaleString()}</p>` +
-    `</div>` +
-    `<p>Complete your purchase now:</p>` +
-    `<p><a href="${paymentUrl}" ` +
-    `style="display:inline-block;padding:12px 28px;background:#16a34a;color:#fff;` +
-    `border-radius:999px;text-decoration:none;font-weight:600;font-size:16px;">Proceed to Payment</a></p>` +
-    `<p>Regards,<br/>The MyFamousFinds Team</p>`;
+  const bodyHtml =
+    `<p style="margin:0 0 16px 0;font-size:16px;">Hello ${escapeHtml(name)},</p>` +
+    `<p style="margin:0 0 20px 0;font-size:20px;font-weight:bold;color:#1c1917;">Your Offer Was Accepted!</p>` +
+    // Offer details card
+    `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#fafaf9;border:1px solid #e7e5e4;border-radius:8px;margin:0 0 20px 0;">` +
+    `<tr><td style="padding:16px 20px;border-bottom:1px solid #e7e5e4;background-color:#1c1917;border-radius:8px 8px 0 0;">` +
+    `<p style="margin:0;font-size:14px;font-weight:bold;color:#d4a843;letter-spacing:0.5px;">OFFER ACCEPTED</p></td></tr>` +
+    `<tr><td style="padding:16px 20px;">` +
+    `<table role="presentation" width="100%" cellpadding="0" cellspacing="0">` +
+    `<tr><td style="padding:6px 0;color:#78716c;font-size:13px;width:110px;">Item</td><td style="padding:6px 0;font-size:14px;font-weight:bold;color:#1c1917;">${escapeHtml(params.itemTitle)}</td></tr>` +
+    `<tr><td style="padding:6px 0;color:#78716c;font-size:13px;">Accepted Amount</td><td style="padding:6px 0;font-size:14px;font-weight:bold;color:#1c1917;">${escapeHtml(cur)} $${params.offerAmount.toLocaleString()}</td></tr>` +
+    `</table></td></tr></table>` +
+    // CTA
+    `<p style="margin:0 0 20px 0;">Complete your purchase now:</p>` +
+    `<table role="presentation" cellpadding="0" cellspacing="0"><tr><td style="border-radius:6px;background-color:#1c1917;">` +
+    `<a href="${escapeHtml(paymentUrl)}" style="display:inline-block;padding:12px 28px;color:#ffffff;text-decoration:none;font-size:14px;font-weight:bold;letter-spacing:0.5px;">PROCEED TO PAYMENT</a>` +
+    `</td></tr></table>` +
+    `<p style="margin:20px 0 0 0;font-size:14px;color:#78716c;">Thank you for shopping with Famous Finds.</p>`;
 
+  const html = brandedEmailWrapper(bodyHtml);
   await sendMail(to, subject, text, html);
 }
 
@@ -1560,15 +1574,80 @@ export async function sendBuyerOfferRejectedEmail(params: {
     `${siteUrl}\n\n` +
     `Regards,\nThe MyFamousFinds Team\n`;
 
-  const html =
-    `<p>Hello ${escapeHtml(name)},</p>` +
-    `<p>Unfortunately, your offer on <b>"${escapeHtml(params.itemTitle)}"</b> for ` +
-    `<b>${escapeHtml(cur)} $${params.offerAmount.toLocaleString()}</b> was not accepted.</p>` +
-    (params.reason ? `<p style="padding:10px;background:#fef3c7;border-radius:6px;"><b>Seller's note:</b> ${escapeHtml(params.reason)}</p>` : "") +
-    `<p><a href="${siteUrl}" ` +
-    `style="display:inline-block;padding:10px 24px;background:#111827;color:#fff;` +
-    `border-radius:999px;text-decoration:none;font-weight:600;">Browse Items</a></p>` +
-    `<p>Regards,<br/>The MyFamousFinds Team</p>`;
+  const bodyHtml =
+    `<p style="margin:0 0 16px 0;font-size:16px;">Hello ${escapeHtml(name)},</p>` +
+    `<p style="margin:0 0 20px 0;font-size:20px;font-weight:bold;color:#1c1917;">Offer Update</p>` +
+    // Offer details card
+    `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#fafaf9;border:1px solid #e7e5e4;border-radius:8px;margin:0 0 20px 0;">` +
+    `<tr><td style="padding:16px 20px;border-bottom:1px solid #e7e5e4;background-color:#1c1917;border-radius:8px 8px 0 0;">` +
+    `<p style="margin:0;font-size:14px;font-weight:bold;color:#d4a843;letter-spacing:0.5px;">OFFER DETAILS</p></td></tr>` +
+    `<tr><td style="padding:16px 20px;">` +
+    `<table role="presentation" width="100%" cellpadding="0" cellspacing="0">` +
+    `<tr><td style="padding:6px 0;color:#78716c;font-size:13px;width:110px;">Item</td><td style="padding:6px 0;font-size:14px;font-weight:bold;color:#1c1917;">${escapeHtml(params.itemTitle)}</td></tr>` +
+    `<tr><td style="padding:6px 0;color:#78716c;font-size:13px;">Offer Amount</td><td style="padding:6px 0;font-size:14px;font-weight:bold;color:#1c1917;">${escapeHtml(cur)} $${params.offerAmount.toLocaleString()}</td></tr>` +
+    `<tr><td style="padding:6px 0;color:#78716c;font-size:13px;">Status</td><td style="padding:6px 0;font-size:14px;font-weight:bold;color:#1c1917;">Not Accepted</td></tr>` +
+    (params.reason ? `<tr><td style="padding:6px 0;color:#78716c;font-size:13px;">Seller's Note</td><td style="padding:6px 0;font-size:14px;color:#1c1917;">${escapeHtml(params.reason)}</td></tr>` : "") +
+    `</table></td></tr></table>` +
+    // CTA
+    `<p style="margin:0 0 20px 0;">You can browse more items or make a new offer on MyFamousFinds.</p>` +
+    `<table role="presentation" cellpadding="0" cellspacing="0"><tr><td style="border-radius:6px;background-color:#1c1917;">` +
+    `<a href="${escapeHtml(siteUrl)}" style="display:inline-block;padding:12px 28px;color:#ffffff;text-decoration:none;font-size:14px;font-weight:bold;letter-spacing:0.5px;">BROWSE ITEMS</a>` +
+    `</td></tr></table>` +
+    `<p style="margin:20px 0 0 0;font-size:14px;color:#78716c;">Thank you for shopping with Famous Finds.</p>`;
 
+  const html = brandedEmailWrapper(bodyHtml);
+  await sendMail(to, subject, text, html);
+}
+
+/**
+ * Offer — notify buyer of a counter offer from the seller
+ */
+export async function sendBuyerCounterOfferEmail(params: {
+  to: string;
+  buyerName?: string;
+  itemTitle: string;
+  originalAmount: number;
+  counterAmount: number;
+  currency?: string;
+  listingId?: string;
+}) {
+  const to = (params.to || "").trim();
+  if (!to) throw new Error("sendBuyerCounterOfferEmail missing required field: to");
+
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://www.myfamousfinds.com";
+  const name = params.buyerName || "there";
+  const cur = params.currency || "USD";
+  const itemUrl = params.listingId ? `${siteUrl}/product/${params.listingId}` : siteUrl;
+  const subject = `MyFamousFinds — Counter Offer on "${params.itemTitle}"`;
+
+  const text =
+    `Hello ${name},\n\n` +
+    `The seller has responded to your offer on "${params.itemTitle}".\n\n` +
+    `Your offer: ${cur} $${params.originalAmount.toLocaleString()}\n` +
+    `Counter offer: ${cur} $${params.counterAmount.toLocaleString()}\n\n` +
+    `View the item and respond:\n${itemUrl}\n\n` +
+    `Regards,\nThe MyFamousFinds Team\n`;
+
+  const bodyHtml =
+    `<p style="margin:0 0 16px 0;font-size:16px;">Hello ${escapeHtml(name)},</p>` +
+    `<p style="margin:0 0 20px 0;font-size:20px;font-weight:bold;color:#1c1917;">You Received a Counter Offer!</p>` +
+    // Counter offer details card
+    `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#fafaf9;border:1px solid #e7e5e4;border-radius:8px;margin:0 0 20px 0;">` +
+    `<tr><td style="padding:16px 20px;border-bottom:1px solid #e7e5e4;background-color:#1c1917;border-radius:8px 8px 0 0;">` +
+    `<p style="margin:0;font-size:14px;font-weight:bold;color:#d4a843;letter-spacing:0.5px;">COUNTER OFFER</p></td></tr>` +
+    `<tr><td style="padding:16px 20px;">` +
+    `<table role="presentation" width="100%" cellpadding="0" cellspacing="0">` +
+    `<tr><td style="padding:6px 0;color:#78716c;font-size:13px;width:110px;">Item</td><td style="padding:6px 0;font-size:14px;font-weight:bold;color:#1c1917;">${escapeHtml(params.itemTitle)}</td></tr>` +
+    `<tr><td style="padding:6px 0;color:#78716c;font-size:13px;">Your Offer</td><td style="padding:6px 0;font-size:14px;font-weight:bold;color:#1c1917;">${escapeHtml(cur)} $${params.originalAmount.toLocaleString()}</td></tr>` +
+    `<tr><td style="padding:6px 0;color:#78716c;font-size:13px;">Counter Offer</td><td style="padding:6px 0;font-size:14px;font-weight:bold;color:#1c1917;">${escapeHtml(cur)} $${params.counterAmount.toLocaleString()}</td></tr>` +
+    `</table></td></tr></table>` +
+    // CTA
+    `<p style="margin:0 0 20px 0;">View the item and respond to this offer:</p>` +
+    `<table role="presentation" cellpadding="0" cellspacing="0"><tr><td style="border-radius:6px;background-color:#1c1917;">` +
+    `<a href="${escapeHtml(itemUrl)}" style="display:inline-block;padding:12px 28px;color:#ffffff;text-decoration:none;font-size:14px;font-weight:bold;letter-spacing:0.5px;">VIEW ITEM</a>` +
+    `</td></tr></table>` +
+    `<p style="margin:20px 0 0 0;font-size:14px;color:#78716c;">Thank you for shopping with Famous Finds.</p>`;
+
+  const html = brandedEmailWrapper(bodyHtml);
   await sendMail(to, subject, text, html);
 }
