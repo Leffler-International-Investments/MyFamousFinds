@@ -4,7 +4,15 @@ import Head from "next/head";
 import Link from "next/link";
 import { useEffect, useState, FormEvent } from "react";
 import { useRouter } from "next/router";
-import { createUserWithEmailAndPassword, onAuthStateChanged, User } from "firebase/auth";
+import {
+  createUserWithEmailAndPassword,
+  onAuthStateChanged,
+  signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult,
+  GoogleAuthProvider,
+  User,
+} from "firebase/auth";
 import { auth, firebaseClientReady } from "../utils/firebaseClient";
 import Header from "../components/Header";
 import Footer from "../components/Footer";
@@ -33,6 +41,97 @@ export default function VipSignupPage() {
     });
     return () => unsub();
   }, []);
+
+  // Handle redirect result from signInWithRedirect (fallback for popup failures)
+  useEffect(() => {
+    if (!auth) return;
+    getRedirectResult(auth)
+      .then(async (result) => {
+        if (!result) return;
+        // Auto-join VIP after Google sign-in
+        try {
+          await fetch("/api/vip/join", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              uid: result.user.uid,
+              email: result.user.email,
+              fullName: result.user.displayName || fullName || null,
+              phone: phone.trim() || undefined,
+            }),
+          });
+        } catch {
+          // Non-blocking
+        }
+        router.push("/vip-welcome");
+      })
+      .catch((err) => {
+        if (err?.code === "auth/popup-closed-by-user") return;
+        console.error("vip_signup_redirect_error", err);
+        setError(
+          err?.code === "auth/unauthorized-domain"
+            ? "This domain is not authorized for Google sign-in. Please contact support."
+            : err?.code === "auth/account-exists-with-different-credential"
+            ? "An account already exists with this email using a different sign-in method."
+            : `Sign-up failed. Please try again.${err?.code ? ` (${err.code})` : ""}`
+        );
+      });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  async function handleGoogleSignUp() {
+    if (!auth) return;
+    setError(null);
+    setLoading(true);
+    try {
+      const provider = new GoogleAuthProvider();
+      let result;
+      try {
+        result = await signInWithPopup(auth, provider);
+      } catch (popupErr: any) {
+        if (popupErr?.code === "auth/popup-closed-by-user") {
+          setLoading(false);
+          return;
+        }
+        console.warn("Popup sign-up failed, falling back to redirect:", popupErr?.code);
+        await signInWithRedirect(auth, provider);
+        return;
+      }
+
+      // Auto-join VIP
+      const joinRes = await fetch("/api/vip/join", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          uid: result.user.uid,
+          email: result.user.email,
+          fullName: result.user.displayName || fullName || null,
+          phone: phone.trim() || undefined,
+        }),
+      });
+
+      const joinJson = await joinRes.json();
+      if (!joinRes.ok || !joinJson?.ok) {
+        console.error("vip_join_api_error", joinJson);
+        setError("Account created but we couldn't activate your VIP membership. Please try again.");
+        return;
+      }
+
+      router.push("/vip-welcome");
+    } catch (err: any) {
+      console.error("vip_google_signup_error", err);
+      if (err?.code === "auth/popup-closed-by-user") return;
+      setError(
+        err?.code === "auth/unauthorized-domain"
+          ? "This domain is not authorized for Google sign-in. Please contact support."
+          : err?.code === "auth/account-exists-with-different-credential"
+          ? "An account already exists with this email using a different sign-in method."
+          : `Sign-up failed. Please try again.${err?.code ? ` (${err.code})` : ""}`
+      );
+    } finally {
+      setLoading(false);
+    }
+  }
 
   // Existing customer: just confirm VIP membership
   async function handleConfirmVip(e: FormEvent) {
@@ -260,6 +359,51 @@ export default function VipSignupPage() {
           text-decoration: underline;
         }
 
+        .vip-google-btn {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          width: 100%;
+          padding: 11px 16px;
+          border-radius: 9999px;
+          font-size: 14px;
+          font-weight: 600;
+          cursor: pointer;
+          border: 1px solid #d1d5db;
+          background: #ffffff;
+          color: #111827;
+          transition: background 0.15s, border-color 0.15s;
+          font-family: inherit;
+          margin-bottom: 4px;
+        }
+        .vip-google-btn:hover:not(:disabled) {
+          background: #f9fafb;
+          border-color: #9ca3af;
+        }
+        .vip-google-btn:disabled {
+          opacity: 0.6;
+          cursor: not-allowed;
+        }
+
+        .vip-auth-divider {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          margin: 8px 0 16px;
+        }
+        .vip-auth-divider::before,
+        .vip-auth-divider::after {
+          content: "";
+          flex: 1;
+          height: 1px;
+          background: #d1d5db;
+        }
+        .vip-auth-divider span {
+          font-size: 12px;
+          color: #9ca3af;
+          white-space: nowrap;
+        }
+
         .vip-auth-user-email {
           font-size: 14px;
           color: #111827;
@@ -338,6 +482,25 @@ export default function VipSignupPage() {
                   Free membership. Earn points on every purchase, unlock tiers, and
                   get early access to drops.
                 </p>
+
+                <button
+                  type="button"
+                  className="vip-google-btn"
+                  onClick={handleGoogleSignUp}
+                  disabled={loading}
+                >
+                  <svg viewBox="0 0 24 24" width="20" height="20">
+                    <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4"/>
+                    <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+                    <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
+                    <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+                  </svg>
+                  <span>Continue with Google</span>
+                </button>
+
+                <div className="vip-auth-divider">
+                  <span>or sign up with email</span>
+                </div>
 
                 <form className="vip-auth-form" onSubmit={handleSubmit}>
                   <div className="vip-auth-field">
