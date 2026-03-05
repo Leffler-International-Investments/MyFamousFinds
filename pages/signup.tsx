@@ -18,6 +18,7 @@ import {
 import Header from "../components/Header";
 import Footer from "../components/Footer";
 import PasswordInput from "../components/PasswordInput";
+import GoogleOneTap from "../components/GoogleOneTap";
 import { auth } from "../utils/firebaseClient";
 import { autoPrefixPhone } from "../utils/phoneFormat";
 
@@ -131,6 +132,41 @@ export default function UnifiedSignupPage() {
       });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  async function handleOneTapSuccess(user: import("firebase/auth").User) {
+    const userEmail = (user.email || "").toLowerCase();
+    const displayName = fullName.trim() || user.displayName || "";
+
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem("ff-role", "buyer");
+      window.localStorage.setItem("ff-email", userEmail);
+      window.localStorage.setItem(
+        "ff-session-exp",
+        String(Date.now() + 72 * 60 * 60 * 1000)
+      );
+    }
+
+    try {
+      const token = await user.getIdToken();
+      await fetch("/api/user/profile", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          fullName: displayName,
+          email: userEmail,
+          phone: phone.trim(),
+          smsOptIn,
+        }),
+      });
+    } catch {
+      // Non-blocking
+    }
+
+    setStep("preferences");
+  }
 
   async function handleSocialSignUp(provider: "google" | "facebook") {
     if (!auth) return;
@@ -351,6 +387,14 @@ export default function UnifiedSignupPage() {
         <Header />
         <main className="auth-main">
           <div className="auth-card">
+            <GoogleOneTap
+              onSuccess={handleOneTapSuccess}
+              onError={(err) => {
+                console.error("one_tap_signup_error", err);
+                setBanner({ type: "error", message: "Google sign-in failed. Please try again." });
+              }}
+              disabled={loading || step !== "basics"}
+            />
             {step === "basics" ? (
               <>
                 <h1>Join Famous Finds</h1>

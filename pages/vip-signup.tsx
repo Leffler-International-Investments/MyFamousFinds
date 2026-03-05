@@ -16,6 +16,7 @@ import {
 import { auth, firebaseClientReady } from "../utils/firebaseClient";
 import Header from "../components/Header";
 import Footer from "../components/Footer";
+import GoogleOneTap from "../components/GoogleOneTap";
 import { autoPrefixPhone } from "../utils/phoneFormat";
 
 export default function VipSignupPage() {
@@ -131,6 +132,24 @@ export default function VipSignupPage() {
     } finally {
       setLoading(false);
     }
+  }
+
+  async function handleOneTapSuccess(user: import("firebase/auth").User) {
+    try {
+      await fetch("/api/vip/join", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          uid: user.uid,
+          email: user.email,
+          fullName: user.displayName || fullName || null,
+          phone: phone.trim() || undefined,
+        }),
+      });
+    } catch {
+      // Non-blocking
+    }
+    router.push("/vip-welcome");
   }
 
   // Existing customer: just confirm VIP membership
@@ -423,6 +442,14 @@ export default function VipSignupPage() {
 
         <main className="vip-auth-main">
           <section className="vip-auth-card">
+            <GoogleOneTap
+              onSuccess={handleOneTapSuccess}
+              onError={(err) => {
+                console.error("one_tap_vip_signup_error", err);
+                setError("Google sign-in failed. Please try again.");
+              }}
+              disabled={loading || !!existingUser}
+            />
             <p className="vip-auth-kicker">VIP CLUB</p>
 
             {checkingAuth ? (
