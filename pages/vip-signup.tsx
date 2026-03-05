@@ -7,7 +7,6 @@ import { useRouter } from "next/router";
 import {
   createUserWithEmailAndPassword,
   onAuthStateChanged,
-  signInWithPopup,
   signInWithRedirect,
   getRedirectResult,
   GoogleAuthProvider,
@@ -86,50 +85,11 @@ export default function VipSignupPage() {
     setLoading(true);
     try {
       const provider = new GoogleAuthProvider();
-      let result;
-      try {
-        result = await signInWithPopup(auth, provider);
-      } catch (popupErr: any) {
-        if (popupErr?.code === "auth/popup-closed-by-user") {
-          setLoading(false);
-          return;
-        }
-        console.warn("Popup sign-up failed, falling back to redirect:", popupErr?.code);
-        await signInWithRedirect(auth, provider);
-        return;
-      }
-
-      // Auto-join VIP
-      const joinRes = await fetch("/api/vip/join", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          uid: result.user.uid,
-          email: result.user.email,
-          fullName: result.user.displayName || fullName || null,
-          phone: phone.trim() || undefined,
-        }),
-      });
-
-      const joinJson = await joinRes.json();
-      if (!joinRes.ok || !joinJson?.ok) {
-        console.error("vip_join_api_error", joinJson);
-        setError("Account created but we couldn't activate your VIP membership. Please try again.");
-        return;
-      }
-
-      router.push("/vip-welcome");
+      await signInWithRedirect(auth, provider);
+      // Result handled by getRedirectResult useEffect above
     } catch (err: any) {
       console.error("vip_google_signup_error", err);
-      if (err?.code === "auth/popup-closed-by-user") return;
-      setError(
-        err?.code === "auth/unauthorized-domain"
-          ? "This domain is not authorized for Google sign-in. Please contact support."
-          : err?.code === "auth/account-exists-with-different-credential"
-          ? "An account already exists with this email using a different sign-in method."
-          : `Sign-up failed. Please try again.${err?.code ? ` (${err.code})` : ""}`
-      );
-    } finally {
+      setError(`Sign-up failed. Please try again.${err?.code ? ` (${err.code})` : ""}`);
       setLoading(false);
     }
   }

@@ -7,7 +7,6 @@ import { useRouter } from "next/router";
 import { FormEvent, useEffect, useState } from "react";
 import {
   signInWithEmailAndPassword,
-  signInWithPopup,
   signInWithRedirect,
   getRedirectResult,
   GoogleAuthProvider,
@@ -224,100 +223,22 @@ export default function UnifiedLoginPage() {
     setError(null);
     setInfo(null);
     setLoading(true);
+
+    // Use redirect flow — avoids cross-origin popup issues between
+    // myfamousfinds.com and famous-finds-391d4.firebaseapp.com.
+    // The result is handled by the getRedirectResult() useEffect above.
     try {
       const authProvider = new GoogleAuthProvider();
-
-      let result;
-      try {
-        result = await signInWithPopup(auth, authProvider);
-      } catch (popupErr: any) {
-        // If popup was blocked or failed (not user-closed), fall back to redirect
-        if (popupErr?.code === "auth/popup-closed-by-user") {
-          setLoading(false);
-          return;
-        }
-
-        // Account conflict: email exists with email/password provider.
-        // With email enumeration protection (default on newer Firebase projects),
-        // this shows as auth/internal-error instead of
-        // auth/account-exists-with-different-credential.
-        if (
-          popupErr?.code === "auth/account-exists-with-different-credential" ||
-          popupErr?.code === "auth/internal-error"
-        ) {
-          // Try to get the email from the error's customData
-          const conflictEmail =
-            popupErr?.customData?.email ||
-            popupErr?.customData?._tokenResponse?.email ||
-            "";
-
-          if (conflictEmail) {
-            const credential = GoogleAuthProvider.credentialFromError(popupErr);
-            if (credential) setPendingCred(credential);
-            setEmail(conflictEmail);
-            setError(
-              "You already have an account with this email. Please enter your password below to sign in, and we'll link Google for faster access next time."
-            );
-            setInfo(null);
-            setLoading(false);
-            return;
-          }
-
-          // If we can't get the email from the error, show a helpful message
-          setError(
-            "An account with this email may already exist with a different sign-in method. Please sign in with your email and password instead."
-          );
-          setLoading(false);
-          return;
-        }
-
-        // For other popup errors, fall back to redirect
-        console.warn("Popup sign-in failed, falling back to redirect:", popupErr?.code);
-        await signInWithRedirect(auth, authProvider);
-        return; // page will reload after redirect
-      }
-
-      const userEmail = (result.user.email || "").toLowerCase();
-
-      // Check if user is also a seller
-      const sellerRes = await fetch("/api/seller/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: userEmail }),
-      });
-      const sellerJson = (await sellerRes.json()) as LoginResponse;
-
-      if (sellerJson.ok) {
-        setEmail(userEmail);
-        setIsSeller(true);
-        setStep("choose_method");
-        return;
-      }
-
-      // Sign in as buyer
-      if (typeof window !== "undefined") {
-        window.localStorage.setItem("ff-role", "buyer");
-        window.localStorage.setItem("ff-email", userEmail);
-        window.localStorage.setItem(
-          "ff-session-exp",
-          String(Date.now() + SESSION_TTL_MS)
-        );
-      }
-      router.push(from || "/account");
+      await signInWithRedirect(auth, authProvider);
     } catch (err: any) {
-      console.error("social_login_error", err);
-      if (err?.code === "auth/popup-closed-by-user") return;
-      const msg =
+      console.error("social_login_redirect_error", err);
+      setError(
         err?.code === "auth/unauthorized-domain"
           ? "This domain is not authorized for Google sign-in. The site domain must be added to Firebase Auth authorized domains in the Firebase Console."
           : err?.code === "auth/operation-not-allowed"
-          ? "This sign-in method is not enabled. Please enable Google provider in Firebase Console > Authentication > Sign-in method."
-          : err?.code === "auth/account-exists-with-different-credential" ||
-            err?.code === "auth/internal-error"
-          ? "An account with this email may already exist. Please sign in with your email and password instead."
-          : `Sign-in failed. Please try again.${err?.code ? ` (${err.code})` : ""}`;
-      setError(msg);
-    } finally {
+          ? "Google sign-in is not enabled. Please contact support."
+          : `Sign-in failed. Please try again.${err?.code ? ` (${err.code})` : ""}`
+      );
       setLoading(false);
     }
   }

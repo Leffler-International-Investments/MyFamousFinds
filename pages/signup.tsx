@@ -8,7 +8,6 @@ import { useRouter } from "next/router";
 import {
   createUserWithEmailAndPassword,
   updateProfile,
-  signInWithPopup,
   signInWithRedirect,
   getRedirectResult,
   GoogleAuthProvider,
@@ -172,91 +171,29 @@ export default function UnifiedSignupPage() {
     if (!auth) return;
     setBanner(null);
     setLoading(true);
+
+    // Use redirect flow — avoids cross-origin popup issues.
+    // The result is handled by the getRedirectResult() useEffect above.
     try {
       const authProvider =
         provider === "google"
           ? new GoogleAuthProvider()
           : new FacebookAuthProvider();
-
-      let result;
-      try {
-        result = await signInWithPopup(auth, authProvider);
-      } catch (popupErr: any) {
-        if (popupErr?.code === "auth/popup-closed-by-user") {
-          setLoading(false);
-          return;
-        }
-        // Account conflict — email already registered with a different method
-        if (
-          popupErr?.code === "auth/account-exists-with-different-credential" ||
-          popupErr?.code === "auth/internal-error"
-        ) {
-          setBanner({
-            type: "info",
-            code: "auth/email-already-in-use",
-            message:
-              "An account with this email already exists. Please sign in with your email and password instead.",
-          });
-          setLoading(false);
-          return;
-        }
-        console.warn("Popup sign-up failed, falling back to redirect:", popupErr?.code);
-        await signInWithRedirect(auth, authProvider);
-        return; // page will reload after redirect
-      }
-
-      const userEmail = (result.user.email || "").toLowerCase();
-      // Prefer the name the user typed; fall back to the social profile name
-      const displayName = fullName.trim() || result.user.displayName || "";
-
-      if (typeof window !== "undefined") {
-        window.localStorage.setItem("ff-role", "buyer");
-        window.localStorage.setItem("ff-email", userEmail);
-        window.localStorage.setItem(
-          "ff-session-exp",
-          String(Date.now() + 72 * 60 * 60 * 1000)
-        );
-      }
-
-      // Save basic profile to Firestore (includes phone + smsOptIn entered above)
-      try {
-        const token = await result.user.getIdToken();
-        await fetch("/api/user/profile", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({
-            fullName: displayName,
-            email: userEmail,
-            phone: phone.trim(),
-            smsOptIn,
-          }),
-        });
-      } catch {
-        // Non-blocking
-      }
-
-      // Skip to preferences
-      setStep("preferences");
+      await signInWithRedirect(auth, authProvider);
     } catch (err: any) {
-      console.error("social_signup_error", err);
-      if (err?.code === "auth/popup-closed-by-user") return;
-      const msg =
-        err?.code === "auth/unauthorized-domain"
-          ? "This domain is not authorized for sign-up. Please contact support."
-          : err?.code === "auth/account-exists-with-different-credential" ||
-            err?.code === "auth/internal-error"
-          ? "An account with this email may already exist. Please sign in with your email and password instead."
-          : err?.code === "auth/operation-not-allowed"
-          ? "This sign-in method is not enabled. Please contact support."
-          : `Sign-up failed. Please try again.${err?.code ? ` (${err.code})` : ""}`;
-      setBanner({ type: "error", message: msg });
-    } finally {
+      console.error("social_signup_redirect_error", err);
+      setBanner({
+        type: "error",
+        message:
+          err?.code === "auth/unauthorized-domain"
+            ? "This domain is not authorized for sign-up. Please contact support."
+            : `Sign-up failed. Please try again.${err?.code ? ` (${err.code})` : ""}`,
+      });
       setLoading(false);
     }
   }
+
+  // Dead code removed — redirect result is handled by getRedirectResult useEffect
 
   async function handleBasicsSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();

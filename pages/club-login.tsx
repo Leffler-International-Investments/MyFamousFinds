@@ -6,7 +6,6 @@ import { useRouter } from "next/router";
 import Link from "next/link";
 import {
   signInWithEmailAndPassword,
-  signInWithPopup,
   signInWithRedirect,
   getRedirectResult,
   GoogleAuthProvider,
@@ -53,30 +52,10 @@ export default function LoginPage() {
     setLoading(true);
     try {
       const provider = new GoogleAuthProvider();
-      let result;
-      try {
-        result = await signInWithPopup(auth, provider);
-      } catch (popupErr: any) {
-        if (popupErr?.code === "auth/popup-closed-by-user") {
-          setLoading(false);
-          return;
-        }
-        console.warn("Popup sign-in failed, falling back to redirect:", popupErr?.code);
-        await signInWithRedirect(auth, provider);
-        return;
-      }
-      router.push("/club-profile");
+      await signInWithRedirect(auth, provider);
     } catch (err: any) {
       console.error("club_google_login_error", err);
-      if (err?.code === "auth/popup-closed-by-user") return;
-      setError(
-        err?.code === "auth/unauthorized-domain"
-          ? "This domain is not authorized for Google sign-in. Please contact support."
-          : err?.code === "auth/account-exists-with-different-credential"
-          ? "An account already exists with this email using a different sign-in method."
-          : `Sign-in failed. Please try again.${err?.code ? ` (${err.code})` : ""}`
-      );
-    } finally {
+      setError(`Sign-in failed. Please try again.${err?.code ? ` (${err.code})` : ""}`);
       setLoading(false);
     }
   };
