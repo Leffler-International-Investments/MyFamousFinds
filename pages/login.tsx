@@ -11,7 +11,6 @@ import {
   signInWithRedirect,
   getRedirectResult,
   GoogleAuthProvider,
-  fetchSignInMethodsForEmail,
   linkWithCredential,
   AuthCredential,
 } from "firebase/auth";
@@ -107,7 +106,7 @@ export default function UnifiedLoginPage() {
         }
         router.push(from || "/account");
       })
-      .catch(async (err) => {
+      .catch((err) => {
         if (err?.code === "auth/popup-closed-by-user") return;
         console.error("redirect_result_error", err);
 
@@ -116,30 +115,28 @@ export default function UnifiedLoginPage() {
           err?.code === "auth/account-exists-with-different-credential" ||
           err?.code === "auth/internal-error"
         ) {
-          const errorEmail = err?.customData?.email;
-          if (errorEmail) {
-            try {
-              const methods = await fetchSignInMethodsForEmail(auth, errorEmail);
-              if (methods.includes("password")) {
-                const credential = GoogleAuthProvider.credentialFromError(err);
-                if (credential) setPendingCred(credential);
-                setEmail(errorEmail);
-                setError(
-                  "You already have an account with this email. Please enter your password below to sign in, and we'll link Google for faster access next time."
-                );
-                return;
-              }
-            } catch {
-              // Fall through
-            }
+          const conflictEmail =
+            err?.customData?.email ||
+            err?.customData?._tokenResponse?.email ||
+            "";
+          if (conflictEmail) {
+            const credential = GoogleAuthProvider.credentialFromError(err);
+            if (credential) setPendingCred(credential);
+            setEmail(conflictEmail);
+            setError(
+              "You already have an account with this email. Please enter your password below to sign in, and we'll link Google for faster access next time."
+            );
+            return;
           }
+          setError(
+            "An account with this email may already exist. Please sign in with your email and password instead."
+          );
+          return;
         }
 
         const msg =
           err?.code === "auth/unauthorized-domain"
             ? "This domain is not authorized for Google sign-in. The site domain must be added to Firebase Auth authorized domains in the Firebase Console."
-            : err?.code === "auth/account-exists-with-different-credential"
-            ? "An account already exists with this email using a different sign-in method. Please sign in with your email and password."
             : err?.code === "auth/operation-not-allowed"
             ? "This sign-in method is not enabled. Please enable Google provider in Firebase Console > Authentication > Sign-in method."
             : `Sign-in failed. Please try again.${err?.code ? ` (${err.code})` : ""}`;
@@ -239,6 +236,42 @@ export default function UnifiedLoginPage() {
           setLoading(false);
           return;
         }
+
+        // Account conflict: email exists with email/password provider.
+        // With email enumeration protection (default on newer Firebase projects),
+        // this shows as auth/internal-error instead of
+        // auth/account-exists-with-different-credential.
+        if (
+          popupErr?.code === "auth/account-exists-with-different-credential" ||
+          popupErr?.code === "auth/internal-error"
+        ) {
+          // Try to get the email from the error's customData
+          const conflictEmail =
+            popupErr?.customData?.email ||
+            popupErr?.customData?._tokenResponse?.email ||
+            "";
+
+          if (conflictEmail) {
+            const credential = GoogleAuthProvider.credentialFromError(popupErr);
+            if (credential) setPendingCred(credential);
+            setEmail(conflictEmail);
+            setError(
+              "You already have an account with this email. Please enter your password below to sign in, and we'll link Google for faster access next time."
+            );
+            setInfo(null);
+            setLoading(false);
+            return;
+          }
+
+          // If we can't get the email from the error, show a helpful message
+          setError(
+            "An account with this email may already exist with a different sign-in method. Please sign in with your email and password instead."
+          );
+          setLoading(false);
+          return;
+        }
+
+        // For other popup errors, fall back to redirect
         console.warn("Popup sign-in failed, falling back to redirect:", popupErr?.code);
         await signInWithRedirect(auth, authProvider);
         return; // page will reload after redirect
@@ -274,46 +307,14 @@ export default function UnifiedLoginPage() {
     } catch (err: any) {
       console.error("social_login_error", err);
       if (err?.code === "auth/popup-closed-by-user") return;
-
-      // Handle account linking: email exists with a different provider (email/password)
-      if (
-        err?.code === "auth/account-exists-with-different-credential" ||
-        err?.code === "auth/internal-error"
-      ) {
-        // Try to detect if this is an account-linking issue
-        const errorEmail = err?.customData?.email;
-        if (errorEmail) {
-          try {
-            const methods = await fetchSignInMethodsForEmail(auth, errorEmail);
-            if (methods.includes("password")) {
-              // Store the Google credential so we can link after password sign-in
-              const credential = GoogleAuthProvider.credentialFromError(err);
-              if (credential) setPendingCred(credential);
-              setEmail(errorEmail);
-              setError(
-                "You already have an account with this email. Please enter your password below to sign in, and we'll link Google for faster access next time."
-              );
-              setInfo(null);
-              setLoading(false);
-              return;
-            }
-          } catch {
-            // Fall through to generic error
-          }
-        }
-      }
-
       const msg =
         err?.code === "auth/unauthorized-domain"
           ? "This domain is not authorized for Google sign-in. The site domain must be added to Firebase Auth authorized domains in the Firebase Console."
-          : err?.code === "auth/popup-blocked"
-          ? "Popup was blocked. Redirecting..."
-          : err?.code === "auth/cancelled-popup-request"
-          ? "Sign-in was cancelled. Please try again."
-          : err?.code === "auth/account-exists-with-different-credential"
-          ? "An account already exists with this email using a different sign-in method. Please sign in with your email and password."
           : err?.code === "auth/operation-not-allowed"
           ? "This sign-in method is not enabled. Please enable Google provider in Firebase Console > Authentication > Sign-in method."
+          : err?.code === "auth/account-exists-with-different-credential" ||
+            err?.code === "auth/internal-error"
+          ? "An account with this email may already exist. Please sign in with your email and password instead."
           : `Sign-in failed. Please try again.${err?.code ? ` (${err.code})` : ""}`;
       setError(msg);
     } finally {

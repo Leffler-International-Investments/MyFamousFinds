@@ -13,7 +13,6 @@ import {
   getRedirectResult,
   GoogleAuthProvider,
   FacebookAuthProvider,
-  fetchSignInMethodsForEmail,
 } from "firebase/auth";
 
 import Header from "../components/Header";
@@ -187,6 +186,20 @@ export default function UnifiedSignupPage() {
           setLoading(false);
           return;
         }
+        // Account conflict — email already registered with a different method
+        if (
+          popupErr?.code === "auth/account-exists-with-different-credential" ||
+          popupErr?.code === "auth/internal-error"
+        ) {
+          setBanner({
+            type: "info",
+            code: "auth/email-already-in-use",
+            message:
+              "An account with this email already exists. Please sign in with your email and password instead.",
+          });
+          setLoading(false);
+          return;
+        }
         console.warn("Popup sign-up failed, falling back to redirect:", popupErr?.code);
         await signInWithRedirect(auth, authProvider);
         return; // page will reload after redirect
@@ -230,39 +243,12 @@ export default function UnifiedSignupPage() {
     } catch (err: any) {
       console.error("social_signup_error", err);
       if (err?.code === "auth/popup-closed-by-user") return;
-
-      // Handle account linking conflict
-      if (
-        err?.code === "auth/account-exists-with-different-credential" ||
-        err?.code === "auth/internal-error"
-      ) {
-        const errorEmail = err?.customData?.email;
-        if (errorEmail) {
-          try {
-            const methods = await fetchSignInMethodsForEmail(auth, errorEmail);
-            if (methods.includes("password")) {
-              setBanner({
-                type: "info",
-                code: "auth/email-already-in-use",
-                message:
-                  "An account with this email already exists. Please sign in with your email and password instead.",
-              });
-              setLoading(false);
-              return;
-            }
-          } catch {
-            // Fall through
-          }
-        }
-      }
-
       const msg =
         err?.code === "auth/unauthorized-domain"
           ? "This domain is not authorized for sign-up. Please contact support."
-          : err?.code === "auth/popup-blocked"
-          ? "Popup was blocked. Redirecting..."
-          : err?.code === "auth/account-exists-with-different-credential"
-          ? "An account already exists with this email. Please sign in with your email and password instead."
+          : err?.code === "auth/account-exists-with-different-credential" ||
+            err?.code === "auth/internal-error"
+          ? "An account with this email may already exist. Please sign in with your email and password instead."
           : err?.code === "auth/operation-not-allowed"
           ? "This sign-in method is not enabled. Please contact support."
           : `Sign-up failed. Please try again.${err?.code ? ` (${err.code})` : ""}`;
