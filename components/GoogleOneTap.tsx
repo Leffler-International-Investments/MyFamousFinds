@@ -3,7 +3,13 @@
 // Falls back gracefully if One Tap is unavailable (incognito, no prior session, etc.)
 
 import { useEffect, useRef } from "react";
-import { GoogleAuthProvider, signInWithCredential } from "firebase/auth";
+import {
+  GoogleAuthProvider,
+  signInWithCredential,
+  fetchSignInMethodsForEmail,
+  signInWithEmailAndPassword,
+  linkWithCredential,
+} from "firebase/auth";
 import { auth } from "../utils/firebaseClient";
 
 const GOOGLE_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || "";
@@ -90,8 +96,26 @@ export default function GoogleOneTap({
         const credential = GoogleAuthProvider.credential(response.credential);
         const result = await signInWithCredential(auth, credential);
         onSuccess(result.user);
-      } catch (err) {
+      } catch (err: any) {
         console.error("one_tap_firebase_error", err);
+
+        // Handle account-exists-with-different-credential / internal-error
+        // This happens when the email already has an email/password account
+        if (
+          err?.code === "auth/account-exists-with-different-credential" ||
+          err?.code === "auth/internal-error"
+        ) {
+          const errorEmail = err?.customData?.email;
+          if (errorEmail) {
+            onError?.(
+              new Error(
+                "You already have an account with this email. Please sign in with your email and password first."
+              )
+            );
+            return;
+          }
+        }
+
         onError?.(err);
       }
     }

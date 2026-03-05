@@ -11,6 +11,9 @@ import {
   signInWithRedirect,
   getRedirectResult,
   GoogleAuthProvider,
+  fetchSignInMethodsForEmail,
+  linkWithCredential,
+  AuthCredential,
 } from "firebase/auth";
 
 import Header from "../components/Header";
@@ -61,6 +64,9 @@ export default function UnifiedLoginPage() {
   const [chosenMethod, setChosenMethod] = useState<"email" | "sms">("email");
   const [code, setCode] = useState("");
 
+  // Pending Google credential for account linking
+  const [pendingCred, setPendingCred] = useState<AuthCredential | null>(null);
+
   // Promo code state
   const [showPromo, setShowPromo] = useState(false);
   const [promoCode, setPromoCode] = useState("");
@@ -101,14 +107,39 @@ export default function UnifiedLoginPage() {
         }
         router.push(from || "/account");
       })
-      .catch((err) => {
+      .catch(async (err) => {
         if (err?.code === "auth/popup-closed-by-user") return;
         console.error("redirect_result_error", err);
+
+        // Handle account linking conflict from redirect flow
+        if (
+          err?.code === "auth/account-exists-with-different-credential" ||
+          err?.code === "auth/internal-error"
+        ) {
+          const errorEmail = err?.customData?.email;
+          if (errorEmail) {
+            try {
+              const methods = await fetchSignInMethodsForEmail(auth, errorEmail);
+              if (methods.includes("password")) {
+                const credential = GoogleAuthProvider.credentialFromError(err);
+                if (credential) setPendingCred(credential);
+                setEmail(errorEmail);
+                setError(
+                  "You already have an account with this email. Please enter your password below to sign in, and we'll link Google for faster access next time."
+                );
+                return;
+              }
+            } catch {
+              // Fall through
+            }
+          }
+        }
+
         const msg =
           err?.code === "auth/unauthorized-domain"
             ? "This domain is not authorized for Google sign-in. The site domain must be added to Firebase Auth authorized domains in the Firebase Console."
             : err?.code === "auth/account-exists-with-different-credential"
-            ? "An account already exists with this email using a different sign-in method."
+            ? "An account already exists with this email using a different sign-in method. Please sign in with your email and password."
             : err?.code === "auth/operation-not-allowed"
             ? "This sign-in method is not enabled. Please enable Google provider in Firebase Console > Authentication > Sign-in method."
             : `Sign-in failed. Please try again.${err?.code ? ` (${err.code})` : ""}`;
@@ -243,6 +274,35 @@ export default function UnifiedLoginPage() {
     } catch (err: any) {
       console.error("social_login_error", err);
       if (err?.code === "auth/popup-closed-by-user") return;
+
+      // Handle account linking: email exists with a different provider (email/password)
+      if (
+        err?.code === "auth/account-exists-with-different-credential" ||
+        err?.code === "auth/internal-error"
+      ) {
+        // Try to detect if this is an account-linking issue
+        const errorEmail = err?.customData?.email;
+        if (errorEmail) {
+          try {
+            const methods = await fetchSignInMethodsForEmail(auth, errorEmail);
+            if (methods.includes("password")) {
+              // Store the Google credential so we can link after password sign-in
+              const credential = GoogleAuthProvider.credentialFromError(err);
+              if (credential) setPendingCred(credential);
+              setEmail(errorEmail);
+              setError(
+                "You already have an account with this email. Please enter your password below to sign in, and we'll link Google for faster access next time."
+              );
+              setInfo(null);
+              setLoading(false);
+              return;
+            }
+          } catch {
+            // Fall through to generic error
+          }
+        }
+      }
+
       const msg =
         err?.code === "auth/unauthorized-domain"
           ? "This domain is not authorized for Google sign-in. The site domain must be added to Firebase Auth authorized domains in the Firebase Console."
@@ -251,7 +311,7 @@ export default function UnifiedLoginPage() {
           : err?.code === "auth/cancelled-popup-request"
           ? "Sign-in was cancelled. Please try again."
           : err?.code === "auth/account-exists-with-different-credential"
-          ? "An account already exists with this email using a different sign-in method."
+          ? "An account already exists with this email using a different sign-in method. Please sign in with your email and password."
           : err?.code === "auth/operation-not-allowed"
           ? "This sign-in method is not enabled. Please enable Google provider in Firebase Console > Authentication > Sign-in method."
           : `Sign-in failed. Please try again.${err?.code ? ` (${err.code})` : ""}`;
@@ -275,7 +335,20 @@ export default function UnifiedLoginPage() {
     setLoading(true);
     try {
       // Authenticate with Firebase
-      await signInWithEmailAndPassword(auth, trimmedEmail, password);
+      const cred = await signInWithEmailAndPassword(auth, trimmedEmail, password);
+
+      // If there's a pending Google credential, link it to this account
+      if (pendingCred && cred.user) {
+        try {
+          await linkWithCredential(cred.user, pendingCred);
+          setPendingCred(null);
+          setInfo("Google has been linked to your account for faster sign-in next time.");
+        } catch (linkErr: any) {
+          // If already linked or linking fails, proceed anyway — sign-in succeeded
+          console.warn("link_credential_warning", linkErr?.code);
+          setPendingCred(null);
+        }
+      }
 
       // Check if user is also a seller
       const sellerRes = await fetch("/api/seller/login", {
