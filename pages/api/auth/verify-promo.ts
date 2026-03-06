@@ -3,9 +3,20 @@
 // When valid, the user bypasses payment and gets direct access to the app.
 
 import type { NextApiRequest, NextApiResponse } from "next";
+import { timingSafeEqual } from "crypto";
 
 type Ok = { ok: true };
 type Err = { ok: false; error: string };
+
+/** Timing-safe string comparison to prevent timing attacks. */
+function safeCompare(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  try {
+    return timingSafeEqual(Buffer.from(a, "utf8"), Buffer.from(b, "utf8"));
+  } catch {
+    return false;
+  }
+}
 
 export default async function handler(
   req: NextApiRequest,
@@ -26,7 +37,7 @@ export default async function handler(
   }
 
   const trimmedCode = code.trim();
-  if (trimmedCode === promoCode) {
+  if (safeCompare(trimmedCode, promoCode)) {
     return res.status(200).json({ ok: true });
   }
 

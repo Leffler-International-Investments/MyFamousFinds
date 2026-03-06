@@ -39,6 +39,8 @@ export default function VipLoginPage() {
             ? "This domain is not authorized for Google sign-in. Please contact support."
             : err?.code === "auth/account-exists-with-different-credential"
             ? "An account already exists with this email using a different sign-in method."
+            : err?.code === "auth/user-disabled"
+            ? "This account has been disabled. Please contact support at support@myfamousfinds.com to re-enable your account."
             : `Sign-in failed. Please try again.${err?.code ? ` (${err.code})` : ""}`
         );
       });
@@ -69,9 +71,32 @@ export default function VipLoginPage() {
       router.push("/vip-welcome");
     } catch (err: any) {
       console.error("vip_login_error", err);
-      setError(
-        "Your email or password is incorrect. Please try again or reset it from your main account."
-      );
+      const code = err?.code || "";
+      if (
+        code === "auth/wrong-password" ||
+        code === "auth/user-not-found" ||
+        code === "auth/invalid-credential"
+      ) {
+        setError(
+          "Your email or password is incorrect. Please try again or reset it from your main account."
+        );
+      } else if (code === "auth/user-disabled") {
+        setError(
+          "This account has been disabled. Please contact support at support@myfamousfinds.com to re-enable your account."
+        );
+      } else if (code === "auth/too-many-requests") {
+        setError(
+          "Too many failed login attempts. Please wait a few minutes and try again."
+        );
+      } else if (code === "auth/network-request-failed") {
+        setError(
+          "Network error. Please check your internet connection and try again."
+        );
+      } else {
+        setError(
+          `Sign-in failed. Please try again.${code ? ` (${code})` : ""}`
+        );
+      }
       setLoading(false);
     }
   }
