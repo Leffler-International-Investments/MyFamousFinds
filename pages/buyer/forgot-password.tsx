@@ -57,7 +57,7 @@ export default function BuyerForgotPasswordPage() {
 
       <main className="wrap">
         <div className="backLink">
-          <Link href="/buyer/signin">← Back to Sign in</Link>
+          <Link href="/login">← Back to Sign in</Link>
         </div>
 
         {step === "form" && (
@@ -106,7 +106,7 @@ export default function BuyerForgotPasswordPage() {
               <button type="button" onClick={() => setStep("form")}>
                 Send another reset link
               </button>
-              <Link href="/buyer/signin" className="backLogin">
+              <Link href="/login" className="backLogin">
                 ← Back to Sign in
               </Link>
             </div>

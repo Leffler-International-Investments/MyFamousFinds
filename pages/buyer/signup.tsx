@@ -124,7 +124,7 @@ export default function BuyerSignupPage() {
                 <p>{banner.message}</p>
                 {banner.code === "auth/email-already-in-use" && (
                   <p className="auth-inline-links">
-                    <Link href="/buyer/signin">Please sign in</Link>
+                    <Link href="/login">Please sign in</Link>
                     {"  •  "}
                     <Link href="/buyer/forgot-password">Forgot password</Link>
                   </p>
@@ -199,7 +199,7 @@ export default function BuyerSignupPage() {
             </form>
 
             <p className="auth-secondary-link">
-              Already have an account? <Link href="/buyer/signin">Sign in</Link>
+              Already have an account? <Link href="/login">Sign in</Link>
             </p>
           </div>
         </main>
