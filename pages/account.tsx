@@ -63,6 +63,8 @@ export default function AccountPage() {
   const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isNewUser, setIsNewUser] = useState(false);
+  const [showNewUserBanner, setShowNewUserBanner] = useState(false);
 
   // Dashboard data
   const [savedItems, setSavedItems] = useState<ItemRow[]>([]);
@@ -174,6 +176,17 @@ export default function AccountPage() {
         return;
       }
       setUser(u);
+
+      // Detect first-time user: creation and last sign-in within 60s of each other
+      // and hasn't been dismissed yet via localStorage
+      const created = u.metadata.creationTime ? new Date(u.metadata.creationTime).getTime() : 0;
+      const lastSign = u.metadata.lastSignInTime ? new Date(u.metadata.lastSignInTime).getTime() : 0;
+      const dismissedKey = `ff-welcome-dismissed-${u.uid}`;
+      const alreadyDismissed = typeof window !== "undefined" && window.localStorage.getItem(dismissedKey) === "1";
+      if (created && lastSign && Math.abs(lastSign - created) < 60_000 && !alreadyDismissed) {
+        setIsNewUser(true);
+        setShowNewUserBanner(true);
+      }
 
       // Primary data source: server-side API (admin SDK — bypasses Firestore rules)
       try {
@@ -484,8 +497,37 @@ export default function AccountPage() {
 
       <main className="account-main">
         <div className="account-wrap">
-          {/* Welcome banner */}
-          {user && !loading && (
+          {/* Welcome banner — new user intro or returning greeting */}
+          {user && !loading && showNewUserBanner && (
+            <div className="welcome-banner welcome-banner--new">
+              <button
+                type="button"
+                className="welcome-dismiss"
+                onClick={() => {
+                  setShowNewUserBanner(false);
+                  try {
+                    window.localStorage.setItem(`ff-welcome-dismissed-${user.uid}`, "1");
+                  } catch {}
+                }}
+                aria-label="Dismiss"
+              >
+                &times;
+              </button>
+              <span className="welcome-text">
+                Welcome, {user.displayName?.split(" ")[0] || "there"}!
+              </span>
+              <p className="welcome-subtitle">
+                Enjoy your MyFamousFinds account
+              </p>
+              <p className="welcome-intro">
+                Here you can browse your <strong>Saved Items</strong> and <strong>Shopping Bag</strong>,
+                track your <strong>Orders</strong> and <strong>Offers</strong>,
+                set your <strong>Shopping Preferences</strong> for a personalised feed,
+                and even <strong>apply to become a seller</strong> to consign your own luxury pieces.
+              </p>
+            </div>
+          )}
+          {user && !loading && !showNewUserBanner && (
             <div className="welcome-banner">
               <span className="welcome-text">
                 Welcome back, {user.displayName?.split(" ")[0] || "there"}
@@ -917,6 +959,27 @@ export default function AccountPage() {
           margin-bottom: 20px;
           box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04);
           text-align: center;
+          position: relative;
+        }
+        .welcome-banner--new {
+          padding: 28px 24px 24px;
+          border: 1px solid #d1d5db;
+          box-shadow: 0 4px 16px rgba(15, 23, 42, 0.07);
+        }
+        .welcome-dismiss {
+          position: absolute;
+          top: 10px;
+          right: 14px;
+          background: none;
+          border: none;
+          font-size: 20px;
+          color: #9ca3af;
+          cursor: pointer;
+          line-height: 1;
+          padding: 2px 6px;
+        }
+        .welcome-dismiss:hover {
+          color: #111827;
         }
         .welcome-text {
           font-family: ui-serif, "Times New Roman", serif;
@@ -924,6 +987,19 @@ export default function AccountPage() {
           font-weight: 600;
           color: #111827;
           letter-spacing: -0.01em;
+        }
+        .welcome-subtitle {
+          margin: 6px 0 0;
+          font-size: 15px;
+          font-weight: 500;
+          color: #374151;
+        }
+        .welcome-intro {
+          margin: 12px auto 0;
+          max-width: 480px;
+          font-size: 13px;
+          line-height: 1.6;
+          color: #6b7280;
         }
         .account-header {
           display: flex;
