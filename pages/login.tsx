@@ -9,6 +9,7 @@ import { FormEvent, useEffect, useState } from "react";
 import {
   signInWithEmailAndPassword,
   signInWithCustomToken,
+  signInWithPopup,
   signInWithRedirect,
   getRedirectResult,
   onAuthStateChanged,
@@ -205,16 +206,60 @@ export default function UnifiedLoginPage() {
 
     try {
       const authProvider = new GoogleAuthProvider();
-      await signInWithRedirect(auth, authProvider);
+
+      // Try popup first — more reliable than redirect in most environments
+      let result;
+      try {
+        result = await signInWithPopup(auth, authProvider);
+      } catch (popupErr: any) {
+        if (popupErr?.code === "auth/popup-closed-by-user") {
+          setLoading(false);
+          return;
+        }
+        if (
+          popupErr?.code === "auth/account-exists-with-different-credential"
+        ) {
+          const conflictEmail =
+            popupErr?.customData?.email ||
+            popupErr?.customData?._tokenResponse?.email ||
+            "";
+          if (conflictEmail) {
+            const credential =
+              GoogleAuthProvider.credentialFromError(popupErr);
+            if (credential) setPendingCred(credential);
+            setEmail(conflictEmail);
+            setError(
+              "You already have an account with this email. Please enter your password below to sign in, and we'll link Google for faster access next time."
+            );
+            setLoading(false);
+            return;
+          }
+        }
+        // Popup failed for another reason — fall back to redirect
+        console.warn("Popup sign-in failed, falling back to redirect:", popupErr?.code);
+        await signInWithRedirect(auth, authProvider);
+        return;
+      }
+
+      // Popup succeeded
+      const userEmail = (result.user.email || "").toLowerCase();
+      setBuyerSession(userEmail);
+      router.push(safeRedirectPath(
+        typeof router.query.from === "string" ? router.query.from : null,
+        "/account"
+      ));
     } catch (err: any) {
-      console.error("social_login_redirect_error", err);
+      console.error("social_login_error", err);
       setError(
         err?.code === "auth/unauthorized-domain"
           ? "This domain is not authorized for Google sign-in. The site domain must be added to Firebase Auth authorized domains in the Firebase Console."
+          : err?.code === "auth/account-exists-with-different-credential"
+          ? "An account already exists with this email using a different sign-in method."
           : err?.code === "auth/operation-not-allowed"
             ? "Google sign-in is not enabled. Please contact support."
             : `Sign-in failed. Please try again.${err?.code ? ` (${err.code})` : ""}`
       );
+    } finally {
       setLoading(false);
     }
   }

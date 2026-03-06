@@ -3,6 +3,7 @@ import type { NextApiRequest, NextApiResponse } from "next";
 import { adminDb } from "../../../../utils/firebaseAdmin";
 import { queueEmail } from "../../../../utils/emailOutbox";
 import { requireAdmin } from "../../../../utils/adminAuth";
+import { brandedEmailWrapper, escapeHtml } from "../../../../utils/email";
 import crypto from "crypto";
 
 type Data =
@@ -57,11 +58,25 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
 
     // ✅ FULL OUTBOX PATTERN: Queue email for guaranteed delivery
     const today = new Date().toISOString().slice(0, 10);
+    const greetingName = businessName ? ` ${escapeHtml(businessName)}` : "";
+    const approvedBodyHtml =
+      `<p style="margin:0 0 16px 0;font-size:16px;">Hello${greetingName},</p>` +
+      `<p style="margin:0 0 20px 0;font-size:20px;font-weight:bold;color:#1c1917;">Your Seller Account Has Been Approved!</p>` +
+      `<p style="margin:0 0 12px 0;">Great news — your seller account on <b>Famous Finds</b> has been approved!</p>` +
+      `<p style="margin:0 0 12px 0;">Let's start building your Famous Closet.</p>` +
+      `<p style="margin:0 0 20px 0;">If you need assistance pricing your items, let us know and one of our specialists will schedule a virtual appointment with you.</p>` +
+      // CTA button
+      `<table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 0 20px 0;"><tr><td style="border-radius:6px;background-color:#1c1917;">` +
+      `<a href="${escapeHtml(loginUrl)}" style="display:inline-block;padding:12px 28px;color:#ffffff;text-decoration:none;font-size:14px;font-weight:bold;letter-spacing:0.5px;">LOG IN &amp; GET STARTED</a>` +
+      `</td></tr></table>` +
+      `<p style="margin:0 0 0 0;font-size:14px;color:#78716c;">Welcome aboard! Thank you for joining Famous Finds.</p>`;
+    const approvedHtml = brandedEmailWrapper(approvedBodyHtml);
+
     const jobId = await queueEmail({
       to: email,
       subject: "Famous Finds — Your Seller Account Has Been Approved!",
       text: `Hello${businessName ? " " + businessName : ""},\n\nGreat news — your seller account on Famous Finds has been approved!\n\nLet's start building your Famous Closet.\n\nIf you need assistance pricing your items, let us know and one of our specialists will schedule a virtual appointment with you.\n\nLogin here - ${loginUrl} and complete the registration process.\n\nWelcome aboard!\nThe Famous Finds Team`,
-      html: `<p>Hello${businessName ? " " + businessName : ""},</p><p><b>Great news — your seller account on Famous Finds has been approved!</b></p><p>Let&#39;s start building your Famous Closet.</p><p>If you need assistance pricing your items, let us know and one of our specialists will schedule a virtual appointment with you.</p><p>Login here - <a href="${loginUrl}">${loginUrl}</a> and complete the registration process.</p><p>Welcome aboard!<br/>The Famous Finds Team</p>`,
+      html: approvedHtml,
       eventType: "seller_approved",
       eventKey: `${sellerId}:seller_approved:${today}`,
       metadata: { sellerId, businessName, loginUrl, registerUrl },
