@@ -3,7 +3,7 @@ import type { NextApiRequest, NextApiResponse } from "next";
 import { adminDb } from "../../../../utils/firebaseAdmin";
 import { queueEmail } from "../../../../utils/emailOutbox";
 import { requireAdmin } from "../../../../utils/adminAuth";
-import { brandedEmailWrapper, escapeHtml } from "../../../../utils/email";
+import { brandedEmailWrapper, escapeHtml, normalizeAdminEmail } from "../../../../utils/email";
 import crypto from "crypto";
 
 type Data =
@@ -37,7 +37,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
       "admin@myfamousfinds.com"
     )
       .split(",")
-      .map((v) => v.trim().toLowerCase())
+      .map((v) => normalizeAdminEmail(v))
       .filter((v) => v.includes("@"));
     const adminTo = adminRecipients.join(",");
 

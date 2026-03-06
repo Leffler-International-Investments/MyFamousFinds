@@ -3,6 +3,7 @@ import type { NextApiRequest, NextApiResponse } from "next";
 import { adminDb } from "../../../../utils/firebaseAdmin";
 import { queueEmail } from "../../../../utils/emailOutbox";
 import { requireAdmin } from "../../../../utils/adminAuth";
+import { normalizeAdminEmail } from "../../../../utils/email";
 
 type Data = { ok: true; emailSent: boolean; emailQueued?: boolean } | { error: string };
 
@@ -49,7 +50,7 @@ export default async function handler(
       "admin@myfamousfinds.com"
     )
       .split(",")
-      .map((v) => v.trim().toLowerCase())
+      .map((v) => normalizeAdminEmail(v))
       .filter((v) => v.includes("@"));
     const adminTo = adminRecipients.join(",");
 

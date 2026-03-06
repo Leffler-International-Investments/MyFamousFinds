@@ -1,7 +1,7 @@
 // FILE: /pages/api/support.ts
 import type { NextApiRequest, NextApiResponse } from "next";
 import { adminDb, FieldValue } from "../../utils/firebaseAdmin";
-import { sendMail } from "../../utils/email";
+import { sendMail, normalizeAdminEmail } from "../../utils/email";
 
 export default async function handler(
   req: NextApiRequest,
@@ -20,10 +20,11 @@ export default async function handler(
   const destination = "support";
   // Send to the admin inbox (which actually exists), not support@
   // which has no inbound mailbox configured yet.
-  const recipientEmail =
+  const recipientEmail = normalizeAdminEmail(
     process.env.ADMIN_EMAIL ||
     process.env.ADMIN_NOTIFICATION_EMAILS?.split(",")[0]?.trim() ||
-    "admin@myfamousfinds.com";
+    "admin@myfamousfinds.com"
+  );
 
   // Save to Firestore so the management dashboard can view it
   try {

@@ -98,9 +98,13 @@ export default async function handler(
       }
 
       // Forward a notification to the admin
-      const adminEmail =
+      const adminEmailRaw =
         process.env.ADMIN_EMAIL ||
-        process.env.ADMIN_NOTIFICATION_EMAILS?.split(",")[0]?.trim();
+        process.env.ADMIN_NOTIFICATION_EMAILS?.split(",")[0]?.trim() ||
+        "";
+      const adminEmail = adminEmailRaw
+        ? adminEmailRaw.replace(/@famousfinds\.com$/i, "@myfamousfinds.com")
+        : "";
 
       if (adminEmail) {
         try {

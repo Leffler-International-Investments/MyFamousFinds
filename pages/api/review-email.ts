@@ -1,11 +1,12 @@
 // FILE: pages/api/review-email.ts
 import type { NextApiRequest, NextApiResponse } from "next";
-import { sendMail } from "../../utils/email";
+import { sendMail, normalizeAdminEmail } from "../../utils/email";
 
-const ADMIN_EMAIL =
+const ADMIN_EMAIL = normalizeAdminEmail(
   process.env.ADMIN_EMAIL ||
   process.env.AWS_SES_FROM ||
-  "admin@myfamousfinds.com";
+  "admin@myfamousfinds.com"
+);
 
 export default async function handler(
   req: NextApiRequest,
