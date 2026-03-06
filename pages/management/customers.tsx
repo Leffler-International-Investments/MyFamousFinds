@@ -1,10 +1,8 @@
-import { useMemo, useState } from "react";
-import type { GetServerSideProps } from "next";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Head from "next/head";
 import Link from "next/link";
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
-import { adminDb, adminAuth } from "../../utils/firebaseAdmin";
 import { useRequireAdmin } from "../../hooks/useRequireAdmin";
 
 type CustomerRow = {
@@ -21,10 +19,6 @@ type CustomerRow = {
   totalSpent: number;
 };
 
-type Props = {
-  customers: CustomerRow[];
-};
-
 function money(amount: number) {
   try {
     return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(amount);
@@ -33,15 +27,58 @@ function money(amount: number) {
   }
 }
 
-export default function ManagementCustomers({ customers: initial }: Props) {
-  const { loading } = useRequireAdmin();
-  const [customers, setCustomers] = useState<CustomerRow[]>(initial);
+function formatDate(raw: string) {
+  if (!raw) return "—";
+  try {
+    return new Date(raw).toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    });
+  } catch {
+    return raw;
+  }
+}
+
+export default function ManagementCustomers() {
+  const { loading: adminLoading } = useRequireAdmin();
+  const [customers, setCustomers] = useState<CustomerRow[]>([]);
+  const [fetchState, setFetchState] = useState<"idle" | "loading" | "done" | "error">("idle");
+  const [fetchError, setFetchError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("All");
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [deleteByEmail, setDeleteByEmail] = useState("");
   const [deleteBusy, setDeleteBusy] = useState(false);
   const [busyIds, setBusyIds] = useState<Set<string>>(new Set());
+
+  const loadCustomers = useCallback(async () => {
+    setFetchState("loading");
+    setFetchError(null);
+    try {
+      const res = await fetch("/api/management/customers/list");
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(text || `HTTP ${res.status}`);
+      }
+      const json = await res.json();
+      setCustomers(json.customers || []);
+      if (json.errors && json.errors.length > 0) {
+        setFetchError(`Partial load — some sources failed: ${json.errors.join("; ")}`);
+      }
+      setFetchState("done");
+    } catch (e: any) {
+      console.error("[CUSTOMERS] fetch error:", e);
+      setFetchError(e?.message || "Failed to load customers");
+      setFetchState("error");
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!adminLoading) {
+      loadCustomers();
+    }
+  }, [adminLoading, loadCustomers]);
 
   const visible = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -78,7 +115,6 @@ export default function ManagementCustomers({ customers: initial }: Props) {
     );
 
     try {
-      // Re-enable Firebase Auth if disabled
       if (customer.email) {
         await fetch("/api/management/customers/enable", {
           method: "POST",
@@ -194,7 +230,7 @@ export default function ManagementCustomers({ customers: initial }: Props) {
     }
   };
 
-  if (loading) return <div className="dashboard-page" />;
+  if (adminLoading) return <div className="dashboard-page" />;
 
   const countActive = customers.filter((c) => c.status === "Active").length;
   const countSuspended = customers.filter((c) => c.status === "Suspended").length;
@@ -222,6 +258,20 @@ export default function ManagementCustomers({ customers: initial }: Props) {
               &larr; Back to Management Dashboard
             </Link>
           </div>
+
+          {/* Error / loading banner */}
+          {fetchState === "loading" && (
+            <div className="status-banner status-loading">Loading buyers from Firebase...</div>
+          )}
+          {fetchState === "error" && (
+            <div className="status-banner status-error">
+              <span>Failed to load customers: {fetchError}</span>
+              <button className="btn-retry" onClick={loadCustomers}>Retry</button>
+            </div>
+          )}
+          {fetchError && fetchState === "done" && (
+            <div className="status-banner status-warn">{fetchError}</div>
+          )}
 
           <div className="summary-row">
             <div className="summary-stat">
@@ -284,10 +334,13 @@ export default function ManagementCustomers({ customers: initial }: Props) {
               <option value="Suspended">Suspended</option>
               <option value="Disabled">Disabled</option>
             </select>
+            <button className="btn-refresh" onClick={loadCustomers} disabled={fetchState === "loading"}>
+              {fetchState === "loading" ? "Loading..." : "Refresh"}
+            </button>
           </div>
 
           <div className="cards">
-            {visible.length === 0 && (
+            {fetchState === "done" && visible.length === 0 && (
               <div className="empty">No customers found.</div>
             )}
 
@@ -314,7 +367,7 @@ export default function ManagementCustomers({ customers: initial }: Props) {
                         {c.vipTier && c.vipTier !== "Member" && (
                           <span className="pill pill-vip">{c.vipTier}</span>
                         )}
-                        <span className="muted">{c.createdAt}</span>
+                        <span className="muted">{formatDate(c.createdAt)}</span>
                       </div>
                     </div>
 
@@ -401,7 +454,7 @@ export default function ManagementCustomers({ customers: initial }: Props) {
                         </div>
                         <div className="detail-item">
                           <span className="detail-label">Registered</span>
-                          <span className="detail-value">{c.createdAt}</span>
+                          <span className="detail-value">{formatDate(c.createdAt)}</span>
                         </div>
                         <div className="detail-item">
                           <span className="detail-label">Auth Status</span>
@@ -422,6 +475,65 @@ export default function ManagementCustomers({ customers: initial }: Props) {
       </div>
 
       <style jsx>{`
+        .status-banner {
+          padding: 12px 16px;
+          border-radius: 10px;
+          margin-bottom: 16px;
+          font-size: 14px;
+          font-weight: 600;
+          display: flex;
+          align-items: center;
+          gap: 12px;
+        }
+        .status-loading {
+          background: #eff6ff;
+          color: #1d4ed8;
+          border: 1px solid #93c5fd;
+        }
+        .status-error {
+          background: #fef2f2;
+          color: #b91c1c;
+          border: 1px solid #fca5a5;
+        }
+        .status-warn {
+          background: #fef3c7;
+          color: #92400e;
+          border: 1px solid #f59e0b;
+        }
+        .btn-retry {
+          border: 1px solid #b91c1c;
+          border-radius: 8px;
+          background: #fff;
+          color: #b91c1c;
+          padding: 6px 14px;
+          font-weight: 700;
+          cursor: pointer;
+          font-size: 13px;
+          white-space: nowrap;
+        }
+        .btn-retry:hover {
+          background: #fee2e2;
+        }
+        .btn-refresh {
+          border: 1.5px solid #d1d5db;
+          border-radius: 8px;
+          background: #f9fafb;
+          color: #374151;
+          padding: 8px 16px;
+          font-weight: 700;
+          cursor: pointer;
+          font-size: 13px;
+          white-space: nowrap;
+          transition: all 0.15s ease;
+        }
+        .btn-refresh:hover:not(:disabled) {
+          background: #e5e7eb;
+        }
+        .btn-refresh:disabled {
+          opacity: 0.5;
+          cursor: default;
+        }
+
         .summary-row {
           display: grid;
           grid-template-columns: repeat(5, 1fr);
@@ -482,6 +594,7 @@ export default function ManagementCustomers({ customers: initial }: Props) {
           margin-bottom: 16px;
           display: flex;
           gap: 12px;
+          align-items: center;
         }
         .form-input {
           width: 100%;
@@ -740,133 +853,3 @@ export default function ManagementCustomers({ customers: initial }: Props) {
     </>
   );
 }
-
-export const getServerSideProps: GetServerSideProps<Props> = async () => {
-  try {
-    if (!adminDb) {
-      console.error("[CUSTOMERS] adminDb is not initialized");
-      return { props: { customers: [] } };
-    }
-
-    // Fetch all users from Firestore — use simple get() without orderBy
-    // to avoid requiring a composite index and to include docs without createdAt
-    const [usersSnap, ordersSnap] = await Promise.all([
-      adminDb.collection("users").limit(1000).get(),
-      adminDb.collection("orders").get(),
-    ]);
-
-    // Aggregate order data by buyer email
-    const ordersByEmail: Record<string, { items: number; spent: number }> = {};
-    ordersSnap.docs.forEach((doc) => {
-      const d: any = doc.data() || {};
-      const buyerEmail = (d.buyer?.email || d.buyerEmail || "").toLowerCase().trim();
-      if (!buyerEmail) return;
-      const total = Number(d.totals?.total || 0);
-      if (!ordersByEmail[buyerEmail]) {
-        ordersByEmail[buyerEmail] = { items: 0, spent: 0 };
-      }
-      ordersByEmail[buyerEmail].items += 1;
-      ordersByEmail[buyerEmail].spent += total;
-    });
-
-    // Build a set of Firestore user emails to cross-check with Auth
-    const firestoreEmails = new Set<string>();
-
-    const customers: CustomerRow[] = usersSnap.docs.map((doc) => {
-      const d: any = doc.data() || {};
-      // Handle both "name" and "fullName" fields (profile.ts saves fullName)
-      const name = d.name || d.fullName || d.displayName || "";
-      const email = (d.email || "").toLowerCase().trim();
-      if (email) firestoreEmails.add(email);
-      const agg = ordersByEmail[email] || { items: 0, spent: 0 };
-
-      return {
-        id: doc.id,
-        name,
-        email: d.email || "",
-        phone: d.phone || "",
-        status: d.status || "Active",
-        authDisabled: false,
-        vipTier: d.vipTier || "Member",
-        points: Number(d.points || 0),
-        createdAt: d.createdAt?.toDate?.().toLocaleString("en-US") || "",
-        totalItems: agg.items,
-        totalSpent: agg.spent,
-      };
-    });
-
-    // Also fetch ALL Firebase Auth users to find disabled accounts and
-    // users who exist in Auth but not in Firestore
-    if (adminAuth) {
-      try {
-        const authResult = await adminAuth.listUsers(1000);
-        const authByEmail: Record<string, { uid: string; disabled: boolean; displayName?: string; phoneNumber?: string; creationTime?: string }> = {};
-
-        for (const authUser of authResult.users) {
-          const authEmail = (authUser.email || "").toLowerCase().trim();
-          if (authEmail) {
-            authByEmail[authEmail] = {
-              uid: authUser.uid,
-              disabled: authUser.disabled,
-              displayName: authUser.displayName || "",
-              phoneNumber: authUser.phoneNumber || "",
-              creationTime: authUser.metadata?.creationTime || "",
-            };
-          }
-        }
-
-        // Update existing Firestore customers with Auth disabled status
-        for (const c of customers) {
-          const authEmail = c.email.toLowerCase().trim();
-          if (authByEmail[authEmail]) {
-            if (authByEmail[authEmail].disabled) {
-              c.authDisabled = true;
-              // If Auth is disabled, mark as Disabled status
-              if (c.status === "Active") {
-                c.status = "Disabled";
-              }
-            }
-          }
-        }
-
-        // Add Auth-only users who don't exist in Firestore
-        for (const authUser of authResult.users) {
-          const authEmail = (authUser.email || "").toLowerCase().trim();
-          if (!authEmail || firestoreEmails.has(authEmail)) continue;
-
-          const agg = ordersByEmail[authEmail] || { items: 0, spent: 0 };
-          customers.push({
-            id: authUser.uid,
-            name: authUser.displayName || "",
-            email: authUser.email || "",
-            phone: authUser.phoneNumber || "",
-            status: authUser.disabled ? "Disabled" : "Active",
-            authDisabled: authUser.disabled,
-            vipTier: "Member",
-            points: 0,
-            createdAt: authUser.metadata?.creationTime
-              ? new Date(authUser.metadata.creationTime).toLocaleString("en-US")
-              : "",
-            totalItems: agg.items,
-            totalSpent: agg.spent,
-          });
-        }
-      } catch (authErr) {
-        console.warn("[CUSTOMERS] Could not list Firebase Auth users:", authErr);
-      }
-    }
-
-    // Sort by createdAt descending (newest first)
-    customers.sort((a, b) => {
-      if (!a.createdAt && !b.createdAt) return 0;
-      if (!a.createdAt) return 1;
-      if (!b.createdAt) return -1;
-      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-    });
-
-    return { props: { customers } };
-  } catch (err) {
-    console.error("Error loading customers", err);
-    return { props: { customers: [] } };
-  }
-};
