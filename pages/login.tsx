@@ -44,7 +44,7 @@ type Verify2faResponse = Verify2faSuccess | Verify2faError;
 
 type TwoFactorStep = "credentials" | "choose_method" | "verify";
 
-const SESSION_TTL_MS = 72 * 60 * 60 * 1000;
+const SESSION_TTL_MS = 168 * 60 * 60 * 1000; // 7 days — matches roleSession.ts
 
 export default function UnifiedLoginPage() {
   const router = useRouter();
@@ -328,8 +328,26 @@ export default function UnifiedLoginPage() {
           "Sign-in is temporarily unavailable due to a configuration issue. Please contact support."
         );
       } else if (code === "auth/user-disabled") {
+        // Firebase account is disabled — try server-side seller/management login
+        // as a fallback so super sellers and admins can still sign in.
+        try {
+          const sellerRes = await fetch("/api/seller/login", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email: trimmedEmail, password }),
+          });
+          const sellerJson = (await sellerRes.json()) as LoginResponse;
+
+          if (sellerJson.ok) {
+            setIsSeller(true);
+            setStep("choose_method");
+            return;
+          }
+        } catch {
+          // Server-side fallback also failed — show disabled message
+        }
         setError(
-          "This account has been disabled. Please contact support."
+          "This account has been disabled. Please contact support at support@myfamousfinds.com to re-enable your account."
         );
       } else {
         setError(

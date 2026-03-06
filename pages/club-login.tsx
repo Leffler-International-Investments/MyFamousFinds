@@ -40,6 +40,8 @@ export default function LoginPage() {
             ? "This domain is not authorized for Google sign-in. Please contact support."
             : err?.code === "auth/account-exists-with-different-credential"
             ? "An account already exists with this email using a different sign-in method."
+            : err?.code === "auth/user-disabled"
+            ? "This account has been disabled. Please contact support at support@myfamousfinds.com to re-enable your account."
             : `Sign-in failed. Please try again.${err?.code ? ` (${err.code})` : ""}`
         );
       });

@@ -47,8 +47,30 @@ export default function BuyerSigninPage() {
       }
     } catch (err: any) {
       console.error("buyer_signin_error", err);
-      // Gentle message – no red “FUCKING” alert
-      setError("Email or password did not match. Please try again.");
+      const code = err?.code || "";
+      if (
+        code === "auth/wrong-password" ||
+        code === "auth/user-not-found" ||
+        code === "auth/invalid-credential"
+      ) {
+        setError("Email or password did not match. Please try again.");
+      } else if (code === "auth/user-disabled") {
+        setError(
+          "This account has been disabled. Please contact support at support@myfamousfinds.com to re-enable your account."
+        );
+      } else if (code === "auth/too-many-requests") {
+        setError(
+          "Too many failed login attempts. Please wait a few minutes and try again."
+        );
+      } else if (code === "auth/network-request-failed") {
+        setError(
+          "Network error. Please check your internet connection and try again."
+        );
+      } else {
+        setError(
+          `Sign-in failed. Please try again.${code ? ` (${code})` : ""}`
+        );
+      }
     } finally {
       setLoading(false);
     }

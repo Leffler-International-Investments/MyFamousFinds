@@ -1,7 +1,18 @@
 // FILE: /pages/api/auth/management-login.ts
 import type { NextApiRequest, NextApiResponse } from "next";
+import { timingSafeEqual } from "crypto";
 
 type AdminUser = { email: string; password: string };
+
+/** Timing-safe string comparison to prevent timing attacks. */
+function safeCompare(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  try {
+    return timingSafeEqual(Buffer.from(a, "utf8"), Buffer.from(b, "utf8"));
+  } catch {
+    return false;
+  }
+}
 
 // TEMP: define the two management admins.
 // In production, move passwords to env vars or a database.
@@ -35,7 +46,7 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
     (u) => u.email.toLowerCase() === normalizedEmail
   );
 
-  if (!user || !user.password || user.password !== suppliedPassword) {
+  if (!user || !user.password || !safeCompare(user.password, suppliedPassword)) {
     return res.status(401).json({ error: "Invalid email or password" });
   }
 

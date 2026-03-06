@@ -91,7 +91,7 @@ export default function UnifiedSignupPage() {
           window.localStorage.setItem("ff-email", userEmail);
           window.localStorage.setItem(
             "ff-session-exp",
-            String(Date.now() + 72 * 60 * 60 * 1000)
+            String(Date.now() + 168 * 60 * 60 * 1000)
           );
         }
 
@@ -126,6 +126,8 @@ export default function UnifiedSignupPage() {
             ? "An account already exists with this email using a different sign-in method."
             : err?.code === "auth/operation-not-allowed"
             ? "This sign-in method is not enabled. Please contact support."
+            : err?.code === "auth/user-disabled"
+            ? "This account has been disabled. Please contact support at support@myfamousfinds.com to re-enable your account."
             : `Sign-up failed. Please try again.${err?.code ? ` (${err.code})` : ""}`;
         setBanner({ type: "error", message: msg });
       });
@@ -141,7 +143,7 @@ export default function UnifiedSignupPage() {
       window.localStorage.setItem("ff-email", userEmail);
       window.localStorage.setItem(
         "ff-session-exp",
-        String(Date.now() + 72 * 60 * 60 * 1000)
+        String(Date.now() + 168 * 60 * 60 * 1000)
       );
     }
 
@@ -227,7 +229,7 @@ export default function UnifiedSignupPage() {
         window.localStorage.setItem("ff-email", trimmedEmail);
         window.localStorage.setItem(
           "ff-session-exp",
-          String(Date.now() + 72 * 60 * 60 * 1000)
+          String(Date.now() + 168 * 60 * 60 * 1000)
         );
       }
 
