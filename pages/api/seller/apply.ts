@@ -5,6 +5,7 @@ import { adminDb, isFirebaseAdminReady, FieldValue } from "../../../utils/fireba
 import {
   sendAdminNewSellerApplicationEmail,
   sendSellerApplicationReceivedEmail,
+  normalizeAdminEmail,
 } from "../../../utils/email";
 
 type ApplyResponse = {
@@ -33,7 +34,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
       return res.status(400).json({ ok: false, error: "Missing email" });
     }
 
-    const adminEmail = String(process.env.ADMIN_EMAIL || "").trim().toLowerCase();
+    const adminEmail = normalizeAdminEmail(String(process.env.ADMIN_EMAIL || ""));
     if (!adminEmail || !adminEmail.includes("@")) {
       return res.status(500).json({
         ok: false,

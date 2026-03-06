@@ -23,6 +23,25 @@ function cleanEnv(v?: string) {
     .trim();
 }
 
+/**
+ * Normalise an admin/system email address so that common domain typos
+ * (e.g. "@famousfinds.com" instead of "@myfamousfinds.com") are
+ * auto-corrected at runtime.  A warning is logged so the env var can
+ * be fixed at the source.
+ */
+export function normalizeAdminEmail(raw: string): string {
+  const trimmed = raw.trim().toLowerCase();
+  if (/@famousfinds\.com$/i.test(trimmed)) {
+    const fixed = trimmed.replace(/@famousfinds\.com$/i, "@myfamousfinds.com");
+    console.warn(
+      `[EMAIL] Auto-corrected admin email domain: "${trimmed}" → "${fixed}". ` +
+        `Please update the ADMIN_EMAIL env var to use @myfamousfinds.com.`
+    );
+    return fixed;
+  }
+  return trimmed;
+}
+
 // ---------- AWS SES config ----------
 const AWS_REGION = cleanEnv(process.env.AWS_REGION) || "us-east-1";
 const AWS_ACCESS_KEY_ID = cleanEnv(process.env.AWS_ACCESS_KEY_ID);

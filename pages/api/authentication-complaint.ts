@@ -1,7 +1,7 @@
 // FILE: /pages/api/authentication-complaint.ts
 import type { NextApiRequest, NextApiResponse } from "next";
 import { adminDb, FieldValue } from "../../utils/firebaseAdmin";
-import { sendMail } from "../../utils/email";
+import { sendMail, normalizeAdminEmail } from "../../utils/email";
 
 export default async function handler(
   req: NextApiRequest,
@@ -21,10 +21,11 @@ export default async function handler(
   // Generate a short complaint reference ID
   const refId = "AC-" + Math.random().toString(36).slice(2, 8).toUpperCase();
 
-  const recipientEmail =
+  const recipientEmail = normalizeAdminEmail(
     process.env.ADMIN_EMAIL ||
     process.env.ADMIN_NOTIFICATION_EMAILS?.split(",")[0]?.trim() ||
-    "Support@MyFamousFinds.com";
+    "Support@MyFamousFinds.com"
+  );
 
   // Save to Firestore so management dashboard can view it
   try {

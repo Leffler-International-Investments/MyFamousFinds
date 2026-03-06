@@ -25,7 +25,7 @@ export default async function handler(
 
   const { to } = (req.body || {}) as { to?: string };
   const transport = String(req.query.transport || req.body?.transport || "auto").toLowerCase();
-  const testTo = to || process.env.ADMIN_EMAIL || "";
+  const testTo = (to || process.env.ADMIN_EMAIL || "").replace(/@famousfinds\.com$/i, "@myfamousfinds.com");
 
   if (!testTo || !testTo.includes("@")) {
     return res.status(400).json({
