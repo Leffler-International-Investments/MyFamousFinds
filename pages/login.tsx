@@ -111,8 +111,7 @@ export default function UnifiedLoginPage() {
 
         // Handle account linking conflict from redirect flow
         if (
-          err?.code === "auth/account-exists-with-different-credential" ||
-          err?.code === "auth/internal-error"
+          err?.code === "auth/account-exists-with-different-credential"
         ) {
           const conflictEmail =
             err?.customData?.email ||
