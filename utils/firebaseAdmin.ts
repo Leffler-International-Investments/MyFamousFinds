@@ -18,8 +18,18 @@ import admin, { ServiceAccount } from "firebase-admin";
 const databaseURL = process.env.FB_DATABASE_URL || undefined;
 
 function parseServiceAccountFromJsonEnv(): ServiceAccount | null {
-  const raw = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
+  let raw = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
   if (!raw) return null;
+
+  // Strip env-var prefix if someone pasted "KEY=VALUE" as the value
+  // e.g. "FIREBASE_SERVICE_ACCOUNT_JSON={...}" → "{...}"
+  const prefixMatch = raw.match(/^[A-Z_]+=(\{.+)/s);
+  if (prefixMatch) {
+    raw = prefixMatch[1];
+  }
+
+  // Trim whitespace
+  raw = raw.trim();
 
   try {
     const obj = JSON.parse(raw);
@@ -32,6 +42,7 @@ function parseServiceAccountFromJsonEnv(): ServiceAccount | null {
     return obj as ServiceAccount;
   } catch (e) {
     console.error("FIREBASE_SERVICE_ACCOUNT_JSON parse error:", e);
+    console.error("Raw value starts with:", raw.substring(0, 80));
     return null;
   }
 }
