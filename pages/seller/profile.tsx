@@ -172,7 +172,7 @@ export default function SellerProfile() {
                 <input
                   type="text"
                   name="businessName"
-                  defaultValue="VintageLux Boutique"
+                  placeholder="Your business name"
                   className="form-input"
                   required
                 />
@@ -182,7 +182,7 @@ export default function SellerProfile() {
                 <input
                   type="email"
                   name="email"
-                  defaultValue="hello@vintagelux.com"
+                  placeholder="you@example.com"
                   className="form-input"
                   required
                 />
@@ -215,7 +215,7 @@ export default function SellerProfile() {
               <textarea
                 name="bio"
                 rows={3}
-                defaultValue="Curators of fine vintage bags and accessories. All items 100% authentic."
+                placeholder="Tell buyers about your boutique..."
                 className="form-input"
               />
             </div>
