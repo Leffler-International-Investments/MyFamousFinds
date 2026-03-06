@@ -55,6 +55,11 @@ export default function ManagementCustomers() {
   const [restoreBusy, setRestoreBusy] = useState(false);
   const [restoreResult, setRestoreResult] = useState<string | null>(null);
   const [busyIds, setBusyIds] = useState<Set<string>>(new Set());
+  const [addBuyerEmail, setAddBuyerEmail] = useState("");
+  const [addBuyerName, setAddBuyerName] = useState("");
+  const [addBuyerPassword, setAddBuyerPassword] = useState("");
+  const [addBuyerBusy, setAddBuyerBusy] = useState(false);
+  const [addBuyerResult, setAddBuyerResult] = useState<string | null>(null);
 
   const loadCustomers = useCallback(async () => {
     setFetchState("loading");
@@ -259,6 +264,35 @@ export default function ManagementCustomers() {
     }
   };
 
+  const onAddBuyer = async () => {
+    const email = addBuyerEmail.trim().toLowerCase();
+    if (!email) return;
+    setAddBuyerBusy(true);
+    setAddBuyerResult(null);
+    try {
+      const res = await fetch("/api/management/customers/add-buyer", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email,
+          name: addBuyerName.trim() || undefined,
+          password: addBuyerPassword.trim() || undefined,
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "Failed to add buyer");
+      setAddBuyerResult(json.message || "Buyer added successfully.");
+      setAddBuyerEmail("");
+      setAddBuyerName("");
+      setAddBuyerPassword("");
+      loadCustomers();
+    } catch (e: any) {
+      setAddBuyerResult(`Error: ${e.message || "Could not add buyer."}`);
+    } finally {
+      setAddBuyerBusy(false);
+    }
+  };
+
   if (adminLoading) return <div className="dashboard-page" />;
 
   const countActive = customers.filter((c) => c.status === "Active").length;
@@ -325,6 +359,44 @@ export default function ManagementCustomers() {
               </span>
               <span className="summary-label">Total Revenue</span>
             </div>
+          </div>
+
+          <div className="add-buyer-bar">
+            <span className="add-buyer-label">Add New Buyer:</span>
+            <input
+              className="form-input"
+              placeholder="Email (required)"
+              value={addBuyerEmail}
+              onChange={(e) => setAddBuyerEmail(e.target.value)}
+              style={{ maxWidth: 250 }}
+            />
+            <input
+              className="form-input"
+              placeholder="Name (optional)"
+              value={addBuyerName}
+              onChange={(e) => setAddBuyerName(e.target.value)}
+              style={{ maxWidth: 180 }}
+            />
+            <input
+              className="form-input"
+              type="password"
+              placeholder="Password (optional)"
+              value={addBuyerPassword}
+              onChange={(e) => setAddBuyerPassword(e.target.value)}
+              style={{ maxWidth: 180 }}
+            />
+            <button
+              className="btn-action btn-action-add"
+              disabled={addBuyerBusy || !addBuyerEmail.trim()}
+              onClick={onAddBuyer}
+            >
+              {addBuyerBusy ? "Adding..." : "+ Add Buyer"}
+            </button>
+            {addBuyerResult && (
+              <div className={`add-buyer-result ${addBuyerResult.startsWith("Error") ? "add-buyer-error" : "add-buyer-success"}`}>
+                {addBuyerResult}
+              </div>
+            )}
           </div>
 
           <div className="restore-bar">
@@ -662,6 +734,50 @@ export default function ManagementCustomers() {
           border: 1px solid #bbf7d0;
         }
         .restore-error {
+          background: #fef2f2;
+          color: #b91c1c;
+          border: 1px solid #fca5a5;
+        }
+
+        .add-buyer-bar {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          flex-wrap: wrap;
+          margin-bottom: 14px;
+          padding: 12px 14px;
+          background: #eff6ff;
+          border: 1px solid #3b82f6;
+          border-radius: 10px;
+        }
+        .add-buyer-label {
+          font-size: 13px;
+          font-weight: 700;
+          color: #1d4ed8;
+        }
+        .btn-action-add {
+          border: 1.5px solid #3b82f6;
+          background: #1d4ed8;
+          color: #fff;
+        }
+        .btn-action-add:hover:not(:disabled) {
+          background: #1e40af;
+          box-shadow: 0 1px 3px rgba(59, 130, 246, 0.3);
+        }
+        .add-buyer-result {
+          width: 100%;
+          font-size: 13px;
+          font-weight: 600;
+          padding: 8px 12px;
+          border-radius: 8px;
+          margin-top: 4px;
+        }
+        .add-buyer-success {
+          background: #dcfce7;
+          color: #15803d;
+          border: 1px solid #bbf7d0;
+        }
+        .add-buyer-error {
           background: #fef2f2;
           color: #b91c1c;
           border: 1px solid #fca5a5;
