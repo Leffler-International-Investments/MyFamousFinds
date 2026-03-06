@@ -11,6 +11,8 @@ import PasswordInput from "../../components/PasswordInput";
 import { auth } from "../../utils/firebaseClient";
 import { safeRedirectPath } from "../../utils/roleSession";
 
+const SESSION_TTL_MS = 168 * 60 * 60 * 1000;
+
 export default function BuyerSigninPage() {
   const router = useRouter();
   const [email, setEmail] = useState("");
@@ -23,6 +25,34 @@ export default function BuyerSigninPage() {
     "/account"
   );
 
+  function setBuyerSession(userEmail: string) {
+    if (typeof window === "undefined") return;
+    window.localStorage.setItem("ff-role", "buyer");
+    window.localStorage.setItem("ff-email", userEmail);
+    window.localStorage.setItem(
+      "ff-session-exp",
+      String(Date.now() + SESSION_TTL_MS)
+    );
+  }
+
+  async function tryReEnableBuyer(emailToRestore: string) {
+    const res = await fetch("/api/auth/re-enable-buyer", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: emailToRestore }),
+    });
+    let json: any = {};
+    try {
+      json = await res.json();
+    } catch {
+      json = {};
+    }
+    return {
+      ok: Boolean(res.ok && (json?.ok || json?.restored || json?.success)),
+      json,
+    };
+  }
+
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError(null);
@@ -33,20 +63,21 @@ export default function BuyerSigninPage() {
       return;
     }
 
+    if (!auth) {
+      setError("Sign-in is temporarily unavailable. Please try again shortly.");
+      return;
+    }
+
     setLoading(true);
     try {
       await signInWithEmailAndPassword(auth, trimmedEmail, password);
 
-      if (typeof window !== "undefined") {
-        window.localStorage.setItem("ff-role", "buyer");
-        window.localStorage.setItem("ff-email", trimmedEmail);
-        window.localStorage.setItem("ff-session-exp", String(Date.now() + 168 * 60 * 60 * 1000));
-      }
+      setBuyerSession(trimmedEmail);
 
       if (from) {
         router.push(from);
       } else {
-        router.push("/buyer/dashboard");
+        router.push("/account");
       }
     } catch (err: any) {
       console.error("buyer_signin_error", err);
@@ -58,38 +89,23 @@ export default function BuyerSigninPage() {
       ) {
         setError("Email or password did not match. Please try again.");
       } else if (code === "auth/user-disabled") {
-        // Attempt to auto-recover: ask the server to re-enable this buyer account
         try {
-          const reEnableRes = await fetch("/api/auth/re-enable-buyer", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ email: trimmedEmail }),
-          });
-          const reEnableJson = await reEnableRes.json();
-
-          if (reEnableJson.ok) {
-            // Account re-enabled — retry sign-in
+          const restore = await tryReEnableBuyer(trimmedEmail);
+          if (restore.ok) {
             await signInWithEmailAndPassword(auth, trimmedEmail, password);
-
-            if (typeof window !== "undefined") {
-              window.localStorage.setItem("ff-role", "buyer");
-              window.localStorage.setItem("ff-email", trimmedEmail);
-              window.localStorage.setItem("ff-session-exp", String(Date.now() + 168 * 60 * 60 * 1000));
-            }
-
+            setBuyerSession(trimmedEmail);
             if (from) {
               router.push(from);
             } else {
-              router.push("/buyer/dashboard");
+              router.push("/account");
             }
             return;
           }
         } catch (retryErr) {
           console.error("re_enable_buyer_retry_error", retryErr);
         }
-
         setError(
-          "Your account was temporarily disabled. Please try signing in again. If the problem persists, contact support at support@myfamousfinds.com."
+          "This account was temporarily disabled and could not be restored automatically. Please contact support at support@myfamousfinds.com."
         );
       } else if (code === "auth/too-many-requests") {
         setError(
@@ -98,6 +114,10 @@ export default function BuyerSigninPage() {
       } else if (code === "auth/network-request-failed") {
         setError(
           "Network error. Please check your internet connection and try again."
+        );
+      } else if (code === "auth/invalid-api-key") {
+        setError(
+          "Sign-in is temporarily unavailable due to a configuration issue. Please contact support."
         );
       } else {
         setError(
@@ -168,7 +188,7 @@ export default function BuyerSigninPage() {
               <Link href="/buyer/forgot-password">Forgot password?</Link>
             </p>
             <p className="auth-secondary-link">
-              Don't have an account?{" "}
+              Don&apos;t have an account?{" "}
               <Link href="/buyer/signup">Create one</Link>
             </p>
             <p className="auth-secondary-link">
