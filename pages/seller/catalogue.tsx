@@ -143,7 +143,7 @@ export default function SellerCatalogue() {
           <Link href="/seller/bulk-upload" className="btn-secondary">
             Bulk upload CSV
           </Link>
-          <Link href="/sell" className="btn-primary">
+          <Link href="/seller/bulk-simple" className="btn-primary">
             Add single item
           </Link>
         </div>
