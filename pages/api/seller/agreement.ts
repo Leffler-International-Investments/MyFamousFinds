@@ -5,6 +5,7 @@
 
 import type { NextApiRequest, NextApiResponse } from "next";
 import { adminDb } from "../../../utils/firebaseAdmin";
+import { getAuthUser } from "../../../utils/authServer";
 
 type Resp =
   | { ok: true; accepted: boolean; acceptedAt?: string; consignorName?: string; version?: string }
@@ -18,12 +19,13 @@ export default async function handler(
     return res.status(500).json({ ok: false, error: "Firebase not configured" });
   }
 
-  const email =
-    String(req.body?.email || req.query?.email || "").trim().toLowerCase();
-
-  if (!email) {
-    return res.status(400).json({ ok: false, error: "Email is required." });
+  // Verify Firebase ID token — seller identity comes from the token
+  const authUser = await getAuthUser(req);
+  if (!authUser?.email) {
+    return res.status(401).json({ ok: false, error: "Unauthorized — valid Bearer token required" });
   }
+
+  const email = authUser.email.toLowerCase().trim();
 
   // GET - check status
   if (req.method === "GET") {

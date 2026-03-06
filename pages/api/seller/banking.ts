@@ -2,6 +2,7 @@
 
 import type { NextApiRequest, NextApiResponse } from "next";
 import { adminDb } from "../../../utils/firebaseAdmin";
+import { getAuthUser } from "../../../utils/authServer";
 
 type Ok = { ok: true; prefs?: any };
 type Err = { ok: false; error: string };
@@ -15,24 +16,15 @@ export default async function handler(
     return res.status(500).json({ ok: false, error: "Firebase not configured" });
   }
 
+  // Verify Firebase ID token
+  const authUser = await getAuthUser(req);
+  if (!authUser?.email) {
+    return res.status(401).json({ ok: false, error: "Unauthorized — valid Bearer token required" });
+  }
+
   try {
-    // email comes from the logged-in seller (stored as ff-email in localStorage)
-    const emailFromQuery = typeof req.query.email === "string"
-      ? req.query.email
-      : undefined;
-
-    const emailFromBody =
-      typeof req.body?.email === "string" ? req.body.email : undefined;
-
-    const rawEmail = emailFromQuery || emailFromBody;
-
-    if (!rawEmail) {
-      return res
-        .status(400)
-        .json({ ok: false, error: "Missing seller email parameter" });
-    }
-
-    const email = rawEmail.toLowerCase().trim();
+    // Use the verified email from the token, not from query/body
+    const email = authUser.email.toLowerCase().trim();
     const docRef = adminDb.collection("seller_banking").doc(email);
 
     // ─────────────────────────────────────────

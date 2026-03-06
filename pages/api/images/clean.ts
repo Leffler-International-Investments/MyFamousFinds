@@ -9,11 +9,37 @@ export const config = {
   }
 };
 
+// Only allow fetching images from trusted domains (prevent SSRF)
+const ALLOWED_HOSTS = [
+  "firebasestorage.googleapis.com",
+  "storage.googleapis.com",
+  "images.unsplash.com",
+  "cdn.shopify.com",
+  "lh3.googleusercontent.com",
+];
+
+function isAllowedUrl(raw: string): boolean {
+  try {
+    const parsed = new URL(raw);
+    if (parsed.protocol !== "https:") return false;
+    return ALLOWED_HOSTS.some(
+      (h) => parsed.hostname === h || parsed.hostname.endsWith("." + h)
+    );
+  } catch {
+    return false;
+  }
+}
+
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   try {
     const url = (req.query.url as string) || "";
     if (!url) {
       res.status(400).json({ ok: false, error: "Missing ?url=" });
+      return;
+    }
+
+    if (!isAllowedUrl(url)) {
+      res.status(403).json({ ok: false, error: "URL domain not allowed" });
       return;
     }
 

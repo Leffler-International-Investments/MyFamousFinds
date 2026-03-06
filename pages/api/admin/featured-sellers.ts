@@ -4,6 +4,7 @@
 
 import type { NextApiRequest, NextApiResponse } from "next";
 import { adminDb, isFirebaseAdminReady, FieldValue } from "../../../utils/firebaseAdmin";
+import { requireAdmin } from "../../../utils/adminAuth";
 
 const MIN_ITEMS_PER_MONTH = 2; // Threshold for featured status
 
@@ -14,6 +15,8 @@ export default async function handler(
   if (req.method !== "POST" && req.method !== "GET") {
     return res.status(405).json({ ok: false, error: "method_not_allowed" });
   }
+
+  if (!requireAdmin(req, res)) return;
 
   if (!isFirebaseAdminReady || !adminDb) {
     return res.status(500).json({ ok: false, error: "firebase_admin_not_initialized" });

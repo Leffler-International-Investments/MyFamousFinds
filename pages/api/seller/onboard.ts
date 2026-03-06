@@ -4,6 +4,7 @@
 
 import type { NextApiRequest, NextApiResponse } from "next";
 import { adminDb } from "../../../utils/firebaseAdmin";
+import { getAuthUser } from "../../../utils/authServer";
 
 type Response =
   | { ok: true; message: string }
@@ -21,14 +22,16 @@ export default async function handler(
     return res.status(500).json({ ok: false, error: "firebase_not_configured" });
   }
 
+  // Verify Firebase ID token
+  const authUser = await getAuthUser(req);
+  if (!authUser?.email) {
+    return res.status(401).json({ ok: false, error: "Unauthorized — valid Bearer token required" });
+  }
+
   try {
-    const { email, paypalEmail } = req.body || {};
+    const { paypalEmail } = req.body || {};
 
-    if (!email || typeof email !== "string") {
-      return res.status(400).json({ ok: false, error: "missing_or_invalid_email" });
-    }
-
-    const lowerEmail = email.toLowerCase();
+    const lowerEmail = authUser.email.toLowerCase();
     const sellerRef = adminDb.collection("sellers").doc(lowerEmail);
 
     const updateData: Record<string, any> = {
