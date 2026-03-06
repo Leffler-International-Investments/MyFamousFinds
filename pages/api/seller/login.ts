@@ -112,8 +112,12 @@ export default async function handler(
           message: "Incorrect email or password.",
         });
       }
-      // No password provided (legacy)
-      return res.status(200).json({ ok: true, sellerId: "super-seller" });
+      // Password is required for all users including super sellers
+      return res.status(401).json({
+        ok: false,
+        code: "bad_credentials",
+        message: "Password is required.",
+      });
     }
     return res.status(500).json({
       ok: false,
@@ -238,8 +242,12 @@ export default async function handler(
       });
     }
 
-    // No password provided — legacy flow (client already verified via Firebase Auth)
-    return res.status(200).json({ ok: true, sellerId });
+    // Password is required — no legacy passwordless login
+    return res.status(401).json({
+      ok: false,
+      code: "bad_credentials",
+      message: "Password is required.",
+    });
   } catch (err) {
     console.error("seller_login_api_error", err);
     return res.status(500).json({

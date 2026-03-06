@@ -7,7 +7,7 @@ import type { NextApiResponse } from "next";
 const SESSION_SECRET =
   process.env.ADMIN_API_SECRET ||
   process.env.ADMIN_PASSWORD ||
-  "ff-default-session-secret";
+  "";
 
 const SESSION_DURATION_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 const SESSION_DURATION_SECONDS = Math.floor(SESSION_DURATION_MS / 1000);
@@ -49,6 +49,10 @@ export function getAdminEmails(): Set<string> {
  * Create an HMAC-signed session token containing the admin email and expiry.
  */
 export function createSessionToken(email: string): string {
+  if (!SESSION_SECRET) {
+    console.error("[adminSession] Cannot create session token: no ADMIN_API_SECRET or ADMIN_PASSWORD configured.");
+    return "";
+  }
   const expiry = Date.now() + SESSION_DURATION_MS;
   const payload = `${email}|${expiry}`;
   const sig = crypto
@@ -64,6 +68,7 @@ export function createSessionToken(email: string): string {
 export function verifySessionToken(
   token: string
 ): { valid: true; email: string } | { valid: false } {
+  if (!SESSION_SECRET) return { valid: false };
   const parts = token.split("|");
   if (parts.length !== 3) return { valid: false };
 

@@ -24,6 +24,22 @@ function isApprovedStatus(status: unknown): boolean {
   return s === "approved" || s === "active";
 }
 
+/**
+ * In-memory rate limiter: max `limit` requests per `windowMs` per key.
+ */
+const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
+
+function checkRateLimit(key: string, limit: number, windowMs: number): boolean {
+  const now = Date.now();
+  const entry = rateLimitMap.get(key);
+  if (!entry || now > entry.resetAt) {
+    rateLimitMap.set(key, { count: 1, resetAt: now + windowMs });
+    return true;
+  }
+  entry.count++;
+  return entry.count <= limit;
+}
+
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse<AuthTokenResponse>
@@ -36,11 +52,29 @@ export default async function handler(
     return res.status(503).json({ ok: false, error: "Firebase not configured" });
   }
 
+  // Rate limit: max 5 requests per minute per IP to prevent abuse
+  const ip = String(
+    (Array.isArray(req.headers["x-forwarded-for"])
+      ? req.headers["x-forwarded-for"][0]
+      : req.headers["x-forwarded-for"]) ||
+      req.socket?.remoteAddress ||
+      "unknown"
+  ).split(",")[0].trim();
+
+  if (!checkRateLimit(`auth-token:${ip}`, 5, 60_000)) {
+    return res.status(429).json({ ok: false, error: "Too many requests. Try again later." });
+  }
+
   const { email } = (req.body || {}) as { email?: string };
   const trimmedEmail = String(email || "").trim().toLowerCase();
 
   if (!trimmedEmail || !trimmedEmail.includes("@")) {
     return res.status(400).json({ ok: false, error: "Valid email required" });
+  }
+
+  // Also rate-limit per email to prevent enumeration
+  if (!checkRateLimit(`auth-token:email:${trimmedEmail}`, 3, 60_000)) {
+    return res.status(429).json({ ok: false, error: "Too many requests for this email. Try again later." });
   }
 
   try {

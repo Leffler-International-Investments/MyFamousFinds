@@ -10,6 +10,7 @@ import {
   signInWithEmailAndPassword,
   signInWithRedirect,
   getRedirectResult,
+  onAuthStateChanged,
   GoogleAuthProvider,
   linkWithCredential,
   AuthCredential,
@@ -40,6 +41,24 @@ export default function UnifiedLoginPage() {
   const [promoCode, setPromoCode] = useState("");
   const [promoLoading, setPromoLoading] = useState(false);
   const [promoError, setPromoError] = useState<string | null>(null);
+
+  // If user already has an active buyer Firebase session, redirect to account
+  useEffect(() => {
+    if (!auth) return;
+    const unsub = onAuthStateChanged(auth, (u) => {
+      if (u && typeof window !== "undefined") {
+        const role = window.localStorage.getItem("ff-role");
+        // Only auto-redirect for buyers — sellers/management have their own login pages
+        if (role === "buyer") {
+          const redirectFrom =
+            typeof router.query.from === "string" ? router.query.from : null;
+          router.replace(redirectFrom || "/account");
+        }
+      }
+    });
+    return () => unsub();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Handle redirect result from signInWithRedirect (fallback for popup failures)
   useEffect(() => {

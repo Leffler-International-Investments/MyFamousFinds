@@ -51,6 +51,13 @@ export default function ProfilePage() {
 
   const handleLogout = async () => {
     await signOut(auth);
+    try {
+      if (typeof window !== "undefined") {
+        window.localStorage.removeItem("ff-role");
+        window.localStorage.removeItem("ff-email");
+        window.localStorage.removeItem("ff-session-exp");
+      }
+    } catch {}
     router.push("/");
   };
 

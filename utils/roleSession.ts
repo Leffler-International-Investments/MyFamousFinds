@@ -51,3 +51,13 @@ export function touchRoleSession(ttlHours = DEFAULT_SESSION_TTL_HOURS) {
   if (!role) return;
   window.localStorage.setItem(EXP_KEY, String(computeExpiryMs(ttlHours)));
 }
+
+/**
+ * Clear role session — call on logout to remove all role/session data.
+ */
+export function clearRoleSession() {
+  if (typeof window === "undefined") return;
+  window.localStorage.removeItem(ROLE_KEY);
+  window.localStorage.removeItem(EMAIL_KEY);
+  window.localStorage.removeItem(EXP_KEY);
+}
