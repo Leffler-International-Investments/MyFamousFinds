@@ -9,6 +9,7 @@ import {
   createUserWithEmailAndPassword,
   signInWithCustomToken,
   updateProfile,
+  signInWithPopup,
   signInWithRedirect,
   getRedirectResult,
   GoogleAuthProvider,
@@ -201,16 +202,60 @@ export default function UnifiedSignupPage() {
         provider === "google"
           ? new GoogleAuthProvider()
           : new FacebookAuthProvider();
-      await signInWithRedirect(auth, authProvider);
+
+      // Try popup first — more reliable than redirect in most environments
+      let result;
+      try {
+        result = await signInWithPopup(auth, authProvider);
+      } catch (popupErr: any) {
+        if (popupErr?.code === "auth/popup-closed-by-user") {
+          setLoading(false);
+          return;
+        }
+        // Popup failed — fall back to redirect
+        console.warn("Popup sign-up failed, falling back to redirect:", popupErr?.code);
+        await signInWithRedirect(auth, authProvider);
+        return;
+      }
+
+      // Popup succeeded — set up the session
+      const userEmail = (result.user.email || "").toLowerCase();
+      const displayName = fullName.trim() || result.user.displayName || "";
+
+      setBuyerSession(userEmail);
+
+      try {
+        const token = await result.user.getIdToken();
+        await fetch("/api/user/profile", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            fullName: displayName,
+            email: userEmail,
+            phone: phone.trim(),
+            smsOptIn,
+          }),
+        });
+      } catch {
+        // Non-blocking
+      }
+
+      setStep("preferences");
     } catch (err: any) {
-      console.error("social_signup_redirect_error", err);
+      console.error("social_signup_error", err);
       setBanner({
         type: "error",
         message:
           err?.code === "auth/unauthorized-domain"
             ? "This domain is not authorized for sign-up. Please contact support."
+            : err?.code === "auth/account-exists-with-different-credential"
+            ? "An account already exists with this email using a different sign-in method."
             : `Sign-up failed. Please try again.${err?.code ? ` (${err.code})` : ""}`,
       });
+    } finally {
       setLoading(false);
     }
   }

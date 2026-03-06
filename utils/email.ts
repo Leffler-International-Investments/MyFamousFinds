@@ -118,7 +118,7 @@ console.log(
 
 // ---------- Shared helpers ----------
 
-function escapeHtml(s: string) {
+export function escapeHtml(s: string) {
   return s
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
@@ -593,26 +593,50 @@ export async function sendSellerApplicationReceivedEmail(
     ? `<table style="border-collapse:collapse;margin:8px 0;font-size:14px;">${summaryRows.join("")}</table>`
     : "";
 
-  const subject = "MyFamousFinds — Application Received";
+  const subject = "Famous Finds — Application Received";
   const text =
     `${greeting.replace(/<[^>]*>/g, "")},\n\n` +
-    "Thank you for applying to become a seller on MyFamousFinds!\n\n" +
+    "Thank you for applying to become a seller on Famous Finds!\n\n" +
     "We have received your application with the following details:\n\n" +
     summaryText + "\n\n" +
     "Your application is under review. You will be notified once vetted.\n\n" +
     "If you have any questions in the meantime, feel free to reply to this email.\n\n" +
     "Regards,\n" +
-    "The MyFamousFinds Team";
+    "The Famous Finds Team";
 
-  const html =
-    `<p>${greeting},</p>` +
-    "<p>Thank you for applying to become a seller on <b>MyFamousFinds</b>!</p>" +
-    "<p>We have received your application with the following details:</p>" +
-    summaryHtml +
-    `<p style="margin-top:12px;padding:10px;background:#f0fdf4;border-radius:6px;font-size:14px;">` +
-    "<b>Your application is under review.</b> You will be notified once vetted.</p>" +
-    "<p>If you have any questions in the meantime, feel free to reply to this email.</p>" +
-    "<p>Regards,<br/>The MyFamousFinds Team</p>";
+  // Build branded summary table matching the order confirmation style
+  const brandedSummaryRows: string[] = [];
+  if (d.businessName)
+    brandedSummaryRows.push(`<tr><td style="padding:6px 0;color:#78716c;font-size:13px;width:130px;">Business Name</td><td style="padding:6px 0;font-size:14px;font-weight:bold;color:#1c1917;">${escapeHtml(d.businessName)}</td></tr>`);
+  if (d.contactName)
+    brandedSummaryRows.push(`<tr><td style="padding:6px 0;color:#78716c;font-size:13px;">Contact Name</td><td style="padding:6px 0;font-size:14px;font-weight:bold;color:#1c1917;">${escapeHtml(d.contactName)}</td></tr>`);
+  brandedSummaryRows.push(`<tr><td style="padding:6px 0;color:#78716c;font-size:13px;">Email</td><td style="padding:6px 0;font-size:14px;color:#1c1917;">${escapeHtml(email)}</td></tr>`);
+  if (d.phone)
+    brandedSummaryRows.push(`<tr><td style="padding:6px 0;color:#78716c;font-size:13px;">Phone</td><td style="padding:6px 0;font-size:14px;color:#1c1917;">${escapeHtml(d.phone)}</td></tr>`);
+  const addrBrandedParts = [d.address, d.city, d.state, d.zip, d.country].filter(Boolean);
+  if (addrBrandedParts.length)
+    brandedSummaryRows.push(`<tr><td style="padding:6px 0;color:#78716c;font-size:13px;">Address</td><td style="padding:6px 0;font-size:14px;color:#1c1917;">${escapeHtml(addrBrandedParts.join(", "))}</td></tr>`);
+
+  const bodyHtml =
+    `<p style="margin:0 0 16px 0;font-size:16px;">${greeting},</p>` +
+    `<p style="margin:0 0 20px 0;font-size:20px;font-weight:bold;color:#1c1917;">Thank You for Your Application!</p>` +
+    `<p style="margin:0 0 12px 0;">Thank you for applying to become a seller on <b>Famous Finds</b>!</p>` +
+    `<p style="margin:0 0 8px 0;">We have received your application with the following details:</p>` +
+    // Application details card
+    `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#fafaf9;border:1px solid #e7e5e4;border-radius:8px;margin:0 0 20px 0;">` +
+    `<tr><td style="padding:16px 20px;border-bottom:1px solid #e7e5e4;background-color:#1c1917;border-radius:8px 8px 0 0;">` +
+    `<p style="margin:0;font-size:14px;font-weight:bold;color:#d4a843;letter-spacing:0.5px;">APPLICATION DETAILS</p></td></tr>` +
+    `<tr><td style="padding:16px 20px;">` +
+    `<table role="presentation" width="100%" cellpadding="0" cellspacing="0">` +
+    brandedSummaryRows.join("") +
+    `</table></td></tr></table>` +
+    // Status notice
+    `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 20px 0;">` +
+    `<tr><td style="padding:12px 16px;background-color:#fafaf9;border-left:4px solid #d4a843;border-radius:4px;font-size:14px;">` +
+    `<b>Your application is under review.</b> You will be notified once vetted.</td></tr></table>` +
+    `<p style="margin:0 0 0 0;font-size:14px;color:#78716c;">If you have any questions in the meantime, feel free to reply to this email.</p>`;
+
+  const html = brandedEmailWrapper(bodyHtml);
 
   await sendMail(email, subject, text, html);
 }
@@ -795,7 +819,7 @@ export async function sendBuyerOrderConfirmationEmail(params: {
 // Branded email wrapper — Famous Finds style
 // ────────────────────────────────────────────────
 
-function brandedEmailWrapper(bodyHtml: string): string {
+export function brandedEmailWrapper(bodyHtml: string): string {
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://www.myfamousfinds.com";
   const logoUrl = `${siteUrl}/Famous-Finds-Logo.png`;
 
