@@ -22,7 +22,7 @@ import {
   serverTimestamp,
 } from "firebase/firestore";
 import { auth, db, firebaseClientReady } from "../utils/firebaseClient";
-import { setRoleSession } from "../utils/roleSession";
+import { setRoleSession, getRoleSession, isRoleSessionValid } from "../utils/roleSession";
 
 const INTEREST_OPTIONS = [
   "Bags & Handbags",
@@ -172,6 +172,17 @@ export default function AccountPage() {
 
     const unsub = onAuthStateChanged(auth, async (u) => {
       if (!u) {
+        // Before redirecting to login, check if the user has a valid
+        // role session (e.g. seller who completed 2FA but whose Firebase
+        // account is disabled). Redirect them to the appropriate dashboard.
+        if (isRoleSessionValid("seller")) {
+          router.replace("/seller/dashboard");
+          return;
+        }
+        if (isRoleSessionValid("management")) {
+          router.replace("/management/dashboard");
+          return;
+        }
         router.replace("/login");
         return;
       }

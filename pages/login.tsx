@@ -7,6 +7,7 @@ import { useRouter } from "next/router";
 import { FormEvent, useEffect, useState } from "react";
 import {
   signInWithEmailAndPassword,
+  signInWithCustomToken,
   signInWithRedirect,
   getRedirectResult,
   GoogleAuthProvider,
@@ -38,7 +39,7 @@ type Start2faSuccess = {
 type Start2faError = { ok: false; message?: string };
 type Start2faResponse = Start2faSuccess | Start2faError;
 
-type Verify2faSuccess = { ok: true };
+type Verify2faSuccess = { ok: true; firebaseToken?: string };
 type Verify2faError = { ok: false; message?: string };
 type Verify2faResponse = Verify2faSuccess | Verify2faError;
 
@@ -423,8 +424,42 @@ export default function UnifiedLoginPage() {
           String(Date.now() + SESSION_TTL_MS)
         );
       }
-      if (from) router.push(from);
-      else router.push("/account");
+
+      // Establish Firebase Auth session so pages that depend on
+      // onAuthStateChanged work. Try custom token first (works even
+      // when the user never set a password), then email/password.
+      const successJson = json as Verify2faSuccess;
+      let firebaseSignedIn = false;
+
+      if (auth && successJson.firebaseToken) {
+        try {
+          await signInWithCustomToken(auth, successJson.firebaseToken);
+          firebaseSignedIn = true;
+        } catch (e) {
+          console.warn("[login] Custom token sign-in failed:", e);
+        }
+      }
+
+      if (!firebaseSignedIn && auth && password) {
+        try {
+          await signInWithEmailAndPassword(auth, email.trim().toLowerCase(), password);
+          firebaseSignedIn = true;
+        } catch (e) {
+          console.warn("[login] Password sign-in also failed (account may be disabled):", e);
+        }
+      }
+
+      // Redirect: sellers go to seller dashboard (doesn't require
+      // Firebase Auth), account page requires Firebase Auth session.
+      if (from) {
+        router.push(from);
+      } else if (firebaseSignedIn) {
+        router.push("/account");
+      } else {
+        // Firebase account likely disabled — send to seller dashboard
+        // which uses role session instead of Firebase Auth
+        router.push("/seller/dashboard");
+      }
     } catch (err) {
       console.error("seller_verify_2fa_error", err);
       setError("Unable to verify the code. Please try again.");
