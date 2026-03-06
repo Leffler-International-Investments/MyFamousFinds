@@ -99,11 +99,10 @@ export default function GoogleOneTap({
       } catch (err: any) {
         console.error("one_tap_firebase_error", err);
 
-        // Handle account-exists-with-different-credential / internal-error
+        // Handle account-exists-with-different-credential
         // This happens when the email already has an email/password account
         if (
-          err?.code === "auth/account-exists-with-different-credential" ||
-          err?.code === "auth/internal-error"
+          err?.code === "auth/account-exists-with-different-credential"
         ) {
           const errorEmail = err?.customData?.email;
           if (errorEmail) {
