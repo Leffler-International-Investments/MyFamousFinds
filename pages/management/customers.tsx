@@ -135,7 +135,7 @@ export default function ManagementCustomers() {
       const res = await fetch("/api/management/customers/suspend", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ customerId: customer.id, status: "Active" }),
+        body: JSON.stringify({ customerId: customer.id, status: "Active", email: customer.email }),
       });
 
       if (!res.ok) {
@@ -168,7 +168,7 @@ export default function ManagementCustomers() {
       const res = await fetch("/api/management/customers/suspend", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ customerId: customer.id, status: "Suspended" }),
+        body: JSON.stringify({ customerId: customer.id, status: "Suspended", email: customer.email }),
       });
 
       if (!res.ok) {
@@ -200,7 +200,7 @@ export default function ManagementCustomers() {
       const res = await fetch("/api/management/customers/delete", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ customerId: customer.id }),
+        body: JSON.stringify({ customerId: customer.id, email: customer.email }),
       });
 
       if (!res.ok) {
