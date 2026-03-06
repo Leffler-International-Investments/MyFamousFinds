@@ -69,15 +69,6 @@ export default function ManagementCustomers({ customers: initial }: Props) {
     );
 
     try {
-      // When reactivating, also re-enable Firebase Auth (in case it was disabled)
-      if (isSuspended && customer.email) {
-        await fetch("/api/management/customers/enable", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email: customer.email }),
-        });
-      }
-
       const res = await fetch("/api/management/customers/suspend", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
