@@ -34,6 +34,15 @@ async function generateFirebaseCustomToken(
     try {
       const userRecord = await adminAuth.getUserByEmail(email);
       uid = userRecord.uid;
+
+      // Re-enable disabled accounts after successful 2FA verification.
+      // The user already proved their identity (password + 2FA code),
+      // so it's safe to re-enable. Without this, signInWithCustomToken
+      // fails on the client for disabled accounts.
+      if (userRecord.disabled) {
+        await adminAuth.updateUser(uid, { disabled: false });
+        console.log(`[verify-2fa] Re-enabled disabled Firebase Auth account for ${email} (uid=${uid})`);
+      }
     } catch (err: any) {
       if (err.code === "auth/user-not-found") {
         // Create a Firebase Auth user so the client can get ID tokens
