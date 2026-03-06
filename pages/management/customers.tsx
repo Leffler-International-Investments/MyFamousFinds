@@ -50,6 +50,10 @@ export default function ManagementCustomers() {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [deleteByEmail, setDeleteByEmail] = useState("");
   const [deleteBusy, setDeleteBusy] = useState(false);
+  const [restoreEmail, setRestoreEmail] = useState("");
+  const [restoreName, setRestoreName] = useState("");
+  const [restoreBusy, setRestoreBusy] = useState(false);
+  const [restoreResult, setRestoreResult] = useState<string | null>(null);
   const [busyIds, setBusyIds] = useState<Set<string>>(new Set());
 
   const loadCustomers = useCallback(async () => {
@@ -230,6 +234,31 @@ export default function ManagementCustomers() {
     }
   };
 
+  const onRestoreByEmail = async () => {
+    const email = restoreEmail.trim().toLowerCase();
+    if (!email) return;
+    setRestoreBusy(true);
+    setRestoreResult(null);
+    try {
+      const res = await fetch("/api/management/customers/restore", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, name: restoreName.trim() || undefined }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "Failed to restore");
+      setRestoreResult(json.message || "Account restored successfully.");
+      setRestoreEmail("");
+      setRestoreName("");
+      // Refresh the customer list to show the restored user
+      loadCustomers();
+    } catch (e: any) {
+      setRestoreResult(`Error: ${e.message || "Could not restore account."}`);
+    } finally {
+      setRestoreBusy(false);
+    }
+  };
+
   if (adminLoading) return <div className="dashboard-page" />;
 
   const countActive = customers.filter((c) => c.status === "Active").length;
@@ -296,6 +325,36 @@ export default function ManagementCustomers() {
               </span>
               <span className="summary-label">Total Revenue</span>
             </div>
+          </div>
+
+          <div className="restore-bar">
+            <span className="restore-label">Restore deleted/disabled account by email:</span>
+            <input
+              className="form-input"
+              placeholder="e.g. leffleryd@gmail.com"
+              value={restoreEmail}
+              onChange={(e) => setRestoreEmail(e.target.value)}
+              style={{ maxWidth: 280 }}
+            />
+            <input
+              className="form-input"
+              placeholder="Name (optional)"
+              value={restoreName}
+              onChange={(e) => setRestoreName(e.target.value)}
+              style={{ maxWidth: 200 }}
+            />
+            <button
+              className="btn-action btn-action-activate"
+              disabled={restoreBusy || !restoreEmail.trim()}
+              onClick={onRestoreByEmail}
+            >
+              {restoreBusy ? "Restoring..." : "Restore Account"}
+            </button>
+            {restoreResult && (
+              <div className={`restore-result ${restoreResult.startsWith("Error") ? "restore-error" : "restore-success"}`}>
+                {restoreResult}
+              </div>
+            )}
           </div>
 
           <div className="delete-by-email-bar">
@@ -571,6 +630,41 @@ export default function ManagementCustomers() {
           font-size: 12px;
           color: #6b7280;
           font-weight: 600;
+        }
+
+        .restore-bar {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          flex-wrap: wrap;
+          margin-bottom: 14px;
+          padding: 12px 14px;
+          background: #f0fdf4;
+          border: 1px solid #16a34a;
+          border-radius: 10px;
+        }
+        .restore-label {
+          font-size: 13px;
+          font-weight: 700;
+          color: #15803d;
+        }
+        .restore-result {
+          width: 100%;
+          font-size: 13px;
+          font-weight: 600;
+          padding: 8px 12px;
+          border-radius: 8px;
+          margin-top: 4px;
+        }
+        .restore-success {
+          background: #dcfce7;
+          color: #15803d;
+          border: 1px solid #bbf7d0;
+        }
+        .restore-error {
+          background: #fef2f2;
+          color: #b91c1c;
+          border: 1px solid #fca5a5;
         }
 
         .delete-by-email-bar {

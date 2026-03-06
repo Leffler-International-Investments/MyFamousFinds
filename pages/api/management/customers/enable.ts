@@ -3,14 +3,17 @@ import { adminAuth, adminDb, FieldValue } from "../../../../utils/firebaseAdmin"
 import { requireAdmin } from "../../../../utils/adminAuth";
 
 /**
- * RE-ENABLE a disabled Firebase Auth account.
+ * RE-ENABLE a disabled or deleted Firebase Auth account.
  *
  * POST /api/management/customers/enable
- * Body: { email: string }
+ * Body: { email: string, name?: string }
  *
- * This reverses the `disabled: true` flag set by Firebase Admin SDK
- * (e.g. from the remove-seller endpoint) so the user can sign in again.
- * It also resets any Firestore "Suspended" status back to "Active".
+ * Handles all cases:
+ * - Auth exists + disabled → re-enable
+ * - Auth exists + enabled → no-op for Auth
+ * - Auth fully deleted → re-create Auth (user must use "Forgot password")
+ * - Firestore doc missing → re-create minimal buyer record
+ * - Firestore status != Active → reset to Active
  */
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
@@ -22,17 +25,21 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   try {
-    const { email } = req.body || {};
+    const { email, name } = req.body || {};
     if (!email || typeof email !== "string") {
       return res.status(400).json({ error: "Missing email" });
     }
 
     const trimmed = email.trim().toLowerCase();
 
-    // 1) Re-enable Firebase Auth account
+    // 1) Handle Firebase Auth
     let reenabledAuth = false;
+    let recreatedAuth = false;
+    let authUid = "";
+
     try {
       const authUser = await adminAuth.getUserByEmail(trimmed);
+      authUid = authUser.uid;
       if (authUser.disabled) {
         await adminAuth.updateUser(authUser.uid, { disabled: false });
         reenabledAuth = true;
@@ -40,23 +47,53 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
     } catch (authErr: any) {
       if (authErr?.code === "auth/user-not-found") {
-        return res.status(404).json({ error: "No Firebase Auth account found for this email" });
+        // Auth was fully deleted — re-create with temp password
+        const tempPassword = `Temp_${Date.now()}_${Math.random().toString(36).slice(2, 10)}!`;
+        const newUser = await adminAuth.createUser({
+          email: trimmed,
+          displayName: name || "",
+          password: tempPassword,
+          disabled: false,
+        });
+        authUid = newUser.uid;
+        recreatedAuth = true;
+        console.log(`[ENABLE_CUSTOMER] Re-created Firebase Auth for ${trimmed}`);
+      } else {
+        throw authErr;
       }
-      throw authErr;
     }
 
-    // 2) Also reset Firestore user status to Active if it was Suspended
+    // 2) Handle Firestore user doc
     let reenabledFirestore = false;
+    let recreatedFirestore = false;
+
     if (adminDb) {
       const snap = await adminDb.collection("users").where("email", "==", trimmed).limit(5).get();
-      for (const doc of snap.docs) {
-        const data = doc.data();
-        if (data.status && data.status !== "Active") {
-          await doc.ref.update({
-            status: "Active",
-            updatedAt: FieldValue.serverTimestamp(),
-          });
-          reenabledFirestore = true;
+
+      if (snap.empty) {
+        // Firestore doc was deleted — re-create
+        const docRef = adminDb.collection("users").doc(authUid || trimmed);
+        await docRef.set({
+          email: trimmed,
+          name: name || "",
+          status: "Active",
+          vipTier: "Member",
+          points: 0,
+          createdAt: FieldValue.serverTimestamp(),
+          restoredAt: FieldValue.serverTimestamp(),
+          restoredBy: "management",
+        });
+        recreatedFirestore = true;
+      } else {
+        for (const doc of snap.docs) {
+          const data = doc.data();
+          if (data.status && data.status !== "Active") {
+            await doc.ref.update({
+              status: "Active",
+              updatedAt: FieldValue.serverTimestamp(),
+            });
+            reenabledFirestore = true;
+          }
         }
       }
     }
@@ -65,7 +102,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       ok: true,
       email: trimmed,
       reenabledAuth,
+      recreatedAuth,
       reenabledFirestore,
+      recreatedFirestore,
+      message: recreatedAuth
+        ? "Auth account re-created. User must use 'Forgot password' to set a new password."
+        : reenabledAuth
+          ? "Auth account re-enabled."
+          : "Account already enabled.",
     });
   } catch (e: any) {
     console.error("[ENABLE_CUSTOMER]", e);
