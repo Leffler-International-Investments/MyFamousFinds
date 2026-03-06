@@ -69,15 +69,30 @@ export default async function handler(
       { merge: true }
     );
 
-    // 1b) Disable the seller's Firebase Auth account so they can no longer log in
+    // 1b) Disable the seller's Firebase Auth account — but ONLY if there is
+    //     no active customer (buyer) record using the same email. Shared emails
+    //     are common; disabling Auth would lock the customer out of their buyer
+    //     account too.
     const sellerData = sellerSnap.data() || {};
     const sellerEmail = sellerData.email || sellerId;
-    if (adminAuth && sellerEmail) {
+    if (adminAuth && sellerEmail && adminDb) {
       try {
-        const authUser = await adminAuth.getUserByEmail(String(sellerEmail));
-        if (authUser) {
-          await adminAuth.updateUser(authUser.uid, { disabled: true });
-          console.log(`[REMOVE_SELLER] Disabled Firebase Auth for ${sellerEmail}`);
+        const customerSnap = await adminDb
+          .collection("users")
+          .where("email", "==", String(sellerEmail).toLowerCase().trim())
+          .limit(1)
+          .get();
+
+        if (!customerSnap.empty) {
+          console.log(
+            `[REMOVE_SELLER] Skipped disabling Auth for ${sellerEmail} — active customer record exists`
+          );
+        } else {
+          const authUser = await adminAuth.getUserByEmail(String(sellerEmail));
+          if (authUser) {
+            await adminAuth.updateUser(authUser.uid, { disabled: true });
+            console.log(`[REMOVE_SELLER] Disabled Firebase Auth for ${sellerEmail}`);
+          }
         }
       } catch (authErr: any) {
         if (authErr?.code !== "auth/user-not-found") {
