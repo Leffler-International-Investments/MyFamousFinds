@@ -484,6 +484,15 @@ export default function AccountPage() {
 
       <main className="account-main">
         <div className="account-wrap">
+          {/* Welcome banner */}
+          {user && !loading && (
+            <div className="welcome-banner">
+              <span className="welcome-text">
+                Welcome back, {user.displayName?.split(" ")[0] || "there"}
+              </span>
+            </div>
+          )}
+
           {/* Header */}
           <div className="account-header">
             <div>
@@ -899,6 +908,22 @@ export default function AccountPage() {
         .account-wrap {
           max-width: 800px;
           margin: 0 auto;
+        }
+        .welcome-banner {
+          background: #ffffff;
+          border: 1px solid #e5e7eb;
+          border-radius: 16px;
+          padding: 18px 24px;
+          margin-bottom: 20px;
+          box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04);
+          text-align: center;
+        }
+        .welcome-text {
+          font-family: ui-serif, "Times New Roman", serif;
+          font-size: 20px;
+          font-weight: 600;
+          color: #111827;
+          letter-spacing: -0.01em;
         }
         .account-header {
           display: flex;
