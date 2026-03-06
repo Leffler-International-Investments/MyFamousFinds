@@ -21,6 +21,7 @@ import Footer from "../components/Footer";
 import PasswordInput from "../components/PasswordInput";
 import GoogleOneTap from "../components/GoogleOneTap";
 import { auth } from "../utils/firebaseClient";
+import { safeRedirectPath } from "../utils/roleSession";
 
 const SESSION_TTL_MS = 168 * 60 * 60 * 1000; // 7 days — matches roleSession.ts
 
@@ -52,7 +53,7 @@ export default function UnifiedLoginPage() {
         if (role === "buyer") {
           const redirectFrom =
             typeof router.query.from === "string" ? router.query.from : null;
-          router.replace(redirectFrom || "/account");
+          router.replace(safeRedirectPath(redirectFrom, "/account"));
         }
       }
     });
@@ -82,7 +83,7 @@ export default function UnifiedLoginPage() {
             String(Date.now() + SESSION_TTL_MS)
           );
         }
-        router.push(redirectFrom || "/account");
+        router.push(safeRedirectPath(redirectFrom, "/account"));
       })
       .catch((err) => {
         if (err?.code === "auth/popup-closed-by-user") return;
@@ -159,8 +160,10 @@ export default function UnifiedLoginPage() {
     }
   }
 
-  const from =
-    typeof router.query.from === "string" ? router.query.from : null;
+  const from = safeRedirectPath(
+    typeof router.query.from === "string" ? router.query.from : null,
+    "/account"
+  );
 
   async function handleOneTapSuccess(user: import("firebase/auth").User) {
     const userEmail = (user.email || "").toLowerCase();

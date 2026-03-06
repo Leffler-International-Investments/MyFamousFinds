@@ -1,5 +1,6 @@
 // FILE: /pages/api/auth/verify-2fa.ts
 import type { NextApiRequest, NextApiResponse } from "next";
+import crypto from "crypto";
 import {
   adminDb,
   adminAuth,
@@ -7,7 +8,29 @@ import {
   isFirebaseAdminReady,
 } from "../../../utils/firebaseAdmin";
 import { verifyChallenge } from "../../../utils/twofaStore";
-import { setAdminSessionCookie } from "../../../utils/adminSession";
+import { setAdminSessionCookie, getAdminEmails } from "../../../utils/adminSession";
+
+// ── Rate limiting: max attempts per challengeId ──
+const MAX_ATTEMPTS = 5;
+const CHALLENGE_WINDOW_MS = 10 * 60 * 1000; // 10 minutes
+const attemptMap = new Map<string, { count: number; firstAt: number }>();
+
+function checkAttemptLimit(challengeId: string): boolean {
+  const now = Date.now();
+  const entry = attemptMap.get(challengeId);
+  if (!entry || now - entry.firstAt > CHALLENGE_WINDOW_MS) {
+    attemptMap.set(challengeId, { count: 1, firstAt: now });
+    return true;
+  }
+  entry.count++;
+  return entry.count <= MAX_ATTEMPTS;
+}
+
+/** Timing-safe comparison for 2FA codes */
+function safeCodeCompare(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  return crypto.timingSafeEqual(Buffer.from(a), Buffer.from(b));
+}
 
 type Verify2faBody = {
   challengeId?: string;
@@ -35,13 +58,17 @@ async function generateFirebaseCustomToken(
       const userRecord = await adminAuth.getUserByEmail(email);
       uid = userRecord.uid;
 
-      // Re-enable disabled accounts after successful 2FA verification.
-      // The user already proved their identity (password + 2FA code),
-      // so it's safe to re-enable. Without this, signInWithCustomToken
-      // fails on the client for disabled accounts.
+      // Only re-enable disabled accounts for super-admin emails.
+      // Regular users stay disabled (an admin may have intentionally disabled them).
       if (userRecord.disabled) {
-        await adminAuth.updateUser(uid, { disabled: false });
-        console.log(`[verify-2fa] Re-enabled disabled Firebase Auth account for ${email} (uid=${uid})`);
+        const admins = getAdminEmails();
+        if (admins.has(email.toLowerCase())) {
+          await adminAuth.updateUser(uid, { disabled: false });
+          console.log(`[verify-2fa] Re-enabled disabled admin account for ${email} (uid=${uid})`);
+        } else {
+          console.warn(`[verify-2fa] Skipping token for disabled account ${email} (uid=${uid})`);
+          return undefined;
+        }
       }
     } catch (err: any) {
       if (err.code === "auth/user-not-found") {
@@ -82,6 +109,15 @@ export default async function handler(
     });
   }
 
+  // Rate-limit: prevent brute-forcing 2FA codes
+  if (!checkAttemptLimit(challengeId)) {
+    return res.status(429).json({
+      ok: false,
+      error: "too_many_attempts",
+      message: "Too many verification attempts. Please request a new code.",
+    });
+  }
+
   // 1) Try Firestore when configured
   if (isFirebaseAdminReady && adminDb) {
     try {
@@ -94,6 +130,7 @@ export default async function handler(
           used?: boolean;
           role?: string;
           email?: string;
+          createdAt?: { toMillis?: () => number } | number;
         };
 
         if (data.used) {
@@ -104,7 +141,27 @@ export default async function handler(
           });
         }
 
-        if (data.code !== code) {
+        // Check expiry (10 minute window)
+        const CHALLENGE_TTL_MS = 10 * 60 * 1000;
+        let createdMs = 0;
+        if (data.createdAt) {
+          createdMs =
+            typeof data.createdAt === "number"
+              ? data.createdAt
+              : typeof data.createdAt.toMillis === "function"
+              ? data.createdAt.toMillis()
+              : 0;
+        }
+        if (createdMs && Date.now() - createdMs > CHALLENGE_TTL_MS) {
+          return res.status(401).json({
+            ok: false,
+            error: "expired",
+            message: "Code expired. Please request a new one.",
+          });
+        }
+
+        // Timing-safe code comparison
+        if (!safeCodeCompare(data.code, code)) {
           return res.status(401).json({
             ok: false,
             error: "invalid_code",

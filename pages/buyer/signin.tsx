@@ -9,6 +9,7 @@ import Header from "../../components/Header";
 import Footer from "../../components/Footer";
 import PasswordInput from "../../components/PasswordInput";
 import { auth } from "../../utils/firebaseClient";
+import { safeRedirectPath } from "../../utils/roleSession";
 
 export default function BuyerSigninPage() {
   const router = useRouter();
@@ -17,8 +18,10 @@ export default function BuyerSigninPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const from =
-    typeof router.query.from === "string" ? router.query.from : null;
+  const from = safeRedirectPath(
+    typeof router.query.from === "string" ? router.query.from : null,
+    "/account"
+  );
 
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();

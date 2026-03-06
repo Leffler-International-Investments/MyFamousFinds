@@ -53,6 +53,21 @@ export function touchRoleSession(ttlHours = DEFAULT_SESSION_TTL_HOURS) {
 }
 
 /**
+ * Validate a `from` redirect parameter to prevent open redirects.
+ * Only allows relative paths starting with `/` (no protocol, no `//`).
+ * Returns the safe path or the provided fallback.
+ */
+export function safeRedirectPath(
+  from: string | null | undefined,
+  fallback: string = "/"
+): string {
+  if (!from || typeof from !== "string") return fallback;
+  // Must start with "/" and must NOT start with "//" (protocol-relative URL)
+  if (from.startsWith("/") && !from.startsWith("//")) return from;
+  return fallback;
+}
+
+/**
  * Clear role session — call on logout to remove all role/session data.
  */
 export function clearRoleSession() {

@@ -28,9 +28,7 @@ export default async function handler(
 
   // Verify authorization: cron secret or admin API secret
   const secret =
-    req.headers.authorization?.replace("Bearer ", "") ||
-    (req.query.secret as string | undefined) ||
-    "";
+    req.headers.authorization?.replace("Bearer ", "") || "";
   const expected = process.env.CRON_SECRET || process.env.ADMIN_API_SECRET;
   if (!expected || secret !== expected) {
     return res.status(401).json({ error: "Unauthorized" });
