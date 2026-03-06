@@ -1,6 +1,7 @@
 // FILE: /pages/api/seller/profile.ts
 import type { NextApiRequest, NextApiResponse } from "next";
 import { adminDb } from "../../../utils/firebaseAdmin";
+import { getAuthUser } from "../../../utils/authServer";
 
 type Data =
   | { ok: true }
@@ -16,6 +17,12 @@ export default async function handler(
 
   if (!adminDb) {
     return res.status(500).json({ error: "Firebase not configured" });
+  }
+
+  // Verify Firebase ID token
+  const authUser = await getAuthUser(req);
+  if (!authUser?.email) {
+    return res.status(401).json({ error: "Unauthorized — valid Bearer token required" });
   }
 
   try {
@@ -44,6 +51,11 @@ export default async function handler(
     }
 
     const emailKey = String(email).trim().toLowerCase();
+
+    // Ensure the caller can only update their own profile
+    if (emailKey !== authUser.email.toLowerCase()) {
+      return res.status(403).json({ error: "Cannot modify another seller's profile" });
+    }
     const ref = adminDb.collection("sellers").doc(emailKey);
     const snap = await ref.get();
     const now = new Date();

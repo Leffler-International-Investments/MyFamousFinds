@@ -5,6 +5,7 @@
 
 import type { NextApiRequest, NextApiResponse } from "next";
 import { adminDb, isFirebaseAdminReady, FieldValue } from "../../../utils/firebaseAdmin";
+import { requireAdmin } from "../../../utils/adminAuth";
 
 const BLOCKED_TIERS = [
   "walmart",
@@ -21,6 +22,8 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ) {
+  if (!requireAdmin(req, res)) return;
+
   if (!isFirebaseAdminReady || !adminDb) {
     return res.status(500).json({ ok: false, error: "firebase_admin_not_initialized" });
   }

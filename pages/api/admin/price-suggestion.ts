@@ -6,6 +6,7 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { adminDb, isFirebaseAdminReady, FieldValue } from "../../../utils/firebaseAdmin";
 import { sendMail } from "../../../utils/email";
+import { requireAdmin } from "../../../utils/adminAuth";
 
 function escapeHtml(s: string) {
   return s
@@ -20,6 +21,8 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ) {
+  if (!requireAdmin(req, res)) return;
+
   if (!isFirebaseAdminReady || !adminDb) {
     return res.status(500).json({ ok: false, error: "firebase_admin_not_initialized" });
   }
