@@ -271,8 +271,52 @@ export default function UnifiedLoginPage() {
           "Sign-in is temporarily unavailable due to a configuration issue. Please contact support."
         );
       } else if (code === "auth/user-disabled") {
+        // Attempt to auto-recover: ask the server to re-enable this buyer account
+        try {
+          const reEnableRes = await fetch("/api/auth/re-enable-buyer", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email: trimmedEmail }),
+          });
+          const reEnableJson = await reEnableRes.json();
+
+          if (reEnableJson.ok) {
+            // Account re-enabled — retry sign-in
+            const retryCred = await signInWithEmailAndPassword(auth, trimmedEmail, password);
+
+            if (pendingCred && retryCred.user) {
+              try {
+                await linkWithCredential(retryCred.user, pendingCred);
+                setPendingCred(null);
+              } catch (linkErr: any) {
+                console.warn("link_credential_warning", linkErr?.code);
+                setPendingCred(null);
+              }
+            }
+
+            if (typeof window !== "undefined") {
+              window.localStorage.setItem("ff-role", "buyer");
+              window.localStorage.setItem("ff-email", trimmedEmail);
+              window.localStorage.setItem(
+                "ff-session-exp",
+                String(Date.now() + SESSION_TTL_MS)
+              );
+            }
+
+            if (from) {
+              router.push(from);
+            } else {
+              router.push("/account");
+            }
+            return;
+          }
+        } catch (retryErr) {
+          console.error("re_enable_buyer_retry_error", retryErr);
+        }
+
+        // If auto-recovery failed, show a helpful message
         setError(
-          "This account is temporarily disabled in Firebase Auth. If you are a seller or manager, please sign in through the Seller Login or Management Login page — this will automatically restore your account."
+          "Your account was temporarily disabled. Please try signing in again. If the problem persists, contact support at support@myfamousfinds.com."
         );
       } else {
         setError(
