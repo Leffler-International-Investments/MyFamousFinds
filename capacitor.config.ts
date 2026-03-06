@@ -3,7 +3,6 @@ const config = {
   appId: "com.myfamousfinds.app",
   appName: "Famous Finds",
   webDir: "out",
-  bundledWebRuntime: false,
 
   server: {
     // In production, the app loads from the bundled files.

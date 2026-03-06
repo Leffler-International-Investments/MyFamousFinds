@@ -30,8 +30,8 @@ export default async function handler(
     return res.status(400).json({ ok: false, error: "missing_code" });
   }
 
-  // Check against VITE_PROMO_CODE (set in Vercel env vars)
-  const promoCode = process.env.VITE_PROMO_CODE || "";
+  // Check against promo code env var (NEXT_PUBLIC_PROMO_CODE or legacy VITE_PROMO_CODE)
+  const promoCode = process.env.NEXT_PUBLIC_PROMO_CODE || process.env.VITE_PROMO_CODE || "";
   if (!promoCode) {
     return res.status(503).json({ ok: false, error: "promo_not_configured" });
   }
