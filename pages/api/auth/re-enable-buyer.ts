@@ -5,25 +5,21 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { adminAuth, adminDb } from "../../../utils/firebaseAdmin";
 
-type Resp =
-  | { ok: true }
-  | { ok: false; message: string };
-
 export default async function handler(
   req: NextApiRequest,
-  res: NextApiResponse<Resp>
+  res: NextApiResponse
 ) {
   if (req.method !== "POST") {
-    return res.status(405).json({ ok: false, message: "Method not allowed" });
+    return res.status(405).json({ ok: false, error: "Method not allowed" });
   }
 
   const email = String(req.body?.email || "").trim().toLowerCase();
   if (!email) {
-    return res.status(400).json({ ok: false, message: "Email is required" });
+    return res.status(400).json({ ok: false, error: "Email is required" });
   }
 
   if (!adminAuth) {
-    return res.status(500).json({ ok: false, message: "Firebase Admin not available" });
+    return res.status(500).json({ ok: false, error: "Firebase Admin not available" });
   }
 
   try {
@@ -33,14 +29,17 @@ export default async function handler(
       authUser = await adminAuth.getUserByEmail(email);
     } catch (err: any) {
       if (err?.code === "auth/user-not-found") {
-        return res.status(404).json({ ok: false, message: "Account not found" });
+        return res.status(404).json({ ok: false, error: "Account not found" });
       }
       throw err;
     }
 
     if (!authUser.disabled) {
-      // Account is not disabled — nothing to do
-      return res.status(200).json({ ok: true });
+      return res.status(200).json({
+        ok: true,
+        restored: false,
+        message: "Account already enabled",
+      });
     }
 
     // 2) Check if this email has a customer record in Firestore (users collection).
@@ -56,10 +55,9 @@ export default async function handler(
     }
 
     if (!hasCustomerRecord) {
-      // No customer record — don't re-enable. This might be a seller-only account.
       return res.status(403).json({
         ok: false,
-        message: "No customer account found for this email. Please contact support.",
+        error: "No customer account found for this email. Please contact support.",
       });
     }
 
@@ -67,9 +65,16 @@ export default async function handler(
     await adminAuth.updateUser(authUser.uid, { disabled: false });
     console.log(`[RE-ENABLE-BUYER] Re-enabled Firebase Auth for buyer: ${email}`);
 
-    return res.status(200).json({ ok: true });
+    return res.status(200).json({
+      ok: true,
+      restored: true,
+      message: "Buyer account re-enabled",
+    });
   } catch (err: any) {
     console.error("[RE-ENABLE-BUYER] Error:", err);
-    return res.status(500).json({ ok: false, message: "Server error. Please try again." });
+    return res.status(500).json({
+      ok: false,
+      error: err?.message || "Failed to re-enable buyer",
+    });
   }
 }

@@ -43,6 +43,39 @@ export default function UnifiedLoginPage() {
   const [promoLoading, setPromoLoading] = useState(false);
   const [promoError, setPromoError] = useState<string | null>(null);
 
+  const from = safeRedirectPath(
+    typeof router.query.from === "string" ? router.query.from : null,
+    "/account"
+  );
+
+  function setBuyerSession(userEmail: string) {
+    if (typeof window === "undefined") return;
+    window.localStorage.setItem("ff-role", "buyer");
+    window.localStorage.setItem("ff-email", userEmail.toLowerCase());
+    window.localStorage.setItem(
+      "ff-session-exp",
+      String(Date.now() + SESSION_TTL_MS)
+    );
+  }
+
+  async function tryReEnableBuyer(emailToRestore: string) {
+    const res = await fetch("/api/auth/re-enable-buyer", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: emailToRestore }),
+    });
+    let json: any = {};
+    try {
+      json = await res.json();
+    } catch {
+      json = {};
+    }
+    return {
+      ok: Boolean(res.ok && (json?.ok || json?.restored || json?.success)),
+      json,
+    };
+  }
+
   // If user already has an active buyer Firebase session, redirect to account
   useEffect(() => {
     if (!auth) return;
@@ -75,14 +108,7 @@ export default function UnifiedLoginPage() {
           typeof router.query.from === "string" ? router.query.from : null;
 
         // Sign in as buyer — seller/management dashboards have their own login pages
-        if (typeof window !== "undefined") {
-          window.localStorage.setItem("ff-role", "buyer");
-          window.localStorage.setItem("ff-email", userEmail);
-          window.localStorage.setItem(
-            "ff-session-exp",
-            String(Date.now() + SESSION_TTL_MS)
-          );
-        }
+        setBuyerSession(userEmail);
         router.push(safeRedirectPath(redirectFrom, "/account"));
       })
       .catch((err) => {
@@ -116,8 +142,8 @@ export default function UnifiedLoginPage() {
           err?.code === "auth/unauthorized-domain"
             ? "This domain is not authorized for Google sign-in. The site domain must be added to Firebase Auth authorized domains in the Firebase Console."
             : err?.code === "auth/operation-not-allowed"
-            ? "This sign-in method is not enabled. Please enable Google provider in Firebase Console > Authentication > Sign-in method."
-            : `Sign-in failed. Please try again.${err?.code ? ` (${err.code})` : ""}`;
+              ? "This sign-in method is not enabled. Please enable Google provider in Firebase Console > Authentication > Sign-in method."
+              : `Sign-in failed. Please try again.${err?.code ? ` (${err.code})` : ""}`;
         setError(msg);
       });
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -160,23 +186,11 @@ export default function UnifiedLoginPage() {
     }
   }
 
-  const from = safeRedirectPath(
-    typeof router.query.from === "string" ? router.query.from : null,
-    "/account"
-  );
-
   async function handleOneTapSuccess(user: import("firebase/auth").User) {
     const userEmail = (user.email || "").toLowerCase();
 
     // Sign in as buyer — seller/management dashboards have their own login pages
-    if (typeof window !== "undefined") {
-      window.localStorage.setItem("ff-role", "buyer");
-      window.localStorage.setItem("ff-email", userEmail);
-      window.localStorage.setItem(
-        "ff-session-exp",
-        String(Date.now() + SESSION_TTL_MS)
-      );
-    }
+    setBuyerSession(userEmail);
     router.push(from || "/account");
   }
 
@@ -198,8 +212,8 @@ export default function UnifiedLoginPage() {
         err?.code === "auth/unauthorized-domain"
           ? "This domain is not authorized for Google sign-in. The site domain must be added to Firebase Auth authorized domains in the Firebase Console."
           : err?.code === "auth/operation-not-allowed"
-          ? "Google sign-in is not enabled. Please contact support."
-          : `Sign-in failed. Please try again.${err?.code ? ` (${err.code})` : ""}`
+            ? "Google sign-in is not enabled. Please contact support."
+            : `Sign-in failed. Please try again.${err?.code ? ` (${err.code})` : ""}`
       );
       setLoading(false);
     }
@@ -235,14 +249,7 @@ export default function UnifiedLoginPage() {
       }
 
       // Sign in as buyer — seller/management dashboards have their own login pages
-      if (typeof window !== "undefined") {
-        window.localStorage.setItem("ff-role", "buyer");
-        window.localStorage.setItem("ff-email", trimmedEmail);
-        window.localStorage.setItem(
-          "ff-session-exp",
-          String(Date.now() + SESSION_TTL_MS)
-        );
-      }
+      setBuyerSession(trimmedEmail);
 
       if (from) {
         router.push(from);
@@ -271,37 +278,28 @@ export default function UnifiedLoginPage() {
           "Sign-in is temporarily unavailable due to a configuration issue. Please contact support."
         );
       } else if (code === "auth/user-disabled") {
-        // Attempt to auto-recover: ask the server to re-enable this buyer account
+        // Auto-recover only for wrongly-disabled buyer accounts
         try {
-          const reEnableRes = await fetch("/api/auth/re-enable-buyer", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ email: trimmedEmail }),
-          });
-          const reEnableJson = await reEnableRes.json();
-
-          if (reEnableJson.ok) {
-            // Account re-enabled — retry sign-in
-            const retryCred = await signInWithEmailAndPassword(auth, trimmedEmail, password);
+          const restore = await tryReEnableBuyer(trimmedEmail);
+          if (restore.ok) {
+            const retryCred = await signInWithEmailAndPassword(
+              auth,
+              trimmedEmail,
+              password
+            );
 
             if (pendingCred && retryCred.user) {
               try {
                 await linkWithCredential(retryCred.user, pendingCred);
                 setPendingCred(null);
+                setInfo("Google has been linked to your account for faster sign-in next time.");
               } catch (linkErr: any) {
                 console.warn("link_credential_warning", linkErr?.code);
                 setPendingCred(null);
               }
             }
 
-            if (typeof window !== "undefined") {
-              window.localStorage.setItem("ff-role", "buyer");
-              window.localStorage.setItem("ff-email", trimmedEmail);
-              window.localStorage.setItem(
-                "ff-session-exp",
-                String(Date.now() + SESSION_TTL_MS)
-              );
-            }
+            setBuyerSession(trimmedEmail);
 
             if (from) {
               router.push(from);
@@ -314,9 +312,8 @@ export default function UnifiedLoginPage() {
           console.error("re_enable_buyer_retry_error", retryErr);
         }
 
-        // If auto-recovery failed, show a helpful message
         setError(
-          "Your account was temporarily disabled. Please try signing in again. If the problem persists, contact support at support@myfamousfinds.com."
+          "This buyer account could not be restored automatically. Please contact support at support@myfamousfinds.com."
         );
       } else {
         setError(
