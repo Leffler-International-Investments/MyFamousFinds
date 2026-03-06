@@ -8,6 +8,7 @@ import { useRouter } from "next/router";
 import { FormEvent, useEffect, useState } from "react";
 import {
   signInWithEmailAndPassword,
+  signInWithCustomToken,
   signInWithRedirect,
   getRedirectResult,
   onAuthStateChanged,
@@ -59,45 +60,33 @@ export default function UnifiedLoginPage() {
   }
 
   /**
-   * Calls the server-side re-enable endpoint.
-   * This re-enables a disabled Firebase Auth account AND re-creates
-   * the Firestore user doc if it was deleted.
+   * Server-side sign-in that handles disabled accounts.
+   * Verifies password via Firebase Auth REST API (works even if disabled),
+   * re-enables the account, ensures Firestore doc exists, then returns
+   * a custom token for client-side sign-in.
    */
-  async function restoreBuyerAccount(emailToRestore: string): Promise<boolean> {
-    try {
-      const res = await fetch("/api/auth/re-enable-buyer", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: emailToRestore }),
-      });
-      if (!res.ok) return false;
-      const json = await res.json();
-      return Boolean(json?.ok || json?.restored);
-    } catch {
-      return false;
-    }
-  }
-
-  /**
-   * Attempt to sign in. If the account is disabled, restore it first then retry.
-   * Returns true on success, throws on unrecoverable failure.
-   */
-  async function signInWithRestore(
+  async function serverSideSignIn(
     userEmail: string,
     userPassword: string
   ): Promise<import("firebase/auth").UserCredential> {
-    try {
-      return await signInWithEmailAndPassword(auth, userEmail, userPassword);
-    } catch (err: any) {
-      if (err?.code !== "auth/user-disabled") throw err;
+    const res = await fetch("/api/auth/buyer-signin", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: userEmail, password: userPassword }),
+    });
 
-      // Account is disabled — try to restore it
-      const restored = await restoreBuyerAccount(userEmail);
-      if (!restored) throw err;
-
-      // Retry sign-in after restore
-      return await signInWithEmailAndPassword(auth, userEmail, userPassword);
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      throw new Error(data?.error || "Sign-in failed on server");
     }
+
+    const data = await res.json();
+    if (!data.customToken) {
+      throw new Error("No sign-in token received");
+    }
+
+    // Use the custom token to sign in on the client
+    return await signInWithCustomToken(auth, data.customToken);
   }
 
   // If user already has an active buyer Firebase session, redirect to account
@@ -243,10 +232,8 @@ export default function UnifiedLoginPage() {
 
     setLoading(true);
     try {
-      // signInWithRestore handles auth/user-disabled automatically:
-      // 1. Try sign in
-      // 2. If disabled → call re-enable-buyer → retry sign in
-      const cred = await signInWithRestore(trimmedEmail, password);
+      // First try normal client-side Firebase sign-in
+      const cred = await signInWithEmailAndPassword(auth, trimmedEmail, password);
 
       // Link pending Google credential if present
       if (pendingCred && cred.user) {
@@ -263,10 +250,36 @@ export default function UnifiedLoginPage() {
       setBuyerSession(trimmedEmail);
       router.push(from || "/account");
     } catch (err: any) {
-      console.error("unified_login_error", err);
       const code = err?.code || "";
 
-      if (
+      if (code === "auth/user-disabled") {
+        // Account is disabled — use server-side sign-in which:
+        // 1. Verifies password via REST API (works for disabled accounts)
+        // 2. Re-enables the Auth account
+        // 3. Re-creates Firestore doc if missing
+        // 4. Returns a custom token for client sign-in
+        try {
+          const cred = await serverSideSignIn(trimmedEmail, password);
+
+          if (pendingCred && cred.user) {
+            try {
+              await linkWithCredential(cred.user, pendingCred);
+              setPendingCred(null);
+            } catch {
+              setPendingCred(null);
+            }
+          }
+
+          setBuyerSession(trimmedEmail);
+          router.push(from || "/account");
+          return;
+        } catch (serverErr: any) {
+          console.error("server_signin_error", serverErr);
+          setError(
+            serverErr?.message || "Your account is disabled and could not be restored. Please contact support at support@myfamousfinds.com."
+          );
+        }
+      } else if (
         code === "auth/wrong-password" ||
         code === "auth/user-not-found" ||
         code === "auth/invalid-credential"
@@ -283,11 +296,6 @@ export default function UnifiedLoginPage() {
       } else if (code === "auth/invalid-api-key") {
         setError(
           "Sign-in is temporarily unavailable due to a configuration issue. Please contact support."
-        );
-      } else if (code === "auth/user-disabled") {
-        // signInWithRestore already tried to restore — if we're still here, it failed
-        setError(
-          "Your account is disabled and could not be restored automatically. Please go to the management dashboard to restore your account, or contact support at support@myfamousfinds.com."
         );
       } else {
         setError(
