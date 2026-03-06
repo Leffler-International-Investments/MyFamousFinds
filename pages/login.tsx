@@ -272,7 +272,7 @@ export default function UnifiedLoginPage() {
         );
       } else if (code === "auth/user-disabled") {
         setError(
-          "This account has been disabled. Please contact support at support@myfamousfinds.com to re-enable your account."
+          "This account is temporarily disabled in Firebase Auth. If you are a seller or manager, please sign in through the Seller Login or Management Login page — this will automatically restore your account."
         );
       } else {
         setError(
