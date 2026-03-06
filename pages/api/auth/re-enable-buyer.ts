@@ -1,9 +1,10 @@
 // FILE: /pages/api/auth/re-enable-buyer.ts
 // Re-enables a disabled Firebase Auth account for a legitimate buyer/customer.
+// Also re-creates the Firestore user doc if it was deleted.
 // Called automatically by the buyer login page when auth/user-disabled is encountered.
 
 import type { NextApiRequest, NextApiResponse } from "next";
-import { adminAuth, adminDb } from "../../../utils/firebaseAdmin";
+import { adminAuth, adminDb, FieldValue } from "../../../utils/firebaseAdmin";
 
 export default async function handler(
   req: NextApiRequest,
@@ -23,7 +24,7 @@ export default async function handler(
   }
 
   try {
-    // 1) Verify the Firebase Auth account exists and is disabled
+    // 1) Verify the Firebase Auth account exists
     let authUser;
     try {
       authUser = await adminAuth.getUserByEmail(email);
@@ -34,7 +35,54 @@ export default async function handler(
       throw err;
     }
 
-    if (!authUser.disabled) {
+    let authRestored = false;
+
+    // 2) Re-enable Auth if disabled
+    if (authUser.disabled) {
+      await adminAuth.updateUser(authUser.uid, { disabled: false });
+      authRestored = true;
+      console.log(`[RE-ENABLE-BUYER] Re-enabled Firebase Auth for buyer: ${email}`);
+    }
+
+    // 3) Ensure Firestore user doc exists — re-create if deleted
+    let firestoreRestored = false;
+    if (adminDb) {
+      const snap = await adminDb
+        .collection("users")
+        .where("email", "==", email)
+        .limit(1)
+        .get();
+
+      if (snap.empty) {
+        // Firestore doc was deleted — re-create a minimal buyer record
+        const newDocRef = adminDb.collection("users").doc(authUser.uid);
+        await newDocRef.set({
+          email,
+          name: authUser.displayName || "",
+          status: "Active",
+          vipTier: "Member",
+          points: 0,
+          createdAt: FieldValue.serverTimestamp(),
+          restoredAt: FieldValue.serverTimestamp(),
+          restoredBy: "auto-login",
+        });
+        firestoreRestored = true;
+        console.log(`[RE-ENABLE-BUYER] Re-created Firestore user doc for: ${email}`);
+      } else {
+        // Doc exists — make sure status is Active
+        const doc = snap.docs[0];
+        const data = doc.data();
+        if (data.status && data.status !== "Active") {
+          await doc.ref.update({
+            status: "Active",
+            updatedAt: FieldValue.serverTimestamp(),
+          });
+          firestoreRestored = true;
+        }
+      }
+    }
+
+    if (!authRestored && !firestoreRestored && !authUser.disabled) {
       return res.status(200).json({
         ok: true,
         restored: false,
@@ -42,33 +90,14 @@ export default async function handler(
       });
     }
 
-    // 2) Check if this email has a customer record in Firestore (users collection).
-    //    We only re-enable accounts that belong to legitimate buyers.
-    let hasCustomerRecord = false;
-    if (adminDb) {
-      const snap = await adminDb
-        .collection("users")
-        .where("email", "==", email)
-        .limit(1)
-        .get();
-      hasCustomerRecord = !snap.empty;
-    }
-
-    if (!hasCustomerRecord) {
-      return res.status(403).json({
-        ok: false,
-        error: "No customer account found for this email. Please contact support.",
-      });
-    }
-
-    // 3) Re-enable the Firebase Auth account
-    await adminAuth.updateUser(authUser.uid, { disabled: false });
-    console.log(`[RE-ENABLE-BUYER] Re-enabled Firebase Auth for buyer: ${email}`);
-
     return res.status(200).json({
       ok: true,
       restored: true,
-      message: "Buyer account re-enabled",
+      message: authRestored
+        ? "Buyer account re-enabled"
+        : firestoreRestored
+          ? "Buyer record restored"
+          : "Account restored",
     });
   } catch (err: any) {
     console.error("[RE-ENABLE-BUYER] Error:", err);
