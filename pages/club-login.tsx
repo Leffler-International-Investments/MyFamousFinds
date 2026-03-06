@@ -83,7 +83,25 @@ export default function LoginPage() {
       } else if (code === "auth/too-many-requests") {
         setError("Too many failed login attempts. Please wait a few minutes and try again.");
       } else if (code === "auth/user-disabled") {
-        setError("This account has been disabled. Please contact support.");
+        // Attempt to auto-recover disabled buyer account
+        try {
+          const reEnableRes = await fetch("/api/auth/re-enable-buyer", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email: trimmedEmail }),
+          });
+          const reEnableJson = await reEnableRes.json();
+          if (reEnableJson.ok) {
+            await signInWithEmailAndPassword(auth, trimmedEmail, password);
+            router.push("/club-profile");
+            return;
+          }
+        } catch (retryErr) {
+          console.error("re_enable_buyer_retry_error", retryErr);
+        }
+        setError(
+          "Your account was temporarily disabled. Please try signing in again. If the problem persists, contact support."
+        );
       } else {
         setError(`Sign-in failed. Please try again.${code ? ` (${code})` : ""}`);
       }

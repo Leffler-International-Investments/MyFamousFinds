@@ -81,8 +81,24 @@ export default function VipLoginPage() {
           "Your email or password is incorrect. Please try again or reset it from your main account."
         );
       } else if (code === "auth/user-disabled") {
+        // Attempt to auto-recover disabled buyer account
+        try {
+          const reEnableRes = await fetch("/api/auth/re-enable-buyer", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email }),
+          });
+          const reEnableJson = await reEnableRes.json();
+          if (reEnableJson.ok) {
+            await signInWithEmailAndPassword(auth, email, password);
+            router.push("/vip-welcome");
+            return;
+          }
+        } catch (retryErr) {
+          console.error("re_enable_buyer_retry_error", retryErr);
+        }
         setError(
-          "This account has been disabled. Please contact support at support@myfamousfinds.com to re-enable your account."
+          "Your account was temporarily disabled. Please try signing in again. If the problem persists, contact support at support@myfamousfinds.com."
         );
       } else if (code === "auth/too-many-requests") {
         setError(

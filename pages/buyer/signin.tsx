@@ -58,8 +58,38 @@ export default function BuyerSigninPage() {
       ) {
         setError("Email or password did not match. Please try again.");
       } else if (code === "auth/user-disabled") {
+        // Attempt to auto-recover: ask the server to re-enable this buyer account
+        try {
+          const reEnableRes = await fetch("/api/auth/re-enable-buyer", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email: trimmedEmail }),
+          });
+          const reEnableJson = await reEnableRes.json();
+
+          if (reEnableJson.ok) {
+            // Account re-enabled — retry sign-in
+            await signInWithEmailAndPassword(auth, trimmedEmail, password);
+
+            if (typeof window !== "undefined") {
+              window.localStorage.setItem("ff-role", "buyer");
+              window.localStorage.setItem("ff-email", trimmedEmail);
+              window.localStorage.setItem("ff-session-exp", String(Date.now() + 168 * 60 * 60 * 1000));
+            }
+
+            if (from) {
+              router.push(from);
+            } else {
+              router.push("/buyer/dashboard");
+            }
+            return;
+          }
+        } catch (retryErr) {
+          console.error("re_enable_buyer_retry_error", retryErr);
+        }
+
         setError(
-          "This account has been disabled. Please contact support at support@myfamousfinds.com to re-enable your account."
+          "Your account was temporarily disabled. Please try signing in again. If the problem persists, contact support at support@myfamousfinds.com."
         );
       } else if (code === "auth/too-many-requests") {
         setError(
