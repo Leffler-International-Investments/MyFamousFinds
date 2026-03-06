@@ -7,6 +7,7 @@ import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/router";
 import {
   createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
   updateProfile,
   signInWithRedirect,
   getRedirectResult,
@@ -20,6 +21,8 @@ import PasswordInput from "../components/PasswordInput";
 import GoogleOneTap from "../components/GoogleOneTap";
 import { auth } from "../utils/firebaseClient";
 import { autoPrefixPhone } from "../utils/phoneFormat";
+
+const SESSION_TTL_MS = 168 * 60 * 60 * 1000; // 7 days
 
 const INTEREST_OPTIONS = [
   "Bags & Handbags",
@@ -58,6 +61,35 @@ type BannerState =
 
 type SignupStep = "basics" | "preferences";
 
+function setBuyerSession(userEmail: string) {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem("ff-role", "buyer");
+  window.localStorage.setItem("ff-email", userEmail.toLowerCase());
+  window.localStorage.setItem(
+    "ff-session-exp",
+    String(Date.now() + SESSION_TTL_MS)
+  );
+}
+
+/**
+ * Calls the server-side re-enable endpoint.
+ * Re-enables disabled Firebase Auth account AND re-creates Firestore user doc.
+ */
+async function restoreBuyerAccount(email: string): Promise<boolean> {
+  try {
+    const res = await fetch("/api/auth/re-enable-buyer", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email }),
+    });
+    if (!res.ok) return false;
+    const json = await res.json();
+    return Boolean(json?.ok || json?.restored);
+  } catch {
+    return false;
+  }
+}
+
 export default function UnifiedSignupPage() {
   const router = useRouter();
   const [step, setStep] = useState<SignupStep>("basics");
@@ -86,14 +118,7 @@ export default function UnifiedSignupPage() {
         const userEmail = (result.user.email || "").toLowerCase();
         const displayName = fullName.trim() || result.user.displayName || "";
 
-        if (typeof window !== "undefined") {
-          window.localStorage.setItem("ff-role", "buyer");
-          window.localStorage.setItem("ff-email", userEmail);
-          window.localStorage.setItem(
-            "ff-session-exp",
-            String(Date.now() + 168 * 60 * 60 * 1000)
-          );
-        }
+        setBuyerSession(userEmail);
 
         try {
           const token = await result.user.getIdToken();
@@ -138,14 +163,7 @@ export default function UnifiedSignupPage() {
     const userEmail = (user.email || "").toLowerCase();
     const displayName = fullName.trim() || user.displayName || "";
 
-    if (typeof window !== "undefined") {
-      window.localStorage.setItem("ff-role", "buyer");
-      window.localStorage.setItem("ff-email", userEmail);
-      window.localStorage.setItem(
-        "ff-session-exp",
-        String(Date.now() + 168 * 60 * 60 * 1000)
-      );
-    }
+    setBuyerSession(userEmail);
 
     try {
       const token = await user.getIdToken();
@@ -174,8 +192,6 @@ export default function UnifiedSignupPage() {
     setBanner(null);
     setLoading(true);
 
-    // Use redirect flow — avoids cross-origin popup issues.
-    // The result is handled by the getRedirectResult() useEffect above.
     try {
       const authProvider =
         provider === "google"
@@ -195,7 +211,26 @@ export default function UnifiedSignupPage() {
     }
   }
 
-  // Dead code removed — redirect result is handled by getRedirectResult useEffect
+  async function saveProfile(user: import("firebase/auth").User, userEmail: string) {
+    try {
+      const token = await user.getIdToken();
+      await fetch("/api/user/profile", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          fullName: fullName.trim(),
+          email: userEmail,
+          phone: phone.trim(),
+          smsOptIn,
+        }),
+      });
+    } catch {
+      // Non-blocking
+    }
+  }
 
   async function handleBasicsSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -213,60 +248,78 @@ export default function UnifiedSignupPage() {
 
     setLoading(true);
     try {
+      // Try creating the account
       const cred = await createUserWithEmailAndPassword(
         auth,
         trimmedEmail,
         password
       );
 
-      // Set display name
       if (cred.user) {
         await updateProfile(cred.user, { displayName: trimmedName });
       }
 
-      if (typeof window !== "undefined") {
-        window.localStorage.setItem("ff-role", "buyer");
-        window.localStorage.setItem("ff-email", trimmedEmail);
-        window.localStorage.setItem(
-          "ff-session-exp",
-          String(Date.now() + 168 * 60 * 60 * 1000)
-        );
-      }
-
-      // Save basic user profile to Firestore via API
-      try {
-        const token = await cred.user.getIdToken();
-        await fetch("/api/user/profile", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({
-            fullName: trimmedName,
-            email: trimmedEmail,
-            phone: phone.trim(),
-            smsOptIn,
-          }),
-        });
-      } catch {
-        // Non-blocking — profile will be created later
-      }
-
-      // Move to preferences step
+      setBuyerSession(trimmedEmail);
+      await saveProfile(cred.user, trimmedEmail);
       setStep("preferences");
     } catch (err: any) {
       console.error("unified_signup_error", err);
-
       const code = err?.code as string | undefined;
 
       if (code === "auth/email-already-in-use") {
-        setBanner({
-          type: "info",
-          code,
-          message:
-            'An account with this email already exists. Please sign in instead.',
-        });
+        // Account exists — it might be disabled. Try to restore + sign in.
+        try {
+          // First try to restore (re-enable) the account
+          await restoreBuyerAccount(trimmedEmail);
+
+          // Now try to sign in with the password they just entered
+          const cred = await signInWithEmailAndPassword(
+            auth,
+            trimmedEmail,
+            password
+          );
+
+          // Success! Update profile and proceed
+          if (cred.user && trimmedName) {
+            try {
+              await updateProfile(cred.user, { displayName: trimmedName });
+            } catch {
+              // Non-blocking
+            }
+          }
+
+          setBuyerSession(trimmedEmail);
+          await saveProfile(cred.user, trimmedEmail);
+          setStep("preferences");
+          return;
+        } catch (signInErr: any) {
+          // Sign-in also failed — show helpful message
+          const signInCode = signInErr?.code || "";
+          if (
+            signInCode === "auth/wrong-password" ||
+            signInCode === "auth/invalid-credential"
+          ) {
+            setBanner({
+              type: "info",
+              code: "auth/email-already-in-use",
+              message:
+                "An account with this email already exists. Your password didn't match — please sign in with your existing password.",
+            });
+          } else if (signInCode === "auth/user-disabled") {
+            setBanner({
+              type: "error",
+              message:
+                "An account with this email exists but is disabled. Please go to the management dashboard to restore it, or contact support@myfamousfinds.com.",
+            });
+          } else {
+            setBanner({
+              type: "info",
+              code: "auth/email-already-in-use",
+              message:
+                "An account with this email already exists. Please sign in instead.",
+            });
+          }
+        }
       } else if (code === "auth/weak-password") {
         setBanner({
           type: "error",

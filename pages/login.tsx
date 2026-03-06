@@ -23,7 +23,7 @@ import GoogleOneTap from "../components/GoogleOneTap";
 import { auth } from "../utils/firebaseClient";
 import { safeRedirectPath } from "../utils/roleSession";
 
-const SESSION_TTL_MS = 168 * 60 * 60 * 1000; // 7 days — matches roleSession.ts
+const SESSION_TTL_MS = 168 * 60 * 60 * 1000; // 7 days
 
 export default function UnifiedLoginPage() {
   const router = useRouter();
@@ -58,22 +58,46 @@ export default function UnifiedLoginPage() {
     );
   }
 
-  async function tryReEnableBuyer(emailToRestore: string) {
-    const res = await fetch("/api/auth/re-enable-buyer", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email: emailToRestore }),
-    });
-    let json: any = {};
+  /**
+   * Calls the server-side re-enable endpoint.
+   * This re-enables a disabled Firebase Auth account AND re-creates
+   * the Firestore user doc if it was deleted.
+   */
+  async function restoreBuyerAccount(emailToRestore: string): Promise<boolean> {
     try {
-      json = await res.json();
+      const res = await fetch("/api/auth/re-enable-buyer", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: emailToRestore }),
+      });
+      if (!res.ok) return false;
+      const json = await res.json();
+      return Boolean(json?.ok || json?.restored);
     } catch {
-      json = {};
+      return false;
     }
-    return {
-      ok: Boolean(res.ok && (json?.ok || json?.restored || json?.success)),
-      json,
-    };
+  }
+
+  /**
+   * Attempt to sign in. If the account is disabled, restore it first then retry.
+   * Returns true on success, throws on unrecoverable failure.
+   */
+  async function signInWithRestore(
+    userEmail: string,
+    userPassword: string
+  ): Promise<import("firebase/auth").UserCredential> {
+    try {
+      return await signInWithEmailAndPassword(auth, userEmail, userPassword);
+    } catch (err: any) {
+      if (err?.code !== "auth/user-disabled") throw err;
+
+      // Account is disabled — try to restore it
+      const restored = await restoreBuyerAccount(userEmail);
+      if (!restored) throw err;
+
+      // Retry sign-in after restore
+      return await signInWithEmailAndPassword(auth, userEmail, userPassword);
+    }
   }
 
   // If user already has an active buyer Firebase session, redirect to account
@@ -82,7 +106,6 @@ export default function UnifiedLoginPage() {
     const unsub = onAuthStateChanged(auth, (u) => {
       if (u && typeof window !== "undefined") {
         const role = window.localStorage.getItem("ff-role");
-        // Only auto-redirect for buyers — sellers/management have their own login pages
         if (role === "buyer") {
           const redirectFrom =
             typeof router.query.from === "string" ? router.query.from : null;
@@ -101,13 +124,8 @@ export default function UnifiedLoginPage() {
       .then(async (result) => {
         if (!result) return;
         const userEmail = (result.user.email || "").toLowerCase();
-
-        // Read `from` from the current URL query at resolve-time (not at mount-time)
-        // because router.query can be empty during SSG first render.
         const redirectFrom =
           typeof router.query.from === "string" ? router.query.from : null;
-
-        // Sign in as buyer — seller/management dashboards have their own login pages
         setBuyerSession(userEmail);
         router.push(safeRedirectPath(redirectFrom, "/account"));
       })
@@ -115,7 +133,6 @@ export default function UnifiedLoginPage() {
         if (err?.code === "auth/popup-closed-by-user") return;
         console.error("redirect_result_error", err);
 
-        // Handle account linking conflict from redirect flow
         if (
           err?.code === "auth/account-exists-with-different-credential"
         ) {
@@ -166,7 +183,6 @@ export default function UnifiedLoginPage() {
       });
       const json = await res.json();
       if (json.ok) {
-        // Promo code valid — store promo access and redirect to app
         if (typeof window !== "undefined") {
           window.localStorage.setItem("ff-role", "promo");
           window.localStorage.setItem("ff-promo-access", "true");
@@ -188,8 +204,6 @@ export default function UnifiedLoginPage() {
 
   async function handleOneTapSuccess(user: import("firebase/auth").User) {
     const userEmail = (user.email || "").toLowerCase();
-
-    // Sign in as buyer — seller/management dashboards have their own login pages
     setBuyerSession(userEmail);
     router.push(from || "/account");
   }
@@ -200,9 +214,6 @@ export default function UnifiedLoginPage() {
     setInfo(null);
     setLoading(true);
 
-    // Use redirect flow — avoids cross-origin popup issues between
-    // myfamousfinds.com and famous-finds-391d4.firebaseapp.com.
-    // The result is handled by the getRedirectResult() useEffect above.
     try {
       const authProvider = new GoogleAuthProvider();
       await signInWithRedirect(auth, authProvider);
@@ -232,33 +243,29 @@ export default function UnifiedLoginPage() {
 
     setLoading(true);
     try {
-      // Authenticate with Firebase
-      const cred = await signInWithEmailAndPassword(auth, trimmedEmail, password);
+      // signInWithRestore handles auth/user-disabled automatically:
+      // 1. Try sign in
+      // 2. If disabled → call re-enable-buyer → retry sign in
+      const cred = await signInWithRestore(trimmedEmail, password);
 
-      // If there's a pending Google credential, link it to this account
+      // Link pending Google credential if present
       if (pendingCred && cred.user) {
         try {
           await linkWithCredential(cred.user, pendingCred);
           setPendingCred(null);
           setInfo("Google has been linked to your account for faster sign-in next time.");
         } catch (linkErr: any) {
-          // If already linked or linking fails, proceed anyway — sign-in succeeded
           console.warn("link_credential_warning", linkErr?.code);
           setPendingCred(null);
         }
       }
 
-      // Sign in as buyer — seller/management dashboards have their own login pages
       setBuyerSession(trimmedEmail);
-
-      if (from) {
-        router.push(from);
-      } else {
-        router.push("/account");
-      }
+      router.push(from || "/account");
     } catch (err: any) {
       console.error("unified_login_error", err);
       const code = err?.code || "";
+
       if (
         code === "auth/wrong-password" ||
         code === "auth/user-not-found" ||
@@ -278,42 +285,9 @@ export default function UnifiedLoginPage() {
           "Sign-in is temporarily unavailable due to a configuration issue. Please contact support."
         );
       } else if (code === "auth/user-disabled") {
-        // Auto-recover only for wrongly-disabled buyer accounts
-        try {
-          const restore = await tryReEnableBuyer(trimmedEmail);
-          if (restore.ok) {
-            const retryCred = await signInWithEmailAndPassword(
-              auth,
-              trimmedEmail,
-              password
-            );
-
-            if (pendingCred && retryCred.user) {
-              try {
-                await linkWithCredential(retryCred.user, pendingCred);
-                setPendingCred(null);
-                setInfo("Google has been linked to your account for faster sign-in next time.");
-              } catch (linkErr: any) {
-                console.warn("link_credential_warning", linkErr?.code);
-                setPendingCred(null);
-              }
-            }
-
-            setBuyerSession(trimmedEmail);
-
-            if (from) {
-              router.push(from);
-            } else {
-              router.push("/account");
-            }
-            return;
-          }
-        } catch (retryErr) {
-          console.error("re_enable_buyer_retry_error", retryErr);
-        }
-
+        // signInWithRestore already tried to restore — if we're still here, it failed
         setError(
-          "This buyer account could not be restored automatically. Please contact support at support@myfamousfinds.com."
+          "Your account is disabled and could not be restored automatically. Please go to the management dashboard to restore your account, or contact support at support@myfamousfinds.com."
         );
       } else {
         setError(
