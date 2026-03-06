@@ -1,5 +1,6 @@
 // FILE: /pages/login.tsx
-// Unified Login Portal — single sign-in for both buyers and sellers (RealReal model)
+// Login page — signs users in as buyers. Seller and management dashboards
+// have their own dedicated login pages (/seller/login, /management/login).
 
 import Head from "next/head";
 import Link from "next/link";
@@ -7,7 +8,6 @@ import { useRouter } from "next/router";
 import { FormEvent, useEffect, useState } from "react";
 import {
   signInWithEmailAndPassword,
-  signInWithCustomToken,
   signInWithRedirect,
   getRedirectResult,
   GoogleAuthProvider,
@@ -21,30 +21,6 @@ import PasswordInput from "../components/PasswordInput";
 import GoogleOneTap from "../components/GoogleOneTap";
 import { auth } from "../utils/firebaseClient";
 
-type LoginSuccess = { ok: true; sellerId: string };
-type LoginError = {
-  ok: false;
-  code: "apply_first" | "pending" | "bad_credentials" | "server_not_configured" | string;
-  message: string;
-};
-type LoginResponse = LoginSuccess | LoginError;
-
-type Start2faSuccess = {
-  ok: true;
-  challengeId: string;
-  via: "sms" | "email";
-  devCode?: string;
-  message?: string;
-};
-type Start2faError = { ok: false; message?: string };
-type Start2faResponse = Start2faSuccess | Start2faError;
-
-type Verify2faSuccess = { ok: true; firebaseToken?: string };
-type Verify2faError = { ok: false; message?: string };
-type Verify2faResponse = Verify2faSuccess | Verify2faError;
-
-type TwoFactorStep = "credentials" | "choose_method" | "verify";
-
 const SESSION_TTL_MS = 168 * 60 * 60 * 1000; // 7 days — matches roleSession.ts
 
 export default function UnifiedLoginPage() {
@@ -55,13 +31,6 @@ export default function UnifiedLoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
-
-  // Seller 2FA state
-  const [isSeller, setIsSeller] = useState(false);
-  const [step, setStep] = useState<TwoFactorStep>("credentials");
-  const [challengeId, setChallengeId] = useState<string | null>(null);
-  const [chosenMethod, setChosenMethod] = useState<"email" | "sms">("email");
-  const [code, setCode] = useState("");
 
   // Pending Google credential for account linking
   const [pendingCred, setPendingCred] = useState<AuthCredential | null>(null);
@@ -85,22 +54,7 @@ export default function UnifiedLoginPage() {
         const redirectFrom =
           typeof router.query.from === "string" ? router.query.from : null;
 
-        // Check if user is also a seller
-        const sellerRes = await fetch("/api/seller/login", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email: userEmail }),
-        });
-        const sellerJson = (await sellerRes.json()) as LoginResponse;
-
-        if (sellerJson.ok) {
-          setEmail(userEmail);
-          setIsSeller(true);
-          setStep("choose_method");
-          return;
-        }
-
-        // Sign in as buyer
+        // Sign in as buyer — seller/management dashboards have their own login pages
         if (typeof window !== "undefined") {
           window.localStorage.setItem("ff-role", "buyer");
           window.localStorage.setItem("ff-email", userEmail);
@@ -192,26 +146,7 @@ export default function UnifiedLoginPage() {
   async function handleOneTapSuccess(user: import("firebase/auth").User) {
     const userEmail = (user.email || "").toLowerCase();
 
-    // Check if user is also a seller
-    try {
-      const sellerRes = await fetch("/api/seller/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: userEmail }),
-      });
-      const sellerJson = (await sellerRes.json()) as LoginResponse;
-
-      if (sellerJson.ok) {
-        setEmail(userEmail);
-        setIsSeller(true);
-        setStep("choose_method");
-        return;
-      }
-    } catch {
-      // Non-blocking — proceed as buyer
-    }
-
-    // Sign in as buyer
+    // Sign in as buyer — seller/management dashboards have their own login pages
     if (typeof window !== "undefined") {
       window.localStorage.setItem("ff-role", "buyer");
       window.localStorage.setItem("ff-email", userEmail);
@@ -277,22 +212,7 @@ export default function UnifiedLoginPage() {
         }
       }
 
-      // Check if user is also a seller
-      const sellerRes = await fetch("/api/seller/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: trimmedEmail }),
-      });
-      const sellerJson = (await sellerRes.json()) as LoginResponse;
-
-      if (sellerJson.ok) {
-        // User is an approved seller — let them pick 2FA method
-        setIsSeller(true);
-        setStep("choose_method");
-        return;
-      }
-
-      // Not a seller or seller not approved — sign in as buyer
+      // Sign in as buyer — seller/management dashboards have their own login pages
       if (typeof window !== "undefined") {
         window.localStorage.setItem("ff-role", "buyer");
         window.localStorage.setItem("ff-email", trimmedEmail);
@@ -329,24 +249,6 @@ export default function UnifiedLoginPage() {
           "Sign-in is temporarily unavailable due to a configuration issue. Please contact support."
         );
       } else if (code === "auth/user-disabled") {
-        // Firebase account is disabled — try server-side seller/management login
-        // as a fallback so super sellers and admins can still sign in.
-        try {
-          const sellerRes = await fetch("/api/seller/login", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ email: trimmedEmail, password }),
-          });
-          const sellerJson = (await sellerRes.json()) as LoginResponse;
-
-          if (sellerJson.ok) {
-            setIsSeller(true);
-            setStep("choose_method");
-            return;
-          }
-        } catch {
-          // Server-side fallback also failed — show disabled message
-        }
         setError(
           "This account has been disabled. Please contact support at support@myfamousfinds.com to re-enable your account."
         );
@@ -355,114 +257,6 @@ export default function UnifiedLoginPage() {
           `Sign-in failed. Please try again.${code ? ` (${code})` : ""}`
         );
       }
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  async function handleChooseMethod(method: "email" | "sms") {
-    setError(null);
-    setInfo(null);
-    setChosenMethod(method);
-    setLoading(true);
-
-    try {
-      const trimmedEmail = email.trim().toLowerCase();
-      const twofaRes = await fetch("/api/auth/start-2fa", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: trimmedEmail, role: "seller", method }),
-      });
-      const twofaJson = (await twofaRes.json()) as Start2faResponse;
-      if (!twofaJson.ok) {
-        const errJson = twofaJson as Start2faError;
-        setError(errJson.message || "We couldn't start the verification process.");
-        return;
-      }
-      setChallengeId(twofaJson.challengeId);
-      setStep("verify");
-      const successJson = twofaJson as Start2faSuccess;
-      setInfo(successJson.message || "Code sent.");
-      if (successJson.devCode) setCode(successJson.devCode);
-    } catch (err) {
-      console.error("seller_start_2fa_error", err);
-      setError("Unexpected error. Please try again.");
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  async function handleVerifySubmit(e: FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    setError(null);
-    if (!challengeId) {
-      setError("Your verification session has expired. Please log in again.");
-      return;
-    }
-    if (!code.trim()) {
-      setError("Please enter the verification code.");
-      return;
-    }
-    setLoading(true);
-    try {
-      const res = await fetch("/api/auth/verify-2fa", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ challengeId, code: code.trim() }),
-      });
-      const json = (await res.json()) as Verify2faResponse;
-      if (!json.ok) {
-        const errJson = json as Verify2faError;
-        setError(errJson.message || "Incorrect or expired code.");
-        return;
-      }
-      if (typeof window !== "undefined") {
-        window.localStorage.setItem("ff-role", "seller");
-        window.localStorage.setItem("ff-email", email.toLowerCase().trim());
-        window.localStorage.setItem(
-          "ff-session-exp",
-          String(Date.now() + SESSION_TTL_MS)
-        );
-      }
-
-      // Establish Firebase Auth session so pages that depend on
-      // onAuthStateChanged work. Try custom token first (works even
-      // when the user never set a password), then email/password.
-      const successJson = json as Verify2faSuccess;
-      let firebaseSignedIn = false;
-
-      if (auth && successJson.firebaseToken) {
-        try {
-          await signInWithCustomToken(auth, successJson.firebaseToken);
-          firebaseSignedIn = true;
-        } catch (e) {
-          console.warn("[login] Custom token sign-in failed:", e);
-        }
-      }
-
-      if (!firebaseSignedIn && auth && password) {
-        try {
-          await signInWithEmailAndPassword(auth, email.trim().toLowerCase(), password);
-          firebaseSignedIn = true;
-        } catch (e) {
-          console.warn("[login] Password sign-in also failed (account may be disabled):", e);
-        }
-      }
-
-      // Redirect: sellers go to seller dashboard (doesn't require
-      // Firebase Auth), account page requires Firebase Auth session.
-      if (from) {
-        router.push(from);
-      } else if (firebaseSignedIn) {
-        router.push("/account");
-      } else {
-        // Firebase account likely disabled — send to seller dashboard
-        // which uses role session instead of Firebase Auth
-        router.push("/seller/dashboard");
-      }
-    } catch (err) {
-      console.error("seller_verify_2fa_error", err);
-      setError("Unable to verify the code. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -486,7 +280,7 @@ export default function UnifiedLoginPage() {
                 console.error("one_tap_error", err);
                 setError("Google sign-in failed. Please try again.");
               }}
-              disabled={loading || step !== "credentials"}
+              disabled={loading}
             />
             <h1>Welcome to Famous Finds</h1>
             <p className="auth-subtitle">
@@ -496,153 +290,62 @@ export default function UnifiedLoginPage() {
             {error && <div className="auth-error">{error}</div>}
             {info && <div className="auth-info">{info}</div>}
 
-            {step === "credentials" ? (
-              <>
-                <div className="social-buttons">
-                  <button
-                    type="button"
-                    className="social-btn"
-                    onClick={() => handleSocialSignIn("google")}
-                    disabled={disabled}
-                  >
-                    <svg viewBox="0 0 24 24" width="20" height="20">
-                      <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4"/>
-                      <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
-                      <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
-                      <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
-                    </svg>
-                    <span>Continue with Google</span>
-                  </button>
-                </div>
+            <div className="social-buttons">
+              <button
+                type="button"
+                className="social-btn"
+                onClick={() => handleSocialSignIn("google")}
+                disabled={disabled}
+              >
+                <svg viewBox="0 0 24 24" width="20" height="20">
+                  <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4"/>
+                  <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+                  <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
+                  <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+                </svg>
+                <span>Continue with Google</span>
+              </button>
+            </div>
 
-                <div className="auth-divider">
-                  <span>or sign in with email</span>
-                </div>
+            <div className="auth-divider">
+              <span>or sign in with email</span>
+            </div>
 
-              <form onSubmit={handleSubmit}>
-                <div className="auth-fields">
-                  <div className="auth-field">
-                    <label htmlFor="email">Email</label>
-                    <input
-                      id="email"
-                      type="email"
-                      autoComplete="email"
-                      required
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      className="auth-input"
-                      placeholder="name@example.com"
-                      disabled={disabled}
-                    />
-                  </div>
-
-                  <PasswordInput
-                    label="Password"
-                    name="password"
-                    value={password}
-                    onChange={setPassword}
+            <form onSubmit={handleSubmit}>
+              <div className="auth-fields">
+                <div className="auth-field">
+                  <label htmlFor="email">Email</label>
+                  <input
+                    id="email"
+                    type="email"
+                    autoComplete="email"
                     required
-                    placeholder="Enter password"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="auth-input"
+                    placeholder="name@example.com"
+                    disabled={disabled}
                   />
+                </div>
 
-                  <button
-                    type="submit"
-                    className="auth-button-primary"
-                    disabled={disabled}
-                  >
-                    {loading ? "Signing in..." : "Sign In"}
-                  </button>
-                </div>
-              </form>
-              </>
-            ) : step === "choose_method" ? (
-              <div className="method-choice">
-                <p className="auth-secondary-text">
-                  Seller account detected. How would you like to receive your verification code?
-                </p>
-                <div className="method-buttons">
-                  <button
-                    type="button"
-                    disabled={disabled}
-                    className="method-button"
-                    onClick={() => handleChooseMethod("email")}
-                  >
-                    <span className="method-icon">&#9993;</span>
-                    <span className="method-label">Email</span>
-                    <span className="method-desc">Send code to my email</span>
-                  </button>
-                  <button
-                    type="button"
-                    disabled={disabled}
-                    className="method-button"
-                    onClick={() => handleChooseMethod("sms")}
-                  >
-                    <span className="method-icon">&#128241;</span>
-                    <span className="method-label">SMS</span>
-                    <span className="method-desc">Send code to my phone</span>
-                  </button>
-                </div>
-                <p className="auth-secondary-text">
-                  <button
-                    type="button"
-                    className="auth-link-button"
-                    onClick={() => {
-                      setStep("credentials");
-                      setIsSeller(false);
-                      setError(null);
-                      setInfo(null);
-                    }}
-                  >
-                    Back to login
-                  </button>
-                </p>
+                <PasswordInput
+                  label="Password"
+                  name="password"
+                  value={password}
+                  onChange={setPassword}
+                  required
+                  placeholder="Enter password"
+                />
+
+                <button
+                  type="submit"
+                  className="auth-button-primary"
+                  disabled={disabled}
+                >
+                  {loading ? "Signing in..." : "Sign In"}
+                </button>
               </div>
-            ) : (
-              <form onSubmit={handleVerifySubmit}>
-                <p className="auth-secondary-text">
-                  Enter the 6-digit code sent to your {chosenMethod === "sms" ? "phone" : "email"}.
-                </p>
-                <div className="auth-fields">
-                  <div className="auth-field">
-                    <label htmlFor="code">Verification Code</label>
-                    <input
-                      id="code"
-                      type="text"
-                      inputMode="numeric"
-                      autoComplete="one-time-code"
-                      maxLength={6}
-                      value={code}
-                      onChange={(e) => setCode(e.target.value)}
-                      className="auth-input auth-code-input"
-                      disabled={disabled}
-                    />
-                  </div>
-                  <button
-                    type="submit"
-                    disabled={disabled}
-                    className="auth-button-primary"
-                  >
-                    {loading ? "Verifying..." : "Confirm Login"}
-                  </button>
-                </div>
-                <p className="auth-secondary-text">
-                  <button
-                    type="button"
-                    className="auth-link-button"
-                    onClick={() => {
-                      if (disabled) return;
-                      setStep("credentials");
-                      setIsSeller(false);
-                      setCode("");
-                      setInfo(null);
-                      setError(null);
-                    }}
-                  >
-                    Back to login
-                  </button>
-                </p>
-              </form>
-            )}
+            </form>
 
             <div className="auth-links">
               <p className="auth-secondary-link">
@@ -798,82 +501,6 @@ export default function UnifiedLoginPage() {
         .auth-info {
           background: #eff6ff;
           color: #1d4ed8;
-        }
-        .seller-badge {
-          text-align: center;
-          font-size: 12px;
-          font-weight: 600;
-          color: #059669;
-          background: #ecfdf5;
-          border: 1px solid #a7f3d0;
-          border-radius: 999px;
-          padding: 6px 14px;
-          margin-bottom: 16px;
-          display: inline-block;
-          width: 100%;
-        }
-        .auth-code-input {
-          text-align: center;
-          letter-spacing: 0.2em;
-          font-weight: 600;
-        }
-        .method-choice {
-          display: flex;
-          flex-direction: column;
-          gap: 16px;
-        }
-        .method-buttons {
-          display: flex;
-          gap: 12px;
-        }
-        .method-button {
-          flex: 1;
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          gap: 6px;
-          padding: 20px 12px;
-          border-radius: 16px;
-          border: 1px solid #d1d5db;
-          background: #fafafa;
-          cursor: pointer;
-          transition: all 0.2s ease;
-        }
-        .method-button:hover {
-          border-color: #111827;
-          background: #ffffff;
-          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-        }
-        .method-button:disabled {
-          opacity: 0.5;
-          cursor: default;
-        }
-        .method-icon {
-          font-size: 28px;
-          line-height: 1;
-        }
-        .method-label {
-          font-size: 14px;
-          font-weight: 600;
-          color: #111827;
-        }
-        .method-desc {
-          font-size: 11px;
-          color: #6b7280;
-        }
-        .auth-secondary-text {
-          text-align: center;
-          font-size: 13px;
-          color: #6b7280;
-          margin-bottom: 8px;
-        }
-        .auth-link-button {
-          border: none;
-          background: none;
-          color: #111827;
-          text-decoration: underline;
-          cursor: pointer;
-          font-size: 13px;
         }
         .auth-links {
           margin-top: 20px;
