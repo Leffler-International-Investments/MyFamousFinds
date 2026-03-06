@@ -7,7 +7,7 @@ import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/router";
 import {
   createUserWithEmailAndPassword,
-  signInWithEmailAndPassword,
+  signInWithCustomToken,
   updateProfile,
   signInWithRedirect,
   getRedirectResult,
@@ -72,21 +72,25 @@ function setBuyerSession(userEmail: string) {
 }
 
 /**
- * Calls the server-side re-enable endpoint.
- * Re-enables disabled Firebase Auth account AND re-creates Firestore user doc.
+ * Server-side sign-in: verifies password via REST API (works for disabled accounts),
+ * re-enables the account, ensures Firestore doc exists, returns custom token.
  */
-async function restoreBuyerAccount(email: string): Promise<boolean> {
+async function serverSideSignIn(
+  email: string,
+  password: string
+): Promise<{ customToken: string; displayName: string } | null> {
   try {
-    const res = await fetch("/api/auth/re-enable-buyer", {
+    const res = await fetch("/api/auth/buyer-signin", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email }),
+      body: JSON.stringify({ email, password }),
     });
-    if (!res.ok) return false;
-    const json = await res.json();
-    return Boolean(json?.ok || json?.restored);
+    if (!res.ok) return null;
+    const data = await res.json();
+    if (!data.customToken) return null;
+    return { customToken: data.customToken, displayName: data.displayName || "" };
   } catch {
-    return false;
+    return null;
   }
 }
 
@@ -267,58 +271,45 @@ export default function UnifiedSignupPage() {
       const code = err?.code as string | undefined;
 
       if (code === "auth/email-already-in-use") {
-        // Account exists — it might be disabled. Try to restore + sign in.
+        // Account exists — might be disabled. Use server-side sign-in which:
+        // 1. Verifies password via REST API (works for disabled accounts)
+        // 2. Re-enables if disabled
+        // 3. Creates Firestore doc if missing
+        // 4. Returns custom token
         try {
-          // First try to restore (re-enable) the account
-          await restoreBuyerAccount(trimmedEmail);
+          const result = await serverSideSignIn(trimmedEmail, password);
+          if (result) {
+            // Sign in with the custom token
+            const cred = await signInWithCustomToken(auth, result.customToken);
 
-          // Now try to sign in with the password they just entered
-          const cred = await signInWithEmailAndPassword(
-            auth,
-            trimmedEmail,
-            password
-          );
-
-          // Success! Update profile and proceed
-          if (cred.user && trimmedName) {
-            try {
-              await updateProfile(cred.user, { displayName: trimmedName });
-            } catch {
-              // Non-blocking
+            if (cred.user && trimmedName) {
+              try {
+                await updateProfile(cred.user, { displayName: trimmedName });
+              } catch {
+                // Non-blocking
+              }
             }
+
+            setBuyerSession(trimmedEmail);
+            await saveProfile(cred.user, trimmedEmail);
+            setStep("preferences");
+            return;
           }
 
-          setBuyerSession(trimmedEmail);
-          await saveProfile(cred.user, trimmedEmail);
-          setStep("preferences");
-          return;
+          // Server-side sign-in returned null — wrong password or other issue
+          setBanner({
+            type: "info",
+            code: "auth/email-already-in-use",
+            message:
+              "An account with this email already exists. Your password didn't match — please sign in with your existing password.",
+          });
         } catch (signInErr: any) {
-          // Sign-in also failed — show helpful message
-          const signInCode = signInErr?.code || "";
-          if (
-            signInCode === "auth/wrong-password" ||
-            signInCode === "auth/invalid-credential"
-          ) {
-            setBanner({
-              type: "info",
-              code: "auth/email-already-in-use",
-              message:
-                "An account with this email already exists. Your password didn't match — please sign in with your existing password.",
-            });
-          } else if (signInCode === "auth/user-disabled") {
-            setBanner({
-              type: "error",
-              message:
-                "An account with this email exists but is disabled. Please go to the management dashboard to restore it, or contact support@myfamousfinds.com.",
-            });
-          } else {
-            setBanner({
-              type: "info",
-              code: "auth/email-already-in-use",
-              message:
-                "An account with this email already exists. Please sign in instead.",
-            });
-          }
+          setBanner({
+            type: "info",
+            code: "auth/email-already-in-use",
+            message:
+              "An account with this email already exists. Please sign in instead.",
+          });
         }
       } else if (code === "auth/weak-password") {
         setBanner({
