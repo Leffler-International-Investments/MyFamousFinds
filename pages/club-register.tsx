@@ -5,7 +5,6 @@ import { useState, FormEvent } from "react";
 import { useRouter } from "next/router";
 import Link from "next/link";
 import {
-  getAuth,
   createUserWithEmailAndPassword,
   updateProfile,
 } from "firebase/auth";
@@ -29,11 +28,12 @@ export default function RegisterPage() {
     setLoading(true);
     setError(null);
 
+    const trimmedEmail = email.trim().toLowerCase();
     try {
       // 1. Create the user in Firebase Auth
       const userCredential = await createUserWithEmailAndPassword(
         auth,
-        email,
+        trimmedEmail,
         password
       );
       const user = userCredential.user;
@@ -66,10 +66,13 @@ export default function RegisterPage() {
       // 5. Success, redirect to their new profile page
       router.push("/club-profile");
     } catch (err: any) {
-      if (err.code === "auth/email-already-in-use") {
-        setError("This email address is already in use.");
+      const code = err?.code || "";
+      if (code === "auth/email-already-in-use") {
+        setError("This email address is already in use. Please sign in instead.");
+      } else if (code === "auth/weak-password") {
+        setError("Please choose a stronger password (at least 6 characters).");
       } else {
-        setError(err.message);
+        setError(`We couldn't create your account. Please try again.${code ? ` (${code})` : ""}`);
       }
       setLoading(false);
     }

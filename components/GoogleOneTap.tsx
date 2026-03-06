@@ -6,9 +6,6 @@ import { useEffect, useRef } from "react";
 import {
   GoogleAuthProvider,
   signInWithCredential,
-  fetchSignInMethodsForEmail,
-  signInWithEmailAndPassword,
-  linkWithCredential,
 } from "firebase/auth";
 import { auth } from "../utils/firebaseClient";
 

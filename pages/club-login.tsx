@@ -65,18 +65,25 @@ export default function LoginPage() {
     setLoading(true);
     setError(null);
 
+    const trimmedEmail = email.trim().toLowerCase();
     try {
-      await signInWithEmailAndPassword(auth, email, password);
+      await signInWithEmailAndPassword(auth, trimmedEmail, password);
       // Success, redirect to their profile or the homepage
       router.push("/club-profile");
     } catch (err: any) {
+      const code = err?.code || "";
       if (
-        err.code === "auth/user-not-found" ||
-        err.code === "auth/wrong-password"
+        code === "auth/user-not-found" ||
+        code === "auth/wrong-password" ||
+        code === "auth/invalid-credential"
       ) {
         setError("Invalid email or password.");
+      } else if (code === "auth/too-many-requests") {
+        setError("Too many failed login attempts. Please wait a few minutes and try again.");
+      } else if (code === "auth/user-disabled") {
+        setError("This account has been disabled. Please contact support.");
       } else {
-        setError(err.message);
+        setError(`Sign-in failed. Please try again.${code ? ` (${code})` : ""}`);
       }
       setLoading(false);
     }

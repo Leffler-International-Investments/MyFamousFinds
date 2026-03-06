@@ -156,8 +156,9 @@ export default function VipSignupPage() {
     setError(null);
     setLoading(true);
 
+    const trimmedEmail = email.trim().toLowerCase();
     try {
-      const cred = await createUserWithEmailAndPassword(auth, email, password);
+      const cred = await createUserWithEmailAndPassword(auth, trimmedEmail, password);
 
       // Register in VIP members collection (API)
       const joinRes = await fetch("/api/vip/join", {
@@ -181,14 +182,16 @@ export default function VipSignupPage() {
       router.push("/vip-welcome");
     } catch (err: any) {
       console.error("vip_signup_error", err);
-      if (err?.code === "auth/email-already-in-use") {
+      const code = err?.code || "";
+      if (code === "auth/email-already-in-use") {
         setError(
           "An account with this email already exists. Please sign in first, then come back to join the VIP Club."
         );
+      } else if (code === "auth/weak-password") {
+        setError("Please choose a stronger password (at least 6 characters).");
       } else {
         setError(
-          err?.message ||
-            "We couldn't create your VIP profile just now. Please try again."
+          `We couldn't create your VIP profile just now. Please try again.${code ? ` (${code})` : ""}`
         );
       }
     } finally {

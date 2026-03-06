@@ -79,6 +79,11 @@ export default function UnifiedLoginPage() {
         if (!result) return;
         const userEmail = (result.user.email || "").toLowerCase();
 
+        // Read `from` from the current URL query at resolve-time (not at mount-time)
+        // because router.query can be empty during SSG first render.
+        const redirectFrom =
+          typeof router.query.from === "string" ? router.query.from : null;
+
         // Check if user is also a seller
         const sellerRes = await fetch("/api/seller/login", {
           method: "POST",
@@ -103,7 +108,7 @@ export default function UnifiedLoginPage() {
             String(Date.now() + SESSION_TTL_MS)
           );
         }
-        router.push(from || "/account");
+        router.push(redirectFrom || "/account");
       })
       .catch((err) => {
         if (err?.code === "auth/popup-closed-by-user") return;
