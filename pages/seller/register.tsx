@@ -106,7 +106,7 @@ export default function SellerRegisterPage() {
         window.localStorage.setItem("ff-email", email);
         window.localStorage.setItem(
           "ff-session-exp",
-          String(Date.now() + 72 * 60 * 60 * 1000)
+          String(Date.now() + 168 * 60 * 60 * 1000)
         );
       }
 

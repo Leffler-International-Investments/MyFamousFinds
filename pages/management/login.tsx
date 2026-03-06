@@ -7,6 +7,7 @@ import Header from "../../components/Header";
 import Footer from "../../components/Footer";
 import PasswordInput from "../../components/PasswordInput";
 import PhoneVerificationPopup from "../../components/PhoneVerificationPopup";
+import { safeRedirectPath } from "../../utils/roleSession";
 
 type ManagementLoginOk = { ok: true; managementId: string };
 type ManagementLoginError = {
@@ -45,10 +46,10 @@ export default function ManagementLoginPage() {
   const [setupError, setSetupError] = useState<string | null>(null);
   const [setupSuccess, setSetupSuccess] = useState<string | null>(null);
 
-  const from =
-    typeof router.query.from === "string"
-      ? router.query.from
-      : "/management/dashboard";
+  const from = safeRedirectPath(
+    typeof router.query.from === "string" ? router.query.from : null,
+    "/management/dashboard"
+  );
 
   // ------ LOGIN FLOW ------
   async function handleCredentialsSubmit(e: FormEvent<HTMLFormElement>) {

@@ -11,6 +11,8 @@
  * - In production you should prefer Firestore-backed challenges.
  */
 
+import crypto from "crypto";
+
 export type TwoFactorRole = "seller" | "management";
 
 export type TwoFactorChallenge = {
@@ -80,7 +82,10 @@ export function verifyChallenge(params: { id: string; code: string }) {
     return { ok: false as const, reason: "expired" as const };
   }
 
-  if (ch.code !== params.code) {
+  if (
+    ch.code.length !== params.code.length ||
+    !crypto.timingSafeEqual(Buffer.from(ch.code), Buffer.from(params.code))
+  ) {
     return { ok: false as const, reason: "invalid_code" as const };
   }
 

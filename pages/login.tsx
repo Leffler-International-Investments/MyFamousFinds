@@ -10,6 +10,7 @@ import {
   signInWithEmailAndPassword,
   signInWithRedirect,
   getRedirectResult,
+  onAuthStateChanged,
   GoogleAuthProvider,
   linkWithCredential,
   AuthCredential,
@@ -20,6 +21,7 @@ import Footer from "../components/Footer";
 import PasswordInput from "../components/PasswordInput";
 import GoogleOneTap from "../components/GoogleOneTap";
 import { auth } from "../utils/firebaseClient";
+import { safeRedirectPath } from "../utils/roleSession";
 
 const SESSION_TTL_MS = 168 * 60 * 60 * 1000; // 7 days — matches roleSession.ts
 
@@ -40,6 +42,24 @@ export default function UnifiedLoginPage() {
   const [promoCode, setPromoCode] = useState("");
   const [promoLoading, setPromoLoading] = useState(false);
   const [promoError, setPromoError] = useState<string | null>(null);
+
+  // If user already has an active buyer Firebase session, redirect to account
+  useEffect(() => {
+    if (!auth) return;
+    const unsub = onAuthStateChanged(auth, (u) => {
+      if (u && typeof window !== "undefined") {
+        const role = window.localStorage.getItem("ff-role");
+        // Only auto-redirect for buyers — sellers/management have their own login pages
+        if (role === "buyer") {
+          const redirectFrom =
+            typeof router.query.from === "string" ? router.query.from : null;
+          router.replace(safeRedirectPath(redirectFrom, "/account"));
+        }
+      }
+    });
+    return () => unsub();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Handle redirect result from signInWithRedirect (fallback for popup failures)
   useEffect(() => {
@@ -63,7 +83,7 @@ export default function UnifiedLoginPage() {
             String(Date.now() + SESSION_TTL_MS)
           );
         }
-        router.push(redirectFrom || "/account");
+        router.push(safeRedirectPath(redirectFrom, "/account"));
       })
       .catch((err) => {
         if (err?.code === "auth/popup-closed-by-user") return;
@@ -140,8 +160,10 @@ export default function UnifiedLoginPage() {
     }
   }
 
-  const from =
-    typeof router.query.from === "string" ? router.query.from : null;
+  const from = safeRedirectPath(
+    typeof router.query.from === "string" ? router.query.from : null,
+    "/account"
+  );
 
   async function handleOneTapSuccess(user: import("firebase/auth").User) {
     const userEmail = (user.email || "").toLowerCase();
@@ -250,7 +272,7 @@ export default function UnifiedLoginPage() {
         );
       } else if (code === "auth/user-disabled") {
         setError(
-          "This account has been disabled. Please contact support at support@myfamousfinds.com to re-enable your account."
+          "This account is temporarily disabled in Firebase Auth. If you are a seller or manager, please sign in through the Seller Login or Management Login page — this will automatically restore your account."
         );
       } else {
         setError(

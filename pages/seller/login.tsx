@@ -11,6 +11,7 @@ import PasswordInput from "../../components/PasswordInput";
 import PhoneVerificationPopup from "../../components/PhoneVerificationPopup";
 import { signInWithCustomToken, signInWithEmailAndPassword } from "firebase/auth";
 import { auth } from "../../utils/firebaseClient";
+import { safeRedirectPath } from "../../utils/roleSession";
 
 // Password verification is now handled server-side by the API (like management login)
 
@@ -62,8 +63,10 @@ export default function SellerLoginPage() {
   const [setupError, setSetupError] = useState<string | null>(null);
   const [setupSuccess, setSetupSuccess] = useState<string | null>(null);
 
-  const from =
-    typeof router.query.from === "string" ? router.query.from : null;
+  const from = safeRedirectPath(
+    typeof router.query.from === "string" ? router.query.from : null,
+    "/seller/dashboard"
+  );
 
   async function handleCredentialsSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();

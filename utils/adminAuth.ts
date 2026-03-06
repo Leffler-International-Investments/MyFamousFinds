@@ -8,12 +8,12 @@ import {
 } from "./adminSession";
 
 /**
- * Extract ADMIN_API_SECRET from a request header or query param.
+ * Extract ADMIN_API_SECRET from the request header.
+ * NOTE: query param `secret` was removed — secrets in URLs leak in logs,
+ * browser history, and Referrer headers.
  */
 export function getAdminSecretFromRequest(req: NextApiRequest): string {
-  return String(
-    req.headers["x-admin-secret"] || req.query.secret || ""
-  ).trim();
+  return String(req.headers["x-admin-secret"] || "").trim();
 }
 
 /**

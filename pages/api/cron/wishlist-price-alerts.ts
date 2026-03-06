@@ -14,7 +14,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   // Verify cron secret
-  const secret = req.headers["authorization"]?.replace("Bearer ", "") || req.query.secret;
+  const secret = req.headers["authorization"]?.replace("Bearer ", "") || "";
   const expected = process.env.CRON_SECRET || process.env.ADMIN_API_SECRET;
   if (!expected || secret !== expected) {
     return res.status(401).json({ ok: false, error: "unauthorized" });

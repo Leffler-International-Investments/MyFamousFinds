@@ -488,7 +488,22 @@ export default function ManagementDashboard({ stats }: Props) {
   );
 }
 
-export const getServerSideProps: GetServerSideProps<Props> = async () => {
+export const getServerSideProps: GetServerSideProps<Props> = async (ctx) => {
+  // Server-side auth check: verify admin session cookie before loading sensitive data
+  const { verifySessionToken, ADMIN_SESSION_COOKIE, getAdminEmails } = await import("../../utils/adminSession");
+  const raw = ctx.req.cookies?.[ADMIN_SESSION_COOKIE] || "";
+  if (!raw) {
+    return { redirect: { destination: "/management/login", permanent: false } };
+  }
+  const result = verifySessionToken(raw);
+  if (!result.valid) {
+    return { redirect: { destination: "/management/login", permanent: false } };
+  }
+  const admins = getAdminEmails();
+  if (admins.size > 0 && !admins.has(result.email)) {
+    return { redirect: { destination: "/management/login", permanent: false } };
+  }
+
   try {
     const [
       sellersSnap,
