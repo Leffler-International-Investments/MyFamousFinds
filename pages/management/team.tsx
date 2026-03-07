@@ -3,7 +3,7 @@ import Head from "next/head";
 import Link from "next/link";
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
-import { useRequireOwner } from "../../hooks/useRequireOwner";
+import { useRequireAdmin } from "../../hooks/useRequireAdmin";
 import { useEffect, useState } from "react";
 import { autoPrefixPhone } from "../../utils/phoneFormat";
 
@@ -35,7 +35,7 @@ const ROLE_OPTIONS = [
 ];
 
 export default function ManagementTeam() {
-  const { loading } = useRequireOwner();
+  const { loading } = useRequireAdmin();
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
