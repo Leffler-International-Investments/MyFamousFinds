@@ -4,19 +4,33 @@ import { requireAdmin } from "../../../../utils/adminAuth";
 import {
   fetchImageBuffer,
   hasStorageBucket,
-  storeListingImages,
 } from "../../../../utils/listingImageProcessing";
+import { removeBackground } from "@imgly/background-removal-node";
+import sharp from "sharp";
+import crypto from "crypto";
+import admin from "../../../../utils/firebaseAdmin";
 
 export const config = {
   api: {
     responseLimit: false,
   },
-  maxDuration: 120,
+  maxDuration: 300,
 };
 
 type ApiResponse =
   | { ok: true; displayImageUrl: string; processedCount: number }
   | { ok: false; error: string };
+
+const STORAGE_BUCKET =
+  process.env.FIREBASE_STORAGE_BUCKET ||
+  process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET ||
+  "";
+
+function buildDownloadUrl(bucketName: string, path: string, token: string) {
+  return `https://firebasestorage.googleapis.com/v0/b/${bucketName}/o/${encodeURIComponent(
+    path
+  )}?alt=media&token=${token}`;
+}
 
 function pickSourceImages(data: any): string[] {
   const urls: string[] = [];
@@ -42,6 +56,46 @@ function pickSourceImages(data: any): string[] {
   }
 
   return urls;
+}
+
+async function removeAndWhiten(inputBuffer: Buffer): Promise<Buffer> {
+  // 1. Remove background using @imgly/background-removal-node (runs locally, no API needed)
+  const blob = await removeBackground(inputBuffer);
+  const arrayBuffer = await blob.arrayBuffer();
+  const transparentBuffer = Buffer.from(arrayBuffer);
+
+  // 2. Flatten transparent background to white, resize for display
+  return sharp(transparentBuffer)
+    .rotate()
+    .resize(800, 1067, {
+      fit: "contain",
+      background: { r: 255, g: 255, b: 255, alpha: 1 },
+    })
+    .flatten({ background: "#ffffff" })
+    .jpeg({ quality: 85, mozjpeg: true })
+    .toBuffer();
+}
+
+async function uploadToStorage(
+  path: string,
+  buffer: Buffer,
+  contentType: string
+): Promise<string> {
+  const bucket = admin.storage().bucket(STORAGE_BUCKET);
+  const token = crypto.randomUUID();
+
+  await bucket.file(path).save(buffer, {
+    metadata: {
+      contentType,
+      cacheControl: "public, max-age=31536000, immutable",
+      metadata: {
+        firebaseStorageDownloadTokens: token,
+      },
+    },
+    resumable: false,
+  });
+
+  return buildDownloadUrl(STORAGE_BUCKET, path, token);
 }
 
 export default async function handler(
@@ -90,16 +144,22 @@ export default async function handler(
     for (const url of sourceUrls) {
       try {
         const image = await fetchImageBuffer(url);
-        const stored = await storeListingImages(image, "listing-images");
-        newImageUrls.push(stored.originalUrl);
+
+        // Remove background and flatten to white
+        const displayBuffer = await removeAndWhiten(image.buffer);
+
+        const imageId = crypto.randomUUID();
+        const displayPath = `listing-images/display/${imageId}.jpg`;
+
+        const displayUrl = await uploadToStorage(displayPath, displayBuffer, "image/jpeg");
+        newImageUrls.push(url); // keep original URL
 
         if (!primaryDisplayUrl) {
-          primaryDisplayUrl = stored.displayUrl;
+          primaryDisplayUrl = displayUrl;
         }
         processedCount++;
       } catch (err) {
         console.warn(`Failed to process image for listing ${id}:`, err);
-        // Keep original URL as fallback
         newImageUrls.push(url);
       }
     }
@@ -112,11 +172,6 @@ export default async function handler(
       displayImageUrl: primaryDisplayUrl,
       updatedAt: FieldValue?.serverTimestamp ? FieldValue.serverTimestamp() : new Date(),
     };
-
-    if (newImageUrls.length > 0) {
-      updates.imageUrl = newImageUrls[0];
-      updates.imageUrls = newImageUrls;
-    }
 
     await docRef.set(updates, { merge: true });
 
