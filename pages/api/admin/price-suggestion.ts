@@ -5,7 +5,7 @@
 
 import type { NextApiRequest, NextApiResponse } from "next";
 import { adminDb, isFirebaseAdminReady, FieldValue } from "../../../utils/firebaseAdmin";
-import { sendMail } from "../../../utils/email";
+import { sendMail, brandedEmailWrapper } from "../../../utils/email";
 import { requireAdmin } from "../../../utils/adminAuth";
 
 function escapeHtml(s: string) {
@@ -110,17 +110,22 @@ export default async function handler(
               `To respond, please log in to your Seller Dashboard.\n\n` +
               `Regards,\nThe Famous Finds Team`;
 
-            const html =
-              `<p>Hello ${escapeHtml(sellerName)},</p>` +
-              `<p>We'd like to suggest a price adjustment for your listing <b>"${escapeHtml(title)}"</b>.</p>` +
-              `<div style="padding:14px;background:#fef3c7;border-radius:8px;margin:12px 0;">` +
-              `<p style="margin:4px 0;"><b>Current price:</b> US$${currentPrice.toLocaleString()}</p>` +
-              `<p style="margin:4px 0;"><b>Suggested price:</b> US$${Number(suggestedPrice).toLocaleString()}</p>` +
-              `<p style="margin:4px 0;"><b>Reason:</b> ${escapeHtml(reason || "Market conditions")}</p>` +
-              `</div>` +
-              `<p><b>You have 24 hours to respond.</b> If you do not respond, the suggested price may be applied.</p>` +
-              `<p>To respond, please log in to your <a href="${process.env.NEXT_PUBLIC_SITE_URL || ""}/seller/dashboard">Seller Dashboard</a>.</p>` +
-              `<p>Regards,<br/>The Famous Finds Team</p>`;
+            const bodyHtml =
+              `<p style="margin:0 0 16px 0;font-size:16px;">Hello ${escapeHtml(sellerName)},</p>` +
+              `<p style="margin:0 0 20px 0;font-size:20px;font-weight:bold;color:#1c1917;">Price Suggestion for Your Listing</p>` +
+              `<p style="margin:0 0 12px 0;">We'd like to suggest a price adjustment for your listing <b>&ldquo;${escapeHtml(title)}&rdquo;</b>.</p>` +
+              `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#fafaf9;border:1px solid #e7e5e4;border-radius:8px;margin:0 0 20px 0;">` +
+              `<tr><td style="padding:16px 20px;">` +
+              `<p style="margin:0 0 6px 0;font-size:15px;"><b>Current price:</b> US$${currentPrice.toLocaleString()}</p>` +
+              `<p style="margin:0 0 6px 0;font-size:15px;"><b>Suggested price:</b> US$${Number(suggestedPrice).toLocaleString()}</p>` +
+              `<p style="margin:0;font-size:15px;"><b>Reason:</b> ${escapeHtml(reason || "Market conditions")}</p>` +
+              `</td></tr></table>` +
+              `<p style="margin:0 0 12px 0;"><b>You have 24 hours to respond.</b> If you do not respond, the suggested price may be applied.</p>` +
+              `<p style="margin:0 0 20px 0;text-align:center;">` +
+              `<a href="${process.env.NEXT_PUBLIC_SITE_URL || ""}/seller/dashboard" style="display:inline-block;padding:14px 36px;background:#1c1917;color:#ffffff;text-decoration:none;font-weight:600;font-size:15px;">VIEW SELLER DASHBOARD</a>` +
+              `</p>` +
+              `<p style="margin:0 0 0 0;font-size:14px;color:#78716c;">Regards,<br/>The Famous Finds Team</p>`;
+            const html = brandedEmailWrapper(bodyHtml);
 
             try {
               await sendMail(sellerEmail, subject, text, html);

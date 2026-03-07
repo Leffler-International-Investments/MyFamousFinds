@@ -5,7 +5,7 @@
 
 import type { NextApiRequest, NextApiResponse } from "next";
 import { adminAuth, isFirebaseAdminReady } from "../../../utils/firebaseAdmin";
-import { sendMail } from "../../../utils/email";
+import { sendMail, brandedEmailWrapper } from "../../../utils/email";
 import { queueEmail } from "../../../utils/emailOutbox";
 
 type Resp =
@@ -78,25 +78,29 @@ export default async function handler(
   }
 
   // Step 2: Build the email content
-  const subject = "MyFamousFinds — Reset Your Password";
+  const subject = "Famous Finds — Reset Your Password";
   const text =
     "Hello,\n\n" +
-    "We received a request to reset your password for your MyFamousFinds account.\n\n" +
+    "We received a request to reset your password for your Famous Finds account.\n\n" +
     "Click the link below to set a new password:\n\n" +
     `${resetLink}\n\n` +
     "This link will expire in 1 hour.\n\n" +
     "If you did not request a password reset, you can safely ignore this email.\n\n" +
-    "Regards,\nThe MyFamousFinds Team";
+    "Regards,\nThe Famous Finds Team";
 
-  const html =
-    "<p>Hello,</p>" +
-    "<p>We received a request to reset your password for your <b>MyFamousFinds</b> account.</p>" +
-    `<p><a href="${resetLink}" style="display:inline-block;background:#111827;color:#fff;padding:12px 24px;border-radius:999px;text-decoration:none;font-weight:600;">Reset Your Password</a></p>` +
-    "<p>Or copy and paste this link into your browser:</p>" +
-    `<p style="font-size:13px;color:#6b7280;word-break:break-all;">${resetLink}</p>` +
-    "<p style=\"font-size:12px;color:#9ca3af;\">This link will expire in 1 hour.</p>" +
-    "<p>If you did not request a password reset, you can safely ignore this email.</p>" +
-    "<p>Regards,<br/>The MyFamousFinds Team</p>";
+  const bodyHtml =
+    `<p style="margin:0 0 16px 0;font-size:16px;">Hello,</p>` +
+    `<p style="margin:0 0 20px 0;font-size:20px;font-weight:bold;color:#1c1917;">Reset Your Password</p>` +
+    `<p style="margin:0 0 20px 0;">We received a request to reset your password for your <b>Famous Finds</b> account.</p>` +
+    `<p style="margin:0 0 20px 0;text-align:center;">` +
+    `<a href="${resetLink}" style="display:inline-block;padding:14px 36px;background:#1c1917;color:#ffffff;text-decoration:none;font-weight:600;font-size:15px;">RESET PASSWORD</a>` +
+    `</p>` +
+    `<p style="margin:0 0 8px 0;font-size:13px;color:#78716c;">Or copy and paste this link into your browser:</p>` +
+    `<p style="margin:0 0 20px 0;font-size:12px;color:#a8a29e;word-break:break-all;">${resetLink}</p>` +
+    `<p style="margin:0 0 8px 0;font-size:12px;color:#a8a29e;">This link will expire in 1 hour.</p>` +
+    `<p style="margin:0 0 0 0;font-size:14px;color:#78716c;">If you did not request a password reset, you can safely ignore this email.</p>`;
+
+  const html = brandedEmailWrapper(bodyHtml);
 
   // Step 3: Send immediately; on failure, queue for retry via the outbox
   try {

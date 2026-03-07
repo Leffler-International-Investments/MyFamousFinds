@@ -1,6 +1,6 @@
 // FILE: pages/api/review-email.ts
 import type { NextApiRequest, NextApiResponse } from "next";
-import { sendMail, normalizeAdminEmail } from "../../utils/email";
+import { sendMail, normalizeAdminEmail, brandedEmailWrapper, escapeHtml as escapeHtmlUtil } from "../../utils/email";
 
 const ADMIN_EMAIL = normalizeAdminEmail(
   process.env.ADMIN_EMAIL ||
@@ -59,16 +59,17 @@ export default async function handler(
         `We appreciate your feedback and it helps us improve.\n\n` +
         `Regards,\nThe ${appName || "Famous Finds"} Team`;
 
-      const confirmHtml =
-        `<div style="font-family:sans-serif;max-width:500px;">` +
-        `<h2 style="margin:0 0 8px;">Thank you for your review!</h2>` +
-        `<p style="margin:4px 0;font-size:24px;color:#eab308;">${stars}</p>` +
-        `<div style="margin:12px 0;padding:12px;background:#f0fdf4;border-radius:8px;">` +
-        `<p style="margin:0;font-size:14px;color:#334155;">&ldquo;${comment || "(no comment)"}&rdquo;</p>` +
-        `</div>` +
-        `<p>We appreciate your feedback and it helps us keep improving.</p>` +
-        `<p>Regards,<br/>The ${appName || "Famous Finds"} Team</p>` +
-        `</div>`;
+      const confirmBodyHtml =
+        `<p style="margin:0 0 16px 0;font-size:16px;">Hello,</p>` +
+        `<p style="margin:0 0 20px 0;font-size:20px;font-weight:bold;color:#1c1917;">Thank You for Your Review!</p>` +
+        `<p style="margin:0 0 8px 0;font-size:24px;color:#b8860b;">${stars}</p>` +
+        `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#fafaf9;border:1px solid #e7e5e4;border-radius:8px;margin:0 0 20px 0;">` +
+        `<tr><td style="padding:16px 20px;">` +
+        `<p style="margin:0;font-size:15px;color:#1c1917;">&ldquo;${comment || "(no comment)"}&rdquo;</p>` +
+        `</td></tr></table>` +
+        `<p style="margin:0 0 12px 0;">We appreciate your feedback and it helps us keep improving.</p>` +
+        `<p style="margin:0 0 0 0;font-size:14px;color:#78716c;">Regards,<br/>The ${appName || "Famous Finds"} Team</p>`;
+      const confirmHtml = brandedEmailWrapper(confirmBodyHtml);
 
       try {
         await sendMail(trimmedReviewerEmail, confirmSubject, confirmText, confirmHtml);
