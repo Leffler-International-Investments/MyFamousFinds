@@ -22,7 +22,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const removed = await removeBackground(buffer);
 
     // convert transparent background to white
-    const finalImage = await sharp(Buffer.from(removed))
+    const arrayBuffer = await removed.arrayBuffer();
+    const finalImage = await sharp(Buffer.from(arrayBuffer))
       .flatten({ background: "#ffffff" })
       .jpeg({ quality: 95 })
       .toBuffer();
