@@ -49,6 +49,7 @@ export default function ManagementListings({ items }: Props) {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [sellingId, setSellingId] = useState<string | null>(null);
   const [updatingKey, setUpdatingKey] = useState<string | null>(null);
+  const [removingBgId, setRemovingBgId] = useState<string | null>(null);
 
   // NEW: category edit state per row
   const [editedCategory, setEditedCategory] = useState<Record<string, string>>(
@@ -365,6 +366,29 @@ export default function ManagementListings({ items }: Props) {
       alert(err?.message || "Unable to update offers setting");
     } finally {
       setUpdatingKey(null);
+    }
+  }
+
+  async function handleRemoveBg(id: string, title: string) {
+    if (removingBgId) return;
+    const ok = window.confirm(
+      `Remove background and set white background for "${title}"? This may take a minute.`
+    );
+    if (!ok) return;
+
+    try {
+      setRemovingBgId(id);
+      const res = await fetch(`/api/admin/remove-bg/${id}`, { method: "POST" });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok || !json?.ok) {
+        throw new Error(json?.error || "Failed to remove background");
+      }
+      alert(`Background removed successfully! ${json.processedCount} image(s) processed.`);
+    } catch (err: any) {
+      console.error("Remove bg error", err);
+      alert(err?.message || "Unable to remove background");
+    } finally {
+      setRemovingBgId(null);
     }
   }
 
@@ -718,6 +742,15 @@ export default function ManagementListings({ items }: Props) {
 
                           <button
                             type="button"
+                            className="btn-remove-bg"
+                            onClick={() => handleRemoveBg(l.id, l.title)}
+                            disabled={removingBgId === l.id}
+                          >
+                            {removingBgId === l.id ? "Processing…" : "White BG"}
+                          </button>
+
+                          <button
+                            type="button"
                             className="btn-delete-prominent"
                             onClick={() => handleDelete(l.id, l.title)}
                             disabled={deletingId === l.id}
@@ -935,6 +968,25 @@ export default function ManagementListings({ items }: Props) {
         .btn-delete-prominent:hover:not(:disabled) {
           background: #b91c1c;
           border-color: #b91c1c;
+        }
+
+        .btn-remove-bg {
+          font-size: 12px;
+          font-weight: 600;
+          border-radius: 999px;
+          padding: 4px 10px;
+          border: 1px solid #7c3aed;
+          background: #f5f3ff;
+          color: #7c3aed;
+          cursor: pointer;
+          white-space: nowrap;
+        }
+        .btn-remove-bg:disabled {
+          opacity: 0.7;
+          cursor: default;
+        }
+        .btn-remove-bg:hover:not(:disabled) {
+          background: #ede9fe;
         }
 
         /* NEW: Category editor styles */
