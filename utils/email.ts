@@ -959,34 +959,26 @@ export async function sendSellerLabelActionRequiredEmail(params: {
     `Once your address is saved, the system will generate the UPS label for this order.\n\n` +
     `Regards,\nThe Famous Finds Team\n`;
 
-  const html = `
-    <div style="font-family:Arial,sans-serif;max-width:640px;margin:0 auto;line-height:1.5">
-      <div style="background:#111;color:#fff;padding:18px;border-radius:12px 12px 0 0">
-        <div style="font-size:18px;font-weight:700">Action Required to Generate Your UPS Label</div>
-      </div>
-      <div style="border:1px solid #eee;border-top:0;border-radius:0 0 12px 12px;padding:18px">
-        <p>Hello ${escapeHtml(name)},</p>
-        <p><strong>Great news:</strong> your item has been sold on Famous Finds.</p>
+  const bodyHtml =
+    `<p style="margin:0 0 16px 0;font-size:16px;">Hello ${escapeHtml(name)},</p>` +
+    `<p style="margin:0 0 20px 0;font-size:20px;font-weight:bold;color:#1c1917;">Action Required to Generate Your UPS Label</p>` +
+    `<p style="margin:0 0 12px 0;"><b>Great news:</b> your item has been sold on Famous Finds.</p>` +
+    `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#fafaf9;border:1px solid #e7e5e4;border-radius:8px;margin:0 0 20px 0;">` +
+    `<tr><td style="padding:16px 20px;">` +
+    `<p style="margin:0 0 6px 0;font-size:15px;"><b>Order ID:</b> ${escapeHtml(params.orderId)}</p>` +
+    `<p style="margin:0 0 6px 0;font-size:15px;"><b>Item:</b> ${escapeHtml(params.itemTitle)}</p>` +
+    `<p style="margin:0;font-size:15px;"><b>Reason:</b> ${escapeHtml(params.reason)}</p>` +
+    `</td></tr></table>` +
+    `<p style="margin:0 0 8px 0;font-weight:bold;">Next step (takes 1 minute):</p>` +
+    `<ol style="margin:0 0 20px 0;padding-left:18px;line-height:1.8;">` +
+    `<li>Log in to your Seller Dashboard</li>` +
+    `<li>Open <a href="${escapeHtml(siteUrl)}/seller/banking" style="color:#b8860b;text-decoration:none;">Banking / Shipping Details</a></li>` +
+    `<li>Add/confirm your full shipping address (street, city, state, zip)</li>` +
+    `</ol>` +
+    `<p style="margin:0 0 12px 0;">Once your address is saved, the system will generate the UPS label for this order.</p>` +
+    `<p style="margin:0 0 0 0;font-size:14px;color:#78716c;">If you have questions, reply to this email.</p>`;
 
-        <div style="background:#f7f7f7;padding:12px;border-radius:10px;margin:10px 0">
-          <div><strong>Order ID:</strong> ${escapeHtml(params.orderId)}</div>
-          <div><strong>Item:</strong> ${escapeHtml(params.itemTitle)}</div>
-          <div><strong>Reason:</strong> ${escapeHtml(params.reason)}</div>
-        </div>
-
-        <p><strong>Next step (takes 1 minute):</strong></p>
-        <ol>
-          <li>Log in to your Seller Dashboard</li>
-          <li>Open <a href="${siteUrl}/seller/banking">${siteUrl}/seller/banking</a></li>
-          <li>Add/confirm your full shipping address (street, city, state, zip)</li>
-        </ol>
-
-        <p>Once your address is saved, the system will generate the UPS label for this order.</p>
-
-        <p style="color:#666;font-size:12px;margin-top:18px">If you have questions, reply to this email.</p>
-      </div>
-    </div>
-  `;
+  const html = brandedEmailWrapper(bodyHtml);
 
   await sendMail({ to, subject, text, html });
 }
