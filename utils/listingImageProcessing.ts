@@ -99,7 +99,7 @@ async function removeBackgroundIfConfigured(
 
   try {
     const formData = new FormData();
-    formData.append("file", new Blob([buffer]), "image.jpg");
+    formData.append("file", new Blob([new Uint8Array(buffer)]), "image.jpg");
 
     const response = await fetch(`${REMBG_API_URL}/remove-bg`, {
       method: "POST",
