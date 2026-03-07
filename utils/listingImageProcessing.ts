@@ -2,16 +2,13 @@
 
 import crypto from "crypto";
 import sharp from "sharp";
-import { rembg } from "@remove-background-ai/rembg.js";
 import admin, { isFirebaseAdminReady } from "./firebaseAdmin";
 
 // Env vars:
-// - BACKGROUND_REMOVAL_API_KEY: API key for RemBG (rembg.com) background removal.
+// - REMBG_API_URL: URL of self-hosted rembg API (e.g. http://localhost:8000).
+//   Background removal is enabled when this is set.
 // - FIREBASE_STORAGE_BUCKET or NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET: storage bucket name.
-const BACKGROUND_REMOVAL_API_KEY =
-  process.env.BACKGROUND_REMOVAL_API_KEY ||
-  process.env.REMBG_API_KEY ||
-  "";
+const REMBG_API_URL = process.env.REMBG_API_URL || "";
 const STORAGE_BUCKET =
   process.env.FIREBASE_STORAGE_BUCKET ||
   process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET ||
@@ -98,28 +95,24 @@ async function removeBackgroundIfConfigured(
   buffer: Buffer,
   _contentType: string
 ): Promise<Buffer | null> {
-  if (!BACKGROUND_REMOVAL_API_KEY) return null;
+  if (!REMBG_API_URL) return null;
 
   try {
-    const result = await rembg({
-      apiKey: BACKGROUND_REMOVAL_API_KEY,
-      inputImage: buffer,
-      onUploadProgress: () => {},
-      onDownloadProgress: () => {},
-      options: {
-        format: "png",
-        returnBase64: true,
-      } as any,
+    const formData = new FormData();
+    formData.append("file", new Blob([buffer]), "image.jpg");
+
+    const response = await fetch(`${REMBG_API_URL}/remove-bg`, {
+      method: "POST",
+      body: formData,
     });
 
-    if (!result?.base64Image) {
-      console.warn("rembg: no image returned");
+    if (!response.ok) {
+      console.warn(`rembg API error: ${response.status} ${response.statusText}`);
       return null;
     }
 
-    // Strip data URI prefix if present
-    const base64 = result.base64Image.replace(/^data:image\/\w+;base64,/, "");
-    return Buffer.from(base64, "base64");
+    const arrayBuffer = await response.arrayBuffer();
+    return Buffer.from(arrayBuffer);
   } catch (error) {
     console.warn("rembg error:", error);
     return null;
@@ -205,7 +198,7 @@ export async function storeListingImages(
 }
 
 export function hasBackgroundRemovalKey(): boolean {
-  return Boolean(BACKGROUND_REMOVAL_API_KEY);
+  return Boolean(REMBG_API_URL);
 }
 
 export function hasStorageBucket(): boolean {
