@@ -1,15 +1,7 @@
-// FILE: /pages/api/admin/backfill-display-images.ts
-
 import type { NextApiRequest, NextApiResponse } from "next";
 import { adminDb, isFirebaseAdminReady } from "../../../utils/firebaseAdmin";
-import {
-  fetchImageBuffer,
-  hasStorageBucket,
-  storeListingImages,
-} from "../../../utils/listingImageProcessing";
+import { fetchImageBuffer, hasStorageBucket, storeListingImages } from "../../../utils/listingImageProcessing";
 
-// Env var:
-// - ADMIN_ACTION_KEY: required secret for admin-only actions like backfills.
 const ADMIN_ACTION_KEY = process.env.ADMIN_ACTION_KEY || "";
 
 type ApiOk = {
@@ -17,8 +9,8 @@ type ApiOk = {
   updated: number;
   skipped: number;
   scanned: number;
+  nextCursor: string | null;
 };
-
 type ApiErr = { ok: false; error: string };
 
 function getAuthKey(req: NextApiRequest) {
@@ -41,53 +33,35 @@ function pickSourceImage(data: any): string {
   );
 }
 
-export default async function handler(
-  req: NextApiRequest,
-  res: NextApiResponse<ApiOk | ApiErr>
-) {
-  if (req.method !== "POST") {
-    return res.status(405).json({ ok: false, error: "Method not allowed" });
-  }
-
-  if (!ADMIN_ACTION_KEY) {
-    return res.status(500).json({
-      ok: false,
-      error: "ADMIN_ACTION_KEY is not configured",
-    });
-  }
+export default async function handler(req: NextApiRequest, res: NextApiResponse<ApiOk | ApiErr>) {
+  if (req.method !== "POST") return res.status(405).json({ ok: false, error: "Method not allowed" });
+  if (!ADMIN_ACTION_KEY) return res.status(500).json({ ok: false, error: "ADMIN_ACTION_KEY is not configured" });
 
   const authKey = getAuthKey(req);
-  if (!authKey || authKey !== ADMIN_ACTION_KEY) {
-    return res.status(401).json({ ok: false, error: "Unauthorized" });
-  }
+  if (!authKey || authKey !== ADMIN_ACTION_KEY) return res.status(401).json({ ok: false, error: "Unauthorized" });
 
-  if (!isFirebaseAdminReady || !adminDb) {
-    return res.status(500).json({
-      ok: false,
-      error: "Firebase Admin not initialized",
-    });
-  }
+  if (!isFirebaseAdminReady || !adminDb) return res.status(500).json({ ok: false, error: "Firebase Admin not initialized" });
+  if (!hasStorageBucket()) return res.status(500).json({ ok: false, error: "Firebase Storage bucket not configured" });
 
-  if (!hasStorageBucket()) {
-    return res.status(500).json({
-      ok: false,
-      error: "Firebase Storage bucket not configured",
-    });
-  }
-
-  const max = Math.min(Math.max(Number(req.query.max || 50), 1), 200);
+  const max = Math.min(Math.max(Number(req.query.max || 100), 1), 500);
   const force = req.query.force === "true";
+  const cursor = typeof req.query.cursor === "string" ? req.query.cursor : "";
 
   try {
-    const snap = await adminDb.collection("listings").limit(max).get();
+    let q = adminDb.collection("listings").orderBy("__name__").limit(max);
+    if (cursor) {
+      const cursorRef = adminDb.collection("listings").doc(cursor);
+      const cursorSnap = await cursorRef.get();
+      if (cursorSnap.exists) q = q.startAfter(cursorSnap);
+    }
 
+    const snap = await q.get();
     let updated = 0;
     let skipped = 0;
 
     for (const doc of snap.docs) {
       const data: any = doc.data() || {};
 
-      // Skip listings that already have a display image, unless force=true
       if (!force && (data.displayImageUrl || data.display_image_url)) {
         skipped++;
         continue;
@@ -102,7 +76,6 @@ export default async function handler(
       try {
         const image = await fetchImageBuffer(sourceUrl);
         const stored = await storeListingImages(image, "listing-images");
-
         await doc.ref.set(
           {
             imageUrl: data.imageUrl || data.image_url || stored.originalUrl,
@@ -111,24 +84,21 @@ export default async function handler(
           },
           { merge: true }
         );
-
         updated++;
-      } catch (error) {
-        console.warn(`Backfill failed for listing ${doc.id}:`, error);
+      } catch {
         skipped++;
       }
     }
 
+    const last = snap.docs[snap.docs.length - 1];
     return res.status(200).json({
       ok: true,
       updated,
       skipped,
       scanned: snap.size,
+      nextCursor: snap.size === max && last ? last.id : null,
     });
   } catch (error: any) {
-    console.error("Backfill error:", error);
-    return res
-      .status(500)
-      .json({ ok: false, error: error?.message || "Backfill failed" });
+    return res.status(500).json({ ok: false, error: error?.message || "Backfill failed" });
   }
 }

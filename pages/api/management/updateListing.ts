@@ -97,7 +97,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             .toBuffer();
           const compressedUrl = `data:image/jpeg;base64,${compressedBuffer.toString("base64")}`;
           nextPatch.imageUrl = compressedUrl;
-          nextPatch.displayImageUrl = null;
+          nextPatch.displayImageUrl = compressedUrl;
         }
       } catch (error) {
         console.warn("Update listing image failed:", error);
