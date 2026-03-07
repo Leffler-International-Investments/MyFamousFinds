@@ -18,7 +18,7 @@
  *   and signing in before making the API call.
  */
 
-import { onAuthStateChanged, signInWithCustomToken } from "firebase/auth";
+import { onAuthStateChanged, signInWithCustomToken, signOut } from "firebase/auth";
 import { auth } from "./firebaseClient";
 
 let authReadyPromise: Promise<void> | null = null;
@@ -192,6 +192,12 @@ export async function sellerFetch(
     // token, revoked session) OR no currentUser → attempt full recovery
     // by fetching a new custom token from the server.
     if (!freshHeaders["Authorization"]) {
+      // If currentUser exists but we can't get a valid token, sign out
+      // the stale user first so recoverFirebaseAuth() doesn't short-circuit.
+      if (auth?.currentUser) {
+        try { await signOut(auth); } catch {}
+        authReadyPromise = null;
+      }
       recoveryAttempted = false;
       const recovered = await recoverFirebaseAuth();
       if (recovered || auth?.currentUser) {
