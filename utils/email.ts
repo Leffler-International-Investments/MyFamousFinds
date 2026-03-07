@@ -528,22 +528,24 @@ export async function sendLoginCode(to: string, code: string) {
   if (!email) throw new Error("sendLoginCode missing required field: to");
   if (!c) throw new Error("sendLoginCode missing required field: code");
 
-  const subject = "MyFamousFinds — Your Login Code";
+  const subject = "Famous Finds — Your Login Code";
   const text =
     "Hello,\n\n" +
     "Use the login code below to sign in:\n\n" +
     `${c}\n\n` +
     "If you did not request this, you can ignore this email.\n\n" +
-    "MyFamousFinds";
+    "Famous Finds";
 
-  const html =
-    "<p>Hello,</p>" +
-    "<p>Use the login code below to sign in:</p>" +
-    `<p style="font-size:20px; letter-spacing:2px;"><b>${escapeHtml(
-      c
-    )}</b></p>` +
-    "<p>If you did not request this, you can ignore this email.</p>" +
-    "<p>MyFamousFinds</p>";
+  const bodyHtml =
+    `<p style="margin:0 0 16px 0;font-size:16px;">Hello,</p>` +
+    `<p style="margin:0 0 20px 0;font-size:20px;font-weight:bold;color:#1c1917;">Your Login Code</p>` +
+    `<p style="margin:0 0 12px 0;">Use the login code below to sign in:</p>` +
+    `<table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 0 20px 0;"><tr><td style="background-color:#fafaf9;border:1px solid #e7e5e4;border-radius:8px;padding:16px 28px;">` +
+    `<span style="font-size:28px;font-weight:bold;letter-spacing:4px;color:#1c1917;">${escapeHtml(c)}</span>` +
+    `</td></tr></table>` +
+    `<p style="margin:0 0 0 0;font-size:14px;color:#78716c;">If you did not request this, you can ignore this email.</p>`;
+
+  const html = brandedEmailWrapper(bodyHtml);
 
   await sendMail(email, subject, text, html);
 }

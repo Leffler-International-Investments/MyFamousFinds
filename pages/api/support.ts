@@ -1,7 +1,7 @@
 // FILE: /pages/api/support.ts
 import type { NextApiRequest, NextApiResponse } from "next";
 import { adminDb, FieldValue } from "../../utils/firebaseAdmin";
-import { sendMail, normalizeAdminEmail } from "../../utils/email";
+import { sendMail, normalizeAdminEmail, brandedEmailWrapper, escapeHtml as escapeHtmlUtil } from "../../utils/email";
 
 export default async function handler(
   req: NextApiRequest,
@@ -94,7 +94,7 @@ export default async function handler(
     const userEmail = String(email).trim();
     const userName = String(name).trim();
 
-    const confirmSubject = `MyFamousFinds — We received your message (Ticket #${ticketId})`;
+    const confirmSubject = `Famous Finds — We received your message (Ticket #${ticketId})`;
     const confirmText =
       `Hello ${userName},\n\n` +
       `Thank you for contacting MyFamousFinds support.\n\n` +
@@ -106,19 +106,20 @@ export default async function handler(
       `MyFamousFinds Support Team\n` +
       `support@myfamousfinds.com\n`;
 
-    const confirmHtml =
-      `<div style="font-family:sans-serif;max-width:600px;">` +
-      `<p>Hello ${escapeHtml(userName)},</p>` +
-      `<p>Thank you for contacting <b>MyFamousFinds</b> support.</p>` +
-      `<p>We have received your message and a support ticket has been created:</p>` +
-      `<div style="padding:14px;background:#f0fdf4;border-radius:8px;margin:12px 0;">` +
-      `<p style="margin:4px 0;"><b>Ticket #:</b> ${ticketId}</p>` +
-      `<p style="margin:4px 0;"><b>Subject:</b> ${escapeHtml(topic)}</p>` +
-      `</div>` +
-      `<p>Our team will get back to you as soon as possible.</p>` +
-      `<p>Regards,<br/>MyFamousFinds Support Team<br/>` +
-      `<a href="mailto:support@myfamousfinds.com">support@myfamousfinds.com</a></p>` +
-      `</div>`;
+    const confirmBodyHtml =
+      `<p style="margin:0 0 16px 0;font-size:16px;">Hello ${escapeHtml(userName)},</p>` +
+      `<p style="margin:0 0 20px 0;font-size:20px;font-weight:bold;color:#1c1917;">We Received Your Message</p>` +
+      `<p style="margin:0 0 12px 0;">Thank you for contacting <b>Famous Finds</b> support.</p>` +
+      `<p style="margin:0 0 16px 0;">We have received your message and a support ticket has been created:</p>` +
+      `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#fafaf9;border:1px solid #e7e5e4;border-radius:8px;margin:0 0 20px 0;">` +
+      `<tr><td style="padding:16px 20px;">` +
+      `<p style="margin:0 0 6px 0;font-size:15px;"><b>Ticket #:</b> ${ticketId}</p>` +
+      `<p style="margin:0;font-size:15px;"><b>Subject:</b> ${escapeHtml(topic)}</p>` +
+      `</td></tr></table>` +
+      `<p style="margin:0 0 12px 0;">Our team will get back to you as soon as possible.</p>` +
+      `<p style="margin:0 0 0 0;font-size:14px;color:#78716c;">Regards,<br/>Famous Finds Support Team<br/>` +
+      `<a href="mailto:support@myfamousfinds.com" style="color:#b8860b;text-decoration:none;">support@myfamousfinds.com</a></p>`;
+    const confirmHtml = brandedEmailWrapper(confirmBodyHtml);
 
     await sendMail(userEmail, confirmSubject, confirmText, confirmHtml);
   } catch (err) {
