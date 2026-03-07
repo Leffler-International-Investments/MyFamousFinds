@@ -426,8 +426,8 @@ export default function SellerLoginPage() {
       </div>
 
       <style jsx>{`
-        .auth-page { min-height: 100vh; display: flex; flex-direction: column; background: #ffffff; color: #111; }
-        .auth-main { flex: 1; display: flex; align-items: flex-start; justify-content: center; padding: 60px 16px 40px; }
+        .auth-page { min-height: 100vh; display: flex; flex-direction: column; background: #ffffff !important; color: #111; }
+        .auth-main { flex: 1; display: flex; align-items: flex-start; justify-content: center; padding: 60px 16px 40px; background: #ffffff !important; }
         .auth-card { width: 100%; max-width: 400px; background: #ffffff; border-radius: 22px; border: 1px solid #e5e7eb; padding: 32px 28px; box-shadow: 0 12px 35px rgba(0,0,0,0.06); }
         h1 { font-family: ui-serif, "Times New Roman", serif; font-size: 26px; font-weight: 700; margin: 0 0 8px; letter-spacing: -0.02em; color: #111; text-align: center; }
         .auth-subtitle { margin: 0 0 24px; font-size: 14px; color: #6b7280; text-align: center; line-height: 1.5; }
