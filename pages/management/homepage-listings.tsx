@@ -84,6 +84,7 @@ export default function HomepageScanner({ serverListings, messages: initMessages
   const [listings, setListings] = useState<ListingItem[]>(serverListings);
   const [messages, setMessages] = useState(initMessages);
   const [deleting, setDeleting] = useState<string | null>(null);
+  const [removingBgId, setRemovingBgId] = useState<string | null>(null);
   const [deleteById, setDeleteById] = useState("");
   const [deleteByIdStatus, setDeleteByIdStatus] = useState<string | null>(null);
   const [scanning, setScanning] = useState(false);
@@ -228,6 +229,25 @@ export default function HomepageScanner({ serverListings, messages: initMessages
     }
     setMessages([]);
     setDeleting(null);
+  };
+
+  const handleRemoveBg = async (id: string, title: string) => {
+    if (removingBgId) return;
+    if (!confirm(`Remove background and set white background for "${title}"? This may take a minute.`)) return;
+    setRemovingBgId(id);
+    try {
+      const res = await fetch(`/api/admin/remove-bg/${id}`, { method: "POST" });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok || !json?.ok) throw new Error(json?.error || "Failed to remove background");
+      // Update the image in the listing card to show the new display image
+      if (json.displayImageUrl) {
+        setListings((prev) => prev.map((l) => l.id === id ? { ...l, image: json.displayImageUrl } : l));
+      }
+      alert(`Done! ${json.processedCount} image(s) processed with white background.`);
+    } catch (err: any) {
+      alert(err?.message || "Background removal failed");
+    }
+    setRemovingBgId(null);
   };
 
   const activeMessages = messages.filter((m) => m.active);
@@ -437,22 +457,39 @@ export default function HomepageScanner({ serverListings, messages: initMessages
                     </p>
                   </div>
 
-                  {/* DELETE button */}
-                  <button
-                    onClick={() => handleDeleteListing(item.id, item.title)}
-                    disabled={deleting === item.id}
-                    style={{
-                      width: "100%", border: "none", borderTop: "1px solid #fca5a5",
-                      background: deleting === item.id ? "#fef2f2" : "#fff",
-                      color: "#dc2626", padding: "10px 0", fontWeight: 800, fontSize: 13,
-                      cursor: deleting === item.id ? "not-allowed" : "pointer",
-                      transition: "background 0.15s",
-                    }}
-                    onMouseEnter={(e) => { if (deleting !== item.id) (e.target as HTMLButtonElement).style.background = "#fef2f2"; }}
-                    onMouseLeave={(e) => { if (deleting !== item.id) (e.target as HTMLButtonElement).style.background = "#fff"; }}
-                  >
-                    {deleting === item.id ? "DELETING..." : "DELETE"}
-                  </button>
+                  {/* Action buttons */}
+                  <div style={{ display: "flex", borderTop: "1px solid #e5e7eb" }}>
+                    <button
+                      onClick={() => handleRemoveBg(item.id, item.title)}
+                      disabled={removingBgId === item.id}
+                      style={{
+                        flex: 1, border: "none", borderRight: "1px solid #e5e7eb",
+                        background: removingBgId === item.id ? "#f5f3ff" : "#fff",
+                        color: "#7c3aed", padding: "10px 0", fontWeight: 800, fontSize: 12,
+                        cursor: removingBgId === item.id ? "not-allowed" : "pointer",
+                        transition: "background 0.15s",
+                      }}
+                      onMouseEnter={(e) => { if (removingBgId !== item.id) (e.target as HTMLButtonElement).style.background = "#f5f3ff"; }}
+                      onMouseLeave={(e) => { if (removingBgId !== item.id) (e.target as HTMLButtonElement).style.background = "#fff"; }}
+                    >
+                      {removingBgId === item.id ? "PROCESSING..." : "WHITE BG"}
+                    </button>
+                    <button
+                      onClick={() => handleDeleteListing(item.id, item.title)}
+                      disabled={deleting === item.id}
+                      style={{
+                        flex: 1, border: "none",
+                        background: deleting === item.id ? "#fef2f2" : "#fff",
+                        color: "#dc2626", padding: "10px 0", fontWeight: 800, fontSize: 12,
+                        cursor: deleting === item.id ? "not-allowed" : "pointer",
+                        transition: "background 0.15s",
+                      }}
+                      onMouseEnter={(e) => { if (deleting !== item.id) (e.target as HTMLButtonElement).style.background = "#fef2f2"; }}
+                      onMouseLeave={(e) => { if (deleting !== item.id) (e.target as HTMLButtonElement).style.background = "#fff"; }}
+                    >
+                      {deleting === item.id ? "DELETING..." : "DELETE"}
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>
