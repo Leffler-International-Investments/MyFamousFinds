@@ -44,7 +44,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
     const token = crypto.randomBytes(32).toString("hex");
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || `https://${req.headers.host ?? ""}`;
     const registerUrl = `${baseUrl}/seller/register?id=${encodeURIComponent(sellerId)}&token=${token}`;
-    const loginUrl = `${baseUrl}/login?from=/seller/dashboard`;
+    const loginUrl = `${baseUrl}/signup?from=/seller/dashboard`;
 
     await ref.set(
       {
