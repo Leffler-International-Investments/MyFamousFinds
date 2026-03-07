@@ -9,6 +9,7 @@ import {
   hasStorageBucket,
   parseDataUrl,
   storeListingImages,
+  storeProofDocument,
 } from "../../../utils/listingImageProcessing";
 
 export const config = {
@@ -284,6 +285,26 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
         // Use the processed display image (with background removal) if available
         cleaned.displayImageUrl = primaryDisplayUrl || (primary.startsWith("data:") ? null : primary);
         cleaned.imageUrls = processedOriginals;
+      }
+
+      // Upload proof document to Cloud Storage instead of storing base64 inline
+      if (cleaned.proof_doc_url && cleaned.proof_doc_url.startsWith("data:")) {
+        try {
+          cleaned.proof_doc_url = await storeProofDocument(cleaned.proof_doc_url);
+        } catch (error) {
+          console.warn("Proof document upload failed, compressing inline:", error);
+          // If upload fails and the proof doc is an image, compress it aggressively
+          if (cleaned.proof_doc_url.startsWith("data:image/")) {
+            const parsed = parseDataUrl(cleaned.proof_doc_url);
+            if (parsed) {
+              const compressed = await sharp(parsed.buffer)
+                .resize(800, 800, { fit: "inside" })
+                .jpeg({ quality: 60, mozjpeg: true })
+                .toBuffer();
+              cleaned.proof_doc_url = `data:image/jpeg;base64,${compressed.toString("base64")}`;
+            }
+          }
+        }
       }
 
       // Remove internal field before storing

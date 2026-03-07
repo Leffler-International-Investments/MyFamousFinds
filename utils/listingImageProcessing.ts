@@ -197,6 +197,38 @@ export async function storeListingImages(
   };
 }
 
+/**
+ * Upload a proof document (image or PDF) to Cloud Storage and return the
+ * download URL.  When Cloud Storage is not available the data-URL is
+ * returned as-is so the caller can still store *something*.
+ */
+export async function storeProofDocument(dataUrl: string): Promise<string> {
+  if (!STORAGE_BUCKET || !getBucket()) {
+    // No bucket configured – return the original data URL (base64).
+    // The caller should ideally compress it, but this keeps existing
+    // behaviour when Storage is not set up.
+    return dataUrl;
+  }
+
+  const id = crypto.randomUUID();
+
+  // Detect content type from the data-URL header
+  const headerMatch = dataUrl.match(/^data:([^;]+);base64,/);
+  const contentType = headerMatch ? headerMatch[1] : "application/octet-stream";
+  const base64Body = dataUrl.replace(/^data:[^;]+;base64,/, "");
+  const buffer = Buffer.from(base64Body, "base64");
+
+  const ext =
+    contentType === "application/pdf"
+      ? "pdf"
+      : EXT_BY_CONTENT_TYPE[contentType] || "jpg";
+
+  const path = `proof-documents/${id}.${ext}`;
+
+  const url = await uploadBufferToBucket(STORAGE_BUCKET, path, buffer, contentType);
+  return url;
+}
+
 export function hasBackgroundRemovalKey(): boolean {
   return Boolean(REMBG_API_URL);
 }
