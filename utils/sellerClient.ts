@@ -181,20 +181,26 @@ export async function sellerFetch(
 
   // On 401, attempt recovery and retry once.
   if (res.status === 401) {
-    // Case 1: auth.currentUser exists → just force-refresh the token.
-    // Case 2: auth.currentUser is null → attempt full recovery.
-    let recovered = false;
+    let freshHeaders: Record<string, string> = {};
 
+    // Case 1: auth.currentUser exists → try force-refreshing the token.
     if (auth?.currentUser) {
-      recovered = true;
-    } else {
-      // Reset recovery flag so we can try once more on 401.
-      recoveryAttempted = false;
-      recovered = await recoverFirebaseAuth();
+      freshHeaders = await getAuthHeaders(true);
     }
 
-    if (recovered || auth?.currentUser) {
-      const freshHeaders = await getAuthHeaders(true);
+    // Case 2: force-refresh didn't yield a token (e.g. expired refresh
+    // token, revoked session) OR no currentUser → attempt full recovery
+    // by fetching a new custom token from the server.
+    if (!freshHeaders["Authorization"]) {
+      recoveryAttempted = false;
+      const recovered = await recoverFirebaseAuth();
+      if (recovered || auth?.currentUser) {
+        freshHeaders = await getAuthHeaders(true);
+      }
+    }
+
+    // Only retry if we actually have an auth header now.
+    if (freshHeaders["Authorization"]) {
       const retry: RequestInit = {
         ...opts,
         headers: {

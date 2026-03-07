@@ -32,6 +32,7 @@ type IncomingRow = {
   purchase_source?: string;
   purchase_proof?: string;
   proof_doc_url?: string | null;
+  material?: string;
   serial_number?: string;
   allowOffers?: boolean;
   imageDataUrl?: string | null;
@@ -59,6 +60,7 @@ type CleanRow = {
   purchase_source: string;
   purchase_proof: string;
   proof_doc_url: string | null;
+  material: string;
   serial_number: string;
   price: number;
   allowOffers: boolean;
@@ -158,6 +160,7 @@ function cleanRow(r: IncomingRow): CleanRow | null {
   const title = toStr(r.title) || (brand ? `${brand} listing` : "Untitled listing");
 
   const cat = canonCategory(r.category);
+  const material = toStr(r.material);
   const condition = toStr(r.condition);
   const size = toStr(r.size);
   const color = toStr(r.color);
@@ -183,6 +186,7 @@ function cleanRow(r: IncomingRow): CleanRow | null {
     title,
     brand,
     category: cat || "",
+    material,
     condition,
     size,
     color,
