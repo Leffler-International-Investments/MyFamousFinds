@@ -5,15 +5,16 @@ import formidable from "formidable";
 import fs from "fs/promises";
 import sharp from "sharp";
 import {
-  createWhiteDisplayImage,
   hasStorageBucket,
   storeListingImages,
 } from "../../../utils/listingImageProcessing";
 
 export const config = {
   api: {
-    bodyParser: false, // We need to disable the default parser
+    bodyParser: false,
+    responseLimit: false,
   },
+  maxDuration: 60,
 };
 
 type ApiOk = {

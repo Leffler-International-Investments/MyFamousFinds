@@ -166,6 +166,32 @@ export default function ManagementPurchases({ purchases: initialPurchases }: Pro
     }
   };
 
+  const handleDelete = async (purchaseId: string) => {
+    if (!window.confirm(`Delete purchase ${purchaseId}? This cannot be undone.`)) return;
+
+    try {
+      setSavingId(purchaseId);
+      setError(null);
+
+      const res = await fetch("/api/orders/delete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orderId: purchaseId }),
+      });
+
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok || json?.error) throw new Error(json?.error || "Failed to delete purchase");
+
+      setPurchases((prev) => prev.filter((o) => o.id !== purchaseId));
+      if (openId === purchaseId) setOpenId(null);
+    } catch (e: any) {
+      console.error(e);
+      setError(e?.message || "Failed to delete purchase");
+    } finally {
+      setSavingId(null);
+    }
+  };
+
   const handleRefund = async (purchaseId: string) => {
     const reason = window.prompt("Enter refund reason:");
     if (!reason) return;
@@ -275,9 +301,19 @@ export default function ManagementPurchases({ purchases: initialPurchases }: Pro
 
                     <div className="right">
                       <div className="price">{total}</div>
-                      <button className="btn" onClick={() => setOpenId(isOpen ? null : o.id)}>
-                        {isOpen ? "Hide" : "Open"} Card
-                      </button>
+                      <div className="right-actions">
+                        <button className="btn" onClick={() => setOpenId(isOpen ? null : o.id)}>
+                          {isOpen ? "Hide" : "Open"} Card
+                        </button>
+                        <button
+                          className="btnDelete"
+                          onClick={() => handleDelete(o.id)}
+                          disabled={disabled}
+                          title="Delete this purchase"
+                        >
+                          Delete
+                        </button>
+                      </div>
                     </div>
                   </div>
 
@@ -524,6 +560,27 @@ export default function ManagementPurchases({ purchases: initialPurchases }: Pro
           font-weight: 800;
           cursor: pointer;
           font-size: 12px;
+        }
+        .right-actions {
+          display: flex;
+          gap: 6px;
+        }
+        .btnDelete {
+          border: 1px solid #dc2626;
+          border-radius: 999px;
+          background: #fff;
+          color: #dc2626;
+          padding: 8px 12px;
+          font-weight: 800;
+          cursor: pointer;
+          font-size: 12px;
+        }
+        .btnDelete:hover {
+          background: #fee2e2;
+        }
+        .btnDelete:disabled {
+          opacity: 0.6;
+          cursor: not-allowed;
         }
         .btnRefund {
           border: 1px solid #dc2626;

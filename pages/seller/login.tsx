@@ -11,7 +11,7 @@ import PasswordInput from "../../components/PasswordInput";
 import PhoneVerificationPopup from "../../components/PhoneVerificationPopup";
 import { signInWithCustomToken, signInWithEmailAndPassword } from "firebase/auth";
 import { auth } from "../../utils/firebaseClient";
-import { safeRedirectPath } from "../../utils/roleSession";
+import { safeRedirectPath, setRoleSession } from "../../utils/roleSession";
 
 // Password verification is now handled server-side by the API (like management login)
 
@@ -40,7 +40,8 @@ type Verify2faResponse = Verify2faSuccess | Verify2faError;
 type PageMode = "login" | "setup";
 type TwoFactorStep = "credentials" | "choose_method" | "phone_verify" | "verify";
 
-const SESSION_TTL_MS = 168 * 60 * 60 * 1000; // 7 days
+// 15 minutes (sliding — extended on every protected page load)
+const SESSION_TTL_MINUTES = 15;
 
 export default function SellerLoginPage() {
   const router = useRouter();
@@ -190,9 +191,7 @@ export default function SellerLoginPage() {
         return;
       }
       if (typeof window !== "undefined") {
-        window.localStorage.setItem("ff-role", "seller");
-        window.localStorage.setItem("ff-email", email.toLowerCase().trim());
-        window.localStorage.setItem("ff-session-exp", String(Date.now() + SESSION_TTL_MS));
+        setRoleSession("seller", email.toLowerCase().trim(), SESSION_TTL_MINUTES / 60);
       }
 
       // Establish Firebase Auth session so sellerFetch can get Bearer tokens.

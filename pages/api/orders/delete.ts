@@ -1,11 +1,14 @@
-// FILE: pages/api/orders/refund.ts
+// FILE: /pages/api/orders/delete.ts
+
 import type { NextApiRequest, NextApiResponse } from "next";
-import { adminDb, FieldValue } from "../../../utils/firebaseAdmin";
+import { adminDb } from "../../../utils/firebaseAdmin";
 import { requireAdmin } from "../../../utils/adminAuth";
+
+type Data = { ok: true } | { ok: false; error: string };
 
 export default async function handler(
   req: NextApiRequest,
-  res: NextApiResponse
+  res: NextApiResponse<Data>
 ) {
   if (req.method !== "POST") {
     return res.status(405).json({ ok: false, error: "method_not_allowed" });
@@ -13,11 +16,10 @@ export default async function handler(
   if (!adminDb) {
     return res.status(500).json({ ok: false, error: "firebase_not_configured" });
   }
-
   if (!requireAdmin(req, res)) return;
 
   try {
-    const { orderId, reason } = req.body || {};
+    const { orderId } = (req.body || {}) as { orderId?: string };
 
     if (!orderId || typeof orderId !== "string") {
       return res.status(400).json({ ok: false, error: "missing_order_id" });
@@ -30,24 +32,11 @@ export default async function handler(
       return res.status(404).json({ ok: false, error: "order_not_found" });
     }
 
-    const ts = FieldValue?.serverTimestamp ? FieldValue.serverTimestamp() : new Date();
-
-    await ref.set(
-      {
-        status: "Refunded",
-        refund: {
-          status: "Refunded",
-          reason: reason || "",
-          refundedAt: ts,
-        },
-        updatedAt: ts,
-      },
-      { merge: true }
-    );
+    await ref.delete();
 
     return res.status(200).json({ ok: true });
   } catch (err: any) {
-    console.error("refund_api_error", err);
+    console.error("delete_order_error", err);
     return res.status(500).json({ ok: false, error: err?.message || "server_error" });
   }
 }

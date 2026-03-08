@@ -9,7 +9,7 @@ const SESSION_SECRET =
   process.env.ADMIN_PASSWORD ||
   "";
 
-const SESSION_DURATION_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
+const SESSION_DURATION_MS = 15 * 60 * 1000; // 15 minutes
 const SESSION_DURATION_SECONDS = Math.floor(SESSION_DURATION_MS / 1000);
 
 export const ADMIN_SESSION_COOKIE = "ff-admin-session";
