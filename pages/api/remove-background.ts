@@ -1,10 +1,10 @@
 import type { NextApiRequest, NextApiResponse } from "next";
+import sharp from "sharp";
 
 export const config = {
   api: {
     bodyParser: false
   },
-  maxDuration: 60,
 };
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -17,21 +17,22 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     const buffer = Buffer.concat(chunks);
 
-    console.log("[bg-removal] Starting local background removal, image size:", buffer.byteLength);
-    const { removeBackground } = await import("@imgly/background-removal-node");
-    const inputBlob = new Blob([new Uint8Array(buffer)], { type: "image/png" });
-    const resultBlob = await removeBackground(inputBlob, {
-      model: "medium",
-      output: { format: "image/png" },
-    });
-    const resultBuffer = Buffer.from(await resultBlob.arrayBuffer());
-    console.log("[bg-removal] Success, received", resultBuffer.byteLength, "bytes");
+    // White-background display image (no bg removal — removed @imgly/background-removal-node)
+    const resultBuffer = await sharp(buffer)
+      .rotate()
+      .resize(800, 1067, {
+        fit: "contain",
+        background: { r: 255, g: 255, b: 255, alpha: 1 },
+      })
+      .flatten({ background: "#ffffff" })
+      .jpeg({ quality: 85, mozjpeg: true })
+      .toBuffer();
 
-    res.setHeader("Content-Type", "image/png");
+    res.setHeader("Content-Type", "image/jpeg");
     res.send(resultBuffer);
 
   } catch (error) {
-    console.error("[bg-removal] Handler error:", (error as any)?.message || error);
+    console.error("[remove-background] Handler error:", (error as any)?.message || error);
     res.status(500).json({ error: "Image processing failed", detail: (error as any)?.message });
   }
 }
