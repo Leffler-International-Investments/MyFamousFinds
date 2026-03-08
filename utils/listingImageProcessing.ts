@@ -91,57 +91,90 @@ export async function fetchImageBuffer(url: string): Promise<ImageBuffer> {
 
 /**
  * Remove background using Photoroom API. Returns a transparent PNG buffer.
- * Returns null if the API key is not configured or the call fails.
+ * Throws on failure so callers can handle errors explicitly.
  */
-export async function removeBackgroundPhotoroom(
-  buffer: Buffer
-): Promise<Buffer | null> {
-  if (!PHOTOROOM_API_KEY) return null;
+async function removeBackgroundWithPhotoroom(
+  sourceBuffer: Buffer,
+  apiKey: string,
+  timeoutMs: number
+): Promise<Buffer> {
+  const form = new FormData();
+  const sourceFile = new File([new Uint8Array(sourceBuffer)], "input.jpg", {
+    type: "image/jpeg",
+  });
+  form.append("image_file", sourceFile);
 
-  try {
-    const blob = new Blob([new Uint8Array(buffer)], { type: "image/jpeg" });
-    const form = new FormData();
-    form.append("image_file", blob, "image.jpg");
-    form.append("size", "medium");
-    form.append("format", "png");
+  const response = await fetch("https://sdk.photoroom.com/v1/segment", {
+    method: "POST",
+    headers: { "x-api-key": apiKey },
+    body: form,
+    signal: AbortSignal.timeout(timeoutMs),
+  });
 
-    const res = await fetch("https://sdk.photoroom.com/v1/segment", {
-      method: "POST",
-      headers: { "x-api-key": PHOTOROOM_API_KEY },
-      body: form,
-      signal: AbortSignal.timeout(30000),
-    });
-
-    if (!res.ok) {
-      const errText = await res.text();
-      console.error("[photoroom] API error:", res.status, errText);
-      return null;
-    }
-
-    return Buffer.from(await res.arrayBuffer());
-  } catch (err) {
-    console.error("[photoroom] Failed:", (err as any)?.message || err);
-    return null;
+  if (!response.ok) {
+    const detail = await response.text();
+    throw new Error(`Photoroom error: ${response.status} ${response.statusText} - ${detail}`);
   }
+
+  return Buffer.from(await response.arrayBuffer());
 }
 
+/**
+ * Removes background when possible and ALWAYS returns a white-background JPEG.
+ *
+ * - If Photoroom succeeds, transparency is composited onto white.
+ * - If Photoroom fails, original image is still normalized to white JPEG.
+ * - If PHOTOROOM_API_KEY is not set, throws so callers know bg removal is unavailable.
+ */
+export async function removeBackgroundAndMakeWhite(
+  input: Buffer,
+  options: {
+    width?: number;
+    height?: number;
+    quality?: number;
+    timeoutMs?: number;
+  } = {}
+): Promise<Buffer> {
+  const {
+    width = 800,
+    height = 1067,
+    quality = 90,
+    timeoutMs = 30000,
+  } = options;
+
+  if (!PHOTOROOM_API_KEY) {
+    throw new Error("Missing PHOTOROOM_API_KEY");
+  }
+
+  let processed = input;
+  try {
+    processed = await removeBackgroundWithPhotoroom(input, PHOTOROOM_API_KEY, timeoutMs);
+  } catch {
+    // Intentional fallback: still output white background even if AI removal fails.
+    processed = input;
+  }
+
+  return sharp(processed)
+    .rotate()
+    .resize(width, height, {
+      fit: "contain",
+      background: { r: 255, g: 255, b: 255, alpha: 1 },
+    })
+    .flatten({ background: "#ffffff" })
+    .jpeg({ quality, mozjpeg: true })
+    .toBuffer();
+}
+
+/**
+ * Create a white-background display image. Uses Photoroom bg removal when
+ * PHOTOROOM_API_KEY is configured; falls back to plain white flattening.
+ */
 export async function createWhiteDisplayImage(
   buffer: Buffer,
   _contentType: string
 ): Promise<Buffer> {
-  // Try Photoroom bg removal first
-  const noBg = await removeBackgroundPhotoroom(buffer);
-
-  if (noBg) {
-    // Composite the transparent PNG onto a white background at display size
-    return sharp(noBg)
-      .resize(800, 1067, {
-        fit: "contain",
-        background: { r: 255, g: 255, b: 255, alpha: 1 },
-      })
-      .flatten({ background: "#ffffff" })
-      .jpeg({ quality: 85, mozjpeg: true })
-      .toBuffer();
+  if (PHOTOROOM_API_KEY) {
+    return removeBackgroundAndMakeWhite(buffer);
   }
 
   // Fallback: white background without bg removal
