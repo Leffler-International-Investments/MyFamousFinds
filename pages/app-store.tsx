@@ -53,35 +53,34 @@ export default function MyFamousFindsAppPage() {
     };
   }, []);
 
-  const [showFallback, setShowFallback] = useState(false);
+  const [showIOSGuide, setShowIOSGuide] = useState(false);
 
   const handleInstall = async () => {
+    // iOS — no native prompt, show minimal visual guide
+    if (isIOS) {
+      setShowIOSGuide(true);
+      return;
+    }
+
     const prompt = deferredPrompt || (window as any).__pwaInstallPrompt;
     if (prompt) {
       try {
         prompt.prompt();
         const result = await prompt.userChoice;
         if (result.outcome === "accepted") {
-          // User accepted the prompt — show "installing" state while we
-          // wait for the real "appinstalled" event from the browser.
           setInstalling(true);
           setDeferredPrompt(null);
           (window as any).__pwaInstallPrompt = null;
-          // Fallback: if appinstalled never fires within 30s, reset
           setTimeout(() => {
             setInstalling((prev) => {
-              if (prev) return false; // timed out — go back to button
+              if (prev) return false;
               return prev;
             });
           }, 30000);
         }
       } catch {
-        // prompt() already used — show fallback
-        setShowFallback(true);
+        // prompt() already used — nothing else to do
       }
-    } else {
-      // No native prompt available (e.g. iOS Safari) — show brief fallback
-      setShowFallback(true);
     }
   };
   const title = "Get the Famous Finds App — Luxury Resale Marketplace";
@@ -177,13 +176,6 @@ export default function MyFamousFindsAppPage() {
               >
                 Install App Now
               </button>
-              {showFallback && (
-                <p style={{ fontSize: 14, color: "#555", margin: "4px 0 0", lineHeight: 1.5 }}>
-                  {isIOS
-                    ? "Tap the Share button in Safari, then \"Add to Home Screen\"."
-                    : "Tap the browser menu, then \"Add to Home Screen\" or \"Install App\"."}
-                </p>
-              )}
             </>
           )}
         </div>
@@ -208,6 +200,58 @@ export default function MyFamousFindsAppPage() {
           </Link>
         </p>
       </main>
+
+      {/* iOS guide overlay */}
+      {showIOSGuide && (
+        <div
+          onClick={() => setShowIOSGuide(false)}
+          style={{
+            position: "fixed", inset: 0, zIndex: 9999,
+            background: "rgba(0,0,0,0.75)",
+            display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-end",
+            padding: "0 16px 40px",
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              background: "#1e293b", color: "#fff", borderRadius: 20,
+              padding: "28px 24px", maxWidth: 340, width: "100%",
+              textAlign: "center", boxShadow: "0 20px 60px rgba(0,0,0,0.5)",
+            }}
+          >
+            <div style={{ fontSize: 40, marginBottom: 12 }}>
+              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 5v14M5 12l7-7 7 7" />
+                <rect x="3" y="15" width="18" height="6" rx="2" fill="none" />
+              </svg>
+            </div>
+            <p style={{ fontSize: 18, fontWeight: 700, margin: "0 0 8px" }}>
+              Tap
+              <span style={{ display: "inline-flex", verticalAlign: "middle", margin: "0 6px" }}>
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M4 12v6a2 2 0 002 2h12a2 2 0 002-2v-6" />
+                  <polyline points="16 6 12 2 8 6" />
+                  <line x1="12" y1="2" x2="12" y2="15" />
+                </svg>
+              </span>
+              then <strong>&ldquo;Add to Home Screen&rdquo;</strong>
+            </p>
+            <p style={{ fontSize: 13, color: "#94a3b8", margin: "0 0 16px" }}>
+              The share button is at the bottom of Safari
+            </p>
+            <button
+              onClick={() => setShowIOSGuide(false)}
+              style={{
+                background: "#38bdf8", color: "#0f172a", border: "none", borderRadius: 10,
+                padding: "10px 24px", fontWeight: 700, fontSize: 14, cursor: "pointer", width: "100%",
+              }}
+            >
+              Got it
+            </button>
+          </div>
+        </div>
+      )}
 
       <Footer />
 
