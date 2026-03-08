@@ -638,7 +638,7 @@ export const getServerSideProps: GetServerSideProps = async () => {
   let items: any[] = [];
   try {
     const excludeIds = await getDeletedListingIds();
-    const listings = await getPublicListings({ take: 500, excludeIds });
+    const listings = await getPublicListings({ take: 120, excludeIds });
     items = (listings || []).map((l: any) => {
       const priceNum = typeof l.price === "number" ? l.price : (typeof l.priceUsd === "number" ? l.priceUsd : 0);
       return {
