@@ -28,7 +28,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       form.append("image_file", file);
       form.append("size", "medium");
       form.append("format", "png");
-      form.append("bg_color", "FFFFFFFF");
 
       const photoroomRes = await fetch("https://sdk.photoroom.com/v1/segment", {
         method: "POST",
@@ -41,13 +40,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         const errText = await photoroomRes.text();
         throw new Error(`Photoroom API error: ${photoroomRes.status} ${photoroomRes.statusText} - ${errText}`);
       }
-      console.log("[photoroom] Success");
 
       const resultBuffer = Buffer.from(await photoroomRes.arrayBuffer());
-      finalImage = await sharp(resultBuffer)
-        .flatten({ background: "#ffffff" })
-        .jpeg({ quality: 95 })
-        .toBuffer();
+      console.log("[photoroom] Success, received", resultBuffer.byteLength, "bytes");
+
+      // Return the transparent PNG directly so the caller can see the removal
+      finalImage = resultBuffer;
     } else {
       finalImage = await sharp(buffer)
         .flatten({ background: "#ffffff" })
@@ -55,7 +53,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         .toBuffer();
     }
 
-    res.setHeader("Content-Type", "image/jpeg");
+    // If Photoroom was used, result is PNG with transparency; otherwise JPEG
+    const contentType = PHOTOROOM_API_KEY ? "image/png" : "image/jpeg";
+    res.setHeader("Content-Type", contentType);
     res.send(finalImage);
 
   } catch (error) {

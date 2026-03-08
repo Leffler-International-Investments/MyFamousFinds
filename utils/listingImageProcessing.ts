@@ -123,7 +123,6 @@ export async function createWhiteDisplayImageWithBgRemoval(
       form.append("image_file", file);
       form.append("size", "medium");
       form.append("format", "png");
-      form.append("bg_color", "FFFFFFFF");
 
       const res = await fetch("https://sdk.photoroom.com/v1/segment", {
         method: "POST",
