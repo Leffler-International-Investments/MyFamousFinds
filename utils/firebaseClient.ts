@@ -1,7 +1,7 @@
 // FILE: /utils/firebaseClient.ts
 import { initializeApp, getApps, getApp, type FirebaseApp } from "firebase/app";
 import { getFirestore } from "firebase/firestore";
-import { getAuth } from "firebase/auth";
+import { getAuth, setPersistence, browserLocalPersistence } from "firebase/auth";
 
 /**
  * Firebase CLIENT (browser) configuration.
@@ -44,6 +44,15 @@ export const app: FirebaseApp | null = hasRequired
 // Keep existing exports used around the codebase
 export const db = app ? getFirestore(app) : (null as any);
 export const auth = app ? getAuth(app) : (null as any);
+
+// Ensure Firebase Auth sessions persist across page refreshes and browser restarts.
+// Without this, some browsers default to in-memory or session-only persistence,
+// causing users to lose their auth state on refresh.
+if (auth && typeof window !== "undefined") {
+  setPersistence(auth, browserLocalPersistence).catch((err) => {
+    console.warn("[firebaseClient] Failed to set auth persistence:", err);
+  });
+}
 
 // Keep default export for any pages that do: import app from ".../firebaseClient"
 export default app as any;
