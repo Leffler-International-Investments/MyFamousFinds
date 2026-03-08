@@ -1,7 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import sharp from "sharp";
 
-const REMBG_API_KEY = process.env.REMBG_API_KEY || "";
+const PHOTOROOM_API_KEY = process.env.PHOTOROOM_API_KEY || "";
 
 export const config = {
   api: {
@@ -21,28 +21,29 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     let finalImage: Buffer;
 
-    if (REMBG_API_KEY) {
-      console.log("[rembg] Starting bg removal, key length:", REMBG_API_KEY.length);
+    if (PHOTOROOM_API_KEY) {
+      console.log("[photoroom] Starting bg removal, key length:", PHOTOROOM_API_KEY.length);
       const form = new FormData();
       const file = new File([new Uint8Array(buffer)], "image.jpg", { type: "image/jpeg" });
-      form.append("image", file);
+      form.append("image_file", file);
+      form.append("size", "auto");
       form.append("format", "png");
       form.append("bg_color", "#ffffffff");
 
-      const rembgRes = await fetch("https://api.rembg.com/rmbg", {
+      const photoroomRes = await fetch("https://sdk.photoroom.com/v1/segment", {
         method: "POST",
-        headers: { "x-api-key": REMBG_API_KEY },
+        headers: { "x-api-key": PHOTOROOM_API_KEY },
         body: form,
         signal: AbortSignal.timeout(30000),
       });
 
-      if (!rembgRes.ok) {
-        const errText = await rembgRes.text();
-        throw new Error(`rembg API error: ${rembgRes.status} ${rembgRes.statusText} - ${errText}`);
+      if (!photoroomRes.ok) {
+        const errText = await photoroomRes.text();
+        throw new Error(`Photoroom API error: ${photoroomRes.status} ${photoroomRes.statusText} - ${errText}`);
       }
-      console.log("[rembg] Success");
+      console.log("[photoroom] Success");
 
-      const resultBuffer = Buffer.from(await rembgRes.arrayBuffer());
+      const resultBuffer = Buffer.from(await photoroomRes.arrayBuffer());
       finalImage = await sharp(resultBuffer)
         .flatten({ background: "#ffffff" })
         .jpeg({ quality: 95 })
@@ -58,7 +59,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     res.send(finalImage);
 
   } catch (error) {
-    console.error("[rembg] Handler error:", (error as any)?.message || error);
+    console.error("[photoroom] Handler error:", (error as any)?.message || error);
     res.status(500).json({ error: "Image processing failed", detail: (error as any)?.message });
   }
 }

@@ -10,6 +10,7 @@ import Layout from "../components/Layout";
 import { ToastProvider } from "../components/Toast";
 import { WishlistProvider } from "../components/WishlistContext";
 import ReviewWidgets from "../components/ReviewWidgets";
+import InstallAppButton from "../components/InstallAppButton";
 import Analytics from "../components/Analytics";
 import { CurrencyProvider } from "../components/CurrencyToggle";
 import { initNativePlugins } from "../utils/capacitor";
@@ -123,6 +124,9 @@ export default function MyFamousFindsApp({ Component, pageProps }: AppProps) {
 
       {/* Floating review widget — visible on all pages */}
       <ReviewWidgets />
+
+      {/* Floating install app button — visible when PWA install is available */}
+      <InstallAppButton />
 
     </>
   );

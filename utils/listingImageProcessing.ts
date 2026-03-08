@@ -9,7 +9,7 @@ const STORAGE_BUCKET =
   process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET ||
   "";
 
-const REMBG_API_KEY = process.env.REMBG_API_KEY || "";
+const PHOTOROOM_API_KEY = process.env.PHOTOROOM_API_KEY || "";
 
 
 const CONTENT_TYPE_BY_FORMAT: Record<string, string> = {
@@ -115,18 +115,19 @@ export async function createWhiteDisplayImageWithBgRemoval(
 ): Promise<Buffer> {
   let workingBuffer = buffer;
 
-  if (REMBG_API_KEY) {
+  if (PHOTOROOM_API_KEY) {
     try {
-      console.log("[rembg] Starting bg removal, key length:", REMBG_API_KEY.length);
+      console.log("[photoroom] Starting bg removal, key length:", PHOTOROOM_API_KEY.length);
       const form = new FormData();
       const file = new File([new Uint8Array(buffer)], "image.jpg", { type: "image/jpeg" });
-      form.append("image", file);
+      form.append("image_file", file);
+      form.append("size", "auto");
       form.append("format", "png");
       form.append("bg_color", "#ffffffff");
 
-      const res = await fetch("https://api.rembg.com/rmbg", {
+      const res = await fetch("https://sdk.photoroom.com/v1/segment", {
         method: "POST",
-        headers: { "x-api-key": REMBG_API_KEY },
+        headers: { "x-api-key": PHOTOROOM_API_KEY },
         body: form,
         signal: AbortSignal.timeout(30000),
       });
@@ -134,16 +135,16 @@ export async function createWhiteDisplayImageWithBgRemoval(
       if (res.ok) {
         const arrayBuffer = await res.arrayBuffer();
         workingBuffer = Buffer.from(arrayBuffer);
-        console.log("[rembg] Success, received", arrayBuffer.byteLength, "bytes");
+        console.log("[photoroom] Success, received", arrayBuffer.byteLength, "bytes");
       } else {
         const errText = await res.text();
-        console.error("[rembg] API error:", res.status, res.statusText, errText);
+        console.error("[photoroom] API error:", res.status, res.statusText, errText);
       }
     } catch (error) {
-      console.error("[rembg] API call failed, using original:", (error as any)?.message || error);
+      console.error("[photoroom] API call failed, using original:", (error as any)?.message || error);
     }
   } else {
-    console.warn("[rembg] No REMBG_API_KEY set, skipping background removal");
+    console.warn("[photoroom] No PHOTOROOM_API_KEY set, skipping background removal");
   }
 
   return sharp(workingBuffer)
