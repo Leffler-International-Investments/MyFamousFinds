@@ -842,7 +842,7 @@ export async function sendBuyerOrderConfirmationEmail(params: {
 
 export function brandedEmailWrapper(bodyHtml: string): string {
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://www.myfamousfinds.com";
-  const logoUrl = `${siteUrl}/Famous-Finds-Logo.png`;
+  const logoUrl = `${siteUrl}/Famous-Finds-Logo-2.png`;
 
   return `<!DOCTYPE html>
 <html lang="en">
