@@ -102,45 +102,6 @@ export async function createWhiteDisplayImage(
     .toBuffer();
 }
 
-/**
- * Same as createWhiteDisplayImage but runs background removal first.
- * Uses @imgly/background-removal-node (local ONNX model, no API key needed).
- * This is CPU/memory-intensive — only use in endpoints with extended
- * timeouts (e.g. the admin remove-bg route), never in bulk submission.
- */
-export async function createWhiteDisplayImageWithBgRemoval(
-  buffer: Buffer,
-  _contentType: string
-): Promise<Buffer> {
-  let workingBuffer = buffer;
-
-  try {
-    console.log("[bg-removal] Starting local background removal, image size:", buffer.byteLength);
-    const { removeBackground } = await import("@imgly/background-removal-node");
-    const inputBlob = new Blob([new Uint8Array(buffer)], { type: "image/png" });
-    const resultBlob = await removeBackground(inputBlob, {
-      model: "medium",
-      output: { format: "image/png" },
-    });
-    const arrayBuffer = await resultBlob.arrayBuffer();
-    workingBuffer = Buffer.from(arrayBuffer);
-    console.log("[bg-removal] Success, received", arrayBuffer.byteLength, "bytes (transparent PNG)");
-  } catch (error) {
-    console.error("[bg-removal] FAILED:", (error as any)?.message || error);
-    throw error;
-  }
-
-  return sharp(workingBuffer)
-    .rotate()
-    .resize(800, 1067, {
-      fit: "contain",
-      background: { r: 255, g: 255, b: 255, alpha: 1 },
-    })
-    .flatten({ background: "#ffffff" })
-    .jpeg({ quality: 85, mozjpeg: true })
-    .toBuffer();
-}
-
 async function uploadBufferToBucket(
   bucketName: string,
   path: string,
