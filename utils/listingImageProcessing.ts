@@ -2,7 +2,6 @@
 
 import crypto from "crypto";
 import sharp from "sharp";
-import { removeBackground } from "@imgly/background-removal-node";
 import admin, { isFirebaseAdminReady } from "./firebaseAdmin";
 
 const STORAGE_BUCKET =
@@ -114,6 +113,7 @@ export async function createWhiteDisplayImageWithBgRemoval(
   let workingBuffer = buffer;
 
   try {
+    const { removeBackground } = await import("@imgly/background-removal-node");
     const blob = await removeBackground(buffer);
     const arrayBuffer = await blob.arrayBuffer();
     workingBuffer = Buffer.from(arrayBuffer);
