@@ -9,15 +9,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (!requireAdmin(req, res)) return;
 
   const status = getImageProcessingStatus();
+  const rembgConfigured = Boolean(process.env.REMBG_API_KEY);
 
-  let imglyOk = false;
-  let imglyError = "";
-  try {
-    const { removeBackground } = await import("@imgly/background-removal-node");
-    imglyOk = typeof removeBackground === "function";
-  } catch (e: any) {
-    imglyError = e?.message || "unknown error";
-  }
-
-  return res.status(200).json({ ok: true, ...status, imglyLoaded: imglyOk, imglyError: imglyError || null, uploadMaxDuration: 60 });
+  return res.status(200).json({ ok: true, ...status, rembgConfigured, uploadMaxDuration: 300 });
 }
