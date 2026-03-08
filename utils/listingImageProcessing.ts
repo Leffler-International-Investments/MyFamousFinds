@@ -3,7 +3,6 @@
 import crypto from "crypto";
 import sharp from "sharp";
 import admin, { isFirebaseAdminReady } from "./firebaseAdmin";
-import { removeBackground } from "@imgly/background-removal-node";
 
 const STORAGE_BUCKET =
   process.env.FIREBASE_STORAGE_BUCKET ||
@@ -115,11 +114,13 @@ export async function createWhiteDisplayImageWithBgRemoval(
   let workingBuffer = buffer;
 
   try {
+    const { removeBackground } = await import("@imgly/background-removal-node");
     const blob = await removeBackground(buffer);
     const arrayBuffer = await blob.arrayBuffer();
     workingBuffer = Buffer.from(arrayBuffer);
   } catch (error) {
-    console.warn("Background removal failed, using original:", error);
+    // @imgly may fail on Vercel (native binary, size limits) — silently fall back
+    console.warn("Background removal skipped:", (error as any)?.message || error);
   }
 
   return sharp(workingBuffer)
@@ -176,7 +177,13 @@ export async function storeListingImages(
   const originalPath = `${prefix}/original/${id}.${ext}`;
   const displayPath = `${prefix}/display/${id}.jpg`;
 
-  const displayBuffer = await createWhiteDisplayImageWithBgRemoval(input.buffer, contentType);
+  let displayBuffer: Buffer;
+  try {
+    displayBuffer = await createWhiteDisplayImageWithBgRemoval(input.buffer, contentType);
+  } catch (err) {
+    console.warn("createWhiteDisplayImageWithBgRemoval failed, using plain:", err);
+    displayBuffer = await createWhiteDisplayImage(input.buffer, contentType);
+  }
 
   const [originalUrl, displayUrl] = await Promise.all([
     uploadBufferToBucket(STORAGE_BUCKET, originalPath, input.buffer, contentType),
