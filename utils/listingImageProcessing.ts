@@ -3,13 +3,13 @@
 import crypto from "crypto";
 import sharp from "sharp";
 import admin, { isFirebaseAdminReady } from "./firebaseAdmin";
+import { removeBackground } from "@imgly/background-removal-node";
 
 const STORAGE_BUCKET =
   process.env.FIREBASE_STORAGE_BUCKET ||
   process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET ||
   "";
 
-const REMBG_API_KEY = process.env.REMBG_API_KEY || "";
 
 const CONTENT_TYPE_BY_FORMAT: Record<string, string> = {
   jpeg: "image/jpeg",
@@ -115,7 +115,6 @@ export async function createWhiteDisplayImageWithBgRemoval(
   let workingBuffer = buffer;
 
   try {
-    const { removeBackground } = await import("@imgly/background-removal-node");
     const blob = await removeBackground(buffer);
     const arrayBuffer = await blob.arrayBuffer();
     workingBuffer = Buffer.from(arrayBuffer);
@@ -161,40 +160,6 @@ async function uploadBufferToBucket(
   return buildDownloadUrl(bucketName, path, token);
 }
 
-/**
- * Calls rembg.com API to remove background and return white-background JPEG buffer.
- * Falls back to plain white flatten if API key is missing or call fails.
- */
-async function removeBackgroundViaApi(buffer: Buffer): Promise<Buffer> {
-  if (!REMBG_API_KEY) return buffer; // no key → skip, caller will flatten to white
-
-  try {
-    const FormData = (await import("form-data")).default;
-    const form = new FormData();
-    form.append("image", buffer, { filename: "image.jpg", contentType: "image/jpeg" });
-    form.append("format", "png");
-    form.append("bg_color", "#ffffffff");
-
-    const res = await fetch("https://api.rembg.com/rmbg", {
-      method: "POST",
-      headers: { "x-api-key": REMBG_API_KEY, ...form.getHeaders() },
-      body: form.getBuffer(),
-      signal: AbortSignal.timeout(25000),
-    });
-
-    if (!res.ok) {
-      console.warn("rembg.com API error:", res.status, await res.text());
-      return buffer;
-    }
-
-    const arrayBuffer = await res.arrayBuffer();
-    return Buffer.from(arrayBuffer);
-  } catch (err) {
-    console.warn("rembg.com API call failed, using original:", err);
-    return buffer;
-  }
-}
-
 export async function storeListingImages(
   input: ImageBuffer,
   prefix = "listing-images"
@@ -211,10 +176,7 @@ export async function storeListingImages(
   const originalPath = `${prefix}/original/${id}.${ext}`;
   const displayPath = `${prefix}/display/${id}.jpg`;
 
-  // Remove background via rembg.com API (fast, external, no 220MB binary).
-  // Falls back to plain white flatten if REMBG_API_KEY is not set.
-  const bgRemovedBuffer = await removeBackgroundViaApi(input.buffer);
-  const displayBuffer = await createWhiteDisplayImage(bgRemovedBuffer, contentType);
+  const displayBuffer = await createWhiteDisplayImageWithBgRemoval(input.buffer, contentType);
 
   const [originalUrl, displayUrl] = await Promise.all([
     uploadBufferToBucket(STORAGE_BUCKET, originalPath, input.buffer, contentType),
