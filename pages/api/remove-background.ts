@@ -23,7 +23,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     if (REMBG_API_KEY) {
       const form = new FormData();
-      const blob = new Blob([buffer], { type: "image/jpeg" });
+      const blob = new Blob([new Uint8Array(buffer)], { type: "image/jpeg" });
       form.append("image", blob, "image.jpg");
       form.append("format", "png");
 
