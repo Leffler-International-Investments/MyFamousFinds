@@ -2,14 +2,13 @@
 
 import crypto from "crypto";
 import sharp from "sharp";
+import { removeBackground } from "@imgly/background-removal-node";
 import admin, { isFirebaseAdminReady } from "./firebaseAdmin";
 
 const STORAGE_BUCKET =
   process.env.FIREBASE_STORAGE_BUCKET ||
   process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET ||
   "";
-
-const PHOTOROOM_API_KEY = process.env.PHOTOROOM_API_KEY || "";
 
 
 const CONTENT_TYPE_BY_FORMAT: Record<string, string> = {
@@ -106,6 +105,7 @@ export async function createWhiteDisplayImage(
 
 /**
  * Same as createWhiteDisplayImage but runs background removal first.
+ * Uses @imgly/background-removal-node (local ONNX model, no API key needed).
  * This is CPU/memory-intensive — only use in endpoints with extended
  * timeouts (e.g. the admin remove-bg route), never in bulk submission.
  */
@@ -115,38 +115,19 @@ export async function createWhiteDisplayImageWithBgRemoval(
 ): Promise<Buffer> {
   let workingBuffer = buffer;
 
-  if (PHOTOROOM_API_KEY) {
-    try {
-      console.log("[photoroom] Starting bg removal, key prefix:", PHOTOROOM_API_KEY.substring(0, 8) + "..., length:", PHOTOROOM_API_KEY.length, ", image size:", buffer.byteLength);
-      const blob = new Blob([new Uint8Array(buffer)], { type: "image/jpeg" });
-      const form = new FormData();
-      form.append("image_file", blob, "image.jpg");
-      form.append("size", "medium");
-      form.append("format", "png");
-
-      const res = await fetch("https://sdk.photoroom.com/v1/segment", {
-        method: "POST",
-        headers: { "x-api-key": PHOTOROOM_API_KEY },
-        body: form,
-        signal: AbortSignal.timeout(30000),
-      });
-
-      if (res.ok) {
-        const arrayBuffer = await res.arrayBuffer();
-        workingBuffer = Buffer.from(arrayBuffer);
-        console.log("[photoroom] Success, received", arrayBuffer.byteLength, "bytes (transparent PNG)");
-      } else {
-        const errText = await res.text();
-        console.error("[photoroom] API FAILED:", res.status, res.statusText, "—", errText);
-        // Don't silently swallow — throw so caller knows bg removal failed
-        throw new Error(`Photoroom ${res.status}: ${errText}`);
-      }
-    } catch (error) {
-      console.error("[photoroom] FAILED:", (error as any)?.message || error);
-      throw error;
-    }
-  } else {
-    console.warn("[photoroom] PHOTOROOM_API_KEY is EMPTY — skipping background removal entirely");
+  try {
+    console.log("[bg-removal] Starting local background removal, image size:", buffer.byteLength);
+    const inputBlob = new Blob([new Uint8Array(buffer)], { type: "image/png" });
+    const resultBlob = await removeBackground(inputBlob, {
+      model: "medium",
+      output: { format: "image/png" },
+    });
+    const arrayBuffer = await resultBlob.arrayBuffer();
+    workingBuffer = Buffer.from(arrayBuffer);
+    console.log("[bg-removal] Success, received", arrayBuffer.byteLength, "bytes (transparent PNG)");
+  } catch (error) {
+    console.error("[bg-removal] FAILED:", (error as any)?.message || error);
+    throw error;
   }
 
   return sharp(workingBuffer)
