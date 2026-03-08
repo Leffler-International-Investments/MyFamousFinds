@@ -22,10 +22,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     let finalImage: Buffer;
 
     if (PHOTOROOM_API_KEY) {
-      console.log("[photoroom] Starting bg removal, key length:", PHOTOROOM_API_KEY.length);
+      console.log("[photoroom] Starting bg removal, key prefix:", PHOTOROOM_API_KEY.substring(0, 8) + "..., length:", PHOTOROOM_API_KEY.length, ", image size:", buffer.byteLength);
+      const blob = new Blob([buffer], { type: "image/jpeg" });
       const form = new FormData();
-      const file = new File([new Uint8Array(buffer)], "image.jpg", { type: "image/jpeg" });
-      form.append("image_file", file);
+      form.append("image_file", blob, "image.jpg");
       form.append("size", "medium");
       form.append("format", "png");
 

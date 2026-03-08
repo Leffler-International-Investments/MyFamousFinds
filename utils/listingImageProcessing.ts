@@ -117,10 +117,10 @@ export async function createWhiteDisplayImageWithBgRemoval(
 
   if (PHOTOROOM_API_KEY) {
     try {
-      console.log("[photoroom] Starting bg removal, key length:", PHOTOROOM_API_KEY.length);
+      console.log("[photoroom] Starting bg removal, key prefix:", PHOTOROOM_API_KEY.substring(0, 8) + "..., length:", PHOTOROOM_API_KEY.length, ", image size:", buffer.byteLength);
+      const blob = new Blob([buffer], { type: "image/jpeg" });
       const form = new FormData();
-      const file = new File([new Uint8Array(buffer)], "image.jpg", { type: "image/jpeg" });
-      form.append("image_file", file);
+      form.append("image_file", blob, "image.jpg");
       form.append("size", "medium");
       form.append("format", "png");
 
@@ -134,16 +134,19 @@ export async function createWhiteDisplayImageWithBgRemoval(
       if (res.ok) {
         const arrayBuffer = await res.arrayBuffer();
         workingBuffer = Buffer.from(arrayBuffer);
-        console.log("[photoroom] Success, received", arrayBuffer.byteLength, "bytes");
+        console.log("[photoroom] Success, received", arrayBuffer.byteLength, "bytes (transparent PNG)");
       } else {
         const errText = await res.text();
-        console.error("[photoroom] API error:", res.status, res.statusText, errText);
+        console.error("[photoroom] API FAILED:", res.status, res.statusText, "—", errText);
+        // Don't silently swallow — throw so caller knows bg removal failed
+        throw new Error(`Photoroom ${res.status}: ${errText}`);
       }
     } catch (error) {
-      console.error("[photoroom] API call failed, using original:", (error as any)?.message || error);
+      console.error("[photoroom] FAILED:", (error as any)?.message || error);
+      throw error;
     }
   } else {
-    console.warn("[photoroom] No PHOTOROOM_API_KEY set, skipping background removal");
+    console.warn("[photoroom] PHOTOROOM_API_KEY is EMPTY — skipping background removal entirely");
   }
 
   return sharp(workingBuffer)

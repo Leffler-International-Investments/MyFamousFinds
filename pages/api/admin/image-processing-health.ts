@@ -28,8 +28,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         .toBuffer();
 
       const form = new FormData();
-      const file = new File([new Uint8Array(testBuffer)], "test.jpg", { type: "image/jpeg" });
-      form.append("image_file", file);
+      const blob = new Blob([testBuffer], { type: "image/jpeg" });
+      form.append("image_file", blob, "test.jpg");
       form.append("size", "preview");
       form.append("format", "png");
 
