@@ -121,9 +121,9 @@ export async function createWhiteDisplayImageWithBgRemoval(
       const form = new FormData();
       const file = new File([new Uint8Array(buffer)], "image.jpg", { type: "image/jpeg" });
       form.append("image_file", file);
-      form.append("size", "auto");
+      form.append("size", "medium");
       form.append("format", "png");
-      form.append("bg_color", "#ffffffff");
+      form.append("bg_color", "FFFFFFFF");
 
       const res = await fetch("https://sdk.photoroom.com/v1/segment", {
         method: "POST",
