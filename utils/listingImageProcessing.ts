@@ -175,7 +175,11 @@ export async function storeListingImages(
   const originalPath = `${prefix}/original/${id}.${ext}`;
   const displayPath = `${prefix}/display/${id}.jpg`;
 
-  const displayBuffer = await createWhiteDisplayImageWithBgRemoval(input.buffer, contentType);
+  // Background removal is handled separately via the admin "White BG" button
+  // (POST /api/admin/remove-bg/[id]) after listing creation.
+  // Doing it inline here times out on Vercel — even with maxDuration: 300,
+  // @imgly needs to cold-download ~100 MB of AI models on first run.
+  const displayBuffer = await createWhiteDisplayImage(input.buffer, contentType);
 
   const [originalUrl, displayUrl] = await Promise.all([
     uploadBufferToBucket(STORAGE_BUCKET, originalPath, input.buffer, contentType),
