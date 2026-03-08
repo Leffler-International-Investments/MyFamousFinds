@@ -21,6 +21,8 @@ export default function BecomeSellerPage() {
   const [website, setWebsite] = useState("");
   const [social, setSocial] = useState("");
   const [whatToSell, setWhatToSell] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [acceptTerms, setAcceptTerms] = useState(false);
 
   // Google Places Autocomplete
@@ -86,6 +88,14 @@ export default function BecomeSellerPage() {
       setError("Please enter your name and email.");
       return;
     }
+    if (!password || password.length < 8) {
+      setError("Password must be at least 8 characters.");
+      return;
+    }
+    if (password !== confirmPassword) {
+      setError("Passwords do not match.");
+      return;
+    }
     if (!acceptTerms) {
       setError("Please confirm that your items are authentic.");
       return;
@@ -109,6 +119,7 @@ export default function BecomeSellerPage() {
           website: website.trim(),
           social: social.trim(),
           inventory: whatToSell.trim(),
+          password,
         }),
       });
 
@@ -136,6 +147,8 @@ export default function BecomeSellerPage() {
       setWebsite("");
       setSocial("");
       setWhatToSell("");
+      setPassword("");
+      setConfirmPassword("");
       setAcceptTerms(false);
     } catch (err: any) {
       console.error("become_seller_submit_error", err);
@@ -207,6 +220,42 @@ export default function BecomeSellerPage() {
                     value={businessName}
                     onChange={(e) => setBusinessName(e.target.value)}
                     placeholder="Leave blank if selling personally"
+                  />
+                </label>
+              </div>
+            </section>
+
+            {/* Password */}
+            <section className="form-section">
+              <h2>Create Your Seller Password</h2>
+              <p className="pw-hint">
+                Set a password now so you can log in to the Seller Portal once approved.
+              </p>
+              <div className="field-grid">
+                <label className="field-label">
+                  Password <span className="req">*</span>
+                  <input
+                    type="password"
+                    className="field-input"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                    minLength={8}
+                    placeholder="Min 8 characters"
+                    autoComplete="new-password"
+                  />
+                </label>
+                <label className="field-label">
+                  Confirm Password <span className="req">*</span>
+                  <input
+                    type="password"
+                    className="field-input"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    required
+                    minLength={8}
+                    placeholder="Re-enter password"
+                    autoComplete="new-password"
                   />
                 </label>
               </div>
@@ -443,6 +492,12 @@ export default function BecomeSellerPage() {
         }
         .req {
           color: #dc2626;
+        }
+        .pw-hint {
+          font-size: 13px;
+          color: #6b7280;
+          margin: -6px 0 14px;
+          line-height: 1.4;
         }
         .field-input {
           padding: 10px 12px;
