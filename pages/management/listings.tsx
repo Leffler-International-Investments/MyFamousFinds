@@ -381,10 +381,13 @@ export default function ManagementListings({ items }: Props) {
       const res = await fetch(`/api/admin/remove-bg/${id}`, { method: "POST" });
       const json = await res.json().catch(() => ({}));
       if (!res.ok || !json?.ok) {
-        throw new Error(json?.error || "Failed to remove background");
+        throw new Error(json?.error || json?.errors?.join("; ") || "Failed to remove background");
       }
-      const partial = json.failedCount ? ` (${json.failedCount} failed)` : "";
-      alert(`Background removed successfully! ${json.processedCount} image(s) processed${partial}.`);
+      const bgInfo = json.bgRemovedCount != null
+        ? ` (${json.bgRemovedCount} bg removed, ${json.bgSkippedCount || 0} skipped)`
+        : "";
+      const failInfo = json.failedCount ? ` (${json.failedCount} failed)` : "";
+      alert(`Done! ${json.processedCount} image(s) processed${bgInfo}${failInfo}.`);
     } catch (err: any) {
       console.error("Remove bg error", err);
       alert(err?.message || "Unable to remove background");

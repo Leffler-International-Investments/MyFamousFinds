@@ -39,6 +39,8 @@ export type StoredImageUrls = {
   displayUrl: string;
   originalPath: string;
   displayPath: string;
+  backgroundRemoved: boolean;
+  bgRemovalError?: string;
 };
 
 function getBucket() {
@@ -94,18 +96,29 @@ export async function fetchImageBuffer(url: string): Promise<ImageBuffer> {
  * Create a white-background display image. Uses Photoroom bg removal when
  * PHOTOROOM_API_KEY is configured; falls back to plain white flattening.
  */
+export type DisplayImageResult = {
+  buffer: Buffer;
+  backgroundRemoved: boolean;
+  error?: string;
+};
+
+/**
+ * Create a white-background display image. Uses Photoroom bg removal when
+ * PHOTOROOM_API_KEY is configured; falls back to plain white flattening.
+ */
 export async function createWhiteDisplayImage(
   buffer: Buffer,
   _contentType: string
-): Promise<Buffer> {
+): Promise<DisplayImageResult> {
   if (PHOTOROOM_API_KEY) {
-    return removeBackgroundAndMakeWhite(buffer, {
+    const result = await removeBackgroundAndMakeWhite(buffer, {
       photoRoomApiKey: PHOTOROOM_API_KEY,
     });
+    return result;
   }
 
   // Fallback: white background without bg removal
-  return sharp(buffer)
+  const output = await sharp(buffer)
     .rotate()
     .resize(800, 1067, {
       fit: "contain",
@@ -114,6 +127,8 @@ export async function createWhiteDisplayImage(
     .flatten({ background: "#ffffff" })
     .jpeg({ quality: 85, mozjpeg: true })
     .toBuffer();
+
+  return { buffer: output, backgroundRemoved: false, error: "PHOTOROOM_API_KEY not configured" };
 }
 
 async function uploadBufferToBucket(
@@ -159,14 +174,11 @@ export async function storeListingImages(
   const originalPath = `${prefix}/original/${id}.${ext}`;
   const displayPath = `${prefix}/display/${id}.jpg`;
 
-  // Use plain white-background display image during initial upload.
-  // Background removal runs later via the fire-and-forget /api/admin/remove-bg/[id] call
-  // to avoid timeouts and OOM in bulk submission.
-  const displayBuffer = await createWhiteDisplayImage(input.buffer, contentType);
+  const displayResult = await createWhiteDisplayImage(input.buffer, contentType);
 
   const [originalUrl, displayUrl] = await Promise.all([
     uploadBufferToBucket(STORAGE_BUCKET, originalPath, input.buffer, contentType),
-    uploadBufferToBucket(STORAGE_BUCKET, displayPath, displayBuffer, "image/jpeg"),
+    uploadBufferToBucket(STORAGE_BUCKET, displayPath, displayResult.buffer, "image/jpeg"),
   ]);
 
   return {
@@ -174,6 +186,8 @@ export async function storeListingImages(
     displayUrl,
     originalPath,
     displayPath,
+    backgroundRemoved: displayResult.backgroundRemoved,
+    bgRemovalError: displayResult.error,
   };
 }
 

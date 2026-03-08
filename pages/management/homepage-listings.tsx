@@ -238,13 +238,16 @@ export default function HomepageScanner({ serverListings, messages: initMessages
     try {
       const res = await fetch(`/api/admin/remove-bg/${id}`, { method: "POST" });
       const json = await res.json().catch(() => ({}));
-      if (!res.ok || !json?.ok) throw new Error(json?.error || "Failed to remove background");
+      if (!res.ok || !json?.ok) throw new Error(json?.error || json?.errors?.join("; ") || "Failed to remove background");
       // Update the image in the listing card to show the new display image
       if (json.displayImageUrl) {
         setListings((prev) => prev.map((l) => l.id === id ? { ...l, image: json.displayImageUrl } : l));
       }
-      const partial = json.failedCount ? ` (${json.failedCount} failed)` : "";
-      alert(`Done! ${json.processedCount} image(s) processed${partial}.`);
+      const bgInfo = json.bgRemovedCount != null
+        ? ` (${json.bgRemovedCount} bg removed, ${json.bgSkippedCount || 0} skipped)`
+        : "";
+      const failInfo = json.failedCount ? ` (${json.failedCount} failed)` : "";
+      alert(`Done! ${json.processedCount} image(s) processed${bgInfo}${failInfo}.`);
     } catch (err: any) {
       alert(err?.message || "Background removal failed");
     }
