@@ -117,27 +117,33 @@ export async function createWhiteDisplayImageWithBgRemoval(
 
   if (REMBG_API_KEY) {
     try {
+      console.log("[rembg] Starting bg removal, key length:", REMBG_API_KEY.length);
       const form = new FormData();
-      const blob = new Blob([new Uint8Array(buffer)], { type: "image/jpeg" });
-      form.append("image", blob, "image.jpg");
+      const file = new File([new Uint8Array(buffer)], "image.jpg", { type: "image/jpeg" });
+      form.append("image", file);
       form.append("format", "png");
+      form.append("bg_color", "#ffffffff");
 
       const res = await fetch("https://api.rembg.com/rmbg", {
         method: "POST",
         headers: { "x-api-key": REMBG_API_KEY },
         body: form,
-        signal: AbortSignal.timeout(25000),
+        signal: AbortSignal.timeout(30000),
       });
 
       if (res.ok) {
         const arrayBuffer = await res.arrayBuffer();
         workingBuffer = Buffer.from(arrayBuffer);
+        console.log("[rembg] Success, received", arrayBuffer.byteLength, "bytes");
       } else {
-        console.warn("rembg.com API error:", res.status, await res.text());
+        const errText = await res.text();
+        console.error("[rembg] API error:", res.status, res.statusText, errText);
       }
     } catch (error) {
-      console.warn("rembg.com API call failed, using original:", (error as any)?.message || error);
+      console.error("[rembg] API call failed, using original:", (error as any)?.message || error);
     }
+  } else {
+    console.warn("[rembg] No REMBG_API_KEY set, skipping background removal");
   }
 
   return sharp(workingBuffer)
