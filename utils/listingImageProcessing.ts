@@ -9,6 +9,8 @@ const STORAGE_BUCKET =
   process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET ||
   "";
 
+const PHOTOROOM_API_KEY = process.env.PHOTOROOM_API_KEY || "";
+
 
 const CONTENT_TYPE_BY_FORMAT: Record<string, string> = {
   jpeg: "image/jpeg",
@@ -87,10 +89,62 @@ export async function fetchImageBuffer(url: string): Promise<ImageBuffer> {
   };
 }
 
+/**
+ * Remove background using Photoroom API. Returns a transparent PNG buffer.
+ * Returns null if the API key is not configured or the call fails.
+ */
+export async function removeBackgroundPhotoroom(
+  buffer: Buffer
+): Promise<Buffer | null> {
+  if (!PHOTOROOM_API_KEY) return null;
+
+  try {
+    const blob = new Blob([new Uint8Array(buffer)], { type: "image/jpeg" });
+    const form = new FormData();
+    form.append("image_file", blob, "image.jpg");
+    form.append("size", "medium");
+    form.append("format", "png");
+
+    const res = await fetch("https://sdk.photoroom.com/v1/segment", {
+      method: "POST",
+      headers: { "x-api-key": PHOTOROOM_API_KEY },
+      body: form,
+      signal: AbortSignal.timeout(30000),
+    });
+
+    if (!res.ok) {
+      const errText = await res.text();
+      console.error("[photoroom] API error:", res.status, errText);
+      return null;
+    }
+
+    return Buffer.from(await res.arrayBuffer());
+  } catch (err) {
+    console.error("[photoroom] Failed:", (err as any)?.message || err);
+    return null;
+  }
+}
+
 export async function createWhiteDisplayImage(
   buffer: Buffer,
   _contentType: string
 ): Promise<Buffer> {
+  // Try Photoroom bg removal first
+  const noBg = await removeBackgroundPhotoroom(buffer);
+
+  if (noBg) {
+    // Composite the transparent PNG onto a white background at display size
+    return sharp(noBg)
+      .resize(800, 1067, {
+        fit: "contain",
+        background: { r: 255, g: 255, b: 255, alpha: 1 },
+      })
+      .flatten({ background: "#ffffff" })
+      .jpeg({ quality: 85, mozjpeg: true })
+      .toBuffer();
+  }
+
+  // Fallback: white background without bg removal
   return sharp(buffer)
     .rotate()
     .resize(800, 1067, {
