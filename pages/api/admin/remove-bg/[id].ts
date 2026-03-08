@@ -5,6 +5,7 @@ import {
   fetchImageBuffer,
   hasStorageBucket,
   storeListingImages,
+  isPhotoroomConfigured,
 } from "../../../../utils/listingImageProcessing";
 
 export const config = { maxDuration: 60 };
@@ -14,6 +15,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (!requireAdmin(req, res)) return;
   if (!isFirebaseAdminReady || !adminDb) return res.status(500).json({ ok: false, error: "Firebase Admin not initialized" });
   if (!hasStorageBucket()) return res.status(500).json({ ok: false, error: "Storage bucket not configured" });
+  if (!isPhotoroomConfigured()) return res.status(500).json({ ok: false, error: "PHOTOROOM_API_KEY is not configured — background removal is unavailable" });
 
   const id = typeof req.query.id === "string" ? req.query.id : "";
   if (!id) return res.status(400).json({ ok: false, error: "Missing listing id" });
@@ -39,6 +41,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     let processedCount = 0;
+    let failedCount = 0;
+    const errors: string[] = [];
     let displayImageUrl = "";
 
     for (const url of sourceUrls) {
@@ -51,8 +55,19 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         }
         processedCount++;
       } catch (err) {
-        console.error(`[remove-bg] Failed to process image for ${id}:`, (err as any)?.message || err);
+        failedCount++;
+        const msg = (err as any)?.message || String(err);
+        errors.push(msg);
+        console.error(`[remove-bg] Failed to process image for listing ${id}:`, msg);
       }
+    }
+
+    if (processedCount === 0) {
+      return res.status(500).json({
+        ok: false,
+        error: `All ${sourceUrls.length} image(s) failed to process`,
+        errors,
+      });
     }
 
     if (displayImageUrl) {
@@ -62,9 +77,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       );
     }
 
-    return res.status(200).json({ ok: true, processedCount, displayImageUrl });
+    return res.status(200).json({
+      ok: true,
+      processedCount,
+      failedCount,
+      displayImageUrl,
+      ...(errors.length > 0 ? { errors } : {}),
+    });
   } catch (err: any) {
-    console.error("[remove-bg] Error:", err?.message || err);
+    console.error(`[remove-bg] Error for listing ${id}:`, err?.message || err);
     return res.status(500).json({ ok: false, error: err?.message || "Processing failed" });
   }
 }

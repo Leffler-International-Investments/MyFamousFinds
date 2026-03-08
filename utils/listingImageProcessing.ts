@@ -264,3 +264,7 @@ export function getImageProcessingStatus(): ImageProcessingStatus {
 export function hasStorageBucket(): boolean {
   return Boolean(STORAGE_BUCKET) && isFirebaseAdminReady;
 }
+
+export function isPhotoroomConfigured(): boolean {
+  return Boolean(PHOTOROOM_API_KEY);
+}
