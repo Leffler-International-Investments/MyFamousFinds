@@ -108,12 +108,15 @@ async function removeBackgroundIfConfigured(
   const timer = setTimeout(() => controller.abort(), REMBG_TIMEOUT_MS);
 
   try {
-    const formData = new FormData();
-    formData.append("file", new Blob([new Uint8Array(buffer)]), "image.jpg");
-
     const response = await fetch(`${REMBG_API_URL}/remove-bg`, {
       method: "POST",
-      body: formData,
+      headers: {
+        "Content-Type": "image/jpeg",
+        ...(process.env.REMOVAL_API_KEY
+          ? { "x-api-key": process.env.REMOVAL_API_KEY }
+          : {}),
+      },
+      body: buffer,
       signal: controller.signal,
     });
 
