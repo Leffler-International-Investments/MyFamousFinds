@@ -297,6 +297,7 @@ export default function Footer() {
 
           {/* ---- Brand + copyright ---- */}
           <div className="ff-footer-brand">
+            <img src="/Famous-Finds-Logo-2.png" alt="Famous Finds" className="ff-footer-logo" />
             <div className="ff-footer-title">FAMOUS FINDS</div>
             <div className="ff-footer-copy">
               &copy; {year} Famous Finds. All rights reserved. Curated pre-loved luxury.
@@ -380,6 +381,13 @@ export default function Footer() {
             align-items: center;
             gap: 4px;
             text-align: center;
+          }
+
+          .ff-footer-logo {
+            height: 60px;
+            width: auto;
+            object-fit: contain;
+            margin-bottom: 8px;
           }
 
           .ff-footer-title {

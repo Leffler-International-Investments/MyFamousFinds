@@ -1,7 +1,7 @@
 // FILE: /pages/api/seller/apply.ts
 
 import type { NextApiRequest, NextApiResponse } from "next";
-import { adminDb, isFirebaseAdminReady, FieldValue } from "../../../utils/firebaseAdmin";
+import { adminDb, adminAuth, isFirebaseAdminReady, FieldValue } from "../../../utils/firebaseAdmin";
 import {
   sendAdminNewSellerApplicationEmail,
   sendSellerApplicationReceivedEmail,
@@ -47,8 +47,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
     const existingDoc = await adminDb.collection("sellers").doc(id).get();
     const existingData = existingDoc.exists ? existingDoc.data() : null;
 
+    // Strip password from body before storing in Firestore — never persist plaintext passwords
+    const { password: _pw, ...safeBody } = body;
+
     await adminDb.collection("sellers").doc(id).set({
-      ...body,
+      ...safeBody,
       email,
       status: "Pending",
       submittedAt: existingDoc.exists
@@ -92,6 +95,26 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
         }
       } catch (bankErr) {
         console.warn("[APPLY] Could not seed seller_banking with address:", bankErr);
+      }
+    }
+
+    // If a password was provided, create or update Firebase Auth user so the
+    // seller can log in immediately once approved (no extra "set up password" step).
+    const password = String(body?.password || "");
+    if (password && password.length >= 8 && adminAuth) {
+      try {
+        const userRecord = await adminAuth.getUserByEmail(email);
+        await adminAuth.updateUser(userRecord.uid, { password });
+      } catch (authErr: any) {
+        if (authErr.code === "auth/user-not-found") {
+          try {
+            await adminAuth.createUser({ email, password });
+          } catch (createErr) {
+            console.warn("[APPLY] Could not create Firebase Auth user:", createErr);
+          }
+        } else {
+          console.warn("[APPLY] Could not update Firebase Auth password:", authErr);
+        }
       }
     }
 
