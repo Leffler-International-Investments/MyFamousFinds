@@ -1,6 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import sharp from "sharp";
-import { removeBackground } from "@imgly/background-removal-node";
 import { requireAdmin } from "../../../utils/adminAuth";
 import { getImageProcessingStatus } from "../../../utils/listingImageProcessing";
 
@@ -22,6 +21,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         .png()
         .toBuffer();
 
+      const { removeBackground } = await import("@imgly/background-removal-node");
       const inputBlob = new Blob([new Uint8Array(testBuffer)], { type: "image/png" });
       const resultBlob = await removeBackground(inputBlob, {
         model: "medium",

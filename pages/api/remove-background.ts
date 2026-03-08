@@ -1,5 +1,4 @@
 import type { NextApiRequest, NextApiResponse } from "next";
-import { removeBackground } from "@imgly/background-removal-node";
 
 export const config = {
   api: {
@@ -19,6 +18,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const buffer = Buffer.concat(chunks);
 
     console.log("[bg-removal] Starting local background removal, image size:", buffer.byteLength);
+    const { removeBackground } = await import("@imgly/background-removal-node");
     const inputBlob = new Blob([new Uint8Array(buffer)], { type: "image/png" });
     const resultBlob = await removeBackground(inputBlob, {
       model: "medium",
