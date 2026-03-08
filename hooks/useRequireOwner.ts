@@ -36,7 +36,8 @@ export function useRequireOwner() {
       setState("denied");
       router.replace("/management/dashboard");
     }
-  }, [router]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return {
     loading: state === "checking",
