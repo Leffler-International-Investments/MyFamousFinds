@@ -14,7 +14,7 @@ export const config = {
     bodyParser: false,
     responseLimit: false,
   },
-  maxDuration: 60,
+  maxDuration: 300,
 };
 
 type ApiOk = {
@@ -70,7 +70,6 @@ export default async function handler(
     const contentType = file.mimetype || "image/jpeg";
 
     if (!hasStorageBucket()) {
-      // No Storage bucket — compress to fit in Firestore (<1MB limit)
       const compressedBuffer = await sharp(buffer)
         .rotate()
         .resize(800, 1067, { fit: "contain", background: { r: 255, g: 255, b: 255, alpha: 1 } })
