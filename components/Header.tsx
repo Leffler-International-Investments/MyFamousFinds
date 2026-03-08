@@ -96,9 +96,7 @@ export default function Header({ filterContent, showFilter, onToggleFilter }: He
       {/* BRAND + SEARCH + CART */}
       <div className="ff-header-middle">
         <div className="ff-middle-spacer"></div>
-        <Link href="/" className="ff-brand-name">
-          <img src="/Famous-Finds-Logo-2.png" alt="Famous Finds" className="ff-brand-logo" />
-        </Link>
+        <Link href="/" className="ff-brand-name" style={{ fontSize: "44px", fontWeight: 900 }}>FAMOUS FINDS</Link>
         <div className="ff-search-container">
           <form action="/search" className="ff-search-form">
             <input
@@ -243,12 +241,6 @@ export default function Header({ filterContent, showFilter, onToggleFilter }: He
           justify-content: center;
         }
 
-        .ff-brand-logo {
-          height: 70px;
-          width: auto;
-          object-fit: contain;
-        }
-
         .ff-search-container {
           flex: 1;
           display: flex;
@@ -352,9 +344,6 @@ export default function Header({ filterContent, showFilter, onToggleFilter }: He
             order: -1;
             margin-bottom: 8px;
           }
-          .ff-brand-logo {
-            height: 50px;
-          }
           .ff-search-container {
             flex: 1 1 100%;
             justify-content: center;
@@ -385,9 +374,6 @@ export default function Header({ filterContent, showFilter, onToggleFilter }: He
         }
 
         @media (max-width: 480px) {
-          .ff-brand-logo {
-            height: 44px;
-          }
           .ff-header-top {
             padding: 8px 12px;
           }
