@@ -1,6 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from "next";
-import { removeBackground } from "@imgly/background-removal-node";
 import sharp from "sharp";
+
+const REMBG_API_KEY = process.env.REMBG_API_KEY || "";
 
 export const config = {
   api: {
@@ -18,15 +19,34 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     const buffer = Buffer.concat(chunks);
 
-    // remove background
-    const removed = await removeBackground(buffer);
+    let finalImage: Buffer;
 
-    // convert transparent background to white
-    const arrayBuffer = await removed.arrayBuffer();
-    const finalImage = await sharp(Buffer.from(arrayBuffer))
-      .flatten({ background: "#ffffff" })
-      .jpeg({ quality: 95 })
-      .toBuffer();
+    if (REMBG_API_KEY) {
+      const form = new FormData();
+      const blob = new Blob([buffer], { type: "image/jpeg" });
+      form.append("image", blob, "image.jpg");
+      form.append("format", "png");
+
+      const rembgRes = await fetch("https://api.rembg.com/rmbg", {
+        method: "POST",
+        headers: { "x-api-key": REMBG_API_KEY },
+        body: form,
+        signal: AbortSignal.timeout(25000),
+      });
+
+      if (!rembgRes.ok) throw new Error(`rembg API error: ${rembgRes.status}`);
+
+      const resultBuffer = Buffer.from(await rembgRes.arrayBuffer());
+      finalImage = await sharp(resultBuffer)
+        .flatten({ background: "#ffffff" })
+        .jpeg({ quality: 95 })
+        .toBuffer();
+    } else {
+      finalImage = await sharp(buffer)
+        .flatten({ background: "#ffffff" })
+        .jpeg({ quality: 95 })
+        .toBuffer();
+    }
 
     res.setHeader("Content-Type", "image/jpeg");
     res.send(finalImage);
