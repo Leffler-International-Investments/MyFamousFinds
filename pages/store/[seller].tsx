@@ -73,7 +73,7 @@ export default function StorePage({
         <section className="grid">
           {listings.map((x) => (
             <Link key={x.id} href={`/product/${x.id}`} className="card">
-              <img src={x.imageUrl || "/Famous-Finds-Logo-2.png"} alt={x.title} className="cardImg" />
+              <img src={x.imageUrl || "/Famous-Finds-Logo-Transparent.png"} alt={x.title} className="cardImg" />
               <div className="cardBody">
                 <span className="cardBrand">{x.brand}</span>
                 <h2 className="cardTitle">{x.title}</h2>

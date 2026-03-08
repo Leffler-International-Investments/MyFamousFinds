@@ -105,7 +105,7 @@ export default function ProductPage(props: ProductPageProps) {
   const [buyerTouched, setBuyerTouched] = useState(false);
 
   // ✅ Robust image fallback so the product image never disappears
-  const FALLBACK_IMG = "/Famous-Finds-Logo-2.png";
+  const FALLBACK_IMG = "/Famous-Finds-Logo-Transparent.png";
   const isLikelyValidSrc = (src?: string | null) => {
     const s = String(src || "").trim();
     if (!s) return false;
@@ -757,7 +757,7 @@ export default function ProductPage(props: ProductPageProps) {
             <div className="similar-grid">
               {similarItems.map((item) => (
                 <a key={item.id} href={`/product/${item.id}`} className="similar-card">
-                  <img src={item.image || "/Famous-Finds-Logo-2.png"} alt={item.title} className="similar-img" />
+                  <img src={item.image || "/Famous-Finds-Logo-Transparent.png"} alt={item.title} className="similar-img" />
                   <div className="similar-body">
                     <span className="similar-brand">{item.brand}</span>
                     <span className="similar-name">{item.title}</span>
@@ -1523,7 +1523,7 @@ export const getServerSideProps: GetServerSideProps<ProductPageProps> = async (c
           pickFrom(d.image) ||
           pickFrom(d.imageUrls?.[0]) ||
           pickFrom(images?.[0])
-      ) || "/Famous-Finds-Logo-2.png";
+      ) || "/Famous-Finds-Logo-Transparent.png";
 
     // Collect all image URLs for gallery display
     const allImageUrls: string[] = [];
@@ -1538,7 +1538,7 @@ export const getServerSideProps: GetServerSideProps<ProductPageProps> = async (c
     addUrls(d.displayImageUrls);
     addUrls(images);
     // Ensure primary image is first
-    if (imageUrl && imageUrl !== "/Famous-Finds-Logo-2.png" && !allImageUrls.includes(imageUrl)) {
+    if (imageUrl && imageUrl !== "/Famous-Finds-Logo-Transparent.png" && !allImageUrls.includes(imageUrl)) {
       allImageUrls.unshift(imageUrl);
     } else if (allImageUrls.length > 0 && allImageUrls[0] !== imageUrl) {
       const idx = allImageUrls.indexOf(imageUrl);

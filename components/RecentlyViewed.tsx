@@ -117,11 +117,11 @@ export default function RecentlyViewed({ excludeId }: { excludeId?: string }) {
         {items.map((item) => (
           <Link key={item.id} href={`/product/${item.id}`} className="rv-card">
             <img
-              src={item.image || "/Famous-Finds-Logo-2.png"}
+              src={item.image || "/Famous-Finds-Logo-Transparent.png"}
               alt={item.title}
               className="rv-img"
               onError={(e) => {
-                (e.target as HTMLImageElement).src = "/Famous-Finds-Logo-2.png";
+                (e.target as HTMLImageElement).src = "/Famous-Finds-Logo-Transparent.png";
               }}
             />
             <div className="rv-body">
