@@ -262,6 +262,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
 
     let created = 0;
     let skipped = 0;
+    const createdIds: string[] = [];
 
     const batch = adminDb.batch();
 
@@ -350,6 +351,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
       const isApprovedDesigner = enforceDesigners && approvedDesigners.has(brandKey);
 
       const ref = adminDb.collection("listings").doc();
+      createdIds.push(ref.id);
 
       const docData: any = {
         ...cleaned,
@@ -384,6 +386,22 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
     }
 
     if (created > 0) await batch.commit();
+
+    // Fire background removal for each created listing (fire-and-forget).
+    // Uses the same /api/admin/remove-bg/[id] endpoint as the admin "White BG" button.
+    const adminSecret = process.env.ADMIN_API_SECRET || "";
+    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_BASE_URL || "";
+    if (adminSecret && baseUrl && createdIds.length > 0) {
+      // Don't await — let it run after response is sent
+      Promise.all(
+        createdIds.map((id) =>
+          fetch(`${baseUrl}/api/admin/remove-bg/${id}`, {
+            method: "POST",
+            headers: { "x-admin-secret": adminSecret },
+          }).catch((e) => console.warn(`remove-bg fire-and-forget failed for ${id}:`, e))
+        )
+      ).catch(() => {});
+    }
 
     return res.status(200).json({ ok: true, created, skipped });
   } catch (err: any) {
