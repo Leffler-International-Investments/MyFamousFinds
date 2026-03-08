@@ -18,7 +18,7 @@ export const config = {
       sizeLimit: "20mb",
     },
   },
-  maxDuration: 60,
+  maxDuration: 300,
 };
 
 type IncomingRow = {
