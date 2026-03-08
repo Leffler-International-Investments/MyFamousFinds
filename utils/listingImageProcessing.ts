@@ -4,13 +4,6 @@ import crypto from "crypto";
 import sharp from "sharp";
 import admin, { isFirebaseAdminReady } from "./firebaseAdmin";
 
-// Env vars:
-// - REMBG_API_URL: URL of self-hosted rembg API (e.g. http://localhost:8000).
-//   Background removal is enabled when this is set.
-// - FIREBASE_STORAGE_BUCKET or NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET: storage bucket name.
-const REMBG_API_URL = process.env.REMBG_API_URL || "";
-const REQUIRE_BG_REMOVAL = process.env.REQUIRE_BG_REMOVAL === "true";
-const REMBG_TIMEOUT_MS = Number(process.env.REMBG_TIMEOUT_MS || 20000);
 const STORAGE_BUCKET =
   process.env.FIREBASE_STORAGE_BUCKET ||
   process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET ||
@@ -93,64 +86,11 @@ export async function fetchImageBuffer(url: string): Promise<ImageBuffer> {
   };
 }
 
-async function removeBackgroundIfConfigured(
-  buffer: Buffer,
-  _contentType: string
-): Promise<Buffer | null> {
-  if (!REMBG_API_URL) {
-    if (REQUIRE_BG_REMOVAL) {
-      throw new Error("Background removal required but REMBG_API_URL is not set.");
-    }
-    return null;
-  }
-
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), REMBG_TIMEOUT_MS);
-
-  try {
-    const response = await fetch(`${REMBG_API_URL}/remove-bg`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "image/jpeg",
-        ...(process.env.REMOVAL_API_KEY
-          ? { "x-api-key": process.env.REMOVAL_API_KEY }
-          : {}),
-      },
-      body: new Uint8Array(buffer),
-      signal: controller.signal,
-    });
-
-    if (!response.ok) {
-      const msg = `rembg API error: ${response.status} ${response.statusText}`;
-      if (REQUIRE_BG_REMOVAL) throw new Error(msg);
-      console.warn(msg);
-      return null;
-    }
-
-    const arrayBuffer = await response.arrayBuffer();
-    const out = Buffer.from(arrayBuffer);
-    if (!out.length) {
-      if (REQUIRE_BG_REMOVAL) throw new Error("rembg returned empty output");
-      return null;
-    }
-    return out;
-  } catch (error) {
-    if (REQUIRE_BG_REMOVAL) throw error;
-    console.warn("rembg error:", error);
-    return null;
-  } finally {
-    clearTimeout(timer);
-  }
-}
-
 export async function createWhiteDisplayImage(
   buffer: Buffer,
-  contentType: string
+  _contentType: string
 ): Promise<Buffer> {
-  const removed = await removeBackgroundIfConfigured(buffer, contentType);
-  const workingBuffer = removed || buffer;
-
-  const pipeline = sharp(workingBuffer)
+  const pipeline = sharp(buffer)
     .rotate()
     .resize(800, 1067, {
       fit: "contain",
@@ -254,25 +194,15 @@ export async function storeProofDocument(dataUrl: string): Promise<string> {
 }
 
 export type ImageProcessingStatus = {
-  rembgConfigured: boolean;
-  rembgUrl: string;
-  requireBgRemoval: boolean;
   storageBucketConfigured: boolean;
   firebaseAdminReady: boolean;
 };
 
 export function getImageProcessingStatus(): ImageProcessingStatus {
   return {
-    rembgConfigured: Boolean(REMBG_API_URL),
-    rembgUrl: REMBG_API_URL || "",
-    requireBgRemoval: REQUIRE_BG_REMOVAL,
     storageBucketConfigured: Boolean(STORAGE_BUCKET),
     firebaseAdminReady: isFirebaseAdminReady,
   };
-}
-
-export function hasBackgroundRemovalKey(): boolean {
-  return Boolean(REMBG_API_URL);
 }
 
 export function hasStorageBucket(): boolean {
