@@ -7,7 +7,7 @@ import Header from "../../components/Header";
 import Footer from "../../components/Footer";
 import PasswordInput from "../../components/PasswordInput";
 import PhoneVerificationPopup from "../../components/PhoneVerificationPopup";
-import { safeRedirectPath } from "../../utils/roleSession";
+import { safeRedirectPath, setRoleSession } from "../../utils/roleSession";
 
 type ManagementLoginOk = { ok: true; managementId: string };
 type ManagementLoginError = {
@@ -20,8 +20,8 @@ type ManagementLoginResponse = ManagementLoginOk | ManagementLoginError;
 type PageMode = "login" | "setup";
 type TwoFactorStep = "credentials" | "choose_method" | "phone_verify" | "verify";
 
-// 7 days
-const SESSION_TTL_MS = 168 * 60 * 60 * 1000;
+// 15 minutes (sliding — extended on every protected page load)
+const SESSION_TTL_MINUTES = 15;
 
 export default function ManagementLoginPage() {
   const router = useRouter();
@@ -201,14 +201,8 @@ export default function ManagementLoginPage() {
         return;
       }
 
-      if (typeof window !== "undefined") {
-        window.localStorage.setItem("ff-role", "management");
-        window.localStorage.setItem("ff-email", email.toLowerCase().trim());
-        window.localStorage.setItem(
-          "ff-session-exp",
-          String(Date.now() + SESSION_TTL_MS)
-        );
-      }
+      // Use the shared helper so session TTL stays consistent
+      setRoleSession("management", email.toLowerCase().trim(), SESSION_TTL_MINUTES / 60);
 
       router.push(from || "/management/dashboard");
     } catch (err) {
