@@ -9,6 +9,8 @@ const STORAGE_BUCKET =
   process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET ||
   "";
 
+const REMBG_API_KEY = process.env.REMBG_API_KEY || "";
+
 
 const CONTENT_TYPE_BY_FORMAT: Record<string, string> = {
   jpeg: "image/jpeg",
@@ -113,14 +115,29 @@ export async function createWhiteDisplayImageWithBgRemoval(
 ): Promise<Buffer> {
   let workingBuffer = buffer;
 
-  try {
-    const { removeBackground } = await import("@imgly/background-removal-node");
-    const blob = await removeBackground(buffer);
-    const arrayBuffer = await blob.arrayBuffer();
-    workingBuffer = Buffer.from(arrayBuffer);
-  } catch (error) {
-    // @imgly may fail on Vercel (native binary, size limits) — silently fall back
-    console.warn("Background removal skipped:", (error as any)?.message || error);
+  if (REMBG_API_KEY) {
+    try {
+      const form = new FormData();
+      const blob = new Blob([buffer], { type: "image/jpeg" });
+      form.append("image", blob, "image.jpg");
+      form.append("format", "png");
+
+      const res = await fetch("https://api.rembg.com/rmbg", {
+        method: "POST",
+        headers: { "x-api-key": REMBG_API_KEY },
+        body: form,
+        signal: AbortSignal.timeout(25000),
+      });
+
+      if (res.ok) {
+        const arrayBuffer = await res.arrayBuffer();
+        workingBuffer = Buffer.from(arrayBuffer);
+      } else {
+        console.warn("rembg.com API error:", res.status, await res.text());
+      }
+    } catch (error) {
+      console.warn("rembg.com API call failed, using original:", (error as any)?.message || error);
+    }
   }
 
   return sharp(workingBuffer)
