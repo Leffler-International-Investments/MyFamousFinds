@@ -54,16 +54,25 @@ async function removeBackgroundWithPhotoroom(
   return Buffer.from(await response.arrayBuffer());
 }
 
+export type RemoveBgResult = {
+  buffer: Buffer;
+  backgroundRemoved: boolean;
+  error?: string;
+};
+
 /**
  * Removes background when possible and ALWAYS returns a white-background JPEG.
  *
  * - If Photoroom succeeds, transparency is composited onto white.
  * - If Photoroom fails, original image is still normalized to white JPEG.
+ *
+ * The returned object includes `backgroundRemoved` so callers can detect
+ * when the AI removal was skipped.
  */
 export async function removeBackgroundAndMakeWhite(
   input: AnyImageInput,
   options: RemoveBgWhiteOptions
-): Promise<Buffer> {
+): Promise<RemoveBgResult> {
   const {
     photoRoomApiKey,
     width = 800,
@@ -78,15 +87,20 @@ export async function removeBackgroundAndMakeWhite(
 
   const sourceBuffer = await resolveToBuffer(input);
   let processed = sourceBuffer;
+  let backgroundRemoved = false;
+  let bgError: string | undefined;
 
   try {
     processed = await removeBackgroundWithPhotoroom(sourceBuffer, photoRoomApiKey, timeoutMs);
-  } catch {
-    // Intentional fallback: still output white background even if AI removal fails.
+    backgroundRemoved = true;
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    bgError = message;
+    console.error("[backgroundRemoval] Photoroom failed, falling back to plain white:", message);
     processed = sourceBuffer;
   }
 
-  return sharp(processed)
+  const buffer = await sharp(processed)
     .rotate()
     .resize(width, height, {
       fit: "contain",
@@ -95,4 +109,6 @@ export async function removeBackgroundAndMakeWhite(
     .flatten({ background: "#ffffff" })
     .jpeg({ quality, mozjpeg: true })
     .toBuffer();
+
+  return { buffer, backgroundRemoved, error: bgError };
 }

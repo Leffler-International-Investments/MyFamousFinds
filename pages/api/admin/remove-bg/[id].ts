@@ -42,6 +42,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     let processedCount = 0;
     let failedCount = 0;
+    let bgRemovedCount = 0;
+    let bgSkippedCount = 0;
     const errors: string[] = [];
     let displayImageUrl = "";
 
@@ -54,6 +56,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           displayImageUrl = stored.displayUrl;
         }
         processedCount++;
+
+        if (stored.backgroundRemoved) {
+          bgRemovedCount++;
+        } else {
+          bgSkippedCount++;
+          if (stored.bgRemovalError) {
+            errors.push(`BG removal skipped: ${stored.bgRemovalError}`);
+            console.warn(`[remove-bg] BG removal skipped for listing ${id}:`, stored.bgRemovalError);
+          }
+        }
       } catch (err) {
         failedCount++;
         const msg = (err as any)?.message || String(err);
@@ -70,6 +82,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       });
     }
 
+    // Report partial success: images were stored but bg removal may have been skipped
+    const allBgFailed = bgRemovedCount === 0 && processedCount > 0;
+
     if (displayImageUrl) {
       await docRef.set(
         { displayImageUrl, updatedAt: new Date() },
@@ -78,10 +93,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     return res.status(200).json({
-      ok: true,
+      ok: !allBgFailed,
       processedCount,
       failedCount,
+      bgRemovedCount,
+      bgSkippedCount,
       displayImageUrl,
+      ...(allBgFailed ? { error: "Images stored but background removal failed for all" } : {}),
       ...(errors.length > 0 ? { errors } : {}),
     });
   } catch (err: any) {

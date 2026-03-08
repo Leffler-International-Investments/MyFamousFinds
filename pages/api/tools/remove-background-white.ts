@@ -19,7 +19,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     for await (const chunk of req) chunks.push(chunk);
     const source = Buffer.concat(chunks);
 
-    const output = await removeBackgroundAndMakeWhite(source, {
+    const result = await removeBackgroundAndMakeWhite(source, {
       photoRoomApiKey: PHOTOROOM_API_KEY,
       width: 800,
       height: 1067,
@@ -28,7 +28,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     });
 
     res.setHeader("Content-Type", "image/jpeg");
-    return res.status(200).send(output);
+    res.setHeader("X-Background-Removed", result.backgroundRemoved ? "true" : "false");
+    if (result.error) {
+      res.setHeader("X-Bg-Removal-Error", result.error.substring(0, 200));
+    }
+    return res.status(200).send(result.buffer);
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error);
     return res.status(500).json({
