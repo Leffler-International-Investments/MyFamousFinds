@@ -6,8 +6,8 @@ const ROLE_KEY = "ff-role";
 const EMAIL_KEY = "ff-email";
 const EXP_KEY = "ff-session-exp"; // epoch ms
 
-// Sliding session duration — 15 minutes (extends on every protected page load)
-export const DEFAULT_SESSION_TTL_HOURS = 0.25; // 15 minutes
+// Sliding session duration — 24 hours (extends on every protected page load)
+export const DEFAULT_SESSION_TTL_HOURS = 24;
 
 function nowMs() {
   return Date.now();
