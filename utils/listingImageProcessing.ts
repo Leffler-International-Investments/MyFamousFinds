@@ -91,6 +91,26 @@ export async function createWhiteDisplayImage(
   buffer: Buffer,
   _contentType: string
 ): Promise<Buffer> {
+  return sharp(buffer)
+    .rotate()
+    .resize(800, 1067, {
+      fit: "contain",
+      background: { r: 255, g: 255, b: 255, alpha: 1 },
+    })
+    .flatten({ background: "#ffffff" })
+    .jpeg({ quality: 85, mozjpeg: true })
+    .toBuffer();
+}
+
+/**
+ * Same as createWhiteDisplayImage but runs background removal first.
+ * This is CPU/memory-intensive — only use in endpoints with extended
+ * timeouts (e.g. the admin remove-bg route), never in bulk submission.
+ */
+export async function createWhiteDisplayImageWithBgRemoval(
+  buffer: Buffer,
+  _contentType: string
+): Promise<Buffer> {
   let workingBuffer = buffer;
 
   try {
