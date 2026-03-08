@@ -24,16 +24,8 @@ const nextConfig = {
     ],
   },
 
-  // ✅ Keep your alias config + add WASM support for @imgly/background-removal-node
   webpack: (config) => {
     config.resolve.alias["@"] = path.resolve(__dirname);
-
-    // Required for @imgly/background-removal-node to load its WASM files on Vercel
-    config.experiments = {
-      ...config.experiments,
-      asyncWebAssembly: true,
-    };
-
     return config;
   },
 };
