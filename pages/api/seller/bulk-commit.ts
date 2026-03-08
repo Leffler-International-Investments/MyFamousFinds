@@ -5,7 +5,7 @@ import { FieldValue } from "firebase-admin/firestore";
 import { getSellerId } from "../../../utils/authServer";
 import sharp from "sharp";
 import {
-  createWhiteDisplayImageWithBgRemoval,
+  createWhiteDisplayImage,
   hasStorageBucket,
   parseDataUrl,
   storeListingImages,
@@ -141,7 +141,7 @@ async function processAndStoreImage(base64Str: string) {
   if (!hasStorageBucket()) {
     // No Storage bucket — process display image and store as compressed data URL
     try {
-      const displayBuffer = await createWhiteDisplayImageWithBgRemoval(parsed.buffer, parsed.contentType);
+      const displayBuffer = await createWhiteDisplayImage(parsed.buffer, parsed.contentType);
       const displayUrl = `data:image/jpeg;base64,${displayBuffer.toString("base64")}`;
       return { originalUrl: displayUrl, displayUrl };
     } catch (err) {
@@ -156,7 +156,7 @@ async function processAndStoreImage(base64Str: string) {
   } catch (error) {
     console.warn("Storage upload failed, falling back to compressed data URL:", error);
     try {
-      const displayBuffer = await createWhiteDisplayImageWithBgRemoval(parsed.buffer, parsed.contentType);
+      const displayBuffer = await createWhiteDisplayImage(parsed.buffer, parsed.contentType);
       const displayUrl = `data:image/jpeg;base64,${displayBuffer.toString("base64")}`;
       return { originalUrl: displayUrl, displayUrl };
     } catch (err) {
