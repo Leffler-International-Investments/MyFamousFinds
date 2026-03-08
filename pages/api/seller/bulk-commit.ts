@@ -138,10 +138,15 @@ async function processAndStoreImage(base64Str: string) {
   if (!parsed) return null;
 
   if (!hasStorageBucket()) {
-    // No Storage bucket — process through background removal + white display pipeline
-    const displayBuffer = await createWhiteDisplayImage(parsed.buffer, parsed.contentType);
-    const displayUrl = `data:image/jpeg;base64,${displayBuffer.toString("base64")}`;
-    return { originalUrl: displayUrl, displayUrl };
+    // No Storage bucket — process display image and store as compressed data URL
+    try {
+      const displayBuffer = await createWhiteDisplayImage(parsed.buffer, parsed.contentType);
+      const displayUrl = `data:image/jpeg;base64,${displayBuffer.toString("base64")}`;
+      return { originalUrl: displayUrl, displayUrl };
+    } catch (err) {
+      console.warn("Display image processing failed (no bucket):", err);
+      return null;
+    }
   }
 
   try {
@@ -149,9 +154,14 @@ async function processAndStoreImage(base64Str: string) {
     return { originalUrl: stored.originalUrl, displayUrl: stored.displayUrl };
   } catch (error) {
     console.warn("Storage upload failed, falling back to compressed data URL:", error);
-    const displayBuffer = await createWhiteDisplayImage(parsed.buffer, parsed.contentType);
-    const displayUrl = `data:image/jpeg;base64,${displayBuffer.toString("base64")}`;
-    return { originalUrl: displayUrl, displayUrl };
+    try {
+      const displayBuffer = await createWhiteDisplayImage(parsed.buffer, parsed.contentType);
+      const displayUrl = `data:image/jpeg;base64,${displayBuffer.toString("base64")}`;
+      return { originalUrl: displayUrl, displayUrl };
+    } catch (err) {
+      console.warn("Fallback display image processing also failed:", err);
+      return null;
+    }
   }
 }
 
@@ -294,30 +304,40 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
           // If storeProofDocument returned the same data URL (no bucket), compress it
           // to avoid exceeding Firestore's 1 MB document limit.
           if (storedProofUrl.startsWith("data:image/")) {
-            const parsed = parseDataUrl(storedProofUrl);
-            if (parsed && parsed.buffer.length > 200_000) {
-              const compressed = await sharp(parsed.buffer)
+            const proofParsed = parseDataUrl(storedProofUrl);
+            if (proofParsed && proofParsed.buffer.length > 200_000) {
+              const compressed = await sharp(proofParsed.buffer)
                 .resize(800, 800, { fit: "inside" })
                 .jpeg({ quality: 60, mozjpeg: true })
                 .toBuffer();
               cleaned.proof_doc_url = `data:image/jpeg;base64,${compressed.toString("base64")}`;
-            } else {
+            } else if (proofParsed) {
               cleaned.proof_doc_url = storedProofUrl;
+            } else {
+              // Could not parse — drop inline data to avoid exceeding doc limit
+              cleaned.proof_doc_url = null;
             }
           } else {
             cleaned.proof_doc_url = storedProofUrl;
           }
         } catch (error) {
           console.warn("Proof document upload failed, compressing inline:", error);
-          if (cleaned.proof_doc_url.startsWith("data:image/")) {
-            const parsed = parseDataUrl(cleaned.proof_doc_url);
-            if (parsed) {
-              const compressed = await sharp(parsed.buffer)
-                .resize(800, 800, { fit: "inside" })
-                .jpeg({ quality: 60, mozjpeg: true })
-                .toBuffer();
-              cleaned.proof_doc_url = `data:image/jpeg;base64,${compressed.toString("base64")}`;
+          try {
+            if (cleaned.proof_doc_url.startsWith("data:image/")) {
+              const proofParsed = parseDataUrl(cleaned.proof_doc_url);
+              if (proofParsed) {
+                const compressed = await sharp(proofParsed.buffer)
+                  .resize(800, 800, { fit: "inside" })
+                  .jpeg({ quality: 60, mozjpeg: true })
+                  .toBuffer();
+                cleaned.proof_doc_url = `data:image/jpeg;base64,${compressed.toString("base64")}`;
+              } else {
+                cleaned.proof_doc_url = null;
+              }
             }
+          } catch (compressErr) {
+            console.warn("Proof document compression also failed:", compressErr);
+            cleaned.proof_doc_url = null;
           }
         }
       }
@@ -341,6 +361,22 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
         updatedAt: FieldValue.serverTimestamp(),
         ...(normalizedShipFromAddress ? { shipFromAddress: normalizedShipFromAddress } : {}),
       };
+
+      // Safety: strip any inline data URLs that would push the doc over
+      // Firestore's 1 MB limit. Estimate total JSON size roughly.
+      const roughSize = JSON.stringify(docData).length;
+      if (roughSize > 900_000) {
+        // Drop the heaviest inline fields to fit under the limit
+        if (docData.proof_doc_url && docData.proof_doc_url.startsWith("data:")) {
+          docData.proof_doc_url = null;
+        }
+        if (docData.image_url && docData.image_url.startsWith("data:")) {
+          docData.image_url = null;
+          docData.imageUrl = null;
+          docData.displayImageUrl = null;
+          docData.imageUrls = [];
+        }
+      }
 
       batch.set(ref, docData);
       created++;
