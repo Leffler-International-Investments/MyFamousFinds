@@ -1,0 +1,14 @@
+{
+  "name": "mff-bg-removal-function",
+  "version": "1.0.0",
+  "description": "Firebase Cloud Function for automatic background removal on image upload",
+  "main": "index.js",
+  "engines": {
+    "node": "18"
+  },
+  "dependencies": {
+    "firebase-admin": "^11.11.0",
+    "firebase-functions": "^4.5.0",
+    "node-fetch": "^2.7.0"
+  }
+}
