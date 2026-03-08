@@ -24,8 +24,18 @@ const nextConfig = {
     ],
   },
 
-  webpack: (config) => {
+  // Mark native ONNX packages as external so webpack doesn't try to bundle them
+  serverExternalPackages: [
+    "@imgly/background-removal-node",
+    "onnxruntime-node",
+  ],
+
+  webpack: (config, { isServer }) => {
     config.resolve.alias["@"] = path.resolve(__dirname);
+    if (isServer) {
+      config.externals = config.externals || [];
+      config.externals.push("onnxruntime-node");
+    }
     return config;
   },
 };
