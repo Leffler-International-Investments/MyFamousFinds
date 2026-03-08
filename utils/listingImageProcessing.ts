@@ -2,7 +2,6 @@
 
 import crypto from "crypto";
 import sharp from "sharp";
-import { removeBackground } from "@imgly/background-removal-node";
 import admin, { isFirebaseAdminReady } from "./firebaseAdmin";
 
 const STORAGE_BUCKET =
@@ -117,6 +116,7 @@ export async function createWhiteDisplayImageWithBgRemoval(
 
   try {
     console.log("[bg-removal] Starting local background removal, image size:", buffer.byteLength);
+    const { removeBackground } = await import("@imgly/background-removal-node");
     const inputBlob = new Blob([new Uint8Array(buffer)], { type: "image/png" });
     const resultBlob = await removeBackground(inputBlob, {
       model: "medium",
@@ -184,13 +184,10 @@ export async function storeListingImages(
   const originalPath = `${prefix}/original/${id}.${ext}`;
   const displayPath = `${prefix}/display/${id}.jpg`;
 
-  let displayBuffer: Buffer;
-  try {
-    displayBuffer = await createWhiteDisplayImageWithBgRemoval(input.buffer, contentType);
-  } catch (err) {
-    console.warn("createWhiteDisplayImageWithBgRemoval failed, using plain:", err);
-    displayBuffer = await createWhiteDisplayImage(input.buffer, contentType);
-  }
+  // Use plain white-background display image during initial upload.
+  // Background removal runs later via the fire-and-forget /api/admin/remove-bg/[id] call
+  // to avoid timeouts and OOM in bulk submission.
+  const displayBuffer = await createWhiteDisplayImage(input.buffer, contentType);
 
   const [originalUrl, displayUrl] = await Promise.all([
     uploadBufferToBucket(STORAGE_BUCKET, originalPath, input.buffer, contentType),
