@@ -243,7 +243,8 @@ export default function HomepageScanner({ serverListings, messages: initMessages
       if (json.displayImageUrl) {
         setListings((prev) => prev.map((l) => l.id === id ? { ...l, image: json.displayImageUrl } : l));
       }
-      alert(`Done! ${json.processedCount} image(s) processed with white background.`);
+      const partial = json.failedCount ? ` (${json.failedCount} failed)` : "";
+      alert(`Done! ${json.processedCount} image(s) processed${partial}.`);
     } catch (err: any) {
       alert(err?.message || "Background removal failed");
     }

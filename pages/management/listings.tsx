@@ -383,7 +383,8 @@ export default function ManagementListings({ items }: Props) {
       if (!res.ok || !json?.ok) {
         throw new Error(json?.error || "Failed to remove background");
       }
-      alert(`Background removed successfully! ${json.processedCount} image(s) processed.`);
+      const partial = json.failedCount ? ` (${json.failedCount} failed)` : "";
+      alert(`Background removed successfully! ${json.processedCount} image(s) processed${partial}.`);
     } catch (err: any) {
       console.error("Remove bg error", err);
       alert(err?.message || "Unable to remove background");
