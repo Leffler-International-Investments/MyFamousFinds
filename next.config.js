@@ -7,7 +7,7 @@ const nextConfig = {
   // ✅ No invalid experimental.turbo here
   experimental: {},
 
-  // ✅ Tell Next 16: “yes, I know I’m using Turbopack”
+  // ✅ Tell Next 16: "yes, I know I'm using Turbopack"
   turbopack: {},
 
   // Enable static export for Capacitor mobile builds (set NEXT_EXPORT=true)
@@ -24,9 +24,16 @@ const nextConfig = {
     ],
   },
 
-  // ✅ Keep your alias config
+  // ✅ Keep your alias config + add WASM support for @imgly/background-removal-node
   webpack: (config) => {
     config.resolve.alias["@"] = path.resolve(__dirname);
+
+    // Required for @imgly/background-removal-node to load its WASM files on Vercel
+    config.experiments = {
+      ...config.experiments,
+      asyncWebAssembly: true,
+    };
+
     return config;
   },
 };
