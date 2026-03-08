@@ -116,7 +116,7 @@ async function removeBackgroundIfConfigured(
           ? { "x-api-key": process.env.REMOVAL_API_KEY }
           : {}),
       },
-      body: buffer,
+      body: new Uint8Array(buffer),
       signal: controller.signal,
     });
 
