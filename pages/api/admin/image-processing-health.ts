@@ -10,13 +10,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (!requireAdmin(req, res)) return;
 
   const status = getImageProcessingStatus();
-  const rembgKey = process.env.REMBG_API_KEY || "";
-  const rembgConfigured = Boolean(rembgKey);
+  const photoroomKey = process.env.PHOTOROOM_API_KEY || "";
+  const photoroomConfigured = Boolean(photoroomKey);
 
-  // If ?test=rembg, actually call the API with a tiny test image
-  if (req.query.test === "rembg") {
-    if (!rembgKey) {
-      return res.status(200).json({ ok: false, error: "REMBG_API_KEY not set" });
+  // If ?test=photoroom, actually call the API with a tiny test image
+  if (req.query.test === "photoroom") {
+    if (!photoroomKey) {
+      return res.status(200).json({ ok: false, error: "PHOTOROOM_API_KEY not set" });
     }
 
     try {
@@ -29,44 +29,45 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
       const form = new FormData();
       const file = new File([new Uint8Array(testBuffer)], "test.jpg", { type: "image/jpeg" });
-      form.append("image", file);
+      form.append("image_file", file);
+      form.append("size", "auto");
       form.append("format", "png");
 
-      const rembgRes = await fetch("https://api.rembg.com/rmbg", {
+      const photoroomRes = await fetch("https://sdk.photoroom.com/v1/segment", {
         method: "POST",
-        headers: { "x-api-key": rembgKey },
+        headers: { "x-api-key": photoroomKey },
         body: form,
         signal: AbortSignal.timeout(15000),
       });
 
-      if (rembgRes.ok) {
-        const bytes = (await rembgRes.arrayBuffer()).byteLength;
+      if (photoroomRes.ok) {
+        const bytes = (await photoroomRes.arrayBuffer()).byteLength;
         return res.status(200).json({
           ok: true,
-          rembgTest: "SUCCESS",
+          photoroomTest: "SUCCESS",
           responseBytes: bytes,
-          keyLength: rembgKey.length,
-          keyPrefix: rembgKey.substring(0, 5) + "...",
+          keyLength: photoroomKey.length,
+          keyPrefix: photoroomKey.substring(0, 5) + "...",
         });
       } else {
-        const errText = await rembgRes.text();
+        const errText = await photoroomRes.text();
         return res.status(200).json({
           ok: false,
-          rembgTest: "FAILED",
-          httpStatus: rembgRes.status,
-          httpStatusText: rembgRes.statusText,
+          photoroomTest: "FAILED",
+          httpStatus: photoroomRes.status,
+          httpStatusText: photoroomRes.statusText,
           errorBody: errText,
-          keyLength: rembgKey.length,
-          keyPrefix: rembgKey.substring(0, 5) + "...",
+          keyLength: photoroomKey.length,
+          keyPrefix: photoroomKey.substring(0, 5) + "...",
         });
       }
     } catch (err: any) {
       return res.status(200).json({
         ok: false,
-        rembgTest: "ERROR",
+        photoroomTest: "ERROR",
         error: err?.message || String(err),
-        keyLength: rembgKey.length,
-        keyPrefix: rembgKey.substring(0, 5) + "...",
+        keyLength: photoroomKey.length,
+        keyPrefix: photoroomKey.substring(0, 5) + "...",
       });
     }
   }
@@ -74,10 +75,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   return res.status(200).json({
     ok: true,
     ...status,
-    rembgConfigured,
-    rembgKeyLength: rembgKey.length,
-    rembgKeyPrefix: rembgKey ? rembgKey.substring(0, 5) + "..." : "(not set)",
+    photoroomConfigured,
+    photoroomKeyLength: photoroomKey.length,
+    photoroomKeyPrefix: photoroomKey ? photoroomKey.substring(0, 5) + "..." : "(not set)",
     uploadMaxDuration: 300,
-    hint: "Add ?test=rembg to actually test the rembg API",
+    hint: "Add ?test=photoroom to actually test the Photoroom API",
   });
 }
