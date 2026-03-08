@@ -118,7 +118,7 @@ export async function createWhiteDisplayImageWithBgRemoval(
   if (PHOTOROOM_API_KEY) {
     try {
       console.log("[photoroom] Starting bg removal, key prefix:", PHOTOROOM_API_KEY.substring(0, 8) + "..., length:", PHOTOROOM_API_KEY.length, ", image size:", buffer.byteLength);
-      const blob = new Blob([buffer], { type: "image/jpeg" });
+      const blob = new Blob([new Uint8Array(buffer)], { type: "image/jpeg" });
       const form = new FormData();
       form.append("image_file", blob, "image.jpg");
       form.append("size", "medium");
