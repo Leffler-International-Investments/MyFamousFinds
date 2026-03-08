@@ -3,6 +3,7 @@
 import crypto from "crypto";
 import sharp from "sharp";
 import admin, { isFirebaseAdminReady } from "./firebaseAdmin";
+import { removeBackgroundAndMakeWhite } from "./backgroundRemovalWhite";
 
 const STORAGE_BUCKET =
   process.env.FIREBASE_STORAGE_BUCKET ||
@@ -90,82 +91,6 @@ export async function fetchImageBuffer(url: string): Promise<ImageBuffer> {
 }
 
 /**
- * Remove background using Photoroom API. Returns a transparent PNG buffer.
- * Throws on failure so callers can handle errors explicitly.
- */
-async function removeBackgroundWithPhotoroom(
-  sourceBuffer: Buffer,
-  apiKey: string,
-  timeoutMs: number
-): Promise<Buffer> {
-  const form = new FormData();
-  const sourceFile = new File([new Uint8Array(sourceBuffer)], "input.jpg", {
-    type: "image/jpeg",
-  });
-  form.append("image_file", sourceFile);
-
-  const response = await fetch("https://sdk.photoroom.com/v1/segment", {
-    method: "POST",
-    headers: { "x-api-key": apiKey },
-    body: form,
-    signal: AbortSignal.timeout(timeoutMs),
-  });
-
-  if (!response.ok) {
-    const detail = await response.text();
-    throw new Error(`Photoroom error: ${response.status} ${response.statusText} - ${detail}`);
-  }
-
-  return Buffer.from(await response.arrayBuffer());
-}
-
-/**
- * Removes background when possible and ALWAYS returns a white-background JPEG.
- *
- * - If Photoroom succeeds, transparency is composited onto white.
- * - If Photoroom fails, original image is still normalized to white JPEG.
- * - If PHOTOROOM_API_KEY is not set, throws so callers know bg removal is unavailable.
- */
-export async function removeBackgroundAndMakeWhite(
-  input: Buffer,
-  options: {
-    width?: number;
-    height?: number;
-    quality?: number;
-    timeoutMs?: number;
-  } = {}
-): Promise<Buffer> {
-  const {
-    width = 800,
-    height = 1067,
-    quality = 90,
-    timeoutMs = 30000,
-  } = options;
-
-  if (!PHOTOROOM_API_KEY) {
-    throw new Error("Missing PHOTOROOM_API_KEY");
-  }
-
-  let processed = input;
-  try {
-    processed = await removeBackgroundWithPhotoroom(input, PHOTOROOM_API_KEY, timeoutMs);
-  } catch {
-    // Intentional fallback: still output white background even if AI removal fails.
-    processed = input;
-  }
-
-  return sharp(processed)
-    .rotate()
-    .resize(width, height, {
-      fit: "contain",
-      background: { r: 255, g: 255, b: 255, alpha: 1 },
-    })
-    .flatten({ background: "#ffffff" })
-    .jpeg({ quality, mozjpeg: true })
-    .toBuffer();
-}
-
-/**
  * Create a white-background display image. Uses Photoroom bg removal when
  * PHOTOROOM_API_KEY is configured; falls back to plain white flattening.
  */
@@ -174,7 +99,9 @@ export async function createWhiteDisplayImage(
   _contentType: string
 ): Promise<Buffer> {
   if (PHOTOROOM_API_KEY) {
-    return removeBackgroundAndMakeWhite(buffer);
+    return removeBackgroundAndMakeWhite(buffer, {
+      photoRoomApiKey: PHOTOROOM_API_KEY,
+    });
   }
 
   // Fallback: white background without bg removal
