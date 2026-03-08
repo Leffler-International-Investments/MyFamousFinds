@@ -2,6 +2,7 @@
 
 import crypto from "crypto";
 import sharp from "sharp";
+import { removeBackground } from "@imgly/background-removal-node";
 import admin, { isFirebaseAdminReady } from "./firebaseAdmin";
 
 const STORAGE_BUCKET =
@@ -90,15 +91,23 @@ export async function createWhiteDisplayImage(
   buffer: Buffer,
   _contentType: string
 ): Promise<Buffer> {
-  const pipeline = sharp(buffer)
+  let workingBuffer = buffer;
+
+  try {
+    const blob = await removeBackground(buffer);
+    const arrayBuffer = await blob.arrayBuffer();
+    workingBuffer = Buffer.from(arrayBuffer);
+  } catch (error) {
+    console.warn("Background removal failed, using original:", error);
+  }
+
+  return sharp(workingBuffer)
     .rotate()
     .resize(800, 1067, {
       fit: "contain",
       background: { r: 255, g: 255, b: 255, alpha: 1 },
     })
-    .flatten({ background: "#ffffff" });
-
-  return pipeline
+    .flatten({ background: "#ffffff" })
     .jpeg({ quality: 85, mozjpeg: true })
     .toBuffer();
 }
