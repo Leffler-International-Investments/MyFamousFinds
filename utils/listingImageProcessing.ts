@@ -175,7 +175,7 @@ export async function storeListingImages(
   const originalPath = `${prefix}/original/${id}.${ext}`;
   const displayPath = `${prefix}/display/${id}.jpg`;
 
-  const displayBuffer = await createWhiteDisplayImage(input.buffer, contentType);
+  const displayBuffer = await createWhiteDisplayImageWithBgRemoval(input.buffer, contentType);
 
   const [originalUrl, displayUrl] = await Promise.all([
     uploadBufferToBucket(STORAGE_BUCKET, originalPath, input.buffer, contentType),
