@@ -33,8 +33,7 @@ type BuyerMessage = {
 };
 
 type HomeProps = {
-  trending: ProductLike[];
-  newArrivals: ProductLike[];
+  items: ProductLike[];
   activeMessages: BuyerMessage[];
   designerOptions: string[];
 };
@@ -115,8 +114,7 @@ function isMp4(u?: string) {
 }
 
 const HomePage: NextPage<HomeProps> = ({
-  trending,
-  newArrivals,
+  items: serverItems,
   activeMessages,
   designerOptions: serverDesignerOptions,
 }) => {
@@ -216,20 +214,7 @@ const HomePage: NextPage<HomeProps> = ({
     setSortBy("newest");
   };
 
-  // Combined pool (newArrivals + trending) used for homepage browsing
-  const poolItems = useMemo(() => {
-    const combined = [...(newArrivals || []), ...(trending || [])];
-
-    const seen = new Set<string>();
-    const uniq: any[] = [];
-    for (const p of combined) {
-      const id = String((p as any).id || "");
-      if (!id || seen.has(id)) continue;
-      seen.add(id);
-      uniq.push(p);
-    }
-    return uniq;
-  }, [newArrivals, trending]);
+  const poolItems = serverItems || [];
 
   const designerOptions = useMemo(() => {
     if (Array.isArray(serverDesignerOptions) && serverDesignerOptions.length > 0) {
@@ -670,16 +655,13 @@ export const getServerSideProps: GetServerSideProps = async () => {
         size: l.size || "",
         color: l.color || "",
         createdAt: l.createdAt?.toMillis?.() || (l.createdAt instanceof Date ? l.createdAt.getTime() : 0),
-        viewCount: 0,
-        sellerId: "",
       };
     });
   } catch (err) {
     console.error("Error fetching listings via getPublicListings:", err);
   }
 
-  const newArrivals = items.slice();
-  const trending = items.slice();
+
 
   let activeMessages: BuyerMessage[] = [];
   try {
@@ -729,8 +711,7 @@ export const getServerSideProps: GetServerSideProps = async () => {
 
   return {
     props: {
-      trending,
-      newArrivals,
+      items,
       activeMessages,
       designerOptions,
     },
