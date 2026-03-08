@@ -30,7 +30,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const form = new FormData();
       const file = new File([new Uint8Array(testBuffer)], "test.jpg", { type: "image/jpeg" });
       form.append("image_file", file);
-      form.append("size", "auto");
+      form.append("size", "preview");
       form.append("format", "png");
 
       const photoroomRes = await fetch("https://sdk.photoroom.com/v1/segment", {
