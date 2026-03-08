@@ -1,5 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from "next";
-import { removeBackgroundAndMakeWhite } from "../../utils/backgroundRemovalWhite";
+import { removeBackgroundAndMakeWhite } from "../../../utils/backgroundRemovalWhite";
 
 const PHOTOROOM_API_KEY = process.env.PHOTOROOM_API_KEY || "";
 
