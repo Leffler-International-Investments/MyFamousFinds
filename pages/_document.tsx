@@ -25,6 +25,16 @@ export default function Document() {
           </>
         )}
 
+        {/* Umami Analytics */}
+        {process.env.NEXT_PUBLIC_UMAMI_SCRIPT_URL && process.env.NEXT_PUBLIC_UMAMI_WEBSITE_ID && (
+          <script
+            async
+            defer
+            data-website-id={process.env.NEXT_PUBLIC_UMAMI_WEBSITE_ID}
+            src={process.env.NEXT_PUBLIC_UMAMI_SCRIPT_URL}
+          />
+        )}
+
         {/* Capture PWA install prompt before React hydrates (so it's never lost) */}
         <script
           dangerouslySetInnerHTML={{
