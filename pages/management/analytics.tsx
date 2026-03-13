@@ -2,6 +2,7 @@
 import Head from "next/head";
 import Link from "next/link";
 import type { GetServerSideProps } from "next";
+import { useEffect, useState } from "react";
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
 import { adminDb } from "../../utils/firebaseAdmin";
@@ -30,8 +31,26 @@ type AnalyticsStats = {
 
 type Props = { stats: AnalyticsStats };
 
+type UmamiStats = {
+  active: number;
+  stats24h: { pageviews?: { value: number }; visitors?: { value: number }; visits?: { value: number }; bounces?: { value: number }; totaltime?: { value: number } };
+  stats7d: { pageviews?: { value: number }; visitors?: { value: number }; visits?: { value: number }; bounces?: { value: number }; totaltime?: { value: number } };
+  stats30d: { pageviews?: { value: number }; visitors?: { value: number }; visits?: { value: number }; bounces?: { value: number }; totaltime?: { value: number } };
+  topPages: { x: string; y: number }[];
+  topReferrers: { x: string; y: number }[];
+};
+
 export default function ManagementAnalytics({ stats }: Props) {
   const { loading } = useRequireAdmin();
+  const [umami, setUmami] = useState<UmamiStats | null>(null);
+  const [umamiError, setUmamiError] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/admin/umami-stats")
+      .then((r) => (r.ok ? r.json() : Promise.reject()))
+      .then(setUmami)
+      .catch(() => setUmamiError(true));
+  }, []);
 
   if (loading) {
     return (
@@ -91,6 +110,133 @@ export default function ManagementAnalytics({ stats }: Props) {
               </div>
             </div>
           </section>
+
+          {/* Website Traffic (Umami) */}
+          {umami && (
+            <>
+              <section className="a-section">
+                <h2 className="a-section-title">Website Traffic</h2>
+                <div className="a-kpi-grid">
+                  <div className="a-kpi-card a-kpi-highlight">
+                    <p className="a-kpi-label">Active Now</p>
+                    <p className="a-kpi-value">{umami.active}</p>
+                    <p className="a-kpi-note">Real-time visitors on site</p>
+                  </div>
+                  <div className="a-kpi-card">
+                    <p className="a-kpi-label">Visitors (24h)</p>
+                    <p className="a-kpi-value">{(umami.stats24h.visitors?.value ?? 0).toLocaleString("en-US")}</p>
+                    <p className="a-kpi-note">{(umami.stats24h.pageviews?.value ?? 0).toLocaleString("en-US")} pageviews</p>
+                  </div>
+                  <div className="a-kpi-card">
+                    <p className="a-kpi-label">Visitors (7d)</p>
+                    <p className="a-kpi-value">{(umami.stats7d.visitors?.value ?? 0).toLocaleString("en-US")}</p>
+                    <p className="a-kpi-note">{(umami.stats7d.pageviews?.value ?? 0).toLocaleString("en-US")} pageviews</p>
+                  </div>
+                  <div className="a-kpi-card">
+                    <p className="a-kpi-label">Visitors (30d)</p>
+                    <p className="a-kpi-value">{(umami.stats30d.visitors?.value ?? 0).toLocaleString("en-US")}</p>
+                    <p className="a-kpi-note">{(umami.stats30d.pageviews?.value ?? 0).toLocaleString("en-US")} pageviews</p>
+                  </div>
+                </div>
+              </section>
+
+              <section className="a-section">
+                <h2 className="a-section-title">Traffic Details (7-day)</h2>
+                <div className="a-kpi-grid">
+                  <div className="a-kpi-card">
+                    <p className="a-kpi-label">Total Sessions</p>
+                    <p className="a-kpi-value">{(umami.stats7d.visits?.value ?? 0).toLocaleString("en-US")}</p>
+                    <p className="a-kpi-note">Individual browsing sessions</p>
+                  </div>
+                  <div className="a-kpi-card">
+                    <p className="a-kpi-label">Bounce Rate</p>
+                    <p className="a-kpi-value">
+                      {umami.stats7d.visits?.value
+                        ? `${Math.round(((umami.stats7d.bounces?.value ?? 0) / umami.stats7d.visits.value) * 100)}%`
+                        : "—"}
+                    </p>
+                    <p className="a-kpi-note">Single-page sessions / total sessions</p>
+                  </div>
+                  <div className="a-kpi-card">
+                    <p className="a-kpi-label">Avg. Visit Duration</p>
+                    <p className="a-kpi-value">
+                      {umami.stats7d.visits?.value && umami.stats7d.totaltime?.value
+                        ? `${Math.round(umami.stats7d.totaltime.value / umami.stats7d.visits.value)}s`
+                        : "—"}
+                    </p>
+                    <p className="a-kpi-note">Average time on site per session</p>
+                  </div>
+                  <div className="a-kpi-card">
+                    <p className="a-kpi-label">Pages / Session</p>
+                    <p className="a-kpi-value">
+                      {umami.stats7d.visits?.value
+                        ? ((umami.stats7d.pageviews?.value ?? 0) / umami.stats7d.visits.value).toFixed(1)
+                        : "—"}
+                    </p>
+                    <p className="a-kpi-note">Average pages viewed per session</p>
+                  </div>
+                </div>
+              </section>
+
+              <div className="a-two-col">
+                <section className="a-section">
+                  <h2 className="a-section-title">Top Pages (7d)</h2>
+                  {umami.topPages.length === 0 ? (
+                    <p className="a-empty">No page data yet.</p>
+                  ) : (
+                    <div className="a-rank-list">
+                      {umami.topPages.map((p, i) => (
+                        <div key={p.x} className="a-rank-row">
+                          <span className="a-rank-pos">{i + 1}</span>
+                          <span className="a-rank-name" title={p.x}>{p.x}</span>
+                          <span className="a-rank-count">{p.y}</span>
+                          <div className="a-rank-bar-bg">
+                            <div
+                              className="a-rank-bar"
+                              style={{
+                                width: `${Math.min(100, (p.y / (umami.topPages[0]?.y || 1)) * 100)}%`,
+                              }}
+                            />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </section>
+
+                <section className="a-section">
+                  <h2 className="a-section-title">Top Referrers (7d)</h2>
+                  {umami.topReferrers.length === 0 ? (
+                    <p className="a-empty">No referrer data yet.</p>
+                  ) : (
+                    <div className="a-rank-list">
+                      {umami.topReferrers.map((r, i) => (
+                        <div key={r.x} className="a-rank-row">
+                          <span className="a-rank-pos">{i + 1}</span>
+                          <span className="a-rank-name" title={r.x}>{r.x || "(direct)"}</span>
+                          <span className="a-rank-count">{r.y}</span>
+                          <div className="a-rank-bar-bg">
+                            <div
+                              className="a-rank-bar"
+                              style={{
+                                width: `${Math.min(100, (r.y / (umami.topReferrers[0]?.y || 1)) * 100)}%`,
+                              }}
+                            />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </section>
+              </div>
+            </>
+          )}
+          {umamiError && (
+            <section className="a-section">
+              <h2 className="a-section-title">Website Traffic</h2>
+              <p className="a-empty">Umami analytics not configured. Add UMAMI_API_KEY and UMAMI_WEBSITE_ID to environment variables.</p>
+            </section>
+          )}
 
           {/* Sellers & Listings */}
           <section className="a-section">
