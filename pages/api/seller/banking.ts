@@ -98,6 +98,12 @@ export default async function handler(
         postalCode,
         country,
         phone,
+        // Bank account details (required for manual payouts by MFF)
+        bankName,
+        bankRoutingNumber,
+        bankAccountNumber,
+        bankAccountType,
+        // PayPal email (optional — only needed if auto-payout is enabled)
         paypalEmail,
         pausePayouts,
         payoutSchedule,
@@ -131,6 +137,12 @@ export default async function handler(
           postalCode: postalCode || "",
           country: country || "United States",
           phone: phone || "",
+          // Bank account details
+          bankName: bankName || "",
+          bankRoutingNumber: bankRoutingNumber || "",
+          bankAccountNumber: bankAccountNumber || "",
+          bankAccountType: bankAccountType || "checking",
+          // PayPal email (optional for auto payouts)
           paypalEmail: normalizedPaypalEmail,
           pausePayouts: !!pausePayouts,
           payoutSchedule: payoutSchedule || "Weekly",
@@ -142,7 +154,7 @@ export default async function handler(
         { merge: true }
       );
 
-      // Sync PayPal email to the sellers collection (used by the payout API)
+      // Sync PayPal email to the sellers collection (used by the auto-payout API)
       if (normalizedPaypalEmail) {
         try {
           const sellerRef = adminDb.collection("sellers").doc(email);
