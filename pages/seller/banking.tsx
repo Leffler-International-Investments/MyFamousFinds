@@ -20,6 +20,12 @@ type SellerBankingPrefs = {
   postalCode?: string;
   country?: string;
   phone?: string;
+  // Bank account details (required for manual payouts by MFF)
+  bankName?: string;
+  bankRoutingNumber?: string;
+  bankAccountNumber?: string;
+  bankAccountType?: "checking" | "savings";
+  // PayPal email (optional — only for auto payouts)
   paypalEmail?: string;
   pausePayouts?: boolean;
   payoutSchedule?: string;
@@ -68,6 +74,10 @@ export default function SellerBankingPage() {
             postalCode: json.prefs.postalCode || "",
             country: json.prefs.country || "United States",
             phone: json.prefs.phone || "",
+            bankName: json.prefs.bankName || "",
+            bankRoutingNumber: json.prefs.bankRoutingNumber || "",
+            bankAccountNumber: json.prefs.bankAccountNumber || "",
+            bankAccountType: json.prefs.bankAccountType || "checking",
             paypalEmail: json.prefs.paypalEmail || "",
             pausePayouts: Boolean(json.prefs.pausePayouts),
             payoutSchedule: json.prefs.payoutSchedule || "Weekly",
@@ -128,7 +138,7 @@ export default function SellerBankingPage() {
       }
 
       setMessage(
-        "Your payout profile has been saved. Payouts will be sent to your PayPal email."
+        "Your payout profile has been saved. Payouts will be processed by My Famous Finds management after the 14-day cooling period."
       );
     } catch (err: any) {
       console.error("save_seller_banking_error", err);
@@ -153,8 +163,10 @@ export default function SellerBankingPage() {
           <div>
             <h1>Banking & Payouts</h1>
             <p>
-              Provide your PayPal email for payouts and the basic details we
-              need for U.S. reporting. Your payout details are stored securely.
+              Provide your bank account details for payouts and the basic details we
+              need for U.S. reporting. Your information is stored securely. Payouts
+              are processed by My Famous Finds management after a 14-day cooling
+              period following delivery confirmation.
             </p>
           </div>
           <Link href="/seller/dashboard">← Back to Seller Dashboard</Link>
@@ -299,20 +311,93 @@ export default function SellerBankingPage() {
             </div>
           </section>
 
-          {/* PayPal + consent */}
+          {/* Bank Account Details */}
           <section className="form-card">
-            <h2>PayPal Payout Details</h2>
+            <h2>Bank Account Details</h2>
             <p className="form-subtitle">
-              Payouts are sent directly to your PayPal account. Enter the email
-              address linked to your PayPal below.
+              Your payout will be processed by My Famous Finds management after
+              a 14-day cooling period following delivery confirmation. Please
+              provide your bank details so we can transfer your funds.
+            </p>
+
+            <div className="form-grid">
+              <div className="form-field">
+                <label>Bank name</label>
+                <input
+                  type="text"
+                  className="form-input"
+                  required
+                  value={prefs.bankName || ""}
+                  onChange={(e) => update("bankName", e.target.value)}
+                  placeholder="e.g., Chase, Bank of America, Wells Fargo"
+                />
+              </div>
+              <div className="form-field">
+                <label>Account type</label>
+                <select
+                  className="form-input"
+                  value={prefs.bankAccountType || "checking"}
+                  onChange={(e) =>
+                    update(
+                      "bankAccountType",
+                      e.target.value === "savings" ? "savings" : "checking"
+                    )
+                  }
+                >
+                  <option value="checking">Checking</option>
+                  <option value="savings">Savings</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="form-grid">
+              <div className="form-field">
+                <label>Routing number (ABA)</label>
+                <input
+                  type="text"
+                  className="form-input"
+                  required
+                  value={prefs.bankRoutingNumber || ""}
+                  onChange={(e) => update("bankRoutingNumber", e.target.value.replace(/[^0-9]/g, ""))}
+                  placeholder="9-digit routing number"
+                  maxLength={9}
+                  inputMode="numeric"
+                />
+              </div>
+              <div className="form-field">
+                <label>Account number</label>
+                <input
+                  type="text"
+                  className="form-input"
+                  required
+                  value={prefs.bankAccountNumber || ""}
+                  onChange={(e) => update("bankAccountNumber", e.target.value.replace(/[^0-9]/g, ""))}
+                  placeholder="Account number"
+                  inputMode="numeric"
+                />
+              </div>
+            </div>
+
+            <p className="form-note" style={{ marginTop: 12 }}>
+              Your bank details are stored securely and used only for payout
+              transfers by My Famous Finds management.
+            </p>
+          </section>
+
+          {/* Optional PayPal email for auto payouts */}
+          <section className="form-card">
+            <h2>PayPal Email (Optional)</h2>
+            <p className="form-subtitle">
+              If My Famous Finds enables automatic payouts for your account,
+              funds will be sent to this PayPal email. This is optional — by
+              default payouts are processed manually by management.
             </p>
 
             <div className="form-field">
-              <label>PayPal email address</label>
+              <label>PayPal email address (optional)</label>
               <input
                 type="email"
                 className="form-input"
-                required
                 value={paypalEmailField || prefs.paypalEmail || ""}
                 onChange={(e) => {
                   setPaypalEmailField(e.target.value);
@@ -320,11 +405,12 @@ export default function SellerBankingPage() {
                 }}
                 placeholder="your-paypal@email.com"
               />
-              <p className="form-note">
-                Payouts will be sent to this PayPal email. Make sure it matches
-                your active PayPal account.
-              </p>
             </div>
+          </section>
+
+          {/* Consent */}
+          <section className="form-card">
+            <h2>Confirmation</h2>
 
             <div className="form-field form-field-inline">
               <label>
@@ -349,9 +435,9 @@ export default function SellerBankingPage() {
                     update("consentElectronic", e.target.checked || false)
                   }
                 />{" "}
-                I agree to receive payouts electronically via PayPal and
-                understand that tax forms (e.g. 1099-K) may be issued to me as
-                required by U.S. law.
+                I agree to receive payouts electronically and understand that
+                tax forms (e.g. 1099-K) may be issued to me as required by
+                U.S. law.
               </label>
             </div>
           </section>

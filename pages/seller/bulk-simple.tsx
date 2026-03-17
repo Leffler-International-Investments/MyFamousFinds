@@ -251,9 +251,11 @@ export default function BulkSimple() {
 
         const prefs = json.prefs || {};
 
-        // Gate: require PayPal email before allowing listings
-        const paypalEmail = String(prefs.paypalEmail || "").trim();
-        if (!paypalEmail) {
+        // Gate: require bank details before allowing listings
+        const bankName = String(prefs.bankName || "").trim();
+        const bankRouting = String(prefs.bankRoutingNumber || "").trim();
+        const bankAccount = String(prefs.bankAccountNumber || "").trim();
+        if (!bankName || !bankRouting || !bankAccount) {
           if (!cancelled) setBankInfoMissing(true);
           return;
         }
@@ -608,11 +610,13 @@ export default function BulkSimple() {
             padding: "24px 20px", maxWidth: 600, margin: "40px auto", textAlign: "center",
           }}>
             <h2 style={{ fontSize: 20, marginBottom: 8, color: "#991b1b" }}>
-              Bank / Payout Details Required
+              Bank Details Required
             </h2>
             <p style={{ fontSize: 14, color: "#374151", lineHeight: 1.6, marginBottom: 16 }}>
-              Before you can add listings, please complete your payout details
-              (including your PayPal email) so we can pay you when your items sell.
+              Before you can add listings, please complete your bank account
+              details so we can pay you when your items sell. Payouts are
+              processed by My Famous Finds management after a 14-day cooling
+              period following delivery confirmation.
             </p>
             <Link href="/seller/banking" style={{
               display: "inline-block", padding: "10px 28px", borderRadius: 999,
