@@ -254,6 +254,24 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
     const sellerId = await getSellerId(req);
     if (!sellerId) return res.status(401).json({ ok: false, error: "unauthorized" });
 
+    // ── Require banking / PayPal email before creating listings ──
+    const sellerEmail = sellerId.includes("@") ? sellerId : sellerId.replace(/_/g, ".");
+    const bankingSnap = await adminDb.collection("seller_banking").doc(sellerEmail).get();
+    const bankingData: any = bankingSnap.exists ? bankingSnap.data() : null;
+    const hasPaypalEmail = !!(bankingData?.paypalEmail && String(bankingData.paypalEmail).trim());
+
+    if (!hasPaypalEmail) {
+      // Also check the sellers collection as a fallback
+      const sellerSnap = await adminDb.collection("sellers").doc(sellerId).get();
+      const sellerData: any = sellerSnap.exists ? sellerSnap.data() : null;
+      if (!sellerData?.paypalEmail) {
+        return res.status(400).json({
+          ok: false,
+          error: "Please complete your bank / payout details before adding listings. Go to Seller Dashboard → Bank Info and enter your PayPal email.",
+        });
+      }
+    }
+
     const approvedDesigners = await getApprovedDesigners();
     const enforceDesigners = approvedDesigners.size > 0;
 

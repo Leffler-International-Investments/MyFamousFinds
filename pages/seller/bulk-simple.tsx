@@ -179,6 +179,7 @@ export default function BulkSimple() {
     country: "United States",
   });
   const [sellerAddressMessage, setSellerAddressMessage] = useState<string | null>(null);
+  const [bankInfoMissing, setBankInfoMissing] = useState(false);
 
   const fileInputsRef = useRef<(HTMLInputElement | null)[]>([]);
   const proofInputsRef = useRef<(HTMLInputElement | null)[]>([]);
@@ -249,6 +250,14 @@ export default function BulkSimple() {
         if (!json?.ok || !json?.prefs || cancelled) return;
 
         const prefs = json.prefs || {};
+
+        // Gate: require PayPal email before allowing listings
+        const paypalEmail = String(prefs.paypalEmail || "").trim();
+        if (!paypalEmail) {
+          if (!cancelled) setBankInfoMissing(true);
+          return;
+        }
+
         const prefilled = {
           addressLine1: String(prefs.addressLine1 || "").trim(),
           addressLine2: String(prefs.addressLine2 || "").trim(),
@@ -580,6 +589,40 @@ export default function BulkSimple() {
         <Head><title>Quick Add — Multi-Item Form | Famous Finds</title></Head>
         <Header />
         <main className="section"><p>Checking seller access…</p></main>
+        <Footer />
+      </div>
+    );
+  }
+
+  if (bankInfoMissing) {
+    return (
+      <div className="page-container">
+        <Head><title>Quick Add — Multi-Item Form | Famous Finds</title></Head>
+        <Header />
+        <main className="section">
+          <div className="back-link">
+            <Link href="/seller/dashboard">← Back to Dashboard</Link>
+          </div>
+          <div style={{
+            background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 12,
+            padding: "24px 20px", maxWidth: 600, margin: "40px auto", textAlign: "center",
+          }}>
+            <h2 style={{ fontSize: 20, marginBottom: 8, color: "#991b1b" }}>
+              Bank / Payout Details Required
+            </h2>
+            <p style={{ fontSize: 14, color: "#374151", lineHeight: 1.6, marginBottom: 16 }}>
+              Before you can add listings, please complete your payout details
+              (including your PayPal email) so we can pay you when your items sell.
+            </p>
+            <Link href="/seller/banking" style={{
+              display: "inline-block", padding: "10px 28px", borderRadius: 999,
+              background: "#111827", color: "#fff", fontWeight: 600, fontSize: 14,
+              textDecoration: "none",
+            }}>
+              Go to Bank Info
+            </Link>
+          </div>
+        </main>
         <Footer />
       </div>
     );
