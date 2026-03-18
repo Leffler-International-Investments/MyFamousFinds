@@ -154,17 +154,16 @@ export default async function handler(
         { merge: true }
       );
 
-      // Sync PayPal email to the sellers collection (used by the auto-payout API)
-      if (normalizedPaypalEmail) {
-        try {
-          const sellerRef = adminDb.collection("sellers").doc(email);
-          await sellerRef.set(
-            { paypalEmail: normalizedPaypalEmail },
-            { merge: true }
-          );
-        } catch (syncErr) {
-          console.warn("seller_banking_paypal_sync_warning", syncErr);
-        }
+      // Sync PayPal email to the sellers collection (used by the auto-payout API).
+      // Always sync — if cleared, remove from sellers to stop stale auto-payouts.
+      try {
+        const sellerRef = adminDb.collection("sellers").doc(email);
+        await sellerRef.set(
+          { paypalEmail: normalizedPaypalEmail || "" },
+          { merge: true }
+        );
+      } catch (syncErr) {
+        console.warn("seller_banking_paypal_sync_warning", syncErr);
       }
 
       return res.status(200).json({ ok: true });

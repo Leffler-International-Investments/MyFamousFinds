@@ -75,13 +75,14 @@ export default function SellerBankingPage() {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [paypalEmailField, setPaypalEmailField] = useState("");
   const [bankAccountNumberConfirm, setBankAccountNumberConfirm] = useState("");
   const [customBankName, setCustomBankName] = useState("");
   const [bankSelectValue, setBankSelectValue] = useState("");
 
-  // Load email + any saved prefs
+  // Load email + any saved prefs (re-run when auth finishes loading)
   useEffect(() => {
+    if (authLoading) return;
+
     const currentEmail =
       auth.currentUser?.email ||
       (typeof window !== "undefined"
@@ -145,7 +146,7 @@ export default function SellerBankingPage() {
     }
 
     loadPrefs();
-  }, []);
+  }, [authLoading]);
 
   function update<K extends keyof SellerBankingPrefs>(
     key: K,
@@ -163,6 +164,10 @@ export default function SellerBankingPage() {
     setError(null);
 
     try {
+      if (!prefs.bankName?.trim()) {
+        throw new Error("Please select your bank.");
+      }
+
       if (prefs.bankAccountNumber && prefs.bankAccountNumber !== bankAccountNumberConfirm) {
         throw new Error(
           "Account numbers do not match. Please re-enter your account number to confirm."
@@ -507,11 +512,8 @@ export default function SellerBankingPage() {
               <input
                 type="email"
                 className="form-input"
-                value={paypalEmailField || prefs.paypalEmail || ""}
-                onChange={(e) => {
-                  setPaypalEmailField(e.target.value);
-                  update("paypalEmail", e.target.value);
-                }}
+                value={prefs.paypalEmail ?? ""}
+                onChange={(e) => update("paypalEmail", e.target.value)}
                 placeholder="your-paypal@email.com"
               />
             </div>
