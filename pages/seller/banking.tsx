@@ -10,6 +10,39 @@ import { useRequireSeller } from "../../hooks/useRequireSeller";
 import { autoPrefixPhone } from "../../utils/phoneFormat";
 import { sellerFetch } from "../../utils/sellerClient";
 
+const US_BANKS = [
+  "Bank of America",
+  "Chase (JPMorgan Chase)",
+  "Wells Fargo",
+  "Citibank",
+  "U.S. Bank",
+  "PNC Bank",
+  "Truist Bank",
+  "Goldman Sachs",
+  "Capital One",
+  "TD Bank",
+  "Fifth Third Bank",
+  "Citizens Bank",
+  "KeyBank",
+  "Huntington National Bank",
+  "Regions Bank",
+  "M&T Bank",
+  "Ally Bank",
+  "BMO Harris Bank",
+  "First Republic Bank",
+  "HSBC Bank USA",
+  "Discover Bank",
+  "Charles Schwab Bank",
+  "Synchrony Bank",
+  "American Express National Bank",
+  "USAA Federal Savings Bank",
+  "Navy Federal Credit Union",
+  "Silicon Valley Bank",
+  "Comerica Bank",
+  "Zions Bancorporation",
+  "Popular Bank",
+];
+
 type SellerBankingPrefs = {
   legalName?: string;
   sellingAs?: "individual" | "business";
@@ -43,6 +76,9 @@ export default function SellerBankingPage() {
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [paypalEmailField, setPaypalEmailField] = useState("");
+  const [bankAccountNumberConfirm, setBankAccountNumberConfirm] = useState("");
+  const [customBankName, setCustomBankName] = useState("");
+  const [bankSelectValue, setBankSelectValue] = useState("");
 
   // Load email + any saved prefs
   useEffect(() => {
@@ -58,7 +94,7 @@ export default function SellerBankingPage() {
 
     async function loadPrefs() {
       try {
-        const res = await fetch(
+        const res = await sellerFetch(
           `/api/seller/banking?email=${encodeURIComponent(lower)}`
         );
         if (!res.ok) return;
@@ -85,6 +121,16 @@ export default function SellerBankingPage() {
             confirmAccuracy: Boolean(json.prefs.confirmAccuracy),
             consentElectronic: Boolean(json.prefs.consentElectronic),
           });
+          // Initialize bank dropdown state
+          const savedBank = json.prefs.bankName || "";
+          if (savedBank && US_BANKS.includes(savedBank)) {
+            setBankSelectValue(savedBank);
+          } else if (savedBank) {
+            setBankSelectValue("Other");
+            setCustomBankName(savedBank);
+          }
+          // Initialize account number confirm to match saved value
+          setBankAccountNumberConfirm(json.prefs.bankAccountNumber || "");
         } else {
           setPrefs((prev) => ({
             sellingAs: "individual",
@@ -117,6 +163,12 @@ export default function SellerBankingPage() {
     setError(null);
 
     try {
+      if (prefs.bankAccountNumber && prefs.bankAccountNumber !== bankAccountNumberConfirm) {
+        throw new Error(
+          "Account numbers do not match. Please re-enter your account number to confirm."
+        );
+      }
+
       if (!prefs.confirmAccuracy || !prefs.consentElectronic) {
         throw new Error(
           "Please confirm that your details are accurate and that you consent to electronic payouts."
@@ -323,14 +375,41 @@ export default function SellerBankingPage() {
             <div className="form-grid">
               <div className="form-field">
                 <label>Bank name</label>
-                <input
-                  type="text"
+                <select
                   className="form-input"
                   required
-                  value={prefs.bankName || ""}
-                  onChange={(e) => update("bankName", e.target.value)}
-                  placeholder="e.g., Chase, Bank of America, Wells Fargo"
-                />
+                  value={bankSelectValue}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setBankSelectValue(val);
+                    if (val === "Other") {
+                      update("bankName", customBankName);
+                    } else {
+                      update("bankName", val);
+                      setCustomBankName("");
+                    }
+                  }}
+                >
+                  <option value="" disabled>Select your bank</option>
+                  {US_BANKS.map((bank) => (
+                    <option key={bank} value={bank}>{bank}</option>
+                  ))}
+                  <option value="Other">Other</option>
+                </select>
+                {bankSelectValue === "Other" && (
+                  <input
+                    type="text"
+                    className="form-input"
+                    required
+                    style={{ marginTop: 8 }}
+                    value={customBankName}
+                    onChange={(e) => {
+                      setCustomBankName(e.target.value);
+                      update("bankName", e.target.value);
+                    }}
+                    placeholder="Enter your bank name"
+                  />
+                )}
               </div>
               <div className="form-field">
                 <label>Account type</label>
@@ -375,6 +454,36 @@ export default function SellerBankingPage() {
                   placeholder="Account number"
                   inputMode="numeric"
                 />
+              </div>
+            </div>
+
+            <div className="form-grid">
+              <div className="form-field" />
+              <div className="form-field">
+                <label>Confirm account number</label>
+                <input
+                  type="text"
+                  className="form-input"
+                  required
+                  value={bankAccountNumberConfirm}
+                  onChange={(e) => setBankAccountNumberConfirm(e.target.value.replace(/[^0-9]/g, ""))}
+                  placeholder="Re-enter account number"
+                  inputMode="numeric"
+                  style={
+                    bankAccountNumberConfirm &&
+                    prefs.bankAccountNumber &&
+                    bankAccountNumberConfirm !== prefs.bankAccountNumber
+                      ? { borderColor: "#dc2626" }
+                      : {}
+                  }
+                />
+                {bankAccountNumberConfirm &&
+                  prefs.bankAccountNumber &&
+                  bankAccountNumberConfirm !== prefs.bankAccountNumber && (
+                    <p className="form-note" style={{ color: "#dc2626" }}>
+                      Account numbers do not match.
+                    </p>
+                  )}
               </div>
             </div>
 
