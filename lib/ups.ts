@@ -1,6 +1,51 @@
 // FILE: /lib/ups.ts
 // UPS REST API helper — OAuth token management + Shipping label creation.
 
+/**
+ * Map of US state full names (lowercase) to 2-letter codes.
+ * Used to normalize seller/buyer state fields before sending to UPS API,
+ * which requires 2-letter StateProvinceCode values.
+ */
+const US_STATE_CODES: Record<string, string> = {
+  alabama: "AL", alaska: "AK", arizona: "AZ", arkansas: "AR",
+  california: "CA", colorado: "CO", connecticut: "CT", delaware: "DE",
+  florida: "FL", georgia: "GA", hawaii: "HI", idaho: "ID",
+  illinois: "IL", indiana: "IN", iowa: "IA", kansas: "KS",
+  kentucky: "KY", louisiana: "LA", maine: "ME", maryland: "MD",
+  massachusetts: "MA", michigan: "MI", minnesota: "MN", mississippi: "MS",
+  missouri: "MO", montana: "MT", nebraska: "NE", nevada: "NV",
+  "new hampshire": "NH", "new jersey": "NJ", "new mexico": "NM",
+  "new york": "NY", "north carolina": "NC", "north dakota": "ND",
+  ohio: "OH", oklahoma: "OK", oregon: "OR", pennsylvania: "PA",
+  "rhode island": "RI", "south carolina": "SC", "south dakota": "SD",
+  tennessee: "TN", texas: "TX", utah: "UT", vermont: "VT",
+  virginia: "VA", washington: "WA", "west virginia": "WV",
+  wisconsin: "WI", wyoming: "WY",
+  "district of columbia": "DC", "puerto rico": "PR",
+  "us virgin islands": "VI", guam: "GU",
+  "american samoa": "AS", "northern mariana islands": "MP",
+};
+
+/**
+ * Normalize a state value to a 2-letter code for UPS API.
+ * Accepts full state names ("Georgia" → "GA"), already-valid codes ("GA" → "GA"),
+ * or returns the trimmed input as-is if no match is found.
+ */
+export function normalizeStateCode(state: string): string {
+  const trimmed = state.trim();
+  if (!trimmed) return trimmed;
+
+  // Already a 2-letter code
+  if (/^[A-Z]{2}$/i.test(trimmed)) return trimmed.toUpperCase();
+
+  // Look up full name
+  const code = US_STATE_CODES[trimmed.toLowerCase()];
+  if (code) return code;
+
+  // Return as-is (international or unknown)
+  return trimmed;
+}
+
 const UPS_BASE_URL =
   (process.env.UPS_BASE_URL || "").trim() || "https://onlinetools.ups.com";
 
@@ -137,6 +182,10 @@ export async function createShippingLabel(
   const sellerPhone = seller.phone?.replace(/\D/g, "") || "0000000000";
   const buyerPhone = buyer.phone?.replace(/\D/g, "") || "0000000000";
 
+  // Normalize state names to 2-letter codes (e.g. "Georgia" → "GA")
+  const sellerStateCode = normalizeStateCode(seller.state);
+  const buyerStateCode = normalizeStateCode(buyer.state);
+
   const shipmentBody = {
     ShipmentRequest: {
       Request: {
@@ -157,7 +206,7 @@ export async function createShippingLabel(
               Boolean
             ),
             City: seller.city,
-            StateProvinceCode: seller.state,
+            StateProvinceCode: sellerStateCode,
             PostalCode: seller.zip,
             CountryCode: seller.country || "US",
           },
@@ -168,7 +217,7 @@ export async function createShippingLabel(
           Address: {
             AddressLine: [buyer.address1, buyer.address2 || ""].filter(Boolean),
             City: buyer.city,
-            StateProvinceCode: buyer.state,
+            StateProvinceCode: buyerStateCode,
             PostalCode: buyer.zip,
             CountryCode: buyer.country || "US",
           },
@@ -181,7 +230,7 @@ export async function createShippingLabel(
               Boolean
             ),
             City: seller.city,
-            StateProvinceCode: seller.state,
+            StateProvinceCode: sellerStateCode,
             PostalCode: seller.zip,
             CountryCode: seller.country || "US",
           },

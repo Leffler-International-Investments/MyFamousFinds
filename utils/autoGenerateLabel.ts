@@ -522,16 +522,30 @@ async function persistLabelFailure(
 
 /**
  * Notify admin/management when label generation fails.
+ * Always sends to admin@myfamousfinds.com so the internal team can review
+ * and notify the seller. Also notifies the seller directly with an
+ * action-required email.
  */
 async function notifyAdminLabelFailure(
   orderId: string,
   sellerId: string,
   errorMsg: string
 ) {
-  try {
-    const adminEmails = (process.env.ADMIN_NOTIFICATION_EMAILS || "").split(",").map(e => e.trim()).filter(Boolean);
-    if (adminEmails.length === 0 || !adminDb) return;
+  if (!adminDb) return;
 
+  // Always send the alert to admin@myfamousfinds.com (the system admin inbox).
+  // Also include any additional addresses from ADMIN_NOTIFICATION_EMAILS if configured.
+  const SYSTEM_ADMIN_EMAIL = "admin@myfamousfinds.com";
+  const extraEmails = (process.env.ADMIN_NOTIFICATION_EMAILS || "")
+    .split(",")
+    .map(e => e.trim())
+    .filter(Boolean);
+  const adminEmails = [SYSTEM_ADMIN_EMAIL, ...extraEmails.filter(
+    e => e.toLowerCase() !== SYSTEM_ADMIN_EMAIL.toLowerCase()
+  )];
+
+  // 1) Notify admin(s)
+  try {
     for (const adminEmail of adminEmails) {
       await queueEmail({
         to: adminEmail,
@@ -544,11 +558,39 @@ async function notifyAdminLabelFailure(
           `or contact the seller to resolve the issue.\n\n` +
           `— MyFamousFinds System`,
         eventType: "admin_label_failure",
-        eventKey: `admin_label_failure:${orderId}`,
+        eventKey: `admin_label_failure:${orderId}:${adminEmail}`,
         metadata: { orderId, sellerId, error: errorMsg },
       });
     }
   } catch (e) {
     console.error("[autoGenerateLabel] Failed to notify admin of label failure:", e);
+  }
+
+  // 2) Notify the seller so they know their label couldn't be generated
+  try {
+    let sellerEmail = "";
+    let sellerName = "";
+    const sellerDoc = await adminDb.collection("sellers").doc(String(sellerId)).get();
+    if (sellerDoc.exists) {
+      const sd: any = sellerDoc.data() || {};
+      sellerEmail = String(sd.contactEmail || sd.email || "").trim();
+      sellerName = String(sd.businessName || sd.name || "").trim();
+    }
+    if (!sellerEmail && String(sellerId).includes("@")) sellerEmail = String(sellerId).trim();
+
+    if (sellerEmail && sellerEmail.includes("@")) {
+      await sendSellerLabelActionRequiredEmail({
+        to: sellerEmail,
+        sellerName: sellerName || undefined,
+        orderId,
+        itemTitle: "your item",
+        reason:
+          "we encountered an issue generating your UPS shipping label. " +
+          "Our team has been notified and will follow up shortly. " +
+          "Please verify your shipping address is correct in your seller profile.",
+      });
+    }
+  } catch (sellerNotifyErr) {
+    console.error("[autoGenerateLabel] Failed to notify seller of label failure:", sellerNotifyErr);
   }
 }
