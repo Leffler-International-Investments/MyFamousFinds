@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Contact Us - NutriPreferred</title>
+  <meta name="description" content="Contact Jaffa & Dan Leffler, Herbalife Independent Distributors. Get personalised guidance on nutrition products and business opportunities.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;1,400;1,600&family=Montserrat:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+  <!-- Header -->
+  <header>
+    <a href="index.html" class="header-logo">
+      <img src="images/logo.png" alt="Herbalife Independent Member">
+    </a>
+    <button class="mobile-menu-toggle" onclick="document.querySelector('nav').classList.toggle('open')" aria-label="Toggle menu">&#9776;</button>
+    <nav>
+      <a href="index.html">Home</a>
+      <a href="https://www.youtube.com/playlist?list=PLbpi6ZahtOH7sJYXCQGqHMN-5MKmYYOp7" target="_blank" rel="noopener">Blog-Breaking-Down-Metabolic-Health</a>
+      <a href="about.html">About</a>
+      <a href="contact.html" class="active">Contact</a>
+    </nav>
+  </header>
+
+  <!-- Contact Section -->
+  <section class="contact-section">
+    <h1>Contact Us</h1>
+    <h2>Why Reach Out? What to Expect?</h2>
+
+    <div class="contact-info">
+      <ul>
+        <li>Interested in becoming a preferred customer</li>
+        <li>Curious about nutrition products and how to use them</li>
+        <li>Looking for personalised guidance or a flexible business opportunity</li>
+      </ul>
+      <p>You'll receive:</p>
+      <ul>
+        <li>A personal reply within 24 hours</li>
+        <li>Step-by-step registration instructions</li>
+        <li>Access to exclusive offers and wellness tips</li>
+      </ul>
+      <p class="contact-person">Jaffa &amp; Dan Leffler</p>
+      <p>Herbalife Independent Distributors<br>Senior Executive Presidents 15K</p>
+    </div>
+
+    <form class="contact-form" id="contactForm" action="https://formspree.io/f/placeholder" method="POST">
+      <input type="text" name="name" placeholder="Name" required>
+      <input type="email" name="email" placeholder="Email" required>
+      <textarea name="message" placeholder="Message" required></textarea>
+      <button type="submit">SEND</button>
+    </form>
+
+    <div class="form-success" id="formSuccess">
+      <p>Thank you! We'll get back to you within 24 hours.</p>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer>
+    <p>&copy; 2025 Leffler International Investments Pty Ltd. All rights reserved.</p>
+  </footer>
+
+  <script>
+    document.getElementById('contactForm').addEventListener('submit', function(e) {
+      e.preventDefault();
+      const form = this;
+      const formData = new FormData(form);
+
+      fetch(form.action, {
+        method: 'POST',
+        body: formData,
+        headers: { 'Accept': 'application/json' }
+      }).then(response => {
+        if (response.ok) {
+          form.style.display = 'none';
+          document.getElementById('formSuccess').style.display = 'block';
+        }
+      }).catch(() => {
+        alert('There was an error sending your message. Please try again.');
+      });
+    });
+  </script>
+
+</body>
+</html>
