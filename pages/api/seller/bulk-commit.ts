@@ -2,7 +2,7 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { adminDb } from "../../../utils/firebaseAdmin";
 import { FieldValue } from "firebase-admin/firestore";
-import { getSellerId } from "../../../utils/authServer";
+import { getAuthUser, getSellerId } from "../../../utils/authServer";
 import sharp from "sharp";
 import {
   createWhiteDisplayImage,
@@ -255,7 +255,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
     if (!sellerId) return res.status(401).json({ ok: false, error: "unauthorized" });
 
     // ── Require bank details before creating listings ──
-    const sellerEmail = sellerId.includes("@") ? sellerId : sellerId.replace(/_/g, ".");
+    // Use the verified auth email (matching how banking.ts stores the doc)
+    // instead of the seller doc ID which may use underscores instead of dots.
+    const authUser = await getAuthUser(req);
+    const sellerEmail = authUser?.email?.toLowerCase().trim() || (sellerId.includes("@") ? sellerId : sellerId.replace(/_/g, "."));
     const bankingSnap = await adminDb.collection("seller_banking").doc(sellerEmail).get();
     const bankingData: any = bankingSnap.exists ? bankingSnap.data() : null;
     const hasBankDetails = !!(
