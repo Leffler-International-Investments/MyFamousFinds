@@ -86,23 +86,11 @@ export default function ProductPage(props: ProductPageProps) {
   const [offerError, setOfferError] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
   const [showAuthModal, setShowAuthModal] = useState(false);
-  const [showShippingForm, setShowShippingForm] = useState(false);
   const [authAction, setAuthAction] = useState<"bag" | "offer">("bag");
   const router = useRouter();
 
-  // Buyer details must be completed before checkout is enabled
-  const [buyerDetails, setBuyerDetails] = useState({
-    fullName: "",
-    email: "",
-    phone: "",
-    addressLine1: "",
-    addressLine2: "",
-    city: "",
-    state: "",
-    postalCode: "",
-    country: "US",
-  });
-  const [buyerTouched, setBuyerTouched] = useState(false);
+  // Buyer email for offers
+  const [buyerEmail, setBuyerEmail] = useState("");
 
   // ✅ Robust image fallback so the product image never disappears
   const FALLBACK_IMG = "/Famous-Finds-Logo-Transparent.png";
@@ -137,35 +125,11 @@ export default function ProductPage(props: ProductPageProps) {
     });
   }, [id, title, brand, priceLabel, imageUrl]);
 
-  const isBuyerDetailsValid = (() => {
-    const b = buyerDetails;
-    const required = [
-      b.fullName,
-      b.email,
-      b.phone,
-      b.addressLine1,
-      b.city,
-      b.state,
-      b.postalCode,
-      b.country,
-    ];
-    return required.every((v) => String(v || "").trim().length > 0);
-  })();
-
   useEffect(() => {
     if (!firebaseClientReady || !auth) return;
     const unsub = onAuthStateChanged(auth, (user) => {
       setUserId(user?.uid ?? null);
-
-      // helpful auto-fill for signed-in users
-      const email = user?.email || "";
-      if (email) {
-        setBuyerDetails((p) => ({ ...p, email }));
-      }
-      const name = (user as any)?.displayName || "";
-      if (name) {
-        setBuyerDetails((p) => ({ ...p, fullName: p.fullName || name }));
-      }
+      if (user?.email) setBuyerEmail(user.email);
     });
     return () => unsub();
   }, []);
@@ -194,7 +158,7 @@ export default function ProductPage(props: ProductPageProps) {
     });
   }, [brand, currency, db, firebaseClientReady, id, imageUrl, price, title, userId]);
 
-  const handleAddToBag = () => {
+  const handleAddToBag = async () => {
     if (!allowPurchase) {
       alert("This item is no longer available.");
       return;
@@ -204,12 +168,29 @@ export default function ProductPage(props: ProductPageProps) {
       setShowAuthModal(true);
       return;
     }
-    // User is signed in — show shipping form
-    setShowShippingForm(true);
-    setTimeout(() => {
-      const el = document.getElementById("buyer-details-form");
-      if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
-    }, 100);
+    // Add item to cart and redirect to cart page
+    try {
+      setLoading(true);
+      const token = auth?.currentUser ? await auth.currentUser.getIdToken() : "";
+      const res = await fetch("/api/cart/update", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ productId: id, add: true }),
+      });
+      const json = await res.json();
+      if (!res.ok || !json?.ok) {
+        throw new Error(json?.error || "Failed to add item to bag");
+      }
+      router.push("/cart");
+    } catch (err: any) {
+      console.error(err);
+      alert(err?.message || "Failed to add item to bag. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleMakeOfferClick = () => {
@@ -224,64 +205,39 @@ export default function ProductPage(props: ProductPageProps) {
 
   const handleAuthSuccess = (uid: string, email: string) => {
     setUserId(uid);
-    setBuyerDetails((p) => ({ ...p, email: email || p.email }));
+    if (email) setBuyerEmail(email);
     setShowAuthModal(false);
     if (authAction === "bag") {
-      setShowShippingForm(true);
-      setTimeout(() => {
-        const el = document.getElementById("buyer-details-form");
-        if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
-      }, 100);
+      // Now that user is signed in, add to cart
+      (async () => {
+        try {
+          setLoading(true);
+          const token = auth?.currentUser ? await auth.currentUser.getIdToken() : "";
+          const res = await fetch("/api/cart/update", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              ...(token ? { Authorization: `Bearer ${token}` } : {}),
+            },
+            body: JSON.stringify({ productId: id, add: true }),
+          });
+          const json = await res.json();
+          if (!res.ok || !json?.ok) {
+            throw new Error(json?.error || "Failed to add item to bag");
+          }
+          router.push("/cart");
+        } catch (err: any) {
+          console.error(err);
+          alert(err?.message || "Failed to add item to bag. Please try again.");
+        } finally {
+          setLoading(false);
+        }
+      })();
     } else {
       setTimeout(() => {
         const form = document.getElementById("offer-form");
         if (form) form.scrollIntoView({ behavior: "smooth", block: "start" });
       }, 100);
-    }
-  };
-
-  const handleCheckout = async () => {
-    try {
-      if (!allowPurchase) {
-        alert("This item is no longer available.");
-        return;
-      }
-      if (!isBuyerDetailsValid) {
-        setBuyerTouched(true);
-        return;
-      }
-
-      setLoading(true);
-
-      const res = await fetch("/api/paypal/create-order", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(userId ? { "x-user-id": userId } : {}),
-        },
-        body: JSON.stringify({
-          id,
-          buyerDetails,
-        }),
-      });
-
-      const json = await res.json();
-
-      if (!res.ok || !json?.ok) {
-        throw new Error(json?.error || "Unable to create PayPal order");
-      }
-
-      if (json.approveUrl) {
-        window.location.assign(json.approveUrl);
-        return;
-      }
-
-      throw new Error("No PayPal approval URL returned");
-    } catch (err: any) {
-      console.error(err);
-      alert(err?.message || "Checkout failed, please try again.");
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -318,7 +274,7 @@ export default function ProductPage(props: ProductPageProps) {
           productId: id, // ✅ REQUIRED by API
           price: offerValue, // ✅ API accepts price
           message: offerMessage,
-          buyerEmail: buyerDetails.email || "", // optional
+          buyerEmail: buyerEmail || "", // optional
         }),
       });
 
@@ -533,181 +489,6 @@ export default function ProductPage(props: ProductPageProps) {
                 <span className="proof-badge">Authenticity Verified</span>
                 <span className="proof-badge-sub">Proof of purchase on file</span>
               </div>
-            )}
-
-            {/* SHIPPING DETAILS — shown after sign-in via Add to Bag */}
-            {showShippingForm && (
-            <div id="buyer-details-form" className="buyer-box">
-              <h3 className="buyer-title">Shipping details</h3>
-              <p className="buyer-hint">
-                Complete your shipping details to proceed to checkout.
-              </p>
-
-              <div className="buyer-grid">
-                <div className="buyer-field">
-                  <label>
-                    Full name <span className="req">*</span>
-                  </label>
-                  <input
-                    value={buyerDetails.fullName}
-                    onChange={(e) => {
-                      setBuyerTouched(true);
-                      setBuyerDetails((p) => ({ ...p, fullName: e.target.value }));
-                    }}
-                    placeholder="Full name"
-                  />
-                  {buyerTouched && !buyerDetails.fullName.trim() && (
-                    <div className="buyer-error">Required</div>
-                  )}
-                </div>
-
-                <div className="buyer-field">
-                  <label>
-                    Email <span className="req">*</span>
-                  </label>
-                  <input
-                    type="email"
-                    value={buyerDetails.email}
-                    onChange={(e) => {
-                      setBuyerTouched(true);
-                      setBuyerDetails((p) => ({ ...p, email: e.target.value }));
-                    }}
-                    placeholder="Email"
-                  />
-                  {buyerTouched && !buyerDetails.email.trim() && (
-                    <div className="buyer-error">Required</div>
-                  )}
-                </div>
-
-                <div className="buyer-field">
-                  <label>
-                    Phone <span className="req">*</span>
-                  </label>
-                  <input
-                    value={buyerDetails.phone}
-                    onChange={(e) => {
-                      setBuyerTouched(true);
-                      setBuyerDetails((p) => ({ ...p, phone: e.target.value }));
-                    }}
-                    placeholder="Phone"
-                  />
-                  {buyerTouched && !buyerDetails.phone.trim() && (
-                    <div className="buyer-error">Required</div>
-                  )}
-                </div>
-
-                <div className="buyer-field buyer-wide">
-                  <label>
-                    Address line 1 <span className="req">*</span>
-                  </label>
-                  <input
-                    value={buyerDetails.addressLine1}
-                    onChange={(e) => {
-                      setBuyerTouched(true);
-                      setBuyerDetails((p) => ({ ...p, addressLine1: e.target.value }));
-                    }}
-                    placeholder="Street address"
-                  />
-                  {buyerTouched && !buyerDetails.addressLine1.trim() && (
-                    <div className="buyer-error">Required</div>
-                  )}
-                </div>
-
-                <div className="buyer-field buyer-wide">
-                  <label>Address line 2</label>
-                  <input
-                    value={buyerDetails.addressLine2}
-                    onChange={(e) => {
-                      setBuyerTouched(true);
-                      setBuyerDetails((p) => ({ ...p, addressLine2: e.target.value }));
-                    }}
-                    placeholder="Apartment, unit, etc (optional)"
-                  />
-                </div>
-
-                <div className="buyer-field">
-                  <label>
-                    City <span className="req">*</span>
-                  </label>
-                  <input
-                    value={buyerDetails.city}
-                    onChange={(e) => {
-                      setBuyerTouched(true);
-                      setBuyerDetails((p) => ({ ...p, city: e.target.value }));
-                    }}
-                    placeholder="City"
-                  />
-                  {buyerTouched && !buyerDetails.city.trim() && (
-                    <div className="buyer-error">Required</div>
-                  )}
-                </div>
-
-                <div className="buyer-field">
-                  <label>
-                    State <span className="req">*</span>
-                  </label>
-                  <input
-                    value={buyerDetails.state}
-                    onChange={(e) => {
-                      setBuyerTouched(true);
-                      setBuyerDetails((p) => ({ ...p, state: e.target.value }));
-                    }}
-                    placeholder="State"
-                  />
-                  {buyerTouched && !buyerDetails.state.trim() && (
-                    <div className="buyer-error">Required</div>
-                  )}
-                </div>
-
-                <div className="buyer-field">
-                  <label>
-                    Postcode <span className="req">*</span>
-                  </label>
-                  <input
-                    value={buyerDetails.postalCode}
-                    onChange={(e) => {
-                      setBuyerTouched(true);
-                      setBuyerDetails((p) => ({ ...p, postalCode: e.target.value }));
-                    }}
-                    placeholder="Postcode"
-                  />
-                  {buyerTouched && !buyerDetails.postalCode.trim() && (
-                    <div className="buyer-error">Required</div>
-                  )}
-                </div>
-
-                <div className="buyer-field">
-                  <label>
-                    Country <span className="req">*</span>
-                  </label>
-                  <input
-                    value={buyerDetails.country}
-                    onChange={(e) => {
-                      setBuyerTouched(true);
-                      setBuyerDetails((p) => ({ ...p, country: e.target.value }));
-                    }}
-                    placeholder="Country (e.g. US)"
-                  />
-                  {buyerTouched && !buyerDetails.country.trim() && (
-                    <div className="buyer-error">Required</div>
-                  )}
-                </div>
-              </div>
-
-              {!isBuyerDetailsValid && buyerTouched && (
-                <div className="buyer-warning">Please fill all required fields (*) to enable checkout.</div>
-              )}
-
-              <div className="checkout-row">
-                <button
-                  onClick={handleCheckout}
-                  disabled={loading || !isBuyerDetailsValid}
-                  className="btn-checkout"
-                >
-                  {loading ? "Processing..." : "Proceed to checkout"}
-                </button>
-              </div>
-            </div>
             )}
 
             <div className="protection-box">
@@ -986,92 +767,6 @@ export default function ProductPage(props: ProductPageProps) {
           font-size: 12px;
           color: #047857;
           font-weight: 500;
-        }
-
-        .buyer-box {
-          margin-top: 22px;
-          border: 1px solid #ececec;
-          border-radius: 14px;
-          padding: 18px;
-          background: #fff;
-        }
-        .buyer-title {
-          margin: 0 0 6px;
-          font-size: 14px;
-          font-weight: 800;
-          letter-spacing: 0.1em;
-          text-transform: uppercase;
-        }
-        .buyer-hint {
-          margin: 0 0 14px;
-          font-size: 12px;
-          color: #666;
-        }
-        .buyer-grid {
-          display: grid;
-          grid-template-columns: repeat(2, minmax(0, 1fr));
-          gap: 12px;
-        }
-        .buyer-field label {
-          display: block;
-          font-size: 12px;
-          color: #333;
-          margin-bottom: 6px;
-          font-weight: 600;
-        }
-        .req {
-          color: #d11;
-          font-weight: 900;
-        }
-        .buyer-field input,
-        .buyer-field textarea {
-          width: 100%;
-          border: 1px solid #ddd;
-          border-radius: 10px;
-          padding: 10px 12px;
-          font-size: 13px;
-          outline: none;
-        }
-        .buyer-wide {
-          grid-column: span 2;
-        }
-        .buyer-error {
-          margin-top: 6px;
-          font-size: 11px;
-          color: #d11;
-          font-weight: 700;
-        }
-        .buyer-warning {
-          margin-top: 12px;
-          font-size: 12px;
-          color: #a64b00;
-          background: #fff3e8;
-          border: 1px solid #ffd7b8;
-          border-radius: 10px;
-          padding: 10px 12px;
-        }
-
-        .checkout-row {
-          margin-top: 16px;
-        }
-        .btn-checkout {
-          width: 100%;
-          padding: 14px 16px;
-          background: #16a34a;
-          color: #fff;
-          border: none;
-          border-radius: 999px;
-          font-size: 15px;
-          font-weight: 700;
-          cursor: pointer;
-          transition: background 0.15s;
-        }
-        .btn-checkout:hover:not(:disabled) {
-          background: #15803d;
-        }
-        .btn-checkout:disabled {
-          opacity: 0.5;
-          cursor: not-allowed;
         }
 
         .button-row {
@@ -1433,13 +1128,7 @@ export default function ProductPage(props: ProductPageProps) {
           .image {
             height: 320px;
           }
-          .buyer-grid {
-            grid-template-columns: 1fr;
-          }
-          .buyer-wide {
-            grid-column: span 1;
-          }
-          .button-row {
+.button-row {
             flex-direction: column;
           }
           .lightbox-prev { left: 8px; }

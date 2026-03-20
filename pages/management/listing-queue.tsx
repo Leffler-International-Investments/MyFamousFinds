@@ -32,6 +32,17 @@ function ManagementListingQueue({ items: initialItems }: Props) {
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  // Rejection reason modal state
+  const [rejectModal, setRejectModal] = useState<string | null>(null); // listing id
+  const [rejectReason, setRejectReason] = useState("");
+
+  const REJECTION_REASONS = [
+    "Bad photo",
+    "Verification document - poor image",
+    "Verification document - not acceptable",
+    "Pricing needs to be reviewed",
+  ];
+
   // Modal state for proof document viewing
   const [proofModal, setProofModal] = useState<Listing | null>(null);
   const [proofDocData, setProofDocData] = useState<string>("");
@@ -55,7 +66,8 @@ function ManagementListingQueue({ items: initialItems }: Props) {
 
   const handleAction = async (
     id: string,
-    action: "approve" | "reject" | "request-proof" | "delete"
+    action: "approve" | "reject" | "request-proof" | "delete",
+    body?: Record<string, any>
   ) => {
     if (actionLoading) return;
     setActionLoading(id);
@@ -64,6 +76,8 @@ function ManagementListingQueue({ items: initialItems }: Props) {
     try {
       const res = await fetch(`/api/admin/${action}/${id}`, {
         method: "POST",
+        headers: body ? { "Content-Type": "application/json" } : {},
+        body: body ? JSON.stringify(body) : undefined,
       });
       const json = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -216,7 +230,10 @@ function ManagementListingQueue({ items: initialItems }: Props) {
                           </button>
                           <button
                             type="button"
-                            onClick={() => handleAction(item.id, "reject")}
+                            onClick={() => {
+                              setRejectReason("");
+                              setRejectModal(item.id);
+                            }}
                             disabled={actionLoading === item.id}
                             className="btn-table btn-reject"
                           >
@@ -325,6 +342,80 @@ function ManagementListingQueue({ items: initialItems }: Props) {
               <p style={{ fontSize: 14, color: "#374151", lineHeight: 1.6, whiteSpace: "pre-wrap", wordBreak: "break-word", margin: 0 }}>
                 {detailsModal.details}
               </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* REJECTION REASON MODAL */}
+      {rejectModal && (
+        <div className="modal-overlay" onClick={() => setRejectModal(null)}>
+          <div className="modal-box" onClick={(ev) => ev.stopPropagation()}>
+            <div className="modal-header">
+              <h3>Reject Listing — Select Reason</h3>
+              <button type="button" className="modal-close" onClick={() => setRejectModal(null)}>
+                ✕
+              </button>
+            </div>
+            <div className="modal-body">
+              <p style={{ fontSize: 14, color: "#374151", marginBottom: 12 }}>
+                Select a reason for rejection. The seller will be notified by email.
+              </p>
+              <select
+                value={rejectReason}
+                onChange={(e) => setRejectReason(e.target.value)}
+                style={{
+                  width: "100%",
+                  padding: "10px 12px",
+                  fontSize: 14,
+                  borderRadius: 8,
+                  border: "1px solid #d1d5db",
+                  marginBottom: 16,
+                  background: "#fff",
+                }}
+              >
+                <option value="">-- Select a reason --</option>
+                {REJECTION_REASONS.map((r) => (
+                  <option key={r} value={r}>{r}</option>
+                ))}
+              </select>
+              <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+                <button
+                  type="button"
+                  onClick={() => setRejectModal(null)}
+                  style={{
+                    padding: "8px 16px",
+                    borderRadius: 8,
+                    border: "1px solid #d1d5db",
+                    background: "#fff",
+                    cursor: "pointer",
+                    fontSize: 13,
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  disabled={!rejectReason}
+                  onClick={() => {
+                    const listingId = rejectModal;
+                    setRejectModal(null);
+                    handleAction(listingId, "reject", { reason: rejectReason });
+                  }}
+                  style={{
+                    padding: "8px 16px",
+                    borderRadius: 8,
+                    border: "none",
+                    background: rejectReason ? "#dc2626" : "#d1d5db",
+                    color: "#fff",
+                    cursor: rejectReason ? "pointer" : "not-allowed",
+                    fontWeight: 700,
+                    fontSize: 13,
+                  }}
+                >
+                  Reject Listing
+                </button>
+              </div>
             </div>
           </div>
         </div>
