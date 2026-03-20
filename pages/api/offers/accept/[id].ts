@@ -3,7 +3,8 @@ import type { NextApiRequest, NextApiResponse } from "next";
 import { adminDb, FieldValue } from "../../../../utils/firebaseAdmin";
 import { getSellerId } from "../../../../utils/authServer";
 import { isAdminRequest } from "../../../../utils/adminAuth";
-import { sendBuyerOfferAcceptedEmail } from "../../../../utils/email";
+import { brandedEmailWrapper, escapeHtml } from "../../../../utils/email";
+import { queueEmail } from "../../../../utils/emailOutbox";
 
 type Ok = { ok: true };
 type Err = { ok: false; error: string };
@@ -39,16 +40,59 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
     updatedAt: FieldValue.serverTimestamp(),
   });
 
-  // Notify buyer via email (non-blocking)
+  // Notify buyer via email outbox (guaranteed delivery with retry)
   const buyerEmail = String(offer.buyerEmail || "").trim();
   if (buyerEmail) {
-    sendBuyerOfferAcceptedEmail({
-      to: buyerEmail,
-      itemTitle: String(offer.listingTitle || ""),
-      offerAmount: Number(offer.offerAmount || 0),
-      currency: String(offer.currency || "USD"),
-      listingId: String(offer.listingId || offer.productId || ""),
-    }).catch((err) => console.error("Failed to send offer accepted email:", err));
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://www.myfamousfinds.com";
+    const itemTitle = String(offer.listingTitle || "");
+    const offerAmount = Number(offer.offerAmount || 0);
+    const cur = String(offer.currency || "USD");
+    const listingId = String(offer.listingId || offer.productId || "");
+    const paymentUrl = listingId ? `${siteUrl}/product/${listingId}` : siteUrl;
+
+    const text =
+      `Hello,\n\n` +
+      `Great news — your offer has been accepted!\n\n` +
+      `Item: ${itemTitle}\n` +
+      `Accepted amount: ${cur} $${offerAmount.toLocaleString()}\n\n` +
+      `You can now complete your purchase by visiting the link below:\n` +
+      `${paymentUrl}\n\n` +
+      `Regards,\nThe MyFamousFinds Team\n`;
+
+    const bodyHtml =
+      `<p style="margin:0 0 16px 0;font-size:16px;">Hello,</p>` +
+      `<p style="margin:0 0 20px 0;font-size:20px;font-weight:bold;color:#1c1917;">Your Offer Was Accepted!</p>` +
+      `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#fafaf9;border:1px solid #e7e5e4;border-radius:8px;margin:0 0 20px 0;">` +
+      `<tr><td style="padding:16px 20px;border-bottom:1px solid #e7e5e4;background-color:#1c1917;border-radius:8px 8px 0 0;">` +
+      `<p style="margin:0;font-size:14px;font-weight:bold;color:#d4a843;letter-spacing:0.5px;">OFFER ACCEPTED</p></td></tr>` +
+      `<tr><td style="padding:16px 20px;">` +
+      `<table role="presentation" width="100%" cellpadding="0" cellspacing="0">` +
+      `<tr><td style="padding:6px 0;color:#78716c;font-size:13px;width:110px;">Item</td><td style="padding:6px 0;font-size:14px;font-weight:bold;color:#1c1917;">${escapeHtml(itemTitle)}</td></tr>` +
+      `<tr><td style="padding:6px 0;color:#78716c;font-size:13px;">Accepted Amount</td><td style="padding:6px 0;font-size:14px;font-weight:bold;color:#1c1917;">${escapeHtml(cur)} $${offerAmount.toLocaleString()}</td></tr>` +
+      `</table></td></tr></table>` +
+      `<p style="margin:0 0 20px 0;">Complete your purchase now:</p>` +
+      `<table role="presentation" cellpadding="0" cellspacing="0"><tr><td style="border-radius:6px;background-color:#1c1917;">` +
+      `<a href="${escapeHtml(paymentUrl)}" style="display:inline-block;padding:12px 28px;color:#ffffff;text-decoration:none;font-size:14px;font-weight:bold;letter-spacing:0.5px;">PROCEED TO PAYMENT</a>` +
+      `</td></tr></table>` +
+      `<p style="margin:20px 0 0 0;font-size:14px;color:#78716c;">Thank you for shopping with Famous Finds.</p>`;
+
+    const html = brandedEmailWrapper(bodyHtml);
+    const today = new Date().toISOString().slice(0, 10);
+
+    try {
+      const jobId = await queueEmail({
+        to: buyerEmail,
+        subject: `MyFamousFinds — Your Offer on "${itemTitle}" Was Accepted!`,
+        text,
+        html,
+        eventType: "buyer_offer_accepted",
+        eventKey: `${id}:buyer_offer_accepted:${today}`,
+        metadata: { offerId: id, buyerEmail, itemTitle, offerAmount },
+      });
+      console.log(`[OFFER-ACCEPT] Email queued for buyer ${buyerEmail}, jobId: ${jobId}`);
+    } catch (err) {
+      console.error("Failed to queue offer accepted email:", err);
+    }
   }
 
   return res.status(200).json({ ok: true });
