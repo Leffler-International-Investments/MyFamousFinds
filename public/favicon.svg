@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="64" fill="#111827"/>
+  <g transform="translate(256,220)">
+    <!-- Diamond shape -->
+    <polygon points="0,-140 140,0 0,140 -140,0" fill="none" stroke="#D4AF37" stroke-width="18"/>
+    <!-- Letter F centered in diamond -->
+    <text x="0" y="22" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="150" font-weight="bold" fill="#D4AF37">F</text>
+  </g>
+  <!-- FAMOUS FINDS text below diamond -->
+  <text x="256" y="440" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="56" font-weight="bold" letter-spacing="8" fill="#D4AF37">FAMOUS</text>
+  <text x="256" y="490" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="42" font-weight="normal" letter-spacing="6" fill="#D4AF37">FINDS</text>
+</svg>
