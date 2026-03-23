@@ -356,16 +356,16 @@ textarea::placeholder {
    GLOBAL FOOTER OVERRIDES
 ---------------------------------------------------------*/
 footer {
-  background-color: #111827 !important;
-  color: #ffffff !important;
-  border-top: 1px solid #374151 !important;
+  background-color: #f5f0e8 !important;
+  color: #111827 !important;
+  border-top: 1px solid #e5e7eb !important;
 }
 
 footer a {
-  color: #9ca3af;
+  color: #4b5563;
   transition: color 0.2s;
 }
 
 footer a:hover {
-  color: #ffffff !important;
+  color: #111827 !important;
 }
