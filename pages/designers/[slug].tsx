@@ -78,7 +78,7 @@ export default function DesignerPage({ designer, items }: DesignerProps) {
 
       <style jsx>{`
         .page {
-          background: #ffffff;
+          background: #f5f0e8;
           color: #111827;
           min-height: 100vh;
           display: flex;

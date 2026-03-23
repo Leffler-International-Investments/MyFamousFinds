@@ -152,7 +152,7 @@ export default function Header({ filterContent, showFilter, onToggleFilter }: He
       <style jsx>{`
         .ff-header {
           width: 100%;
-          background: #ffffff;
+          background: #f5f0e8;
           border-bottom: 1px solid #e5e7eb;
           color: #111827;
           position: relative;

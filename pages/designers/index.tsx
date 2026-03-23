@@ -85,7 +85,7 @@ function DesignerSection({
         .designer-chips {
           display: flex;
           flex-wrap: wrap;
-          gap: 8px;
+          gap: 4px 16px;
         }
       `}</style>
     </div>
@@ -157,7 +157,7 @@ const DesignersPage: NextPage<DesignersPageProps> = ({
 
       <style jsx>{`
         .designers-page {
-          background: #ffffff;
+          background: #f5f0e8;
           color: #111827;
           min-height: 100vh;
         }
@@ -207,45 +207,45 @@ const DesignersPage: NextPage<DesignersPageProps> = ({
         .designer-chips-all {
           display: flex;
           flex-wrap: wrap;
-          gap: 6px;
+          gap: 4px 16px;
         }
         .designers-directory :global(.designer-chip) {
-          border: 1px solid #d1d5db;
-          background: #ffffff;
+          border: none;
+          background: transparent;
           color: #111827;
-          padding: 8px 16px;
-          border-radius: 999px;
-          font-size: 13px;
+          padding: 4px 0;
+          border-radius: 0;
+          font-size: 14px;
           font-weight: 500;
           cursor: pointer;
-          transition: all 0.15s ease;
+          transition: color 0.15s ease;
           white-space: nowrap;
           text-decoration: none;
           display: inline-block;
         }
         .designers-directory :global(.designer-chip:hover) {
-          background: #111827;
-          color: #ffffff;
-          border-color: #111827;
+          background: transparent;
+          color: #6b7280;
+          border-color: transparent;
         }
         .designers-directory :global(.designer-chip-small) {
-          border: 1px solid #e5e7eb;
-          background: #fafafa;
+          border: none;
+          background: transparent;
           color: #374151;
-          padding: 6px 12px;
-          border-radius: 999px;
-          font-size: 12px;
+          padding: 4px 0;
+          border-radius: 0;
+          font-size: 13px;
           font-weight: 500;
           cursor: pointer;
-          transition: all 0.15s ease;
+          transition: color 0.15s ease;
           white-space: nowrap;
           text-decoration: none;
           display: inline-block;
         }
         .designers-directory :global(.designer-chip-small:hover) {
-          background: #111827;
-          color: #ffffff;
-          border-color: #111827;
+          background: transparent;
+          color: #6b7280;
+          border-color: transparent;
         }
 
         @media (max-width: 480px) {
