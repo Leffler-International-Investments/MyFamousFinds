@@ -26,10 +26,9 @@
 │   ├── useRequireOwner.ts
 │   └── useRequireSeller.ts
 ├── lib
-│   ├── getStripe.ts
+│   ├── paypal.ts
 │   ├── sampleProducts.ts
 │   ├── statementStore.ts
-│   └── stripe.ts
 ├── next.config.js
 ├── next-env.d.ts
 ├── package.json
@@ -59,7 +58,6 @@
 │   │   │   │   └── static-pages
 │   │   │   │       └── [pageKey].ts
 │   │   │   ├── listings.ts
-│   │   │   ├── stripe-settings.ts
 │   │   │   └── team
 │   │   │       └── add.ts
 │   │   ├── offers
@@ -118,7 +116,6 @@
 │   │   ├── seller-profiles.tsx
 │   │   ├── sellers.tsx
 │   │   ├── settings.tsx
-│   │   ├── stripe-settings.tsx
 │   │   ├── support-tickets.tsx
 │   │   ├── support.tsx
 │   │   ├── system-settings.tsx
