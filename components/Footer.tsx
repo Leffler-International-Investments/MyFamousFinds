@@ -307,9 +307,9 @@ export default function Footer() {
         <style jsx>{`
           .ff-footer {
             margin-top: auto;
-            border-top: 1px solid #374151;
-            background: #111827;
-            color: #f9fafb;
+            border-top: 1px solid #e5e7eb;
+            background: #f5f0e8;
+            color: #111827;
           }
 
           .ff-footer-inner {
@@ -341,7 +341,7 @@ export default function Footer() {
             font-weight: 700;
             text-transform: uppercase;
             letter-spacing: 0.12em;
-            color: #9ca3af;
+            color: #111827;
             margin: 0 0 2px;
             background: none;
             border: none;
@@ -391,7 +391,7 @@ export default function Footer() {
 
           .ff-footer-copy {
             font-size: 11px;
-            color: #9ca3af;
+            color: #6b7280;
           }
 
           /* ---- Social icons ---- */
@@ -406,12 +406,12 @@ export default function Footer() {
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            color: #9ca3af;
+            color: #6b7280;
             transition: color 0.15s, transform 0.15s;
           }
 
           .ff-social-icon:hover {
-            color: #ffffff;
+            color: #111827;
             transform: scale(1.15);
           }
 
@@ -426,13 +426,13 @@ export default function Footer() {
             bottom: 100%;
             left: 50%;
             transform: translateX(-50%);
-            background: #1f2937;
-            color: #d1d5db;
+            background: #ffffff;
+            color: #4b5563;
             font-size: 11px;
             white-space: nowrap;
             padding: 6px 10px;
             border-radius: 6px;
-            border: 1px solid #374151;
+            border: 1px solid #e5e7eb;
             margin-bottom: 6px;
             pointer-events: none;
           }
@@ -455,9 +455,9 @@ export default function Footer() {
             align-items: center;
             gap: 10px;
             border-radius: 999px;
-            border: 1px solid #4b5563;
-            background: rgba(255, 255, 255, 0.06);
-            color: #f9fafb;
+            border: 1px solid #d1d5db;
+            background: rgba(17, 24, 39, 0.04);
+            color: #111827;
             padding: 12px 28px;
             font-size: 14px;
             font-weight: 600;
@@ -468,7 +468,7 @@ export default function Footer() {
           }
 
           .ff-install-btn:hover {
-            background: rgba(255, 255, 255, 0.12);
+            background: rgba(17, 24, 39, 0.08);
             border-color: #9ca3af;
           }
 
@@ -486,14 +486,14 @@ export default function Footer() {
           /* ---- Link styles (global for Next.js Link) ---- */
           :global(.ff-col-link) {
             font-size: 13px;
-            color: #d1d5db;
+            color: #4b5563;
             text-decoration: none;
             transition: color 0.15s;
             line-height: 1.4;
           }
 
           :global(.ff-col-link:hover) {
-            color: #ffffff;
+            color: #111827;
           }
 
           /* ---- Mobile accordion ---- */
@@ -505,7 +505,7 @@ export default function Footer() {
             }
 
             .ff-footer-col--mobile {
-              border-bottom: 1px solid #1f2937;
+              border-bottom: 1px solid #e5e7eb;
               gap: 0;
             }
 
@@ -516,7 +516,7 @@ export default function Footer() {
               width: 100%;
               padding: 16px 0;
               cursor: pointer;
-              color: #f9fafb;
+              color: #111827;
               font-size: 13px;
               font-weight: 600;
               text-transform: uppercase;
@@ -536,7 +536,7 @@ export default function Footer() {
 
             :global(.ff-col-link) {
               font-size: 14px;
-              color: #9ca3af;
+              color: #4b5563;
               padding: 2px 0;
               display: block;
             }
@@ -564,7 +564,7 @@ export default function Footer() {
             align-items: center;
             gap: 4px;
             font-size: 13px;
-            color: #d1d5db;
+            color: #4b5563;
             font-weight: 700;
             text-decoration: none;
             white-space: nowrap;
@@ -578,8 +578,8 @@ export default function Footer() {
             letter-spacing: 0.02em;
           }
           .ff-footer-nav .ff-footer-item a.ff-footer-link:hover {
-            color: #ffffff;
-            background: rgba(255, 255, 255, 0.06);
+            color: #111827;
+            background: rgba(17, 24, 39, 0.04);
           }
         `}</style>
       </footer>
