@@ -61,10 +61,10 @@ export type RemoveBgResult = {
 };
 
 /**
- * Removes background when possible and ALWAYS returns a white-background JPEG.
+ * Removes background when possible and ALWAYS returns an eggshell-background JPEG.
  *
- * - If Photoroom succeeds, transparency is composited onto white.
- * - If Photoroom fails, original image is still normalized to white JPEG.
+ * - If Photoroom succeeds, transparency is composited onto eggshell (#f5f0e8).
+ * - If Photoroom fails, original image is still normalized to eggshell JPEG.
  *
  * The returned object includes `backgroundRemoved` so callers can detect
  * when the AI removal was skipped.
@@ -96,7 +96,7 @@ export async function removeBackgroundAndMakeWhite(
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     bgError = message;
-    console.error("[backgroundRemoval] Photoroom failed, falling back to plain white:", message);
+    console.error("[backgroundRemoval] Photoroom failed, falling back to plain eggshell:", message);
     processed = sourceBuffer;
   }
 
@@ -104,9 +104,9 @@ export async function removeBackgroundAndMakeWhite(
     .rotate()
     .resize(width, height, {
       fit: "contain",
-      background: { r: 255, g: 255, b: 255, alpha: 1 },
+      background: { r: 245, g: 240, b: 232, alpha: 1 },
     })
-    .flatten({ background: "#ffffff" })
+    .flatten({ background: "#f5f0e8" })
     .jpeg({ quality, mozjpeg: true })
     .toBuffer();
 
