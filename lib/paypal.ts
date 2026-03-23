@@ -1,5 +1,5 @@
 // FILE: /lib/paypal.ts
-// PayPal REST API helper — replaces the old lib/stripe.ts
+// PayPal REST API helper
 
 const PAYPAL_API_BASE =
   (process.env.PAYPAL_API_BASE || "").trim() ||
