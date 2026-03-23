@@ -85,7 +85,7 @@ export default function ProductCard({ isSaved, onToggleWishlist, ...p }: Props) 
         .card {
           display: flex;
           flex-direction: column;
-          background: #fff;
+          background: transparent;
           height: 100%;
         }
         .card:hover .thumb img {
@@ -95,7 +95,7 @@ export default function ProductCard({ isSaved, onToggleWishlist, ...p }: Props) 
         .thumb {
           position: relative;
           aspect-ratio: 3 / 4;
-          background: #ffffff;
+          background: #f5f0e8;
           overflow: hidden;
         }
         .thumb img {

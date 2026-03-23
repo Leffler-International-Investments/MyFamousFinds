@@ -177,7 +177,7 @@ export default function PublicCatalogue({ items }: CatalogueProps) {
   return (
     <div className="catalogue-page">
       <Head>
-        <title>Catalogue - Famous Finds</title>
+        <title>Famous Closets - Famous Finds</title>
       </Head>
 
       <Header
@@ -188,47 +188,23 @@ export default function PublicCatalogue({ items }: CatalogueProps) {
 
       <main className="catalogue-main">
         <div className="catalogue-header">
-          <h1>Catalogue</h1>
+          <h1>Famous Closets</h1>
           <p className="catalogue-sub">
-            {resultsCount.toLocaleString()} {resultsCount === 1 ? "result" : "results"}
-            {resultsCount !== items.length ? ` of ${items.length} listings` : " listings in our marketplace"}
+            Curated collections from truly famous closets. Stay tuned for exclusive drops.
           </p>
         </div>
 
-        {filteredItems.length === 0 ? (
-          <div className="catalogue-empty">
-            <h3>No Results</h3>
-            <p className="catalogue-empty-sub">Try removing filters or changing your search.</p>
-            <button className="catalogue-reset-btn" onClick={filters.resetFilters}>
-              Reset filters
-            </button>
-          </div>
-        ) : (
-          <>
-            <div className="catalogue-grid">
-              {paginatedItems.map((x) => (
-                <ProductCard key={x.id} {...x} />
-              ))}
-            </div>
-            {hasMore && (
-              <div className="catalogue-load-more">
-                <button
-                  className="catalogue-load-more-btn"
-                  onClick={() => setVisibleCount((c) => c + PAGE_SIZE)}
-                >
-                  Show more ({filteredItems.length - visibleCount} remaining)
-                </button>
-              </div>
-            )}
-          </>
-        )}
+        <div className="famous-placeholder">
+          <h3>Coming Soon</h3>
+          <p>We are curating exclusive collections from celebrity and famous closets. Check back soon for unique, one-of-a-kind pieces.</p>
+        </div>
       </main>
 
       <Footer />
 
       <style jsx>{`
         .catalogue-page {
-          background: #f7f7f5;
+          background: #f5f0e8;
           min-height: 100vh;
         }
         .catalogue-main {
@@ -255,6 +231,27 @@ export default function PublicCatalogue({ items }: CatalogueProps) {
           display: grid;
           grid-template-columns: repeat(4, minmax(0, 1fr));
           gap: 14px;
+        }
+        .famous-placeholder {
+          padding: 64px 24px;
+          text-align: center;
+          border: 1px dashed #d5cfc5;
+          border-radius: 16px;
+          background: rgba(255, 255, 255, 0.4);
+        }
+        .famous-placeholder h3 {
+          margin: 0 0 8px;
+          font-size: 22px;
+          font-weight: 700;
+          color: #111827;
+        }
+        .famous-placeholder p {
+          margin: 0;
+          font-size: 14px;
+          color: #6b7280;
+          max-width: 480px;
+          margin: 0 auto;
+          line-height: 1.5;
         }
         .catalogue-empty {
           padding: 48px;
