@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 800" width="800" height="800">
+  <rect width="800" height="800" fill="#ffffff"/>
+  <g fill="#333333">
+    <!-- First F (larger, left) -->
+    <g transform="translate(100, 100)">
+      <!-- Vertical stem -->
+      <rect x="58" y="0" width="48" height="520"/>
+      <!-- Top serif left -->
+      <path d="M0,0 L58,0 L58,18 L34,18 Q20,18 20,32 L20,42 L0,42 Z"/>
+      <!-- Top horizontal bar -->
+      <rect x="58" y="0" width="290" height="18"/>
+      <!-- Top right serif -->
+      <path d="M330,0 L348,0 L348,52 L330,52 L330,18 Z"/>
+      <path d="M330,18 L348,18 L348,52 L330,52 Q330,32 330,18 Z"/>
+      <!-- Middle horizontal bar -->
+      <rect x="58" y="230" width="220" height="16"/>
+      <!-- Middle right serif -->
+      <path d="M260,218 L278,218 L278,260 L260,260 Z"/>
+      <!-- Bottom serif left -->
+      <path d="M0,478 L20,478 L20,492 Q20,504 34,504 L58,504 L58,520 L0,520 Z"/>
+      <!-- Bottom serif right -->
+      <path d="M106,478 L160,478 L160,520 L106,520 L106,504 Z"/>
+      <path d="M106,504 Q106,492 120,492 L106,492 Z"/>
+    </g>
+    <!-- Second F (slightly smaller, right and lower, overlapping) -->
+    <g transform="translate(310, 180)" opacity="0.92">
+      <!-- Vertical stem -->
+      <rect x="58" y="0" width="44" height="480"/>
+      <!-- Top serif left -->
+      <path d="M4,0 L58,0 L58,16 L34,16 Q20,16 20,30 L20,40 L4,40 Z"/>
+      <!-- Top horizontal bar -->
+      <rect x="58" y="0" width="270" height="16"/>
+      <!-- Top right serif -->
+      <path d="M310,0 L328,0 L328,48 L310,48 Z"/>
+      <!-- Middle horizontal bar -->
+      <rect x="58" y="212" width="200" height="14"/>
+      <!-- Middle right serif -->
+      <path d="M242,200 L258,200 L258,238 L242,238 Z"/>
+      <!-- Bottom serif left -->
+      <path d="M4,440 L20,440 L20,454 Q20,466 34,466 L58,466 L58,480 L4,480 Z"/>
+      <!-- Bottom serif right -->
+      <path d="M102,440 L152,440 L152,480 L102,480 Z"/>
+    </g>
+  </g>
+</svg>
