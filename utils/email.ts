@@ -842,7 +842,7 @@ export async function sendBuyerOrderConfirmationEmail(params: {
 
 export function brandedEmailWrapper(bodyHtml: string): string {
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://www.myfamousfinds.com";
-  const logoUrl = `${siteUrl}/Famous-Finds-Logo.png`;
+  const logoUrl = `${siteUrl}/FF-Logo.png`;
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -852,7 +852,7 @@ export function brandedEmailWrapper(bodyHtml: string): string {
 <tr><td align="center" style="padding:24px 16px;">
 <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background-color:#ffffff;border-radius:8px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.08);">
 <!-- Header -->
-<tr><td style="background-color:#000000;padding:28px 32px;text-align:center;">
+<tr><td style="background-color:#ffffff;padding:28px 32px;text-align:center;">
   <img src="${escapeHtml(logoUrl)}" alt="Famous Finds" width="180" style="display:inline-block;max-width:180px;height:auto;" />
 </td></tr>
 <!-- Gold accent bar -->

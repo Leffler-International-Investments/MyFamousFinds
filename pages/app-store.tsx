@@ -135,9 +135,9 @@ export default function MyFamousFindsAppPage() {
       <main style={{ maxWidth: 640, margin: "0 auto", padding: "40px 20px 80px", textAlign: "center" }}>
         <div style={{ marginBottom: 24 }}>
           <img
-            src="/icons/icon-192x192.png"
+            src="/FF-Logo.png"
             alt="Famous Finds App Icon"
-            style={{ width: 96, height: 96, borderRadius: 20, margin: "0 auto 16px", display: "block", boxShadow: "0 4px 24px rgba(0,0,0,0.12)" }}
+            style={{ width: 120, height: 120, margin: "0 auto 16px", display: "block" }}
           />
         </div>
 
