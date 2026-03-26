@@ -33,7 +33,7 @@
     "@google-cloud/firestore": "^7.11.0",
     "@google-cloud/storage": "^7.12.1",
     "@types/react-dom": "^19.2.0",
-    "baseline-browser-mapping": "^2.9.19",
+    "baseline-browser-mapping": "^2.10.10",
     "firebase": "^10.14.1",
     "firebase-admin": "^12.7.0",
     "formidable": "^3.5.4",
