@@ -67,13 +67,22 @@ export default async function handler(
       createdAt: FieldValue.serverTimestamp(),
     });
 
-    // Update listing with proof reference
-    await adminDb.collection("listings").doc(listingId).update({
+    // Update listing with proof reference and proof doc URL
+    const listingUpdate: Record<string, any> = {
       proofOfPurchaseId: proofRef.id,
       proofOfPurchaseStatus: "submitted",
       proofIsRedFlag: isRedFlag,
       updatedAt: FieldValue.serverTimestamp(),
-    });
+    };
+    if (proofUrl) {
+      listingUpdate.proof_doc_url = proofUrl;
+    }
+    // If proof was previously "Requested", mark it as submitted
+    const listingDoc = await adminDb.collection("listings").doc(listingId).get();
+    if (listingDoc.exists && listingDoc.data()?.purchase_proof === "Requested") {
+      listingUpdate.purchase_proof = "Submitted";
+    }
+    await adminDb.collection("listings").doc(listingId).update(listingUpdate);
 
     return res.status(200).json({ ok: true, proofId: proofRef.id });
   } catch (err: any) {

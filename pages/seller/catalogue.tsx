@@ -4,7 +4,7 @@ import Head from "next/head";
 import Link from "next/link";
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRequireSeller } from "../../hooks/useRequireSeller";
 import { sellerFetch } from "../../utils/sellerClient";
 
@@ -114,6 +114,73 @@ export default function SellerCatalogue() {
     }
   };
 
+  // ---- Proof document upload ----
+  const [uploadingId, setUploadingId] = useState<string | null>(null);
+  const [uploadSuccess, setUploadSuccess] = useState<string | null>(null);
+  const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
+
+  const handleProofUpload = async (item: CatalogueItem, file: File) => {
+    if (uploadingId) return;
+
+    const allowed = ["image/jpeg", "image/png", "image/jpg", "image/webp", "application/pdf"];
+    if (!allowed.includes(file.type)) {
+      setError("Please upload a JPG, PNG, or PDF file.");
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      setError("File too large. Maximum size is 10 MB.");
+      return;
+    }
+
+    setUploadingId(item.id);
+    setError(null);
+    setUploadSuccess(null);
+
+    try {
+      // Read file as data URL
+      const dataUrl: string = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () =>
+          resolve(typeof reader.result === "string" ? reader.result : "");
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+
+      // Upload via proof-upload API
+      const res = await sellerFetch("/api/seller/proof-upload", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          listingId: item.id,
+          proofType: "other",
+          proofUrl: dataUrl,
+          proofDescription: file.name,
+          purchaseSource: item.purchase_proof || "",
+        }),
+      });
+      const json = await res.json();
+      if (!json.ok) throw new Error(json.error || "Upload failed");
+
+      // Update local state to show the new doc immediately
+      setItems((prev) =>
+        prev.map((x) =>
+          x.id === item.id
+            ? { ...x, proof_doc_url: dataUrl, purchase_proof: x.purchase_proof === "Requested" ? "Submitted" : x.purchase_proof }
+            : x
+        )
+      );
+      setUploadSuccess(item.id);
+      setTimeout(() => setUploadSuccess(null), 3000);
+    } catch (err: any) {
+      console.error(err);
+      setError(err?.message || "Failed to upload proof document.");
+    } finally {
+      setUploadingId(null);
+      const input = fileInputRefs.current[item.id];
+      if (input) input.value = "";
+    }
+  };
+
   if (authLoading) {
     return <div className="dark-theme-page"></div>;
   }
@@ -206,17 +273,44 @@ export default function SellerCatalogue() {
                           )}
                         </td>
                         <td>
-                          {x.proof_doc_url ? (
+                          <div className="proof-doc-cell">
+                            {x.proof_doc_url && (
+                              <button
+                                type="button"
+                                className="btn-proof-open"
+                                onClick={() => setProofModal(x)}
+                              >
+                                View
+                              </button>
+                            )}
                             <button
                               type="button"
-                              className="btn-proof-open"
-                              onClick={() => setProofModal(x)}
+                              className={`btn-proof-upload${uploadSuccess === x.id ? " upload-ok" : ""}`}
+                              disabled={uploadingId === x.id}
+                              onClick={() => {
+                                const input = fileInputRefs.current[x.id];
+                                if (input) input.click();
+                              }}
                             >
-                              View
+                              {uploadingId === x.id
+                                ? "Uploading…"
+                                : uploadSuccess === x.id
+                                ? "Uploaded!"
+                                : x.proof_doc_url
+                                ? "Update"
+                                : "Upload"}
                             </button>
-                          ) : (
-                            <span className="no-proof">—</span>
-                          )}
+                            <input
+                              ref={(el) => { fileInputRefs.current[x.id] = el; }}
+                              type="file"
+                              accept=".jpg,.jpeg,.png,.pdf"
+                              style={{ display: "none" }}
+                              onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (file) handleProofUpload(x, file);
+                              }}
+                            />
+                          </div>
                         </td>
                         <td>
                           <button
@@ -315,17 +409,44 @@ export default function SellerCatalogue() {
                     <div className="mobile-card-row">
                       <span className="mobile-label">Proof Doc</span>
                       <span className="mobile-value">
-                        {x.proof_doc_url ? (
+                        <div className="proof-doc-cell">
+                          {x.proof_doc_url && (
+                            <button
+                              type="button"
+                              className="btn-proof-open"
+                              onClick={() => setProofModal(x)}
+                            >
+                              View
+                            </button>
+                          )}
                           <button
                             type="button"
-                            className="btn-proof-open"
-                            onClick={() => setProofModal(x)}
+                            className={`btn-proof-upload${uploadSuccess === x.id ? " upload-ok" : ""}`}
+                            disabled={uploadingId === x.id}
+                            onClick={() => {
+                              const input = fileInputRefs.current[`m-${x.id}`];
+                              if (input) input.click();
+                            }}
                           >
-                            View
+                            {uploadingId === x.id
+                              ? "Uploading…"
+                              : uploadSuccess === x.id
+                              ? "Uploaded!"
+                              : x.proof_doc_url
+                              ? "Update"
+                              : "Upload"}
                           </button>
-                        ) : (
-                          "—"
-                        )}
+                          <input
+                            ref={(el) => { fileInputRefs.current[`m-${x.id}`] = el; }}
+                            type="file"
+                            accept=".jpg,.jpeg,.png,.pdf"
+                            style={{ display: "none" }}
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (file) handleProofUpload(x, file);
+                            }}
+                          />
+                        </div>
                       </span>
                     </div>
 
@@ -527,7 +648,7 @@ export default function SellerCatalogue() {
         }
         .catalogue-table th:nth-child(6),
         .catalogue-table td:nth-child(6) {
-          width: 8%;
+          width: 12%;
         }
         .catalogue-table th:nth-child(7),
         .catalogue-table td:nth-child(7) {
@@ -648,6 +769,38 @@ export default function SellerCatalogue() {
         }
         .btn-proof-open:hover {
           background: #1d4ed8;
+        }
+        .proof-doc-cell {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          flex-wrap: wrap;
+        }
+        .btn-proof-upload {
+          display: inline-block;
+          background: #065f46;
+          color: #a7f3d0;
+          border: 1px solid #10b981;
+          border-radius: 999px;
+          padding: 4px 10px;
+          font-size: 12px;
+          font-weight: 500;
+          white-space: nowrap;
+          cursor: pointer;
+          transition: background 0.15s, border-color 0.15s;
+        }
+        .btn-proof-upload:hover {
+          background: #047857;
+          border-color: #34d399;
+        }
+        .btn-proof-upload:disabled {
+          opacity: 0.6;
+          cursor: default;
+        }
+        .btn-proof-upload.upload-ok {
+          background: #064e3b;
+          border-color: #34d399;
+          color: #6ee7b7;
         }
 
         /* ---- Desktop table / Mobile cards toggle ---- */
