@@ -36,6 +36,7 @@ type Item = {
   purchaseProof?: string;
   proofDoc?: File;
   proofDocDataUrl?: string;
+  noProofAttest?: boolean;
   allowOffers?: boolean;
   images?: File[];
   imageDataUrl?: string;
@@ -306,7 +307,7 @@ export default function BulkSimple() {
           it.priceUSD &&
           it.purchaseSource &&
           it.purchaseProof &&
-          it.proofDoc
+          (it.proofDoc || it.noProofAttest)
         );
       }).length,
     [items]
@@ -427,7 +428,7 @@ export default function BulkSimple() {
         it.priceUSD &&
         it.purchaseSource &&
         it.purchaseProof &&
-        it.proofDoc
+        (it.proofDoc || it.noProofAttest)
       );
     });
 
@@ -469,6 +470,7 @@ export default function BulkSimple() {
           purchase_source: it.purchaseSource || "",
           purchase_proof: it.purchaseProof || "",
           proof_doc_url: it.proofDocDataUrl || null,
+          no_proof_attestation: it.noProofAttest || false,
           serial_number: it.serial || "",
           allowOffers: it.allowOffers !== false,
           imageDataUrl: it.imageDataUrl || null,
@@ -1056,7 +1058,7 @@ export default function BulkSimple() {
                 <p className="proof-hint">
                   Upload a receipt, bank statement, certificate, or any document that proves authenticity.
                 </p>
-                {it.proofDoc ? (
+                {it.noProofAttest ? null : it.proofDoc ? (
                   <div className="proof-file-row">
                     {it.proofDocDataUrl && it.proofDoc.type.startsWith("image/") && (
                       <img className="proof-thumb" src={it.proofDocDataUrl} alt="Proof" />
@@ -1096,6 +1098,24 @@ export default function BulkSimple() {
                   style={{ display: "none" }}
                   onChange={(e) => handleProofFile(idx, e.target.files)}
                 />
+                <label className="no-proof-attest">
+                  <input
+                    type="checkbox"
+                    checked={!!it.noProofAttest}
+                    onChange={(e) => {
+                      const checked = e.target.checked;
+                      update(idx, {
+                        noProofAttest: checked,
+                        ...(checked ? { proofDoc: undefined, proofDocDataUrl: undefined } : {}),
+                      });
+                      if (checked) {
+                        const input = proofInputsRef.current[idx];
+                        if (input) input.value = "";
+                      }
+                    }}
+                  />{" "}
+                  I don't have proof — I verify that this item is authentic.
+                </label>
               </div>
 
               {/* Images box — uses div (not label) to prevent double-trigger of file input */}
@@ -1163,7 +1183,7 @@ export default function BulkSimple() {
         </div>
         {totalReady === 0 && items.length > 0 && (
           <p className="create-hint">
-            Each item requires: Designer, Title, Category, Condition, Price, Purchase Source, Purchase Proof, and Proof Document before you can create.
+            Each item requires: Designer, Title, Category, Condition, Price, Purchase Source, Purchase Proof, and either a Proof Document or authenticity attestation before you can create.
           </p>
         )}
       </main>
@@ -1510,6 +1530,23 @@ export default function BulkSimple() {
           border-color: #2563eb;
           background: #eff6ff;
           color: #1d4ed8;
+        }
+        .no-proof-attest {
+          display: flex;
+          align-items: flex-start;
+          gap: 8px;
+          margin-top: 10px;
+          font-size: 13px;
+          color: #374151;
+          cursor: pointer;
+          line-height: 1.4;
+        }
+        .no-proof-attest input[type="checkbox"] {
+          margin-top: 2px;
+          width: 16px;
+          height: 16px;
+          flex-shrink: 0;
+          cursor: pointer;
         }
         .proof-file-row {
           display: flex;

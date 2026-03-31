@@ -116,7 +116,7 @@ export default function SellerBankingPage() {
             bankAccountType: json.prefs.bankAccountType || "checking",
             paypalEmail: json.prefs.paypalEmail || "",
             pausePayouts: Boolean(json.prefs.pausePayouts),
-            payoutSchedule: json.prefs.payoutSchedule || "Weekly",
+            payoutSchedule: "Monthly",
             notes: json.prefs.notes || "",
             confirmAccuracy: Boolean(json.prefs.confirmAccuracy),
             consentElectronic: Boolean(json.prefs.consentElectronic),
@@ -135,7 +135,7 @@ export default function SellerBankingPage() {
           setPrefs((prev) => ({
             sellingAs: "individual",
             country: "United States",
-            payoutSchedule: "Weekly",
+            payoutSchedule: "Monthly",
             ...prev,
           }));
         }
@@ -578,13 +578,10 @@ export default function SellerBankingPage() {
                 <label>Payout schedule</label>
                 <select
                   className="form-input"
-                  value={prefs.payoutSchedule || "Weekly"}
-                  onChange={(e) => update("payoutSchedule", e.target.value)}
+                  value="Monthly"
+                  disabled
                 >
-                  <option>Weekly</option>
-                  <option>Bi-weekly</option>
                   <option>Monthly</option>
-                  <option>Manual only</option>
                 </select>
               </div>
             </div>
