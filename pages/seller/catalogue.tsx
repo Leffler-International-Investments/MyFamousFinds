@@ -122,13 +122,10 @@ export default function SellerCatalogue() {
   const handleProofUpload = async (item: CatalogueItem, file: File) => {
     if (uploadingId) return;
 
-    const allowed = ["image/jpeg", "image/png", "image/jpg", "image/webp", "application/pdf"];
-    if (!allowed.includes(file.type)) {
+    const isImage = file.type.startsWith("image/");
+    const isPdf = file.type === "application/pdf";
+    if (!isImage && !isPdf) {
       setError("Please upload a JPG, PNG, or PDF file.");
-      return;
-    }
-    if (file.size > 10 * 1024 * 1024) {
-      setError("File too large. Maximum size is 10 MB.");
       return;
     }
 
@@ -137,14 +134,44 @@ export default function SellerCatalogue() {
     setUploadSuccess(null);
 
     try {
-      // Read file as data URL
-      const dataUrl: string = await new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onloadend = () =>
-          resolve(typeof reader.result === "string" ? reader.result : "");
-        reader.onerror = reject;
-        reader.readAsDataURL(file);
-      });
+      let dataUrl: string;
+
+      if (isImage) {
+        // Compress image on the client before uploading — accepts any file size
+        dataUrl = await new Promise<string>((resolve, reject) => {
+          const img = new Image();
+          const objectUrl = URL.createObjectURL(file);
+          img.onload = () => {
+            URL.revokeObjectURL(objectUrl);
+            const maxDim = 1200;
+            let w = img.width;
+            let h = img.height;
+            if (w > maxDim || h > maxDim) {
+              if (w >= h) { h = Math.round(h * (maxDim / w)); w = maxDim; }
+              else        { w = Math.round(w * (maxDim / h)); h = maxDim; }
+            }
+            const canvas = document.createElement("canvas");
+            canvas.width = w;
+            canvas.height = h;
+            const ctx = canvas.getContext("2d")!;
+            ctx.fillStyle = "#ffffff";
+            ctx.fillRect(0, 0, w, h);
+            ctx.drawImage(img, 0, 0, w, h);
+            resolve(canvas.toDataURL("image/jpeg", 0.8));
+          };
+          img.onerror = () => { URL.revokeObjectURL(objectUrl); reject(new Error("Image load failed")); };
+          img.src = objectUrl;
+        });
+      } else {
+        // PDF — read as data URL directly (still subject to API body limit)
+        dataUrl = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onloadend = () =>
+            resolve(typeof reader.result === "string" ? reader.result : "");
+          reader.onerror = reject;
+          reader.readAsDataURL(file);
+        });
+      }
 
       // Upload via proof-upload API
       const res = await sellerFetch("/api/seller/proof-upload", {

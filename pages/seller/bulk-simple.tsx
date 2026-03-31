@@ -314,10 +314,10 @@ export default function BulkSimple() {
   );
 
   /**
-   * Compress an image file in the browser using canvas so the base64 data URL
-   * stays small enough for Firestore's 1 MB document limit.
+   * Compress an image file in the browser using canvas.
+   * Accepts any file size — resizes to maxDim before encoding.
    */
-  const compressImageFile = (file: File, maxDim = 800, quality = 0.7): Promise<string> =>
+  const compressImageFile = (file: File, maxDim = 1080, quality = 0.8): Promise<string> =>
     new Promise((resolve, reject) => {
       const img = new Image();
       const objectUrl = URL.createObjectURL(file);

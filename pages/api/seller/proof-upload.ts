@@ -7,7 +7,7 @@ import { adminDb, isFirebaseAdminReady, FieldValue } from "../../../utils/fireba
 import { getSellerId } from "../../../utils/authServer";
 
 export const config = {
-  api: { bodyParser: { sizeLimit: "10mb" } },
+  api: { bodyParser: { sizeLimit: "25mb" } },
 };
 
 type ProofUploadResponse = {
