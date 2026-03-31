@@ -21,11 +21,11 @@ export default function ConsignPage() {
       <main className="consign-main">
         <section className="consign-hero">
           <p className="consign-eyebrow">Consign with confidence</p>
-          <h1>Let Famous Finds handle the details.</h1>
+          <h1>Earn More, Sell Smarter</h1>
           <p className="consign-subtitle">
-            Submit your luxury pieces for authentication, pricing guidance, and
-            a curated listing experience. Our team handles the heavy lifting so
-            you can focus on the next find.
+            List your prices with ease and keep 85% off every sale. Our simple
+            15% commission means no surprises. From Closet to Checkout we make
+            resale feel effortless, elevated and worth it.
           </p>
           <div className="consign-actions">
             <Link href="/become-seller" className="consign-primary">

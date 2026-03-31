@@ -47,14 +47,6 @@ const SIZE_OPTIONS = [
   "One Size",
 ];
 
-const AGE_RANGE_OPTIONS = [
-  "18-24",
-  "25-34",
-  "35-44",
-  "45-54",
-  "55+",
-  "Prefer not to say",
-];
 
 type BannerState =
   | null
@@ -111,7 +103,7 @@ export default function UnifiedSignupPage() {
   // Step 2 — preferences (optional)
   const [interests, setInterests] = useState<string[]>([]);
   const [preferredSize, setPreferredSize] = useState("");
-  const [ageRange, setAgeRange] = useState("");
+  const [ageOver18, setAgeOver18] = useState(false);
   const [savingPrefs, setSavingPrefs] = useState(false);
 
   // Handle redirect result from signInWithRedirect (fallback for popup failures)
@@ -400,7 +392,7 @@ export default function UnifiedSignupPage() {
           body: JSON.stringify({
             interests,
             preferredSize,
-            ageRange,
+            ageOver18,
           }),
         });
       }
@@ -632,23 +624,14 @@ export default function UnifiedSignupPage() {
                 </div>
 
                 <div className="pref-section">
-                  <label className="pref-label">Age range</label>
-                  <div className="pref-chips">
-                    {AGE_RANGE_OPTIONS.map((opt) => (
-                      <button
-                        key={opt}
-                        type="button"
-                        className={`pref-chip${
-                          ageRange === opt ? " pref-chip--active" : ""
-                        }`}
-                        onClick={() =>
-                          setAgeRange(ageRange === opt ? "" : opt)
-                        }
-                      >
-                        {opt}
-                      </button>
-                    ))}
-                  </div>
+                  <label className="pref-label pref-label-checkbox">
+                    <input
+                      type="checkbox"
+                      checked={ageOver18}
+                      onChange={(e) => setAgeOver18(e.target.checked)}
+                    />{" "}
+                    I confirm I am over 18 years of age
+                  </label>
                 </div>
 
                 <div className="pref-actions">
@@ -897,6 +880,19 @@ export default function UnifiedSignupPage() {
           font-weight: 600;
           color: #374151;
           margin-bottom: 10px;
+        }
+        .pref-label-checkbox {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          cursor: pointer;
+          font-size: 14px;
+          margin-bottom: 0;
+        }
+        .pref-label-checkbox input[type="checkbox"] {
+          width: 18px;
+          height: 18px;
+          cursor: pointer;
         }
         .pref-chips {
           display: flex;

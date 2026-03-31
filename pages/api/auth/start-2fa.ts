@@ -354,7 +354,7 @@ export default async function handler(
     successMsg =
       actualMethod === "sms"
         ? "Email delivery wasn't available, so we sent a 6-digit code to your mobile number instead."
-        : "SMS delivery wasn't available, so we sent a 6-digit code to your email address instead.";
+        : "We couldn't deliver SMS to your phone right now, so we sent a 6-digit code to your email address instead. Please check your inbox.";
   } else {
     successMsg =
       actualMethod === "sms"
