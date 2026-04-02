@@ -22,7 +22,7 @@
     "@aws-sdk/client-ses": "^3.990.0",
     "@aws-sdk/client-sns": "^3.700.0",
     "@capacitor-community/speech-recognition": "^7.0.1",
-    "@capacitor/browser": "^8.0.1",
+    "@capacitor/browser": "^8.0.3",
     "@capacitor/cli": "^8.3.0",
     "@capacitor/core": "^8.1.0",
     "@capacitor/haptics": "^8.0.0",
