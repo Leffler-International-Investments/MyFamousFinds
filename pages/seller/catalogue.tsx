@@ -21,6 +21,7 @@ type CatalogueItem = {
   proof_doc_url: string;
   details: string;
   allowOffers?: boolean;
+  rejectionReason?: string;
 };
 
 export default function SellerCatalogue() {
@@ -181,6 +182,70 @@ export default function SellerCatalogue() {
     }
   };
 
+  // ---- Listing photo re-upload (for "Bad photo" rejections) ----
+  const [photoUploadingId, setPhotoUploadingId] = useState<string | null>(null);
+  const [photoUploadSuccess, setPhotoUploadSuccess] = useState<string | null>(null);
+  const photoInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
+
+  const handlePhotoReupload = async (item: CatalogueItem, file: File) => {
+    if (photoUploadingId) return;
+
+    const allowed = ["image/jpeg", "image/png", "image/jpg", "image/webp"];
+    if (!allowed.includes(file.type)) {
+      setError("Please upload a JPG, PNG, or WebP image.");
+      return;
+    }
+    if (file.size > 25 * 1024 * 1024) {
+      setError("File too large. Maximum size is 25 MB.");
+      return;
+    }
+
+    setPhotoUploadingId(item.id);
+    setError(null);
+    setPhotoUploadSuccess(null);
+
+    try {
+      const formData = new FormData();
+      formData.append("image", file);
+
+      const uploadRes = await fetch("/api/seller/upload-with-processing", {
+        method: "POST",
+        body: formData,
+      });
+      const uploadJson = await uploadRes.json();
+      if (!uploadJson.ok) throw new Error(uploadJson.error || "Photo upload failed");
+
+      // Update listing in Firestore with new photo and reset to Pending
+      const ref = doc(db, "listings", item.id);
+      await updateDoc(ref, {
+        imageUrl: uploadJson.imageUrl,
+        displayImageUrl: uploadJson.displayImageUrl,
+        status: "Pending",
+        rejectionReason: null,
+        rejectedAt: null,
+      });
+
+      // Update local state
+      setItems((prev) =>
+        prev.map((x) =>
+          x.id === item.id
+            ? { ...x, status: "Pending", rejectionReason: undefined }
+            : x
+        )
+      );
+      setPhotoUploadSuccess(item.id);
+      setTimeout(() => setPhotoUploadSuccess(null), 3000);
+    } catch (err: any) {
+      console.error(err);
+      setError(err?.message || "Failed to upload new photo.");
+    } finally {
+      setPhotoUploadingId(item.id);
+      const input = photoInputRefs.current[item.id];
+      if (input) input.value = "";
+      setPhotoUploadingId(null);
+    }
+  };
+
   if (authLoading) {
     return <div className="dark-theme-page"></div>;
   }
@@ -255,7 +320,7 @@ export default function SellerCatalogue() {
                   items.map((x) => {
                     const offersOn = !!x.allowOffers;
                     return (
-                      <tr key={x.id}>
+                      <tr key={x.id} id={`listing-${x.id}`}>
                         <td>{x.title}</td>
                         <td>
                           US$
@@ -263,7 +328,16 @@ export default function SellerCatalogue() {
                             maximumFractionDigits: 0,
                           })}
                         </td>
-                        <td>{x.status}</td>
+                        <td>
+                          <span className={x.status === "Rejected" ? "status-rejected" : ""}>
+                            {x.status}
+                          </span>
+                          {x.status === "Rejected" && x.rejectionReason && (
+                            <div className="rejection-reason">
+                              {x.rejectionReason}
+                            </div>
+                          )}
+                        </td>
                         <td className="cell-details">{x.details || "—"}</td>
                         <td>
                           {x.purchase_proof === "Requested" ? (
@@ -334,6 +408,35 @@ export default function SellerCatalogue() {
                           >
                             View
                           </Link>
+                          {x.status === "Rejected" && x.rejectionReason?.toLowerCase().includes("bad photo") && (
+                            <>
+                              <button
+                                type="button"
+                                className={`btn-photo-reupload${photoUploadSuccess === x.id ? " upload-ok" : ""}`}
+                                disabled={photoUploadingId === x.id}
+                                onClick={() => {
+                                  const input = photoInputRefs.current[x.id];
+                                  if (input) input.click();
+                                }}
+                              >
+                                {photoUploadingId === x.id
+                                  ? "Uploading…"
+                                  : photoUploadSuccess === x.id
+                                  ? "Resubmitted!"
+                                  : "Upload New Photo"}
+                              </button>
+                              <input
+                                ref={(el) => { photoInputRefs.current[x.id] = el; }}
+                                type="file"
+                                accept=".jpg,.jpeg,.png,.webp"
+                                style={{ display: "none" }}
+                                onChange={(e) => {
+                                  const file = e.target.files?.[0];
+                                  if (file) handlePhotoReupload(x, file);
+                                }}
+                              />
+                            </>
+                          )}
                           <button
                             onClick={() => handleDelete(x.id)}
                             disabled={deletingId === x.id}
@@ -367,7 +470,7 @@ export default function SellerCatalogue() {
             items.map((x) => {
               const offersOn = !!x.allowOffers;
               return (
-                <div key={x.id} className="mobile-item-card">
+                <div key={x.id} id={`listing-${x.id}`} className="mobile-item-card">
                   <div className="mobile-card-header">
                     <h3 className="mobile-card-title">{x.title}</h3>
                     <span className="mobile-card-price">
@@ -381,8 +484,21 @@ export default function SellerCatalogue() {
                   <div className="mobile-card-rows">
                     <div className="mobile-card-row">
                       <span className="mobile-label">Status</span>
-                      <span className="mobile-value">{x.status}</span>
+                      <span className="mobile-value">
+                        <span className={x.status === "Rejected" ? "status-rejected" : ""}>
+                          {x.status}
+                        </span>
+                      </span>
                     </div>
+
+                    {x.status === "Rejected" && x.rejectionReason && (
+                      <div className="mobile-card-row">
+                        <span className="mobile-label">Reason</span>
+                        <span className="mobile-value rejection-reason">
+                          {x.rejectionReason}
+                        </span>
+                      </div>
+                    )}
 
                     {x.details && (
                       <div className="mobile-card-row mobile-card-row--stacked">
@@ -477,6 +593,35 @@ export default function SellerCatalogue() {
                     >
                       View
                     </Link>
+                    {x.status === "Rejected" && x.rejectionReason?.toLowerCase().includes("bad photo") && (
+                      <>
+                        <button
+                          type="button"
+                          className={`btn-photo-reupload${photoUploadSuccess === x.id ? " upload-ok" : ""}`}
+                          disabled={photoUploadingId === x.id}
+                          onClick={() => {
+                            const input = photoInputRefs.current[`m-photo-${x.id}`];
+                            if (input) input.click();
+                          }}
+                        >
+                          {photoUploadingId === x.id
+                            ? "Uploading…"
+                            : photoUploadSuccess === x.id
+                            ? "Resubmitted!"
+                            : "Upload New Photo"}
+                        </button>
+                        <input
+                          ref={(el) => { photoInputRefs.current[`m-photo-${x.id}`] = el; }}
+                          type="file"
+                          accept=".jpg,.jpeg,.png,.webp"
+                          style={{ display: "none" }}
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) handlePhotoReupload(x, file);
+                          }}
+                        />
+                      </>
+                    )}
                     <button
                       onClick={() => handleDelete(x.id)}
                       disabled={deletingId === x.id}
@@ -993,6 +1138,43 @@ export default function SellerCatalogue() {
           .modal-header h3 {
             font-size: 14px;
           }
+        }
+
+        .status-rejected {
+          color: #fca5a5;
+          font-weight: 600;
+        }
+        .rejection-reason {
+          font-size: 11px;
+          color: #f59e0b;
+          margin-top: 2px;
+          line-height: 1.4;
+        }
+        .btn-photo-reupload {
+          display: inline-block;
+          background: #1e40af;
+          color: #bfdbfe;
+          border: 1px solid #3b82f6;
+          border-radius: 999px;
+          padding: 4px 10px;
+          font-size: 12px;
+          font-weight: 500;
+          white-space: nowrap;
+          cursor: pointer;
+          transition: background 0.15s, border-color 0.15s;
+        }
+        .btn-photo-reupload:hover {
+          background: #1d4ed8;
+          border-color: #60a5fa;
+        }
+        .btn-photo-reupload:disabled {
+          opacity: 0.6;
+          cursor: default;
+        }
+        .btn-photo-reupload.upload-ok {
+          background: #064e3b;
+          border-color: #34d399;
+          color: #6ee7b7;
         }
 
         .banner {

@@ -12,6 +12,7 @@ type Item = {
   proof_doc_url: string;
   details: string;
   allowOffers?: boolean;
+  rejectionReason?: string;
 };
 type ListingsResponse = { ok: true; items: Item[] } | { ok: false; error: string };
 
@@ -48,6 +49,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
         proof_doc_url: data.proof_doc_url || "",
         details: data.details || "",
         allowOffers: data.allowOffers !== false,
+        ...(data.rejectionReason ? { rejectionReason: String(data.rejectionReason) } : {}),
       };
     });
 
