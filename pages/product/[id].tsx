@@ -1150,14 +1150,21 @@ export const getServerSideProps: GetServerSideProps<ProductPageProps> = async (c
   }
 
   try {
-    if (!adminDb) return { notFound: true };
-
-    const adminSnap = await adminDb.collection("listings").doc(id).get();
-    if (!adminSnap.exists) {
+    // Prefer admin SDK (bypasses security rules for pending listings),
+    // fall back to client SDK if admin is not configured.
+    let d: any = null;
+    if (adminDb) {
+      const adminSnap = await adminDb.collection("listings").doc(id).get();
+      if (!adminSnap.exists) return { notFound: true };
+      d = adminSnap.data() || {};
+    } else if (db) {
+      const docRef = doc(db, "listings", id);
+      const docSnap = await getDoc(docRef);
+      if (!docSnap.exists()) return { notFound: true };
+      d = docSnap.data() || {};
+    } else {
       return { notFound: true };
     }
-
-    const d: any = adminSnap.data() || {};
 
     const status = String(d.status || "").toLowerCase();
     const isSold = d.isSold === true || d.sold === true || status === "sold";
