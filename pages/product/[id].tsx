@@ -1150,15 +1150,14 @@ export const getServerSideProps: GetServerSideProps<ProductPageProps> = async (c
   }
 
   try {
-    if (!db) return { notFound: true };
+    if (!adminDb) return { notFound: true };
 
-    const docRef = doc(db, "listings", id);
-    const docSnap = await getDoc(docRef);
-    if (!docSnap.exists()) {
+    const adminSnap = await adminDb.collection("listings").doc(id).get();
+    if (!adminSnap.exists) {
       return { notFound: true };
     }
 
-    const d: any = docSnap.data() || {};
+    const d: any = adminSnap.data() || {};
 
     const status = String(d.status || "").toLowerCase();
     const isSold = d.isSold === true || d.sold === true || status === "sold";

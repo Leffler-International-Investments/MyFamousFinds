@@ -317,6 +317,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
         // Use the processed display image (with background removal) if available; never null it out
         cleaned.displayImageUrl = primaryDisplayUrl || primary;
         cleaned.imageUrls = processedOriginals;
+        // Also write `images` array for compatibility with homepage/product page
+        (cleaned as any).images = processedOriginals;
       }
 
       // Upload proof document to Cloud Storage instead of storing base64 inline

@@ -109,6 +109,17 @@ const ReviewWidgets: React.FC<ReviewWidgetProps> = () => {
   const dragOffset = useRef({ x: 0, y: 0 });
   const hasMoved = useRef(false);
 
+  // Detect mobile for sticky footer behavior
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 768px)");
+    setIsMobile(mq.matches);
+    const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches);
+    mq.addEventListener("change", handler);
+    return () => mq.removeEventListener("change", handler);
+  }, []);
+
   // Set initial position (bottom-right) after mount
   useEffect(() => {
     const x = window.innerWidth - 24;
@@ -264,21 +275,33 @@ const ReviewWidgets: React.FC<ReviewWidgetProps> = () => {
 
   if (!posReady) return null;
 
-  const posStyle: CSSProperties = {
+  const mobileFixedStyle: CSSProperties = {
+    bottom: 12,
+    right: 12,
+    left: "auto",
+    top: "auto",
+    transform: "none",
+  };
+
+  const desktopPosStyle: CSSProperties = {
     left: pos.x,
     top: pos.y,
     transform: "translate(-100%, -100%)",
   };
+
+  const posStyle = isMobile ? mobileFixedStyle : desktopPosStyle;
 
   // Closed pill
   if (!isOpen) {
     return (
       <div
         ref={dragRef}
-        onPointerDown={onPointerDown}
-        onPointerMove={onPointerMove}
-        onPointerUp={onPointerUp}
-        onClick={() => { if (!hasMoved.current) setIsOpen(true); }}
+        {...(!isMobile ? {
+          onPointerDown,
+          onPointerMove,
+          onPointerUp,
+        } : {})}
+        onClick={() => { if (!hasMoved.current || isMobile) setIsOpen(true); }}
         style={{ ...pillBaseStyle, ...posStyle }}
       >
         {renderPillText()}

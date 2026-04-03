@@ -33,7 +33,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     const listing = snap.data() || {};
 
-    await ref.set({ status: "Live", approvedAt: new Date() }, { merge: true });
+    await ref.set(
+      {
+        status: "Live",
+        approvedAt: new Date(),
+        visibility: { public: true, searchable: true },
+      },
+      { merge: true }
+    );
 
     // Look up seller email to send notification
     const sellerId = String(listing.sellerId || listing.sellerEmail || listing.seller || "");
