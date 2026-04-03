@@ -584,22 +584,25 @@ export default function Footer() {
         `}</style>
       </footer>
 
-      {/* ---- Floating AI Butler button (draggable, beside review widget) ---- */}
+      {/* ---- Floating AI Butler button (draggable on desktop, fixed bottom-left on mobile) ---- */}
       {!isChatOpen && butlerPosReady && (
         <button
           type="button"
-          onPointerDown={butlerOnPointerDown}
-          onPointerMove={butlerOnPointerMove}
-          onPointerUp={butlerOnPointerUp}
+          {...(!isMobile ? {
+            onPointerDown: butlerOnPointerDown,
+            onPointerMove: butlerOnPointerMove,
+            onPointerUp: butlerOnPointerUp,
+          } : {})}
           onClick={() => {
-            if (!butlerHasMoved.current) setIsChatOpen(true);
+            if (isMobile || !butlerHasMoved.current) setIsChatOpen(true);
           }}
           aria-label="Open AI Butler"
           style={{
             position: "fixed",
-            left: butlerPos.x,
-            top: butlerPos.y,
-            transform: "translate(-50%, -50%)",
+            ...(isMobile
+              ? { bottom: 12, left: 12, top: "auto", transform: "none" }
+              : { left: butlerPos.x, top: butlerPos.y, transform: "translate(-50%, -50%)" }
+            ),
             zIndex: 9999,
             width: 56,
             height: 56,
@@ -611,9 +614,9 @@ export default function Footer() {
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            cursor: "grab",
+            cursor: isMobile ? "pointer" : "grab",
             boxShadow: "0 6px 20px rgba(0, 0, 0, 0.3)",
-            touchAction: "none",
+            touchAction: isMobile ? "auto" : "none",
             userSelect: "none",
           }}
         >

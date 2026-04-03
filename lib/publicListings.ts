@@ -2,6 +2,7 @@
 
 import { collection, getDocs, limit, orderBy, query } from "firebase/firestore";
 import { db } from "../utils/firebaseClient";
+import { adminDb } from "../utils/firebaseAdmin";
 
 export type PublicListing = {
   id: string;
@@ -314,6 +315,66 @@ export async function getPublicListings(opts?: {
   const take = Math.min(Math.max(opts?.take ?? 200, 1), 500);
   const excludeIds = opts?.excludeIds ?? new Set<string>();
 
+  // Use admin SDK to bypass Firestore security rules (listings may have
+  // visibility.public = false even after approval).
+  if (adminDb) {
+    const adminSnap = await adminDb
+      .collection("listings")
+      .orderBy("createdAt", "desc")
+      .limit(take)
+      .get();
+
+    const items: PublicListing[] = [];
+
+    adminSnap.forEach((doc) => {
+      const d: any = doc.data() || {};
+
+      if (isSoldFlag(d)) return;
+      if (excludeIds.has(doc.id)) return;
+
+      const rawStatus = String(d?.status || "").trim().toLowerCase();
+      if (rawStatus && rawStatus !== "live") return;
+
+      const categoryRaw = extractCategory(d);
+      const images = extractImages(d);
+      const price = pickPrice(d);
+      const displayImageUrl = firstNonEmpty(
+        d?.displayImageUrl,
+        d?.display_image_url
+      );
+
+      items.push({
+        id: doc.id,
+        title: String(d?.title || d?.name || "Untitled"),
+        brand: String(d?.brand || d?.designer || d?.maker || "").trim() || undefined,
+        price: typeof price === "number" ? price : undefined,
+        priceUsd: typeof price === "number" ? price : undefined,
+        currency: String(d?.currency || d?.pricing?.currency || "USD"),
+        category: categoryRaw || undefined,
+        condition: String(d?.condition || "").trim() || undefined,
+        material: firstNonEmpty(d?.material, d?.fabric, d?.fabrication, d?.item?.material),
+        size: firstNonEmpty(d?.size, d?.itemSize, d?.item?.size),
+        color: firstNonEmpty(d?.color, d?.colour, d?.item?.color),
+        status: String(d?.status || "").trim() || undefined,
+        isSold: false,
+        images,
+        displayImageUrl: displayImageUrl || images[0],
+        createdAt: d?.createdAt,
+      });
+    });
+
+    const wanted = normCategory(opts?.category);
+    if (!wanted) return items;
+    if (wanted === "JEWELRY") {
+      return items.filter((x) => {
+        const n = normCategory(x.category);
+        return n === "JEWELRY" || (n === "" && looksLikeJewelry(x));
+      });
+    }
+    return items.filter((x) => normCategory(x.category) === wanted);
+  }
+
+  // Fallback to client SDK if admin SDK is not available
   if (!db) return [];
 
   const q = query(
