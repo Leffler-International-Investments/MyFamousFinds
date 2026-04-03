@@ -14,6 +14,7 @@ type Start2faBody = {
   email?: string;
   role?: "seller" | "management";
   method?: "email" | "sms";
+  phone?: string;
 };
 
 // Super users who can see the code on-screen when delivery fails
@@ -143,7 +144,7 @@ export default async function handler(
       .json({ ok: false, error: "method_not_allowed", message: "POST only" });
   }
 
-  const { email, role, method } = (req.body || {}) as Start2faBody;
+  const { email, role, method, phone: userProvidedPhone } = (req.body || {}) as Start2faBody;
 
   if (!email) {
     return res
@@ -203,13 +204,16 @@ export default async function handler(
       });
     }
 
-    const phone = await lookupPhone(normalizedEmail, normalizedRole);
+    // Use phone provided by the user in the verification popup, or fall back to Firestore lookup
+    const phone =
+      (typeof userProvidedPhone === "string" && userProvidedPhone.trim()) ||
+      (await lookupPhone(normalizedEmail, normalizedRole));
     if (!phone) {
       return res.status(200).json({
         ok: false,
         error: "no_phone",
         message:
-          "No mobile number on file for this account. Please use email verification instead.",
+          "No mobile number provided. Please enter your phone number or use email verification instead.",
       });
     }
 
