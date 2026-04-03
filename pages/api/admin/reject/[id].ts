@@ -5,6 +5,13 @@ import { queueEmail } from "../../../../utils/emailOutbox";
 import { requireAdmin } from "../../../../utils/adminAuth";
 import { brandedEmailWrapper, escapeHtml, normalizeAdminEmail } from "../../../../utils/email";
 
+function catalogueListingUrl(req: NextApiRequest, listingId: string) {
+  const baseUrl =
+    process.env.NEXT_PUBLIC_BASE_URL ||
+    `https://${req.headers.host ?? "myfamousfinds.com"}`;
+  return `${baseUrl}/seller/catalogue#listing-${listingId}`;
+}
+
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
@@ -78,12 +85,16 @@ export default async function handler(
     if (sellerEmail && sellerEmail.includes("@")) {
       const reasonText = typeof reason === "string" && reason ? reason : "Not specified";
       const greetingName = sellerName ? ` ${escapeHtml(sellerName)}` : "";
+      const listingLink = catalogueListingUrl(req, id);
 
       const bodyHtml =
         `<p style="margin:0 0 16px 0;font-size:16px;">Hello${greetingName},</p>` +
         `<p style="margin:0 0 12px 0;">We have reviewed your listing <b>"${escapeHtml(itemTitle)}"</b> and unfortunately we are unable to approve it at this time.</p>` +
         `<p style="margin:0 0 12px 0;"><b>Reason:</b> ${escapeHtml(reasonText)}</p>` +
         `<p style="margin:0 0 12px 0;">Please update the listing to address the issue above and resubmit it for review.</p>` +
+        `<table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 0 20px 0;"><tr><td style="border-radius:6px;background-color:#1c1917;">` +
+        `<a href="${escapeHtml(listingLink)}" style="display:inline-block;padding:12px 28px;color:#ffffff;text-decoration:none;font-size:14px;font-weight:bold;letter-spacing:0.5px;">UPDATE YOUR LISTING</a>` +
+        `</td></tr></table>` +
         `<p style="margin:0 0 0 0;font-size:14px;color:#78716c;">Thank you,<br/>The Famous Finds Team</p>`;
 
       const html = brandedEmailWrapper(bodyHtml);
@@ -91,11 +102,11 @@ export default async function handler(
       const jobId = await queueEmail({
         to: sellerEmail,
         subject: `Famous Finds — Listing Rejected: ${itemTitle}`,
-        text: `Hello${sellerName ? " " + sellerName : ""},\n\nWe have reviewed your listing "${itemTitle}" and unfortunately we are unable to approve it at this time.\n\nReason: ${reasonText}\n\nPlease update the listing to address the issue above and resubmit it for review.\n\nThank you,\nThe Famous Finds Team`,
+        text: `Hello${sellerName ? " " + sellerName : ""},\n\nWe have reviewed your listing "${itemTitle}" and unfortunately we are unable to approve it at this time.\n\nReason: ${reasonText}\n\nPlease update the listing to address the issue above and resubmit it for review.\n\nUpdate your listing: ${listingLink}\n\nThank you,\nThe Famous Finds Team`,
         html,
         eventType: "listing_rejected",
         eventKey: `${id}:listing_rejected:${today}`,
-        metadata: { listingId: id, sellerId, sellerEmail, itemTitle, reason },
+        metadata: { listingId: id, sellerId, sellerEmail, itemTitle, reason, listingLink },
       });
       emailQueued = !!jobId;
       console.log(`[REJECT-LISTING] Email queued for ${sellerEmail} (listing ${id}), jobId: ${jobId}`);
