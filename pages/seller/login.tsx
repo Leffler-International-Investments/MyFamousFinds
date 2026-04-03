@@ -8,7 +8,6 @@ import { FormEvent, useState } from "react";
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
 import PasswordInput from "../../components/PasswordInput";
-import PhoneVerificationPopup from "../../components/PhoneVerificationPopup";
 import { signInWithCustomToken, signInWithEmailAndPassword } from "firebase/auth";
 import { auth } from "../../utils/firebaseClient";
 import { safeRedirectPath, setRoleSession } from "../../utils/roleSession";
@@ -26,7 +25,7 @@ type LoginResponse = LoginSuccess | LoginError;
 type Start2faSuccess = {
   ok: true;
   challengeId: string;
-  via: "sms" | "email";
+  via: "email";
   devCode?: string;
   message?: string;
 };
@@ -38,7 +37,7 @@ type Verify2faError = { ok: false; message?: string };
 type Verify2faResponse = Verify2faSuccess | Verify2faError;
 
 type PageMode = "login" | "setup";
-type TwoFactorStep = "credentials" | "choose_method" | "phone_verify" | "verify";
+type TwoFactorStep = "credentials" | "verify";
 
 // 15 minutes (sliding — extended on every protected page load)
 const SESSION_TTL_MINUTES = 15;
@@ -52,7 +51,6 @@ export default function SellerLoginPage() {
   const [code, setCode] = useState("");
   const [step, setStep] = useState<TwoFactorStep>("credentials");
   const [challengeId, setChallengeId] = useState<string | null>(null);
-  const [chosenMethod, setChosenMethod] = useState<"email" | "sms">("email");
   const [info, setInfo] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -110,8 +108,7 @@ export default function SellerLoginPage() {
       }
 
       // Credentials OK -> send email verification code directly
-      setChosenMethod("email");
-      await sendTwoFactorCode("email");
+      await sendTwoFactorCode();
     } catch (err) {
       console.error("seller_login_error", err);
       setError("Unexpected error. Please try again.");
@@ -120,44 +117,26 @@ export default function SellerLoginPage() {
     }
   }
 
-  async function handleChooseMethod(method: "email" | "sms") {
-    setError(null);
-    setInfo(null);
-    setChosenMethod(method);
-
-    if (method === "sms") {
-      // Show AWS-compliant phone verification popup before sending
-      setStep("phone_verify");
-      return;
-    }
-
-    // Email flow — send immediately
-    await sendTwoFactorCode(method);
-  }
-
-  async function sendTwoFactorCode(method: "email" | "sms") {
+  async function sendTwoFactorCode() {
     setLoading(true);
     try {
       const trimmedEmail = email.trim().toLowerCase();
       const twofaRes = await fetch("/api/auth/start-2fa", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: trimmedEmail, role: "seller", method }),
+        body: JSON.stringify({ email: trimmedEmail, role: "seller", method: "email" }),
       });
       const twofaJson = (await twofaRes.json()) as Start2faResponse;
       if (!twofaJson.ok) {
         const errJson = twofaJson as Start2faError;
         setStep("credentials");
-        setError(errJson.message || "We couldn't start the verification process. Please try again.");
+        setError(errJson.message || "We couldn't send the verification code. Please try again.");
         return;
       }
       setChallengeId(twofaJson.challengeId);
       setStep("verify");
       const successJson = twofaJson as Start2faSuccess;
-      setInfo(successJson.message || "Code sent.");
-      // Update chosenMethod to match what the server actually used
-      // (may differ if email→SMS or SMS→email fallback was triggered)
-      if (successJson.via) setChosenMethod(successJson.via);
+      setInfo(successJson.message || "Code sent to your email.");
       if (successJson.devCode) setCode(successJson.devCode);
     } catch (err) {
       console.error("seller_start_2fa_error", err);
@@ -317,52 +296,6 @@ export default function SellerLoginPage() {
                       </div>
                     </div>
                   </form>
-                ) : step === "phone_verify" ? (
-                  <>
-                    <PhoneVerificationPopup
-                      loading={loading}
-                      onSendCode={() => sendTwoFactorCode("sms")}
-                      onBack={() => {
-                        setStep("choose_method");
-                        setError(null);
-                        setInfo(null);
-                      }}
-                    />
-                    <p className="auth-secondary-link-inline" style={{ marginTop: 12 }}>
-                      Waiting for phone verification…
-                    </p>
-                  </>
-                ) : step === "choose_method" ? (
-                  <div className="method-choice">
-                    <p className="auth-secondary-link-inline">
-                      How would you like to receive your verification code?
-                    </p>
-                    <div className="method-buttons">
-                      <button
-                        type="button"
-                        disabled={disabled}
-                        className="method-button"
-                        onClick={() => handleChooseMethod("email")}
-                      >
-                        <span className="method-icon">&#9993;</span>
-                        <span className="method-label">Email</span>
-                        <span className="method-desc">Send code to your email</span>
-                      </button>
-                    </div>
-                    <p className="auth-secondary-link-inline">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (disabled) return;
-                          setStep("credentials");
-                          setError(null);
-                          setInfo(null);
-                        }}
-                      >
-                        Back to login
-                      </button>
-                    </p>
-                  </div>
                 ) : (
                   <form onSubmit={handleVerifySubmit}>
                     <p className="auth-secondary-link-inline">
@@ -435,14 +368,6 @@ export default function SellerLoginPage() {
         .auth-apply-button-wrapper { margin-top: 20px; }
         .auth-apply-button { display: block; width: 100%; text-align: center; border-radius: 999px; padding: 10px 14px; font-size: 13px; font-weight: 500; background: #fff; color: #111; border: 1px solid #e5e7eb; text-decoration: none; transition: all 0.2s; }
         .auth-apply-button:hover { border-color: #111; background: #fafafa; }
-        .method-choice { display: flex; flex-direction: column; gap: 16px; }
-        .method-buttons { display: flex; gap: 12px; }
-        .method-button { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 20px 12px; border-radius: 16px; border: 1px solid #d1d5db; background: #fafafa; cursor: pointer; transition: all 0.2s ease; }
-        .method-button:hover { border-color: #111; background: #fff; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
-        .method-button:disabled { opacity: 0.5; cursor: default; }
-        .method-icon { font-size: 28px; line-height: 1; }
-        .method-label { font-size: 14px; font-weight: 600; color: #111; }
-        .method-desc { font-size: 11px; color: #6b7280; }
         .auth-secondary-link { margin-top: 12px; text-align: center; font-size: 13px; }
         .auth-secondary-link a { color: #6b7280; text-decoration: underline; }
         .auth-secondary-link a:hover { color: #111; }
