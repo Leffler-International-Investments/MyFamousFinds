@@ -239,7 +239,6 @@ export default function SellerCatalogue() {
       console.error(err);
       setError(err?.message || "Failed to upload new photo.");
     } finally {
-      setPhotoUploadingId(item.id);
       const input = photoInputRefs.current[item.id];
       if (input) input.value = "";
       setPhotoUploadingId(null);
