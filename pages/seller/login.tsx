@@ -109,8 +109,9 @@ export default function SellerLoginPage() {
         return;
       }
 
-      // Credentials OK -> show method choice
-      setStep("choose_method");
+      // Credentials OK -> send email verification code directly
+      setChosenMethod("email");
+      await sendTwoFactorCode("email");
     } catch (err) {
       console.error("seller_login_error", err);
       setError("Unexpected error. Please try again.");
@@ -347,16 +348,6 @@ export default function SellerLoginPage() {
                         <span className="method-label">Email</span>
                         <span className="method-desc">Send code to your email</span>
                       </button>
-                      <button
-                        type="button"
-                        disabled={disabled}
-                        className="method-button"
-                        onClick={() => handleChooseMethod("sms")}
-                      >
-                        <span className="method-icon">&#128241;</span>
-                        <span className="method-label">SMS</span>
-                        <span className="method-desc">Send code to your mobile</span>
-                      </button>
                     </div>
                     <p className="auth-secondary-link-inline">
                       <button
@@ -375,7 +366,7 @@ export default function SellerLoginPage() {
                 ) : (
                   <form onSubmit={handleVerifySubmit}>
                     <p className="auth-secondary-link-inline">
-                      Enter the 6-digit code sent to your {chosenMethod === "sms" ? "mobile" : "email"}.
+                      Enter the 6-digit code sent to your email.
                     </p>
                     <div className="auth-fields">
                       <div className="auth-field">
@@ -385,7 +376,7 @@ export default function SellerLoginPage() {
                       <button type="submit" disabled={disabled} className="auth-button-primary">{loading ? "Verifying..." : "Confirm Login"}</button>
                     </div>
                     <p className="auth-secondary-link-inline">
-                      <button type="button" onClick={() => { if (disabled) return; setStep("choose_method"); setCode(""); setInfo(null); setError(null); }}>Try a different method</button>
+                      <button type="button" onClick={() => { if (disabled) return; setStep("credentials"); setCode(""); setInfo(null); setError(null); }}>Back to login</button>
                     </p>
                   </form>
                 )}

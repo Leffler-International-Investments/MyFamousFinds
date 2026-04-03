@@ -253,7 +253,7 @@ export default function SellerCatalogue() {
   return (
     <div className="dark-theme-page">
       <Head>
-        <title>My Catalogue - Famous Finds</title>
+        <title>My Listings - Famous Finds</title>
       </Head>
 
       <Header />
@@ -261,7 +261,7 @@ export default function SellerCatalogue() {
       <main className="section">
         <div className="section-header">
           <div>
-            <h1>My catalogue</h1>
+            <h1>My Listings</h1>
             <p style={{ opacity: 0.8, marginTop: 4 }}>
               Live view of all listings under your seller account.
             </p>

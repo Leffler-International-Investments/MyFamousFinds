@@ -111,7 +111,7 @@ export default function SellerDashboard() {
             />
             <DashboardLink
               href="/seller/catalogue"
-              title="My Catalogue"
+              title="My Listings"
               description="Edit prices, quantity, and details for your active listings."
               accentColor="blue"
 
