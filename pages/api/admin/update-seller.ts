@@ -1,8 +1,25 @@
 // FILE: /pages/api/admin/update-seller.ts
 import type { NextApiRequest, NextApiResponse } from "next";
-import { adminDb } from "../../../utils/firebaseAdmin";
+import { adminDb, FieldValue } from "../../../utils/firebaseAdmin";
 import { requireAdmin } from "../../../utils/adminAuth";
-import { normalizePhoneE164 } from "../../../utils/sms";
+
+const EDITABLE_FIELDS = [
+  "businessName",
+  "contactName",
+  "contactEmail",
+  "email",
+  "phone",
+  "address",
+  "city",
+  "state",
+  "zip",
+  "country",
+  "website",
+  "social",
+  "inventory",
+  "status",
+  "notes",
+];
 
 export default async function handler(
   req: NextApiRequest,
@@ -19,18 +36,24 @@ export default async function handler(
   if (!requireAdmin(req, res)) return;
 
   try {
-    const { id, businessName, contactEmail, phone } = req.body;
+    const { id, ...fields } = req.body;
 
     if (!id) {
       return res.status(400).json({ ok: false, error: "Missing seller id." });
     }
 
     const updateData: Record<string, any> = {};
-    if (businessName !== undefined) updateData.businessName = businessName;
-    if (contactEmail !== undefined) updateData.contactEmail = contactEmail;
-    if (phone !== undefined) {
-      updateData.phone = phone ? normalizePhoneE164(phone) : "";
+    for (const key of EDITABLE_FIELDS) {
+      if (fields[key] !== undefined) {
+        updateData[key] = fields[key];
+      }
     }
+
+    if (Object.keys(updateData).length === 0) {
+      return res.status(400).json({ ok: false, error: "No fields to update." });
+    }
+
+    updateData.updatedAt = FieldValue.serverTimestamp();
 
     await adminDb.collection("sellers").doc(id).update(updateData);
 
