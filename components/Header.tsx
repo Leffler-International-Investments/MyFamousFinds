@@ -243,7 +243,7 @@ export default function Header({ filterContent, showFilter, onToggleFilter }: He
           justify-content: center;
         }
         :global(.ff-brand-logo) {
-          height: 80px;
+          height: 104px;
           width: auto;
           object-fit: contain;
           mix-blend-mode: multiply;
@@ -351,9 +351,10 @@ export default function Header({ filterContent, showFilter, onToggleFilter }: He
             flex: 1 1 100%;
             order: -1;
             margin-bottom: 8px;
+            justify-content: center;
           }
           :global(.ff-brand-logo) {
-            height: 56px;
+            height: 72px;
           }
           .ff-search-container {
             flex: 1 1 100%;
