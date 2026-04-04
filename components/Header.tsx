@@ -343,6 +343,7 @@ export default function Header({ filterContent, showFilter, onToggleFilter }: He
           .ff-header-middle {
             flex-wrap: wrap;
             padding: 12px 14px 10px;
+            justify-content: center;
           }
           .ff-middle-spacer {
             display: none;
