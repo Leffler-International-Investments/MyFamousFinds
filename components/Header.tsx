@@ -246,6 +246,7 @@ export default function Header({ filterContent, showFilter, onToggleFilter }: He
           height: 60px;
           width: auto;
           object-fit: contain;
+          mix-blend-mode: multiply;
         }
 
         .ff-search-container {
