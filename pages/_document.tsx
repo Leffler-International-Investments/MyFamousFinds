@@ -44,7 +44,7 @@ export default function Document() {
 
         {/* PWA manifest */}
         <link rel="manifest" href="/manifest.json" />
-        <meta name="theme-color" content="#111827" />
+        <meta name="theme-color" content="#ffffff" />
 
         {/* Favicons */}
         <link rel="icon" href="/favicon.ico" sizes="any" />
