@@ -23,7 +23,7 @@ export default function ConsignPage() {
           <p className="consign-eyebrow">Consign with confidence</p>
           <h1>Earn More, Sell Smarter</h1>
           <p className="consign-subtitle">
-            List your prices with ease and keep 85% off every sale. Our simple
+            List your items with ease and keep 85% off every sale. Our simple
             15% commission means no surprises. From Closet to Checkout we make
             resale feel effortless, elevated and worth it.
           </p>
