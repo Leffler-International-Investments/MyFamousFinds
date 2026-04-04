@@ -97,7 +97,7 @@ export default function Header({ filterContent, showFilter, onToggleFilter }: He
       <div className="ff-header-middle">
         <div className="ff-middle-spacer"></div>
         <Link href="/" className="ff-brand-name">
-          <img src="/FF-Logo.png" alt="Famous Finds" className="ff-brand-logo" />
+          <img src="/FF-Logo.png?v=2" alt="Famous Finds" className="ff-brand-logo" />
         </Link>
         <div className="ff-search-container">
           <form action="/search" className="ff-search-form">
@@ -243,7 +243,7 @@ export default function Header({ filterContent, showFilter, onToggleFilter }: He
           justify-content: center;
         }
         :global(.ff-brand-logo) {
-          height: 60px;
+          height: 80px;
           width: auto;
           object-fit: contain;
           mix-blend-mode: multiply;
@@ -353,7 +353,7 @@ export default function Header({ filterContent, showFilter, onToggleFilter }: He
             margin-bottom: 8px;
           }
           :global(.ff-brand-logo) {
-            height: 48px;
+            height: 56px;
           }
           .ff-search-container {
             flex: 1 1 100%;
