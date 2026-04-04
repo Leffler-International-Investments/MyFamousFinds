@@ -353,10 +353,13 @@ export default function Header({ filterContent, showFilter, onToggleFilter }: He
             margin-bottom: 8px;
             display: flex;
             justify-content: center;
-            text-align: center;
+            align-items: center;
+            width: 100%;
           }
           :global(.ff-brand-logo) {
             height: 160px;
+            display: block;
+            margin: 0 auto;
           }
           .ff-search-container {
             flex: 1 1 100%;
