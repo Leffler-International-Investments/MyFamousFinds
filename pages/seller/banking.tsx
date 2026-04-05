@@ -576,13 +576,12 @@ export default function SellerBankingPage() {
             <div className="form-grid">
               <div className="form-field">
                 <label>Payout schedule</label>
-                <select
+                <input
                   className="form-input"
-                  value="Monthly"
+                  value="Monthly — on the 15th of each month"
                   disabled
-                >
-                  <option>Monthly</option>
-                </select>
+                  readOnly
+                />
               </div>
             </div>
 
