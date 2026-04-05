@@ -18,7 +18,7 @@ import {
   deleteDoc,
 } from "firebase/firestore";
 
-type DesignerCategory = "top" | "trending" | "emerging" | "";
+type DesignerCategory = "high-end" | "contemporary" | "jewelry-watches" | "kids" | "top" | "trending" | "emerging" | "";
 
 type DesignerRow = {
   id: string;
@@ -206,9 +206,10 @@ const ManagementDesigners: NextPage = () => {
                 onChange={(e) => setNewDesignerCategory(e.target.value as DesignerCategory)}
               >
                 <option value="">No Category</option>
-                <option value="top">Top Designers</option>
-                <option value="trending">Trending Designers</option>
-                <option value="emerging">Emerging Brands</option>
+                <option value="high-end">High-End Luxury</option>
+                <option value="contemporary">Contemporary</option>
+                <option value="jewelry-watches">Jewelry & Watches</option>
+                <option value="kids">Kids</option>
               </select>
               <label className="checkbox-label">
                 <input
@@ -252,9 +253,10 @@ const ManagementDesigners: NextPage = () => {
                             onChange={(e) => updateDesignerCategory(r.id, e.target.value as DesignerCategory)}
                           >
                             <option value="">None</option>
-                            <option value="top">Top</option>
-                            <option value="trending">Trending</option>
-                            <option value="emerging">Emerging</option>
+                            <option value="high-end">High-End</option>
+                            <option value="contemporary">Contemporary</option>
+                            <option value="jewelry-watches">Jewelry & Watches</option>
+                            <option value="kids">Kids</option>
                           </select>
                         </td>
                         <td>
