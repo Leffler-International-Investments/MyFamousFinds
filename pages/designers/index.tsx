@@ -16,14 +16,15 @@ import { adminDb } from "../../utils/firebaseAdmin";
 type DesignerEntry = {
   name: string;
   slug: string;
-  designerCategory?: "top" | "trending" | "emerging" | "";
+  designerCategory?: "high-end" | "contemporary" | "jewelry-watches" | "kids" | "top" | "trending" | "emerging" | "";
 };
 
 type DesignersPageProps = {
   designerOptions: DesignerEntry[];
-  topDesigners: DesignerEntry[];
-  trendingDesigners: DesignerEntry[];
-  emergingBrands: DesignerEntry[];
+  highEndDesigners: DesignerEntry[];
+  contemporaryDesigners: DesignerEntry[];
+  jewelryWatchesDesigners: DesignerEntry[];
+  kidsDesigners: DesignerEntry[];
 };
 
 // --------------------------------------------------
@@ -98,14 +99,16 @@ function DesignerSection({
 
 const DesignersPage: NextPage<DesignersPageProps> = ({
   designerOptions,
-  topDesigners,
-  trendingDesigners,
-  emergingBrands,
+  highEndDesigners,
+  contemporaryDesigners,
+  jewelryWatchesDesigners,
+  kidsDesigners,
 }) => {
   return (
     <div className="designers-page">
       <Head>
-        <title>Designers | Famous Finds</title>
+        <title>Designer Directory | Famous Finds</title>
+        <meta name="description" content="Browse our curated designer directory — from high-end luxury to contemporary and kids brands. Shop authenticated pre-owned designer fashion at Famous Finds." />
       </Head>
 
       <Header />
@@ -118,20 +121,27 @@ const DesignersPage: NextPage<DesignersPageProps> = ({
             <span>Designers</span>
           </div>
 
-          <h1>Designers</h1>
+          <h1>Designer Directory</h1>
+          <p className="directory-subtitle">
+            Explore the brands we accept — from high-end luxury houses to contemporary favorites and kids&apos; labels.
+          </p>
 
           <section className="designers-directory">
             <DesignerSection
-              title="Top Designers"
-              designers={topDesigners}
+              title="High-End Luxury"
+              designers={highEndDesigners}
             />
             <DesignerSection
-              title="Trending Designers"
-              designers={trendingDesigners}
+              title="Jewelry & Watches"
+              designers={jewelryWatchesDesigners}
             />
             <DesignerSection
-              title="Emerging Brands"
-              designers={emergingBrands}
+              title="Contemporary"
+              designers={contemporaryDesigners}
+            />
+            <DesignerSection
+              title="Kids"
+              designers={kidsDesigners}
             />
 
             {/* All Designers A-Z */}
@@ -184,7 +194,13 @@ const DesignersPage: NextPage<DesignersPageProps> = ({
         h1 {
           font-family: "Georgia", serif;
           font-size: 28px;
+          margin: 0 0 8px;
+        }
+        .directory-subtitle {
+          font-size: 14px;
+          color: #6b7280;
           margin: 0 0 24px;
+          line-height: 1.5;
         }
 
         /* Designers Directory */
@@ -262,23 +278,19 @@ export default DesignersPage;
 
 export const getServerSideProps: GetServerSideProps<DesignersPageProps> =
   async () => {
+    const emptyProps = {
+      designerOptions: [] as DesignerEntry[],
+      highEndDesigners: [] as DesignerEntry[],
+      contemporaryDesigners: [] as DesignerEntry[],
+      jewelryWatchesDesigners: [] as DesignerEntry[],
+      kidsDesigners: [] as DesignerEntry[],
+    };
+
     if (!adminDb) {
-      return {
-        props: {
-          designerOptions: [],
-          topDesigners: [],
-          trendingDesigners: [],
-          emergingBrands: [],
-        },
-      };
+      return { props: emptyProps };
     }
 
     try {
-      let designerOptions: DesignerEntry[] = [];
-      let topDesigners: DesignerEntry[] = [];
-      let trendingDesigners: DesignerEntry[] = [];
-      let emergingBrands: DesignerEntry[] = [];
-
       const ds = await adminDb.collection("designers").get();
       const allDesigners: DesignerEntry[] = ds.docs
         .map((x) => {
@@ -294,37 +306,43 @@ export const getServerSideProps: GetServerSideProps<DesignersPageProps> =
         })
         .filter(Boolean) as DesignerEntry[];
 
-      designerOptions = allDesigners.sort((a, b) =>
-        a.name.localeCompare(b.name)
-      );
+      const sortAlpha = (a: DesignerEntry, b: DesignerEntry) =>
+        a.name.localeCompare(b.name);
 
-      topDesigners = allDesigners
-        .filter((d) => d.designerCategory === "top")
-        .sort((a, b) => a.name.localeCompare(b.name));
-      trendingDesigners = allDesigners
-        .filter((d) => d.designerCategory === "trending")
-        .sort((a, b) => a.name.localeCompare(b.name));
-      emergingBrands = allDesigners
-        .filter((d) => d.designerCategory === "emerging")
-        .sort((a, b) => a.name.localeCompare(b.name));
+      const designerOptions = [...allDesigners].sort(sortAlpha);
+
+      // Map legacy categories to new ones for backwards compatibility
+      const catMap: Record<string, string> = {
+        top: "high-end",
+        trending: "contemporary",
+        emerging: "contemporary",
+      };
+      const getCat = (d: DesignerEntry) => catMap[d.designerCategory || ""] || d.designerCategory || "";
+
+      const highEndDesigners = allDesigners
+        .filter((d) => getCat(d) === "high-end")
+        .sort(sortAlpha);
+      const contemporaryDesigners = allDesigners
+        .filter((d) => getCat(d) === "contemporary")
+        .sort(sortAlpha);
+      const jewelryWatchesDesigners = allDesigners
+        .filter((d) => getCat(d) === "jewelry-watches")
+        .sort(sortAlpha);
+      const kidsDesigners = allDesigners
+        .filter((d) => getCat(d) === "kids")
+        .sort(sortAlpha);
 
       return {
         props: {
           designerOptions,
-          topDesigners,
-          trendingDesigners,
-          emergingBrands,
+          highEndDesigners,
+          contemporaryDesigners,
+          jewelryWatchesDesigners,
+          kidsDesigners,
         },
       };
     } catch (err) {
       console.error("Error loading designers", err);
-      return {
-        props: {
-          designerOptions: [],
-          topDesigners: [],
-          trendingDesigners: [],
-          emergingBrands: [],
-        },
-      };
+      return { props: emptyProps };
     }
   };
