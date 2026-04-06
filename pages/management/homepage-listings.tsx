@@ -617,3 +617,4 @@ export const getServerSideProps: GetServerSideProps<Props> = async () => {
   } catch (err) { console.error("Messages scan error:", err); }
 
   return { props: { serverListings, messages } };
+};
