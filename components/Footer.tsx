@@ -128,7 +128,7 @@ export default function Footer() {
     {
       title: "Our Services",
       links: [
-        { label: "VIP Club", href: "/vip-welcome" },
+        // { label: "VIP Club", href: "/vip-welcome" }, // HIDDEN — re-enable after launch
         { label: "Famous Concierge", action: () => setIsChatOpen(!isChatOpen) },
       ],
     },
