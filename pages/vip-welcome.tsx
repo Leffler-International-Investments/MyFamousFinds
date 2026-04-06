@@ -6,6 +6,12 @@ import Link from "next/link";
 import Header from "../components/Header";
 import Footer from "../components/Footer";
 
+// HIDDEN — VIP Club not yet launched. Re-enable by removing the redirect below.
+export async function getServerSideProps() {
+  return { redirect: { destination: "/", permanent: false } };
+}
+
+
 // Simple SVG icons for the benefits
 const TicketIcon = () => (
   <svg
