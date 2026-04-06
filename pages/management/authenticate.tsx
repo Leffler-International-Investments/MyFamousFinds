@@ -21,6 +21,11 @@ type Listing = {
   id: string;
   title: string;
   brand: string;
+  designer: string;
+  model: string;
+  color: string;
+  catalogue_number: string;
+  date_code: string;
   category: string;
   condition: string;
   price: number;
@@ -100,6 +105,36 @@ const CHECKLIST_ITEMS = [
 
 type CheckValue = "pass" | "fail" | "na" | "";
 
+type SuggestedMatch = {
+  id: string;
+  title: string;
+  brand: string;
+  color: string;
+  catalogue_number: string;
+  serial_number: string;
+  score: number;
+  reasons: string[];
+};
+
+function tokenize(input: string): string[] {
+  return input
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, " ")
+    .split(/\s+/)
+    .filter((x) => x.length > 2);
+}
+
+function parseColor(value: string): string {
+  const normalized = (value || "").toLowerCase();
+  const colorWords = [
+    "black", "white", "beige", "brown", "tan", "blue", "navy", "red", "burgundy",
+    "green", "olive", "pink", "purple", "grey", "gray", "yellow", "orange", "gold",
+    "silver", "ivory", "cream",
+  ];
+  const hit = colorWords.find((c) => normalized.includes(c));
+  return hit || "";
+}
+
 /* ------------------------------------------------------------------ */
 /*  Helper — generate certificate number                               */
 /* ------------------------------------------------------------------ */
@@ -139,6 +174,98 @@ export default function AuthenticatePage({ items }: Props) {
 
   // Items list with local auth status tracking
   const [itemList, setItemList] = useState(items);
+
+  const suggestedMatches = useMemo<SuggestedMatch[]>(() => {
+    if (!selected) return [];
+    const currentTitleTokens = new Set(tokenize(selected.title));
+    const currentDetailTokens = new Set(tokenize(selected.details));
+    const selectedColor = (selected.color || parseColor(`${selected.title} ${selected.details}`)).toLowerCase();
+
+    return itemList
+      .filter((candidate) => candidate.id !== selected.id)
+      .map((candidate) => {
+        let score = 0;
+        const reasons: string[] = [];
+
+        if (selected.brand && candidate.brand && selected.brand.toLowerCase() === candidate.brand.toLowerCase()) {
+          score += 35;
+          reasons.push("Same brand");
+        }
+        if (selected.designer && candidate.designer && selected.designer.toLowerCase() === candidate.designer.toLowerCase()) {
+          score += 12;
+          reasons.push("Same designer");
+        }
+        if (selected.model && candidate.model && selected.model.toLowerCase() === candidate.model.toLowerCase()) {
+          score += 18;
+          reasons.push("Same model name");
+        }
+
+        const candidateColor = (candidate.color || parseColor(`${candidate.title} ${candidate.details}`)).toLowerCase();
+        if (selectedColor && candidateColor && selectedColor === candidateColor) {
+          score += 15;
+          reasons.push(`Same color (${selectedColor})`);
+        }
+        if (
+          selected.catalogue_number &&
+          candidate.catalogue_number &&
+          selected.catalogue_number.toLowerCase() === candidate.catalogue_number.toLowerCase()
+        ) {
+          score += 40;
+          reasons.push("Catalogue number match");
+        }
+        if (
+          selected.serial_number &&
+          candidate.serial_number &&
+          selected.serial_number.toLowerCase() === candidate.serial_number.toLowerCase()
+        ) {
+          score += 45;
+          reasons.push("Serial number match");
+        }
+
+        const overlap = tokenize(`${candidate.title} ${candidate.details}`).filter(
+          (token) => currentTitleTokens.has(token) || currentDetailTokens.has(token)
+        ).length;
+        if (overlap > 0) {
+          score += Math.min(overlap, 8);
+          reasons.push(`Shared descriptors (${overlap})`);
+        }
+
+        return {
+          id: candidate.id,
+          title: candidate.title,
+          brand: candidate.brand,
+          color: candidate.color || candidateColor || "—",
+          catalogue_number: candidate.catalogue_number || "—",
+          serial_number: candidate.serial_number || "—",
+          score,
+          reasons,
+        };
+      })
+      .filter((item) => item.score > 0)
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 5);
+  }, [itemList, selected]);
+
+  const aiPrecheck = useMemo(() => {
+    if (!selected) return { missingFields: [] as string[], warnings: [] as string[] };
+    const missingFields: string[] = [];
+    const warnings: string[] = [];
+
+    if (!selected.brand) missingFields.push("brand");
+    if (!selected.color) missingFields.push("color");
+    if (!selected.model) missingFields.push("model");
+    if (!selected.catalogue_number) missingFields.push("catalogue number");
+    if (!selected.serial_number) missingFields.push("serial number");
+
+    const serial = selected.serial_number.trim();
+    if (serial && !/^[A-Za-z0-9\-]{6,24}$/.test(serial)) {
+      warnings.push("Serial number format looks unusual (expected 6-24 alphanumeric chars).");
+    }
+    if (suggestedMatches.length === 0) {
+      warnings.push("No close inventory matches found. Consider requesting clearer close-up photos.");
+    }
+    return { missingFields, warnings };
+  }, [selected, suggestedMatches.length]);
 
   const visible = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -196,6 +323,10 @@ export default function AuthenticatePage({ items }: Props) {
           certificateNumber: certNumber,
           checklist,
           notes,
+          aiFindings: {
+            precheck: aiPrecheck,
+            suggestedMatches,
+          },
           authenticatedBy: "management",
         }),
       });
@@ -341,10 +472,15 @@ export default function AuthenticatePage({ items }: Props) {
                       <h2>{selected.title}</h2>
                       <div className="item-summary-details">
                         <span><strong>Brand:</strong> {selected.brand || "—"}</span>
+                        <span><strong>Designer:</strong> {selected.designer || "—"}</span>
+                        <span><strong>Model:</strong> {selected.model || "—"}</span>
+                        <span><strong>Color:</strong> {selected.color || "—"}</span>
                         <span><strong>Category:</strong> {selected.category || "—"}</span>
                         <span><strong>Condition:</strong> {selected.condition || "—"}</span>
                         <span><strong>Material:</strong> {selected.material || "—"}</span>
                         <span><strong>Serial #:</strong> {selected.serial_number || "—"}</span>
+                        <span><strong>Catalogue #:</strong> {selected.catalogue_number || "—"}</span>
+                        <span><strong>Date code:</strong> {selected.date_code || "—"}</span>
                         <span><strong>Price:</strong> {selected.price ? `$${selected.price.toLocaleString("en-US")}` : "—"}</span>
                         <span><strong>Seller:</strong> {selected.seller}</span>
                         <span><strong>Purchased From:</strong> {selected.purchase_source || "—"}</span>
@@ -362,6 +498,51 @@ export default function AuthenticatePage({ items }: Props) {
                       >
                         View Product Page
                       </Link>
+                    </div>
+                  </div>
+
+                  <div className="ai-assist-section">
+                    <h3 className="section-heading">AI-Assisted Verification</h3>
+                    <p className="section-desc">
+                      Auto-checks seller data quality and compares the selected item against similar inventory records.
+                    </p>
+                    <div className="ai-grid">
+                      <div className="ai-card">
+                        <h4>Pre-check signals</h4>
+                        {aiPrecheck.missingFields.length > 0 ? (
+                          <p className="ai-warning">
+                            Missing key data: {aiPrecheck.missingFields.join(", ")}
+                          </p>
+                        ) : (
+                          <p className="ai-pass">All key metadata fields are present.</p>
+                        )}
+                        {aiPrecheck.warnings.map((warning) => (
+                          <p key={warning} className="ai-warning">{warning}</p>
+                        ))}
+                      </div>
+                      <div className="ai-card">
+                        <h4>Closest matches in catalogue</h4>
+                        {suggestedMatches.length === 0 ? (
+                          <p className="ai-muted">No strong matches detected.</p>
+                        ) : (
+                          <ul className="ai-match-list">
+                            {suggestedMatches.map((match) => (
+                              <li key={match.id}>
+                                <div className="ai-match-top">
+                                  <Link href={`/product/${match.id}`} target="_blank">
+                                    {match.title}
+                                  </Link>
+                                  <strong>{match.score}</strong>
+                                </div>
+                                <div className="ai-match-meta">
+                                  {match.brand} • {match.color} • Cat: {match.catalogue_number} • Serial: {match.serial_number}
+                                </div>
+                                <div className="ai-match-reasons">{match.reasons.join(" · ")}</div>
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                      </div>
                     </div>
                   </div>
 
@@ -406,7 +587,7 @@ export default function AuthenticatePage({ items }: Props) {
                     <h3 className="section-heading">Inspection Checklist</h3>
                     <p className="section-desc">
                       Evaluate each authentication point. Mark as Pass, Fail, or
-                      N/A for items that don't apply to this product type.
+                      N/A for items that do not apply to this product type.
                     </p>
 
                     <div className="checklist-grid">
@@ -803,6 +984,68 @@ export default function AuthenticatePage({ items }: Props) {
         .checklist-section {
           margin-bottom: 24px;
         }
+        .ai-assist-section {
+          margin-bottom: 24px;
+        }
+        .ai-grid {
+          display: grid;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 12px;
+        }
+        @media (max-width: 840px) {
+          .ai-grid {
+            grid-template-columns: 1fr;
+          }
+        }
+        .ai-card {
+          border: 1px solid #e5e7eb;
+          border-radius: 12px;
+          padding: 12px;
+          background: #f9fafb;
+        }
+        .ai-card h4 {
+          margin: 0 0 8px;
+          font-size: 13px;
+          color: #111827;
+        }
+        .ai-warning {
+          font-size: 12px;
+          color: #b45309;
+          margin: 0 0 6px;
+        }
+        .ai-pass {
+          font-size: 12px;
+          color: #166534;
+          margin: 0;
+        }
+        .ai-muted {
+          font-size: 12px;
+          color: #6b7280;
+          margin: 0;
+        }
+        .ai-match-list {
+          margin: 0;
+          padding-left: 16px;
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
+        }
+        .ai-match-top {
+          display: flex;
+          justify-content: space-between;
+          gap: 8px;
+          font-size: 12px;
+        }
+        .ai-match-top a {
+          color: #111827;
+          text-decoration: underline;
+        }
+        .ai-match-meta,
+        .ai-match-reasons {
+          font-size: 11px;
+          color: #4b5563;
+          line-height: 1.4;
+        }
         .section-heading {
           font-size: 15px;
           font-weight: 700;
@@ -1048,6 +1291,11 @@ export const getServerSideProps: GetServerSideProps<Props> = async (ctx) => {
         id: doc.id,
         title: d.title || "Untitled listing",
         brand: d.brand || d.designer || "",
+        designer: d.designer || d.brand || "",
+        model: d.model || d.model_name || "",
+        color: d.color || parseColor(`${d.title || ""} ${d.details || ""}`),
+        catalogue_number: d.catalogue_number || d.catalog_number || d.style_code || "",
+        date_code: d.date_code || "",
         category: d.category || "",
         condition: d.condition || "",
         price: Number(d.price || 0),
