@@ -38,6 +38,7 @@ const DEFAULT_DESIGNERS: DesignerSeed[] = [
   { name: "Khaite", designerCategory: "high-end" },
   { name: "The Row", designerCategory: "high-end" },
   { name: "Brunello Cucinelli", designerCategory: "high-end" },
+  { name: "Dolce & Gabbana", designerCategory: "high-end" },
   { name: "Christian Louboutin", designerCategory: "high-end" },
   { name: "Manolo Blahnik", designerCategory: "high-end" },
   { name: "Jimmy Choo", designerCategory: "high-end" },
