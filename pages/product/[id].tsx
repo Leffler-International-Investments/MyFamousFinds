@@ -442,7 +442,7 @@ export default function ProductPage(props: ProductPageProps) {
               <div className="auth-badge-text">
                 <span className="auth-badge-title">Remote authentication included</span>
                 <span className="auth-badge-desc">
-                  Every item is authenticated remotely by our expert team. You only pay for the real thing — guaranteed.
+                  Every item is authenticated digitally via our proprietary software. You only pay for the real thing.
                 </span>
               </div>
             </div>
@@ -495,7 +495,7 @@ export default function ProductPage(props: ProductPageProps) {
               <p className="protection-title">Buyer Protection Guarantee</p>
               <ul className="protection-list">
                 <li><strong>Escrow payment</strong> — Funds held securely until your item is authenticated.</li>
-                <li><strong>Expert authentication</strong> — Every item is authenticated remotely by our expert team.</li>
+                <li><strong>Expert authentication</strong> — Every item is authenticated digitally via our proprietary software.</li>
                 <li><strong>Money-back guarantee</strong> — If the item is not as described, you are fully refunded.</li>
                 <li><strong>Secure checkout</strong> — All payments processed via PayPal Buyer Protection.</li>
                 <li><strong>Returns accepted</strong> — 14-day return window for items not as described.</li>
