@@ -84,7 +84,7 @@ function EditModal({ item, onClose, onSaved }: {
   const [error, setError] = useState("");
   const [loadingImages, setLoadingImages] = useState(false);
 
-  const set = (k: keyof EditState, v: string) => setForm(f => ({ ...f, [k]: v }));
+  const set = (k: keyof EditState, v: string) => setForm((f: EditState) => ({ ...f, [k]: v }));
 
   // Load full Firestore doc to get ALL images
   useEffect(() => {
@@ -92,8 +92,8 @@ function EditModal({ item, onClose, onSaved }: {
     setLoadingImages(true);
     getDoc(doc(db, "listings", item.id)).then(snap => {
       if (snap.exists()) {
-        const full = docToListing(snap.id, snap.data());
-        setForm(f => ({ ...f, allImages: full.allImages }));
+        const full = docToListing(snap.id, snap.data() as any);
+        setForm((f: EditState) => ({ ...f, allImages: full.allImages }));
       }
     }).catch(() => {}).finally(() => setLoadingImages(false));
   }, [item.id]);
