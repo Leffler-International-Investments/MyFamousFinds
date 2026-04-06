@@ -8,8 +8,8 @@ const OFFLINE_URL = "/offline.html";
 const PRE_CACHE = [
   "/offline.html",
   "/manifest.json",
-  "/icons/icon-192x192.png",
-  "/icons/icon-512x512.png",
+  "/icon/icon-192x192.png",
+  "/icon/icon-512x512.png",
   "/favicon-32x32.png",
 ];
 
@@ -56,7 +56,7 @@ self.addEventListener("fetch", (event) => {
 
   // Static assets (JS, CSS, images, fonts, icons) — cache-first
   if (
-    url.pathname.startsWith("/icons/") ||
+    url.pathname.startsWith("/icon/") ||
     url.pathname.startsWith("/_next/static/") ||
     url.pathname.match(/\.(png|jpg|jpeg|svg|webp|gif|ico|woff2?|css|js)$/)
   ) {

@@ -142,7 +142,7 @@ export default function AuthenticityPage() {
         <meta property="og:title" content={title} />
         <meta property="og:description" content={description} />
         <meta property="og:url" content={`${SITE_URL}/authenticity`} />
-        <meta property="og:image" content={`${SITE_URL}/icons/icon-512x512.png`} />
+        <meta property="og:image" content={`${SITE_URL}/icon/icon-512x512.png`} />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content={title} />
         <meta name="twitter:description" content={description} />

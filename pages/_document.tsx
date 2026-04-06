@@ -43,7 +43,7 @@ export default function Document() {
         />
 
         {/* PWA manifest */}
-        <link rel="manifest" href="/manifest.json" />
+        <link rel="manifest" href="/manifest.json?v=3" />
         <meta name="theme-color" content="#ffffff" />
 
         {/* Favicons */}
@@ -64,10 +64,10 @@ export default function Document() {
 
         {/* Microsoft / Windows */}
         <meta name="msapplication-TileColor" content="#111827" />
-        <meta name="msapplication-TileImage" content="/icons/icon-144x144.png?v=2" />
+        <meta name="msapplication-TileImage" content="/icon/icon-144x144.png?v=3" />
 
         {/* iOS splash screen */}
-        <link rel="apple-touch-startup-image" href="/icons/icon-512x512.png?v=2" />
+        <link rel="apple-touch-startup-image" href="/icon/icon-512x512.png?v=3" />
 
         {/* Smart App Banner for iOS Safari (uncomment when app is published) */}
         {/* <meta name="apple-itunes-app" content="app-id=6740000000" /> */}
