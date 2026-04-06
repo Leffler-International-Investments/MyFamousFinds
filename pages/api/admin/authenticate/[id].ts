@@ -26,6 +26,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     certificateNumber,
     checklist,
     notes,
+    aiFindings,
     authenticatedBy,
   } = req.body || {};
 
@@ -51,6 +52,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       certificateNumber: certificateNumber || null,
       checklist: checklist || {},
       notes: notes || "",
+      aiFindings: aiFindings || null,
       authenticatedBy: authenticatedBy || "admin",
       createdAt: now,
     };
