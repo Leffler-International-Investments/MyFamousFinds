@@ -1,106 +1,52 @@
 // FILE: /pages/api/admin/update-listing/[id].ts
+// Updates any editable fields on a listing, including displayImageUrl (hero image).
+
 import type { NextApiRequest, NextApiResponse } from "next";
-import { adminDb, isFirebaseAdminReady, FieldValue } from "../../../../utils/firebaseAdmin";
 import { requireAdmin } from "../../../../utils/adminAuth";
+import { adminDb, isFirebaseAdminReady } from "../../../../utils/firebaseAdmin";
 
-const ALLOWED_STATUSES = new Set(["Live", "Pending", "Rejected", "Sold"]);
-const ALLOWED_CONDITIONS = new Set([
-  "New with tags",
-  "New (never used)",
-  "Excellent",
-  "Very good",
-  "Good",
-  "Fair",
-]);
+type ApiResponse = { ok: true } | { ok: false; error: string };
 
-type ApiResponse =
-  | { ok: true }
-  | { ok: false; error: string };
-
-export default async function handler(
-  req: NextApiRequest,
-  res: NextApiResponse<ApiResponse>
-) {
-  if (req.method !== "POST") {
-    res.setHeader("Allow", ["POST"]);
+export default async function handler(req: NextApiRequest, res: NextApiResponse<ApiResponse>) {
+  if (req.method !== "POST" && req.method !== "PATCH") {
     return res.status(405).json({ ok: false, error: "Method not allowed" });
   }
-
   if (!requireAdmin(req, res)) return;
 
+  const { id } = req.query;
+  if (!id || typeof id !== "string") return res.status(400).json({ ok: false, error: "Missing listing id" });
+
+  if (!isFirebaseAdminReady || !adminDb) {
+    return res.status(500).json({ ok: false, error: "Firebase Admin not ready" });
+  }
+
   try {
-    if (!isFirebaseAdminReady || !adminDb) {
-      return res.status(500).json({
-        ok: false,
-        error:
-          "Firebase Admin not initialized. Check FIREBASE_SERVICE_ACCOUNT_JSON (or FB_PROJECT_ID/FB_CLIENT_EMAIL/FB_PRIVATE_KEY) in Vercel env vars.",
-      });
+    const {
+      title, brand, category, description, condition, size,
+      priceUsd, status, displayImageUrl,
+    } = req.body || {};
+
+    const update: Record<string, any> = { updatedAt: Date.now() };
+
+    if (title !== undefined)          update.title = String(title).trim();
+    if (brand !== undefined)          update.brand = String(brand).trim();
+    if (category !== undefined)       update.category = String(category).trim().toUpperCase();
+    if (description !== undefined)    update.description = String(description).trim();
+    if (condition !== undefined)      update.condition = String(condition).trim();
+    if (size !== undefined)           update.size = String(size).trim();
+    if (status !== undefined)         update.status = String(status).trim().toLowerCase();
+    if (priceUsd !== undefined) {
+      const p = Number(String(priceUsd).replace(/[^0-9.]/g, ""));
+      if (!isNaN(p) && p >= 0) { update.priceUsd = p; update.price = p; }
+    }
+    if (displayImageUrl !== undefined && String(displayImageUrl).startsWith("http")) {
+      update.displayImageUrl = String(displayImageUrl).trim();
     }
 
-    const id = String(req.query.id || "").trim();
-    if (!id) return res.status(400).json({ ok: false, error: "Missing listing id" });
-
-    const { price, condition, status, details, allowOffers } = req.body || {};
-    const updates: Record<string, any> = {
-      updatedAt: FieldValue?.serverTimestamp ? FieldValue.serverTimestamp() : new Date(),
-    };
-
-    if (price !== undefined) {
-      const parsed = typeof price === "number" ? price : Number(String(price));
-      if (!Number.isFinite(parsed) || parsed <= 0) {
-        return res.status(400).json({ ok: false, error: "Invalid price" });
-      }
-      updates.price = parsed;
-      updates.priceUsd = parsed;
-    }
-
-    if (condition !== undefined) {
-      const nextCondition = String(condition || "").trim();
-      if (!nextCondition || !ALLOWED_CONDITIONS.has(nextCondition)) {
-        return res.status(400).json({
-          ok: false,
-          error:
-            "Invalid condition. Use: New with tags, New (never used), Excellent, Very good, Good, Fair",
-        });
-      }
-      updates.condition = nextCondition;
-    }
-
-    if (status !== undefined) {
-      const nextStatus = String(status || "").trim();
-      if (!nextStatus || !ALLOWED_STATUSES.has(nextStatus)) {
-        return res.status(400).json({
-          ok: false,
-          error: "Invalid status. Use: Live, Pending, Rejected, Sold",
-        });
-      }
-      updates.status = nextStatus;
-      if (nextStatus === "Sold") {
-        updates.soldAt = FieldValue?.serverTimestamp ? FieldValue.serverTimestamp() : new Date();
-        updates.isSold = true;
-      }
-    }
-
-    if (details !== undefined) {
-      updates.details = String(details || "").trim();
-    }
-
-    if (allowOffers !== undefined) {
-      updates.allowOffers = allowOffers === true;
-    }
-
-    const hasUpdates = Object.keys(updates).length > 1;
-    if (!hasUpdates) {
-      return res.status(400).json({ ok: false, error: "No updates provided" });
-    }
-
-    await adminDb.collection("listings").doc(id).set(updates, { merge: true });
+    await adminDb.collection("listings").doc(id).update(update);
     return res.status(200).json({ ok: true });
   } catch (err: any) {
-    console.error("admin update-listing error:", err);
-    return res.status(500).json({
-      ok: false,
-      error: err?.message || "Internal error",
-    });
+    console.error("[update-listing]", err);
+    return res.status(500).json({ ok: false, error: err?.message || "Update failed" });
   }
 }
