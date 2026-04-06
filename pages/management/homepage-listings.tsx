@@ -35,6 +35,18 @@ type MessageItem = {
 type Props = { serverListings: ListingItem[]; messages: MessageItem[]; };
 
 /* ─── docToListing ─── */
+function pickImgUrl(v: any): string {
+  if (!v) return "";
+  if (typeof v === "string") {
+    const s = v.trim();
+    return (s.startsWith("http://") || s.startsWith("https://") || s.startsWith("data:image/")) ? s : "";
+  }
+  if (typeof v === "object") {
+    return pickImgUrl(v.displayUrl || v.displayImageUrl || v.url || v.src || v.originalUrl || v.original || "");
+  }
+  return "";
+}
+
 function docToListing(id: string, d: any): ListingItem {
   const priceNum =
     typeof d.priceUsd === "number" ? d.priceUsd
@@ -43,12 +55,22 @@ function docToListing(id: string, d: any): ListingItem {
     : typeof d.price === "string" ? Number(String(d.price).replace(/[^0-9.]/g, "")) || 0 : 0;
 
   const allImages: string[] = [];
-  const addImg = (u: any) => { if (typeof u === "string" && u.startsWith("http") && !allImages.includes(u)) allImages.push(u); };
+  const addImg = (u: any) => {
+    const url = pickImgUrl(u);
+    if (url && !allImages.includes(url)) allImages.push(url);
+  };
+  const addArr = (arr: any) => { if (Array.isArray(arr)) arr.forEach(addImg); };
 
+  // Single image fields
   [d.displayImageUrl, d.display_image_url, d.imageUrl, d.image_url, d.image, d.mainImage, d.mainImageUrl, d.thumbnail, d.coverImage]
     .forEach(addImg);
-  [d.displayImageUrls, d.images, d.imageUrls, d.image_urls, d.photos, d.photoUrls]
-    .forEach((arr) => Array.isArray(arr) && arr.forEach(addImg));
+  // Array image fields — items may be strings OR objects with .url/.src/.displayUrl
+  addArr(d.displayImageUrls);
+  addArr(d.images);
+  addArr(d.imageUrls);
+  addArr(d.image_urls);
+  addArr(d.photos);
+  addArr(d.photoUrls);
 
   return {
     id,
@@ -88,7 +110,7 @@ function EditModal({ item, onClose, onSaved }: {
 
   // Load full Firestore doc to get ALL images
   useEffect(() => {
-    if (!db || item.allImages.length > 1) return;
+    if (!db) return;
     setLoadingImages(true);
     getDoc(doc(db, "listings", item.id)).then(snap => {
       if (snap.exists()) {
