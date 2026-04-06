@@ -182,6 +182,13 @@ export default function ManagementDashboard({ stats }: Props) {
             linkColor="green"
           />
           <DashboardTile
+            title="Authentication Tool"
+            description="Entrupy-style item verification. Run a structured authenticity check on listings — brand markers, serial number, material, shape — and issue certificates."
+            href="/management/authenticate"
+            linkText="Authenticate Items"
+            linkColor="gold"
+          />
+          <DashboardTile
             title="All Listings"
             description="View and moderate all products across the marketplace."
             href="/management/listings"
