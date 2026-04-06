@@ -71,7 +71,7 @@ export default function SellingPage() {
           <ul>
             <li><strong>Commission:</strong> Famous Finds deducts up to 25% commission plus 3% processing fee.</li>
             <li><strong>Payouts</strong> are processed via PayPal after buyer confirmation.</li>
-            <li><strong>Typical processing time:</strong> 3&ndash;5 business days after delivery.</li>
+            <li><strong>Typical processing time:</strong> 3&ndash;Payouts on 15th of each month, minimum 7 days from reciept of item.</li>
           </ul>
         </div>
 
