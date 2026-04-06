@@ -162,7 +162,7 @@ export default function ManagementDashboard({ stats }: Props) {
         >
           <DashboardTile
             title="Listing Review Queue"
-            description="Review and approve new product listings before they go live."
+            description="AI-assisted verification hub. Review uploaded items, compare against authentic references (designer, model, color, material, catalogue/serial/style numbers), view confidence scoring, and approve or reject with full audit trail."
             href="/management/listing-queue"
             linkText="Review Listings"
             linkColor="green"
@@ -183,7 +183,7 @@ export default function ManagementDashboard({ stats }: Props) {
           />
           <DashboardTile
             title="Authentication Tool"
-            description="Entrupy-style item verification. Run a structured authenticity check on listings — brand markers, serial number, material, shape — and issue certificates."
+            description="Detailed authentication workspace. Run structured checklist inspections, AI-assisted image comparison, and reference matching. Use for in-depth reviews — primary verification is now in the Listing Review Queue."
             href="/management/authenticate"
             linkText="Authenticate Items"
             linkColor="gold"
