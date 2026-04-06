@@ -8,6 +8,7 @@ import type { GetServerSideProps, NextPage } from "next";
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
 import { adminDb } from "../../utils/firebaseAdmin";
+import { CATEGORIZED_DESIGNERS } from "../../lib/filterConstants";
 
 // --------------------------------------------------
 // Types
@@ -286,63 +287,85 @@ export const getServerSideProps: GetServerSideProps<DesignersPageProps> =
       kidsDesigners: [] as DesignerEntry[],
     };
 
-    if (!adminDb) {
-      return { props: emptyProps };
+    // Build fallback entries from the static categorized list
+    const staticEntries: DesignerEntry[] = CATEGORIZED_DESIGNERS.map((d) => ({
+      name: d.name,
+      slug: slugify(d.name),
+      designerCategory: d.designerCategory as DesignerEntry["designerCategory"],
+    }));
+
+    let firestoreDesigners: DesignerEntry[] = [];
+
+    if (adminDb) {
+      try {
+        const ds = await adminDb.collection("designers").get();
+        firestoreDesigners = ds.docs
+          .map((x) => {
+            const data = x.data() as any;
+            const name = String(data?.name ?? x.id).trim();
+            const active = data?.active !== false;
+            if (!active || !name) return null;
+            return {
+              name,
+              slug: data.slug || slugify(name),
+              designerCategory: data.designerCategory || "",
+            };
+          })
+          .filter(Boolean) as DesignerEntry[];
+      } catch (err) {
+        console.error("Error loading designers from Firestore", err);
+      }
     }
 
-    try {
-      const ds = await adminDb.collection("designers").get();
-      const allDesigners: DesignerEntry[] = ds.docs
-        .map((x) => {
-          const data = x.data() as any;
-          const name = String(data?.name ?? x.id).trim();
-          const active = data?.active !== false;
-          if (!active || !name) return null;
-          return {
-            name,
-            slug: data.slug || slugify(name),
-            designerCategory: data.designerCategory || "",
-          };
-        })
-        .filter(Boolean) as DesignerEntry[];
-
-      const sortAlpha = (a: DesignerEntry, b: DesignerEntry) =>
-        a.name.localeCompare(b.name);
-
-      const designerOptions = [...allDesigners].sort(sortAlpha);
-
-      // Map legacy categories to new ones for backwards compatibility
-      const catMap: Record<string, string> = {
-        top: "high-end",
-        trending: "contemporary",
-        emerging: "contemporary",
-      };
-      const getCat = (d: DesignerEntry) => catMap[d.designerCategory || ""] || d.designerCategory || "";
-
-      const highEndDesigners = allDesigners
-        .filter((d) => getCat(d) === "high-end")
-        .sort(sortAlpha);
-      const contemporaryDesigners = allDesigners
-        .filter((d) => getCat(d) === "contemporary")
-        .sort(sortAlpha);
-      const jewelryWatchesDesigners = allDesigners
-        .filter((d) => getCat(d) === "jewelry-watches")
-        .sort(sortAlpha);
-      const kidsDesigners = allDesigners
-        .filter((d) => getCat(d) === "kids")
-        .sort(sortAlpha);
-
-      return {
-        props: {
-          designerOptions,
-          highEndDesigners,
-          contemporaryDesigners,
-          jewelryWatchesDesigners,
-          kidsDesigners,
-        },
-      };
-    } catch (err) {
-      console.error("Error loading designers", err);
-      return { props: emptyProps };
+    // Merge: Firestore entries win (they may have updated categories),
+    // then fill in any missing designers from the static list.
+    const bySlug = new Map<string, DesignerEntry>();
+    for (const d of staticEntries) {
+      bySlug.set(d.slug, d);
     }
+    for (const d of firestoreDesigners) {
+      const existing = bySlug.get(d.slug);
+      // Firestore entry wins; but prefer static category if Firestore has none
+      bySlug.set(d.slug, {
+        ...d,
+        designerCategory: d.designerCategory || existing?.designerCategory || "",
+      });
+    }
+    const allDesigners = Array.from(bySlug.values());
+
+    const sortAlpha = (a: DesignerEntry, b: DesignerEntry) =>
+      a.name.localeCompare(b.name);
+
+    const designerOptions = [...allDesigners].sort(sortAlpha);
+
+    // Map legacy categories to new ones for backwards compatibility
+    const catMap: Record<string, string> = {
+      top: "high-end",
+      trending: "contemporary",
+      emerging: "contemporary",
+    };
+    const getCat = (d: DesignerEntry) => catMap[d.designerCategory || ""] || d.designerCategory || "";
+
+    const highEndDesigners = allDesigners
+      .filter((d) => getCat(d) === "high-end")
+      .sort(sortAlpha);
+    const contemporaryDesigners = allDesigners
+      .filter((d) => getCat(d) === "contemporary")
+      .sort(sortAlpha);
+    const jewelryWatchesDesigners = allDesigners
+      .filter((d) => getCat(d) === "jewelry-watches")
+      .sort(sortAlpha);
+    const kidsDesigners = allDesigners
+      .filter((d) => getCat(d) === "kids")
+      .sort(sortAlpha);
+
+    return {
+      props: {
+        designerOptions,
+        highEndDesigners,
+        contemporaryDesigners,
+        jewelryWatchesDesigners,
+        kidsDesigners,
+      },
+    };
   };
