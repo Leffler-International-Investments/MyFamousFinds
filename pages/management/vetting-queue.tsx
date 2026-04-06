@@ -1,6 +1,6 @@
 // FILE: /pages/management/vetting-queue.tsx
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { GetServerSideProps } from "next";
 import Head from "next/head";
 import Link from "next/link";
@@ -9,6 +9,20 @@ import Footer from "../../components/Footer";
 import { useRequireAdmin } from "../../hooks/useRequireAdmin";
 import { adminDb } from "../../utils/firebaseAdmin";
 import { autoPrefixPhone } from "../../utils/phoneFormat";
+
+// Formats an ISO timestamp in the browser's LOCAL timezone automatically
+function LocalTime({ iso }: { iso: string }) {
+  const [formatted, setFormatted] = useState(iso ? iso.replace("T", " ").slice(0, 19) : "—");
+  useEffect(() => {
+    if (!iso) return;
+    setFormatted(new Date(iso).toLocaleString(undefined, {
+      year: "numeric", month: "numeric", day: "numeric",
+      hour: "numeric", minute: "2-digit", hour12: true,
+    }));
+  }, [iso]);
+  return <span>{formatted}</span>;
+}
+
 
 type SellerApplication = {
   id: string;
@@ -533,7 +547,7 @@ export default function ManagementVettingQueue({ items }: Props) {
                             />
                           </td>
                           <td>{s.address || "—"}</td>
-                          <td>{s.submittedAt || "—"}</td>
+                          <td><LocalTime iso={s.submittedAt} /></td>
                           <td>
                             <span className={
                               s.status === "Approved" ? "status-badge status-approved" :
@@ -585,7 +599,7 @@ export default function ManagementVettingQueue({ items }: Props) {
                           </td>
                           <td>{s.phone || "—"}</td>
                           <td style={{ maxWidth: 200, fontSize: 12 }}>{s.address || "—"}</td>
-                          <td>{s.submittedAt || "—"}</td>
+                          <td><LocalTime iso={s.submittedAt} /></td>
                           <td>
                             <span className={
                               s.status === "Approved" ? "status-badge status-approved" :
@@ -1087,7 +1101,7 @@ export const getServerSideProps: GetServerSideProps<Props> = async () => {
       phone: data.phone || data.contactPhone || "",
       address: addrParts.join(", "),
       submittedAt: data.submittedAt
-        ? new Date(data.submittedAt.toDate()).toLocaleString()
+        ? new Date(data.submittedAt.toDate()).toISOString()
         : "",
       status,
     };
