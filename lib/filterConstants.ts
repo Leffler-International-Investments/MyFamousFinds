@@ -85,6 +85,7 @@ export const DEFAULT_DESIGNERS = [
   "Khaite",
   "The Row",
   "Brunello Cucinelli",
+  "Dolce & Gabbana",
   "Christian Louboutin",
   "Manolo Blahnik",
   "Jimmy Choo",
