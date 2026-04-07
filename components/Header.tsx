@@ -77,6 +77,9 @@ export default function Header({ filterContent, showFilter, onToggleFilter }: He
       {/* TOP BAR */}
       <div className="ff-header-top">
         <div className="ff-header-left">
+          <Link href="/seller/login" className="admin-button customer-signin">
+            <span>Seller Login</span>
+          </Link>
         </div>
 
         <div className="ff-header-right">
