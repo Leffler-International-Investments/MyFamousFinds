@@ -460,8 +460,9 @@ export default function BulkSimple() {
     const file = fileList?.[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = () => {
+    reader.onloadend = () => {
       const dataUrl = String(reader.result || "");
+      if (!dataUrl) return;
       if (slot === 1) update(idx, { authDoc1: file, authDoc1DataUrl: dataUrl });
       if (slot === 2) update(idx, { authDoc2: file, authDoc2DataUrl: dataUrl });
       if (slot === 3) update(idx, { authDoc3: file, authDoc3DataUrl: dataUrl });
