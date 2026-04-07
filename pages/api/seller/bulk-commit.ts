@@ -87,7 +87,6 @@ type CleanRow = {
   auth_doc_3_url?: string | null;
   auth_doc_3_type?: string | null;
 };
-};
 
 type ApiOk = { ok: true; created: number; skipped: number };
 type ApiErr = { ok: false; error: string };
