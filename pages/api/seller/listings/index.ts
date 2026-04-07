@@ -51,7 +51,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
         proof_doc_url: data.proof_doc_url || "",
         details: data.details || "",
         allowOffers: data.allowOffers !== false,
-        imageUrl: data.imageUrl || data.displayImageUrl || (Array.isArray(data.images) && data.images[0]) || (Array.isArray(data.imageUrls) && data.imageUrls[0]) || "",
+        imageUrl: data.imageUrl || data.displayImageUrl ||
+          (Array.isArray(data.images) && data.images.length > 0 ? String(data.images[0]) : "") ||
+          (Array.isArray(data.imageUrls) && data.imageUrls.length > 0 ? String(data.imageUrls[0]) : "") || "",
         brand: data.brand || "",
         ...(data.rejectionReason ? { rejectionReason: String(data.rejectionReason) } : {}),
       };
