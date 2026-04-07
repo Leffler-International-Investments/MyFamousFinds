@@ -56,6 +56,8 @@ export default function SellerOutreach() {
   } | null>(null);
 
   const [testMode, setTestMode] = useState(false);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [tab, setTab] = useState<"email" | "links">("email");
 
   const TEST_ITEM = {
     id: "test-item",
