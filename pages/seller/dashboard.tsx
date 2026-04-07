@@ -107,14 +107,18 @@ export default function SellerDashboard() {
               title="Create New Listing"
               description="Add items with dropdowns and image uploads."
               accentColor="blue"
-
             />
             <DashboardLink
               href="/seller/catalogue"
               title="My Listings"
               description="Edit prices, quantity, and details for your active listings."
               accentColor="blue"
-
+            />
+            <DashboardLink
+              href="/seller/outreach"
+              title="Share My Listings"
+              description="Send a branded email or copy WhatsApp/SMS links to your circle of influence."
+              accentColor="green"
             />
           </DashboardSection>
 
