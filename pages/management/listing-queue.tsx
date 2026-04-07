@@ -243,8 +243,20 @@ function ManagementListingQueue({ items: initialItems }: Props) {
                                 <img
                                   src={item.aiImageUrl}
                                   alt="AI original"
+                                  crossOrigin="anonymous"
+                                  referrerPolicy="no-referrer"
                                   style={{ width: 80, height: 80, objectFit: "cover", borderRadius: 6, border: "1px solid #bfdbfe", display: "block" }}
-                                  onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+                                  onError={(e) => {
+                                    const el = e.target as HTMLImageElement;
+                                    el.style.display = "none";
+                                    const parent = el.parentElement?.parentElement;
+                                    if (parent) {
+                                      const div = document.createElement("div");
+                                      div.style.cssText = "width:80px;height:80px;border-radius:6px;border:1px dashed #d1d5db;background:#f9fafb;display:flex;align-items:center;justify-content:center;font-size:10px;color:#9ca3af;text-align:center;padding:4px;";
+                                      div.textContent = "Blocked";
+                                      parent.appendChild(div);
+                                    }
+                                  }}
                                 />
                               </a>
                             ) : (
@@ -700,9 +712,19 @@ export const getServerSideProps: GetServerSideProps<Props> = async () => {
         auth_photos: d.auth_photos || [],
         submittedAt:
           d.createdAt?.toDate?.().toLocaleString("en-US") || "",
-        sellerImageUrl: (Array.isArray(d.images) && d.images[0])
-          ? String(d.images[0])
-          : (d.imageUrl ? String(d.imageUrl) : ""),
+        sellerImageUrl: (() => {
+          // Only pass real HTTP URLs — base64 data URLs bloat SSR props and break the page
+          const candidates = [
+            Array.isArray(d.images) ? d.images[0] : null,
+            d.imageUrl,
+            d.displayImageUrl,
+            Array.isArray(d.imageUrls) ? d.imageUrls[0] : null,
+          ];
+          for (const c of candidates) {
+            if (c && typeof c === "string" && c.startsWith("http")) return c;
+          }
+          return "";
+        })(),
       };
     });
 
