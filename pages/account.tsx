@@ -79,6 +79,7 @@ export default function AccountPage() {
   const [sellerListings, setSellerListings] = useState(0);
   const [sellerSales, setSellerSales] = useState(0);
   const [sellerOffers, setSellerOffers] = useState(0);
+  const [shopLinkCopied, setShopLinkCopied] = useState(false);
 
   // Preferences
   const [showPrefs, setShowPrefs] = useState(false);
@@ -464,6 +465,29 @@ export default function AccountPage() {
     setShowPrefs(false);
   }
 
+  const copyShopLink = () => {
+    if (!user?.email) return;
+    const sellerId = user.email.trim().toLowerCase().replace(/\./g, "_");
+    const siteUrl = typeof window !== "undefined" ? window.location.origin : "https://www.myfamousfinds.com";
+    const shopUrl = `${siteUrl}/store/${sellerId}`;
+    navigator.clipboard.writeText(shopUrl).then(() => {
+      setShopLinkCopied(true);
+      setTimeout(() => setShopLinkCopied(false), 2500);
+    }).catch(() => {
+      // Fallback for browsers that block clipboard API
+      const el = document.createElement("textarea");
+      el.value = shopUrl;
+      el.style.position = "fixed";
+      el.style.opacity = "0";
+      document.body.appendChild(el);
+      el.select();
+      document.execCommand("copy");
+      document.body.removeChild(el);
+      setShopLinkCopied(true);
+      setTimeout(() => setShopLinkCopied(false), 2500);
+    });
+  };
+
   const handleSignOut = async () => {
     if (auth) await signOut(auth);
     try {
@@ -806,6 +830,25 @@ export default function AccountPage() {
                   <Link href="/seller/orders" className="btn-seller-secondary">
                     My Sales
                   </Link>
+                  <button
+                    type="button"
+                    className={`btn-seller-share-shop${shopLinkCopied ? " btn-seller-share-shop--copied" : ""}`}
+                    onClick={copyShopLink}
+                    title="Copy your personal shop link to share with anyone"
+                  >
+                    {shopLinkCopied ? (
+                      <>✓ Link Copied!</>
+                    ) : (
+                      <>
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: 5, flexShrink: 0 }}>
+                          <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/>
+                          <polyline points="16 6 12 2 8 6"/>
+                          <line x1="12" y1="2" x2="12" y2="15"/>
+                        </svg>
+                        Share My Shop
+                      </>
+                    )}
+                  </button>
                 </div>
               </section>
               ) : (
@@ -1238,6 +1281,33 @@ export default function AccountPage() {
         :global(.btn-seller-secondary:hover) {
           background: #f0fdf4;
           border-color: #059669;
+        }
+        :global(.btn-seller-share-shop) {
+          border-radius: 999px;
+          background: #ffffff;
+          color: #0369a1;
+          border: 1px solid #7dd3fc;
+          padding: 10px 18px;
+          font-size: 13px;
+          font-weight: 600;
+          white-space: nowrap;
+          cursor: pointer;
+          transition: all 0.15s;
+          display: inline-flex;
+          align-items: center;
+        }
+        :global(.btn-seller-share-shop:hover) {
+          background: #f0f9ff;
+          border-color: #0369a1;
+        }
+        :global(.btn-seller-share-shop--copied) {
+          background: #111827;
+          color: #ffffff;
+          border-color: #111827;
+        }
+        :global(.btn-seller-share-shop--copied:hover) {
+          background: #1f2937;
+          border-color: #1f2937;
         }
 
         /* Preferences */
