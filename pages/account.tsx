@@ -62,6 +62,7 @@ type SellerStatus = "none" | "pending" | "approved" | "rejected";
 export default function AccountPage() {
   const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
+  const [userName, setUserName] = useState<string>("");
   const [loading, setLoading] = useState(true);
   const [isNewUser, setIsNewUser] = useState(false);
   const [showNewUserBanner, setShowNewUserBanner] = useState(false);
@@ -188,6 +189,40 @@ export default function AccountPage() {
         return;
       }
       setUser(u);
+
+      // Resolve display name: Firebase Auth → Firestore users doc → email prefix
+      const resolveUserName = async (firebaseUser: typeof u) => {
+        // 1. Firebase Auth displayName (set during Google sign-in or updateProfile)
+        if (firebaseUser.displayName?.trim()) {
+          setUserName(firebaseUser.displayName.split(" ")[0].trim());
+          return;
+        }
+        // 2. Firestore users/{uid} — check name / displayName / fullName fields
+        try {
+          if (db) {
+            const { doc: fsDoc, getDoc: fsGetDoc } = await import("firebase/firestore");
+            const userDoc = await fsGetDoc(fsDoc(db, "users", firebaseUser.uid));
+            if (userDoc.exists()) {
+              const d: any = userDoc.data() || {};
+              const stored = d.name || d.displayName || d.fullName || d.firstName || "";
+              if (stored.trim()) {
+                setUserName(stored.trim().split(" ")[0]);
+                return;
+              }
+            }
+          }
+        } catch {}
+        // 3. Derive from email prefix — capitalise first letter, strip numbers/symbols
+        if (firebaseUser.email) {
+          const prefix = firebaseUser.email.split("@")[0].replace(/[^a-zA-Z]/g, "");
+          if (prefix) {
+            setUserName(prefix.charAt(0).toUpperCase() + prefix.slice(1).toLowerCase());
+            return;
+          }
+        }
+        setUserName("there");
+      };
+      resolveUserName(u);
 
       // Detect first-time user: creation and last sign-in within 60s of each other
       // and hasn't been dismissed yet via localStorage
@@ -549,7 +584,7 @@ export default function AccountPage() {
                 &times;
               </button>
               <span className="welcome-text">
-                Welcome, {user.displayName?.split(" ")[0] || "there"}!
+                Welcome, {userName || "there"}!
               </span>
               <p className="welcome-subtitle">
                 Enjoy your MyFamousFinds account
@@ -565,7 +600,7 @@ export default function AccountPage() {
           {user && !loading && !showNewUserBanner && (
             <div className="welcome-banner">
               <span className="welcome-text">
-                Welcome back, {user.displayName?.split(" ")[0] || "there"}
+                Welcome back, {userName || "there"}
               </span>
             </div>
           )}
@@ -576,7 +611,7 @@ export default function AccountPage() {
               <h1>My Account</h1>
               {user && (
                 <p className="account-email">
-                  {user.displayName ? `${user.displayName} — ` : ""}
+                  {userName && userName !== "there" ? `${userName} — ` : ""}
                   {user.email}
                 </p>
               )}
