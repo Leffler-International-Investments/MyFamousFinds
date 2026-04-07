@@ -122,10 +122,15 @@ export default function SellerTraining() {
   const [submitting, setSubmitting] = useState(false);
   const [trainingStatus, setTrainingStatus] = useState<any>(null);
   const [readSections, setReadSections] = useState<Set<number>>(new Set());
+  const [sellerId, setSellerId] = useState("");
 
-  const sellerId = typeof window !== "undefined"
-    ? String(window.localStorage.getItem("ff-seller-id") || window.localStorage.getItem("ff-email") || "").trim()
-    : "";
+  useEffect(() => {
+    const id = String(
+      window.localStorage.getItem("ff-seller-id") ||
+      window.localStorage.getItem("ff-email") || ""
+    ).trim();
+    setSellerId(id);
+  }, []);
 
   useEffect(() => {
     if (!sellerId) return;
