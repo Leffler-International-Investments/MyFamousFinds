@@ -13,6 +13,8 @@ type Item = {
   details: string;
   allowOffers?: boolean;
   rejectionReason?: string;
+  imageUrl?: string;
+  brand?: string;
 };
 type ListingsResponse = { ok: true; items: Item[] } | { ok: false; error: string };
 
@@ -49,6 +51,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
         proof_doc_url: data.proof_doc_url || "",
         details: data.details || "",
         allowOffers: data.allowOffers !== false,
+        imageUrl: data.imageUrl || data.displayImageUrl || (Array.isArray(data.images) && data.images[0]) || (Array.isArray(data.imageUrls) && data.imageUrls[0]) || "",
+        brand: data.brand || "",
         ...(data.rejectionReason ? { rejectionReason: String(data.rejectionReason) } : {}),
       };
     });
