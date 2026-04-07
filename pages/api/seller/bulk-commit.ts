@@ -39,6 +39,12 @@ type IncomingRow = {
   allowOffers?: boolean;
   imageDataUrl?: string | null;
   imageDataUrls?: string[] | null;
+  auth_doc_1_url?: string | null;
+  auth_doc_1_type?: string | null;
+  auth_doc_2_url?: string | null;
+  auth_doc_2_type?: string | null;
+  auth_doc_3_url?: string | null;
+  auth_doc_3_type?: string | null;
 };
 
 type ShipFromAddress = {
@@ -74,6 +80,13 @@ type CleanRow = {
   displayImageUrl?: string | null;
   imageUrls?: string[];
   _rawImageDataUrls?: string[];
+  auth_doc_1_url?: string | null;
+  auth_doc_1_type?: string | null;
+  auth_doc_2_url?: string | null;
+  auth_doc_2_type?: string | null;
+  auth_doc_3_url?: string | null;
+  auth_doc_3_type?: string | null;
+};
 };
 
 type ApiOk = { ok: true; created: number; skipped: number };
@@ -215,6 +228,13 @@ function cleanRow(r: IncomingRow): CleanRow | null {
     status: "Pending",
     image_url: allImageDataUrls[0] || null,
     _rawImageDataUrls: allImageDataUrls,
+    // Authentication documents for high-value categories
+    auth_doc_1_url: (typeof r.auth_doc_1_url === "string" && r.auth_doc_1_url) ? r.auth_doc_1_url : null,
+    auth_doc_1_type: (typeof r.auth_doc_1_type === "string" && r.auth_doc_1_type) ? r.auth_doc_1_type : null,
+    auth_doc_2_url: (typeof r.auth_doc_2_url === "string" && r.auth_doc_2_url) ? r.auth_doc_2_url : null,
+    auth_doc_2_type: (typeof r.auth_doc_2_type === "string" && r.auth_doc_2_type) ? r.auth_doc_2_type : null,
+    auth_doc_3_url: (typeof r.auth_doc_3_url === "string" && r.auth_doc_3_url) ? r.auth_doc_3_url : null,
+    auth_doc_3_type: (typeof r.auth_doc_3_type === "string" && r.auth_doc_3_type) ? r.auth_doc_3_type : null,
   };
 }
 
@@ -362,6 +382,34 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
           } catch (compressErr) {
             console.warn("Proof document compression also failed:", compressErr);
             cleaned.proof_doc_url = null;
+          }
+        }
+      }
+
+      // Upload authentication documents to Cloud Storage (same pattern as proof_doc)
+      for (const slot of [1, 2, 3] as const) {
+        const urlKey = `auth_doc_${slot}_url` as keyof typeof cleaned;
+        const docUrl = cleaned[urlKey] as string | null | undefined;
+        if (docUrl && typeof docUrl === "string" && docUrl.startsWith("data:")) {
+          try {
+            const storedUrl = await storeProofDocument(docUrl);
+            if (storedUrl.startsWith("data:image/")) {
+              const parsed = parseDataUrl(storedUrl);
+              if (parsed && parsed.buffer.length > 200_000) {
+                const compressed = await sharp(parsed.buffer)
+                  .resize(800, 800, { fit: "inside" })
+                  .jpeg({ quality: 60, mozjpeg: true })
+                  .toBuffer();
+                (cleaned as any)[urlKey] = `data:image/jpeg;base64,${compressed.toString("base64")}`;
+              } else {
+                (cleaned as any)[urlKey] = storedUrl;
+              }
+            } else {
+              (cleaned as any)[urlKey] = storedUrl;
+            }
+          } catch (err) {
+            console.warn(`auth_doc_${slot} upload failed, dropping inline:`, err);
+            (cleaned as any)[urlKey] = null;
           }
         }
       }
