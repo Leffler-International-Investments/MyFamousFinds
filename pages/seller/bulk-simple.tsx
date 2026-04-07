@@ -341,10 +341,11 @@ export default function BulkSimple() {
 
         if (!baseOk) return false;
 
-        // High-value categories require at least 2 of 3 authentication docs
+        // High-value categories require at least 2 of 3 authentication docs AND serial
         if (HIGH_VALUE_CATEGORIES.includes(it.category || "")) {
           const authDocsUploaded = [it.authDoc1, it.authDoc2, it.authDoc3].filter(Boolean).length;
           if (authDocsUploaded < 2) return false;
+          if (!it.serial?.trim()) return false;
         }
 
         return true;
@@ -492,6 +493,7 @@ export default function BulkSimple() {
       if (HIGH_VALUE_CATEGORIES.includes(it.category || "")) {
         const authDocsUploaded = [it.authDoc1, it.authDoc2, it.authDoc3].filter(Boolean).length;
         if (authDocsUploaded < 2) return false;
+        if (!it.serial?.trim()) return false;
       }
 
       return true;
@@ -1079,11 +1081,16 @@ export default function BulkSimple() {
               </label>
 
               <label>
-                <span>Serial / Reference</span>
+                <span>
+                  Serial / Reference
+                  {HIGH_VALUE_CATEGORIES.includes(it.category || "") && (
+                    <span className="hv-required-note"> * Required for {it.category}</span>
+                  )}
+                </span>
                 <input
                   value={it.serial || ""}
                   onChange={(e) => update(idx, { serial: e.target.value })}
-                  placeholder="e.g., 12345-ABCD"
+                  placeholder={HIGH_VALUE_CATEGORIES.includes(it.category || "") ? "Serial / Catalogue / Reference no. (required)" : "e.g., 12345-ABCD (optional)"}
                 />
               </label>
 
@@ -1330,7 +1337,7 @@ export default function BulkSimple() {
         </div>
         {totalReady === 0 && items.length > 0 && (
           <p className="create-hint">
-            Each item requires: Designer, Title, Category, Condition, Price, Purchase Source, Purchase Proof, and either a Proof Document or authenticity attestation before you can create. For Bags, Watches, and Jewelry — at least 2 of 3 authentication documents are also required.
+            Each item requires: Designer, Title, Category, Condition, Price, Purchase Source, Purchase Proof, and either a Proof Document or authenticity attestation before you can create. For Bags, Watches, and Jewelry — Serial/Reference number and at least 2 of 3 authentication documents are also required.
           </p>
         )}
       </main>
@@ -1948,6 +1955,17 @@ export default function BulkSimple() {
         .auth-doc-type-select:focus {
           outline: none;
           border-color: #b45309;
+        }
+        .hv-required-note {
+          display: inline;
+          font-size: 11px;
+          font-weight: 600;
+          color: #b45309;
+          margin-left: 6px;
+          background: #fffbeb;
+          border: 1px solid #fde68a;
+          border-radius: 4px;
+          padding: 1px 6px;
         }
       `}</style>
     </div>
