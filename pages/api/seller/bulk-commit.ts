@@ -448,6 +448,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
           docData.displayImageUrl = null;
           docData.imageUrls = [];
         }
+        // Strip auth doc inline data URLs
+        for (const slot of [1, 2, 3]) {
+          const key = `auth_doc_${slot}_url`;
+          if (docData[key] && docData[key].startsWith("data:")) {
+            docData[key] = null;
+          }
+        }
       }
 
       batch.set(ref, docData);
