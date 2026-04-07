@@ -145,7 +145,6 @@ export default function Footer() {
       links: [
         { label: "Add Item", href: "/seller/bulk-simple" },
         { label: "How to Sell", href: "/selling" },
-
         { label: "Seller T&Cs", href: "/seller-terms" },
       ],
     },
