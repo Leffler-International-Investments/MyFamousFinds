@@ -6,11 +6,12 @@ import Header from "../../components/Header";
 import Footer from "../../components/Footer";
 import { adminDb } from "../../utils/firebaseAdmin";
 import { useRequireAdmin } from "../../hooks/useRequireAdmin";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 type Listing = {
   id: string;
   title: string;
+  brand: string;
   seller: string;
   category: string;
   price: number;
@@ -22,6 +23,10 @@ type Listing = {
   serial_number?: string;
   auth_photos?: string[];
   submittedAt?: string;
+  sellerImageUrl?: string;   // first uploaded image by seller
+  aiImageUrl?: string;       // AI-found original designer product image
+  aiImageLoading?: boolean;
+  aiImageError?: string;
 };
 
 type Props = { items: Listing[] };
@@ -31,6 +36,49 @@ function ManagementListingQueue({ items: initialItems }: Props) {
   const [items, setItems] = useState(initialItems);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  // Fetch AI images for pending items on mount
+  useEffect(() => {
+    initialItems.forEach((item) => {
+      if (item.status === "Pending" && item.title) {
+        fetchAiImage(item.id, item.title, item.brand || item.seller);
+      }
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const fetchAiImage = async (id: string, title: string, brand: string) => {
+    setItems((prev) =>
+      prev.map((x) => (x.id === id ? { ...x, aiImageLoading: true } : x))
+    );
+    try {
+      const res = await fetch("/api/admin/ai-find-image", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ listingId: id, title, brand }),
+      });
+      const json = await res.json();
+      if (res.ok && json.imageUrl) {
+        setItems((prev) =>
+          prev.map((x) =>
+            x.id === id ? { ...x, aiImageUrl: json.imageUrl, aiImageLoading: false } : x
+          )
+        );
+      } else {
+        setItems((prev) =>
+          prev.map((x) =>
+            x.id === id ? { ...x, aiImageLoading: false, aiImageError: "Not found" } : x
+          )
+        );
+      }
+    } catch {
+      setItems((prev) =>
+        prev.map((x) =>
+          x.id === id ? { ...x, aiImageLoading: false, aiImageError: "Error" } : x
+        )
+      );
+    }
+  };
 
   // Rejection reason modal state
   const [rejectModal, setRejectModal] = useState<string | null>(null); // listing id
@@ -149,6 +197,7 @@ function ManagementListingQueue({ items: initialItems }: Props) {
             <table className="data-table">
               <thead>
                 <tr>
+                  <th>Images</th>
                   <th>Listing</th>
                   <th>Seller</th>
                   <th>Price</th>
@@ -167,6 +216,45 @@ function ManagementListingQueue({ items: initialItems }: Props) {
                 {hasAny ? (
                   items.map((item) => (
                     <tr key={item.id}>
+                      <td style={{ minWidth: 220 }}>
+                        <div style={{ display: "flex", gap: 8, alignItems: "flex-start" }}>
+                          {/* Seller image */}
+                          <div style={{ textAlign: "center" }}>
+                            <div style={{ fontSize: 10, color: "#6b7280", marginBottom: 3, fontWeight: 600, textTransform: "uppercase" }}>Seller</div>
+                            {item.sellerImageUrl ? (
+                              <a href={item.sellerImageUrl} target="_blank" rel="noopener noreferrer">
+                                <img
+                                  src={item.sellerImageUrl}
+                                  alt="Seller"
+                                  style={{ width: 80, height: 80, objectFit: "cover", borderRadius: 6, border: "1px solid #e5e7eb", display: "block" }}
+                                />
+                              </a>
+                            ) : (
+                              <div style={{ width: 80, height: 80, borderRadius: 6, border: "1px dashed #d1d5db", background: "#f9fafb", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, color: "#9ca3af" }}>No image</div>
+                            )}
+                          </div>
+                          {/* AI-found original designer image */}
+                          <div style={{ textAlign: "center" }}>
+                            <div style={{ fontSize: 10, color: "#6b7280", marginBottom: 3, fontWeight: 600, textTransform: "uppercase" }}>AI / Original</div>
+                            {item.aiImageLoading ? (
+                              <div style={{ width: 80, height: 80, borderRadius: 6, border: "1px dashed #d1d5db", background: "#f0f9ff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, color: "#3b82f6" }}>Finding…</div>
+                            ) : item.aiImageUrl ? (
+                              <a href={item.aiImageUrl} target="_blank" rel="noopener noreferrer">
+                                <img
+                                  src={item.aiImageUrl}
+                                  alt="AI original"
+                                  style={{ width: 80, height: 80, objectFit: "cover", borderRadius: 6, border: "1px solid #bfdbfe", display: "block" }}
+                                  onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+                                />
+                              </a>
+                            ) : (
+                              <div style={{ width: 80, height: 80, borderRadius: 6, border: "1px dashed #d1d5db", background: "#f9fafb", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, color: "#9ca3af", textAlign: "center", padding: "4px" }}>
+                                {item.aiImageError || "—"}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </td>
                       <td>{item.title}</td>
                       <td>{item.seller}</td>
                       <td>
@@ -271,7 +359,7 @@ function ManagementListingQueue({ items: initialItems }: Props) {
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={12} className="table-message">
+                    <td colSpan={13} className="table-message">
                       No pending listings – go enjoy a coffee
                     </td>
                   </tr>
@@ -599,6 +687,7 @@ export const getServerSideProps: GetServerSideProps<Props> = async () => {
       return {
         id: doc.id,
         title: d.title || "Untitled listing",
+        brand: d.brand || d.sellerName || "",
         seller: d.sellerName || d.sellerDisplayName || d.sellerId || "Seller",
         category: d.category || "",
         price: Number(d.price || 0),
@@ -611,6 +700,9 @@ export const getServerSideProps: GetServerSideProps<Props> = async () => {
         auth_photos: d.auth_photos || [],
         submittedAt:
           d.createdAt?.toDate?.().toLocaleString("en-US") || "",
+        sellerImageUrl: (Array.isArray(d.images) && d.images[0])
+          ? String(d.images[0])
+          : (d.imageUrl ? String(d.imageUrl) : ""),
       };
     });
 
