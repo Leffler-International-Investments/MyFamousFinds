@@ -37,16 +37,6 @@ function ManagementListingQueue({ items: initialItems }: Props) {
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  // Fetch AI images for pending items on mount
-  useEffect(() => {
-    initialItems.forEach((item) => {
-      if (item.status === "Pending" && item.title) {
-        fetchAiImage(item.id, item.title, item.brand || item.seller);
-      }
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
   const fetchAiImage = async (id: string, title: string, brand: string) => {
     setItems((prev) =>
       prev.map((x) => (x.id === id ? { ...x, aiImageLoading: true } : x))
@@ -79,6 +69,16 @@ function ManagementListingQueue({ items: initialItems }: Props) {
       );
     }
   };
+
+  // Fetch AI images for pending items on mount
+  useEffect(() => {
+    initialItems.forEach((item) => {
+      if (item.status === "Pending" && item.title) {
+        fetchAiImage(item.id, item.title, item.brand || item.seller);
+      }
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Rejection reason modal state
   const [rejectModal, setRejectModal] = useState<string | null>(null); // listing id
