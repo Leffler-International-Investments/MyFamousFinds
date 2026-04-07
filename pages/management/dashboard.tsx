@@ -236,6 +236,13 @@ export default function ManagementDashboard({ stats }: Props) {
           subtitle="Keep track of who is selling on Famous Finds and adjust their permissions."
         >
           <DashboardTile
+            title="Seller Training & Certification"
+            description="Send the training module and quiz to sellers. Award the Certified FF Seller badge to those who pass."
+            href="/management/seller-training"
+            linkText="Manage Certifications"
+            linkColor="gold"
+          />
+          <DashboardTile
             title="Seller Directory"
             description="View and manage all active sellers, including their total listings and activity."
             href="/management/sellers"
