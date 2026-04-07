@@ -51,15 +51,6 @@ export default function ManagementDeveloper() {
               />
             </div>
 
-            <div className="form-field">
-              <label htmlFor="webhook-secret">Webhook Secret</label>
-              <input
-                id="webhook-secret"
-                type="password"
-                placeholder="whsec_..."
-              />
-            </div>
-
             <div className="form-check">
               <input id="sandbox-webhooks" type="checkbox" />
               <label htmlFor="sandbox-webhooks">
