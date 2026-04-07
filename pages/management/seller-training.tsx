@@ -36,7 +36,7 @@ export default function SellerTrainingPage() {
   const [search, setSearch] = useState("");
 
   useEffect(() => {
-    fetch("/api/management/sellers-list")
+    fetch("/api/management/sellers-list", { credentials: "include" })
       .then((r) => r.json())
       .then((data) => {
         if (data?.sellers) {
@@ -44,7 +44,7 @@ export default function SellerTrainingPage() {
           // Fetch training status for each seller
           Promise.all(
             data.sellers.map((s: SellerRow) =>
-              fetch(`/api/management/seller-training?sellerId=${encodeURIComponent(s.id)}`)
+              fetch(`/api/management/seller-training?sellerId=${encodeURIComponent(s.id)}`, { credentials: "include" })
                 .then((r) => r.json())
                 .then((t) => ({ id: s.id, data: t }))
                 .catch(() => ({ id: s.id, data: {} }))
@@ -67,6 +67,7 @@ export default function SellerTrainingPage() {
       const seller = sellers.find((s) => s.id === sellerId);
       const res = await fetch("/api/management/seller-training", {
         method: "POST",
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           action,
@@ -79,7 +80,7 @@ export default function SellerTrainingPage() {
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || "Failed");
       // Refresh training record
-      const updated = await fetch(`/api/management/seller-training?sellerId=${encodeURIComponent(sellerId)}`).then((r) => r.json());
+      const updated = await fetch(`/api/management/seller-training?sellerId=${encodeURIComponent(sellerId)}`, { credentials: "include" }).then((r) => r.json());
       setTraining((prev) => ({ ...prev, [sellerId]: updated }));
       setMessage(action === "send" ? "Training invite sent!" : action === "certify" ? "Seller certified!" : "Certification revoked.");
     } catch (err: any) {
