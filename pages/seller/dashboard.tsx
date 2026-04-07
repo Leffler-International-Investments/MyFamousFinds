@@ -155,6 +155,12 @@ export default function SellerDashboard() {
 
           <DashboardSection title="Finance & Account">
             <DashboardLink
+              href="/seller/training"
+              title="Seller Certification"
+              description="Complete the Famous Finds training and quiz to earn your Certified FF Seller badge."
+              accentColor="green"
+            />
+            <DashboardLink
               href="/seller/banking"
               title="Banking & Payouts"
               description="Set your PayPal email and control payout schedule."
