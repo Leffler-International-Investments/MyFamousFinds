@@ -94,18 +94,51 @@ export default function ProductCard({ isSaved, onToggleWishlist, ...p }: Props) 
 
         .thumb {
           position: relative;
-          aspect-ratio: 3 / 4;
+          /* aspect-ratio fallback for iOS < 15 (pre-Sept 2021) */
+          padding-top: 133.33%; /* 4:3 portrait = 100% * (4/3) */
           background: #f5f0e8;
           overflow: hidden;
+          /* Prevent iOS GPU compositing from wiping the background */
+          -webkit-transform: translateZ(0);
+          transform: translateZ(0);
+          /* Force background to repaint correctly on iOS */
+          -webkit-backface-visibility: hidden;
+          backface-visibility: hidden;
+        }
+        /* Override padding-top with aspect-ratio on supporting browsers */
+        @supports (aspect-ratio: 3 / 4) {
+          .thumb {
+            aspect-ratio: 3 / 4;
+            padding-top: 0;
+          }
         }
         .thumb img {
+          /* For padding-top fallback: absolutely positioned */
+          position: absolute;
+          top: 0;
+          left: 0;
           width: 100%;
           height: 100%;
+          -webkit-object-fit: contain;
           object-fit: contain;
           display: block;
-          transition: opacity 0.2s;
+          /* Avoid GPU layer promotion that causes white flash on iOS */
+          transition: opacity 0.2s ease;
+          /* Ensure background colour shows through transparent images */
+          background: #f5f0e8;
+        }
+        /* When aspect-ratio is supported, img can be static */
+        @supports (aspect-ratio: 3 / 4) {
+          .thumb img {
+            position: static;
+            width: 100%;
+            height: 100%;
+          }
         }
         .no-image {
+          position: absolute;
+          top: 0;
+          left: 0;
           width: 100%;
           height: 100%;
           display: flex;
@@ -128,12 +161,15 @@ export default function ProductCard({ isSaved, onToggleWishlist, ...p }: Props) 
           align-items: center;
           justify-content: center;
           cursor: pointer;
-          z-index: 2;
+          /* Use z-index carefully — keep it low to avoid new stacking context on iOS */
+          z-index: 1;
           padding: 0;
-          transition: transform 0.15s;
+          /* No transform transition — avoids GPU layer promotion on iOS */
+          transition: background 0.15s;
+          -webkit-tap-highlight-color: transparent;
         }
         .heart:hover {
-          transform: scale(1.1);
+          background: rgba(255, 255, 255, 0.98);
         }
         .heart--active {
           background: #fff;
