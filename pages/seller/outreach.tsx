@@ -55,8 +55,15 @@ export default function SellerOutreach() {
     error?: string;
   } | null>(null);
 
-  const [copiedId, setCopiedId] = useState<string | null>(null);
-  const [tab, setTab] = useState<"email" | "links">("email");
+  const [testMode, setTestMode] = useState(false);
+
+  const TEST_ITEM = {
+    id: "test-item",
+    title: "Sample Chanel Classic Flap Bag",
+    price: 4500,
+    brand: "Chanel",
+    imageUrl: "https://www.myfamousfinds.com/FF-Logo.png",
+  };
 
   /* ─── Load listings ─── */
   useEffect(() => {
@@ -140,7 +147,8 @@ export default function SellerOutreach() {
       setSendResult({ ok: false, error: "Add at least one contact." });
       return;
     }
-    if (!selectedListings.length) {
+    const itemsToSend = testMode ? [TEST_ITEM] : selectedListings;
+    if (!itemsToSend.length) {
       setSendResult({ ok: false, error: "Select at least one listing to share." });
       return;
     }
@@ -151,10 +159,10 @@ export default function SellerOutreach() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           contacts: contacts.map((c) => c.email),
-          subject,
-          message,
+          subject: testMode ? `[TEST] ${subject || "Famous Finds test email"}` : subject,
+          message: testMode ? `[This is a test email to verify template styling]\n\n${message}` : message,
           sellerName,
-          items: selectedListings.map((l) => ({
+          items: itemsToSend.map((l) => ({
             id: l.id,
             title: l.title,
             price: l.price,
@@ -245,11 +253,32 @@ export default function SellerOutreach() {
           <section className="card">
             <h2 className="card-title">
               Select items to share
-              {selectedIds.size > 0 && (
+              {selectedIds.size > 0 && !testMode && (
                 <span className="selected-badge">{selectedIds.size} selected</span>
               )}
+              {testMode && (
+                <span className="selected-badge" style={{ background: "#b45309" }}>TEST MODE</span>
+              )}
             </h2>
-            {loadingListings ? (
+
+            {/* Test email toggle */}
+            <div className="test-mode-row">
+              <label className="test-mode-label">
+                <input
+                  type="checkbox"
+                  checked={testMode}
+                  onChange={(e) => setTestMode(e.target.checked)}
+                  style={{ marginRight: 8 }}
+                />
+                Send test email (uses a sample item — no real listings required)
+              </label>
+              {testMode && (
+                <p className="test-mode-hint">
+                  A sample item card will be included so you can verify the email template, logo, and styling.
+                </p>
+              )}
+            </div>
+            {!testMode && (loadingListings ? (
               <p className="hint-text">Loading your listings…</p>
             ) : listings.length === 0 ? (
               <p className="hint-text">
@@ -291,7 +320,7 @@ export default function SellerOutreach() {
                   );
                 })}
               </div>
-            )}
+            ))}
           </section>
 
           {/* ─── EMAIL TAB ─── */}
@@ -390,7 +419,7 @@ export default function SellerOutreach() {
                 <button
                   className="btn-send"
                   onClick={sendEmail}
-                  disabled={sending || !contacts.length || !selectedListings.length}
+                  disabled={sending || !contacts.length || (!testMode && !selectedListings.length)}
                 >
                   {sending
                     ? "Sending…"
@@ -889,6 +918,29 @@ export default function SellerOutreach() {
           transition: opacity 0.15s;
         }
         .btn-copy-wa:hover { opacity: 0.85; }
+
+        /* Test mode */
+        .test-mode-row {
+          margin-bottom: 14px;
+          padding: 10px 14px;
+          background: #fffbeb;
+          border: 1px solid #fde68a;
+          border-radius: 8px;
+        }
+        .test-mode-label {
+          display: flex;
+          align-items: center;
+          font-size: 13px;
+          font-weight: 600;
+          color: #92400e;
+          cursor: pointer;
+        }
+        .test-mode-hint {
+          margin: 6px 0 0 24px;
+          font-size: 12px;
+          color: #b45309;
+          line-height: 1.5;
+        }
       `}</style>
     </>
   );
