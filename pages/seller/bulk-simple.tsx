@@ -37,6 +37,16 @@ type Item = {
   proofDoc?: File;
   proofDocDataUrl?: string;
   noProofAttest?: boolean;
+  // Authentication documents for high-value categories (Bags, Watches, Jewelry)
+  authDoc1?: File;
+  authDoc1DataUrl?: string;
+  authDoc1Type?: string;
+  authDoc2?: File;
+  authDoc2DataUrl?: string;
+  authDoc2Type?: string;
+  authDoc3?: File;
+  authDoc3DataUrl?: string;
+  authDoc3Type?: string;
   allowOffers?: boolean;
   images?: File[];
   imageDataUrl?: string;
@@ -117,6 +127,18 @@ const SOURCES = [
 
 const PROOFS = ["Receipt", "Bank statement", "Certificate", "Other"];
 
+/** Categories requiring 2-of-3 authentication documents */
+const HIGH_VALUE_CATEGORIES = ["Bags", "Watches", "Jewelry"];
+
+const AUTH_DOC_TYPES = [
+  "Original Receipt / Invoice",
+  "Certificate of Authenticity",
+  "Insurance / Appraisal Document",
+  "Entrupy / Authentication Service Report",
+  "Brand Warranty Card",
+  "Other",
+];
+
 /** Crop a circular swatch from a data-URL image at the given (x,y) centre. */
 const SWATCH_SIZE = 80;
 function cropSwatch(
@@ -184,6 +206,9 @@ export default function BulkSimple() {
 
   const fileInputsRef = useRef<(HTMLInputElement | null)[]>([]);
   const proofInputsRef = useRef<(HTMLInputElement | null)[]>([]);
+  const authDoc1Refs = useRef<(HTMLInputElement | null)[]>([]);
+  const authDoc2Refs = useRef<(HTMLInputElement | null)[]>([]);
+  const authDoc3Refs = useRef<(HTMLInputElement | null)[]>([]);
 
   useEffect(() => {
     let cancelled = false;
@@ -252,13 +277,17 @@ export default function BulkSimple() {
 
         const prefs = json.prefs || {};
 
-        // Gate: require bank details before allowing listings
-        const bankName = String(prefs.bankName || "").trim();
-        const bankRouting = String(prefs.bankRoutingNumber || "").trim();
-        const bankAccount = String(prefs.bankAccountNumber || "").trim();
-        if (!bankName || !bankRouting || !bankAccount) {
-          if (!cancelled) setBankInfoMissing(true);
-          return;
+        // Developer bypass — owner account skips banking gate
+        const DEVELOPER_EMAILS = ["leffleryd@gmail.com"];
+        if (!DEVELOPER_EMAILS.includes(sellerEmail)) {
+          // Gate: require bank details before allowing listings
+          const bankName = String(prefs.bankName || "").trim();
+          const bankRouting = String(prefs.bankRoutingNumber || "").trim();
+          const bankAccount = String(prefs.bankAccountNumber || "").trim();
+          if (!bankName || !bankRouting || !bankAccount) {
+            if (!cancelled) setBankInfoMissing(true);
+            return;
+          }
         }
 
         const prefilled = {
@@ -299,7 +328,8 @@ export default function BulkSimple() {
         const hasDesigner =
           (it.designerId && it.designerId !== "__other__") ||
           (it.otherDesignerName && it.otherDesignerName.trim().length > 0);
-        return (
+
+        const baseOk =
           hasDesigner &&
           it.title &&
           it.category &&
@@ -307,8 +337,17 @@ export default function BulkSimple() {
           it.priceUSD &&
           it.purchaseSource &&
           it.purchaseProof &&
-          (it.proofDoc || it.noProofAttest)
-        );
+          (it.proofDoc || it.noProofAttest);
+
+        if (!baseOk) return false;
+
+        // High-value categories require at least 2 of 3 authentication docs
+        if (HIGH_VALUE_CATEGORIES.includes(it.category || "")) {
+          const authDocsUploaded = [it.authDoc1, it.authDoc2, it.authDoc3].filter(Boolean).length;
+          if (authDocsUploaded < 2) return false;
+        }
+
+        return true;
       }).length,
     [items]
   );
@@ -412,6 +451,23 @@ export default function BulkSimple() {
     handleFilesChange(idx, e.dataTransfer.files);
   };
 
+  const handleAuthDocFile = async (
+    idx: number,
+    slot: 1 | 2 | 3,
+    fileList: FileList | null
+  ) => {
+    const file = fileList?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUrl = String(reader.result || "");
+      if (slot === 1) update(idx, { authDoc1: file, authDoc1DataUrl: dataUrl });
+      if (slot === 2) update(idx, { authDoc2: file, authDoc2DataUrl: dataUrl });
+      if (slot === 3) update(idx, { authDoc3: file, authDoc3DataUrl: dataUrl });
+    };
+    reader.readAsDataURL(file);
+  };
+
   const onCreate = async () => {
     setSubmitError(null);
     setSubmitMessage(null);
@@ -420,7 +476,8 @@ export default function BulkSimple() {
       const hasDesigner =
         (it.designerId && it.designerId !== "__other__") ||
         (it.otherDesignerName && it.otherDesignerName.trim().length > 0);
-      return (
+
+      const baseOk =
         hasDesigner &&
         it.title &&
         it.category &&
@@ -428,8 +485,16 @@ export default function BulkSimple() {
         it.priceUSD &&
         it.purchaseSource &&
         it.purchaseProof &&
-        (it.proofDoc || it.noProofAttest)
-      );
+        (it.proofDoc || it.noProofAttest);
+
+      if (!baseOk) return false;
+
+      if (HIGH_VALUE_CATEGORIES.includes(it.category || "")) {
+        const authDocsUploaded = [it.authDoc1, it.authDoc2, it.authDoc3].filter(Boolean).length;
+        if (authDocsUploaded < 2) return false;
+      }
+
+      return true;
     });
 
     if (!readyItems.length) {
@@ -477,6 +542,12 @@ export default function BulkSimple() {
           imageDataUrls: it.imageDataUrls && it.imageDataUrls.length > 0
             ? it.imageDataUrls
             : null,
+          auth_doc_1_url: it.authDoc1DataUrl || null,
+          auth_doc_1_type: it.authDoc1Type || null,
+          auth_doc_2_url: it.authDoc2DataUrl || null,
+          auth_doc_2_type: it.authDoc2Type || null,
+          auth_doc_3_url: it.authDoc3DataUrl || null,
+          auth_doc_3_type: it.authDoc3Type || null,
         };
       })
       .filter(Boolean) as {
@@ -1118,6 +1189,82 @@ export default function BulkSimple() {
                 </label>
               </div>
 
+              {/* Authentication Documents — required 2-of-3 for Bags, Watches, Jewelry */}
+              {HIGH_VALUE_CATEGORIES.includes(it.category || "") && (
+                <div className="full auth-docs-section">
+                  <div className="auth-docs-header">
+                    <span className="field-label">
+                      Authentication Documents <span className="required-star">*</span>
+                    </span>
+                    <p className="proof-hint">
+                      <strong>{it.category}</strong> listings require at least <strong>2 of the 3</strong> authentication documents below. Upload receipts, certificates, appraisals, or service reports.
+                    </p>
+                    <div className="auth-docs-counter">
+                      {[it.authDoc1, it.authDoc2, it.authDoc3].filter(Boolean).length} / 3 uploaded
+                      {[it.authDoc1, it.authDoc2, it.authDoc3].filter(Boolean).length < 2 && (
+                        <span className="auth-docs-warn"> — need at least 2</span>
+                      )}
+                      {[it.authDoc1, it.authDoc2, it.authDoc3].filter(Boolean).length >= 2 && (
+                        <span className="auth-docs-ok"> ✓ Requirement met</span>
+                      )}
+                    </div>
+                  </div>
+
+                  {([1, 2, 3] as const).map((slot) => {
+                    const doc = slot === 1 ? it.authDoc1 : slot === 2 ? it.authDoc2 : it.authDoc3;
+                    const docType = slot === 1 ? it.authDoc1Type : slot === 2 ? it.authDoc2Type : it.authDoc3Type;
+                    const refs = slot === 1 ? authDoc1Refs : slot === 2 ? authDoc2Refs : authDoc3Refs;
+                    const clearDoc = () => {
+                      if (slot === 1) { update(idx, { authDoc1: undefined, authDoc1DataUrl: undefined, authDoc1Type: undefined }); if (authDoc1Refs.current[idx]) authDoc1Refs.current[idx]!.value = ""; }
+                      if (slot === 2) { update(idx, { authDoc2: undefined, authDoc2DataUrl: undefined, authDoc2Type: undefined }); if (authDoc2Refs.current[idx]) authDoc2Refs.current[idx]!.value = ""; }
+                      if (slot === 3) { update(idx, { authDoc3: undefined, authDoc3DataUrl: undefined, authDoc3Type: undefined }); if (authDoc3Refs.current[idx]) authDoc3Refs.current[idx]!.value = ""; }
+                    };
+                    const setDocType = (v: string) => {
+                      if (slot === 1) update(idx, { authDoc1Type: v });
+                      if (slot === 2) update(idx, { authDoc2Type: v });
+                      if (slot === 3) update(idx, { authDoc3Type: v });
+                    };
+                    return (
+                      <div key={slot} className="auth-doc-slot">
+                        <span className="auth-doc-slot-label">Document {slot}{slot <= 2 ? <span className="required-star"> *</span> : <span className="optional-label"> (optional)</span>}</span>
+                        <div className="auth-doc-row">
+                          <select
+                            className="auth-doc-type-select"
+                            value={docType || ""}
+                            onChange={(e) => setDocType(e.target.value)}
+                          >
+                            <option value="">— Document type —</option>
+                            {AUTH_DOC_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
+                          </select>
+                          {doc ? (
+                            <div className="proof-file-row">
+                              <span className="proof-file-name">{doc.name}</span>
+                              <button type="button" className="proof-remove-btn" onClick={clearDoc}>&times;</button>
+                            </div>
+                          ) : (
+                            <button
+                              type="button"
+                              className="proof-upload-btn"
+                              onClick={() => { const el = refs.current[idx]; if (el) el.click(); }}
+                            >
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                              Choose file…
+                            </button>
+                          )}
+                          <input
+                            ref={(el) => { refs.current[idx] = el; }}
+                            type="file"
+                            accept="image/*,.pdf,.doc,.docx"
+                            style={{ display: "none" }}
+                            onChange={(e) => handleAuthDocFile(idx, slot, e.target.files)}
+                          />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
               {/* Images box — uses div (not label) to prevent double-trigger of file input */}
               <div className="full">
                 <span className="field-label">Images (drag & drop or select — up to 8)</span>
@@ -1183,7 +1330,7 @@ export default function BulkSimple() {
         </div>
         {totalReady === 0 && items.length > 0 && (
           <p className="create-hint">
-            Each item requires: Designer, Title, Category, Condition, Price, Purchase Source, Purchase Proof, and either a Proof Document or authenticity attestation before you can create.
+            Each item requires: Designer, Title, Category, Condition, Price, Purchase Source, Purchase Proof, and either a Proof Document or authenticity attestation before you can create. For Bags, Watches, and Jewelry — at least 2 of 3 authentication documents are also required.
           </p>
         )}
       </main>
@@ -1739,6 +1886,68 @@ export default function BulkSimple() {
         }
         .back-link a:hover {
           color: #111827;
+        }
+
+        /* Auth docs section */
+        .auth-docs-section {
+          background: #fffbeb;
+          border: 1px solid #fde68a;
+          border-radius: 10px;
+          padding: 16px 18px;
+          margin-top: 4px;
+        }
+        .auth-docs-header {
+          margin-bottom: 14px;
+        }
+        .auth-docs-counter {
+          margin-top: 6px;
+          font-size: 13px;
+          font-weight: 600;
+          color: #374151;
+        }
+        .auth-docs-warn {
+          color: #b45309;
+        }
+        .auth-docs-ok {
+          color: #16a34a;
+        }
+        .auth-doc-slot {
+          margin-bottom: 12px;
+        }
+        .auth-doc-slot-label {
+          display: block;
+          font-size: 12px;
+          font-weight: 600;
+          color: #374151;
+          margin-bottom: 6px;
+          text-transform: uppercase;
+          letter-spacing: 0.04em;
+        }
+        .optional-label {
+          text-transform: none;
+          font-weight: 400;
+          color: #9ca3af;
+          letter-spacing: 0;
+        }
+        .auth-doc-row {
+          display: flex;
+          gap: 8px;
+          align-items: center;
+          flex-wrap: wrap;
+        }
+        .auth-doc-type-select {
+          flex: 1;
+          min-width: 180px;
+          padding: 8px 10px;
+          font-size: 13px;
+          border: 1px solid #d1d5db;
+          border-radius: 8px;
+          background: #fff;
+          color: #111827;
+        }
+        .auth-doc-type-select:focus {
+          outline: none;
+          border-color: #b45309;
         }
       `}</style>
     </div>
