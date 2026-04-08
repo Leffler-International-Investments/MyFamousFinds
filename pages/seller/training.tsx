@@ -226,36 +226,20 @@ export default function SellerTraining() {
     failedQuestions.length > 0 &&
     failedQuestions.every((q) => !!understoodQuestions[q.id]);
 
-  // Auto-certify the moment all "I understand" boxes are ticked
+  // When all checkboxes ticked → show certificate immediately, certify in background
   useEffect(() => {
-    if (!allUnderstood || submitting || certifyCalledRef.current || !sellerId) return;
+    if (!allUnderstood || certifyCalledRef.current || !sellerId) return;
     certifyCalledRef.current = true;
-    setSubmitting(true);
-    // Build answers object using the correct answers for all failed questions
-    const correctAnswers: Record<string, string> = {};
-    failedQuestions.forEach((q) => {
-      if (failedResults) correctAnswers[q.id] = failedResults[q.id].expected;
-    });
+    // Show certificate right away — don't wait for API
+    setResult({ score: QUIZ_QUESTIONS.length, total: QUIZ_QUESTIONS.length, passed: true });
+    setStep("result");
+    // Certify in background — fire and forget
     fetch("/api/management/seller-training", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "complete-review", sellerId, answers: correctAnswers }),
-    })
-      .then((r) => r.json())
-      .then((json) => {
-        if (json.ok && json.passed) {
-          setResult({ score: json.score || json.total, total: json.total, passed: true });
-          setStep("result");
-        } else {
-          certifyCalledRef.current = false;
-          setUnderstoodQuestions({});
-        }
-      })
-      .catch(() => {
-        certifyCalledRef.current = false;
-      })
-      .finally(() => setSubmitting(false));
-  }, [allUnderstood]);
+      body: JSON.stringify({ action: "complete-review", sellerId }),
+    }).catch(() => {});
+  }, [allUnderstood, sellerId]);
 
   const toggleUnderstood = (qId: string) => {
     setUnderstoodQuestions((prev) => ({ ...prev, [qId]: !prev[qId] }));
