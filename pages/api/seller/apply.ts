@@ -20,10 +20,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
 
   try {
     if (!isFirebaseAdminReady || !adminDb) {
+      console.error("Firebase Admin is not configured. Missing FIREBASE_SERVICE_ACCOUNT_JSON (or split FB_* env vars).");
       return res.status(500).json({
         ok: false,
         error:
-          "Firebase Admin is not configured. Missing FIREBASE_SERVICE_ACCOUNT_JSON (or split FB_* env vars).",
+          "Our server is temporarily unable to process applications. Please try again later or contact support.",
       });
     }
 
