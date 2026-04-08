@@ -56,78 +56,34 @@ body.capacitor-app {
   bottom: calc(16px + var(--safe-area-bottom));
 }
  
-/* ── iOS image background fix ──────────────────────────────────────────
-   iOS Safari GPU compositor paints a white backing layer on images.
-   Fix: force eggshell on every possible element/pseudo, disable GPU
-   layer promotion, and add an ::after overlay as a final safety net.
+/* ── iOS eggshell background fix ───────────────────────────────────────
+   iOS Safari creates a white GPU backing layer when it promotes
+   elements for transitions/transforms. Fix: disable the opacity
+   transition that triggers promotion, and force eggshell everywhere.
 ──────────────────────────────────────────────────────────────────────── */
 @supports (-webkit-touch-callout: none) {
-  :root {
-    --ff-eggshell: #ede8e0;
-  }
-
-  /* Keep page + cards on one exact eggshell token on iOS */
-  html,
-  body,
-  .home-wrapper,
-  .catalogue-page,
-  .designers-page,
-  .page {
-    background-color: var(--ff-eggshell) !important;
-  }
-
-  /* Card container */
   .card,
   .card-link {
-    background-color: var(--ff-eggshell) !important;
+    background-color: #ede8e0 !important;
   }
 
-  /* Thumbnail wrapper — no GPU promotion */
   .thumb {
-    background-color: var(--ff-eggshell) !important;
-    -webkit-transform: none !important;
-    transform: none !important;
-    -webkit-backface-visibility: visible !important;
-    backface-visibility: visible !important;
-    will-change: auto !important;
-    isolation: isolate;
-    mix-blend-mode: normal !important;
+    background-color: #ede8e0 !important;
   }
 
-  /* Image — force eggshell, block GPU layer creation */
+  /* Remove the opacity transition — this is what causes iOS to create
+     a separate GPU compositing layer with a white backing */
   .thumb img {
-    background-color: var(--ff-eggshell) !important;
-    -webkit-transform: none !important;
-    transform: none !important;
-    will-change: auto !important;
-    image-rendering: auto !important;
-    mix-blend-mode: normal !important;
-    opacity: 1 !important;
+    background-color: #ede8e0 !important;
+    transition: none !important;
   }
 
-  /* Safety net: eggshell overlay behind the image via ::before */
-  .thumb::before {
-    content: "";
-    position: absolute;
-    inset: 0;
-    z-index: 0;
-    background: var(--ff-eggshell);
-  }
-  .thumb img {
-    position: relative;
-    z-index: 1;
-  }
-  .thumb .heart {
-    z-index: 2;
-  }
-
-  /* Product grid containers */
   .grid-prods .prod,
   .prod {
-    background-color: var(--ff-eggshell) !important;
+    background-color: #ede8e0 !important;
   }
   .grid-prods .img {
-    background-color: var(--ff-eggshell) !important;
+    background-color: #ede8e0 !important;
   }
 }
  
