@@ -19,9 +19,10 @@ type SellerRow = {
 
 type Props = {
   sellers: SellerRow[];
+  _debug?: string;
 };
 
-export default function ManagementSellers({ sellers }: Props) {
+export default function ManagementSellers({ sellers, _debug }: Props) {
   const { loading } = useRequireAdmin();
   const [query, setQuery] = useState("");
 
@@ -128,6 +129,18 @@ export default function ManagementSellers({ sellers }: Props) {
             </div>
             <Link href="/management/dashboard">← Back to Management Dashboard</Link>
           </div>
+
+          {_debug === "adminDb_null" && (
+            <div style={{ background: "#fef2f2", color: "#b91c1c", padding: "12px 16px", borderRadius: "8px", marginBottom: "16px", fontSize: "14px" }}>
+              <strong>Firebase Admin not connected.</strong> The FIREBASE_SERVICE_ACCOUNT_JSON environment variable may be missing or invalid. Check Vercel env vars and redeploy.
+            </div>
+          )}
+
+          {!_debug && sellers.length === 0 && (
+            <div style={{ background: "#fffbeb", color: "#92400e", padding: "12px 16px", borderRadius: "8px", marginBottom: "16px", fontSize: "14px" }}>
+              Firebase is connected but the <strong>sellers</strong> collection returned 0 documents. Data may have been deleted or the service account may point to a different Firebase project.
+            </div>
+          )}
 
           <div className="filters-bar">
             <input
@@ -297,7 +310,8 @@ export default function ManagementSellers({ sellers }: Props) {
 
 export const getServerSideProps: GetServerSideProps<Props> = async () => {
   if (!adminDb) {
-    return { props: { sellers: [] } };
+    console.error("[SELLERS PAGE] adminDb is null — Firebase Admin not initialized. Check FIREBASE_SERVICE_ACCOUNT_JSON env var.");
+    return { props: { sellers: [], _debug: "adminDb_null" } as any };
   }
 
   try {
@@ -305,6 +319,8 @@ export const getServerSideProps: GetServerSideProps<Props> = async () => {
       adminDb.collection("sellers").get(),
       adminDb.collection("listings").get(),
     ]);
+
+    console.log(`[SELLERS PAGE] Loaded ${sellersSnap.size} sellers, ${listingsSnap.size} listings from Firestore`);
 
     const listingsBySeller: Record<string, number> = {};
     listingsSnap.docs.forEach((doc) => {
@@ -319,8 +335,8 @@ export const getServerSideProps: GetServerSideProps<Props> = async () => {
       const id = doc.id;
       return {
         id,
-        name: d.name || d.businessName || "Seller",
-        email: d.email || "",
+        name: d.name || d.businessName || d.contactName || "Seller",
+        email: d.email || d.contactEmail || "",
         status: d.status || "Active",
         totalListings: listingsBySeller[id] || 0,
         createdAt: d.createdAt?.toDate?.().toLocaleString("en-US") || "",
@@ -328,8 +344,9 @@ export const getServerSideProps: GetServerSideProps<Props> = async () => {
     });
 
     return { props: { sellers } };
-  } catch (err) {
-    console.error("Error loading sellers", err);
+  } catch (err: any) {
+    console.error("[SELLERS PAGE] Firestore query failed:", err?.message || err);
+    console.error("[SELLERS PAGE] Error code:", err?.code);
     return { props: { sellers: [] } };
   }
 };
