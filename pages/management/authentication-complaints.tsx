@@ -408,6 +408,8 @@ export default function AuthenticationComplaints({ complaints }: Props) {
 }
 
 export const getServerSideProps: GetServerSideProps<Props> = async () => {
+  if (!adminDb) return { props: { complaints: [] } };
+
   try {
     const snap = await adminDb
       .collection("authenticationComplaints")

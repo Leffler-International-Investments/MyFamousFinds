@@ -125,6 +125,8 @@ export default function ManagementLogs({ logs }: Props) {
 }
 
 export const getServerSideProps: GetServerSideProps<Props> = async () => {
+  if (!adminDb) return { props: { logs: [] } };
+
   try {
     const snap = await adminDb
       .collection("logs")

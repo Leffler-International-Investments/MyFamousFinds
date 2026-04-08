@@ -682,6 +682,8 @@ function ManagementListingQueue({ items: initialItems }: Props) {
 export default ManagementListingQueue;
 
 export const getServerSideProps: GetServerSideProps<Props> = async () => {
+  if (!adminDb) return { props: { items: [] } };
+
   try {
     const snap = await adminDb
       .collection("listings")

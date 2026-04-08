@@ -747,6 +747,8 @@ function extractImage(d: any): string {
 }
 
 export const getServerSideProps: GetServerSideProps<Props> = async () => {
+  if (!adminDb) return { props: { listings: [], paperOrders: [] } };
+
   try {
     // Fetch ALL listings and filter client-side to avoid Firestore composite index issues
     const listingsSnap = await adminDb

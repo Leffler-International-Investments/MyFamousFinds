@@ -14,6 +14,10 @@ export default async function handler(
 ) {
   if (!requireAdmin(req, res)) return;
 
+  if (!adminDb) {
+    return res.status(500).json({ error: "Firebase not configured" });
+  }
+
   const emailParam =
     (req.method === "GET"
       ? req.query.email

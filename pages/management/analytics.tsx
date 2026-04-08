@@ -602,7 +602,7 @@ export const getServerSideProps: GetServerSideProps<Props> = async () => {
         adminDb.collection("sellers").get(),
         adminDb.collection("listings").get(),
         adminDb.collection("orders").get(),
-        adminDb.collection("consignment_agreements").get(),
+        adminDb.collection("seller_agreements").get(),
       ]);
 
     // --- Sellers ---
@@ -698,10 +698,11 @@ export const getServerSideProps: GetServerSideProps<Props> = async () => {
       ? Math.round(gmvAllTime / completedOrders)
       : 0;
 
-    // --- Agreements ---
+    // --- Agreements (seller_agreements collection) ---
     let pendingAgreements = 0;
     agreementsSnap.docs.forEach((d) => {
-      if ((d.data() as any).status === "pending_email") pendingAgreements++;
+      const data = d.data() as any;
+      if (!data.accepted && data.status !== "revoked") pendingAgreements++;
     });
 
     const stats: AnalyticsStats = {

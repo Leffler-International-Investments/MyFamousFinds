@@ -207,6 +207,8 @@ export default function ManagementOffers({ offers: initial }: Props) {
 }
 
 export const getServerSideProps: GetServerSideProps<Props> = async () => {
+  if (!adminDb) return { props: { offers: [] } };
+
   try {
     const snap = await adminDb
       .collection("offers")

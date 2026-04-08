@@ -161,6 +161,8 @@ export default function ManagementTax({ summaries }: Props) {
 }
 
 export const getServerSideProps: GetServerSideProps<Props> = async () => {
+  if (!adminDb) return { props: { summaries: [] } };
+
   try {
     const snap = await adminDb
       .collection("taxSummaries")

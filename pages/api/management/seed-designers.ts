@@ -44,6 +44,10 @@ export default async function handler(
 
   if (!requireAdmin(req, res)) return;
 
+  if (!adminDb) {
+    return res.status(500).json({ ok: false, error: "Firebase not configured" });
+  }
+
   try {
     const col = adminDb.collection("designers");
     const batch = adminDb.batch();

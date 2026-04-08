@@ -8,6 +8,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   // Verify management session — any authorised management team member can toggle
   if (!requireAdmin(req, res)) return;
 
+  if (!adminDb) {
+    return res.status(500).json({ error: "Firebase not configured" });
+  }
+
   try {
     const { sellerId, status } = req.body || {};
     if (!sellerId || !status) return res.status(400).json({ error: "Missing sellerId/status" });

@@ -11,6 +11,10 @@ export default async function handler(
 
   if (!requireAdmin(req, res)) return;
 
+  if (!adminDb) {
+    return res.status(500).json({ ok: false, error: "Firebase not configured" });
+  }
+
   const { complaintId, status } = req.body || {};
 
   if (!complaintId || !["Open", "Closed"].includes(status)) {

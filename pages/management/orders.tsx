@@ -572,6 +572,8 @@ export default function ManagementOrders({ initialOrders }: Props) {
 }
 
 export const getServerSideProps: GetServerSideProps<Props> = async () => {
+  if (!adminDb) return { props: { initialOrders: [] } };
+
   try {
     const snap = await adminDb.collection("orders").orderBy("createdAt", "desc").limit(200).get();
 

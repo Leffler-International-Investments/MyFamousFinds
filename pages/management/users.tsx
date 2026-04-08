@@ -124,6 +124,8 @@ export default function ManagementUsers({ users }: Props) {
 }
 
 export const getServerSideProps: GetServerSideProps<Props> = async () => {
+  if (!adminDb) return { props: { users: [] } };
+
   try {
     const snap = await adminDb
       .collection("adminUsers")
