@@ -70,6 +70,7 @@ body.capacitor-app {
   }
   .thumb img {
     background-color: #f5f0e8 !important;
+    mix-blend-mode: multiply;
   }
   /* Prevent compositor from promoting elements unnecessarily */
   .thumb * {
