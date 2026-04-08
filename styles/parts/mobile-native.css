@@ -62,23 +62,36 @@ body.capacitor-app {
    everything matches. PC and Android keep the eggshell #ede8e0.
 ──────────────────────────────────────────────────────────────────────── */
 @supports (-webkit-touch-callout: none) {
-  /* Page backgrounds */
+  /* Global page backgrounds */
   html,
   body,
   .home-wrapper,
   .catalogue-page,
   .designers-page,
   .page,
-  .ff-header,
-  footer {
+  .dark-theme-page,
+  .dashboard-page,
+  .buyer-dashboard-main,
+  .vip-benefits-page {
+    background: #ffffff !important;
     background-color: #ffffff !important;
   }
 
-  /* Product cards */
+  /* Header and footer */
+  .ff-header,
+  .ff-footer,
+  footer {
+    background: #ffffff !important;
+    background-color: #ffffff !important;
+  }
+
+  /* Product cards and thumbnails */
   .card,
   .card-link,
   .thumb,
-  .thumb img {
+  .thumb img,
+  .no-image {
+    background: #ffffff !important;
     background-color: #ffffff !important;
   }
 
@@ -86,15 +99,17 @@ body.capacitor-app {
   .grid-prods .prod,
   .prod,
   .grid-prods .img {
+    background: #ffffff !important;
     background-color: #ffffff !important;
   }
 
-  /* Category nav bar */
+  /* Navigation */
   .ff-category-nav {
+    background: #ffffff !important;
     background-color: #ffffff !important;
   }
 
-  /* Remove opacity transition to avoid GPU layer promotion */
+  /* Remove opacity transition to prevent GPU layer promotion */
   .thumb img {
     transition: none !important;
   }
