@@ -713,6 +713,8 @@ export default function MessageBoardManagement({ initialMessages }: Props) {
 }
 
 export const getServerSideProps: GetServerSideProps<Props> = async () => {
+  if (!adminDb) return { props: { initialMessages: [] } };
+
   try {
     const snap = await adminDb
       .collection("buyer_messages")

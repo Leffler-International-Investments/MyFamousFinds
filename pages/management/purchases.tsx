@@ -723,6 +723,8 @@ export default function ManagementPurchases({ purchases: initialPurchases }: Pro
 }
 
 export const getServerSideProps: GetServerSideProps<Props> = async () => {
+  if (!adminDb) return { props: { purchases: [] } };
+
   try {
     const snap = await adminDb.collection("orders").orderBy("createdAt", "desc").limit(200).get();
 

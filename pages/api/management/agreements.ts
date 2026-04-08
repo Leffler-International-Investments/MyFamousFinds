@@ -38,23 +38,31 @@ export default async function handler(
   }
 
   try {
+    // Read from seller_agreements — this is where sellers actually sign agreements
+    // (consignment_agreements was never written to, causing empty data)
     const snap = await adminDb
-      .collection("consignment_agreements")
-      .orderBy("createdAt", "desc")
+      .collection("seller_agreements")
       .get();
 
     const agreements: Agreement[] = snap.docs.map((doc) => {
       const d = doc.data();
+      // Map seller_agreements fields to Agreement type
+      const accepted = d.accepted === true;
+      let status = "pending_email";
+      if (d.status === "revoked") status = "revoked";
+      else if (d.status === "signed" || accepted) status = "signed";
+      else if (d.status) status = d.status;
+
       return {
         id: doc.id,
-        sellerId: d.sellerId || "",
-        sellerEmail: d.sellerEmail || "",
-        fullName: d.fullName || "",
+        sellerId: d.sellerId || doc.id,
+        sellerEmail: d.email || d.sellerEmail || doc.id,
+        fullName: d.consignorName || d.fullName || "",
         businessName: d.businessName || "",
-        method: d.method || "",
-        status: d.status || "",
-        signedAt: d.signedAt || null,
-        createdAt: d.createdAt || "",
+        method: d.method || (d.version ? "electronic" : "email"),
+        status,
+        signedAt: d.acceptedAt || d.signedAt || null,
+        createdAt: d.acceptedAt || d.createdAt || "",
       };
     });
 

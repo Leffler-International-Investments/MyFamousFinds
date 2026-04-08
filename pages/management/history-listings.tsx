@@ -507,6 +507,8 @@ export default function HistoryListings({ entries }: Props) {
 }
 
 export const getServerSideProps: GetServerSideProps<Props> = async () => {
+  if (!adminDb) return { props: { entries: [] } };
+
   try {
     const snap = await adminDb
       .collection("listings")

@@ -253,6 +253,7 @@ async function getApprovedDesigners(): Promise<Set<string>> {
 }
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse<ApiOk | ApiErr>) {
+  if (!adminDb) return res.status(500).json({ ok: false, error: "firebase_not_configured" });
   try {
     if (req.method !== "POST") return res.status(405).json({ ok: false, error: "Method not allowed" });
 

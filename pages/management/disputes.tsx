@@ -134,6 +134,7 @@ export default function ManagementDisputes({ disputes }: Props) {
 }
 
 export const getServerSideProps: GetServerSideProps<Props> = async () => {
+  if (!adminDb) return { props: { disputes: [] } };
   try {
     const snap = await adminDb
       .collection("disputes")

@@ -411,6 +411,8 @@ export default function ManagementPayouts({
 }
 
 export const getServerSideProps: GetServerSideProps<Props> = async () => {
+  if (!adminDb) return { props: { payouts: [], eligibleOrders: [], settings: { payoutMode: "manual", defaultCoolingDays: 14 } } };
+
   try {
     // Load payout settings
     const settingsSnap = await adminDb.doc("settings/payout").get();

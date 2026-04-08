@@ -374,6 +374,8 @@ export default function ManagementSupportTickets({ tickets }: Props) {
 }
 
 export const getServerSideProps: GetServerSideProps<Props> = async () => {
+  if (!adminDb) return { props: { tickets: [] } };
+
   try {
     const snap = await adminDb
       .collection("supportTickets")

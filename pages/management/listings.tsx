@@ -1316,6 +1316,8 @@ export default function ManagementListings({ items }: Props) {
 }
 
 export const getServerSideProps: GetServerSideProps<Props> = async () => {
+  if (!adminDb) return { props: { items: [] } };
+
   try {
     const snap = await adminDb.collection("listings").orderBy("createdAt", "desc").get();
 

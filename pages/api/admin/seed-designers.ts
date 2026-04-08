@@ -14,6 +14,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(401).json({ ok:false, error:"unauthorized" });
   }
 
+  if (!adminDb) {
+    return res.status(500).json({ ok: false, error: "Firebase not configured" });
+  }
+
   try {
     const body = (req.body || {}) as { text?: string };
     // If custom text is provided, treat as simple name list (no category);

@@ -7,6 +7,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   if (!requireAdmin(req, res)) return;
 
+  if (!adminDb) {
+    return res.status(500).json({ error: "Firebase not configured" });
+  }
+
   try {
     const { customerId, email } = req.body || {};
 

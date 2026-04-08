@@ -1278,6 +1278,8 @@ export const getServerSideProps: GetServerSideProps<Props> = async (ctx) => {
     return { redirect: { destination: "/management/login", permanent: false } };
   }
 
+  if (!adminDb) return { props: { items: [] } };
+
   try {
     const snap = await adminDb
       .collection("listings")

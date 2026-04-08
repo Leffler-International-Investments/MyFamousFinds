@@ -518,6 +518,16 @@ export const getServerSideProps: GetServerSideProps<Props> = async (ctx) => {
     return { redirect: { destination: "/management/login", permanent: false } };
   }
 
+  if (!adminDb) {
+    const stats: MgmtStats = {
+      sellers: 0, pendingSellers: 0, listings: 0, pendingListings: 0,
+      orders: 0, pendingOrders: 0, agreements: 0, pendingAgreements: 0,
+      supportTickets: 0, openTickets: 0, authComplaints: 0, openAuthComplaints: 0,
+      customers: 0, suspendedCustomers: 0,
+    };
+    return { props: { stats } };
+  }
+
   try {
     const [
       sellersSnap,
@@ -527,7 +537,6 @@ export const getServerSideProps: GetServerSideProps<Props> = async (ctx) => {
       ordersSnap,
       pendingOrdersSnap,
       agreementsSnap,
-      pendingAgreementsSnap,
       supportTicketsSnap,
       openTicketsSnap,
       authComplaintsSnap,
@@ -547,11 +556,7 @@ export const getServerSideProps: GetServerSideProps<Props> = async (ctx) => {
         .collection("orders")
         .where("status", "in", ["Pending", "Processing", "Paid"])
         .get(),
-      adminDb.collection("consignment_agreements").get(),
-      adminDb
-        .collection("consignment_agreements")
-        .where("status", "==", "pending_email")
-        .get(),
+      adminDb.collection("seller_agreements").get(),
       adminDb.collection("supportTickets").get(),
       adminDb.collection("supportTickets").where("status", "==", "Open").get(),
       adminDb.collection("authenticationComplaints").get(),
@@ -559,6 +564,13 @@ export const getServerSideProps: GetServerSideProps<Props> = async (ctx) => {
       adminDb.collection("users").get(),
       adminDb.collection("users").where("status", "==", "Suspended").get(),
     ]);
+
+    // Count pending agreements from seller_agreements (those not yet accepted)
+    let pendingAgreementCount = 0;
+    agreementsSnap.docs.forEach((doc) => {
+      const d = doc.data();
+      if (!d.accepted && d.status !== "revoked") pendingAgreementCount++;
+    });
 
     const stats: MgmtStats = {
       sellers: sellersSnap.size,
@@ -568,7 +580,7 @@ export const getServerSideProps: GetServerSideProps<Props> = async (ctx) => {
       orders: ordersSnap.size,
       pendingOrders: pendingOrdersSnap.size,
       agreements: agreementsSnap.size,
-      pendingAgreements: pendingAgreementsSnap.size,
+      pendingAgreements: pendingAgreementCount,
       supportTickets: supportTicketsSnap.size,
       openTickets: openTicketsSnap.size,
       authComplaints: authComplaintsSnap.size,

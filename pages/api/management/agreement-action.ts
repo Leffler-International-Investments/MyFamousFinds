@@ -36,8 +36,9 @@ export default async function handler(
   }
 
   try {
+    // Use seller_agreements — this is where sellers actually sign agreements
     const agreementRef = adminDb
-      .collection("consignment_agreements")
+      .collection("seller_agreements")
       .doc(agreementId);
     const agreementSnap = await agreementRef.get();
 
