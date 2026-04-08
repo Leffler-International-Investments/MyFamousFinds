@@ -20,7 +20,10 @@ type ListingsResponse = { ok: true; items: Item[] } | { ok: false; error: string
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse<ListingsResponse>) {
   if (req.method !== "GET") return res.status(405).json({ ok: false, error: "method_not_allowed" });
-  if (!adminDb) return res.status(500).json({ ok: false, error: "firebase_not_configured" });
+  if (!adminDb) {
+    console.error("Firebase Admin is not configured – seller listings unavailable");
+    return res.status(500).json({ ok: false, error: "Listings are temporarily unavailable. Please try again later." });
+  }
 
   try {
     const sellerId = await getSellerId(req);

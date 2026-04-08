@@ -13,8 +13,8 @@ const SellerDashboardTutorial: React.FC = () => {
         backgroundColor: "#f9fafb",
       }}
     >
-      <h2 style={{ margin: 0, fontSize: "1.05rem", fontWeight: 600 }}>
-        How to use your Seller Dashboard
+      <h2 style={{ margin: 0, fontSize: "1.2rem", fontWeight: 700, textAlign: "center" }}>
+        Snap. Submit. Sell.
       </h2>
 
       <ol
@@ -26,60 +26,24 @@ const SellerDashboardTutorial: React.FC = () => {
         }}
       >
         <li>
-          <strong>Start here – Today’s overview</strong>
+          <strong>Snap</strong>
           <br />
-          At the top you’ll see key numbers for your shop (active items, items under review,
-          open orders, balance, etc.). Use this area to quickly check if anything needs your
-          attention today.
+          Create your listing by uploading photos, setting your price, and adding
+          key details like brand and condition.
         </li>
         <li>
-          <strong>Create a new listing</strong>
+          <strong>Submit</strong>
           <br />
-          To list a new item, use the <strong>“Sell an item” / “New listing”</strong> button
-          or card. Fill in brand, condition, photos, price and shipping details, then submit.
-          Items may go through a short vetting/review process before going live.
+          Your item is reviewed by the FF team for quality and authentication.
+          This process takes up to 24 hours, and you&apos;ll be notified once
+          it&apos;s approved or if edits are needed.
         </li>
         <li>
-          <strong>Manage your catalogue</strong>
+          <strong>Sell</strong>
           <br />
-          Go to <strong>Catalogue</strong> to see all your active and paused listings. From
-          there you can edit details, adjust prices, pause or re-activate items, and see which
-          listings are waiting for approval.
-        </li>
-        <li>
-          <strong>Track orders &amp; shipping</strong>
-          <br />
-          Open <strong>Orders</strong> to see new, in-progress and completed orders. From
-          here you can confirm orders, print shipping labels (where available), mark items as
-          shipped, add tracking, and respond to buyer questions about a specific order.
-        </li>
-        <li>
-          <strong>Watch your performance</strong>
-          <br />
-          The <strong>Insights</strong> section shows your sales over time, top brands,
-          best-selling categories and conversion trends. Use this to see what sells well and
-          which items might need a price change or better photos.
-        </li>
-        <li>
-          <strong>Wallet &amp; statements</strong>
-          <br />
-          In <strong>Wallet</strong> you can see available balance and upcoming payouts. In{" "}
-          <strong>Statements</strong> you can download a summary of items sold, fees, and net
-          earnings for a chosen period – useful for bookkeeping and tax.
-        </li>
-        <li>
-          <strong>Profile &amp; settings</strong>
-          <br />
-          Use <strong>Profile</strong> to update your name, shop details, contact email and
-          payout information. Make sure all information is correct before listing high-value
-          items.
-        </li>
-        <li>
-          <strong>Need help?</strong>
-          <br />
-          If something is unclear or you believe there is an error with a listing, order or
-          payout, contact support via the <strong>Help / Contact</strong> links in the menu.
-          Please mention order ID or listing ID so we can assist faster.
+          Once live, manage your listing, track orders, and ship items as they
+          sell. If it sits for a while, the FF team may suggest updates. Payouts
+          are issued on the 15th of each month.
         </li>
       </ol>
     </section>

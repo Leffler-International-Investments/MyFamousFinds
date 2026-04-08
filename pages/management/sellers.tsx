@@ -296,6 +296,10 @@ export default function ManagementSellers({ sellers }: Props) {
 }
 
 export const getServerSideProps: GetServerSideProps<Props> = async () => {
+  if (!adminDb) {
+    return { props: { sellers: [] } };
+  }
+
   try {
     const [sellersSnap, listingsSnap] = await Promise.all([
       adminDb.collection("sellers").get(),

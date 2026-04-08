@@ -6,7 +6,6 @@ import { FormEvent, useState } from "react";
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
 import PasswordInput from "../../components/PasswordInput";
-import PhoneVerificationPopup from "../../components/PhoneVerificationPopup";
 import { safeRedirectPath, setRoleSession } from "../../utils/roleSession";
 
 type ManagementLoginOk = { ok: true; managementId: string };
@@ -18,7 +17,7 @@ type ManagementLoginError = {
 type ManagementLoginResponse = ManagementLoginOk | ManagementLoginError;
 
 type PageMode = "login" | "setup";
-type TwoFactorStep = "credentials" | "choose_method" | "phone_verify" | "verify";
+type TwoFactorStep = "credentials" | "verify";
 
 // 15 minutes (sliding — extended on every protected page load)
 const SESSION_TTL_MINUTES = 15;
@@ -33,7 +32,6 @@ export default function ManagementLoginPage() {
   const [code, setCode] = useState("");
   const [step, setStep] = useState<TwoFactorStep>("credentials");
   const [challengeId, setChallengeId] = useState<string | null>(null);
-  const [chosenMethod, setChosenMethod] = useState<"email" | "sms">("email");
   const [info, setInfo] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -101,8 +99,8 @@ export default function ManagementLoginPage() {
         return;
       }
 
-      // Credentials OK -> Show method choice
-      setStep("choose_method");
+      // Credentials OK -> Send email verification code directly
+      await sendTwoFactorCode();
     } catch (err) {
       console.error("management_login_error", err);
       setError("Unexpected error. Please try again.");
@@ -111,22 +109,7 @@ export default function ManagementLoginPage() {
     }
   }
 
-  async function handleChooseMethod(method: "email" | "sms") {
-    setError(null);
-    setInfo(null);
-    setChosenMethod(method);
-
-    if (method === "sms") {
-      // Show AWS-compliant phone verification popup before sending
-      setStep("phone_verify");
-      return;
-    }
-
-    // Email flow — send immediately
-    await sendTwoFactorCode(method);
-  }
-
-  async function sendTwoFactorCode(method: "email" | "sms") {
+  async function sendTwoFactorCode() {
     setLoading(true);
     try {
       const trimmedEmail = email.toLowerCase().trim();
@@ -136,14 +119,14 @@ export default function ManagementLoginPage() {
         body: JSON.stringify({
           email: trimmedEmail,
           role: "management",
-          method,
+          method: "email",
         }),
       });
 
       const twofaJson = await twofaRes.json();
 
       if (!twofaJson.ok) {
-        setStep("choose_method");
+        setStep("credentials");
         setError(twofaJson.message || "We couldn't start the verification process. Please try again.");
         return;
       }
@@ -151,14 +134,11 @@ export default function ManagementLoginPage() {
       setChallengeId(twofaJson.challengeId);
       setStep("verify");
 
-      setInfo(twofaJson.message || "Code sent.");
-      // Update chosenMethod to match what the server actually used
-      // (may differ if email→SMS or SMS→email fallback was triggered)
-      if (twofaJson.via) setChosenMethod(twofaJson.via);
+      setInfo(twofaJson.message || "Code sent to your email.");
       if (twofaJson.devCode) setCode(twofaJson.devCode);
     } catch (err) {
       console.error("management_start_2fa_error", err);
-      setStep("choose_method");
+      setStep("credentials");
       setError("Unexpected error. Please try again.");
     } finally {
       setLoading(false);
@@ -330,66 +310,10 @@ export default function ManagementLoginPage() {
                       </button>
                     </div>
                   </form>
-                ) : step === "phone_verify" ? (
-                  <>
-                    <PhoneVerificationPopup
-                      loading={loading}
-                      onSendCode={() => sendTwoFactorCode("sms")}
-                      onBack={() => {
-                        setStep("choose_method");
-                        setError(null);
-                        setInfo(null);
-                      }}
-                    />
-                    <p className="auth-secondary-link-inline" style={{ marginTop: 12 }}>
-                      Waiting for phone verification…
-                    </p>
-                  </>
-                ) : step === "choose_method" ? (
-                  <div className="method-choice">
-                    <p className="auth-secondary-link-inline">
-                      How would you like to receive your verification code?
-                    </p>
-                    <div className="method-buttons">
-                      <button
-                        type="button"
-                        disabled={disabled}
-                        className="method-button"
-                        onClick={() => handleChooseMethod("email")}
-                      >
-                        <span className="method-icon">&#9993;</span>
-                        <span className="method-label">Email</span>
-                        <span className="method-desc">Send code to your email</span>
-                      </button>
-                      <button
-                        type="button"
-                        disabled={disabled}
-                        className="method-button"
-                        onClick={() => handleChooseMethod("sms")}
-                      >
-                        <span className="method-icon">&#128241;</span>
-                        <span className="method-label">SMS</span>
-                        <span className="method-desc">Send code to your mobile</span>
-                      </button>
-                    </div>
-                    <p className="auth-secondary-link-inline">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (disabled) return;
-                          setStep("credentials");
-                          setError(null);
-                          setInfo(null);
-                        }}
-                      >
-                        Back to login
-                      </button>
-                    </p>
-                  </div>
                 ) : (
                   <form onSubmit={handleVerifySubmit}>
                     <p className="auth-secondary-link-inline">
-                      Enter the 6-digit code sent to your {chosenMethod === "sms" ? "mobile" : "email"}.
+                      Enter the 6-digit code sent to your email.
                     </p>
                     <div className="auth-fields">
                       <div className="auth-field">
@@ -420,13 +344,13 @@ export default function ManagementLoginPage() {
                         type="button"
                         onClick={() => {
                           if (disabled) return;
-                          setStep("choose_method");
+                          setStep("credentials");
                           setCode("");
                           setInfo(null);
                           setError(null);
                         }}
                       >
-                        Try a different method
+                        Back to login
                       </button>
                     </p>
                   </form>
@@ -636,50 +560,6 @@ export default function ManagementLoginPage() {
           text-align: center;
           letter-spacing: 0.2em;
           font-weight: 600;
-        }
-        .method-choice {
-          display: flex;
-          flex-direction: column;
-          gap: 16px;
-        }
-        .method-buttons {
-          display: flex;
-          gap: 12px;
-        }
-        .method-button {
-          flex: 1;
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          gap: 6px;
-          padding: 20px 12px;
-          border-radius: 16px;
-          border: 1px solid #d1d5db;
-          background: #fafafa;
-          cursor: pointer;
-          transition: all 0.2s ease;
-        }
-        .method-button:hover {
-          border-color: #111;
-          background: #fff;
-          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-        }
-        .method-button:disabled {
-          opacity: 0.5;
-          cursor: default;
-        }
-        .method-icon {
-          font-size: 28px;
-          line-height: 1;
-        }
-        .method-label {
-          font-size: 14px;
-          font-weight: 600;
-          color: #111;
-        }
-        .method-desc {
-          font-size: 11px;
-          color: #6b7280;
         }
         .auth-secondary-link {
           margin-top: 12px;
