@@ -98,12 +98,7 @@ export default function ProductCard({ isSaved, onToggleWishlist, ...p }: Props) 
           padding-top: 133.33%; /* 4:3 portrait = 100% * (4/3) */
           background: #f5f0e8;
           overflow: hidden;
-          /* Prevent iOS GPU compositing from wiping the background */
-          -webkit-transform: translateZ(0);
-          transform: translateZ(0);
-          /* Force background to repaint correctly on iOS */
-          -webkit-backface-visibility: hidden;
-          backface-visibility: hidden;
+          border-radius: 4px;
         }
         /* Override padding-top with aspect-ratio on supporting browsers */
         @supports (aspect-ratio: 3 / 4) {
@@ -122,12 +117,13 @@ export default function ProductCard({ isSaved, onToggleWishlist, ...p }: Props) 
           -webkit-object-fit: contain;
           object-fit: contain;
           display: block;
-          /* Avoid GPU layer promotion that causes white flash on iOS */
           transition: opacity 0.2s ease;
-          /* Ensure background colour shows through transparent images */
+          /* Tint white image backgrounds to match the cream page background.
+             sepia(8%) + saturate(200%) + hue-rotate(345deg) turns pure white
+             into approx #f5f0e8 while keeping product colours accurate. */
+          -webkit-filter: sepia(8%) saturate(200%) hue-rotate(345deg);
+          filter: sepia(8%) saturate(200%) hue-rotate(345deg);
           background: #f5f0e8;
-          /* Make white image backgrounds blend with the cream page background */
-          mix-blend-mode: multiply;
         }
         /* When aspect-ratio is supported, img can be static */
         @supports (aspect-ratio: 3 / 4) {

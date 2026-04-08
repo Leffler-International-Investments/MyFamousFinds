@@ -59,28 +59,17 @@ body.capacitor-app {
 /* ── iOS image background fix ──────────────────────────────────────────
    On Apple mobile Safari the GPU compositor can paint the product card
    thumbnail background as white instead of the site cream (#f5f0e8).
-   Forcing background-color explicitly on the image and its container
-   prevents the compositor from creating a transparent backing layer.
+   A CSS filter tints white areas to cream while preserving product
+   colours. This works reliably on iOS without GPU layer issues.
 ──────────────────────────────────────────────────────────────────────── */
 @supports (-webkit-touch-callout: none) {
   .thumb {
     background-color: #f5f0e8 !important;
-    -webkit-transform: translate3d(0, 0, 0);
-    transform: translate3d(0, 0, 0);
   }
   .thumb img {
     background-color: #f5f0e8 !important;
-    mix-blend-mode: multiply;
-  }
-  /* Prevent compositor from promoting elements unnecessarily */
-  .thumb * {
-    -webkit-transform: none;
-    transform: none;
-  }
-  /* Re-allow the heart button to position itself */
-  .thumb .heart {
-    -webkit-transform: none;
-    transform: none;
+    -webkit-filter: sepia(8%) saturate(200%) hue-rotate(345deg) !important;
+    filter: sepia(8%) saturate(200%) hue-rotate(345deg) !important;
   }
 }
  
