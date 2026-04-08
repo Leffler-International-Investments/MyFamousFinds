@@ -132,7 +132,33 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       certifiedAt: passed ? now : null,
       status: passed ? "certified" : "failed",
     }, { merge: true });
-    return res.status(200).json({ ok: true, score, total: QUIZ_QUESTIONS.length, passed });
+    return res.status(200).json({ ok: true, score, total: QUIZ_QUESTIONS.length, passed, ...(!passed ? { results } : {}) });
+  }
+
+  // Complete review — seller reviews failed questions and retries (no admin required)
+  if (action === "complete-review") {
+    const doc = await adminDb.collection("seller_training").doc(sellerId).get();
+    if (!doc.exists) return res.status(400).json({ error: "No training record found" });
+    const data = doc.data()!;
+    if (data.status !== "failed") return res.status(400).json({ error: "Quiz not in failed state" });
+    if (!answers || typeof answers !== "object") return res.status(400).json({ error: "Missing answers" });
+    const prevResults = data.results || {};
+    const failedQs = QUIZ_QUESTIONS.filter(q => prevResults[q.id] && !prevResults[q.id].correct);
+    for (const q of failedQs) {
+      const given = String(answers[q.id] || "").trim().toUpperCase();
+      if (given !== q.correct) {
+        return res.status(400).json({ error: "Not all review answers are correct" });
+      }
+    }
+    const now = new Date().toISOString();
+    await adminDb.collection("seller_training").doc(sellerId).set({
+      certified: true, certifiedAt: now, status: "certified", passed: true,
+      reviewCompletedAt: now, score: data.total,
+    }, { merge: true });
+    await adminDb.collection("sellers").doc(sellerId).set(
+      { certifiedFfSeller: true, certifiedAt: now }, { merge: true }
+    );
+    return res.status(200).json({ ok: true, passed: true, score: data.total, total: QUIZ_QUESTIONS.length });
   }
 
   // All actions below require admin
