@@ -6,7 +6,7 @@ import Link from "next/link";
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
 import { useRequireSeller } from "../../hooks/useRequireSeller";
-import { useEffect, useState, useRef, useCallback } from "react";
+import { useEffect, useState, useRef } from "react";
 
 const QUIZ_QUESTIONS = [
   {
@@ -18,11 +18,13 @@ const QUIZ_QUESTIONS = [
       "C. Only a price",
       "D. Nothing extra",
     ],
+    correct: "B",
   },
   {
     id: "q2",
     question: "How long is the cooling-off period before a seller receives their payout after delivery?",
     options: ["A. 3 days", "B. 7 days", "C. 14 days", "D. 30 days"],
+    correct: "C",
   },
   {
     id: "q3",
@@ -33,6 +35,7 @@ const QUIZ_QUESTIONS = [
       "C. Arrange their own courier",
       "D. Contact support and wait 5 days",
     ],
+    correct: "B",
   },
   {
     id: "q4",
@@ -43,6 +46,7 @@ const QUIZ_QUESTIONS = [
       "C. Only for items under $100",
       "D. Yes, but only 1 item",
     ],
+    correct: "B",
   },
   {
     id: "q5",
@@ -53,6 +57,7 @@ const QUIZ_QUESTIONS = [
       "C. The seller receives an email with the rejection reason and can resubmit",
       "D. Nothing \u2014 it disappears silently",
     ],
+    correct: "C",
   },
   {
     id: "q6",
@@ -63,6 +68,7 @@ const QUIZ_QUESTIONS = [
       "C. Management reviews every listing and checks authenticity documents before approval",
       "D. Authentication is optional",
     ],
+    correct: "C",
   },
   {
     id: "q7",
@@ -73,6 +79,7 @@ const QUIZ_QUESTIONS = [
       "C. Buyers pay the commission",
       "D. There is no commission",
     ],
+    correct: "B",
   },
 ];
 
@@ -147,8 +154,21 @@ export default function SellerTraining() {
     setSellerId(id);
   }, []);
 
+  // Build results locally from the seller's answers — no API dependency
+  const buildResultsLocally = (givenAnswers: Record<string, string>) => {
+    const results: Record<string, { correct: boolean; given: string; expected: string }> = {};
+    let score = 0;
+    for (const q of QUIZ_QUESTIONS) {
+      const given = String(givenAnswers[q.id] || "").toUpperCase();
+      const isCorrect = given === q.correct;
+      if (isCorrect) score++;
+      results[q.id] = { correct: isCorrect, given, expected: q.correct };
+    }
+    return { results, score };
+  };
+
   // Fetch training status from API
-  const fetchTrainingStatus = useCallback(() => {
+  useEffect(() => {
     if (!sellerId) return;
     setFetchingStatus(true);
     fetch(`/api/management/seller-training?sellerId=${encodeURIComponent(sellerId)}`)
@@ -157,7 +177,9 @@ export default function SellerTraining() {
         if (d.certified) {
           setStep("result");
         } else if (d.status === "failed") {
-          if (d.results) setFailedResults(d.results);
+          // Use API results if available, otherwise build from stored answers
+          const results = d.results || (d.answers ? buildResultsLocally(d.answers).results : null);
+          if (results) setFailedResults(results);
           setResult({ score: d.score || 0, total: d.total || 7, passed: false });
           setStep("review");
         }
@@ -165,10 +187,6 @@ export default function SellerTraining() {
       .catch(() => {})
       .finally(() => setFetchingStatus(false));
   }, [sellerId]);
-
-  useEffect(() => {
-    fetchTrainingStatus();
-  }, [fetchTrainingStatus]);
 
   const submitQuiz = async () => {
     if (Object.keys(answers).length < QUIZ_QUESTIONS.length) return;
@@ -184,17 +202,13 @@ export default function SellerTraining() {
         setResult({ score: json.score, total: json.total, passed: true });
         setStep("result");
       } else {
-        if (json.results) {
-          setFailedResults(json.results);
-        }
-        setResult({ score: json.score, total: json.total, passed: false });
+        // Always compute results locally — guaranteed to work
+        const { results, score } = buildResultsLocally(answers);
+        setFailedResults(results);
+        setResult({ score, total: QUIZ_QUESTIONS.length, passed: false });
         setUnderstoodQuestions(new Set());
         certifyCalledRef.current = false;
         setStep("review");
-        // If results weren't in the response, re-fetch from Firestore
-        if (!json.results) {
-          setTimeout(() => fetchTrainingStatus(), 500);
-        }
       }
     } catch {
       alert("Submission failed. Please try again.");
@@ -211,14 +225,6 @@ export default function SellerTraining() {
   const allUnderstood =
     failedQuestions.length > 0 &&
     failedQuestions.every((q) => understoodQuestions.has(q.id));
-
-  // If on review step but no results loaded, retry fetch
-  useEffect(() => {
-    if (step === "review" && failedQuestions.length === 0 && sellerId) {
-      const timer = setTimeout(() => fetchTrainingStatus(), 1000);
-      return () => clearTimeout(timer);
-    }
-  }, [step, failedQuestions.length, sellerId, fetchTrainingStatus]);
 
   // Auto-certify the moment all "I understand" boxes are ticked
   useEffect(() => {
@@ -372,17 +378,8 @@ export default function SellerTraining() {
           )}
 
           {/* REVIEW STEP */}
-          {step === "review" && (
+          {step === "review" && failedQuestions.length > 0 && (
             <div>
-              {failedQuestions.length === 0 ? (
-                <div style={{ textAlign: "center", padding: "40px 0", color: "#6b7280" }}>
-                  <p>Loading your review questions...</p>
-                  <button className="btn-primary-train" style={{ marginTop: 16 }} onClick={fetchTrainingStatus}>
-                    Reload
-                  </button>
-                </div>
-              ) : (
-              <>
               <div className="review-header">
                 <div className="review-icon">{"\u274C"}</div>
                 <h2 className="review-title">You missed {failedQuestions.length} question{failedQuestions.length !== 1 ? "s" : ""}</h2>
@@ -479,8 +476,6 @@ export default function SellerTraining() {
                     {understoodQuestions.size}/{failedQuestions.length} confirmed — tick each box above to earn your certificate
                   </div>
                 </div>
-              )}
-              </>
               )}
             </div>
           )}
