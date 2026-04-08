@@ -1,7 +1,7 @@
 // FILE: /pages/api/seller/listings/index.ts
 import type { NextApiRequest, NextApiResponse } from "next";
 import { adminDb } from "../../../../utils/firebaseAdmin";
-import { getSellerId } from "../../../../utils/authServer";
+import { getAuthUser, getSellerId } from "../../../../utils/authServer";
 
 type Item = {
   id: string;
@@ -26,16 +26,49 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
   }
 
   try {
+    const authUser = await getAuthUser(req);
     const sellerId = await getSellerId(req);
     if (!sellerId) return res.status(401).json({ ok: false, error: "unauthorized" });
 
-    const snap = await adminDb
-      .collection("listings")
-      .where("sellerId", "==", String(sellerId))
-      .limit(200)
-      .get();
+    // Some historical docs were saved with a non-canonical sellerId
+    // (email/underscore-email/uid). Query all known aliases and merge.
+    const sellerDoc = await adminDb.collection("sellers").doc(String(sellerId)).get();
+    const sellerData: any = sellerDoc.data() || {};
 
-    const docs = [...snap.docs].sort((a, b) => {
+    const aliases = new Set<string>([
+      String(sellerId).trim(),
+      String(authUser?.uid || "").trim(),
+      String(authUser?.email || "").trim().toLowerCase(),
+      String(sellerData.email || "").trim().toLowerCase(),
+      String(sellerData.contactEmail || "").trim().toLowerCase(),
+      String(sellerData.sellerId || "").trim(),
+      String(sellerData.uid || "").trim(),
+    ]);
+
+    for (const alias of Array.from(aliases)) {
+      if (alias && alias.includes("@")) aliases.add(alias.replace(/\./g, "_"));
+    }
+
+    const aliasList = Array.from(aliases).filter(Boolean);
+    const chunks: string[][] = [];
+    for (let i = 0; i < aliasList.length; i += 10) chunks.push(aliasList.slice(i, i + 10));
+
+    const snaps = await Promise.all(
+      chunks.map((ids) =>
+        adminDb!
+          .collection("listings")
+          .where("sellerId", "in", ids)
+          .limit(200)
+          .get()
+      )
+    );
+
+    const byId = new Map<string, FirebaseFirestore.QueryDocumentSnapshot>();
+    for (const s of snaps) {
+      for (const d of s.docs) byId.set(d.id, d);
+    }
+
+    const docs = [...byId.values()].sort((a, b) => {
       const ad: any = a.data() || {};
       const bd: any = b.data() || {};
       const aTs = ad.createdAt?.toMillis ? ad.createdAt.toMillis() : 0;
