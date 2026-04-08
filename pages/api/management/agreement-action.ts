@@ -49,29 +49,35 @@ export default async function handler(
     }
 
     const data = agreementSnap.data() || {};
-    const sellerEmail = data.sellerEmail || "";
+    // seller_agreements uses 'email' field (or doc ID is the email)
+    const sellerEmail = data.email || data.sellerEmail || agreementId;
     const now = new Date().toISOString();
 
     if (action === "confirm") {
       // Mark agreement as signed/confirmed
       await agreementRef.update({
         status: "signed",
-        signedAt: data.signedAt || now,
+        accepted: true,
+        signedAt: data.acceptedAt || data.signedAt || now,
         confirmedAt: now,
         updatedAt: now,
       });
 
       // Update the seller doc to grant access
+      // Sellers are stored with email.replace(/\./g, "_") as doc ID
       const sellerId = data.sellerId || sellerEmail;
+      const underscoreId = sellerEmail ? sellerEmail.replace(/\./g, "_") : "";
       let sellerRef: any = null;
 
-      const sellerSnap = await adminDb
-        .collection("sellers")
-        .doc(sellerId)
-        .get();
+      // Try exact doc ID first, then underscore format, then email query
+      let sellerSnap = await adminDb.collection("sellers").doc(sellerId).get();
       if (sellerSnap.exists) {
         sellerRef = sellerSnap.ref;
-      } else if (sellerEmail) {
+      } else if (underscoreId && underscoreId !== sellerId) {
+        sellerSnap = await adminDb.collection("sellers").doc(underscoreId).get();
+        if (sellerSnap.exists) sellerRef = sellerSnap.ref;
+      }
+      if (!sellerRef && sellerEmail) {
         const byEmail = await adminDb
           .collection("sellers")
           .where("email", "==", sellerEmail)
@@ -84,7 +90,7 @@ export default async function handler(
         await sellerRef.set(
           {
             agreementSigned: true,
-            agreementMethod: data.method || "email",
+            agreementMethod: data.method || "electronic",
             agreementSignedAt: now,
             agreementPendingEmail: false,
           },
