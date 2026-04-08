@@ -57,13 +57,59 @@ body.capacitor-app {
 }
  
 /* ── iOS image background fix ──────────────────────────────────────────
-   Force eggshell (#ede8e0) background on product thumbnails on iOS.
+   iOS Safari GPU compositor paints a white backing layer on images.
+   Fix: force eggshell on every possible element/pseudo, disable GPU
+   layer promotion, and add an ::after overlay as a final safety net.
 ──────────────────────────────────────────────────────────────────────── */
 @supports (-webkit-touch-callout: none) {
-  .thumb {
+  /* Card container */
+  .card,
+  .card-link {
     background-color: #ede8e0 !important;
   }
+
+  /* Thumbnail wrapper — no GPU promotion */
+  .thumb {
+    background-color: #ede8e0 !important;
+    -webkit-transform: none !important;
+    transform: none !important;
+    -webkit-backface-visibility: visible !important;
+    backface-visibility: visible !important;
+    will-change: auto !important;
+    isolation: isolate;
+  }
+
+  /* Image — force eggshell, block GPU layer creation */
   .thumb img {
+    background-color: #ede8e0 !important;
+    -webkit-transform: none !important;
+    transform: none !important;
+    will-change: auto !important;
+    image-rendering: auto !important;
+  }
+
+  /* Safety net: eggshell overlay behind the image via ::before */
+  .thumb::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    background: #ede8e0;
+  }
+  .thumb img {
+    position: relative;
+    z-index: 1;
+  }
+  .thumb .heart {
+    z-index: 2;
+  }
+
+  /* Product grid containers */
+  .grid-prods .prod,
+  .prod {
+    background-color: #ede8e0 !important;
+  }
+  .grid-prods .img {
     background-color: #ede8e0 !important;
   }
 }

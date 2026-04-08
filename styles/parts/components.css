@@ -283,12 +283,12 @@ textarea::placeholder {
   border: 1px solid #e5e7eb;
   border-radius: 12px;
   overflow: hidden;
-  background: #ffffff;
+  background: #ede8e0;
 }
 
 .grid-prods .img {
   position: relative;
-  background: #f3f4f6;
+  background: #ede8e0;
   aspect-ratio: 1/1;
 }
 
