@@ -428,7 +428,6 @@ export const getServerSideProps: GetServerSideProps<Props> = async () => {
     // Load payout history
     const payoutSnap = await adminDb
       .collection("payouts")
-      .orderBy("createdAt", "desc")
       .limit(200)
       .get();
 
@@ -442,6 +441,13 @@ export const getServerSideProps: GetServerSideProps<Props> = async () => {
         status: d.status || "Pending",
         createdAt: d.createdAt?.toDate?.().toLocaleString("en-US") || "",
       };
+    });
+
+    payouts.sort((a, b) => {
+      if (!a.createdAt && !b.createdAt) return 0;
+      if (!a.createdAt) return 1;
+      if (!b.createdAt) return -1;
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
     });
 
     // Load orders eligible for payout (COOLING or ELIGIBLE)

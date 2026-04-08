@@ -753,7 +753,6 @@ export const getServerSideProps: GetServerSideProps<Props> = async () => {
     // Fetch ALL listings and filter client-side to avoid Firestore composite index issues
     const listingsSnap = await adminDb
       .collection("listings")
-      .orderBy("createdAt", "desc")
       .limit(500)
       .get();
 
@@ -790,7 +789,6 @@ export const getServerSideProps: GetServerSideProps<Props> = async () => {
       const ordersSnap = await adminDb
         .collection("orders")
         .where("paperTrade", "==", true)
-        .orderBy("createdAt", "desc")
         .limit(50)
         .get();
 
@@ -812,6 +810,13 @@ export const getServerSideProps: GetServerSideProps<Props> = async () => {
           labelUrl: d.shipping?.labelUrl || "",
           createdAt: d.createdAt?.toDate?.().toLocaleString("en-US") || "",
         };
+      });
+
+      paperOrders.sort((a, b) => {
+        if (!a.createdAt && !b.createdAt) return 0;
+        if (!a.createdAt) return 1;
+        if (!b.createdAt) return -1;
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
       });
     } catch (ordersErr) {
       // paperTrade index may not exist yet — gracefully degrade

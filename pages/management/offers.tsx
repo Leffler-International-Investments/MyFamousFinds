@@ -212,7 +212,6 @@ export const getServerSideProps: GetServerSideProps<Props> = async () => {
   try {
     const snap = await adminDb
       .collection("offers")
-      .orderBy("createdAt", "desc")
       .limit(200)
       .get();
 
@@ -230,6 +229,13 @@ export const getServerSideProps: GetServerSideProps<Props> = async () => {
         status: String(d.status || "pending"),
         createdAt: d.createdAt?.toDate?.().toLocaleString("en-US") || "",
       };
+    });
+
+    offers.sort((a, b) => {
+      if (!a.createdAt && !b.createdAt) return 0;
+      if (!a.createdAt) return 1;
+      if (!b.createdAt) return -1;
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
     });
 
     return { props: { offers } };

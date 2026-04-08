@@ -85,8 +85,7 @@ export default async function handler(
       const payoutSnap = await adminDb
         .collection("payouts")
         .where("sellerId", "==", sellerId)
-        .orderBy("createdAt", "desc")
-        .limit(20)
+        .limit(50)
         .get();
 
       payouts = payoutSnap.docs.map((doc) => {

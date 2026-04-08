@@ -726,7 +726,7 @@ export const getServerSideProps: GetServerSideProps<Props> = async () => {
   if (!adminDb) return { props: { purchases: [] } };
 
   try {
-    const snap = await adminDb.collection("orders").orderBy("createdAt", "desc").limit(200).get();
+    const snap = await adminDb.collection("orders").limit(200).get();
 
     const purchases: Purchase[] = snap.docs.map((doc) => {
       const d: any = doc.data() || {};
@@ -762,6 +762,13 @@ export const getServerSideProps: GetServerSideProps<Props> = async () => {
         refund: d.refund || {},
         adminCard: d.adminCard || {},
       };
+    });
+
+    purchases.sort((a, b) => {
+      if (!a.createdAt && !b.createdAt) return 0;
+      if (!a.createdAt) return 1;
+      if (!b.createdAt) return -1;
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
     });
 
     return { props: { purchases } };

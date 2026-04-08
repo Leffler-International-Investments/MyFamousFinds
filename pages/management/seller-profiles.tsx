@@ -488,7 +488,6 @@ export const getServerSideProps: GetServerSideProps<Props> = async () => {
 
     const snap = await adminDb
       .collection("sellers")
-      .orderBy("createdAt", "desc")
       .limit(200)
       .get();
 
@@ -513,6 +512,13 @@ export const getServerSideProps: GetServerSideProps<Props> = async () => {
         notes: d.notes || "",
         createdAt: d.createdAt?.toDate?.().toLocaleString("en-US") || "",
       };
+    });
+
+    sellers.sort((a, b) => {
+      if (!a.createdAt && !b.createdAt) return 0;
+      if (!a.createdAt) return 1;
+      if (!b.createdAt) return -1;
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
     });
 
     return { props: { sellers } };

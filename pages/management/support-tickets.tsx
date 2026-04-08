@@ -379,7 +379,6 @@ export const getServerSideProps: GetServerSideProps<Props> = async () => {
   try {
     const snap = await adminDb
       .collection("supportTickets")
-      .orderBy("createdAt", "desc")
       .limit(200)
       .get();
 
@@ -395,6 +394,13 @@ export const getServerSideProps: GetServerSideProps<Props> = async () => {
         createdAt:
           d.createdAt?.toDate?.().toLocaleString("en-US") || "",
       };
+    });
+
+    tickets.sort((a, b) => {
+      if (!a.createdAt && !b.createdAt) return 0;
+      if (!a.createdAt) return 1;
+      if (!b.createdAt) return -1;
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
     });
 
     return { props: { tickets } };
