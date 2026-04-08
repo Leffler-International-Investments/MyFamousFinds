@@ -90,10 +90,8 @@ export default async function handler(
 
   // ── Firebase Admin check ──────────────────────
   if (!isFirebaseAdminReady || !adminAuth) {
-    const msg =
-      "Firebase Admin is not configured. Set FIREBASE_SERVICE_ACCOUNT_JSON in Vercel env vars.";
-    console.error(`[forgot-password] ${msg}`);
-    return res.status(500).json({ ok: false, error: msg });
+    console.error("[forgot-password] Firebase Admin is not configured. Set FIREBASE_SERVICE_ACCOUNT_JSON in Vercel env vars.");
+    return res.status(500).json({ ok: false, error: "Password reset is temporarily unavailable. Please try again later or contact support." });
   }
 
   const siteUrl =

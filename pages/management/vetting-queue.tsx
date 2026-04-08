@@ -1079,6 +1079,10 @@ export default function ManagementVettingQueue({ items }: Props) {
 
 // Load applications from the "sellers" collection (same as your existing code)
 export const getServerSideProps: GetServerSideProps<Props> = async () => {
+  if (!adminDb) {
+    return { props: { items: [] } };
+  }
+
   const snapshot = await adminDb
     .collection("sellers")
     .orderBy("submittedAt", "desc")

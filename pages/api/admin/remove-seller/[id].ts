@@ -32,9 +32,10 @@ export default async function handler(
   if (!requireAdmin(req, res)) return;
 
   if (!isFirebaseAdminReady || !adminDb) {
+    console.error("Firebase Admin is not configured. Missing FIREBASE_SERVICE_ACCOUNT_JSON (or split FB_* env vars).");
     return res.status(500).json({
       error:
-        "Firebase Admin is not configured. Missing FIREBASE_SERVICE_ACCOUNT_JSON (or split FB_* env vars).",
+        "Server configuration error. Please contact the administrator.",
     });
   }
 
