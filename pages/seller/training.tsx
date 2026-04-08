@@ -136,6 +136,7 @@ export default function SellerTraining() {
   const [sellerId, setSellerId] = useState("");
   const [failedResults, setFailedResults] = useState<Record<string, { correct: boolean; given: string; expected: string }> | null>(null);
   const [reviewAnswers, setReviewAnswers] = useState<Record<string, string>>({});
+  const [reviewError, setReviewError] = useState(false);
 
   useEffect(() => {
     const id = String(
@@ -197,8 +198,9 @@ export default function SellerTraining() {
   const allReviewCorrect = correctReviewCount === failedQuestions.length && failedQuestions.length > 0;
 
   const submitReview = async () => {
-    if (!allReviewCorrect) return;
+    if (!allReviewCorrect || submitting) return;
     setSubmitting(true);
+    setReviewError(false);
     try {
       const res = await fetch("/api/management/seller-training", {
         method: "POST",
@@ -210,14 +212,21 @@ export default function SellerTraining() {
         setResult({ score: json.score || json.total, total: json.total, passed: true });
         setStep("result");
       } else {
-        alert("Review could not be completed. Please try again.");
+        setReviewError(true);
       }
     } catch {
-      alert("Submission failed. Please try again.");
+      setReviewError(true);
     } finally {
       setSubmitting(false);
     }
   };
+
+  // Auto-certify as soon as all failed questions are answered correctly
+  useEffect(() => {
+    if (allReviewCorrect && step === "review" && !submitting) {
+      submitReview();
+    }
+  }, [allReviewCorrect]);
 
   if (authLoading) return <div />;
 
@@ -406,53 +415,40 @@ export default function SellerTraining() {
               })}
 
               <div className="step-actions">
-                <button
-                  className="btn-primary-train"
-                  disabled={!allReviewCorrect || submitting}
-                  onClick={submitReview}
-                >
-                  {submitting
-                    ? "Submitting\u2026"
-                    : allReviewCorrect
-                    ? "Complete Review & Get Certified"
-                    : `Select correct answers (${correctReviewCount}/${failedQuestions.length})`}
-                </button>
+                {submitting ? (
+                  <div className="review-status">Completing your certification...</div>
+                ) : reviewError ? (
+                  <button className="btn-primary-train" onClick={submitReview}>
+                    Try Again
+                  </button>
+                ) : !allReviewCorrect ? (
+                  <div className="review-status">
+                    {correctReviewCount}/{failedQuestions.length} correct — read the material and select the right answer for each question
+                  </div>
+                ) : null}
               </div>
             </div>
           )}
 
-          {/* RESULT STEP */}
+          {/* RESULT STEP — only shows the certified card */}
           {step === "result" && (
             <div className="result-wrap">
-              {(result?.passed || trainingStatus?.certified) ? (
-                <div className="result-card result-card--pass">
-                  <div className="cert-badge">
-                    <span className="cert-badge-icon">{"\u{1F3C6}"}</span>
-                    <h2 className="cert-title">Certified Famous Finds Seller</h2>
-                    <p className="cert-sub">
-                      {result ? `You scored ${result.score}/${result.total}.` : ""} Congratulations — you are now a Certified FF Seller!
-                    </p>
-                    <div className="cert-stamp">{"\u2713"} CERTIFIED FF SELLER</div>
-                  </div>
-                  <p className="cert-note">
-                    Your certification badge will appear on your seller profile. Management has been notified.
+              <div className="result-card result-card--pass">
+                <div className="cert-badge">
+                  <span className="cert-badge-icon">{"\u{1F3C6}"}</span>
+                  <h2 className="cert-title">Certified Famous Finds Seller</h2>
+                  <p className="cert-sub">
+                    Congratulations — you are now a Certified FF Seller!
                   </p>
-                  <Link href="/seller/dashboard" className="btn-dashboard-link">
-                    Go to Dashboard {"\u2192"}
-                  </Link>
+                  <div className="cert-stamp">{"\u2713"} CERTIFIED FF SELLER</div>
                 </div>
-              ) : (
-                <div className="result-card result-card--fail">
-                  <div className="fail-icon">{"\u{1F614}"}</div>
-                  <h2>Not quite — {result?.score}/{result?.total} correct</h2>
-                  <p style={{ color: "#374151", marginBottom: 20 }}>
-                    You need 5/7 to pass. Review the training material and try again.
-                  </p>
-                  <button className="btn-primary-train" onClick={() => { setAnswers({}); setStep("training"); setReadSections(new Set()); }}>
-                    Review Training & Retry
-                  </button>
-                </div>
-              )}
+                <p className="cert-note">
+                  Your certification badge will appear on your seller profile. Management has been notified.
+                </p>
+                <Link href="/seller/dashboard" className="btn-dashboard-link">
+                  Go to Dashboard {"\u2192"}
+                </Link>
+              </div>
             </div>
           )}
         </main>
@@ -514,6 +510,7 @@ export default function SellerTraining() {
         .review-badge { font-size: 13px; font-weight: 700; padding: 4px 12px; border-radius: 999px; white-space: nowrap; }
         .review-badge--correct { color: #15803d; background: #dcfce7; }
         .review-badge--wrong { color: #dc2626; background: #fef2f2; }
+        .review-status { font-size: 14px; color: #6b7280; text-align: center; }
 
         /* Actions */
         .step-actions { display: flex; justify-content: center; margin-top: 28px; }
@@ -525,7 +522,6 @@ export default function SellerTraining() {
         .result-wrap { display: flex; justify-content: center; padding: 20px 0; }
         .result-card { border-radius: 16px; padding: 40px 32px; text-align: center; max-width: 480px; width: 100%; }
         .result-card--pass { background: linear-gradient(135deg, #1c1917 0%, #2d2521 100%); color: #fff; border: 2px solid #b8860b; }
-        .result-card--fail { background: #fff; border: 1px solid #e5e7eb; color: #111827; }
         .cert-badge { margin-bottom: 24px; }
         .cert-badge-icon { font-size: 60px; display: block; margin-bottom: 12px; }
         .cert-title { font-size: 24px; font-weight: 800; color: #d4a843; margin: 0 0 8px; }
@@ -533,7 +529,6 @@ export default function SellerTraining() {
         .cert-stamp { display: inline-block; margin-top: 20px; border: 2px solid #d4a843; color: #d4a843; padding: 8px 24px; border-radius: 4px; font-size: 13px; font-weight: 800; letter-spacing: 0.12em; transform: rotate(-2deg); }
         .cert-note { font-size: 13px; color: #a8a29e; margin: 20px 0 24px; }
         .btn-dashboard-link { display: inline-block; background: #d4a843; color: #1c1917; text-decoration: none; font-weight: 700; font-size: 14px; padding: 12px 32px; border-radius: 999px; }
-        .fail-icon { font-size: 48px; margin-bottom: 12px; }
       `}</style>
     </>
   );
