@@ -6,7 +6,7 @@ import Link from "next/link";
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
 import { useRequireSeller } from "../../hooks/useRequireSeller";
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 
 const QUIZ_QUESTIONS = [
   {
