@@ -6,7 +6,7 @@ import Link from "next/link";
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
 import { useRequireSeller } from "../../hooks/useRequireSeller";
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 
 const QUIZ_QUESTIONS = [
   {
@@ -39,7 +39,7 @@ const QUIZ_QUESTIONS = [
     question: "Can a seller list items without completing their bank account details?",
     options: [
       "A. Yes, always",
-      "B. No — bank details are required before listing",
+      "B. No \u2014 bank details are required before listing",
       "C. Only for items under $100",
       "D. Yes, but only 1 item",
     ],
@@ -51,7 +51,7 @@ const QUIZ_QUESTIONS = [
       "A. It is automatically relisted",
       "B. The seller is banned",
       "C. The seller receives an email with the rejection reason and can resubmit",
-      "D. Nothing — it disappears silently",
+      "D. Nothing \u2014 it disappears silently",
     ],
   },
   {
@@ -80,37 +80,37 @@ const TRAINING_SECTIONS = [
   {
     title: "1. Listing Requirements",
     icon: "\u{1F4CB}",
-    content: `When creating a listing, every item needs: a Designer, Title, Category, Condition, Price, Purchase Source, and Purchase Proof. For Bags, Watches, and Jewelry you must also provide a Serial/Reference number and upload at least 2 of 3 authentication documents (receipt, certificate of authenticity, insurance appraisal, Entrupy report, or warranty card). Items missing required information will not be approved.`,
+    content: "When creating a listing, every item needs: a Designer, Title, Category, Condition, Price, Purchase Source, and Purchase Proof. For Bags, Watches, and Jewelry you must also provide a Serial/Reference number and upload at least 2 of 3 authentication documents (receipt, certificate of authenticity, insurance appraisal, Entrupy report, or warranty card). Items missing required information will not be approved.",
   },
   {
     title: "2. Authentication Standards",
     icon: "\u{1F510}",
-    content: `MyFamousFinds is an authenticated luxury resale marketplace. Every listing is reviewed by management before it goes live. For high-value categories (Bags, Watches, Jewelry), authentication documents are mandatory. Management may request additional proof or reject listings that do not meet our standards. You will receive an email with the reason if a listing is rejected.`,
+    content: "MyFamousFinds is an authenticated luxury resale marketplace. Every listing is reviewed by management before it goes live. For high-value categories (Bags, Watches, Jewelry), authentication documents are mandatory. Management may request additional proof or reject listings that do not meet our standards. You will receive an email with the reason if a listing is rejected.",
   },
   {
     title: "3. Banking & Payouts",
     icon: "\u{1F4B3}",
-    content: `Before you can list items, you must complete your bank account details in the Banking & Payouts section of your dashboard. Payouts are processed after a 14-day cooling-off period following delivery confirmation. This protects both buyers and sellers. You can track your balance and payout history in your Wallet.`,
+    content: "Before you can list items, you must complete your bank account details in the Banking & Payouts section of your dashboard. Payouts are processed after a 14-day cooling-off period following delivery confirmation. This protects both buyers and sellers. You can track your balance and payout history in your Wallet.",
   },
   {
     title: "4. Shipping with UPS",
     icon: "\u{1F4E6}",
-    content: `When an item sells, MyFamousFinds generates a pre-paid UPS shipping label automatically. You will receive an email with the label. Go to Orders in your dashboard, print the label, pack your item securely, and drop it at any UPS location. Do not arrange your own courier — using the generated label protects both parties and keeps tracking visible to management.`,
+    content: "When an item sells, MyFamousFinds generates a pre-paid UPS shipping label automatically. You will receive an email with the label. Go to Orders in your dashboard, print the label, pack your item securely, and drop it at any UPS location. Do not arrange your own courier \u2014 using the generated label protects both parties and keeps tracking visible to management.",
   },
   {
     title: "5. Buyer Offers",
     icon: "\u{1F91D}",
-    content: `If you enable 'Allow Offers' on a listing, buyers can submit offers below your listed price. You will see offers in the Buyer Offers section of your dashboard. You can accept, decline, or let them expire. Accepted offers are binding — the buyer will be charged and the item enters the order process.`,
+    content: "If you enable 'Allow Offers' on a listing, buyers can submit offers below your listed price. You will see offers in the Buyer Offers section of your dashboard. You can accept, decline, or let them expire. Accepted offers are binding \u2014 the buyer will be charged and the item enters the order process.",
   },
   {
     title: "6. Platform Commission",
     icon: "\u{1F4CA}",
-    content: `By listing on MyFamousFinds you agree to the consignment agreement, which outlines the platform fee deducted from your payout. You keep the remainder after the fee is applied. The fee structure is detailed in your signed consignment agreement. Questions about specific rates should be directed to management.`,
+    content: "By listing on MyFamousFinds you agree to the consignment agreement, which outlines the platform fee deducted from your payout. You keep the remainder after the fee is applied. The fee structure is detailed in your signed consignment agreement. Questions about specific rates should be directed to management.",
   },
   {
     title: "7. Seller Conduct & Integrity",
     icon: "\u{2B50}",
-    content: `Sellers on MyFamousFinds are expected to list only authentic items, respond promptly to order notifications, ship within the agreed timeframe, and maintain accurate item descriptions. Misrepresentation, late shipping, or disputes may result in account suspension. We are building a trusted community — your reputation matters.`,
+    content: "Sellers on MyFamousFinds are expected to list only authentic items, respond promptly to order notifications, ship within the agreed timeframe, and maintain accurate item descriptions. Misrepresentation, late shipping, or disputes may result in account suspension. We are building a trusted community \u2014 your reputation matters.",
   },
 ];
 
@@ -147,7 +147,8 @@ export default function SellerTraining() {
     setSellerId(id);
   }, []);
 
-  useEffect(() => {
+  // Fetch training status from API
+  const fetchTrainingStatus = useCallback(() => {
     if (!sellerId) return;
     setFetchingStatus(true);
     fetch(`/api/management/seller-training?sellerId=${encodeURIComponent(sellerId)}`)
@@ -165,6 +166,10 @@ export default function SellerTraining() {
       .finally(() => setFetchingStatus(false));
   }, [sellerId]);
 
+  useEffect(() => {
+    fetchTrainingStatus();
+  }, [fetchTrainingStatus]);
+
   const submitQuiz = async () => {
     if (Object.keys(answers).length < QUIZ_QUESTIONS.length) return;
     setSubmitting(true);
@@ -179,11 +184,17 @@ export default function SellerTraining() {
         setResult({ score: json.score, total: json.total, passed: true });
         setStep("result");
       } else {
-        setFailedResults(json.results);
+        if (json.results) {
+          setFailedResults(json.results);
+        }
         setResult({ score: json.score, total: json.total, passed: false });
         setUnderstoodQuestions(new Set());
         certifyCalledRef.current = false;
         setStep("review");
+        // If results weren't in the response, re-fetch from Firestore
+        if (!json.results) {
+          setTimeout(() => fetchTrainingStatus(), 500);
+        }
       }
     } catch {
       alert("Submission failed. Please try again.");
@@ -463,7 +474,7 @@ export default function SellerTraining() {
                   <span className="cert-badge-icon">{"\u{1F3C6}"}</span>
                   <h2 className="cert-title">Certified Famous Finds Seller</h2>
                   <p className="cert-sub">
-                    Congratulations — you are now a Certified FF Seller!
+                    Congratulations {"\u2014"} you are now a Certified FF Seller!
                   </p>
                   <div className="cert-stamp">{"\u2713"} CERTIFIED FF SELLER</div>
                 </div>
@@ -555,6 +566,24 @@ export default function SellerTraining() {
 
         /* Review progress */
         .review-progress-msg { font-size: 14px; color: #6b7280; text-align: center; padding: 12px 20px; background: #f3f4f6; border-radius: 999px; }
+
+        /* Review question card — red border by default, green when acknowledged */
+        .review-question-card { background: #fff; border: 2px solid #dc2626; border-radius: 12px; padding: 20px; margin-bottom: 14px; transition: all 0.3s; }
+        .review-question-card--done { border-color: #16a34a; background: #f0fdf4; }
+
+        /* Wrong / correct answer display */
+        .review-answer { display: flex; align-items: flex-start; gap: 10px; padding: 10px 14px; border-radius: 8px; margin-bottom: 8px; font-size: 14px; }
+        .review-answer--wrong { background: #fef2f2; border: 1px solid #fecaca; color: #991b1b; }
+        .review-answer--correct { background: #f0fdf4; border: 1px solid #bbf7d0; color: #166534; }
+        .review-answer-icon { font-weight: 700; font-size: 18px; flex-shrink: 0; line-height: 1.4; }
+        .review-answer-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 2px; opacity: 0.7; }
+        .review-answer-text { font-weight: 600; }
+
+        /* Checkbox */
+        .review-checkbox { display: flex; align-items: center; gap: 10px; margin-top: 16px; padding: 12px 14px; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 600; color: #374151; transition: all 0.2s; }
+        .review-checkbox:hover { border-color: #b8860b; background: #fffbeb; }
+        .review-checkbox--checked { border-color: #16a34a; background: #f0fdf4; color: #15803d; }
+        .review-checkbox input[type="checkbox"] { width: 18px; height: 18px; accent-color: #16a34a; cursor: pointer; flex-shrink: 0; }
 
         /* Actions */
         .step-actions { display: flex; justify-content: center; margin-top: 28px; }
