@@ -21,6 +21,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       FB_CLIENT_EMAIL: !!process.env.FB_CLIENT_EMAIL,
       FB_PRIVATE_KEY: !!(process.env.FB_PRIVATE_KEY),
     },
+    clientSideProjectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || "(not set)",
+    PROJECT_ID_MATCH: (process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || "") === (() => { try { return JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_JSON || "{}").project_id || ""; } catch { return ""; } })() ? "MATCH" : "MISMATCH — THIS IS THE PROBLEM",
     isFirebaseAdminReady,
     adminDbExists: !!adminDb,
     adminAuthExists: !!adminAuth,
