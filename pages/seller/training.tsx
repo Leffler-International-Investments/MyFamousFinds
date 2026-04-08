@@ -6,7 +6,7 @@ import Link from "next/link";
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
 import { useRequireSeller } from "../../hooks/useRequireSeller";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 
 const QUIZ_QUESTIONS = [
   {
@@ -136,7 +136,9 @@ export default function SellerTraining() {
   const [sellerId, setSellerId] = useState("");
   const [failedResults, setFailedResults] = useState<Record<string, { correct: boolean; given: string; expected: string }> | null>(null);
   const [reviewAnswers, setReviewAnswers] = useState<Record<string, string>>({});
-  const [reviewError, setReviewError] = useState(false);
+  // Track which review questions are locked (answered correctly)
+  const [lockedReview, setLockedReview] = useState<Set<string>>(new Set());
+  const certifyCalledRef = useRef(false);
 
   useEffect(() => {
     const id = String(
@@ -152,11 +154,10 @@ export default function SellerTraining() {
       .then((r) => r.json())
       .then((d) => {
         setTrainingStatus(d);
-        if (d.certified) {
-          setStep("result");
-        } else if (d.status === "failed") {
-          if (d.results) setFailedResults(d.results);
-          setResult({ score: d.score || 0, total: d.total || 7, passed: false });
+        if (d.certified) setStep("result");
+        else if (d.status === "failed" && d.results) {
+          setFailedResults(d.results);
+          setResult({ score: d.score, total: d.total, passed: false });
           setStep("review");
         }
       })
@@ -180,6 +181,8 @@ export default function SellerTraining() {
         setFailedResults(json.results);
         setResult({ score: json.score, total: json.total, passed: false });
         setReviewAnswers({});
+        setLockedReview(new Set());
+        certifyCalledRef.current = false;
         setStep("review");
       }
     } catch {
@@ -189,45 +192,54 @@ export default function SellerTraining() {
     }
   };
 
-  // Derived state for review step — use trainingStatus.results as fallback
-  const activeResults = failedResults || trainingStatus?.results || null;
-  const failedQuestions = activeResults
-    ? QUIZ_QUESTIONS.filter((q) => activeResults[q.id] && !activeResults[q.id].correct)
-    : [];
-  const correctReviewCount = failedQuestions.filter(
-    (q) => reviewAnswers[q.id] && activeResults && reviewAnswers[q.id] === activeResults[q.id].expected
-  ).length;
-  const allReviewCorrect = correctReviewCount === failedQuestions.length && failedQuestions.length > 0;
-
-  const submitReview = async () => {
-    if (!allReviewCorrect || submitting || failedQuestions.length === 0) return;
-    setSubmitting(true);
-    setReviewError(false);
-    try {
-      const res = await fetch("/api/management/seller-training", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "complete-review", sellerId, answers: reviewAnswers }),
+  // Called when a review answer is selected — locks correct answers immediately
+  const handleReviewAnswer = (qId: string, letter: string, expected: string) => {
+    if (lockedReview.has(qId)) return; // already locked
+    setReviewAnswers((prev) => ({ ...prev, [qId]: letter }));
+    if (letter === expected) {
+      setLockedReview((prev) => {
+        const next = new Set(prev);
+        next.add(qId);
+        return next;
       });
-      const json = await res.json();
-      if (json.ok && json.passed) {
-        setResult({ score: json.score || json.total, total: json.total, passed: true });
-        setStep("result");
-      } else {
-        setReviewError(true);
-      }
-    } catch {
-      setReviewError(true);
-    } finally {
-      setSubmitting(false);
     }
   };
 
-  // Auto-certify as soon as all failed questions are answered correctly
+  // Derived state for review step
+  const failedQuestions = failedResults
+    ? QUIZ_QUESTIONS.filter((q) => failedResults[q.id] && !failedResults[q.id].correct)
+    : [];
+
+  const allReviewCorrect =
+    failedQuestions.length > 0 &&
+    failedQuestions.every((q) => lockedReview.has(q.id));
+
+  // Auto-certify the moment all failed questions are answered correctly
   useEffect(() => {
-    if (allReviewCorrect && step === "review" && !submitting) {
-      submitReview();
-    }
+    if (!allReviewCorrect || submitting || certifyCalledRef.current) return;
+    certifyCalledRef.current = true;
+    setSubmitting(true);
+    fetch("/api/management/seller-training", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "complete-review", sellerId, answers: reviewAnswers }),
+    })
+      .then((r) => r.json())
+      .then((json) => {
+        if (json.ok && json.passed) {
+          setResult({ score: json.score || json.total, total: json.total, passed: true });
+          setStep("result");
+        } else {
+          // Server rejected — reset so seller can retry
+          certifyCalledRef.current = false;
+          setLockedReview(new Set());
+          setReviewAnswers({});
+        }
+      })
+      .catch(() => {
+        certifyCalledRef.current = false;
+      })
+      .finally(() => setSubmitting(false));
   }, [allReviewCorrect]);
 
   if (authLoading) return <div />;
@@ -338,109 +350,108 @@ export default function SellerTraining() {
             </div>
           )}
 
-          {/* REVIEW STEP — shown when seller fails, displays only failed questions with training material */}
-          {step === "review" && (
+          {/* REVIEW STEP — failed questions only, inline training material, auto-certifies on last correct tick */}
+          {step === "review" && failedResults && (
             <div>
-              {failedQuestions.length === 0 ? (
-                <div style={{ textAlign: "center", padding: "40px 0", color: "#6b7280" }}>
-                  Loading review questions...
+              <div className="review-header">
+                <div className="review-icon">{"\u{1F4DD}"}</div>
+                <h2 className="review-title">
+                  Almost there — review {failedQuestions.length} question{failedQuestions.length !== 1 ? "s" : ""}
+                </h2>
+                <p className="step-intro" style={{ textAlign: "center", marginBottom: 0 }}>
+                  You scored {result?.score}/{result?.total}. Read the material below for each missed question, then tick the correct answer. Once you get the last one right you{"'"}re automatically certified.
+                </p>
+              </div>
+
+              {submitting && (
+                <div className="certifying-notice">
+                  <span className="certifying-spinner">{"\u23F3"}</span> Completing your certification…
                 </div>
-              ) : (
-                <>
-                  <div className="review-header">
-                    <div className="review-icon">{"\u{1F4DD}"}</div>
-                    <h2 className="review-title">
-                      Almost there — review {failedQuestions.length} question{failedQuestions.length !== 1 ? "s" : ""}
-                    </h2>
-                    <p className="step-intro" style={{ textAlign: "center", marginBottom: 0 }}>
-                      You scored {result?.score}/{result?.total}. Read the material for each question you missed, then select the correct answer to complete your certification.
-                    </p>
-                  </div>
+              )}
 
-                  {failedQuestions.map((q) => {
-                    const sectionIdx = QUESTION_TO_SECTION[q.id];
-                    const section = TRAINING_SECTIONS[sectionIdx];
-                    const expected = activeResults![q.id].expected;
-                    const selected = reviewAnswers[q.id];
-                    const isCorrect = selected === expected;
-                    const isWrong = !!selected && !isCorrect;
-                    const qNum = QUIZ_QUESTIONS.indexOf(q) + 1;
+              {failedQuestions.map((q) => {
+                const sectionIdx = QUESTION_TO_SECTION[q.id];
+                const section = TRAINING_SECTIONS[sectionIdx];
+                const expected = failedResults[q.id].expected;
+                const selected = reviewAnswers[q.id];
+                const isLocked = lockedReview.has(q.id);
+                const isWrong = !!selected && !isLocked;
+                const qNum = QUIZ_QUESTIONS.indexOf(q) + 1;
 
-                    return (
-                      <div key={q.id} className="review-block">
-                        <div className="review-section-label">Read before answering Question {qNum}</div>
+                return (
+                  <div key={q.id} className={`review-block ${isLocked ? "review-block--done" : ""}`}>
+                    <div className="review-section-label">Read before answering Question {qNum}</div>
 
-                        <div className="training-card training-card--review">
-                          <div className="training-card-header">
-                            <span className="training-card-icon">{section.icon}</span>
-                            <h3 className="training-card-title">{section.title}</h3>
-                          </div>
-                          <p className="training-card-body">{section.content}</p>
-                        </div>
-
-                        <div className={`quiz-card ${isCorrect ? "quiz-card--correct" : ""}`}>
-                          <div className="quiz-question-row">
-                            <p className="quiz-question" style={{ flex: 1, margin: 0 }}>
-                              <span className="quiz-num">Q{qNum}.</span> {q.question}
-                            </p>
-                            {isCorrect && <span className="review-badge review-badge--correct">{"\u2713"} Correct</span>}
-                            {isWrong && <span className="review-badge review-badge--wrong">{"\u2717"} Try again</span>}
-                          </div>
-                          <div className="quiz-options">
-                            {q.options.map((opt) => {
-                              const letter = opt.charAt(0);
-                              const isSelected = selected === letter;
-                              return (
-                                <label
-                                  key={opt}
-                                  className={`quiz-option ${
-                                    isSelected
-                                      ? isCorrect
-                                        ? "quiz-option--correct"
-                                        : "quiz-option--wrong"
-                                      : ""
-                                  }`}
-                                >
-                                  <input
-                                    type="radio"
-                                    name={`review-${q.id}`}
-                                    value={letter}
-                                    checked={isSelected}
-                                    onChange={() =>
-                                      setReviewAnswers((prev) => ({ ...prev, [q.id]: letter }))
-                                    }
-                                    disabled={isCorrect}
-                                    style={{ marginRight: 10 }}
-                                  />
-                                  {opt}
-                                </label>
-                              );
-                            })}
-                          </div>
-                        </div>
+                    <div className="training-card training-card--review">
+                      <div className="training-card-header">
+                        <span className="training-card-icon">{section.icon}</span>
+                        <h3 className="training-card-title">{section.title}</h3>
                       </div>
-                    );
-                  })}
+                      <p className="training-card-body">{section.content}</p>
+                    </div>
 
-                  <div className="step-actions">
-                    {submitting ? (
-                      <div className="review-status">Completing your certification...</div>
-                    ) : reviewError ? (
-                      <button className="btn-primary-train" onClick={submitReview}>
-                        Try Again
-                      </button>
-                    ) : !allReviewCorrect ? (
-                      <div className="review-status">
-                        {correctReviewCount}/{failedQuestions.length} correct — read the material and select the right answer for each question
+                    <div className={`quiz-card ${isLocked ? "quiz-card--correct" : ""}`}>
+                      <div className="quiz-question-row">
+                        <p className="quiz-question" style={{ flex: 1, margin: 0 }}>
+                          <span className="quiz-num">Q{qNum}.</span> {q.question}
+                        </p>
+                        {isLocked && (
+                          <span className="review-badge review-badge--correct">{"\u2713"} Correct</span>
+                        )}
+                        {isWrong && (
+                          <span className="review-badge review-badge--wrong">{"\u2717"} Try again</span>
+                        )}
                       </div>
-                    ) : null}
+                      <div className="quiz-options">
+                        {q.options.map((opt) => {
+                          const letter = opt.charAt(0);
+                          const isSelected = selected === letter;
+                          const isThisCorrect = isLocked && letter === expected;
+                          const isThisWrong = isSelected && isWrong;
+                          return (
+                            <label
+                              key={opt}
+                              className={`quiz-option ${
+                                isThisCorrect
+                                  ? "quiz-option--correct"
+                                  : isThisWrong
+                                  ? "quiz-option--wrong"
+                                  : isSelected && !isLocked
+                                  ? "quiz-option--selected"
+                                  : ""
+                              } ${isLocked ? "quiz-option--locked" : ""}`}
+                              onClick={() => !isLocked && handleReviewAnswer(q.id, letter, expected)}
+                            >
+                              <input
+                                type="radio"
+                                name={`review-${q.id}`}
+                                value={letter}
+                                checked={isSelected || isThisCorrect}
+                                onChange={() => {}}
+                                disabled={isLocked}
+                                style={{ marginRight: 10 }}
+                              />
+                              {opt}
+                            </label>
+                          );
+                        })}
+                      </div>
+                    </div>
                   </div>
-                </>
+                );
+              })}
+
+              {!submitting && (
+                <div className="step-actions">
+                  <div className="review-status">
+                    {lockedReview.size}/{failedQuestions.length} correct — select the right answer for each missed question
+                  </div>
+                </div>
               )}
             </div>
           )}
 
-          {/* RESULT STEP — only shows the certified card */}
+          {/* RESULT STEP — certificate screen */}
           {step === "result" && (
             <div className="result-wrap">
               <div className="result-card result-card--pass">
@@ -506,21 +517,27 @@ export default function SellerTraining() {
         .quiz-num { color: #b8860b; margin-right: 6px; }
         .quiz-options { display: flex; flex-direction: column; gap: 8px; }
         .quiz-option { display: flex; align-items: flex-start; padding: 10px 14px; border: 1px solid #e5e7eb; border-radius: 8px; cursor: pointer; font-size: 14px; color: #374151; transition: all 0.15s; }
-        .quiz-option:hover { border-color: #b8860b; background: #fffbeb; }
+        .quiz-option:hover:not(.quiz-option--locked) { border-color: #b8860b; background: #fffbeb; }
         .quiz-option--selected { border-color: #111827; background: #f3f4f6; font-weight: 600; color: #111827; }
-        .quiz-option--correct { border-color: #16a34a; background: #f0fdf4; font-weight: 600; color: #15803d; cursor: default; }
+        .quiz-option--correct { border-color: #16a34a; background: #f0fdf4; font-weight: 600; color: #15803d; }
         .quiz-option--wrong { border-color: #dc2626; background: #fef2f2; font-weight: 600; color: #dc2626; }
+        .quiz-option--locked { cursor: default; }
 
         /* Review step */
         .review-header { text-align: center; margin-bottom: 28px; }
         .review-icon { font-size: 48px; margin-bottom: 8px; }
         .review-title { font-size: 22px; font-weight: 800; margin: 0 0 8px; color: #111827; }
-        .review-block { margin-bottom: 32px; }
+        .review-block { margin-bottom: 32px; transition: opacity 0.3s; }
+        .review-block--done { opacity: 0.7; }
         .review-section-label { font-size: 12px; font-weight: 700; color: #b8860b; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 8px; }
         .review-badge { font-size: 13px; font-weight: 700; padding: 4px 12px; border-radius: 999px; white-space: nowrap; }
         .review-badge--correct { color: #15803d; background: #dcfce7; }
         .review-badge--wrong { color: #dc2626; background: #fef2f2; }
         .review-status { font-size: 14px; color: #6b7280; text-align: center; }
+
+        /* Certifying notice */
+        .certifying-notice { text-align: center; font-size: 15px; font-weight: 600; color: #15803d; background: #f0fdf4; border: 1px solid #86efac; border-radius: 10px; padding: 14px 20px; margin-bottom: 24px; }
+        .certifying-spinner { font-size: 18px; margin-right: 6px; }
 
         /* Actions */
         .step-actions { display: flex; justify-content: center; margin-top: 28px; }
