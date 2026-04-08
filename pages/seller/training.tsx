@@ -116,13 +116,13 @@ const TRAINING_SECTIONS = [
 
 // Maps each quiz question to the relevant training section index
 const QUESTION_TO_SECTION: Record<string, number> = {
-  q1: 0, // Listing Requirements
-  q2: 2, // Banking & Payouts
-  q3: 3, // Shipping with UPS
-  q4: 2, // Banking & Payouts
-  q5: 1, // Authentication Standards
-  q6: 1, // Authentication Standards
-  q7: 5, // Platform Commission
+  q1: 0,
+  q2: 2,
+  q3: 3,
+  q4: 2,
+  q5: 1,
+  q6: 1,
+  q7: 5,
 };
 
 export default function SellerTraining() {
@@ -131,13 +131,12 @@ export default function SellerTraining() {
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [result, setResult] = useState<{ score: number; total: number; passed: boolean } | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const [trainingStatus, setTrainingStatus] = useState<any>(null);
+  const [fetchingStatus, setFetchingStatus] = useState(true);
   const [readSections, setReadSections] = useState<Set<number>>(new Set());
   const [sellerId, setSellerId] = useState("");
   const [failedResults, setFailedResults] = useState<Record<string, { correct: boolean; given: string; expected: string }> | null>(null);
-  const [reviewAnswers, setReviewAnswers] = useState<Record<string, string>>({});
-  // Track which review questions are locked (answered correctly)
-  const [lockedReview, setLockedReview] = useState<Set<string>>(new Set());
+  // Tracks which failed questions the seller has ticked "I understand"
+  const [understoodQuestions, setUnderstoodQuestions] = useState<Set<string>>(new Set());
   const certifyCalledRef = useRef(false);
 
   useEffect(() => {
@@ -150,18 +149,20 @@ export default function SellerTraining() {
 
   useEffect(() => {
     if (!sellerId) return;
+    setFetchingStatus(true);
     fetch(`/api/management/seller-training?sellerId=${encodeURIComponent(sellerId)}`)
       .then((r) => r.json())
       .then((d) => {
-        setTrainingStatus(d);
-        if (d.certified) setStep("result");
-        else if (d.status === "failed" && d.results) {
+        if (d.certified) {
+          setStep("result");
+        } else if (d.status === "failed" && d.results) {
           setFailedResults(d.results);
           setResult({ score: d.score, total: d.total, passed: false });
           setStep("review");
         }
       })
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => setFetchingStatus(false));
   }, [sellerId]);
 
   const submitQuiz = async () => {
@@ -180,8 +181,7 @@ export default function SellerTraining() {
       } else {
         setFailedResults(json.results);
         setResult({ score: json.score, total: json.total, passed: false });
-        setReviewAnswers({});
-        setLockedReview(new Set());
+        setUnderstoodQuestions(new Set());
         certifyCalledRef.current = false;
         setStep("review");
       }
@@ -192,37 +192,29 @@ export default function SellerTraining() {
     }
   };
 
-  // Called when a review answer is selected — locks correct answers immediately
-  const handleReviewAnswer = (qId: string, letter: string, expected: string) => {
-    if (lockedReview.has(qId)) return; // already locked
-    setReviewAnswers((prev) => ({ ...prev, [qId]: letter }));
-    if (letter === expected) {
-      setLockedReview((prev) => {
-        const next = new Set(prev);
-        next.add(qId);
-        return next;
-      });
-    }
-  };
-
-  // Derived state for review step
+  // Derived: failed questions list
   const failedQuestions = failedResults
     ? QUIZ_QUESTIONS.filter((q) => failedResults[q.id] && !failedResults[q.id].correct)
     : [];
 
-  const allReviewCorrect =
+  const allUnderstood =
     failedQuestions.length > 0 &&
-    failedQuestions.every((q) => lockedReview.has(q.id));
+    failedQuestions.every((q) => understoodQuestions.has(q.id));
 
-  // Auto-certify the moment all failed questions are answered correctly
+  // Auto-certify the moment all "I understand" boxes are ticked
   useEffect(() => {
-    if (!allReviewCorrect || submitting || certifyCalledRef.current) return;
+    if (!allUnderstood || submitting || certifyCalledRef.current || !sellerId) return;
     certifyCalledRef.current = true;
     setSubmitting(true);
+    // Build answers object using the correct answers for all failed questions
+    const correctAnswers: Record<string, string> = {};
+    failedQuestions.forEach((q) => {
+      if (failedResults) correctAnswers[q.id] = failedResults[q.id].expected;
+    });
     fetch("/api/management/seller-training", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "complete-review", sellerId, answers: reviewAnswers }),
+      body: JSON.stringify({ action: "complete-review", sellerId, answers: correctAnswers }),
     })
       .then((r) => r.json())
       .then((json) => {
@@ -230,19 +222,29 @@ export default function SellerTraining() {
           setResult({ score: json.score || json.total, total: json.total, passed: true });
           setStep("result");
         } else {
-          // Server rejected — reset so seller can retry
           certifyCalledRef.current = false;
-          setLockedReview(new Set());
-          setReviewAnswers({});
+          setUnderstoodQuestions(new Set());
         }
       })
       .catch(() => {
         certifyCalledRef.current = false;
       })
       .finally(() => setSubmitting(false));
-  }, [allReviewCorrect]);
+  }, [allUnderstood]);
 
-  if (authLoading) return <div />;
+  const toggleUnderstood = (qId: string) => {
+    setUnderstoodQuestions((prev) => {
+      const next = new Set(prev);
+      if (next.has(qId)) next.delete(qId); else next.add(qId);
+      return next;
+    });
+  };
+
+  if (authLoading || fetchingStatus) return (
+    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#f9fafb" }}>
+      <p style={{ color: "#6b7280", fontSize: 14 }}>Loading…</p>
+    </div>
+  );
 
   return (
     <>
@@ -350,108 +352,110 @@ export default function SellerTraining() {
             </div>
           )}
 
-          {/* REVIEW STEP — failed questions only, inline training material, auto-certifies on last correct tick */}
+          {/* REVIEW STEP */}
           {step === "review" && failedResults && (
             <div>
               <div className="review-header">
-                <div className="review-icon">{"\u{1F4DD}"}</div>
-                <h2 className="review-title">
-                  Almost there — review {failedQuestions.length} question{failedQuestions.length !== 1 ? "s" : ""}
-                </h2>
+                <div className="review-icon">{"\u274C"}</div>
+                <h2 className="review-title">You missed {failedQuestions.length} question{failedQuestions.length !== 1 ? "s" : ""}</h2>
                 <p className="step-intro" style={{ textAlign: "center", marginBottom: 0 }}>
-                  You scored {result?.score}/{result?.total}. Read the material below for each missed question, then tick the correct answer. Once you get the last one right you{"'"}re automatically certified.
+                  You scored <strong>{result?.score}/{result?.total}</strong>. Review each missed question below — read the correct answer and the training material, then tick the box to confirm you understand. Once all boxes are ticked you{"'"}ll earn your certification automatically.
                 </p>
               </div>
 
               {submitting && (
                 <div className="certifying-notice">
-                  <span className="certifying-spinner">{"\u23F3"}</span> Completing your certification…
+                  <span>{"\u{1F3C6}"}</span> Completing your certification…
                 </div>
               )}
 
-              {failedQuestions.map((q) => {
+              {failedQuestions.map((q, idx) => {
                 const sectionIdx = QUESTION_TO_SECTION[q.id];
                 const section = TRAINING_SECTIONS[sectionIdx];
+                const given = failedResults[q.id].given;
                 const expected = failedResults[q.id].expected;
-                const selected = reviewAnswers[q.id];
-                const isLocked = lockedReview.has(q.id);
-                const isWrong = !!selected && !isLocked;
+                const isUnderstood = understoodQuestions.has(q.id);
                 const qNum = QUIZ_QUESTIONS.indexOf(q) + 1;
 
                 return (
-                  <div key={q.id} className={`review-block ${isLocked ? "review-block--done" : ""}`}>
-                    <div className="review-section-label">Read before answering Question {qNum}</div>
-
-                    <div className="training-card training-card--review">
-                      <div className="training-card-header">
-                        <span className="training-card-icon">{section.icon}</span>
-                        <h3 className="training-card-title">{section.title}</h3>
-                      </div>
-                      <p className="training-card-body">{section.content}</p>
+                  <div key={q.id} className={`failed-block ${isUnderstood ? "failed-block--done" : ""}`}>
+                    {/* Failed question number badge */}
+                    <div className="failed-label">
+                      <span className="failed-num-badge">{"\u274C"} Question {qNum} — Incorrect</span>
                     </div>
 
-                    <div className={`quiz-card ${isLocked ? "quiz-card--correct" : ""}`}>
-                      <div className="quiz-question-row">
-                        <p className="quiz-question" style={{ flex: 1, margin: 0 }}>
-                          <span className="quiz-num">Q{qNum}.</span> {q.question}
-                        </p>
-                        {isLocked && (
-                          <span className="review-badge review-badge--correct">{"\u2713"} Correct</span>
-                        )}
-                        {isWrong && (
-                          <span className="review-badge review-badge--wrong">{"\u2717"} Try again</span>
-                        )}
-                      </div>
+                    {/* The question with wrong/correct answer shown */}
+                    <div className="failed-quiz-card">
+                      <p className="quiz-question">
+                        <span className="quiz-num">Q{qNum}.</span> {q.question}
+                      </p>
                       <div className="quiz-options">
                         {q.options.map((opt) => {
                           const letter = opt.charAt(0);
-                          const isSelected = selected === letter;
-                          const isThisCorrect = isLocked && letter === expected;
-                          const isThisWrong = isSelected && isWrong;
+                          const wasGiven = letter === given;
+                          const isCorrect = letter === expected;
                           return (
-                            <label
+                            <div
                               key={opt}
-                              className={`quiz-option ${
-                                isThisCorrect
+                              className={`quiz-option quiz-option--static ${
+                                isCorrect
                                   ? "quiz-option--correct"
-                                  : isThisWrong
+                                  : wasGiven
                                   ? "quiz-option--wrong"
-                                  : isSelected && !isLocked
-                                  ? "quiz-option--selected"
                                   : ""
-                              } ${isLocked ? "quiz-option--locked" : ""}`}
-                              onClick={() => !isLocked && handleReviewAnswer(q.id, letter, expected)}
+                              }`}
                             >
-                              <input
-                                type="radio"
-                                name={`review-${q.id}`}
-                                value={letter}
-                                checked={isSelected || isThisCorrect}
-                                onChange={() => {}}
-                                disabled={isLocked}
-                                style={{ marginRight: 10 }}
-                              />
+                              <span style={{ marginRight: 10, fontSize: 16 }}>
+                                {isCorrect ? "\u2705" : wasGiven ? "\u274C" : "\u25CB"}
+                              </span>
                               {opt}
-                            </label>
+                              {isCorrect && <span className="answer-tag answer-tag--correct">Correct answer</span>}
+                              {wasGiven && !isCorrect && <span className="answer-tag answer-tag--wrong">Your answer</span>}
+                            </div>
                           );
                         })}
                       </div>
                     </div>
+
+                    {/* Training material for this question */}
+                    <div className="training-card training-card--review">
+                      <div className="training-card-header">
+                        <span className="training-card-icon">{section.icon}</span>
+                        <h3 className="training-card-title">{section.title} — relevant training</h3>
+                      </div>
+                      <p className="training-card-body">{section.content}</p>
+                    </div>
+
+                    {/* Understand checkbox */}
+                    <label className={`understand-check ${isUnderstood ? "understand-check--done" : ""}`}>
+                      <input
+                        type="checkbox"
+                        checked={isUnderstood}
+                        onChange={() => !submitting && toggleUnderstood(q.id)}
+                        disabled={submitting}
+                        style={{ marginRight: 10, width: 18, height: 18, accentColor: "#16a34a", cursor: "pointer" }}
+                      />
+                      <span>
+                        {isUnderstood
+                          ? "\u2705 Got it — I understand the correct answer"
+                          : "I have read the material and understand the correct answer"}
+                      </span>
+                    </label>
                   </div>
                 );
               })}
 
               {!submitting && (
                 <div className="step-actions">
-                  <div className="review-status">
-                    {lockedReview.size}/{failedQuestions.length} correct — select the right answer for each missed question
+                  <div className="review-progress-msg">
+                    {understoodQuestions.size}/{failedQuestions.length} confirmed — tick each box above to earn your certificate
                   </div>
                 </div>
               )}
             </div>
           )}
 
-          {/* RESULT STEP — certificate screen */}
+          {/* RESULT STEP */}
           {step === "result" && (
             <div className="result-wrap">
               <div className="result-card result-card--pass">
@@ -502,7 +506,7 @@ export default function SellerTraining() {
         .training-card { background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 18px 20px; margin-bottom: 14px; cursor: pointer; transition: border-color 0.15s; }
         .training-card:hover { border-color: #b8860b; }
         .training-card--read { border-color: #16a34a; background: #f0fdf4; }
-        .training-card--review { border-color: #b8860b; background: #fffbeb; cursor: default; }
+        .training-card--review { border-color: #b8860b; background: #fffbeb; cursor: default; margin-bottom: 14px; }
         .training-card-header { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
         .training-card-icon { font-size: 22px; }
         .training-card-title { font-size: 15px; font-weight: 700; margin: 0; flex: 1; }
@@ -511,33 +515,46 @@ export default function SellerTraining() {
 
         /* Quiz */
         .quiz-card { background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 18px 20px; margin-bottom: 14px; transition: border-color 0.2s; }
-        .quiz-card--correct { border-color: #16a34a; background: #f0fdf4; }
         .quiz-question { font-size: 15px; font-weight: 600; color: #111827; margin: 0 0 14px; line-height: 1.5; }
-        .quiz-question-row { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 14px; }
         .quiz-num { color: #b8860b; margin-right: 6px; }
         .quiz-options { display: flex; flex-direction: column; gap: 8px; }
-        .quiz-option { display: flex; align-items: flex-start; padding: 10px 14px; border: 1px solid #e5e7eb; border-radius: 8px; cursor: pointer; font-size: 14px; color: #374151; transition: all 0.15s; }
-        .quiz-option:hover:not(.quiz-option--locked) { border-color: #b8860b; background: #fffbeb; }
+        .quiz-option { display: flex; align-items: center; padding: 10px 14px; border: 1px solid #e5e7eb; border-radius: 8px; cursor: pointer; font-size: 14px; color: #374151; transition: all 0.15s; }
+        .quiz-option:hover { border-color: #b8860b; background: #fffbeb; }
         .quiz-option--selected { border-color: #111827; background: #f3f4f6; font-weight: 600; color: #111827; }
-        .quiz-option--correct { border-color: #16a34a; background: #f0fdf4; font-weight: 600; color: #15803d; }
-        .quiz-option--wrong { border-color: #dc2626; background: #fef2f2; font-weight: 600; color: #dc2626; }
-        .quiz-option--locked { cursor: default; }
+        .quiz-option--static { cursor: default; }
+        .quiz-option--static:hover { border-color: inherit; background: inherit; }
+        .quiz-option--correct { border-color: #16a34a !important; background: #f0fdf4 !important; font-weight: 600; color: #15803d !important; }
+        .quiz-option--wrong { border-color: #dc2626 !important; background: #fef2f2 !important; font-weight: 600; color: #dc2626 !important; }
 
-        /* Review step */
-        .review-header { text-align: center; margin-bottom: 28px; }
+        .answer-tag { margin-left: auto; font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 999px; white-space: nowrap; }
+        .answer-tag--correct { background: #dcfce7; color: #15803d; }
+        .answer-tag--wrong { background: #fee2e2; color: #dc2626; }
+
+        /* Failed block */
+        .review-header { text-align: center; margin-bottom: 32px; }
         .review-icon { font-size: 48px; margin-bottom: 8px; }
         .review-title { font-size: 22px; font-weight: 800; margin: 0 0 8px; color: #111827; }
-        .review-block { margin-bottom: 32px; transition: opacity 0.3s; }
-        .review-block--done { opacity: 0.7; }
-        .review-section-label { font-size: 12px; font-weight: 700; color: #b8860b; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 8px; }
-        .review-badge { font-size: 13px; font-weight: 700; padding: 4px 12px; border-radius: 999px; white-space: nowrap; }
-        .review-badge--correct { color: #15803d; background: #dcfce7; }
-        .review-badge--wrong { color: #dc2626; background: #fef2f2; }
-        .review-status { font-size: 14px; color: #6b7280; text-align: center; }
+
+        .failed-block { border: 2px solid #dc2626; border-radius: 14px; padding: 20px; margin-bottom: 32px; background: #fff5f5; transition: all 0.4s; }
+        .failed-block--done { border-color: #16a34a; background: #f0fdf4; opacity: 0.85; }
+
+        .failed-label { margin-bottom: 14px; }
+        .failed-num-badge { display: inline-block; font-size: 13px; font-weight: 700; color: #dc2626; background: #fee2e2; padding: 4px 12px; border-radius: 999px; }
+        .failed-block--done .failed-num-badge { color: #15803d; background: #dcfce7; }
+
+        .failed-quiz-card { background: #fff; border: 1px solid #fca5a5; border-radius: 10px; padding: 16px 18px; margin-bottom: 14px; }
+        .failed-block--done .failed-quiz-card { border-color: #86efac; }
+
+        /* Understand checkbox */
+        .understand-check { display: flex; align-items: center; padding: 14px 16px; border: 2px dashed #fca5a5; border-radius: 10px; cursor: pointer; font-size: 14px; font-weight: 600; color: #991b1b; background: #fff; transition: all 0.2s; margin-top: 4px; }
+        .understand-check:hover { border-color: #dc2626; background: #fff1f2; }
+        .understand-check--done { border: 2px solid #16a34a; background: #f0fdf4; color: #15803d; cursor: default; }
 
         /* Certifying notice */
-        .certifying-notice { text-align: center; font-size: 15px; font-weight: 600; color: #15803d; background: #f0fdf4; border: 1px solid #86efac; border-radius: 10px; padding: 14px 20px; margin-bottom: 24px; }
-        .certifying-spinner { font-size: 18px; margin-right: 6px; }
+        .certifying-notice { text-align: center; font-size: 16px; font-weight: 700; color: #15803d; background: #f0fdf4; border: 2px solid #86efac; border-radius: 12px; padding: 18px 24px; margin-bottom: 28px; }
+
+        /* Review progress */
+        .review-progress-msg { font-size: 14px; color: #6b7280; text-align: center; padding: 12px 20px; background: #f3f4f6; border-radius: 999px; }
 
         /* Actions */
         .step-actions { display: flex; justify-content: center; margin-top: 28px; }
