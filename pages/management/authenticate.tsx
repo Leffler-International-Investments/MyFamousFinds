@@ -1283,7 +1283,6 @@ export const getServerSideProps: GetServerSideProps<Props> = async (ctx) => {
   try {
     const snap = await adminDb
       .collection("listings")
-      .orderBy("createdAt", "desc")
       .limit(300)
       .get();
 

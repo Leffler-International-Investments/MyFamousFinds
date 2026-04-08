@@ -687,7 +687,6 @@ export const getServerSideProps: GetServerSideProps<Props> = async () => {
   try {
     const snap = await adminDb
       .collection("listings")
-      .orderBy("createdAt", "desc")
       .limit(200)
       .get();
 
@@ -728,6 +727,13 @@ export const getServerSideProps: GetServerSideProps<Props> = async () => {
           return "";
         })(),
       };
+    });
+
+    all.sort((a, b) => {
+      if (!a.submittedAt && !b.submittedAt) return 0;
+      if (!a.submittedAt) return 1;
+      if (!b.submittedAt) return -1;
+      return new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime();
     });
 
     const items = all.filter((i) => i.status === "Pending");

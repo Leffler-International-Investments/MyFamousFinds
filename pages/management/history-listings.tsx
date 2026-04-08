@@ -512,7 +512,6 @@ export const getServerSideProps: GetServerSideProps<Props> = async () => {
   try {
     const snap = await adminDb
       .collection("listings")
-      .orderBy("createdAt", "desc")
       .limit(500)
       .get();
 
@@ -544,6 +543,13 @@ export const getServerSideProps: GetServerSideProps<Props> = async () => {
         proof_doc_url: d.proof_doc_url ? "has_proof" : "",
         purchase_proof: String(d.purchase_proof || ""),
       };
+    });
+
+    entries.sort((a, b) => {
+      if (!a.createdAt && !b.createdAt) return 0;
+      if (!a.createdAt) return 1;
+      if (!b.createdAt) return -1;
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
     });
 
     return { props: { entries } };

@@ -16,7 +16,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return;
     }
 
-    const snap = await adminDb.collection("listings").orderBy("createdAt", "desc").limit(200).get();
+    // Don't use orderBy("createdAt") — Firestore silently excludes docs missing that field
+    const snap = await adminDb.collection("listings").get();
 
     const rows = snap.docs.map((d) => {
       const x: any = d.data() || {};

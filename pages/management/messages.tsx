@@ -718,7 +718,6 @@ export const getServerSideProps: GetServerSideProps<Props> = async () => {
   try {
     const snap = await adminDb
       .collection("buyer_messages")
-      .orderBy("createdAt", "desc")
       .get();
 
     const messages: BuyerMessage[] = snap.docs.map((d) => {
@@ -735,6 +734,13 @@ export const getServerSideProps: GetServerSideProps<Props> = async () => {
         type: (data.type as BuyerMessage["type"]) || "info",
         createdAt: data.createdAt?.toMillis?.() || 0,
       };
+    });
+
+    messages.sort((a, b) => {
+      if (!a.createdAt && !b.createdAt) return 0;
+      if (!a.createdAt) return 1;
+      if (!b.createdAt) return -1;
+      return b.createdAt - a.createdAt;
     });
 
     return { props: { initialMessages: messages } };

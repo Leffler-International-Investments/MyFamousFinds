@@ -5,7 +5,7 @@ import Head from "next/head";
 import Link from "next/link";
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
-import { adminDb } from "../../utils/firebaseAdmin";
+import { adminDb, adminAuth } from "../../utils/firebaseAdmin";
 import { useRequireAdmin } from "../../hooks/useRequireAdmin";
 
 type SellerRow = {
@@ -322,26 +322,69 @@ export const getServerSideProps: GetServerSideProps<Props> = async () => {
 
     console.log(`[SELLERS PAGE] Loaded ${sellersSnap.size} sellers, ${listingsSnap.size} listings from Firestore`);
 
+    // Count listings per seller (match by sellerId OR seller field)
     const listingsBySeller: Record<string, number> = {};
     listingsSnap.docs.forEach((doc) => {
       const d: any = doc.data() || {};
       const sellerId = d.sellerId || d.seller || "";
       if (!sellerId) return;
       listingsBySeller[sellerId] = (listingsBySeller[sellerId] || 0) + 1;
+      // Also count by email-based keys (underscore and dot formats)
+      const email = d.sellerEmail || "";
+      if (email && email !== sellerId) {
+        listingsBySeller[email] = (listingsBySeller[email] || 0) + 1;
+      }
     });
 
-    const sellers: SellerRow[] = sellersSnap.docs.map((doc) => {
+    const sellerMap = new Map<string, SellerRow>();
+
+    // 1) Sellers from the Firestore "sellers" collection
+    sellersSnap.docs.forEach((doc) => {
       const d: any = doc.data() || {};
       const id = doc.id;
-      return {
+      const email = (d.email || d.contactEmail || "").toLowerCase();
+      const emailDot = id.includes("_") ? id.replace(/_/g, ".") : "";
+      const ts = d.createdAt?.toDate?.() || (typeof d.createdAt === "number" ? new Date(d.createdAt) : null);
+      const totalListings = listingsBySeller[id] || listingsBySeller[email] || (emailDot ? listingsBySeller[emailDot] : 0) || 0;
+      sellerMap.set(email || id, {
         id,
         name: d.name || d.businessName || d.contactName || "Seller",
-        email: d.email || d.contactEmail || "",
+        email: email || (emailDot || id),
         status: d.status || "Active",
-        totalListings: listingsBySeller[id] || 0,
-        createdAt: d.createdAt?.toDate?.().toLocaleString("en-US") || "",
-      };
+        totalListings,
+        createdAt: ts ? ts.toLocaleString("en-US") : "",
+      });
     });
+
+    // 2) Also discover sellers from listings that have no matching seller doc
+    //    (their data is in Firestore listings but seller doc may be missing)
+    listingsSnap.docs.forEach((doc) => {
+      const d: any = doc.data() || {};
+      const sellerId = d.sellerId || d.seller || "";
+      const sellerEmail = (d.sellerEmail || "").toLowerCase();
+      const key = sellerEmail || sellerId;
+      if (!key) return;
+      if (sellerMap.has(key)) return;
+      // Check if any existing seller matches this email
+      const matchesExisting = [...sellerMap.values()].some(
+        (s) => s.email === sellerEmail || s.id === sellerId
+      );
+      if (matchesExisting) return;
+
+      sellerMap.set(key, {
+        id: sellerId,
+        name: d.sellerName || sellerEmail || sellerId,
+        email: sellerEmail || sellerId,
+        status: "Active",
+        totalListings: listingsBySeller[sellerId] || listingsBySeller[sellerEmail] || 0,
+        createdAt: "",
+      });
+    });
+
+    const sellers = [...sellerMap.values()];
+
+    // Sort: most listings first, then by name
+    sellers.sort((a, b) => b.totalListings - a.totalListings || a.name.localeCompare(b.name));
 
     return { props: { sellers } };
   } catch (err: any) {

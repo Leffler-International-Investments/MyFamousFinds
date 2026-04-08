@@ -1319,7 +1319,10 @@ export const getServerSideProps: GetServerSideProps<Props> = async () => {
   if (!adminDb) return { props: { items: [] } };
 
   try {
-    const snap = await adminDb.collection("listings").orderBy("createdAt", "desc").get();
+    // Don't use orderBy("createdAt") — Firestore silently drops documents
+    // missing that field, which causes listings to disappear.
+    // Fetch all and sort in JS instead.
+    const snap = await adminDb.collection("listings").get();
 
     const items: Listing[] = [];
     for (const doc of snap.docs) {
@@ -1343,13 +1346,14 @@ export const getServerSideProps: GetServerSideProps<Props> = async () => {
         d.conditionText ||
         "";
       const details = d.details || "";
-      const createdAt = d.createdAt?.toDate?.().toLocaleDateString("en-US") || "";
+      const ts = d.createdAt?.toDate?.() || (typeof d.createdAt === "number" ? new Date(d.createdAt) : null);
+      const createdAt = ts ? ts.toLocaleDateString("en-US") : "";
 
       items.push({
         id: doc.id,
         title: d.title || "Untitled listing",
         seller: d.sellerName || d.sellerId || "Seller",
-        price: Number(d.price || 0),
+        price: Number(d.priceUsd || d.price || 0),
         status,
         brand: String(brand),
         category: String(category),
@@ -1361,6 +1365,14 @@ export const getServerSideProps: GetServerSideProps<Props> = async () => {
         allowOffers: d.allowOffers !== false,
       });
     }
+
+    // Sort newest first (items without dates go to the end)
+    items.sort((a, b) => {
+      if (!a.createdAt && !b.createdAt) return 0;
+      if (!a.createdAt) return 1;
+      if (!b.createdAt) return -1;
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+    });
 
     return { props: { items } };
   } catch (err) {
