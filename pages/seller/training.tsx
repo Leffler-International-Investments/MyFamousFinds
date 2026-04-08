@@ -143,7 +143,7 @@ export default function SellerTraining() {
   const [sellerId, setSellerId] = useState("");
   const [failedResults, setFailedResults] = useState<Record<string, { correct: boolean; given: string; expected: string }> | null>(null);
   // Tracks which failed questions the seller has ticked "I understand"
-  const [understoodQuestions, setUnderstoodQuestions] = useState<Set<string>>(new Set());
+  const [understoodQuestions, setUnderstoodQuestions] = useState<Record<string, boolean>>({});
   const certifyCalledRef = useRef(false);
 
   useEffect(() => {
@@ -206,7 +206,7 @@ export default function SellerTraining() {
         const { results, score } = buildResultsLocally(answers);
         setFailedResults(results);
         setResult({ score, total: QUIZ_QUESTIONS.length, passed: false });
-        setUnderstoodQuestions(new Set());
+        setUnderstoodQuestions({});
         certifyCalledRef.current = false;
         setStep("review");
       }
@@ -224,7 +224,7 @@ export default function SellerTraining() {
 
   const allUnderstood =
     failedQuestions.length > 0 &&
-    failedQuestions.every((q) => understoodQuestions.has(q.id));
+    failedQuestions.every((q) => !!understoodQuestions[q.id]);
 
   // Auto-certify the moment all "I understand" boxes are ticked
   useEffect(() => {
@@ -248,7 +248,7 @@ export default function SellerTraining() {
           setStep("result");
         } else {
           certifyCalledRef.current = false;
-          setUnderstoodQuestions(new Set());
+          setUnderstoodQuestions({});
         }
       })
       .catch(() => {
@@ -258,11 +258,7 @@ export default function SellerTraining() {
   }, [allUnderstood]);
 
   const toggleUnderstood = (qId: string) => {
-    setUnderstoodQuestions((prev) => {
-      const next = new Set(prev);
-      if (next.has(qId)) next.delete(qId); else next.add(qId);
-      return next;
-    });
+    setUnderstoodQuestions((prev) => ({ ...prev, [qId]: !prev[qId] }));
   };
 
   if (authLoading || fetchingStatus) return (
@@ -399,7 +395,7 @@ export default function SellerTraining() {
                 const section = TRAINING_SECTIONS[sectionIdx];
                 const given = failedResults[q.id].given;
                 const expected = failedResults[q.id].expected;
-                const isUnderstood = understoodQuestions.has(q.id);
+                const isUnderstood = !!understoodQuestions[q.id];
                 const qNum = QUIZ_QUESTIONS.indexOf(q) + 1;
 
                 return (
@@ -473,7 +469,7 @@ export default function SellerTraining() {
               {!submitting && (
                 <div className="step-actions">
                   <div className="review-progress-msg">
-                    {understoodQuestions.size}/{failedQuestions.length} confirmed — tick each box above to earn your certificate
+                    {Object.values(understoodQuestions).filter(Boolean).length}/{failedQuestions.length} confirmed — tick each box above to earn your certificate
                   </div>
                 </div>
               )}
