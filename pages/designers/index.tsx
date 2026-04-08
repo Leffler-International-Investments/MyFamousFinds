@@ -168,7 +168,7 @@ const DesignersPage: NextPage<DesignersPageProps> = ({
 
       <style jsx>{`
         .designers-page {
-          background: #f5f0e8;
+          background: #ede8e0;
           color: #111827;
           min-height: 100vh;
         }
