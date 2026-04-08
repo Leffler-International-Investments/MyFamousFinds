@@ -56,34 +56,47 @@ body.capacitor-app {
   bottom: calc(16px + var(--safe-area-bottom));
 }
  
-/* ── iOS eggshell background fix ───────────────────────────────────────
-   iOS Safari creates a white GPU backing layer when it promotes
-   elements for transitions/transforms. Fix: disable the opacity
-   transition that triggers promotion, and force eggshell everywhere.
+/* ── iOS: white theme ──────────────────────────────────────────────────
+   iOS Safari forces white GPU backing layers on images. Instead of
+   fighting it, embrace it: make the entire page white on iOS so
+   everything matches. PC and Android keep the eggshell #ede8e0.
 ──────────────────────────────────────────────────────────────────────── */
 @supports (-webkit-touch-callout: none) {
+  /* Page backgrounds */
+  html,
+  body,
+  .home-wrapper,
+  .catalogue-page,
+  .designers-page,
+  .page,
+  .ff-header,
+  footer {
+    background-color: #ffffff !important;
+  }
+
+  /* Product cards */
   .card,
-  .card-link {
-    background-color: #ede8e0 !important;
-  }
-
-  .thumb {
-    background-color: #ede8e0 !important;
-  }
-
-  /* Remove the opacity transition — this is what causes iOS to create
-     a separate GPU compositing layer with a white backing */
+  .card-link,
+  .thumb,
   .thumb img {
-    background-color: #ede8e0 !important;
-    transition: none !important;
+    background-color: #ffffff !important;
   }
 
+  /* Product grids */
   .grid-prods .prod,
-  .prod {
-    background-color: #ede8e0 !important;
-  }
+  .prod,
   .grid-prods .img {
-    background-color: #ede8e0 !important;
+    background-color: #ffffff !important;
+  }
+
+  /* Category nav bar */
+  .ff-category-nav {
+    background-color: #ffffff !important;
+  }
+
+  /* Remove opacity transition to avoid GPU layer promotion */
+  .thumb img {
+    transition: none !important;
   }
 }
  
