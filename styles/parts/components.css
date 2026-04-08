@@ -356,7 +356,7 @@ textarea::placeholder {
    GLOBAL FOOTER OVERRIDES
 ---------------------------------------------------------*/
 footer {
-  background-color: #f5f0e8 !important;
+  background-color: #ede8e0 !important;
   color: #111827 !important;
   border-top: 1px solid #e5e7eb !important;
 }

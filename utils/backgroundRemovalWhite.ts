@@ -63,7 +63,7 @@ export type RemoveBgResult = {
 /**
  * Removes background when possible and ALWAYS returns an eggshell-background JPEG.
  *
- * - If Photoroom succeeds, transparency is composited onto eggshell (#f5f0e8).
+ * - If Photoroom succeeds, transparency is composited onto eggshell (#ede8e0).
  * - If Photoroom fails, original image is still normalized to eggshell JPEG.
  *
  * The returned object includes `backgroundRemoved` so callers can detect
@@ -104,9 +104,9 @@ export async function removeBackgroundAndMakeWhite(
     .rotate()
     .resize(width, height, {
       fit: "contain",
-      background: { r: 245, g: 240, b: 232, alpha: 1 },
+      background: { r: 237, g: 232, b: 224, alpha: 1 },
     })
-    .flatten({ background: "#f5f0e8" })
+    .flatten({ background: "#ede8e0" })
     .jpeg({ quality, mozjpeg: true })
     .toBuffer();
 

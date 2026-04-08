@@ -94,13 +94,11 @@ export default function ProductCard({ isSaved, onToggleWishlist, ...p }: Props) 
 
         .thumb {
           position: relative;
-          /* aspect-ratio fallback for iOS < 15 (pre-Sept 2021) */
-          padding-top: 133.33%; /* 4:3 portrait = 100% * (4/3) */
-          background: #f5f0e8;
+          padding-top: 133.33%;
+          background: #ede8e0;
           overflow: hidden;
           border-radius: 4px;
         }
-        /* Override padding-top with aspect-ratio on supporting browsers */
         @supports (aspect-ratio: 3 / 4) {
           .thumb {
             aspect-ratio: 3 / 4;
@@ -108,24 +106,17 @@ export default function ProductCard({ isSaved, onToggleWishlist, ...p }: Props) 
           }
         }
         .thumb img {
-          /* For padding-top fallback: absolutely positioned */
           position: absolute;
           top: 0;
           left: 0;
           width: 100%;
           height: 100%;
-          -webkit-object-fit: contain;
-          object-fit: contain;
+          -webkit-object-fit: cover;
+          object-fit: cover;
           display: block;
           transition: opacity 0.2s ease;
-          /* Tint white image backgrounds to match the cream page background.
-             sepia(8%) + saturate(200%) + hue-rotate(345deg) turns pure white
-             into approx #f5f0e8 while keeping product colours accurate. */
-          -webkit-filter: sepia(8%) saturate(200%) hue-rotate(345deg);
-          filter: sepia(8%) saturate(200%) hue-rotate(345deg);
-          background: #f5f0e8;
+          background: #ede8e0;
         }
-        /* When aspect-ratio is supported, img can be static */
         @supports (aspect-ratio: 3 / 4) {
           .thumb img {
             position: static;

@@ -204,7 +204,7 @@ export default function PublicCatalogue({ items }: CatalogueProps) {
 
       <style jsx>{`
         .catalogue-page {
-          background: #f5f0e8;
+          background: #ede8e0;
           min-height: 100vh;
         }
         .catalogue-main {

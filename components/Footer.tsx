@@ -309,7 +309,7 @@ export default function Footer() {
           .ff-footer {
             margin-top: auto;
             border-top: 1px solid #e5e7eb;
-            background: #f5f0e8;
+            background: #ede8e0;
             color: #111827;
           }
 
