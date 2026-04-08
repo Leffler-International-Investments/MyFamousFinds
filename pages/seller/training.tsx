@@ -156,9 +156,9 @@ export default function SellerTraining() {
       .then((d) => {
         if (d.certified) {
           setStep("result");
-        } else if (d.status === "failed" && d.results) {
-          setFailedResults(d.results);
-          setResult({ score: d.score, total: d.total, passed: false });
+        } else if (d.status === "failed") {
+          if (d.results) setFailedResults(d.results);
+          setResult({ score: d.score || 0, total: d.total || 7, passed: false });
           setStep("review");
         }
       })
@@ -211,6 +211,14 @@ export default function SellerTraining() {
   const allUnderstood =
     failedQuestions.length > 0 &&
     failedQuestions.every((q) => understoodQuestions.has(q.id));
+
+  // If on review step but no results loaded, retry fetch
+  useEffect(() => {
+    if (step === "review" && failedQuestions.length === 0 && sellerId) {
+      const timer = setTimeout(() => fetchTrainingStatus(), 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [step, failedQuestions.length, sellerId, fetchTrainingStatus]);
 
   // Auto-certify the moment all "I understand" boxes are ticked
   useEffect(() => {
@@ -364,8 +372,17 @@ export default function SellerTraining() {
           )}
 
           {/* REVIEW STEP */}
-          {step === "review" && failedResults && (
+          {step === "review" && (
             <div>
+              {failedQuestions.length === 0 ? (
+                <div style={{ textAlign: "center", padding: "40px 0", color: "#6b7280" }}>
+                  <p>Loading your review questions...</p>
+                  <button className="btn-primary-train" style={{ marginTop: 16 }} onClick={fetchTrainingStatus}>
+                    Reload
+                  </button>
+                </div>
+              ) : (
+              <>
               <div className="review-header">
                 <div className="review-icon">{"\u274C"}</div>
                 <h2 className="review-title">You missed {failedQuestions.length} question{failedQuestions.length !== 1 ? "s" : ""}</h2>
@@ -462,6 +479,8 @@ export default function SellerTraining() {
                     {understoodQuestions.size}/{failedQuestions.length} confirmed — tick each box above to earn your certificate
                   </div>
                 </div>
+              )}
+              </>
               )}
             </div>
           )}
