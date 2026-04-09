@@ -9,6 +9,10 @@ export default function AboutPage() {
     <div className="page">
       <Head>
         <title>About – Famous Finds</title>
+        <meta name="description" content="Learn about Famous Finds — a curated marketplace for authenticated, pre-loved luxury items connecting trusted sellers with quality-conscious buyers." />
+        <meta property="og:title" content="About – Famous Finds" />
+        <meta property="og:description" content="Learn about Famous Finds — a curated marketplace for authenticated, pre-loved luxury items connecting trusted sellers with quality-conscious buyers." />
+        <meta name="twitter:title" content="About – Famous Finds" />
       </Head>
       <Header />
       <main className="wrap">

@@ -312,6 +312,9 @@ const HomePage: NextPage<HomeProps> = ({
           name="description"
           content="Discover curated, authenticated pre-loved designer bags, jewelry, watches and ready-to-wear from trusted sellers."
         />
+        <meta property="og:title" content="Famous Finds — Shop authenticated designer pieces" />
+        <meta property="og:description" content="Discover curated, authenticated pre-loved designer bags, jewelry, watches and ready-to-wear from trusted sellers." />
+        <meta name="twitter:title" content="Famous Finds — Shop authenticated designer pieces" />
       </Head>
 
       <Header

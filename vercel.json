@@ -4,6 +4,14 @@
     {
       "path": "/api/admin/process-email-outbox",
       "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/admin/system-health",
+      "schedule": "0 */6 * * *"
+    },
+    {
+      "path": "/api/admin/auto-fix",
+      "schedule": "30 */4 * * *"
     }
   ],
   "headers": [

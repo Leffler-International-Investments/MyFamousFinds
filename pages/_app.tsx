@@ -12,6 +12,7 @@ import { WishlistProvider } from "../components/WishlistContext";
 import ReviewWidgets from "../components/ReviewWidgets";
 import InstallAppButton from "../components/InstallAppButton";
 import Analytics from "../components/Analytics";
+import SeoDefaults from "../components/SeoDefaults";
 import { CurrencyProvider } from "../components/CurrencyToggle";
 import { initNativePlugins } from "../utils/capacitor";
 
@@ -102,11 +103,12 @@ export default function MyFamousFindsApp({ Component, pageProps }: AppProps) {
 
   return (
     <>
-      {/* ✅ Global canonical + robots on every page */}
+      {/* ✅ Global canonical + robots + SEO defaults on every page */}
       <Head>
         <link rel="canonical" href={canonical} />
         <meta name="robots" content="index,follow" />
       </Head>
+      <SeoDefaults />
 
       {/* Your existing layout + pages */}
       <CurrencyProvider>
