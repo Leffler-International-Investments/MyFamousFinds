@@ -9,6 +9,12 @@ const SESSION_SECRET =
   process.env.ADMIN_PASSWORD ||
   "";
 
+if (!SESSION_SECRET && process.env.NODE_ENV === "production") {
+  console.error(
+    "[adminSession] CRITICAL: No ADMIN_API_SECRET or ADMIN_PASSWORD configured. Sessions will not work."
+  );
+}
+
 const SESSION_DURATION_MS = 24 * 60 * 60 * 1000; // 24 hours
 const SESSION_DURATION_SECONDS = Math.floor(SESSION_DURATION_MS / 1000);
 
@@ -31,16 +37,8 @@ export function getAdminEmails(): Set<string> {
       if (t) emails.add(t);
     });
 
-  // Hard-coded super-admin emails (same as management/login.ts)
-  const superEmails = [
-    "leffleryd@gmail.com",
-    "arich1114@aol.com",
-    "arichspot@gmail.com",
-    "ariel@arichwines.com",
-    "arielspot@gmail.com",
-    "itai.leff@gmail.com",
-  ];
-  for (const se of superEmails) emails.add(se);
+  // Super-admin emails loaded from environment variables only.
+  // Set MANAGEMENT_SUPER_EMAILS in Vercel/env to grant management access.
 
   return emails;
 }

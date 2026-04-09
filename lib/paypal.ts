@@ -50,10 +50,7 @@ export async function getPayPalAccessToken(): Promise<string> {
       const isSandboxUrl = PAYPAL_API_BASE.includes("sandbox");
       console.error(
         `[PayPal] 401 invalid_client — AUTHENTICATION FAILED\n` +
-        `  API Base URL: ${PAYPAL_API_BASE}\n` +
         `  Environment: ${isSandboxUrl ? "SANDBOX" : "LIVE"}\n` +
-        `  Client ID starts with: ${clientId.slice(0, 8)}…\n` +
-        `  Secret length: ${secret.length} chars\n` +
         `  PAYPAL_ENV env var: ${process.env.PAYPAL_ENV || "(not set)"}\n` +
         `\n  COMMON CAUSES:\n` +
         `  1. Sandbox credentials used with Live API URL (or vice versa)\n` +

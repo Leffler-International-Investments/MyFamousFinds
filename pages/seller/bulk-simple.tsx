@@ -278,7 +278,10 @@ export default function BulkSimple() {
         const prefs = json.prefs || {};
 
         // Developer bypass — owner account skips banking gate
-        const DEVELOPER_EMAILS = ["leffleryd@gmail.com"];
+        const DEVELOPER_EMAILS = (process.env.NEXT_PUBLIC_OWNER_EMAILS || "")
+          .split(",")
+          .map((e) => e.trim().toLowerCase())
+          .filter(Boolean);
         if (!DEVELOPER_EMAILS.includes(sellerEmail)) {
           // Gate: require bank details before allowing listings
           const bankName = String(prefs.bankName || "").trim();

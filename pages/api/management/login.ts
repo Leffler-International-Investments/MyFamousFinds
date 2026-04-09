@@ -98,16 +98,13 @@ export default async function handler(
   const fallbackAdminEmail = String(process.env.ADMIN_EMAIL || "").trim().toLowerCase();
   if (fallbackAdminEmail) allow.add(fallbackAdminEmail);
 
-  // Also allow any super seller emails for management access
-  const superEmails = [
-    "leffleryd@gmail.com",
-    "arich1114@aol.com",
-    "arichspot@gmail.com",
-    "ariel@arichwines.com",
-    "arielspot@gmail.com",
-    "itai.leff@gmail.com",
-  ];
-  for (const se of superEmails) allow.add(se);
+  // Super-admin emails loaded from MANAGEMENT_SUPER_EMAILS env var
+  (process.env.MANAGEMENT_SUPER_EMAILS || "")
+    .split(",")
+    .forEach((e) => {
+      const t = e.trim().toLowerCase();
+      if (t) allow.add(t);
+    });
 
   if (!allow.size) {
     return res.status(500).json({

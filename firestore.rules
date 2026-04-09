@@ -16,11 +16,9 @@ service cloud.firestore {
     }
 
     function isAdmin() {
-      return signedIn() && (
-        request.auth.token.isAdmin == true ||
-        request.auth.uid == 'Fj28JrWa8LQEzwGcZQ60rme39wP2' ||
-        request.auth.uid == 'hoMODWgS1zY1JAuz1dbCbnhaBki2'
-      );
+      // Admin access is determined solely by the custom claim set via
+      // Firebase Admin SDK.  Hardcoded UIDs have been removed for security.
+      return signedIn() && request.auth.token.isAdmin == true;
     }
 
     // =========================================================
@@ -78,8 +76,13 @@ service cloud.firestore {
     }
 
     match /disputes/{id} {
-      allow read, create: if signedIn();
-      allow update: if signedIn() || isAdmin();
+      allow read: if signedIn() && (
+        request.auth.uid == resource.data.buyerId ||
+        request.auth.token.sellerId == resource.data.sellerId ||
+        isAdmin()
+      );
+      allow create: if signedIn();
+      allow update: if isAdmin();
       allow delete: if false;
     }
 
@@ -95,7 +98,7 @@ service cloud.firestore {
     }
 
     match /buyer_messages/{id} {
-      allow read: if true;
+      allow read: if signedIn();
       allow write: if signedIn();
     }
 

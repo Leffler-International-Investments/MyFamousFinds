@@ -15,15 +15,19 @@ type LoginResponse =
       message: string;
     };
 
-// Owners / super sellers (always allowed)
-const SUPER_SELLER_EMAILS = new Set<string>([
-  "leffleryd@gmail.com", // Dan
-  "arich1114@aol.com", // Ariel
-  "arichspot@gmail.com",
-  "ariel@arichwines.com",
-  "arielspot@gmail.com",
-  "itai.leff@gmail.com",
-]);
+// Owners / super sellers loaded from env vars instead of hardcoding.
+function getSuperSellerEmails(): Set<string> {
+  const emails = new Set<string>();
+  (process.env.MANAGEMENT_SUPER_EMAILS || "")
+    .split(",")
+    .forEach((e) => {
+      const t = e.trim().toLowerCase();
+      if (t) emails.add(t);
+    });
+  const ae = (process.env.ADMIN_EMAIL || "").trim().toLowerCase();
+  if (ae) emails.add(ae);
+  return emails;
+}
 
 function isApprovedStatus(status: unknown) {
   const s = String(status || "").trim().toLowerCase();
@@ -82,7 +86,7 @@ export default async function handler(
   }
 
   const trimmedEmail = email.trim().toLowerCase();
-  const isSuperSeller = SUPER_SELLER_EMAILS.has(trimmedEmail);
+  const isSuperSeller = getSuperSellerEmails().has(trimmedEmail);
 
   // If Firebase Admin is not configured, still allow SUPER sellers with password check
   if (!isFirebaseAdminReady || !adminDb) {
