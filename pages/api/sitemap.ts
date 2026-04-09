@@ -32,6 +32,22 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     );
   }
 
+  // Dynamic designer pages
+  try {
+    if (adminDb) {
+      const designerSnap = await adminDb.collection("designers").get();
+      designerSnap.docs.forEach((doc) => {
+        const d: any = doc.data() || {};
+        const slug = d.slug || doc.id;
+        urls.push(
+          `  <url>\n    <loc>${SITE}/designers/${slug}</loc>\n    <changefreq>weekly</changefreq>\n    <priority>0.7</priority>\n  </url>`
+        );
+      });
+    }
+  } catch (err) {
+    console.error("sitemap: error fetching designers", err);
+  }
+
   // Dynamic product pages
   try {
     if (adminDb) {

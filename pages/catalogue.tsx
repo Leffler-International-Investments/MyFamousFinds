@@ -178,6 +178,10 @@ export default function PublicCatalogue({ items }: CatalogueProps) {
     <div className="catalogue-page">
       <Head>
         <title>Famous Closets - Famous Finds</title>
+        <meta name="description" content="Browse our curated catalogue of authenticated luxury designer items — bags, shoes, jewelry, watches and more at Famous Finds." />
+        <meta property="og:title" content="Famous Closets - Famous Finds" />
+        <meta property="og:description" content="Browse our curated catalogue of authenticated luxury designer items — bags, shoes, jewelry, watches and more at Famous Finds." />
+        <meta name="twitter:title" content="Famous Closets - Famous Finds" />
       </Head>
 
       <Header

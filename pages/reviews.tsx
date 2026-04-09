@@ -35,6 +35,10 @@ export default function ReviewsPage({ reviews, averageRating, totalCount }: Prop
     <>
       <Head>
         <title>Customer Reviews - Famous Finds</title>
+        <meta name="description" content="Read verified customer reviews for Famous Finds. See what buyers say about our authenticated luxury items and trusted seller community." />
+        <meta property="og:title" content="Customer Reviews - Famous Finds" />
+        <meta property="og:description" content="Read verified customer reviews for Famous Finds. See what buyers say about our authenticated luxury items and trusted seller community." />
+        <meta name="twitter:title" content="Customer Reviews - Famous Finds" />
       </Head>
 
       <div style={{ background: "#f7f7f5", minHeight: "100vh" }}>
