@@ -19,14 +19,19 @@ type Start2faBody = {
 
 // Super users who can see the code on-screen when delivery fails
 // (they already authenticated with password — this is a fallback, not a bypass)
-const SUPER_EMAILS = new Set([
-  "leffleryd@gmail.com",
-  "arich1114@aol.com",
-  "arichspot@gmail.com",
-  "ariel@arichwines.com",
-  "arielspot@gmail.com",
-  "itai.leff@gmail.com",
-]);
+// Loaded from MANAGEMENT_SUPER_EMAILS env var instead of hardcoding.
+function getSuperEmails(): Set<string> {
+  const emails = new Set<string>();
+  (process.env.MANAGEMENT_SUPER_EMAILS || "")
+    .split(",")
+    .forEach((e) => {
+      const t = e.trim().toLowerCase();
+      if (t) emails.add(t);
+    });
+  const ae = (process.env.ADMIN_EMAIL || "").trim().toLowerCase();
+  if (ae) emails.add(ae);
+  return emails;
+}
 
 type Start2faResponse =
   | {
@@ -157,7 +162,9 @@ export default async function handler(
     role === "seller" ? "seller" : "management";
   const deliveryMethod: "email" | "sms" = method === "sms" ? "sms" : "email";
 
-  const code = Math.floor(100000 + Math.random() * 900000).toString();
+  // Use cryptographically secure random number for 2FA codes
+  const crypto = await import("crypto");
+  const code = crypto.randomInt(100000, 1000000).toString();
 
   // 1) Store challenge
   let challengeId: string | null = null;
@@ -291,7 +298,7 @@ export default async function handler(
 
     // Super users who already authenticated with password get the code on-screen
     // as a fallback when delivery fails — this is NOT a security bypass.
-    if (SUPER_EMAILS.has(normalizedEmail)) {
+    if (getSuperEmails().has(normalizedEmail)) {
       return res.status(200).json({
         ok: true,
         challengeId,

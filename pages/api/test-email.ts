@@ -29,9 +29,11 @@ export default async function handler(
       .json({ ok: false, error: "ADMIN_PASSWORD is not set in Vercel env." });
   }
 
-  // Accept auth via Bearer header, ?key= query param, or POST body { key }
+  // Accept auth via Bearer header or POST body { key } only.
+  // Query params are intentionally excluded — secrets in URLs leak via
+  // browser history, server logs, and Referrer headers.
   const bodyKey = req.method === "POST" ? String(req.body?.key || "").trim() : "";
-  const pass = readBearer(req) || bodyKey || String(req.query.key || "").trim();
+  const pass = readBearer(req) || bodyKey;
   if (!pass || pass !== adminPass) {
     return res.status(401).json({ ok: false, error: "Unauthorized" });
   }
