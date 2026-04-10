@@ -407,7 +407,7 @@ export default function SellerCatalogue() {
                           >
                             View
                           </Link>
-                          {x.status === "Rejected" && x.rejectionReason?.toLowerCase().includes("bad photo") && (
+                          {x.status === "Rejected" && (
                             <>
                               <button
                                 type="button"
@@ -422,7 +422,7 @@ export default function SellerCatalogue() {
                                   ? "Uploading…"
                                   : photoUploadSuccess === x.id
                                   ? "Resubmitted!"
-                                  : "Upload New Photo"}
+                                  : "Update Product Image"}
                               </button>
                               <input
                                 ref={(el) => { photoInputRefs.current[x.id] = el; }}
@@ -592,7 +592,7 @@ export default function SellerCatalogue() {
                     >
                       View
                     </Link>
-                    {x.status === "Rejected" && x.rejectionReason?.toLowerCase().includes("bad photo") && (
+                    {x.status === "Rejected" && (
                       <>
                         <button
                           type="button"
@@ -607,7 +607,7 @@ export default function SellerCatalogue() {
                             ? "Uploading…"
                             : photoUploadSuccess === x.id
                             ? "Resubmitted!"
-                            : "Upload New Photo"}
+                            : "Update Product Image"}
                         </button>
                         <input
                           ref={(el) => { photoInputRefs.current[`m-photo-${x.id}`] = el; }}
