@@ -10,6 +10,7 @@ import { adminDb, isFirebaseAdminReady } from "../../utils/firebaseAdmin";
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
 import { useRequireAdmin } from "../../hooks/useRequireAdmin";
+import { COLOR_OPTIONS } from "../../lib/filterConstants";
 
 /* ─── Types ─── */
 type ListingItem = {
@@ -17,6 +18,7 @@ type ListingItem = {
   title: string;
   brand: string;
   category: string;
+  color: string;
   price: string;
   priceNum: number;
   image: string;
@@ -77,6 +79,7 @@ function docToListing(id: string, d: any): ListingItem {
     title: d.title || d.name || d.listingTitle || "Untitled",
     brand: d.brand || d.designer || d.maker || "",
     category: d.category || d.menuCategory || d.categoryLabel || d.department || d.productType || "",
+    color: d.color || d.colour || d.item?.color || "",
     price: priceNum ? `US$${priceNum.toLocaleString("en-US")}` : "",
     priceNum,
     image: allImages[0] || "",
@@ -91,7 +94,7 @@ function docToListing(id: string, d: any): ListingItem {
 /* ─── Edit Modal ─── */
 type EditState = {
   id: string; title: string; brand: string; category: string;
-  description: string; condition: string; size: string;
+  color: string; description: string; condition: string; size: string;
   priceUsd: string; status: string; displayImageUrl: string;
   allImages: string[];
 };
@@ -128,7 +131,7 @@ function EditModal({ item, onClose, onSaved }: {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           title: form.title, brand: form.brand, category: form.category,
-          description: form.description, condition: form.condition,
+          color: form.color, description: form.description, condition: form.condition,
           size: form.size, priceUsd: form.priceUsd, status: form.status,
           displayImageUrl: form.displayImageUrl,
         }),
@@ -137,7 +140,7 @@ function EditModal({ item, onClose, onSaved }: {
       if (!data.ok) throw new Error(data.error || "Save failed");
       onSaved({
         id: form.id, title: form.title, brand: form.brand, category: form.category,
-        description: form.description, condition: form.condition, size: form.size,
+        color: form.color, description: form.description, condition: form.condition, size: form.size,
         priceNum: Number(form.priceUsd) || 0,
         price: Number(form.priceUsd) ? `US$${Number(form.priceUsd).toLocaleString("en-US")}` : "",
         status: form.status, image: form.displayImageUrl || item.allImages[0] || "",
@@ -228,6 +231,15 @@ function EditModal({ item, onClose, onSaved }: {
               <label style={LABEL}>Category</label>
               <select value={form.category} onChange={e => set("category", e.target.value)} style={INPUT}>
                 {["WOMEN","BAGS","MEN","KIDS","JEWELRY","WATCHES","SHOES","CLOTHING","ACCESSORIES","PARTY-DRESSES","NEW-ARRIVALS"].map(c => (
+                  <option key={c} value={c}>{c}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label style={LABEL}>Color</label>
+              <select value={form.color} onChange={e => set("color", e.target.value)} style={INPUT}>
+                <option value="">— select —</option>
+                {COLOR_OPTIONS.map(c => (
                   <option key={c} value={c}>{c}</option>
                 ))}
               </select>
@@ -410,7 +422,7 @@ export default function HomepageScanner({ serverListings, messages: initMessages
   const openEdit = (item: ListingItem) => {
     setEditItem({
       id: item.id, title: item.title, brand: item.brand, category: item.category,
-      description: item.description, condition: item.condition, size: item.size,
+      color: item.color, description: item.description, condition: item.condition, size: item.size,
       priceUsd: String(item.priceNum || ""), status: item.status,
       displayImageUrl: item.image, allImages: item.allImages,
     });

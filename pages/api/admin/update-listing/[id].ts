@@ -22,7 +22,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
 
   try {
     const {
-      title, brand, category, description, condition, size,
+      title, brand, category, color, description, condition, size,
       priceUsd, status, displayImageUrl,
     } = req.body || {};
 
@@ -31,6 +31,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
     if (title !== undefined)          update.title = String(title).trim();
     if (brand !== undefined)          update.brand = String(brand).trim();
     if (category !== undefined)       update.category = String(category).trim().toUpperCase();
+    if (color !== undefined)          update.color = String(color).trim();
     if (description !== undefined)    update.description = String(description).trim();
     if (condition !== undefined)      update.condition = String(condition).trim();
     if (size !== undefined)           update.size = String(size).trim();
