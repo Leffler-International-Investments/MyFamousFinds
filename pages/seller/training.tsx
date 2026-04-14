@@ -14,7 +14,7 @@ const QUIZ_QUESTIONS = [
     question: "What is required before listing a Bag, Watch, or Jewelry item?",
     options: [
       "A. Just a photo",
-      "B. At least 2 of 3 authentication documents and a serial/reference number",
+      "B. At least 1 of 3 authentication documents and a serial/reference number",
       "C. Only a price",
       "D. Nothing extra",
     ],
@@ -87,7 +87,7 @@ const TRAINING_SECTIONS = [
   {
     title: "1. Listing Requirements",
     icon: "\u{1F4CB}",
-    content: "When creating a listing, every item needs: a Designer, Title, Category, Condition, Price, Purchase Source, and Purchase Proof. For Bags, Watches, and Jewelry you must also provide a Serial/Reference number and upload at least 2 of 3 authentication documents (receipt, certificate of authenticity, insurance appraisal, Entrupy report, or warranty card). Items missing required information will not be approved.",
+    content: "When creating a listing, every item needs: a Designer, Title, Category, Condition, Price, Purchase Source, and Purchase Proof. For Bags, Watches, and Jewelry you must also provide a Serial/Reference number and upload at least 1 of 3 authentication documents (receipt, certificate of authenticity, insurance appraisal, Entrupy report, or warranty card). Items missing required information will not be approved.",
   },
   {
     title: "2. Authentication Standards",
