@@ -127,7 +127,7 @@ const SOURCES = [
 
 const PROOFS = ["Receipt", "Bank statement", "Certificate", "Other"];
 
-/** Categories requiring 2-of-3 authentication documents */
+/** Categories requiring at least 1-of-3 authentication documents */
 const HIGH_VALUE_CATEGORIES = ["Bags", "Watches", "Jewelry"];
 
 const AUTH_DOC_TYPES = [
@@ -344,10 +344,10 @@ export default function BulkSimple() {
 
         if (!baseOk) return false;
 
-        // High-value categories require at least 2 of 3 authentication docs AND serial
+        // High-value categories require at least 1 of 3 authentication docs AND serial
         if (HIGH_VALUE_CATEGORIES.includes(it.category || "")) {
           const authDocsUploaded = [it.authDoc1, it.authDoc2, it.authDoc3].filter(Boolean).length;
-          if (authDocsUploaded < 2) return false;
+          if (authDocsUploaded < 1) return false;
           if (!it.serial?.trim()) return false;
         }
 
@@ -496,7 +496,7 @@ export default function BulkSimple() {
 
       if (HIGH_VALUE_CATEGORIES.includes(it.category || "")) {
         const authDocsUploaded = [it.authDoc1, it.authDoc2, it.authDoc3].filter(Boolean).length;
-        if (authDocsUploaded < 2) return false;
+        if (authDocsUploaded < 1) return false;
         if (!it.serial?.trim()) return false;
       }
 
@@ -1200,7 +1200,7 @@ export default function BulkSimple() {
                 </label>
               </div>
 
-              {/* Authentication Documents — required 2-of-3 for Bags, Watches, Jewelry */}
+              {/* Authentication Documents — required 1-of-3 for Bags, Watches, Jewelry */}
               {HIGH_VALUE_CATEGORIES.includes(it.category || "") && (
                 <div className="full auth-docs-section">
                   <div className="auth-docs-header">
@@ -1208,14 +1208,14 @@ export default function BulkSimple() {
                       Authentication Documents <span className="required-star">*</span>
                     </span>
                     <p className="proof-hint">
-                      <strong>{it.category}</strong> listings require at least <strong>2 of the 3</strong> authentication documents below. Upload receipts, certificates, appraisals, or service reports.
+                      <strong>{it.category}</strong> listings require at least <strong>1 of the 3</strong> authentication documents below. Upload a receipt, certificate, appraisal, or service report.
                     </p>
                     <div className="auth-docs-counter">
                       {[it.authDoc1, it.authDoc2, it.authDoc3].filter(Boolean).length} / 3 uploaded
-                      {[it.authDoc1, it.authDoc2, it.authDoc3].filter(Boolean).length < 2 && (
-                        <span className="auth-docs-warn"> — need at least 2</span>
+                      {[it.authDoc1, it.authDoc2, it.authDoc3].filter(Boolean).length < 1 && (
+                        <span className="auth-docs-warn"> — need at least 1</span>
                       )}
-                      {[it.authDoc1, it.authDoc2, it.authDoc3].filter(Boolean).length >= 2 && (
+                      {[it.authDoc1, it.authDoc2, it.authDoc3].filter(Boolean).length >= 1 && (
                         <span className="auth-docs-ok"> ✓ Requirement met</span>
                       )}
                     </div>
@@ -1237,7 +1237,7 @@ export default function BulkSimple() {
                     };
                     return (
                       <div key={slot} className="auth-doc-slot">
-                        <span className="auth-doc-slot-label">Document {slot}{slot <= 2 ? <span className="required-star"> *</span> : <span className="optional-label"> (optional)</span>}</span>
+                        <span className="auth-doc-slot-label">Document {slot}{slot === 1 ? <span className="required-star"> *</span> : <span className="optional-label"> (optional)</span>}</span>
                         <div className="auth-doc-row">
                           <select
                             className="auth-doc-type-select"
@@ -1341,7 +1341,7 @@ export default function BulkSimple() {
         </div>
         {totalReady === 0 && items.length > 0 && (
           <p className="create-hint">
-            Each item requires: Designer, Title, Category, Condition, Price, Purchase Source, Purchase Proof, and either a Proof Document or authenticity attestation before you can create. For Bags, Watches, and Jewelry — Serial/Reference number and at least 2 of 3 authentication documents are also required.
+            Each item requires: Designer, Title, Category, Condition, Price, Purchase Source, Purchase Proof, and either a Proof Document or authenticity attestation before you can create. For Bags, Watches, and Jewelry — Serial/Reference number and at least 1 of 3 authentication documents are also required.
           </p>
         )}
       </main>

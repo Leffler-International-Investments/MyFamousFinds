@@ -16,7 +16,7 @@ export const QUIZ_QUESTIONS = [
     question: "What is required before listing a Bag, Watch, or Jewelry item?",
     options: [
       "A. Just a photo",
-      "B. At least 2 of 3 authentication documents and a serial/reference number",
+      "B. At least 1 of 3 authentication documents and a serial/reference number",
       "C. Only a price",
       "D. Nothing extra",
     ],
