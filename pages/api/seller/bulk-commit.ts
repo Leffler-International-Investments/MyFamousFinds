@@ -38,7 +38,11 @@ type IncomingRow = {
   serial_number?: string;
   allowOffers?: boolean;
   imageDataUrl?: string | null;
-  imageDataUrls?: string[] | null;
+  imageDataUrls?: (string | null | undefined)[] | null;
+  // Parallel array of pre-processed (white-background) display image URLs.
+  // Only used when imageDataUrls contains already-uploaded HTTPS URLs so the
+  // server can skip the bg-removal / display-image step it would otherwise do.
+  displayImageUrls?: (string | null | undefined)[] | null;
   auth_doc_1_url?: string | null;
   auth_doc_1_type?: string | null;
   auth_doc_2_url?: string | null;
@@ -80,6 +84,7 @@ type CleanRow = {
   displayImageUrl?: string | null;
   imageUrls?: string[];
   _rawImageDataUrls?: string[];
+  _rawDisplayImageUrls?: string[];
   auth_doc_1_url?: string | null;
   auth_doc_1_type?: string | null;
   auth_doc_2_url?: string | null;
@@ -198,13 +203,23 @@ function cleanRow(r: IncomingRow): CleanRow | null {
 
   if (price == null) return null;
 
-  // Collect all image data URLs (prefer imageDataUrls array, fall back to single)
+  // Collect all image URLs / data URLs (prefer imageDataUrls array, fall
+  // back to single).  Strings can be either inline data URLs (legacy /
+  // fallback path) or already-uploaded HTTPS URLs from the seller
+  // upload-with-processing endpoint.  The processing loop below handles
+  // each case.
   const allImageDataUrls: string[] = [];
   if (Array.isArray(r.imageDataUrls) && r.imageDataUrls.length > 0) {
-    allImageDataUrls.push(...r.imageDataUrls.filter(Boolean));
+    allImageDataUrls.push(
+      ...r.imageDataUrls.filter((v): v is string => typeof v === "string" && v.length > 0),
+    );
   } else if (r.imageDataUrl) {
     allImageDataUrls.push(r.imageDataUrl);
   }
+
+  const allDisplayImageUrls: string[] = Array.isArray(r.displayImageUrls)
+    ? r.displayImageUrls.filter((v): v is string => typeof v === "string" && v.length > 0)
+    : [];
 
   return {
     title,
@@ -227,6 +242,7 @@ function cleanRow(r: IncomingRow): CleanRow | null {
     status: "Pending",
     image_url: allImageDataUrls[0] || null,
     _rawImageDataUrls: allImageDataUrls,
+    _rawDisplayImageUrls: allDisplayImageUrls,
     // Authentication documents for high-value categories
     auth_doc_1_url: (typeof r.auth_doc_1_url === "string" && r.auth_doc_1_url) ? r.auth_doc_1_url : null,
     auth_doc_1_type: (typeof r.auth_doc_1_type === "string" && r.auth_doc_1_type) ? r.auth_doc_1_type : null,
@@ -313,13 +329,30 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
         continue;
       }
 
-      // Process all images (supports multiple per listing)
+      // Process all images (supports multiple per listing).  Inputs may be
+      // either inline data URLs (legacy path — uploaded via the JSON body)
+      // or already-uploaded HTTPS URLs (new path — /api/seller/upload-with-
+      // processing ran client-side).  HTTPS URLs are passed through
+      // unchanged; data URLs are still decoded, resized and stored here.
       const rawImages = cleaned._rawImageDataUrls || [];
+      const rawDisplayImages = cleaned._rawDisplayImageUrls || [];
       const processedOriginals: string[] = [];
       let primaryDisplayUrl: string | null = null;
 
-      for (const imgDataUrl of rawImages) {
+      for (let imgIdx = 0; imgIdx < rawImages.length; imgIdx++) {
+        const imgDataUrl = rawImages[imgIdx];
         if (!imgDataUrl) continue;
+
+        if (!imgDataUrl.startsWith("data:")) {
+          // Already uploaded to Cloud Storage — pass the URL through.
+          processedOriginals.push(imgDataUrl);
+          const matchingDisplay = rawDisplayImages[imgIdx];
+          if (!primaryDisplayUrl) {
+            primaryDisplayUrl = matchingDisplay || imgDataUrl;
+          }
+          continue;
+        }
+
         const stored = await processAndStoreImage(imgDataUrl);
         if (stored) {
           processedOriginals.push(stored.originalUrl);
@@ -386,7 +419,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
         }
       }
 
-      // Upload authentication documents to Cloud Storage (same pattern as proof_doc)
+      // Upload authentication documents to Cloud Storage (same pattern as proof_doc).
+      // Already-uploaded HTTPS URLs are left untouched.
       for (const slot of [1, 2, 3] as const) {
         const urlKey = `auth_doc_${slot}_url` as keyof typeof cleaned;
         const docUrl = cleaned[urlKey] as string | null | undefined;
@@ -414,8 +448,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
         }
       }
 
-      // Remove internal field before storing
+      // Remove internal fields before storing
       delete (cleaned as any)._rawImageDataUrls;
+      delete (cleaned as any)._rawDisplayImageUrls;
 
       const brandKey = cleaned.brand.toLowerCase();
       const isApprovedDesigner = enforceDesigners && approvedDesigners.has(brandKey);

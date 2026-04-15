@@ -51,6 +51,20 @@ type Item = {
   images?: File[];
   imageDataUrl?: string;
   imageDataUrls?: string[];
+  // URLs returned by /api/seller/upload-with-processing after each image is
+  // uploaded directly to Cloud Storage.  Sending these in the bulk-commit
+  // payload keeps the JSON body small (under Vercel's ~4.5 MB ingress limit)
+  // and lets sellers upload full-size phone photos without the server
+  // rejecting them for being too large.
+  uploadedImageUrls?: string[];
+  uploadedDisplayImageUrls?: string[];
+  uploadedProofDocUrl?: string;
+  uploadedAuthDoc1Url?: string;
+  uploadedAuthDoc2Url?: string;
+  uploadedAuthDoc3Url?: string;
+  uploadingImages?: boolean;
+  uploadProgress?: string;
+  uploadError?: string;
 };
 
 type SellerShipFromAddress = {
@@ -357,10 +371,18 @@ export default function BulkSimple() {
   );
 
   /**
-   * Compress an image file in the browser using canvas so the base64 data URL
-   * stays small enough for Firestore's 1 MB document limit.
+   * Compress an image file in the browser using canvas and return both a JPEG
+   * Blob (for multipart upload) and a data URL (for inline preview / fallback).
+   *
+   * maxDim defaults to 1600 and quality to 0.85 — large enough to preserve
+   * detail from modern phone cameras while keeping each upload comfortably
+   * under a few hundred KB so the server never rejects it for size.
    */
-  const compressImageFile = (file: File, maxDim = 800, quality = 0.7): Promise<string> =>
+  const compressImageFile = (
+    file: File,
+    maxDim = 1600,
+    quality = 0.85,
+  ): Promise<{ blob: Blob; dataUrl: string }> =>
     new Promise((resolve, reject) => {
       const img = new Image();
       const objectUrl = URL.createObjectURL(file);
@@ -379,10 +401,61 @@ export default function BulkSimple() {
         ctx.fillStyle = "#ffffff";
         ctx.fillRect(0, 0, w, h);
         ctx.drawImage(img, 0, 0, w, h);
-        resolve(canvas.toDataURL("image/jpeg", quality));
+        const dataUrl = canvas.toDataURL("image/jpeg", quality);
+        canvas.toBlob(
+          (blob) => {
+            if (!blob) {
+              reject(new Error("Image encode failed"));
+              return;
+            }
+            resolve({ blob, dataUrl });
+          },
+          "image/jpeg",
+          quality,
+        );
       };
       img.onerror = () => { URL.revokeObjectURL(objectUrl); reject(new Error("Image load failed")); };
       img.src = objectUrl;
+    });
+
+  /**
+   * Upload a blob/file to Cloud Storage via the seller upload endpoint and
+   * return the resulting public URLs.  Returns null on failure so callers can
+   * fall back to inline data URLs.
+   */
+  const uploadFileToStorage = async (
+    blob: Blob,
+    filename: string,
+  ): Promise<{ imageUrl: string; displayImageUrl: string } | null> => {
+    try {
+      const fd = new FormData();
+      fd.append("image", blob, filename);
+      // Plain fetch — upload-with-processing doesn't require auth and using
+      // sellerFetch here would force an auth header we don't need.
+      const res = await fetch("/api/seller/upload-with-processing", {
+        method: "POST",
+        body: fd,
+      });
+      if (!res.ok) return null;
+      const json = await res.json();
+      if (!json?.ok || !json?.imageUrl) return null;
+      return {
+        imageUrl: String(json.imageUrl),
+        displayImageUrl: String(json.displayImageUrl || json.imageUrl),
+      };
+    } catch (err) {
+      console.warn("Image upload failed:", err);
+      return null;
+    }
+  };
+
+  /** Read a non-image file (PDF, DOC) as a base64 data URL. */
+  const readFileAsDataUrl = (file: File): Promise<string> =>
+    new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onloadend = () =>
+        resolve(typeof reader.result === "string" ? reader.result : "");
+      reader.readAsDataURL(file);
     });
 
   const handleFilesChange = async (idx: number, fileList: FileList | null) => {
@@ -391,61 +464,123 @@ export default function BulkSimple() {
       .slice(0, 8);
 
     if (!files.length) {
-      update(idx, { images: [], imageDataUrl: undefined, imageDataUrls: [] });
+      update(idx, {
+        images: [],
+        imageDataUrl: undefined,
+        imageDataUrls: [],
+        uploadedImageUrls: undefined,
+        uploadedDisplayImageUrls: undefined,
+        uploadingImages: false,
+        uploadProgress: undefined,
+        uploadError: undefined,
+      });
       return;
-    }
-
-    // Compress all selected images
-    const dataUrls: string[] = [];
-    for (const file of files) {
-      try {
-        const dataUrl = await compressImageFile(file);
-        dataUrls.push(dataUrl);
-      } catch {
-        // Fallback: read raw file
-        const raw = await new Promise<string>((resolve) => {
-          const reader = new FileReader();
-          reader.onloadend = () => resolve(typeof reader.result === "string" ? reader.result : "");
-          reader.readAsDataURL(file);
-        });
-        if (raw) dataUrls.push(raw);
-      }
     }
 
     update(idx, {
       images: files,
+      uploadingImages: true,
+      uploadProgress: `Uploading 0/${files.length}…`,
+      uploadError: undefined,
+    });
+
+    const dataUrls: string[] = [];
+    const uploadedUrls: string[] = [];
+    const uploadedDisplayUrls: string[] = [];
+    let uploadFailures = 0;
+
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      update(idx, { uploadProgress: `Uploading ${i + 1}/${files.length}…` });
+
+      let blob: Blob | null = null;
+      let dataUrl = "";
+      try {
+        const compressed = await compressImageFile(file);
+        blob = compressed.blob;
+        dataUrl = compressed.dataUrl;
+      } catch {
+        // Fallback: use raw file as blob and read as data URL
+        blob = file;
+        dataUrl = await readFileAsDataUrl(file);
+      }
+
+      if (dataUrl) dataUrls.push(dataUrl);
+
+      if (blob) {
+        const uploaded = await uploadFileToStorage(
+          blob,
+          file.name || `image-${i + 1}.jpg`,
+        );
+        if (uploaded) {
+          uploadedUrls.push(uploaded.imageUrl);
+          uploadedDisplayUrls.push(uploaded.displayImageUrl);
+          continue;
+        }
+        uploadFailures++;
+      }
+    }
+
+    update(idx, {
       imageDataUrl: dataUrls[0] || undefined,
       imageDataUrls: dataUrls,
+      uploadedImageUrls: uploadedUrls.length ? uploadedUrls : undefined,
+      uploadedDisplayImageUrls: uploadedDisplayUrls.length ? uploadedDisplayUrls : undefined,
+      uploadingImages: false,
+      uploadProgress: undefined,
+      uploadError:
+        uploadFailures > 0
+          ? `${uploadFailures} image(s) could not be uploaded to storage; they will be sent inline as a fallback.`
+          : undefined,
     });
   };
 
   const handleProofFile = async (idx: number, fileList: FileList | null) => {
     const file = Array.from(fileList || [])[0];
     if (!file) {
-      update(idx, { proofDoc: undefined, proofDocDataUrl: undefined });
+      update(idx, {
+        proofDoc: undefined,
+        proofDocDataUrl: undefined,
+        uploadedProofDocUrl: undefined,
+      });
       return;
     }
 
-    // For images, compress; for PDFs/docs, read as base64 directly
+    // For images, compress then upload; for PDFs/docs, read as base64 directly
+    // (upload-with-processing only accepts images, so docs stay inline).
     if (file.type.startsWith("image/")) {
+      let blob: Blob | null = null;
+      let dataUrl = "";
       try {
-        const dataUrl = await compressImageFile(file, 1200, 0.8);
-        update(idx, { proofDoc: file, proofDocDataUrl: dataUrl });
+        const compressed = await compressImageFile(file, 1600, 0.85);
+        blob = compressed.blob;
+        dataUrl = compressed.dataUrl;
       } catch {
-        const raw = await new Promise<string>((resolve) => {
-          const reader = new FileReader();
-          reader.onloadend = () => resolve(typeof reader.result === "string" ? reader.result : "");
-          reader.readAsDataURL(file);
-        });
-        update(idx, { proofDoc: file, proofDocDataUrl: raw || undefined });
+        blob = file;
+        dataUrl = await readFileAsDataUrl(file);
       }
-    } else {
-      const raw = await new Promise<string>((resolve) => {
-        const reader = new FileReader();
-        reader.onloadend = () => resolve(typeof reader.result === "string" ? reader.result : "");
-        reader.readAsDataURL(file);
+
+      let uploadedUrl: string | undefined;
+      if (blob) {
+        const uploaded = await uploadFileToStorage(
+          blob,
+          file.name || "proof.jpg",
+        );
+        if (uploaded) uploadedUrl = uploaded.imageUrl;
+      }
+
+      update(idx, {
+        proofDoc: file,
+        proofDocDataUrl: dataUrl || undefined,
+        uploadedProofDocUrl: uploadedUrl,
       });
-      update(idx, { proofDoc: file, proofDocDataUrl: raw || undefined });
+    } else {
+      const raw = await readFileAsDataUrl(file);
+      update(idx, {
+        proofDoc: file,
+        proofDocDataUrl: raw || undefined,
+        uploadedProofDocUrl: undefined,
+      });
     }
   };
 
@@ -458,19 +593,53 @@ export default function BulkSimple() {
   const handleAuthDocFile = async (
     idx: number,
     slot: 1 | 2 | 3,
-    fileList: FileList | null
+    fileList: FileList | null,
   ) => {
     const file = fileList?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      const dataUrl = String(reader.result || "");
-      if (!dataUrl) return;
-      if (slot === 1) update(idx, { authDoc1: file, authDoc1DataUrl: dataUrl });
-      if (slot === 2) update(idx, { authDoc2: file, authDoc2DataUrl: dataUrl });
-      if (slot === 3) update(idx, { authDoc3: file, authDoc3DataUrl: dataUrl });
-    };
-    reader.readAsDataURL(file);
+
+    let dataUrl = "";
+    let uploadedUrl: string | undefined;
+
+    if (file.type.startsWith("image/")) {
+      try {
+        const compressed = await compressImageFile(file, 1600, 0.85);
+        dataUrl = compressed.dataUrl;
+        const uploaded = await uploadFileToStorage(
+          compressed.blob,
+          file.name || `auth-${slot}.jpg`,
+        );
+        if (uploaded) uploadedUrl = uploaded.imageUrl;
+      } catch {
+        dataUrl = await readFileAsDataUrl(file);
+      }
+    } else {
+      dataUrl = await readFileAsDataUrl(file);
+    }
+
+    if (!dataUrl && !uploadedUrl) return;
+
+    if (slot === 1) {
+      update(idx, {
+        authDoc1: file,
+        authDoc1DataUrl: dataUrl || undefined,
+        uploadedAuthDoc1Url: uploadedUrl,
+      });
+    }
+    if (slot === 2) {
+      update(idx, {
+        authDoc2: file,
+        authDoc2DataUrl: dataUrl || undefined,
+        uploadedAuthDoc2Url: uploadedUrl,
+      });
+    }
+    if (slot === 3) {
+      update(idx, {
+        authDoc3: file,
+        authDoc3DataUrl: dataUrl || undefined,
+        uploadedAuthDoc3Url: uploadedUrl,
+      });
+    }
   };
 
   const onCreate = async () => {
@@ -527,6 +696,21 @@ export default function BulkSimple() {
           return null;
         }
 
+        // Prefer the HTTPS URLs returned by the upload endpoint — sending
+        // them keeps the JSON body small so Vercel's ~4.5 MB ingress limit
+        // isn't a factor.  Fall back to inline data URLs if an individual
+        // upload failed so the seller doesn't lose their work.
+        const preferredImageUrls =
+          it.uploadedImageUrls && it.uploadedImageUrls.length > 0
+            ? it.uploadedImageUrls
+            : it.imageDataUrls && it.imageDataUrls.length > 0
+              ? it.imageDataUrls
+              : null;
+        const preferredDisplayUrls =
+          it.uploadedDisplayImageUrls && it.uploadedDisplayImageUrls.length > 0
+            ? it.uploadedDisplayImageUrls
+            : null;
+
         return {
           title: it.title?.trim() || "",
           brand,
@@ -540,19 +724,18 @@ export default function BulkSimple() {
           price: numericPrice,
           purchase_source: it.purchaseSource || "",
           purchase_proof: it.purchaseProof || "",
-          proof_doc_url: it.proofDocDataUrl || null,
+          proof_doc_url: it.uploadedProofDocUrl || it.proofDocDataUrl || null,
           no_proof_attestation: it.noProofAttest || false,
           serial_number: it.serial || "",
           allowOffers: it.allowOffers !== false,
-          imageDataUrl: it.imageDataUrl || null,
-          imageDataUrls: it.imageDataUrls && it.imageDataUrls.length > 0
-            ? it.imageDataUrls
-            : null,
-          auth_doc_1_url: it.authDoc1DataUrl || null,
+          imageDataUrl: preferredImageUrls ? preferredImageUrls[0] : null,
+          imageDataUrls: preferredImageUrls,
+          displayImageUrls: preferredDisplayUrls,
+          auth_doc_1_url: it.uploadedAuthDoc1Url || it.authDoc1DataUrl || null,
           auth_doc_1_type: it.authDoc1Type || null,
-          auth_doc_2_url: it.authDoc2DataUrl || null,
+          auth_doc_2_url: it.uploadedAuthDoc2Url || it.authDoc2DataUrl || null,
           auth_doc_2_type: it.authDoc2Type || null,
-          auth_doc_3_url: it.authDoc3DataUrl || null,
+          auth_doc_3_url: it.uploadedAuthDoc3Url || it.authDoc3DataUrl || null,
           auth_doc_3_type: it.authDoc3Type || null,
         };
       })
@@ -584,11 +767,21 @@ export default function BulkSimple() {
       return;
     }
 
+    // Block submit if any item is still uploading images.
+    if (items.some((it) => it.uploadingImages)) {
+      setSubmitError(
+        "Some images are still uploading. Please wait for uploads to finish before submitting.",
+      );
+      return;
+    }
+
     setSubmitting(true);
     try {
-      // Vercel serverless functions have a ~4.5 MB body limit.
-      // Submit items in small batches to stay under the limit.
-      const BATCH_SIZE = 3;
+      // Images and proof docs are uploaded to Cloud Storage up-front, so the
+      // JSON body we send here is small (URLs + metadata only).  We still
+      // batch to keep any individual request modest and to give the server
+      // headroom for image post-processing.
+      const BATCH_SIZE = 10;
       let totalCreated = 0;
       let totalSkipped = 0;
 
@@ -596,10 +789,12 @@ export default function BulkSimple() {
         const batch = rows.slice(i, i + BATCH_SIZE);
         const body = JSON.stringify({ rows: batch, shipFromAddress: sellerAddress });
 
-        // Warn if a single batch is very large (> 4 MB)
+        // Safety net: if a caller still ended up with very large inline data
+        // URLs (e.g. every upload-with-processing call failed), refuse the
+        // batch with a clear message rather than let Vercel 413 us silently.
         if (body.length > 4 * 1024 * 1024) {
           throw new Error(
-            `Item ${i + 1} has images that are too large. Please use smaller or fewer photos and try again.`
+            `Item ${i + 1} has images that couldn't be uploaded to storage. Please retry — the server won't accept a batch this large inline.`,
           );
         }
 
@@ -1307,6 +1502,17 @@ export default function BulkSimple() {
                       ))}
                     </div>
                   )}
+
+                  {it.uploadingImages && (
+                    <div className="upload-status">
+                      {it.uploadProgress || "Uploading images…"}
+                    </div>
+                  )}
+                  {!it.uploadingImages && it.uploadError && (
+                    <div className="upload-status upload-status-warn">
+                      {it.uploadError}
+                    </div>
+                  )}
                 </div>
 
                 <input
@@ -1848,7 +2054,16 @@ export default function BulkSimple() {
           object-fit: cover;
           display: block;
         }
-        
+        .upload-status {
+          margin-top: 8px;
+          font-size: 12px;
+          color: #4b5563;
+          text-align: center;
+        }
+        .upload-status-warn {
+          color: #b45309;
+        }
+
         .actions {
           display: flex;
           gap: 12px;
