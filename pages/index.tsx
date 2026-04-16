@@ -621,6 +621,7 @@ const HomePage: NextPage<HomeProps> = ({
           height: 100%;
           object-fit: cover;
           display: block;
+          mix-blend-mode: multiply;
         }
         .categoryLabel {
           display: block;
