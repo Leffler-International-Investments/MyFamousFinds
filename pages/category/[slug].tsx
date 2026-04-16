@@ -394,9 +394,19 @@ export default function CategoryPage({ slug, label, items }: CategoryProps) {
           </div>
 
           <div className="ff-category-actions">
-            <Link href="/#shop-by-category" className="admin-button">
-              Back to Categories
-            </Link>
+            <button
+              type="button"
+              className="back-to-categories"
+              onClick={() => {
+                if (typeof window !== "undefined" && window.history.length > 1) {
+                  router.back();
+                } else {
+                  router.push("/#shop-by-category");
+                }
+              }}
+            >
+              ← Back to Categories
+            </button>
           </div>
         </div>
 
@@ -447,6 +457,28 @@ export default function CategoryPage({ slug, label, items }: CategoryProps) {
             margin-top: 6px;
             color: #6b7280;
             font-size: 13px;
+          }
+          .back-to-categories {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 12px 22px;
+            font-size: 16px;
+            font-weight: 700;
+            font-family: inherit;
+            letter-spacing: 0.02em;
+            color: #ffffff;
+            background: #111827;
+            border: 1px solid #111827;
+            border-radius: 999px;
+            text-decoration: none;
+            white-space: nowrap;
+            cursor: pointer;
+            transition: background-color 0.12s ease, transform 0.12s ease;
+          }
+          .back-to-categories:hover {
+            background: #0f172a;
+            transform: translateY(-1px);
           }
           .ff-category-layout {
             display: grid;
