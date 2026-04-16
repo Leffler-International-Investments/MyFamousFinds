@@ -40,13 +40,17 @@ type HomeProps = {
 
 const CATEGORY_OPTIONS = ["Women", "Men", "Kids", "Bags", "Shoes", "Accessories", "Jewelry", "Watches"];
 
-const SHOP_CATEGORIES: { slug: string; label: string; image: string }[] = [
-  { slug: "bags", label: "Bags", image: "/categories/bags.png" },
-  { slug: "women", label: "Women", image: "/categories/women.png" },
-  { slug: "men", label: "Men", image: "/categories/men.png" },
-  { slug: "kids", label: "Kids", image: "/categories/kids.png" },
-  { slug: "shoes", label: "Shoes", image: "/categories/shoes.png" },
-  { slug: "jewelry", label: "Jewelry", image: "/categories/jewlery.png" },
+const SHOP_CATEGORIES: { label: string; image: string; href: string }[] = [
+  { label: "New",       image: "/categories/new.png",       href: "/category/new-arrivals" },
+  { label: "Famous",    image: "/categories/famous.png",    href: "/products" },
+  { label: "Designers", image: "/categories/designers.png", href: "/designers" },
+  { label: "Consign",   image: "/categories/consign.png",   href: "/consign" },
+  { label: "Bags",      image: "/categories/bags.png",      href: "/category/bags" },
+  { label: "Women",     image: "/categories/women.png",     href: "/category/women" },
+  { label: "Men",       image: "/categories/men.png",       href: "/category/men" },
+  { label: "Kids",      image: "/categories/kids.png",      href: "/category/kids" },
+  { label: "Shoes",     image: "/categories/shoes.png",     href: "/category/shoes" },
+  { label: "Jewelry",   image: "/categories/jewlery.png",   href: "/category/jewelry" },
 ];
 
 const CONDITION_OPTIONS = ["New with tags", "New (never used)", "Excellent", "Very good", "Good", "Fair"];
@@ -400,7 +404,7 @@ const HomePage: NextPage<HomeProps> = ({
           <h2 id="shop-by-category" className="categoryHeading">Shop by Category</h2>
           <div className="categoryGrid">
             {SHOP_CATEGORIES.map((c) => (
-              <Link key={c.slug} href={`/category/${c.slug}`} className="categoryCard">
+              <Link key={c.label} href={c.href} className="categoryCard">
                 <div className="categoryImgWrap">
                   <img src={c.image} alt={c.label} className="categoryImg" loading="lazy" />
                 </div>
@@ -588,7 +592,7 @@ const HomePage: NextPage<HomeProps> = ({
         }
         .categoryGrid {
           display: grid;
-          grid-template-columns: repeat(6, minmax(0, 1fr));
+          grid-template-columns: repeat(5, minmax(0, 1fr));
           gap: 14px;
         }
         .categoryCard {
@@ -621,7 +625,6 @@ const HomePage: NextPage<HomeProps> = ({
           height: 100%;
           object-fit: cover;
           display: block;
-          mix-blend-mode: multiply;
         }
         .categoryLabel {
           display: block;
@@ -707,7 +710,7 @@ const HomePage: NextPage<HomeProps> = ({
             grid-template-columns: repeat(3, minmax(0, 1fr));
           }
           .categoryGrid {
-            grid-template-columns: repeat(3, minmax(0, 1fr));
+            grid-template-columns: repeat(4, minmax(0, 1fr));
           }
         }
         @media (max-width: 640px) {
@@ -719,7 +722,7 @@ const HomePage: NextPage<HomeProps> = ({
             gap: 10px;
           }
           .categoryGrid {
-            grid-template-columns: repeat(3, minmax(0, 1fr));
+            grid-template-columns: repeat(2, minmax(0, 1fr));
             gap: 10px;
           }
           .categoryLabel {
