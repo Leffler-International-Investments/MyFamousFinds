@@ -394,8 +394,8 @@ export default function CategoryPage({ slug, label, items }: CategoryProps) {
           </div>
 
           <div className="ff-category-actions">
-            <Link href="/catalogue" className="admin-button">
-              Back to Catalogue
+            <Link href="/#shop-by-category" className="admin-button">
+              Back to Categories
             </Link>
           </div>
         </div>
