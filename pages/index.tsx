@@ -40,17 +40,19 @@ type HomeProps = {
 
 const CATEGORY_OPTIONS = ["Women", "Men", "Kids", "Bags", "Shoes", "Accessories", "Jewelry", "Watches"];
 
+const CATEGORY_ASSET_V = "v2";
+
 const SHOP_CATEGORIES: { label: string; image: string; href: string }[] = [
-  { label: "New",       image: "/categories/new.png",       href: "/category/new-arrivals" },
-  { label: "Famous",    image: "/categories/famous.png",    href: "/products" },
-  { label: "Designers", image: "/categories/designers.png", href: "/designers" },
-  { label: "Consign",   image: "/categories/consign.png",   href: "/consign" },
-  { label: "Bags",      image: "/categories/bags.png",      href: "/category/bags" },
-  { label: "Women",     image: "/categories/women.png",     href: "/category/women" },
-  { label: "Men",       image: "/categories/men.png",       href: "/category/men" },
-  { label: "Kids",      image: "/categories/kids.png",      href: "/category/kids" },
-  { label: "Shoes",     image: "/categories/shoes.png",     href: "/category/shoes" },
-  { label: "Jewelry",   image: "/categories/jewlery.png",   href: "/category/jewelry" },
+  { label: "New",       image: `/categories/new.png?${CATEGORY_ASSET_V}`,       href: "/category/new-arrivals" },
+  { label: "Famous",    image: `/categories/famous.png?${CATEGORY_ASSET_V}`,    href: "/products" },
+  { label: "Designers", image: `/categories/designers.png?${CATEGORY_ASSET_V}`, href: "/designers" },
+  { label: "Consign",   image: `/categories/consign.png?${CATEGORY_ASSET_V}`,   href: "/consign" },
+  { label: "Bags",      image: `/categories/bags.png?${CATEGORY_ASSET_V}`,      href: "/category/bags" },
+  { label: "Women",     image: `/categories/women.png?${CATEGORY_ASSET_V}`,     href: "/category/women" },
+  { label: "Men",       image: `/categories/men.png?${CATEGORY_ASSET_V}`,       href: "/category/men" },
+  { label: "Kids",      image: `/categories/kids.png?${CATEGORY_ASSET_V}`,      href: "/category/kids" },
+  { label: "Shoes",     image: `/categories/shoes.png?${CATEGORY_ASSET_V}`,     href: "/category/shoes" },
+  { label: "Jewelry",   image: `/categories/jewlery.png?${CATEGORY_ASSET_V}`,   href: "/category/jewelry" },
 ];
 
 const CONDITION_OPTIONS = ["New with tags", "New (never used)", "Excellent", "Very good", "Good", "Fair"];
