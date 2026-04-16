@@ -55,6 +55,7 @@ export default function Header({ filterContent, showFilter, onToggleFilter }: He
     { label: "BAGS", href: "/category/bags" },
     { label: "MEN", href: "/category/men" },
     { label: "KIDS", href: "/category/kids" },
+    { label: "SHOES", href: "/category/shoes" },
     { label: "JEWELRY", href: "/category/jewelry" },
     { label: "WATCHES", href: "/category/watches" },
   ];
@@ -68,6 +69,7 @@ export default function Header({ filterContent, showFilter, onToggleFilter }: He
     "/category/bags",
     "/category/men",
     "/category/kids",
+    "/category/shoes",
     "/category/jewelry",
     "/category/watches",
   ]);

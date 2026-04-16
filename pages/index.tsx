@@ -44,7 +44,7 @@ const CATEGORY_ASSET_V = "v2";
 
 const SHOP_CATEGORIES: { label: string; image: string; href: string }[] = [
   { label: "New",       image: `/categories/new.png?${CATEGORY_ASSET_V}`,       href: "/category/new-arrivals" },
-  { label: "Famous",    image: `/categories/famous.png?${CATEGORY_ASSET_V}`,    href: "/products" },
+  { label: "Famous",    image: `/categories/famous.png?${CATEGORY_ASSET_V}`,    href: "/catalogue" },
   { label: "Designers", image: `/categories/designers.png?${CATEGORY_ASSET_V}`, href: "/designers" },
   { label: "Consign",   image: `/categories/consign.png?${CATEGORY_ASSET_V}`,   href: "/consign" },
   { label: "Bags",      image: `/categories/bags.png?${CATEGORY_ASSET_V}`,      href: "/category/bags" },
