@@ -63,6 +63,7 @@ const labelMap: Record<string, string> = {
   men: "Men",
   kids: "Kids",
   bags: "Bags",
+  shoes: "Shoes",
   jewelry: "Jewelry",
   watches: "Watches",
 };

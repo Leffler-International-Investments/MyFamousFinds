@@ -40,6 +40,15 @@ type HomeProps = {
 
 const CATEGORY_OPTIONS = ["Women", "Men", "Kids", "Bags", "Shoes", "Accessories", "Jewelry", "Watches"];
 
+const SHOP_CATEGORIES: { slug: string; label: string; image: string }[] = [
+  { slug: "bags", label: "Bags", image: "/categories/bags.png" },
+  { slug: "women", label: "Women", image: "/categories/women.png" },
+  { slug: "men", label: "Men", image: "/categories/men.png" },
+  { slug: "kids", label: "Kids", image: "/categories/kids.png" },
+  { slug: "shoes", label: "Shoes", image: "/categories/shoes.png" },
+  { slug: "jewelry", label: "Jewelry", image: "/categories/jewlery.png" },
+];
+
 const CONDITION_OPTIONS = ["New with tags", "New (never used)", "Excellent", "Very good", "Good", "Fair"];
 
 const COLOR_OPTIONS: { label: string; hex: string }[] = [
@@ -386,6 +395,21 @@ const HomePage: NextPage<HomeProps> = ({
           </div>
         </section>
 
+        {/* SHOP BY CATEGORY */}
+        <section className="categorySection" aria-labelledby="shop-by-category">
+          <h2 id="shop-by-category" className="categoryHeading">Shop by Category</h2>
+          <div className="categoryGrid">
+            {SHOP_CATEGORIES.map((c) => (
+              <Link key={c.slug} href={`/category/${c.slug}`} className="categoryCard">
+                <div className="categoryImgWrap">
+                  <img src={c.image} alt={c.label} className="categoryImg" loading="lazy" />
+                </div>
+                <span className="categoryLabel">{c.label}</span>
+              </Link>
+            ))}
+          </div>
+        </section>
+
         {/* PRODUCT GRID */}
         {filteredItems.length === 0 ? (
           <div className="empty-state">
@@ -422,7 +446,8 @@ const HomePage: NextPage<HomeProps> = ({
 
       <style jsx>{`
         .home-wrapper {
-          background: #ede8e0;
+          background: #ffffff;
+          color: #0f172a;
         }
         .wrap {
           max-width: 1200px;
@@ -550,6 +575,66 @@ const HomePage: NextPage<HomeProps> = ({
           line-height: 1.05;
           color: #0f172a;
         }
+        /* Shop by Category */
+        .categorySection {
+          margin: 8px 0 36px;
+        }
+        .categoryHeading {
+          font-size: 20px;
+          font-weight: 800;
+          letter-spacing: -0.01em;
+          color: #0f172a;
+          margin: 0 0 16px;
+        }
+        .categoryGrid {
+          display: grid;
+          grid-template-columns: repeat(6, minmax(0, 1fr));
+          gap: 14px;
+        }
+        .categoryCard {
+          display: flex;
+          flex-direction: column;
+          align-items: stretch;
+          text-decoration: none;
+          color: #0f172a;
+          border: 1px solid #e5e7eb;
+          border-radius: 16px;
+          overflow: hidden;
+          background: #ffffff;
+          transition: border-color 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
+        }
+        .categoryCard:hover {
+          border-color: #0f172a;
+          transform: translateY(-2px);
+          box-shadow: 0 6px 18px rgba(15, 23, 42, 0.08);
+        }
+        .categoryImgWrap {
+          aspect-ratio: 1 / 1;
+          background: #f8fafc;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          overflow: hidden;
+        }
+        .categoryImg {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+          display: block;
+        }
+        .categoryLabel {
+          display: block;
+          padding: 10px 12px;
+          font-size: 13px;
+          font-weight: 700;
+          letter-spacing: 0.04em;
+          text-transform: uppercase;
+          text-align: center;
+          color: #0f172a;
+          background: #ffffff;
+          border-top: 1px solid #f1f5f9;
+        }
+
         .cards {
           display: grid;
           grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -620,6 +705,9 @@ const HomePage: NextPage<HomeProps> = ({
           .cards {
             grid-template-columns: repeat(3, minmax(0, 1fr));
           }
+          .categoryGrid {
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+          }
         }
         @media (max-width: 640px) {
           h1 {
@@ -628,6 +716,14 @@ const HomePage: NextPage<HomeProps> = ({
           .cards {
             grid-template-columns: repeat(2, minmax(0, 1fr));
             gap: 10px;
+          }
+          .categoryGrid {
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 10px;
+          }
+          .categoryLabel {
+            font-size: 11px;
+            padding: 8px 6px;
           }
         }
       `}</style>
