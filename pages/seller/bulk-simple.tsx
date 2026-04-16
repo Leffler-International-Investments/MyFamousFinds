@@ -103,6 +103,7 @@ const CATEGORIES = [
   "Bags",
   "Men",
   "Kids",
+  "Shoes",
   "Jewelry",
   "Watches",
 ];

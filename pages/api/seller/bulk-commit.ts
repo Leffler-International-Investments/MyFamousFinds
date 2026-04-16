@@ -96,7 +96,7 @@ type CleanRow = {
 type ApiOk = { ok: true; created: number; skipped: number };
 type ApiErr = { ok: false; error: string };
 
-const CANON = ["WOMEN", "BAGS", "MEN", "KIDS", "JEWELRY", "WATCHES"] as const;
+const CANON = ["WOMEN", "BAGS", "MEN", "KIDS", "SHOES", "JEWELRY", "WATCHES"] as const;
 type Canon = (typeof CANON)[number];
 
 function canonCategory(v: any): Canon | "" {
@@ -106,6 +106,7 @@ function canonCategory(v: any): Canon | "" {
   if (s === "BAG" || s === "BAGS") return "BAGS";
   if (s === "MAN" || s === "MEN" || s === "MENS") return "MEN";
   if (s === "KID" || s === "KIDS" || s === "CHILDREN" || s === "CHILDRENS") return "KIDS";
+  if (s === "SHOE" || s === "SHOES" || s === "FOOTWEAR") return "SHOES";
   if (s === "JEWELLERY" || s === "JEWELRY") return "JEWELRY";
   if ((CANON as readonly string[]).includes(s)) return s as Canon;
   return "";

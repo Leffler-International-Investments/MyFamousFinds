@@ -309,41 +309,26 @@ function looksLikeApparel(x: PublicListing): boolean {
 function looksLikeShoes(x: PublicListing): boolean {
   const t = `${x.title || ""} ${x.brand || ""}`.toLowerCase();
   const keywords = [
-    "shoe",
-    "shoes",
-    "heel",
-    "heels",
-    "pump",
-    "pumps",
-    "sneaker",
-    "sneakers",
-    "trainer",
-    "trainers",
-    "boot",
-    "boots",
-    "sandal",
-    "sandals",
-    "mule",
-    "mules",
-    "loafer",
-    "loafers",
-    "slipper",
-    "slippers",
-    "oxford",
-    "oxfords",
+    "shoe", "shoes",
+    "heel", "heels", "high heel", "high heels",
+    "pump", "pumps",
+    "sneaker", "sneakers", "snicker", "snickers",
+    "trainer", "trainers",
+    "boot", "boots", "bootie", "booties",
+    "sandal", "sandals",
+    "slide", "slides",
+    "mule", "mules",
+    "loafer", "loafers",
+    "slipper", "slippers",
+    "oxford", "oxfords",
     "derby",
-    "brogue",
-    "brogues",
-    "flats",
-    "flat",
-    "stiletto",
-    "stilettos",
-    "espadrille",
-    "espadrilles",
-    "moccasin",
-    "moccasins",
-    "clog",
-    "clogs",
+    "brogue", "brogues",
+    "stiletto", "stilettos",
+    "espadrille", "espadrilles",
+    "moccasin", "moccasins",
+    "clog", "clogs",
+    "wedge", "wedges",
+    "flip flop", "flip-flop", "flip flops",
     "footwear",
   ];
   return keywords.some((k) => t.includes(k));
@@ -432,7 +417,12 @@ export async function getPublicListings(opts?: {
   if (wanted === "SHOES") {
     return items.filter((x) => {
       const n = normCategory(x.category);
-      return n === "SHOES" || (n === "" && looksLikeShoes(x));
+      // Surface shoes regardless of how the item was filed: many existing
+      // shoe listings live under "Women" or "Men" with titles like
+      // "Chanel slides" or "Hermes boots". Title-match wins, but exclude
+      // obvious apparel / bag titles to keep the category clean.
+      const isShoe = n === "SHOES" || looksLikeShoes(x);
+      return isShoe && !looksLikeApparel(x) && !looksLikeBag(x);
     });
   }
 
