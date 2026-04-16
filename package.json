@@ -16,7 +16,8 @@
     "cap:open:android": "npx cap open android",
     "mobile:build": "npm run build:static && npx cap sync",
     "mobile:ios": "npm run mobile:build && npx cap open ios",
-    "mobile:android": "npm run mobile:build && npx cap open android"
+    "mobile:android": "npm run mobile:build && npx cap open android",
+    "process:categories": "tsx scripts/process-category-images.ts"
   },
   "dependencies": {
     "@aws-sdk/client-ses": "^3.990.0",
@@ -52,6 +53,7 @@
     "autoprefixer": "^10.4.24",
     "eslint": "^9",
     "eslint-config-next": "^16.1.6",
+    "tsx": "^4.21.0",
     "typescript": "5.9.3"
   },
   "engines": {
