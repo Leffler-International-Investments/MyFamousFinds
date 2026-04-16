@@ -16,7 +16,9 @@ type Item = {
   imageUrl?: string;
   brand?: string;
 };
-type ListingsResponse = { ok: true; items: Item[] } | { ok: false; error: string };
+type ListingsResponse =
+  | { ok: true; items: Item[]; sellerId: string }
+  | { ok: false; error: string };
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse<ListingsResponse>) {
   if (req.method !== "GET") return res.status(405).json({ ok: false, error: "method_not_allowed" });
@@ -95,7 +97,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
       };
     });
 
-    return res.status(200).json({ ok: true, items });
+    return res.status(200).json({ ok: true, items, sellerId: String(sellerId) });
   } catch (err: any) {
     console.error("seller_listings_api_error", err);
     return res.status(500).json({ ok: false, error: err?.message || "server_error" });

@@ -37,6 +37,7 @@ export default function SellerOutreach() {
   const [listings, setListings] = useState<Listing[]>([]);
   const [loadingListings, setLoadingListings] = useState(true);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [sellerId, setSellerId] = useState<string>("");
 
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [newName, setNewName] = useState("");
@@ -96,6 +97,9 @@ export default function SellerOutreach() {
               status: i.status || "",
             }));
           setListings(live);
+          if (typeof data.sellerId === "string" && data.sellerId) {
+            setSellerId(data.sellerId);
+          }
         }
       })
       .catch(() => {})
@@ -183,6 +187,25 @@ export default function SellerOutreach() {
   };
 
   /* ─── Copy helpers ─── */
+  const closetUrl = sellerId ? `${SITE_URL}/store/${encodeURIComponent(sellerId)}` : "";
+
+  const copyClosetLink = () => {
+    if (!closetUrl) return;
+    navigator.clipboard.writeText(closetUrl).then(() => {
+      setCopiedId("closet");
+      setTimeout(() => setCopiedId(null), 2200);
+    });
+  };
+
+  const copyClosetWhatsApp = () => {
+    if (!closetUrl) return;
+    const text = `Hi! Check out my closet on MyFamousFinds.com — authenticated pre-loved luxury pieces I'm selling: ${closetUrl}`;
+    navigator.clipboard.writeText(text).then(() => {
+      setCopiedId("closet-wa");
+      setTimeout(() => setCopiedId(null), 2200);
+    });
+  };
+
   const copyLink = (id: string) => {
     const url = `${SITE_URL}/product/${id}`;
     navigator.clipboard.writeText(url).then(() => {
@@ -231,7 +254,7 @@ export default function SellerOutreach() {
             <h1>Share Your Listings</h1>
             <p className="outreach-subtitle">
               Invite your circle of influence to browse and buy your items on MyFamousFinds.com.
-              Send a branded email, or copy links for WhatsApp / SMS.
+              Share your full closet link, send a branded email, or copy links for WhatsApp / SMS.
             </p>
           </div>
 
@@ -451,8 +474,43 @@ export default function SellerOutreach() {
 
           {/* ─── LINKS TAB ─── */}
           {tab === "links" && (
+            <>
+              <section className="card">
+                <h2 className="card-title">Share your closet</h2>
+                <p className="hint-text">
+                  Copy a single link to your public closet page — perfect for social bios, stories, or sharing with followers.
+                  All of your live listings will be visible on one page.
+                </p>
+
+                {closetUrl ? (
+                  <>
+                    <div className="closet-url-box">
+                      <span className="closet-url-text">{closetUrl}</span>
+                    </div>
+                    <div className="closet-actions">
+                      <button
+                        className="btn-copy-closet"
+                        onClick={copyClosetLink}
+                      >
+                        {copiedId === "closet" ? "✓ Copied!" : "Copy Closet Link"}
+                      </button>
+                      <button
+                        className="btn-copy-wa"
+                        onClick={copyClosetWhatsApp}
+                      >
+                        {copiedId === "closet-wa" ? "✓ Copied!" : "Copy WhatsApp / SMS text"}
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <p className="hint-text" style={{ marginTop: 12 }}>
+                    Your closet link will appear here once your listings load.
+                  </p>
+                )}
+              </section>
+
             <section className="card">
-              <h2 className="card-title">Share links</h2>
+              <h2 className="card-title">Share individual items</h2>
               <p className="hint-text">
                 Copy individual item links or the full message text to paste into WhatsApp, SMS, or any chat.
               </p>
@@ -513,6 +571,7 @@ export default function SellerOutreach() {
                 </div>
               )}
             </section>
+            </>
           )}
         </main>
         <Footer />
@@ -826,6 +885,40 @@ export default function SellerOutreach() {
         }
         .send-result--ok { background: #f0fdf4; border: 1px solid #bbf7d0; color: #166534; }
         .send-result--err { background: #fef2f2; border: 1px solid #fecaca; color: #991b1b; }
+
+        /* Closet share */
+        .closet-url-box {
+          margin-top: 12px;
+          padding: 12px 14px;
+          background: #f9fafb;
+          border: 1px solid #e5e7eb;
+          border-radius: 10px;
+          overflow-x: auto;
+        }
+        .closet-url-text {
+          font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+          font-size: 13px;
+          color: #111827;
+          white-space: nowrap;
+        }
+        .closet-actions {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 10px;
+          margin-top: 14px;
+        }
+        .btn-copy-closet {
+          padding: 10px 24px;
+          background: #111827;
+          color: #ffffff;
+          border: none;
+          border-radius: 999px;
+          font-size: 14px;
+          font-weight: 700;
+          cursor: pointer;
+          letter-spacing: 0.02em;
+        }
+        .btn-copy-closet:hover { opacity: 0.88; }
 
         /* Links tab */
         .btn-copy-all {
