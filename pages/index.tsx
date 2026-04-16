@@ -600,7 +600,7 @@ const HomePage: NextPage<HomeProps> = ({
           border: 1px solid #e5e7eb;
           border-radius: 16px;
           overflow: hidden;
-          background: #ffffff;
+          background: #ede8e0;
           transition: border-color 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
         }
         .categoryCard:hover {
@@ -610,7 +610,7 @@ const HomePage: NextPage<HomeProps> = ({
         }
         .categoryImgWrap {
           aspect-ratio: 1 / 1;
-          background: #f8fafc;
+          background: #ede8e0;
           display: flex;
           align-items: center;
           justify-content: center;
@@ -631,8 +631,8 @@ const HomePage: NextPage<HomeProps> = ({
           text-transform: uppercase;
           text-align: center;
           color: #0f172a;
-          background: #ffffff;
-          border-top: 1px solid #f1f5f9;
+          background: #ede8e0;
+          border-top: 1px solid #d8d2c7;
         }
 
         .cards {
