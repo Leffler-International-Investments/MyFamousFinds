@@ -416,27 +416,33 @@ const HomePage: NextPage<HomeProps> = ({
           </div>
         </section>
 
-        {/* PRODUCT GRID */}
-        {filteredItems.length === 0 ? (
-          <div className="empty-state">
-            <h3>No items match these filters.</h3>
-            <p className="empty-hint">Try adjusting the FILTER in the header, or click below to reset.</p>
-            <button className="resetBtn" onClick={resetFilters}>
-              Reset filters
-            </button>
-          </div>
-        ) : (
-          <div className="cards">
-            {filteredItems.map((p: any) => (
-              <ProductCard
-                key={p.id}
-                {...p}
-                isSaved={savedIds.has(p.id)}
-                onToggleWishlist={handleToggleWishlist}
-              />
-            ))}
-          </div>
-        )}
+        {/* FAMOUS CLOSET — top slot (rendered above "New on Famous Finds" when active) */}
+        {/* TODO: Once the Famous Closet CMS is wired up, render the featured closet section here. */}
+
+        {/* NEW ON FAMOUS FINDS */}
+        <section className="newFinds" aria-labelledby="new-on-famous-finds">
+          <h2 id="new-on-famous-finds" className="newFindsHeading">New on Famous Finds</h2>
+          {filteredItems.length === 0 ? (
+            <div className="empty-state">
+              <h3>No items match these filters.</h3>
+              <p className="empty-hint">Try adjusting the FILTER in the header, or click below to reset.</p>
+              <button className="resetBtn" onClick={resetFilters}>
+                Reset filters
+              </button>
+            </div>
+          ) : (
+            <div className="cards">
+              {filteredItems.map((p: any) => (
+                <ProductCard
+                  key={p.id}
+                  {...p}
+                  isSaved={savedIds.has(p.id)}
+                  onToggleWishlist={handleToggleWishlist}
+                />
+              ))}
+            </div>
+          )}
+        </section>
 
       </main>
 
@@ -639,6 +645,18 @@ const HomePage: NextPage<HomeProps> = ({
           color: #0f172a;
           background: #ede8e0;
           border-top: 1px solid #d8d2c7;
+        }
+
+        /* New on Famous Finds */
+        .newFinds {
+          margin: 8px 0 0;
+        }
+        .newFindsHeading {
+          font-size: 20px;
+          font-weight: 800;
+          letter-spacing: -0.01em;
+          color: #0f172a;
+          margin: 0 0 16px;
         }
 
         .cards {
