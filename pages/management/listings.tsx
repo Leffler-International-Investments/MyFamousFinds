@@ -12,6 +12,7 @@ type Listing = {
   id: string;
   title: string;
   seller: string;
+  sellerEmail: string;
   status: "Live" | "Pending" | "Rejected" | "Sold";
   price: number;
   brand: string;
@@ -85,6 +86,13 @@ export default function ManagementListings({ items }: Props) {
       return init;
     }
   );
+  const [editedEmail, setEditedEmail] = useState<Record<string, string>>(
+    () => {
+      const init: Record<string, string> = {};
+      for (const l of items) init[l.id] = l.sellerEmail || "";
+      return init;
+    }
+  );
 
   // Proof modal state with lazy loading
   const [proofModal, setProofModal] = useState<Listing | null>(null);
@@ -108,11 +116,12 @@ export default function ManagementListings({ items }: Props) {
       // 1. Filter by Status
       if (statusFilter !== "All" && l.status !== statusFilter) return false;
 
-      // 2. Filter by Search Query (Title, Seller, ID, Brand, Category, Condition)
+      // 2. Filter by Search Query (Title, Seller, Email, ID, Brand, Category, Condition)
       if (!q) return true;
       return (
         l.title.toLowerCase().includes(q) ||
         l.seller.toLowerCase().includes(q) ||
+        (l.sellerEmail || "").toLowerCase().includes(q) ||
         l.id.toLowerCase().includes(q) ||
         (l.brand || "").toLowerCase().includes(q) ||
         (l.category || "").toLowerCase().includes(q) ||
@@ -344,6 +353,37 @@ export default function ManagementListings({ items }: Props) {
     }
   }
 
+  async function handleUpdateEmail(id: string) {
+    if (updatingKey) return;
+    const nextEmail = (editedEmail[id] || "").trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(nextEmail)) {
+      alert("Please enter a valid email address.");
+      return;
+    }
+
+    try {
+      setUpdatingKey(`${id}:email`);
+      const res = await fetch(`/api/admin/update-seller-email/${id}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: nextEmail }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok || !json?.ok) {
+        throw new Error(json?.error || "Failed to update seller email");
+      }
+      setRows((prev) =>
+        prev.map((l) => (l.id === id ? { ...l, sellerEmail: nextEmail } : l))
+      );
+      setEditedEmail((prev) => ({ ...prev, [id]: nextEmail }));
+    } catch (err: any) {
+      console.error("Update email error", err);
+      alert(err?.message || "Unable to update seller email");
+    } finally {
+      setUpdatingKey(null);
+    }
+  }
+
   async function handleToggleOffers(id: string, allow: boolean) {
     if (updatingKey) return;
 
@@ -484,6 +524,7 @@ export default function ManagementListings({ items }: Props) {
                   <th>Brand</th>
                   <th>Condition</th>
                   <th>Seller</th>
+                  <th>Seller Email</th>
                   <th>Price (US$)</th>
                   <th>Status</th>
 
@@ -550,6 +591,46 @@ export default function ManagementListings({ items }: Props) {
                         </div>
                       </td>
                       <td data-label="Seller">{l.seller}</td>
+
+                      <td data-label="Seller Email">
+                        <div className="edit-cell">
+                          <input
+                            type="email"
+                            className={`edit-input edit-input--email ${
+                              (editedEmail[l.id] || "").trim().toLowerCase() !==
+                              (l.sellerEmail || "").trim().toLowerCase()
+                                ? "edit-input-dirty"
+                                : ""
+                            }`}
+                            value={editedEmail[l.id] ?? ""}
+                            placeholder="seller@example.com"
+                            onChange={(e) =>
+                              setEditedEmail((prev) => ({
+                                ...prev,
+                                [l.id]: e.target.value,
+                              }))
+                            }
+                          />
+                          <button
+                            type="button"
+                            className="btn-table-update"
+                            onClick={() => handleUpdateEmail(l.id)}
+                            disabled={
+                              (editedEmail[l.id] || "").trim().toLowerCase() ===
+                                (l.sellerEmail || "").trim().toLowerCase() ||
+                              updatingKey === `${l.id}:email`
+                            }
+                            title={
+                              (editedEmail[l.id] || "").trim().toLowerCase() ===
+                              (l.sellerEmail || "").trim().toLowerCase()
+                                ? "No changes to save"
+                                : "Save seller email"
+                            }
+                          >
+                            {updatingKey === `${l.id}:email` ? "Updating…" : "Update"}
+                          </button>
+                        </div>
+                      </td>
 
                       <td data-label="Price (US$)">
                         <div className="edit-cell">
@@ -769,7 +850,7 @@ export default function ManagementListings({ items }: Props) {
 
                 {visible.length === 0 && (
                   <tr>
-                    <td colSpan={11} className="table-message">
+                    <td colSpan={12} className="table-message">
                       No listings match this filter.
                     </td>
                   </tr>
@@ -1046,6 +1127,9 @@ export default function ManagementListings({ items }: Props) {
           font-size: 12px;
           background: white;
           width: 120px;
+        }
+        .edit-input--email {
+          width: 220px;
         }
         .edit-input-dirty {
           border: 2px solid #047857;
@@ -1349,10 +1433,18 @@ export const getServerSideProps: GetServerSideProps<Props> = async () => {
       const ts = d.createdAt?.toDate?.() || (typeof d.createdAt === "number" ? new Date(d.createdAt) : null);
       const createdAt = ts ? ts.toLocaleDateString("en-US") : "";
 
+      const rawEmailCandidate = String(
+        d.sellerEmail || d.sellerId || ""
+      ).trim().toLowerCase();
+      const sellerEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(rawEmailCandidate)
+        ? rawEmailCandidate
+        : "";
+
       items.push({
         id: doc.id,
         title: d.title || "Untitled listing",
         seller: d.sellerName || d.sellerId || "Seller",
+        sellerEmail,
         price: Number(d.priceUsd || d.price || 0),
         status,
         brand: String(brand),

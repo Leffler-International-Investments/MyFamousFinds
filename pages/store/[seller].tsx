@@ -106,9 +106,9 @@ export default function StorePage({
           align-items: flex-start;
           margin-bottom: 28px;
           padding: 20px;
-          border: 1px solid #1f2937;
+          border: 1px solid #d8d2c7;
           border-radius: 16px;
-          background: #0f172a;
+          background: #ede8e0;
         }
         .storeHeaderInfo {
           flex: 1;
@@ -117,7 +117,7 @@ export default function StorePage({
           width: 56px;
           height: 56px;
           border-radius: 999px;
-          background: #1e40af;
+          background: #0f172a;
           display: flex;
           align-items: center;
           justify-content: center;
@@ -134,6 +134,7 @@ export default function StorePage({
         h1 {
           font-size: 22px;
           margin: 0;
+          color: #0f172a;
         }
         .verifiedBadge {
           background: #dbeafe;
@@ -149,7 +150,7 @@ export default function StorePage({
           align-items: center;
           gap: 8px;
           font-size: 13px;
-          color: #9ca3af;
+          color: #4b5563;
           margin-top: 6px;
           flex-wrap: wrap;
         }
@@ -161,7 +162,7 @@ export default function StorePage({
         }
         .bio {
           font-size: 13px;
-          color: #d1d5db;
+          color: #374151;
           margin-top: 8px;
           line-height: 1.5;
         }
