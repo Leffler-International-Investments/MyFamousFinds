@@ -245,22 +245,50 @@ const ReviewWidgets: React.FC<ReviewWidgetProps> = () => {
   };
 
   const renderPillText = () => {
+    const count = stats?.count ?? 0;
+    const avg = stats?.average ?? 0;
+    const countBadge = (
+      <span
+        aria-label={`${count} review${count === 1 ? "" : "s"}`}
+        style={{
+          display: "inline-flex",
+          alignItems: "center",
+          justifyContent: "center",
+          minWidth: 22,
+          height: 22,
+          padding: "0 7px",
+          borderRadius: 999,
+          background: "#111827",
+          color: "#fff",
+          fontSize: 12,
+          fontWeight: 700,
+          lineHeight: 1,
+        }}
+      >
+        {count}
+      </span>
+    );
+
     if (statsLoading) {
       return (
         <>
           <span style={{ color: "#eab308" }}>★★★★★</span>
-          <span>Loading reviews...</span>
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+            {countBadge}
+            <span>Loading…</span>
+          </span>
         </>
       );
     }
-    if (stats && stats.count > 0) {
-      const avg = stats.average ?? 0;
+    if (count > 0) {
       return (
         <>
           <span style={{ color: "#eab308" }}>★★★★★</span>
-          <span>
-            {avg.toFixed(1)}/5 • {stats.count} review
-            {stats.count === 1 ? "" : "s"}
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+            {countBadge}
+            <span>
+              {avg.toFixed(1)}/5 • {count} review{count === 1 ? "" : "s"}
+            </span>
           </span>
         </>
       );
@@ -268,7 +296,10 @@ const ReviewWidgets: React.FC<ReviewWidgetProps> = () => {
     return (
       <>
         <span style={{ color: "#eab308" }}>★★★★★</span>
-        <span>Leave a review</span>
+        <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+          {countBadge}
+          <span>Leave a review</span>
+        </span>
       </>
     );
   };
