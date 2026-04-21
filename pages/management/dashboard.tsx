@@ -468,13 +468,6 @@ export default function ManagementDashboard({ stats }: Props) {
             linkColor="gray"
           />
           <DashboardTile
-            title="User & Role Management"
-            description="Manage admin accounts and their roles."
-            href="/management/users"
-            linkText="Manage Users"
-            linkColor="gray"
-          />
-          <DashboardTile
             title="Developer / Integrations"
             description="API keys and integrations with external tools and services."
             href="/management/developer"
