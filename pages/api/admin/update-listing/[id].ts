@@ -40,8 +40,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
       const p = Number(String(priceUsd).replace(/[^0-9.]/g, ""));
       if (!isNaN(p) && p >= 0) { update.priceUsd = p; update.price = p; }
     }
-    if (displayImageUrl !== undefined && String(displayImageUrl).startsWith("http")) {
-      update.displayImageUrl = String(displayImageUrl).trim();
+    if (displayImageUrl !== undefined) {
+      const s = String(displayImageUrl).trim();
+      if (
+        s.startsWith("http://") ||
+        s.startsWith("https://") ||
+        s.startsWith("data:image/")
+      ) {
+        update.displayImageUrl = s;
+      }
     }
 
     await adminDb.collection("listings").doc(id).update(update);
