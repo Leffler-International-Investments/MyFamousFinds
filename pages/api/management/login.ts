@@ -106,6 +106,13 @@ export default async function handler(
       if (t) allow.add(t);
     });
 
+  // Hardcoded owner allow-list — always permitted (password still required).
+  [
+    "leffleryd@gmail.com",
+    "itai.leff@gmail.com",
+    "arich1114@aol.com",
+  ].forEach((e) => allow.add(e));
+
   if (!allow.size) {
     return res.status(500).json({
       ok: false,

@@ -37,8 +37,11 @@ export function getAdminEmails(): Set<string> {
       if (t) emails.add(t);
     });
 
-  // Super-admin emails loaded from environment variables only.
-  // Set MANAGEMENT_SUPER_EMAILS in Vercel/env to grant management access.
+  // Hardcoded owner allow-list — mirrors /api/management/login.ts so page
+  // guards recognise these admins even when env vars are empty.
+  ["leffleryd@gmail.com", "itai.leff@gmail.com", "arich1114@aol.com"].forEach(
+    (e) => emails.add(e)
+  );
 
   return emails;
 }
