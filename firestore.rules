@@ -128,8 +128,8 @@ service cloud.firestore {
 
     match /reviews/{id} {
       allow read: if true;
-      allow create: if signedIn();
-      allow update, delete: if false;
+      allow create: if signedIn() || isAdmin();
+      allow update, delete: if isAdmin();
     }
 
     match /userPreferences/{userId} {

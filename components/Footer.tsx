@@ -2,12 +2,13 @@
 
 import Link from "next/link";
 import { useRouter } from "next/router";
+import type React from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import ButlerChat from "./ButlerChat";
 
 type FooterSection = {
   title: string;
-  links: { label: string; href?: string; action?: () => void }[];
+  links: { label: React.ReactNode; key?: string; href?: string; action?: () => void }[];
 };
 
 export default function Footer() {
@@ -164,6 +165,21 @@ export default function Footer() {
       title: "About Famous Finds",
       links: [
         { label: "About", href: "/about" },
+        {
+          key: "read-reviews",
+          label: (
+            <>
+              Read Reviews{" "}
+              <span
+                aria-label="5 stars"
+                style={{ color: "#eab308", letterSpacing: 1 }}
+              >
+                ★★★★★
+              </span>
+            </>
+          ),
+          href: "/reviews",
+        },
         { label: "Terms & Conditions", href: "/terms" },
         { label: "Management", href: "/management/login" },
       ],
@@ -206,8 +222,8 @@ export default function Footer() {
                     <h3 className="ff-col-heading">{section.title}</h3>
                   )}
                   <ul className={`ff-col-list${isMobile && !isOpen ? " ff-col-list--hidden" : ""}`}>
-                    {section.links.map((link) => (
-                      <li key={link.label}>
+                    {section.links.map((link, linkIdx) => (
+                      <li key={link.key || (typeof link.label === "string" ? link.label : linkIdx)}>
                         {link.href ? (
                           <Link href={link.href} className="ff-col-link">
                             {link.label}

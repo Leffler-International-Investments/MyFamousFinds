@@ -454,6 +454,13 @@ export default function ManagementDashboard({ stats }: Props) {
             linkColor="gold"
           />
           <DashboardTile
+            title="Reviews Monitor"
+            description="View all customer reviews, add new written reviews with a star rating, and delete reviews. Only 4 and 5 star reviews appear publicly."
+            href="/management/reviews"
+            linkText="Manage Reviews"
+            linkColor="gold"
+          />
+          <DashboardTile
             title="Logs & Audit Trail"
             description="Review a history of important admin and system actions."
             href="/management/logs"
