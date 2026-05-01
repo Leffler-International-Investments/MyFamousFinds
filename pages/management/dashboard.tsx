@@ -33,6 +33,8 @@ type Props = {
   stats: MgmtStats;
 };
 
+const GA4_ID = process.env.NEXT_PUBLIC_GA4_ID || "G-0D7XZTGY27";
+
 const DashboardSection = ({
   title,
   subtitle,
@@ -399,6 +401,38 @@ export default function ManagementDashboard({ stats }: Props) {
               </Link>
             </p>
           </div>
+
+          <div className="dashboard-grid">
+            <DashboardTile
+              title="Google Analytics"
+              description={`GA4 site traffic — real-time visitors, top pages, referrers, acquisition channels, and conversion events. Measurement ID: ${GA4_ID}.`}
+              href="/management/analytics"
+              linkText="View Analytics"
+              linkColor="blue"
+            />
+            <a
+              href={`https://analytics.google.com/analytics/web/#/p${GA4_ID.replace(/^G-/, "")}/reports/intelligenthome`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="dashboard-tile"
+            >
+              <p className="dashboard-tile-title">Open Google Analytics Console</p>
+              <p className="dashboard-tile-description">
+                Jump into the live Google Analytics 4 dashboard in a new tab to inspect audiences, behaviour, and conversion reports.
+              </p>
+              <p className="dashboard-tile-link dashboard-tile-link-gold">
+                Open GA Console ↗
+              </p>
+            </a>
+            <DashboardTile
+              title="Marketplace KPI Reports"
+              description="Full marketplace KPIs: GMV, orders, sellers, top brands & categories, recent purchases, and CSV exports."
+              href="/management/analytics"
+              linkText="View Reports"
+              linkColor="green"
+            />
+          </div>
+
           <div className="analytics-metrics-grid">
             <div className="analytics-metric-card">
               <p className="analytics-metric-label">GMV (Last 30 days)</p>
