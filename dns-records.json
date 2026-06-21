@@ -89,9 +89,9 @@
     {
       "type": "TXT",
       "name": "@",
-      "value": "google-site-verification=my1vWF-xFvg...",
+      "value": "google-site-verification=RQh6GnJJ4BngX_4si1xGlYpnL9_7Z5srwkz1P3YSrhk",
       "ttl": 60,
-      "comment": "Google Search Console verification (value truncated in dashboard — verify full value in Google Search Console)"
+      "comment": "Google Search Console verification for the myfamousfinds.com Domain property. Replaces an old stray token (google-site-verification=my1vWF-xFvgmgNQdV5lqtmPMZ6Sgzxv7JYJFz9EaAec) that did not match this property and caused 'Ownership verification failed'. Update this TXT value in the Vercel DNS dashboard, then re-run verification."
     },
     {
       "type": "TXT",
