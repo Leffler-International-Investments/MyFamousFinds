@@ -342,19 +342,6 @@ export default function ProductPage(props: ProductPageProps) {
                 bestRating: "5",
                 worstRating: "1",
               },
-              review: {
-                "@type": "Review",
-                reviewRating: {
-                  "@type": "Rating",
-                  ratingValue: "5",
-                  bestRating: "5",
-                },
-                author: {
-                  "@type": "Person",
-                  name: "Sophie M.",
-                },
-                reviewBody: "Absolutely delighted with my Famous Finds purchase. The authentication was thorough, packaging was beautiful, and the bag is exactly as described. Will definitely buy again.",
-              },
             }),
           }}
         />
